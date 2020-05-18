@@ -20,8 +20,8 @@ Route::group([
     'middleware' => ['auth'],
 ],
     function () {
-        Route::get('/home', 'HomeController@index')->name('home');
-        Route::get('/', 'HomeController@index');
+        Route::get('/home', 'ThemeController@index')->name('home');
+        Route::get('/', 'ThemeController@index');
         Route::resource('themes', 'ThemeController');
         Route::get('archive', 'ThemeController@archive');
         Route::post('priorities', 'PriorityController@store');
@@ -32,7 +32,7 @@ Route::group([
         Route::post('search', 'SearchController@search');
         Route::get('search', 'SearchController@show');
 
-
+        Route::get('image/{media_id}', 'ImageController@getImage');
         //Route::get('reminder', 'MailController@remind');
         //Route::get('import/', 'ImportController@show');
         //Route::post('import/', 'ImportController@import');

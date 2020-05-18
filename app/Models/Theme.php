@@ -3,9 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Theme extends Model
+class Theme extends Model implements HasMedia
 {
+    use InteractsWithMedia;
+
+
+
     protected $fillable = ['duration', 'theme', 'information','goal', 'type_id', 'completed', 'creator_id', 'type_id','created_at', 'updated_at'];
 
     protected $dates = ['created_at', 'updated_at'];

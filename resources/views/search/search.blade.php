@@ -1,6 +1,4 @@
 @extends('layouts.app')
-
-
 @section('content')
     <div class="container-fluid">
         <div class="card">
@@ -11,26 +9,21 @@
             </div>
             <div class="card-body">
                 <div class="container-fluid">
-                    <form method="post" class="form-inline">
+
                         <div class="form-row">
-                            <input type="text" id="txtSearch" name="txtSearch" class="form-control"  placeholder="Search..." >
+                            <input type="text" id="txtSearch" name="txtSearch" class="form-control"  placeholder="Mindestens 4 Buchstaben eingeben ..." >
                         </div>
 
-                    </form>
                 </div>
-
             </div>
             <div class="card-body">
-                <div id="result"></div>
+                <ul class="list-group" id="result">
+
+                </ul>
+
             </div>
         </div>
-
-
-
-
-
     </div>
-
 @endsection
 
 @push('js')
@@ -38,18 +31,22 @@
     <script type="application/javascript">
         $(document).ready(function(){
             $('#txtSearch').on('keyup', function(){
-                var text = $('#txtSearch').val();
+                var text = $(this).val();
                 if (text.length > 3){
                     $.ajax({
                         type:"POST",
                         url: '{{url('search')}}',
                         data: {
                             'text': $('#txtSearch').val(),
-                            '_token': "@csrf"
+                            '_token': "{{ csrf_token() }}"
                         },
                         success: function(data) {
                             console.log(data);
-                            $('#result').text(data);
+
+                            data.forEach(result =>
+                            {
+                                $("#result").append('<li class="list-group-item"><a href="{{url('themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
+                            });
                         }
                     });
                 }

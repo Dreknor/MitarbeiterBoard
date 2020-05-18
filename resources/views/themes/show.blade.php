@@ -83,6 +83,28 @@
                         {!! $theme->information !!}
                     </div>
                 </div>
+                @if (count($theme->getMedia())>0)
+                    <div class="row p-2">
+                        <div class="col-sm-12 col-md-12 col-lg-3">
+                            <b>
+                                Dateien
+                            </b>
+                        </div>
+                        <div class="col-sm-12 col-md-12 col-lg-9">
+                            <ul class="list-group">
+                                @foreach($theme->getMedia()->sortBy('name') as $media)
+                                    <li class="list-group-item  list-group-item-action ">
+                                        <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                            <i class="fas fa-file-download"></i>
+                                            {{$media->name}}
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="row p-2">
                     <div class="col-sm-12 col-md-12 col-lg-3">
                         <b>
@@ -98,7 +120,7 @@
                             <ul class="list-group">
                                 @foreach($theme->protocols as $protocol)
                                     <li class="list-group-item">
-                                        {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
+                                        <p>{{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}} </p>
                                         {!! $protocol->protocol !!}
                                     </li>
                                 @endforeach

@@ -17,6 +17,7 @@ class ThemeController extends Controller
     public function index()
     {
         $themes=Theme::where('completed', 0)->get();
+        $themes->load('priorities', 'ersteller', 'type');
         $themes = $themes->sortByDesc('priority');
         return view('themes.index',[
            'themes' => $themes
@@ -62,6 +63,17 @@ class ThemeController extends Controller
         $theme->creator_id = auth()->id();
         $theme->type_id = $request->type;
         $theme->save();
+
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file){
+
+                $theme
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+
+        }
 
         return redirect(url('themes'))->with([
            'type'   => 'success',

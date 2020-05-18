@@ -23,7 +23,7 @@
                                 <th>Von</th>
                                 <th>Thema</th>
                                 <th>Typ</th>
-                                <th>Ziel</th>
+                                <th style="max-width: 30%;">Ziel</th>
                                 <th>Dauer</th>
                                 <th>Priorität</th>
                                 <th>Informationen</th>
