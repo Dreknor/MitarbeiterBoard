@@ -23,6 +23,7 @@ Route::group([
         Route::get('/home', 'HomeController@index')->name('home');
         Route::get('/', 'HomeController@index');
         Route::resource('themes', 'ThemeController');
+        Route::get('archive', 'ThemeController@archive');
         Route::post('priorities', 'PriorityController@store');
         Route::get('priorities', 'PriorityController@store');
         Route::get('protocols/{theme}', 'ProtocolController@create');

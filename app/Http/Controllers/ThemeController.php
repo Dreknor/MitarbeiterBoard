@@ -24,6 +24,20 @@ class ThemeController extends Controller
     }
 
     /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function archive()
+    {
+        $themes=Theme::where('completed', 1)->get();
+        $themes = $themes->sortByDesc('created_at');
+        return view('themes.archive',[
+           'themes' => $themes
+        ]);
+    }
+
+    /**
      * Show the form for creating a new resource.
      *
      * @return \Illuminate\Http\Response

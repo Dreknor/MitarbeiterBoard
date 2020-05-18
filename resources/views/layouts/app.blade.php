@@ -41,6 +41,12 @@
                         <p>Themen</p>
                     </a>
                 </li>
+                <li class="@if(request()->segment(1)=="archive" ) active @endif">
+                    <a href="{{url('/archive')}}">
+                        <i class="fas fa-archive"></i>
+                        <p>Archiv</p>
+                    </a>
+                </li>
             @endauth
 
         </ul>
