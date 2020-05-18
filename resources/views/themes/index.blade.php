@@ -58,11 +58,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if ($theme->information != "")
-                                            <a href="{{url("themes/$theme->id")}}">anzeigen</a>
-                                        @else
-                                            nicht vorhanden
-                                        @endif
+                                        <a href="{{url("themes/$theme->id")}}">anzeigen</a>
                                     </td>
                                 </tr>
                             @endforeach

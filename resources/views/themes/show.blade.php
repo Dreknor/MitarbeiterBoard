@@ -24,7 +24,7 @@
                         </b>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-9">
-                        @if ($theme->priorities->where('creator_id', auth()->id())->first())
+                        @if ($theme->completed or $theme->priorities->where('creator_id', auth()->id())->first())
                             <div class="progress">
                                 <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
                             </div>
@@ -113,7 +113,7 @@
                        @endif
                     </div>
                 </div>
-                
+
             </div>
         </div>
     </div>

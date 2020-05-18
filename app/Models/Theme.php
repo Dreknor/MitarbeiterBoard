@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Theme extends Model
 {
-    protected $fillable = ['duration', 'theme', 'information','goal', 'type_id', 'completed'];
+    protected $fillable = ['duration', 'theme', 'information','goal', 'type_id', 'completed', 'creator_id', 'type_id','created_at', 'updated_at'];
+
+    protected $dates = ['created_at', 'updated_at'];
 
     public function ersteller(){
        return $this->belongsTo(User::class, 'creator_id');

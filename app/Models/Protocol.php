@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Protocol extends Model
 {
 
-    protected $fillable = ['theme_id', 'creator_id', 'protocol'];
+    protected $fillable = ['theme_id', 'creator_id', 'protocol','created_at', 'updated_at'];
 
     public function ersteller(){
         return $this->belongsTo(User::class, 'creator_id')->withDefault([

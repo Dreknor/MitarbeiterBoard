@@ -28,4 +28,13 @@ Route::group([
         Route::get('priorities', 'PriorityController@store');
         Route::get('protocols/{theme}', 'ProtocolController@create');
         Route::post('protocols/{theme}', 'ProtocolController@store');
+
+        Route::post('search', 'SearchController@search');
+        Route::get('search', 'SearchController@show');
+
+
+        //Route::get('reminder', 'MailController@remind');
+        //Route::get('import/', 'ImportController@show');
+        //Route::post('import/', 'ImportController@import');
+
     });

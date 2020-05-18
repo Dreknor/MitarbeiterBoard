@@ -8,7 +8,7 @@
 
     <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
 
-    <title>ElternInfoBoard</title>
+    <title>{{env('APP_NAME')}}</title>
 
 
     <!-- CSS Files -->
@@ -45,6 +45,12 @@
                     <a href="{{url('/archive')}}">
                         <i class="fas fa-archive"></i>
                         <p>Archiv</p>
+                    </a>
+                </li>
+                <li class="@if(request()->segment(1)=="search" ) active @endif">
+                    <a href="{{url('/search')}}">
+                        <i class="fas fa-search"></i>
+                        <p>Suche</p>
                     </a>
                 </li>
             @endauth

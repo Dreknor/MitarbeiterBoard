@@ -30,8 +30,9 @@ class ThemeController extends Controller
      */
     public function archive()
     {
-        $themes=Theme::where('completed', 1)->get();
-        $themes = $themes->sortByDesc('created_at');
+        $themes=Theme::where('completed', 1)->paginate(25);
+        $themes->sortByDesc('created_at');
+        $themes->load('ersteller','type');
         return view('themes.archive',[
            'themes' => $themes
         ]);
