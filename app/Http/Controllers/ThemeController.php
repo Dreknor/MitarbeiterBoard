@@ -121,6 +121,16 @@ class ThemeController extends Controller
         $theme->update($request->validated());
         $theme->type_id = $request->type;
 
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file){
+                $theme
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+
+        }
+
         return redirect(url("themes/$theme->id"))->with([
             'type'  => "success",
             'Meldung'=> "Änderungen gespeichert."

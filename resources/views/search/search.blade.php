@@ -6,6 +6,9 @@
                 <h5 class="card-title">
                     Suche
                 </h5>
+                <p class="text-info">
+                    ... in Themen, Zielen und Informationen, nicht aber in Protokollen
+                </p>
             </div>
             <div class="card-body">
                 <div class="container-fluid">
@@ -41,12 +44,22 @@
                             '_token': "{{ csrf_token() }}"
                         },
                         success: function(data) {
-                            console.log(data);
+                            console.log(Object.keys(data).length);
 
-                            data.forEach(result =>
+                            if (Object.keys(data).length == 0)
                             {
-                                $("#result").append('<li class="list-group-item"><a href="{{url('themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
-                            });
+
+                                $("#result").empty().append('<li class="list-group-item">Keine Ergebnisse gefunden</li>')
+                            } else
+                            {
+                                $("#result").empty();
+                                data.forEach(result =>
+                                {
+                                    $("#result").append('<li class="list-group-item"><a href="{{url('themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
+                                });
+                            }
+
+
                         }
                     });
                 }
