@@ -12,9 +12,9 @@ class Theme extends Model implements HasMedia
 
 
 
-    protected $fillable = ['duration', 'theme', 'information','goal', 'type_id', 'completed', 'creator_id', 'type_id','created_at', 'updated_at'];
+    protected $fillable = ['duration', 'theme', 'information','goal', 'type_id', 'completed', 'creator_id', 'type_id','created_at', 'updated_at', 'date'];
 
-    protected $dates = ['created_at', 'updated_at'];
+    protected $dates = ['created_at', 'updated_at', 'date'];
 
     public function ersteller(){
        return $this->belongsTo(User::class, 'creator_id');
@@ -38,4 +38,5 @@ class Theme extends Model implements HasMedia
         }
         return null;
     }
+
 }

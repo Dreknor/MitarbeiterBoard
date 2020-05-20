@@ -53,6 +53,21 @@
                         <p>Suche</p>
                     </a>
                 </li>
+
+                <!-- Verwaltung -->
+            <hr>
+                <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
+                    <a href="{{url('/roles')}}">
+                        <i class="fas fa-lock"></i>
+                        <p>Rechte</p>
+                    </a>
+                </li>
+                <li class="@if(request()->segment(1)=="users") active @endif">
+                    <a href="{{url('/users')}}">
+                        <i class="fas fa-user"></i>
+                        <p>Benutzer</p>
+                    </a>
+                </li>
             @endauth
 
         </ul>
@@ -168,6 +183,7 @@
 <!-- JavaScripts -->
 
     <script src="{{asset('js/core/jquery.min.js')}}"></script>
+    <script src="{{asset('js/core/jquery-ui.min.js')}}"></script>
     <script src="{{asset('js/core/popper.min.js')}}"></script>
     <script src="{{asset('js/core/bootstrap.min.js')}}"></script>
     <script src="{{asset('js/plugins/perfect-scrollbar.jquery.min.js')}}"></script>

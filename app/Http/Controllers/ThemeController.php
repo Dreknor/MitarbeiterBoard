@@ -3,39 +3,54 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
+use App\Models\Protocol;
 use App\Models\Theme;
 use App\Models\Type;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class ThemeController extends Controller
 {
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function index()
     {
         $themes=Theme::where('completed', 0)->get();
-        $themes->load('priorities', 'ersteller', 'type');
-        $themes = $themes->sortByDesc('priority');
+        $themes->load('priorities', 'ersteller', 'type', 'protocols');
+        $themes = $themes->sortBy('date')->groupBy(function($item){
+            return  $item->date->format('d.m.Y');
+        });
+
         return view('themes.index',[
-           'themes' => $themes
+           'themes' => $themes,
         ]);
     }
 
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function archive()
     {
-        $themes=Theme::where('completed', 1)->paginate(25);
-        $themes->sortByDesc('created_at');
-        $themes->load('ersteller','type');
+
+        $themes=Theme::where('completed', 1)->orderByDesc('date')->get();
+        $themes->load('ersteller','type', 'priorities');
+
+        $themes = $themes->groupBy(function($item){
+            return $item->date->format('d.m.Y');
+        });
+
+        $themes = new \Illuminate\Support\Collection($themes);
+
+
         return view('themes.archive',[
-           'themes' => $themes
+           'themes' => $themes->paginate( 5 )
         ]);
     }
 
@@ -118,8 +133,18 @@ class ThemeController extends Controller
      */
     public function update(createThemeRequest $request, Theme $theme)
     {
+        if ($request->input('date') != $theme->date){
+            $newDate = Carbon::parse($request->input('date'));
+            $protocol = new Protocol([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'Verschoben zum '.$newDate->format('d.m.Y')
+            ]);
+            //$protocol->save();
+        }
         $theme->update($request->validated());
         $theme->type_id = $request->type;
+        $theme->save();
 
         if ($request->hasFile('files')) {
             $files = $request->files->all();

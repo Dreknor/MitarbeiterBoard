@@ -37,4 +37,29 @@ Route::group([
         //Route::get('import/', 'ImportController@show');
         //Route::post('import/', 'ImportController@import');
 
+        //Roles and permissions
+       // Route::group(['middleware' => ['permission:edit permission']], function () {
+            Route::get('roles', 'RolesController@edit');
+            Route::put('roles', 'RolesController@update');
+            Route::post('roles', 'RolesController@store');
+            Route::post('roles/permission', 'RolesController@storePermission');
+
+            Route::get('user', 'UserController@index');
+        //});
+
+        //User-Route
+        Route::resource('users', 'UserController');
+
+
+        Route::group(['middlewareGroups' => ['role:Admin']], function () {
+            Route::get('showUser/{id}', 'UserController@loginAsUser');
+        });
+
+        Route::get('logoutAsUser', function (){
+            if (session()->has('ownID')){
+                \Illuminate\Support\Facades\Auth::loginUsingId(session()->pull('ownID'));
+            }
+            return redirect(url('/'));
+        });
+
     });

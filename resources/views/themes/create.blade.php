@@ -17,7 +17,11 @@
                         <label for="theme">Thema</label>
                         <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-4">
+                    <div class="col-sm-12 col-md-12 col-lg-3">
+                        <label for="theme">Datum</label>
+                        <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next('tuesday')->format('Y-m-d'))}}">
+                    </div>
+                    <div class="col-sm-12 col-md-12 col-lg-3">
                         <label for="type">Typ</label>
                         <select name="type" id="type" class="custom-select" required>
                             <option disabled></option>
@@ -26,7 +30,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-4">
+                    <div class="col-sm-12 col-md-12 col-lg-2">
                         <label for="duration">Dauer</label>
                         <input type="number" class="form-control" id="duration" name="duration" required min="5" max="240" step="5" value="{{old('duration')}}">
                     </div>
