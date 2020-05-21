@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Providers;
+use App\Models\User;
+use App\Observers\UserObserver;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 use App\Support\Collection;
@@ -25,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+
+        User::observe(UserObserver::class);
+
         Collection::macro('paginate', function($perPage, $total = null, $page = null, $pageName = 'page') {
             $page = $page ?: LengthAwarePaginator::resolveCurrentPage($pageName);
 

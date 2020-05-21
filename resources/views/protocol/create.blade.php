@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="container-fluid">
-        <a href="{{url('themes')}}" class="btn btn-primary btn-link">zurück</a>
+        <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title">

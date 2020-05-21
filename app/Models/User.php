@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -42,4 +43,20 @@ class User extends Authenticatable
     public function themes(){
         return $this->hasMany(Theme::class, 'creator_id');
     }
+
+    public function groups(){
+        return $this->belongsToMany(Group::class);
+    }
+
+
+    /**
+     * This method can be used when we want to utilise a cache
+     */
+    public function getGroups()
+    {
+        return Cache::remember("groupsByUser({$this->id})", 60, function() {
+            return $this->groups;
+        });
+    }
+
 }

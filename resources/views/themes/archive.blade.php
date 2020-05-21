@@ -7,9 +7,6 @@
                 <h5 class="card-title">Themen</h5>
             </div>
             <div class="card-body">
-                <a href="{{url('themes/create')}}" class="btn btn-block btn-primary">neues Thema</a>
-            </div>
-            <div class="card-body">
                 {{$themes->links()}}
             </div>
         </div>
@@ -68,7 +65,7 @@
                                                 </div>
                                         </td>
                                         <td>
-                                            <a href="{{url("themes/$theme->id")}}">anzeigen</a>
+                                            <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">anzeigen</a>
                                         </td>
                                     </tr>
                                 @endforeach

@@ -32,6 +32,10 @@ class Theme extends Model implements HasMedia
         return $this->hasMany(Protocol::class, 'theme_id');
     }
 
+    public function group(){
+      return $this->belongsTo(Group::class);
+    }
+
     public function getPriorityAttribute(){
         if ($this->priorities->count() > 0){
             return $this->priorities->sum('priority')/$this->priorities->count();

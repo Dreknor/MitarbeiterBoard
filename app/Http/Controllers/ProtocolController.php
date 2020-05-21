@@ -50,13 +50,15 @@ class ProtocolController extends Controller
             ]);
             $protocol->save();
 
-            return redirect(url('themes'))->with([
+
+
+            return redirect(url($theme->group->name.'/themes'))->with([
                 'type'  => 'success',
                 'Meldung'=> 'Protokoll gespeichert und Thema geschlossen'
             ]);
         }
 
-        return redirect(url('themes/'.$theme->id))->with([
+        return redirect(url($theme->group->name.'/themes/'.$theme->id))->with([
             'type'  => 'success',
             'Meldung'=> 'Protokoll gespeichert'
         ]);

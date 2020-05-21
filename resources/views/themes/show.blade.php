@@ -3,9 +3,9 @@
 @section('content')
     <div class="container-fluid">
             <p>
-                <a href="{{url('themes')}}" class="btn btn-primary btn-link">zurück</a>
+                <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
                 @if ($theme->creator_id == auth()->id() and !$theme->completed)
-                    <a href="{{url("themes/$theme->id/edit")}}" class="btn btn-warning btn-link pull-right">bearbeiten</a>
+                    <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-warning btn-link pull-right">bearbeiten</a>
                 @endif
             </p>
 
@@ -145,7 +145,7 @@
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
-            let url = "{{url('themes/'.$theme->id)}}";
+            let url = "{{url(request()->segment(1).'/themes/'.$theme->id)}}";
             $.ajax({
                 type: "POST",
                 url: '{{url('priorities')}}',

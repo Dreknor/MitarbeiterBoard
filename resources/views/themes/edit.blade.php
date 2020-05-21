@@ -9,7 +9,7 @@
             </h5>
         </div>
         <div class="card-body border-top">
-            <form method="post" class="form form-horizontal" action="{{url('themes/'.$theme->id)}}" id="editForm"  enctype="multipart/form-data">
+            <form method="post" class="form form-horizontal" action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" id="editForm"  enctype="multipart/form-data">
                 @csrf
                 @method('put')
                 <div class="form-row">

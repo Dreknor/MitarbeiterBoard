@@ -60,6 +60,28 @@
 
                     </div>
 
+                    @can('edit groups')
+                        <div class="col-md-2 col-sm-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        Gruppen
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    @foreach($groups as $group)
+                                        <div>
+                                            <input type="checkbox" id="{{$group->name}}" name="groups[]" value="{{$group->id}}" @if($user->groups->contains('id', $group->id)) checked @endif>
+                                            <label for="{{$group->name}}">{{$group->name}}</label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="card-footer">
+
+                                </div>
+                            </div>
+                        </div>
+                    @endcan
                     @can('edit permissions')
                         <div class="col-md-2 col-sm-4">
                             <div class="card">

@@ -35,39 +35,71 @@
     <div class="sidebar-wrapper">
         <ul class="nav">
             @auth
-                <li class="@if(request()->segment(1)=="themes" ) active @endif">
-                    <a href="{{url('/themes')}}">
-                        <i class="far fa-comments"></i>
-                        <p>Themen</p>
+                <li class="@if(request()->segment(1)=="home" or  request()->segment(1)=="" ) active @endif">
+                    <a href="{{url('/home')}}">
+                        <i class="fas fa-house"></i>
+                        <p>Home</p>
                     </a>
                 </li>
-                <li class="@if(request()->segment(1)=="archive" ) active @endif">
-                    <a href="{{url('/archive')}}">
-                        <i class="fas fa-archive"></i>
-                        <p>Archiv</p>
-                    </a>
-                </li>
-                <li class="@if(request()->segment(1)=="search" ) active @endif">
-                    <a href="{{url('/search')}}">
-                        <i class="fas fa-search"></i>
-                        <p>Suche</p>
-                    </a>
-                </li>
+                @foreach(auth()->user()->groups AS $group)
+                    <li>
+                        <a data-toggle="collapse" href="#{{$group->name}}">
+                            <p>
+                                {{$group->name}} <b class="caret"></b>
+                            </p>
+                        </a>
+                        <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
+                            <ul class="nav pl-2">
+                                <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                    <a href="{{url($group->name.'/themes')}}">
+                                        <i class="far fa-comments"></i>
+                                        <p>Themen</p>
+                                    </a>
+                                </li>
+                                <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
+                                    <a href="{{url($group->name.'/archive')}}">
+                                        <i class="fas fa-archive"></i>
+                                        <p>Archiv</p>
+                                    </a>
+                                </li>
+                                <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
+                                    <a href="{{url(request()->segment(1).'/search')}}">
+                                        <i class="fas fa-search"></i>
+                                        <p>Suche</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+
+                @endforeach
+
+
 
                 <!-- Verwaltung -->
             <hr>
-                <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
-                    <a href="{{url('/roles')}}">
-                        <i class="fas fa-lock"></i>
-                        <p>Rechte</p>
+                @can('edit groups')
+                <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                    <a href="{{url('/groups')}}">
+                        <i class="fas fa-users"></i>
+                        <p>Gruppen</p>
                     </a>
                 </li>
-                <li class="@if(request()->segment(1)=="users") active @endif">
-                    <a href="{{url('/users')}}">
-                        <i class="fas fa-user"></i>
-                        <p>Benutzer</p>
-                    </a>
-                </li>
+                @endcan
+                @can('edit permissions')
+                    <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
+                        <a href="{{url('/roles')}}">
+                            <i class="fas fa-lock"></i>
+                            <p>Rechte</p>
+                        </a>
+                    </li>
+                    <li class="@if(request()->segment(1)=="users") active @endif">
+                        <a href="{{url('/users')}}">
+                            <i class="fas fa-user"></i>
+                            <p>Benutzer</p>
+                        </a>
+                    </li>
+                @endcan
             @endauth
 
         </ul>

@@ -6,10 +6,13 @@
             <div class="card-header">
                 <h5 class="card-title">Themen</h5>
             </div>
-            <div class="card-body">
-                <a href="{{url('themes/create')}}" class="btn btn-block btn-primary">neues Thema</a>
-            </div>
+            @can('create themes')
+                <div class="card-body">
+                    <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-primary">neues Thema</a>
+                </div>
+            @endcan
         </div>
+
         @if (count($themes) == 0)
             <div class="card">
                 <div class="card-body">
@@ -69,7 +72,7 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <a href="{{url("themes/$theme->id")}}">anzeigen</a>
+                                                    <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">anzeigen</a>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -88,7 +91,7 @@
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
-            let url = "{{url('themes')}}";
+            let url = "{{url(request()->segment(1).'/themes')}}";
             $.ajax({
                     type: "POST",
                     url: '{{url('priorities')}}',

@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container-fluid">
-    <a href="{{url('themes')}}" class="btn btn-primary btn-link">zurück</a>
+    <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
     <div class="card">
         <div class="card-header">
             <h5 class="card-title">
@@ -10,7 +10,7 @@
             </h5>
         </div>
         <div class="card-body border-top">
-            <form method="post" class="form form-horizontal" action="{{url('themes')}}" id="createForm"  enctype="multipart/form-data">
+            <form method="post" class="form form-horizontal" action="{{url(request()->segment(1).'/themes')}}" id="createForm"  enctype="multipart/form-data">
                 @csrf
                 <div class="form-row pt-2">
                     <div class="col-sm-12 col-md-12 col-lg-4">

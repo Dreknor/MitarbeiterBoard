@@ -23,6 +23,12 @@ class HomeController extends Controller
      */
     public function index()
     {
-        return view('home');
+        $colors = ['#6495ed', 'Orange', '#ffca00', '#d9335c', '#99ff80', 'Persian Green', '#bfffff'];
+        $groups = auth()->user()->groups;
+        $groups->load('themes');
+        return view('home',[
+            "groups"    => $groups,
+            'colors'    => $colors
+        ]);
     }
 }

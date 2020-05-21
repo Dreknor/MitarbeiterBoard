@@ -3,24 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
+use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
 use App\Models\Type;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ThemeController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      *
-     * @return View
+     * @return View|RedirectResponse
      */
-    public function index()
+    public function index($groupname)
     {
-        $themes=Theme::where('completed', 0)->get();
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups->contains($group)){
+           return redirect()->back()->with([
+              'type'    => 'warning',
+              'Meldung' => "Kein Zugriff auf diese Gruppe"
+           ]);
+        }
+
+        $themes=$group->themes()->where('completed', 0)->get();
         $themes->load('priorities', 'ersteller', 'type', 'protocols');
         $themes = $themes->sortBy('date')->groupBy(function($item){
             return  $item->date->format('d.m.Y');
@@ -36,10 +48,18 @@ class ThemeController extends Controller
      *
      * @return View
      */
-    public function archive()
+    public function archive($groupname)
     {
+        $group = Group::where('name', $groupname)->first();
 
-        $themes=Theme::where('completed', 1)->orderByDesc('date')->get();
+        if (!auth()->user()->groups->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+        $themes=$group->themes()->where('completed', 1)->orderByDesc('date')->get();
         $themes->load('ersteller','type', 'priorities');
 
         $themes = $themes->groupBy(function($item){
@@ -72,9 +92,27 @@ class ThemeController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(createThemeRequest $request)
+    public function store(createThemeRequest $request, $groupname)
     {
+        if (!auth()->user()->can('create themes')){
+            return redirect(url("/"))->with([
+                'type'    => 'danger',
+                'Meldung' => "Berechtigung fehlt"
+            ]);
+        }
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+
         $theme = new Theme($request->validated());
+        $theme->group_id = $group->id;
         $theme->creator_id = auth()->id();
         $theme->type_id = $request->type;
         $theme->save();
@@ -90,7 +128,7 @@ class ThemeController extends Controller
 
         }
 
-        return redirect(url('themes'))->with([
+        return redirect(url($groupname.'/themes'))->with([
            'type'   => 'success',
            'Meldung'    => "Thema erstellt"
         ]);
@@ -102,8 +140,17 @@ class ThemeController extends Controller
      * @param  \App\Models\Theme  $theme
      * @return \Illuminate\Http\Response
      */
-    public function show(Theme $theme)
+    public function show($groupname,Theme $theme)
     {
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
         return view('themes.show',[
             'theme' => $theme
         ]);
@@ -115,8 +162,17 @@ class ThemeController extends Controller
      * @param  \App\Models\Theme  $theme
      * @return \Illuminate\Http\Response
      */
-    public function edit(Theme $theme)
+    public function edit($groupname,Theme $theme)
     {
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
 
         return view('themes.edit',[
             'theme' => $theme,
@@ -129,10 +185,19 @@ class ThemeController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\Theme  $theme
-     * @return \Illuminate\Http\Response
+     * @return RedirectResponse
      */
-    public function update(createThemeRequest $request, Theme $theme)
+    public function update( $groupname,createThemeRequest $request, Theme $theme)
     {
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
         if ($request->input('date') != $theme->date){
             $newDate = Carbon::parse($request->input('date'));
             $protocol = new Protocol([
@@ -156,20 +221,13 @@ class ThemeController extends Controller
 
         }
 
-        return redirect(url("themes/$theme->id"))->with([
+        return redirect(url($groupname."/themes/$theme->id"))->with([
             'type'  => "success",
             'Meldung'=> "Änderungen gespeichert."
         ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Theme  $theme
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Theme $theme)
-    {
-        //
-    }
+   public function move(Theme $theme, $date = null){
+
+   }
 }

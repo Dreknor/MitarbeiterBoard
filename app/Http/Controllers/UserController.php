@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Group;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -59,9 +60,10 @@ class UserController extends Controller
     public function show(User $user)
     {
         return view('users.show',[
-            "user" => $user,
+            "user" => $user->load(['groups', 'permissions', 'roles']),
             'permissions' => Permission::all(),
-            'roles'     => Role::all()
+            'roles'     => Role::all(),
+            'groups'    => Group::all()
         ]);
     }
 
@@ -85,6 +87,13 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
+        $gruppen= $request->input('groups');
+        if (!is_null($gruppen) ){
+                $gruppen = Group::find($gruppen);
+        }
+
+        $user->groups()->detach();
+        $user->groups()->attach($gruppen);
 
         if ($user->save()){
             return redirect()->back()->with([

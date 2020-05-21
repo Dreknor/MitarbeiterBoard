@@ -38,13 +38,12 @@
                 if (text.length > 3){
                     $.ajax({
                         type:"POST",
-                        url: '{{url('search')}}',
+                        url: '{{url(request()->segment(1).'/search')}}',
                         data: {
                             'text': $('#txtSearch').val(),
                             '_token': "{{ csrf_token() }}"
                         },
                         success: function(data) {
-                            console.log(Object.keys(data).length);
 
                             if (Object.keys(data).length == 0)
                             {
@@ -55,7 +54,7 @@
                                 $("#result").empty();
                                 data.forEach(result =>
                                 {
-                                    $("#result").append('<li class="list-group-item"><a href="{{url('themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
+                                    $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
                                 });
                             }
 
