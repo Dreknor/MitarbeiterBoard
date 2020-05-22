@@ -14,7 +14,7 @@
             <div class="card">
                 <div class="card-body">
                     <p>
-                        Es gibt keine offenen Themen
+                        Es gibt keine abgeschlossenen Themen
                     </p>
                 </div>
             </div>

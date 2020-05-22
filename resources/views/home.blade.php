@@ -19,6 +19,11 @@
                         <h5 class="card-title">
                             {{$group->name}}
                         </h5>
+                        @if($group->enddate != "")
+                            <p class="small">
+                                Erstellt von {{$group->creator->name}} und offen bis {{$group->enddate->format('d.m.Y')}} (noch {{$group->enddate->diffInDays(\Carbon\Carbon::now())}} Tage)
+                            </p>
+                        @endif
                     </div>
                     <div class="card-body">
                         <p>
