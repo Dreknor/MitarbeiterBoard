@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GroupRequest extends FormRequest
@@ -13,7 +14,7 @@ class GroupRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('edit groups');
+        return auth()->check();
     }
 
     /**
@@ -23,8 +24,20 @@ class GroupRequest extends FormRequest
      */
     public function rules()
     {
-        return [
-            'name' => 'required|string|unique:groups,name'
-        ];
+        if (auth()->user()->can('edit groups')){
+            return [
+                'name' => 'required|string|unique:groups,name',
+                'enddate'   => 'nullable|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
+                'homegroup' => 'required_with:enddate|exists:groups,id',
+
+            ];
+        } else {
+            return [
+                'name' => 'required|string|unique:groups,name',
+                'homegroup' => 'required|exists:groups,id',
+                'enddate'   => 'required|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d')
+            ];
+        }
+
     }
 }

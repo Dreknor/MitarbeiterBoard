@@ -78,14 +78,13 @@
 
                 <!-- Verwaltung -->
             <hr>
-                @can('edit groups')
+
                 <li class="@if(request()->segment(1)=="groups" ) active @endif">
                     <a href="{{url('/groups')}}">
                         <i class="fas fa-users"></i>
                         <p>Gruppen</p>
                     </a>
                 </li>
-                @endcan
                 @can('edit permissions')
                     <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                         <a href="{{url('/roles')}}">

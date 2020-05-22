@@ -8,6 +8,9 @@
                 <h5 class="card-title">
                     Protokoll zu "{{$theme->theme}}"
                 </h5>
+                <p class="small">
+                    ACHTUNG: Es muss alle 5 Minuten gespeichert werden
+                </p>
             </div>
             <div class="card-body">
                 <form action="{{url('protocols/'.$theme->id)}}" method="post" class="form-horizontal">

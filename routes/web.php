@@ -35,25 +35,29 @@ Route::group([
         Route::get('image/{media_id}', 'ImageController@getImage');
         //Route::get('reminder', 'MailController@remind');
         //Route::get('einladung', 'MailController@invitation');
+        //Route::get('delete', 'GroupController@deleteOldGroups');
 
         //Route::get('import/', 'ImportController@show');
         //Route::post('import/', 'ImportController@import');
 
         //Roles and permissions
-       // Route::group(['middleware' => ['permission:edit permission']], function () {
+        Route::group(['middleware' => ['permission:edit permissions']], function () {
             Route::get('roles', 'RolesController@edit');
             Route::put('roles', 'RolesController@update');
             Route::post('roles', 'RolesController@store');
             Route::post('roles/permission', 'RolesController@storePermission');
 
             Route::get('user', 'UserController@index');
-        //});
+        });
 
         //User-Route
         Route::resource('users', 'UserController');
 
         //Gruppen-Route
-        Route::resource('groups', 'GroupController');
+        Route::get('groups', 'GroupController@index');
+        Route::post('groups', 'GroupController@store');
+        Route::put('{groupname}/addUser', 'GroupController@addUser');
+
 
 
         Route::group(['middlewareGroups' => ['role:Admin']], function () {

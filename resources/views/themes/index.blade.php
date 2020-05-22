@@ -4,7 +4,7 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title">Themen</h5>
+                <h5 class="card-title">Themen {{request()->segment(1)}}</h5>
             </div>
             @can('create themes')
                 <div class="card-body">
