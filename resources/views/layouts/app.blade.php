@@ -230,7 +230,9 @@
     <!-- Control Center for Now Ui Dashboard: parallax effects, scripts for the example pages etc -->
     <script src="{{asset('js/paper-dashboard.min.js?v=2.0.0')}}"></script>
 
-
+    @auth
+        <script src="{{ asset('js/enable-push.js') }}" defer></script>
+    @endauth
     @yield('js')
     @stack('js')
 

@@ -6,9 +6,12 @@ use App\Mail\InvitationMail;
 use App\Mail\ReminderMail;
 use App\Models\Group;
 use App\Models\User;
+use App\Notifications\Push;
+use App\Notifications\PushNews;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 
 class MailController extends Controller
@@ -19,6 +22,7 @@ class MailController extends Controller
 
         foreach ($users as $user){
             Mail::to($user)->queue(new ReminderMail());
+            Notification::send($user,new Push('Erinnerung', 'Bitte die Themen für die anstehenden Sitzungen anlegen. Die Einladungen für Dienstag werden 17 Uhr versandt.'));
         }
     }
 

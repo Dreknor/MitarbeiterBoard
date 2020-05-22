@@ -6,12 +6,14 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     use Notifiable;
     use HasRoles;
+   use HasPushSubscriptions;
 
     /**
      * The attributes that are mass assignable.

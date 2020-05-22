@@ -59,6 +59,8 @@ Route::group([
         Route::put('{groupname}/addUser', 'GroupController@addUser');
 
 
+        //Push-Notification
+        Route::post('/push','PushController@store');
 
         Route::group(['middlewareGroups' => ['role:Admin']], function () {
             Route::get('showUser/{id}', 'UserController@loginAsUser');
