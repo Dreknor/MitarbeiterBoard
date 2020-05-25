@@ -38,6 +38,18 @@ class ProtocolController extends Controller
         ]);
         $protocol->save();
 
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file){
+
+                $theme
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+
+        }
+
+
         if ($request->completed == 1){
             $theme->update([
                 'completed' => 1

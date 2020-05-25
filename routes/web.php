@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
-
+Route::get('/debug-sentry', function () {
+    throw new Exception('My first Sentry error!');
+});
 
 Auth::routes(['register' => false]);
 
@@ -65,6 +67,7 @@ Route::group([
 
         //Push-Notification
         Route::post('/push','PushController@store');
+        Route::get('push', 'PushController@push');
 
         Route::group(['middlewareGroups' => ['role:Admin']], function () {
             Route::get('showUser/{id}', 'UserController@loginAsUser');

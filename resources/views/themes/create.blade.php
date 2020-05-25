@@ -19,7 +19,7 @@
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
                         <label for="theme">Datum</label>
-                        <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next('tuesday')->format('Y-m-d'))}}">
+                        <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next(config('config.themes.defaultDay'))->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->addDays(config('config.themes.addDays'))->format('Y-m-d')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
                         <label for="type">Typ</label>

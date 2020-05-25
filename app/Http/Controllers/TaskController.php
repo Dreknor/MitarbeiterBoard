@@ -7,8 +7,10 @@ use App\Models\Group;
 use App\Models\Task;
 use App\Models\Theme;
 use App\Models\User;
+use App\Notifications\Push;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 
 class TaskController extends Controller
 {
@@ -30,9 +32,10 @@ class TaskController extends Controller
 
         if ($this->group->name == $request->input('taskable')){
             $taskable = $this->group;
+            $taskable_user = $this->group->users;
         } else {
             $user = User::where('id', $request->input('taskable'))->first();
-
+            $taskable_user = $user;
             if (!$this->group->users->contains($user)){
                 return redirect()->back()->with([
                     'type'    => 'warning',
@@ -47,6 +50,8 @@ class TaskController extends Controller
         $task->theme_id = $theme->id;
 
         $taskable->tasks()->save($task);
+
+        Notification::send($taskable_user , new Push('neue Aufgabe', $task->task. " bis ".$task->date->format('d.m.Y')));
 
         return redirect()->back();
 

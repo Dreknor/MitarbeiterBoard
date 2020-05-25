@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+
 @section('content')
     <div class="container-fluid">
         <div class="card">
@@ -28,6 +29,9 @@
                                 <h5 class="card-title">
                                     {{$day}}
                                 </h5>
+                                <p class="small">
+                                    Dauer: {{$dayThemes->sum('duration')}} Minuten
+                                </p>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive-sm table-responsive-md">

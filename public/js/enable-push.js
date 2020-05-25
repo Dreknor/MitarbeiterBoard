@@ -17,7 +17,7 @@ function initSW() {
     }
 
     //register the service worker
-    navigator.serviceWorker.register('sw.js')
+    navigator.serviceWorker.register('https://leitung.esz-radebeul.de/sw.js')
         .then(() => {
             //console.log('serviceWorker installed!');
             initPush();

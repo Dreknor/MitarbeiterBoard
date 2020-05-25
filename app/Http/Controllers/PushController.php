@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Notifications\PushNews;
+use App\Notifications\Push;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -34,10 +34,9 @@ class PushController extends Controller
 
         return response()->json(['success' => true],200);
     }
-/*
+
     public function push(){
-        Notification::send(User::all(),new PushNews());
+        Notification::send(\auth()->user(),new Push('test', 'test'));
         return redirect()->back();
     }
-*/
 }

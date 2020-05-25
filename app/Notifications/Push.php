@@ -37,12 +37,12 @@ class Push extends Notification{
 
     public function toWebPush($notifiable, $notification)
     {
-        return (new WebPushMessage)
-            ->title($this->title)
+        $push =new WebPushMessage;
+        $push ->title($this->title)
             ->icon(asset('img/logo-small.png'))
-            ->body($this->body)
-            //->action('Zeige Nachricht', url("#".$this->post->id))
-            ;
+            ->body($this->body);
+
+        return ($push);
     }
 
 }

@@ -22,13 +22,12 @@ class MailController extends Controller
 
         foreach ($users as $user){
             Mail::to($user)->queue(new ReminderMail());
-            Notification::send($user,new Push('Erinnerung', 'Bitte die Themen für die anstehenden Sitzungen anlegen. Die Einladungen für Dienstag werden 17 Uhr versandt.'));
         }
     }
 
     public function invitation(){
         $groups = Group::with(['themes', 'users'])->get();
-        $date = Carbon::now()->addDays(4);
+        $date = Carbon::now()->addDays(config('config.themes.addDays'));
 
         foreach ($groups as $group){
             $themes = $group->themes;
