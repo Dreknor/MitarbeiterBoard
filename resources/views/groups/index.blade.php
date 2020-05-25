@@ -65,13 +65,23 @@
                                 @foreach($group->users as $user)
                                     <li class="list-group-item">
                                         {{$user->name}}
+                                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
+                                            <div class="pull-right">
+                                                <form action="{{url($group->name.'/removeUser')}}" method="post">
+                                                    @csrf
+                                                    @method('delete')
+                                                    <button type="submit" name="user_id" value="{{$user->id}}" class="btn btn-danger btn-xs"><i class="fas fa-user-minus"></i></button>
+                                                </form>
+                                            </div>
+
+                                        @endif
                                     </li>
                                 @endforeach
                             @endif
                         </ul>
                     </div>
                     <div class="card-footer">
-                        @if($group->creator_id != "" and $group->creator_id == auth()->id())
+                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
                             <form action="{{url($group->name.'/addUser')}}" method="post">
                                 @csrf
                                 @method('put')

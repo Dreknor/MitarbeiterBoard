@@ -52,11 +52,13 @@ Route::group([
 
         //User-Route
         Route::resource('users', 'UserController');
+        Route::get('importuser','UserController@importFromElternInfoBoard');
 
         //Gruppen-Route
         Route::get('groups', 'GroupController@index');
         Route::post('groups', 'GroupController@store');
         Route::put('{groupname}/addUser', 'GroupController@addUser');
+        Route::delete('{groupname}/removeUser', 'GroupController@removeUser');
 
 
         //Push-Notification

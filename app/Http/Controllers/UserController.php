@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ElternInfoBoardRoles;
+use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
 use App\Models\User;
 use Carbon\Carbon;
@@ -9,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
@@ -32,24 +35,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return View
-     */
-    public function create()
-    {
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return RedirectResponse
-     */
-    public function store(Request $request)
-    {
-    }
 
     /**
      * Display the specified resource.
@@ -147,4 +132,25 @@ class UserController extends Controller
     }
 
 
+
+    public function importFromElternInfoBoard(){
+        $users = ElternInfoBoardUser::where('email', 'LIKE', '%@esz-radebeul.de')->orWhere('email', 'LIKE', '%@ev-schulverein.de')->get();
+        $group = Group::where('name', 'Schulzentrum')->first();
+        foreach ($users as $user){
+            $localUser = User::firstOrCreate([
+                'email' => $user->email
+            ], [
+               'name'   => $user->name,
+                "password" => "$2y$10$.C8mVaUDGn54KvGDjPJuHefBh24ouuFcmq2C5pVBkxIIyBhmHHXUW",
+                "remember_token" => "z9S7jbQD8tu6XpW41boIbQGROGsAFxMJORibaBmUA5UKge24gXBkz6gJOYz9"
+            ]);
+
+            if (!$localUser->groups->where('name', 'Schulzentrum')->first()){
+                $localUser->groups()->attach($group);
+            }
+
+        }
+
+        return redirect('users');
+    }
 }

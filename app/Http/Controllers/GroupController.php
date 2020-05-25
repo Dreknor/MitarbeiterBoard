@@ -65,12 +65,20 @@ class GroupController extends Controller
      */
     public function addUser(Request $request,  $groupname)
     {
-        $group = Group::where('name', $groupname)->where('creator_id', auth()->id())->first();
+
+        $group = Group::where('name', $groupname)->first();
 
         if (!$group){
             return redirect()->back()->with([
                'type'   => 'danger',
-               'Meldung' => 'Gruppe exsistiert nicht, oder Berechtigung fehlt'
+               'Meldung' => 'Gruppe exsistiert nicht'
+            ]);
+        }
+
+        if (!auth()->user()->can('edit groups')  and $group->creator_id != auth()->id()){
+            return redirect()->back()->with([
+                'type'   => 'danger',
+                'Meldung' => 'Berechtigung fehlt nicht'
             ]);
         }
 
@@ -81,6 +89,44 @@ class GroupController extends Controller
             return  redirect()->back()->with([
                 'type'   => 'success',
                 'Meldung' => 'Benutzer hinzugefügt'
+            ]);
+        } else {
+            return  redirect()->back()->with([
+                'type'   => 'warning',
+                'Meldung' => 'Benutzer nicht gefunden oder nicht eindeutig'
+            ]);
+        }
+
+    }
+
+    public function removeUser(Request $request,  $groupname)
+    {
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (!$group){
+            return redirect()->back()->with([
+                'type'   => 'danger',
+                'Meldung' => 'Gruppe exsistiert nicht'
+            ]);
+        }
+
+        if (!auth()->user()->can('edit groups')  and $group->creator_id != auth()->id()){
+            return redirect()->back()->with([
+                'type'   => 'danger',
+                'Meldung' => 'Berechtigung fehlt nicht'
+            ]);
+        }
+
+        $user_id = $request->input('user_id');
+
+        $user = User::where('id',$user_id)->first();
+
+        if (isset($user)){
+            $group->users()->detach($user);
+            return  redirect()->back()->with([
+                'type'   => 'success',
+                'Meldung' => 'Benutzer entfernt'
             ]);
         } else {
             return  redirect()->back()->with([
