@@ -36,6 +36,10 @@ class Theme extends Model implements HasMedia
       return $this->belongsTo(Group::class);
     }
 
+    public function tasks(){
+        return $this->hasMany(Task::class);
+    }
+
     public function getPriorityAttribute(){
         if ($this->priorities->count() > 0){
             return $this->priorities->sum('priority')/$this->priorities->count();

@@ -152,7 +152,7 @@ class ThemeController extends Controller
         }
 
         return view('themes.show',[
-            'theme' => $theme
+            'theme' => $theme->load(['protocols', 'tasks', 'type', 'priorities', 'tasks.taskable',])
         ]);
     }
 

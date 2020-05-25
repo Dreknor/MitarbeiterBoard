@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class HomeController extends Controller
@@ -25,9 +26,17 @@ class HomeController extends Controller
     {
         $colors = ['#6495ed', 'Orange', '#ffca00', '#d9335c', '#99ff80', 'Persian Green', '#bfffff', '#bf7660', '#b3b017', '#149ab5'];
         $groups = auth()->user()->groups;
-        $groups->load('themes');
+        $groups->load('themes', 'tasks');
+
+        $tasks = auth()->user()->tasks()->whereDate('date', '>=', Carbon::now())->get();
+
+        foreach ($groups as $group){
+            $tasks = $tasks->concat($group->tasks()->whereDate('date', '>=', Carbon::now())->get());
+        }
+
         return view('home',[
             "groups"    => $groups,
+            'tasks'     => $tasks,
             'colors'    => $colors
         ]);
     }

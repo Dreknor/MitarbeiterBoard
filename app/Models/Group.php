@@ -26,6 +26,13 @@ class Group extends Model
         return $this->belongsTo(Group::class, 'homegroup');
     }
 
+    /**
+     * Get all of the tasks.
+     */
+    public function tasks()
+    {
+        return $this->morphMany('App\Models\Task', 'taskable');
+    }
 
 
 }

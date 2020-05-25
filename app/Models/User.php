@@ -61,4 +61,12 @@ class User extends Authenticatable
         });
     }
 
+    /**
+     * Get all of the tasks.
+     */
+    public function tasks()
+    {
+        return $this->morphMany('App\Models\Task', 'taskable');
+    }
+
 }

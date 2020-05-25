@@ -17,123 +17,160 @@
                 </h5>
             </div>
             <div class="card-body border-top">
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Priorität
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        @if ($theme->completed or $theme->priorities->where('creator_id', auth()->id())->first())
-                            <div class="progress">
-                                <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-sm-12 col-md-12 col-lg-8">
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Priorität
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    @if ($theme->completed or $theme->priorities->where('creator_id', auth()->id())->first())
+                                        <div class="progress">
+                                            <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
+                                        </div>
+                                    @else
+                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">
+                                    @endif
+                                </div>
                             </div>
-                        @else
-                            <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">
-                        @endif
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Von
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        {{$theme->ersteller->name}}
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Typ
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        {{$theme->type->type}}
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Erstellt
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        {{$theme->created_at->format('d.m.Y H:i')}} Uhr
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Dauer
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        {{$theme->duration}} Minuten
-                    </div>
-                </div>
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Informationen
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        {!! $theme->information !!}
-                    </div>
-                </div>
-                @if (count($theme->getMedia())>0)
-                    <div class="row p-2">
-                        <div class="col-sm-12 col-md-12 col-lg-3">
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Von
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {{$theme->ersteller->name}}
+                                </div>
+                            </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Typ
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {{$theme->type->type}}
+                                </div>
+                            </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Erstellt
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {{$theme->created_at->format('d.m.Y H:i')}} Uhr
+                                </div>
+                            </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Dauer
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {{$theme->duration}} Minuten
+                                </div>
+                            </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Informationen
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {!! $theme->information !!}
+                                </div>
+                            </div>
+                            @if (count($theme->getMedia())>0)
+                                <div class="row p-2">
+                                    <div class="col-sm-12 col-md-12 col-lg-3">
+                                        <b>
+                                            Dateien
+                                        </b>
+                                    </div>
+                                    <div class="col-sm-12 col-md-12 col-lg-9">
+                                        <ul class="list-group">
+                                            @foreach($theme->getMedia()->sortBy('name') as $media)
+                                                <li class="list-group-item  list-group-item-action ">
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                                        <i class="fas fa-file-download"></i>
+                                                        {{$media->name}}
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="col-sm-12 col-md-12 col-lg-4 border-left">
                             <b>
-                                Dateien
+                                Aufgaben:
                             </b>
-                        </div>
-                        <div class="col-sm-12 col-md-12 col-lg-9">
                             <ul class="list-group">
-                                @foreach($theme->getMedia()->sortBy('name') as $media)
-                                    <li class="list-group-item  list-group-item-action ">
-                                        <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
-                                            <i class="fas fa-file-download"></i>
-                                            {{$media->name}}
-                                        </a>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    </div>
-                @endif
-
-                <div class="row p-2">
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <b>
-                            Protokoll
-                        </b>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-9">
-                        @if ($theme->protocols->count() == 0 )
-                            <p>
-                                Kein Protokoll vorhanden
-                            </p>
-                        @else
-                            <ul class="list-group">
-                                @foreach($theme->protocols as $protocol)
+                                @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
                                     <li class="list-group-item">
-                                        <p>{{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}} </p>
-                                        {!! $protocol->protocol !!}
+                                        {{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}
+                                        <p>
+                                            {{$task->task}}
+                                        </p>
                                     </li>
                                 @endforeach
                             </ul>
-                        @endif
+                        </div>
                     </div>
+
+                </div>
+
+
+                <div class="row">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-12">
+                                <b>
+                                    Protokoll
+                                </b>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                @if ($theme->protocols->count() == 0 )
+                                    <p>
+                                        Kein Protokoll vorhanden
+                                    </p>
+                                @else
+                                    <ul class="list-group">
+                                        @foreach($theme->protocols as $protocol)
+                                            <li class="list-group-item">
+                                                <p>{{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}} </p>
+                                                {!! $protocol->protocol !!}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+
                 </div>
                 <div class="row p-2">
-                    <div class="col-12">
-                       @if (!$theme->completed)
-                           <a href="{{url('protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
-                       @endif
-                    </div>
+                    @if (!$theme->completed)
+                        <div class="col-6">
+                               <a href="{{url('protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">
+                                Aufgabe erstellen
+                            </button>
+
+                        </div>
+                    @endif
                 </div>
 
             </div>
@@ -141,6 +178,46 @@
     </div>
 @stop
 
+@push('modals')
+    <div class="modal fade" id="taskModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg " role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Aufgabe hinzufügen</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{url(request()->segment(1).'/'.$theme->id.'/tasks')}}" method="post" class="form-horizontal" id="taskForm">
+                        @csrf
+                        <div class="form-row p-2">
+                            <label for="date">zu erledigen bis...</label>
+                            <input type="date" name="date" min="{{\Carbon\Carbon::now()->addDay()->format('Y-m-d')}}" value="{{old('date')}}" class="form-control" required autofocus>
+                        </div>
+                        <div class="form-row p-2">
+                            <label for="task">Aufgabe</label>
+                            <input type="text" name="task" min="{{\Carbon\Carbon::now()->addDay()->format('Y-m-d')}}" value="{{old('task')}}" class="form-control" required>
+                        </div>
+                        <div class="form-row p-2">
+                            <label for="taskable">Aufgabe für ...</label>
+                            <select class="custom-select" name="taskable">
+                                <option value="{{request()->segment(1)}}">Gruppe {{request()->segment(1)}}</option>
+                                @foreach($theme->group->users as $user)
+                                    <option value="{{$user->id}}">{{$user->name}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit"  form="taskForm" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endpush
 @push('js')
     <script>
         $('input[type=range]').on("change", function() {

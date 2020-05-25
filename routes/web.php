@@ -60,6 +60,8 @@ Route::group([
         Route::put('{groupname}/addUser', 'GroupController@addUser');
         Route::delete('{groupname}/removeUser', 'GroupController@removeUser');
 
+        //Tasks
+        Route::post('{groupname}/{theme}/tasks', 'TaskController@store');
 
         //Push-Notification
         Route::post('/push','PushController@store');

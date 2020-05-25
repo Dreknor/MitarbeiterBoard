@@ -57,6 +57,27 @@
                             </p>
                         @endif
                     </div>
+                    <div class="card-footer">
+                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
+                            <form action="{{url($group->name.'/addUser')}}" method="post">
+                                @csrf
+                                @method('put')
+                                <div class="form-row">
+                                    <label for="name">Mitarbeiter hinzufügen</label>
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control" name="name" id="name" required>
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-primary" type="submit">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </form>
+                        @endif
+                    </div>
                     <div class="card-body">
                         <ul class="list-group">
                             @if($group->users->count() == 0)
@@ -80,27 +101,7 @@
                             @endif
                         </ul>
                     </div>
-                    <div class="card-footer">
-                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
-                            <form action="{{url($group->name.'/addUser')}}" method="post">
-                                @csrf
-                                @method('put')
-                                <div class="form-row">
-                                    <label for="name">Mitarbeiter hinzufügen</label>
-                                    <div class="input-group mb-3">
-                                        <input type="text" class="form-control" name="name" id="name" required>
-                                        <div class="input-group-append">
-                                            <button class="btn btn-outline-primary" type="submit">
-                                                <i class="fas fa-search"></i>
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                </div>
-
-                            </form>
-                        @endif
-                    </div>
                 </div>
             @endforeach
         </div>

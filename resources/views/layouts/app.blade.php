@@ -207,9 +207,10 @@
         @yield('content')
 
 
+
     </div>
 
-
+    @stack('modals')
 </div>
 <!-- JavaScripts -->
 
