@@ -4,7 +4,7 @@
     <div class="container-fluid">
             <p>
                 <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
-                @if ($theme->creator_id == auth()->id() and !$theme->completed)
+                @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
                     <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-warning btn-link pull-right">bearbeiten</a>
                 @endif
             </p>

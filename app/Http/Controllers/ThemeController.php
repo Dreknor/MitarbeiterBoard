@@ -205,7 +205,7 @@ class ThemeController extends Controller
                 'theme_id' => $theme->id,
                 'protocol'  => 'Verschoben zum '.$newDate->format('d.m.Y')
             ]);
-            //$protocol->save();
+            $protocol->save();
         }
         $theme->update($request->validated());
         $theme->type_id = $request->type;
