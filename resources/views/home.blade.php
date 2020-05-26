@@ -22,14 +22,21 @@
                             <ul class="list-group">
                                 @foreach($tasks->sortByDate('date', 'desc') as $task)
                                     <li class="list-group-item">
-
                                         <b>{{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}: </b>
                                             {{$task->task}}
+                                        <div class="pull-right ml-1">
+                                            <a href="{{url($task->theme->group->name.'/themes/'.$task->theme_id)}}">
+                                                <i class="fas fa-external-link-alt"></i> zum Thema
+                                            </a>
+                                        </div>
                                         @if ($task->taskable->name == auth()->user()->name)
                                             <div class="pull-right">
-                                                <a href="{{url('tasks/'.$task->id.'/complete')}}">
-                                                    <i class="far fa-check-square"></i> erledigt
-                                                </a>
+                                                <div class="ml-3 mr-3">
+                                                    <a href="{{url('tasks/'.$task->id.'/complete')}}">
+                                                        <i class="far fa-check-square"></i> erledigt
+                                                    </a>
+                                                </div>
+
                                             </div>
                                         @endif
                                     </li>

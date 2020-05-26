@@ -26,7 +26,7 @@ class HomeController extends Controller
     {
         $colors = ['#6495ed', 'Orange', '#ffca00', '#d9335c', '#99ff80', 'Persian Green', '#bfffff', '#bf7660', '#b3b017', '#149ab5'];
         $groups = auth()->user()->groups;
-        $groups->load('themes', 'tasks');
+        $groups->load('themes', 'tasks', 'themes.group');
 
         $tasks = auth()->user()->tasks->where('completed', 0);
 

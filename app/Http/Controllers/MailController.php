@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Mail\InvitationMail;
 use App\Mail\ReminderMail;
+use App\Mail\remindTaskMail;
 use App\Models\Group;
+use App\Models\Task;
 use App\Models\User;
 use App\Notifications\Push;
 use App\Notifications\PushNews;
@@ -44,5 +46,21 @@ class MailController extends Controller
 
 
         }
+    }
+
+    public function remindTaskMail(){
+        $tasks = Task::where('completed', 0)->where('date', Carbon::now()->addDays(config('config.tasks.remind'))->format('Y-m-d'))->get();
+
+        foreach ($tasks as $task){
+            if($task->taskable instanceof Group){
+                foreach ($task->taskable->users as $user){
+                    Mail::to($user)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, true));
+                }
+            } else {
+                Mail::to($task->taskable)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, false));
+            }
+
+        }
+return view('welcome');
     }
 }
