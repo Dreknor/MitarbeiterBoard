@@ -64,6 +64,7 @@ Route::group([
 
         //Tasks
         Route::post('{groupname}/{theme}/tasks', 'TaskController@store');
+        Route::get('tasks/{task}/complete', 'TaskController@complete');
 
         //Push-Notification
         Route::post('/push','PushController@store');

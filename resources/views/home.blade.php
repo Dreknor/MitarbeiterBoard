@@ -22,8 +22,16 @@
                             <ul class="list-group">
                                 @foreach($tasks->sortByDate('date', 'desc') as $task)
                                     <li class="list-group-item">
+
                                         <b>{{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}: </b>
                                             {{$task->task}}
+                                        @if ($task->taskable->name == auth()->user()->name)
+                                            <div class="pull-right">
+                                                <a href="{{url('tasks/'.$task->id.'/complete')}}">
+                                                    <i class="far fa-check-square"></i> erledigt
+                                                </a>
+                                            </div>
+                                        @endif
                                     </li>
                                 @endforeach
                             </ul>

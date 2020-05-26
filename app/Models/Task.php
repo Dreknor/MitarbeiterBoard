@@ -10,9 +10,13 @@ class Task extends Model
 
     use SoftDeletes;
 
-    protected $fillable = ['task', 'date', 'theme_id'];
+    protected $fillable = ['task', 'date', 'theme_id', 'completed'];
 
     protected $dates = ['created_at', 'updated_at', 'deleted_at', 'date'];
+
+    protected $casts = [
+        'completed' => 'boolean'
+    ];
 
     public function theme () {
         return $this->belongsTo(Theme::class);

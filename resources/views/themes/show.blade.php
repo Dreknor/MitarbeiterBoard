@@ -125,6 +125,10 @@
                             <ul class="list-group">
                                 @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
                                     <li class="list-group-item">
+                                        @if($task->completed)
+                                                <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
+                                        @endif
+
                                         {{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}
                                         <p>
                                             {{$task->task}}

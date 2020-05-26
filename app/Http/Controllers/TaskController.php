@@ -56,4 +56,14 @@ class TaskController extends Controller
         return redirect()->back();
 
     }
+
+    public function complete(Task $task){
+        if ($task->taskable->name == auth()->user()->name){
+            $task->update([
+                'completed' => 1
+            ]);
+
+        }
+        return redirect()->back();
+    }
 }

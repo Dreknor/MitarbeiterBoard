@@ -28,7 +28,7 @@ class HomeController extends Controller
         $groups = auth()->user()->groups;
         $groups->load('themes', 'tasks');
 
-        $tasks = auth()->user()->tasks()->whereDate('date', '>=', Carbon::now())->get();
+        $tasks = auth()->user()->tasks->where('completed', 0);
 
         foreach ($groups as $group){
             $tasks = $tasks->concat($group->tasks()->whereDate('date', '>=', Carbon::now())->get());
