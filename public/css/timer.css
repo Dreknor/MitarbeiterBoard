@@ -1,0 +1,30 @@
+
+.timerDiv {
+    display: inline-block;
+    line-height: 1;
+    padding: 20px;
+    font-size: 20px;
+}
+
+span.timerSpan {
+    display: block;
+    font-size: 15px;
+    color: black;
+}
+
+#days {
+    font-size: 30px;
+    color: #db4844;
+}
+#hours {
+    font-size: 30px;
+    color: #f07c22;
+}
+#minutes {
+    font-size: 30px;
+    color: #1c1df6;
+}
+#seconds {
+    font-size: 30px;
+    color: #abcd58;
+}

@@ -28,8 +28,8 @@ Route::group([
         Route::get('{groupname}/archive', 'ThemeController@archive');
         Route::post('priorities', 'PriorityController@store');
         //Route::get('priorities', 'PriorityController@store');
-        Route::get('protocols/{theme}', 'ProtocolController@create');
-        Route::post('protocols/{theme}', 'ProtocolController@store');
+        Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
+        Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
 
         Route::post('{groupname}/search', 'SearchController@search');
         Route::get('{groupname}/search', 'SearchController@show');

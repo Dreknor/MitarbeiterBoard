@@ -18,7 +18,7 @@
                         <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="theme">Datum</label>
+                        <label for="theme">Datum <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss mindestens {{config('config.themes.addDays')}} Tage in der Zukunft liegen, da {{config('config.themes.addDays')}} Tage vor einer Sitzung die Themen versandt werden. Die ermöglicht die Vorbereitung auf Themen und der Priorisierung.">?</a> </label>
                         <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next(config('config.themes.defaultDay'))->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->addDays(config('config.themes.addDays'))->format('Y-m-d')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
@@ -31,8 +31,8 @@
                         </select>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-2">
-                        <label for="duration">Dauer</label>
-                        <input type="number" class="form-control" id="duration" name="duration" required min="5" max="240" step="5" value="{{old('duration')}}">
+                        <label for="duration">Dauer <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Die Dauer wird in 5 Minuten Schritten angegeben. Sie kann {{config('config.themes.maxDuration')}} Minuten nicht überschreiten.">?</a></label>
+                        <input type="number" class="form-control" id="duration" name="duration" required min="5" max="240" step="5" value="{{old('duration', config('.config.themes.maxDuration'))}}">
                     </div>
                 </div>
                 <div class="form-row pt-2">
@@ -73,6 +73,11 @@
 
 
 @push('js')
+    <script>
+        $(function () {
+            $('[data-toggle="popover"]').popover()
+        })
+    </script>
 
     <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
     <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>

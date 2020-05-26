@@ -16,7 +16,7 @@ class ProtocolController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create(Theme $theme)
+    public function create($groupname, Theme $theme)
     {
        return view('protocol.create', [
            'theme'  => $theme
@@ -29,7 +29,7 @@ class ProtocolController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(ProtocolRequest $request, Theme $theme)
+    public function store($groupname, ProtocolRequest $request, Theme $theme)
     {
         $protocol = new Protocol([
            'creator_id' => auth()->id(),

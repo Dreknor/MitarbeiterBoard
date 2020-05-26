@@ -59,6 +59,16 @@
                             <div class="row p-2">
                                 <div class="col-sm-12 col-md-12 col-lg-3">
                                     <b>
+                                        Ziel
+                                    </b>
+                                </div>
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    {{ $theme->goal}}
+                                </div>
+                            </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
                                         Erstellt
                                     </b>
                                 </div>
@@ -108,7 +118,7 @@
                                 </div>
                             @endif
                         </div>
-                        <div class="col-sm-12 col-md-12 col-lg-4 border-left">
+                        <div class="col-sm-12 col-md-12 col-lg-4 border-left p-sm-2 p-md-2">
                             <b>
                                 Aufgaben:
                             </b>
@@ -128,9 +138,9 @@
                 </div>
 
 
-                <div class="row">
+                <div class="row mt-2 border-top">
                     <div class="container-fluid">
-                        <div class="row">
+                        <div class="row mt-2">
                             <div class="col-12">
                                 <b>
                                     Protokoll
@@ -162,7 +172,7 @@
                 <div class="row p-2">
                     @if (!$theme->completed)
                         <div class="col-6">
-                               <a href="{{url('protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
+                               <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
                         </div>
                         <div class="col-6">
                             <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">

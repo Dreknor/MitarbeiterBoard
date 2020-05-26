@@ -5,19 +5,40 @@
         <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title">
-                    Protokoll zu "{{$theme->theme}}"
-                </h5>
-                <p class="small">
-                    ACHTUNG: Es muss alle 5 Minuten gespeichert werden
-                </p>
+                <div class="row">
+                    <div class="col">
+                        <h5 class="card-title">
+                            Protokoll zu "{{$theme->theme}}"
+                        </h5>
+                        <p class="small">
+                            ACHTUNG: Es muss gespeichert werden
+                        </p>
+                    </div>
+                    <div class="col d-sm-none d-md-block">
+                            <div id="timer" class="timerDiv w-50 ">
+                                <div class="row">
+                                    <div id="hours" class="col"></div>
+                                    <div id="minutes" class="col"></div>
+                                    <div id="seconds" class="col"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
             </div>
             <div class="card-body">
-                <form action="{{url('protocols/'.$theme->id)}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
+                <form action="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
                     @csrf
                     <div class="form-row">
                         <div class="col-sm-12 col-md-12 col-lg-3">
-                            <label for="protocol">Protokoll</label>
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <label for="protocol">Protokoll</label>
+                                </div>
+                                <div class="row mt-1">
+
+                                </div>
+                            </div>
+
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-9">
                             <textarea name="protocol"  class="form-control border-input" >
@@ -54,10 +75,53 @@
 @push('css')
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css" />
+    <link href="{{asset('css/timer.css')}}" media="all" rel="stylesheet" type="text/css" />
 
 @endpush
 @push('js')
+    @if($theme->date->startOfDay()->equalTo(\Carbon\Carbon::now()->startOfDay()))
+        <script>
+            function makeTimer() {
 
+                let outline =''
+                var endTime = new Date("{{\Carbon\Carbon::now()->addMinutes($theme->duration)->format('Y-m-d H:i:s')}}");
+                endTime = (Date.parse(endTime) / 1000);
+
+                var now = new Date();
+                now = (Date.parse(now) / 1000);
+
+                var timeLeft = endTime - now;
+
+                if (timeLeft > 0){
+                    var hours = Math.floor((timeLeft) / 3600);
+                    var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
+                    var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
+                } else {
+                    timeLeft = now - endTime;
+                    var hours = Math.floor((timeLeft) / 3600);
+                    var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
+                    var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
+
+                    if(!$("#timer").hasClass("btn-outline-danger")){
+                        $("#timer").addClass("btn-outline-danger");
+                    }
+                }
+
+
+                if (hours < "10") { hours = "0" + hours; }
+                if (minutes < "10") { minutes = "0" + minutes; }
+                if (seconds < "10") { seconds = "0" + seconds; }
+
+                $("#hours").html(hours + "<span class='timerSpan'> Stunden</span>");
+                $("#minutes").html(minutes + "<span class='timerSpan'> Minuten</span>");
+                $("#seconds").html(seconds + "<span class='timerSpan'> Sekunden</span>");
+
+
+            }
+
+            setInterval(function() { makeTimer(); }, 1000);
+        </script>
+    @endif
     <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
     <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>
     <script src="{{asset('js/plugins/tinymce/langs/de.js')}}"></script>
