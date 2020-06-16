@@ -167,6 +167,8 @@
                 data: $("#taskForm").serialize(),
                 success: function (response) {
                     $('#taskModal').modal('toggle');
+                    $('#submitTask').toogle();
+                    document.getElementById("#taskForm").reset();
                     $('#submitTaskModal').modal('toggle');
                 },
                 error: function (error) {
