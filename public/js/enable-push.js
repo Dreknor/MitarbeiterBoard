@@ -17,9 +17,12 @@ function initSW() {
     }
 
     //register the service worker
-    navigator.serviceWorker.register('https://leitung.esz-radebeul.de/sw.js')
+
+    let url = window.location.origin + '/sw.js';
+
+    navigator.serviceWorker.register(url)
         .then(() => {
-            //console.log('serviceWorker installed!');
+            //console.log(url);
             initPush();
         })
         .catch((err) => {
@@ -56,7 +59,7 @@ function subscribeUser() {
             const subscribeOptions = {
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(
-                    'BKirEeZgt76KEePPiwB9LfMxF2GHXR_Mo6RZeYNkPk0-zj8hLF-06NrtexNKdiJXXDeyrkwB8XRwbMM9NzpStf0'
+                    'BM9aTHZuLpINSj0R6rnP0naBZmsgPVBVPNtP7WgP4VjOHMboI4OPxob97VIerekR-Rn2D_lAZoRNn8H9pufEFx8'
                 )
             };
 
@@ -90,7 +93,7 @@ function storePushSubscription(pushSubscription) {
     const token = document.querySelector('meta[name=csrf-token]').getAttribute('content');
 
 
-    fetch('push', {
+    fetch(window.location.origin + '/push', {
         method: 'POST',
         body: JSON.stringify(pushSubscription),
         headers: {
@@ -100,7 +103,7 @@ function storePushSubscription(pushSubscription) {
         }
     })
         .then((res) => {
-            console.log(res);
+            //console.log(res);
             return res.json();
         })
         .then((res) => {

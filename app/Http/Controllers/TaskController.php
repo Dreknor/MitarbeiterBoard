@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\TaskRequest;
+use App\Mail\newTaskMail;
 use App\Models\Group;
 use App\Models\Task;
 use App\Models\Theme;
@@ -10,7 +11,9 @@ use App\Models\User;
 use App\Notifications\Push;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use function GuzzleHttp\Promise\queue;
 
 class TaskController extends Controller
 {
@@ -21,7 +24,7 @@ class TaskController extends Controller
         $this->group = Group::where('name', $request->route('groupname'))->first();
     }
 
-    public function store($groupname,Theme $theme, TaskRequest $request){
+    public function store($groupname,Theme $theme, $type,TaskRequest $request){
 
         if (!auth()->user()->groups->contains($this->group)){
             return redirect()->back()->with([
@@ -32,10 +35,14 @@ class TaskController extends Controller
 
         if ($this->group->name == $request->input('taskable')){
             $taskable = $this->group;
+            $group=true;
             $taskable_user = $this->group->users;
         } else {
+            $group = false;
             $user = User::where('id', $request->input('taskable'))->first();
-            $taskable_user = $user;
+            $taskable_user = collect();
+            $taskable_user->push($user);
+
             if (!$this->group->users->contains($user)){
                 return redirect()->back()->with([
                     'type'    => 'warning',
@@ -51,7 +58,16 @@ class TaskController extends Controller
 
         $taskable->tasks()->save($task);
 
-        Notification::send($taskable_user , new Push('neue Aufgabe', $task->task. " bis ".$task->date->format('d.m.Y')));
+        foreach ($taskable_user as $user){
+            if ($group){
+                $text = "Du hast eine neue Gruppenaufgabe im MitarbeiterBoard";
+            } else {
+                $text = "Du hast eine neue persönliche Aufgabe im MitarbeiterBoard";
+            }
+            Notification::send($user,new Push('neue Aufgabe', $text));
+            Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'),$task->task, $task->theme->theme, $group));
+        }
+
 
         return redirect()->back();
 

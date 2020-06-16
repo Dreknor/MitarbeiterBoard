@@ -26,14 +26,14 @@ class GroupRequest extends FormRequest
     {
         if (auth()->user()->can('edit groups')){
             return [
-                'name' => 'required|string|unique:groups,name',
+                'name' => 'required|alpha_dash|unique:groups,name',
                 'enddate'   => 'nullable|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'homegroup' => 'required_with:enddate|exists:groups,id',
 
             ];
         } else {
             return [
-                'name' => 'required|string|unique:groups,name',
+                'name' => 'required|alpha_dash|unique:groups,name',
                 'homegroup' => 'required|exists:groups,id',
                 'enddate'   => 'required|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d')
             ];

@@ -23,6 +23,43 @@ class ProtocolController extends Controller
        ]);
     }
 
+    public function edit($groupname, Protocol $protocol)
+    {
+       return view('protocol.edit', [
+           'theme'  => $protocol->theme,
+           'protocol'  => $protocol,
+       ]);
+    }
+
+    public function update($groupname, ProtocolRequest $request, Protocol $protocol)
+    {
+        $protocol->update($request->validated());
+
+        if ($request->completed == 1){
+            $protocol->theme->update([
+                'completed' => 1
+            ]);
+
+            $protocol = new Protocol([
+                'creator_id' => auth()->id(),
+                'theme_id'   => $protocol->theme->id,
+                'protocol'   => "Thema geschlossen",
+            ]);
+            $protocol->save();
+
+
+
+            return redirect(url($groupname.'/themes'))->with([
+                'type'  => 'success',
+                'Meldung'=> 'Protokoll gespeichert und Thema geschlossen'
+            ]);
+        }
+        return redirect(url($groupname."/themes/".$protocol->theme_id))->with([
+            'type'  => "success",
+            'Meldung'   => "Protokoll geändert"
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      *

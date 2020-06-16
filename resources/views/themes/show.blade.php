@@ -109,7 +109,7 @@
                                                 <li class="list-group-item  list-group-item-action ">
                                                     <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
                                                         <i class="fas fa-file-download"></i>
-                                                        {{$media->name}}
+                                                        {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
                                                     </a>
                                                 </li>
                                             @endforeach
@@ -161,7 +161,17 @@
                                     <ul class="list-group">
                                         @foreach($theme->protocols as $protocol)
                                             <li class="list-group-item">
-                                                <p>{{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}} </p>
+                                                <p>
+                                                    @if($protocol->creator_id == auth()->id() and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime'))))
+                                                        <div class="pull-right">
+                                                            <a href="{{url(request()->segment(1)."/protocols/$protocol->id/edit")}}" class="btn-link btn-danger">
+                                                                bearbeiten
+                                                            </a>
+                                                        </div>
+                                                    @endif
+
+                                                    {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
+                                                </p>
                                                 {!! $protocol->protocol !!}
                                             </li>
                                         @endforeach

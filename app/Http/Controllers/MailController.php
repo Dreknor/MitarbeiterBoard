@@ -12,6 +12,7 @@ use App\Notifications\Push;
 use App\Notifications\PushNews;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
@@ -32,6 +33,7 @@ class MailController extends Controller
         $date = Carbon::now()->addDays(config('config.themes.addDays'));
 
         foreach ($groups as $group){
+            $users = "";
             $themes = $group->themes;
             $themes = $themes->filter(function ($theme) use ($date){
                return $theme->completed == 0 and $theme->date->startOfDay()->eq($date->startOfDay());
@@ -39,10 +41,22 @@ class MailController extends Controller
 
             if (isset($themes) and count($themes)>0){
                 $users = $group->users;
+                Log::info($group->name);
+
                 foreach ($users as $user){
                     Mail::to($user)->queue(new InvitationMail($group->name, $date->format('d.m.Y'), $themes));
+                    Log::info($user->name);
                 }
             }
+
+            $admins = User::whereHas("roles", function($q){ $q->where("name", "admin"); })->get();
+
+            foreach ($admins as $admin){
+
+                Notification::send($admins,new Push('Einladung an '.$group->name.' verschickt', count($users). ' gefundene User'));
+            }
+
+
 
 
         }

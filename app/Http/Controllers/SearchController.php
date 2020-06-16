@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\Protocol;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,7 @@ class SearchController extends Controller
         // get the search term
         $text = '%'.$request->input('text').'%';
 
-        // search the members table
+        // search the themes table
         $results = DB::table('themes')
             ->where('group_id', $group->id)
             ->where(function ($query) use ($text){
@@ -28,12 +29,30 @@ class SearchController extends Controller
                     ->orWhere('information', 'Like', $text);
             })->get();
 
+        // search the protocols table
+        $text = '*'.$request->input('text').'*';
+
+        $resultsProtocol = Protocol::with(['theme' => function ($query) use ($group) {
+            $query->where('group_id', $group->id);
+        }]) ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)' , array($text))
+            ->get();
+
+            if ($resultsProtocol->count() > 0){
+
+                foreach ($resultsProtocol as $protocol){
+                    $theme = $protocol->theme;
+                    $results->push($theme);
+                }
+            }
+
 
         // return the results
         return response()->json($results);
     }
 
+
     public function show($groupname){
         return view('search.search');
     }
+
 }

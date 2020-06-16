@@ -7,7 +7,7 @@
                     Suche
                 </h5>
                 <p class="text-info">
-                    ... in Themen, Zielen und Informationen, nicht aber in Protokollen
+                    ... in Themen, Zielen und Informationen und in Protokollen. Das Ergebnis sind immer die Themen.
                 </p>
             </div>
             <div class="card-body">
@@ -44,18 +44,20 @@
                             '_token': "{{ csrf_token() }}"
                         },
                         success: function(data) {
-
+                            console.log(data);
                             if (Object.keys(data).length == 0)
                             {
-
                                 $("#result").empty().append('<li class="list-group-item">Keine Ergebnisse gefunden</li>')
                             } else
                             {
                                 $("#result").empty();
                                 data.forEach(result =>
                                 {
-                                    $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
-                                });
+                                    if (result != null){
+                                        console.log(result);
+                                        $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
+                                    }
+                                   });
                             }
 
 

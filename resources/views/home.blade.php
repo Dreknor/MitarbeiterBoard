@@ -58,7 +58,7 @@
                         @if($loop->index%2 == 0)
                             <div class="w-100 d-none d-sm-block d-md-none"><!-- wrap every 2 on sm--></div>
                         @elseif($loop->index%3 == 0)
-                            <div class="w-100 d-none d-md-block d-lg-none"><!-- wrap every 3 on md--></div>
+                            <div class="w-100 d-none  d-md-block d-lg-block"><!-- wrap every 3 on md--></div>
                         @endif
                         <div class="card m-1">
                             <div class="card-header" style="background-color: {{$colors[$loop->index]}}">
@@ -91,7 +91,10 @@
                                     @foreach($group->themes->sortBy('date')->filter(function ($theme){
                                            return $theme->completed == 0 and $theme->date->startOfDay()->greaterThanOrEqualTo(\Carbon\Carbon::now()->startOfDay());
                                         }) as $theme)
-                                        <li class="list-group-item">
+                                        <li class="list-group-item ">
+                                            <a href="{{url($group->name.'/themes/').'/'.$theme->id}}" class="btn-link">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
                                             {{$theme->theme}}
                                         </li>
                                     @endforeach
@@ -111,3 +114,4 @@
 
     </div>
 @endsection
+

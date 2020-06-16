@@ -200,13 +200,15 @@ class ThemeController extends Controller
 
         if ($request->input('date') != $theme->date){
             $newDate = Carbon::parse($request->input('date'));
-            $protocol = new Protocol([
+            $protocol = Protocol::create([
                 'creator_id' => auth()->id(),
                 'theme_id' => $theme->id,
                 'protocol'  => 'Verschoben zum '.$newDate->format('d.m.Y')
             ]);
             $protocol->save();
         }
+
+
         $theme->update($request->validated());
         $theme->type_id = $request->type;
         $theme->save();

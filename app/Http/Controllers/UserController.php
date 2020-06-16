@@ -141,9 +141,16 @@ class UserController extends Controller
                 'email' => $user->email
             ], [
                'name'   => $user->name,
-                "password" => "$2y$10$.C8mVaUDGn54KvGDjPJuHefBh24ouuFcmq2C5pVBkxIIyBhmHHXUW",
-                "remember_token" => "z9S7jbQD8tu6XpW41boIbQGROGsAFxMJORibaBmUA5UKge24gXBkz6gJOYz9"
+                "password" =>$user->password,
+                "remember_token" => $user->remember_token
             ]);
+
+            if ( $localUser->password != $user->password ){
+                $localUser->update([
+                    "password" =>$user->password,
+                    "remember_token" => $user->remember_token
+                ]);
+            }
 
             if (!$localUser->groups->where('name', 'Schulzentrum')->first()){
                 $localUser->groups()->attach($group);

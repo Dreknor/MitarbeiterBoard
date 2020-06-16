@@ -12,9 +12,6 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('/debug-sentry', function () {
-    throw new Exception('My first Sentry error!');
-});
 
 Auth::routes(['register' => false]);
 
@@ -27,9 +24,12 @@ Route::group([
         Route::resource('{groupname}/themes', 'ThemeController');
         Route::get('{groupname}/archive', 'ThemeController@archive');
         Route::post('priorities', 'PriorityController@store');
-        //Route::get('priorities', 'PriorityController@store');
+
+        //Protocols
         Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
         Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
+        Route::get('{groupname}/protocols/{protocol}/edit', 'ProtocolController@edit');
+        Route::put('{groupname}/protocols/{protocol}/', 'ProtocolController@update');
 
         Route::post('{groupname}/search', 'SearchController@search');
         Route::get('{groupname}/search', 'SearchController@show');
@@ -68,11 +68,12 @@ Route::group([
         //Route::get('remindtask', 'MailController@remindTaskMail');
 
         //Push-Notification
-        Route::post('/push','PushController@store');
-        Route::get('push', 'PushController@push');
+        Route::post('{groupname?}/push','PushController@store');
+        Route::post('push', 'PushController@store');
 
         Route::group(['middlewareGroups' => ['role:Admin']], function () {
             Route::get('showUser/{id}', 'UserController@loginAsUser');
+            Route::get('test', 'PushController@push');
         });
 
         Route::get('logoutAsUser', function (){
@@ -81,5 +82,7 @@ Route::group([
             }
             return redirect(url('/'));
         });
+
+        Route::get('kiosk', 'KioskController@index');
 
     });

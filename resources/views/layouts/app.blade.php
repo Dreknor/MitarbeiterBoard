@@ -4,12 +4,14 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{csrf_token()}}">
 
     <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
 
     <title>{{env('APP_NAME')}}</title>
-
+    @can('disable menu')
+            <meta http-equiv="refresh" content="300; url=https://eltern.esz-radebeul.de/kiosk">
+    @endcan
 
     <!-- CSS Files -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />
@@ -35,7 +37,8 @@
     <div class="sidebar-wrapper">
         <ul class="nav">
             @auth
-                <li class="@if(request()->segment(1)=="home" or  request()->segment(1)=="" ) active @endif">
+                @cannot('disable menu')
+                    <li class="@if(request()->segment(1)=="home" or  request()->segment(1)=="" ) active @endif">
                     <a href="{{url('/home')}}">
                         <i class="fas fa-house"></i>
                         <p>Home</p>
@@ -43,6 +46,7 @@
                 </li>
                 @foreach(auth()->user()->groups AS $group)
                     <li>
+
                         <a data-toggle="collapse" href="#{{$group->name}}">
                             <p>
                                 {{$group->name}} <b class="caret"></b>
@@ -63,7 +67,7 @@
                                     </a>
                                 </li>
                                 <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
-                                    <a href="{{url(request()->segment(1).'/search')}}">
+                                    <a href="{{url($group->name.'/search')}}">
                                         <i class="fas fa-search"></i>
                                         <p>Suche</p>
                                     </a>
@@ -85,19 +89,20 @@
                         <p>Gruppen</p>
                     </a>
                 </li>
-                @can('edit permissions')
-                    <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
-                        <a href="{{url('/roles')}}">
-                            <i class="fas fa-lock"></i>
-                            <p>Rechte</p>
-                        </a>
-                    </li>
-                    <li class="@if(request()->segment(1)=="users") active @endif">
-                        <a href="{{url('/users')}}">
-                            <i class="fas fa-user"></i>
-                            <p>Benutzer</p>
-                        </a>
-                    </li>
+                    @can('edit permissions')
+                        <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
+                            <a href="{{url('/roles')}}">
+                                <i class="fas fa-lock"></i>
+                                <p>Rechte</p>
+                            </a>
+                        </li>
+                        <li class="@if(request()->segment(1)=="users") active @endif">
+                            <a href="{{url('/users')}}">
+                                <i class="fas fa-user"></i>
+                                <p>Benutzer</p>
+                            </a>
+                        </li>
+                    @endcan
                 @endcan
             @endauth
 

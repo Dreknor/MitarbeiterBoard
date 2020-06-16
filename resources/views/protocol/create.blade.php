@@ -14,8 +14,13 @@
                             ACHTUNG: Es muss gespeichert werden
                         </p>
                     </div>
+                    <div class="col">
+                       <a class="btn btn-sm btn-info pull-right" id="newTaskLink" data-toggle="modal" data-target="#taskModal">
+                           Aufgabe erstellen
+                       </a>
+                    </div>
                     <div class="col d-sm-none d-md-block">
-                            <div id="timer" class="timerDiv w-50 ">
+                            <div id="timer" class="timerDiv w-75 ">
                                 <div class="row">
                                     <div id="hours" class="col"></div>
                                     <div id="minutes" class="col"></div>
@@ -34,9 +39,6 @@
                                 <div class="row">
                                     <label for="protocol">Protokoll</label>
                                 </div>
-                                <div class="row mt-1">
-
-                                </div>
                             </div>
 
                         </div>
@@ -46,19 +48,28 @@
                             </textarea>
                         </div>
                     </div>
-                    <div class="form-row">
+                    @can('complete theme')
+                        <div class="form-row">
+                            <div class="col-sm-12 col-md-12 col-lg-3">
+                                <label for="completed">Thema abgeschlossen?</label>
+                            </div>
+                            <div class="col-sm-12 col-md-12 col-lg-9">
+                                <input type="checkbox" name="completed" id="completed" value="1" class="custom-checkbox"> abgeschlossen
+                            </div>
+                        </div>
+                    @endcan
+
+                    <div class="form-row pt-2">
                         <div class="col-sm-12 col-md-12 col-lg-3">
-                            <label for="completed">Thema abgeschlossen?</label>
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <label for="information">zusätzliche Dateien</label>
+                                </div>
+                            </div>
+
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-9">
-                            <input type="checkbox" name="completed" id="completed" value="1" class="custom-checkbox"> abgeschlossen
-                        </div>
-
-                    </div>
-                    <div class="form-row pt-2">
-                        <div class="col-sm-12 col-md-12 col-lg-12">
-                            <label for="information">zusätzliche Dateien</label>
-                            <input type="file"  name="files[]" id="customFile" multiple>
+                                <input type="file"  name="files[]" id="customFile" multiple>
                         </div>
                     </div>
                     <div class="form-row">
@@ -72,6 +83,71 @@
         </div>
     </div>
 @stop
+
+@push('modals')
+    <div class="modal fade" id="taskModal" tabindex="-1" role="dialog"  aria-hidden="true">
+        <div class="modal-dialog modal-lg " role="document">
+            <div class="modal-content">
+                <div class="modal-header" id="modalHeader">
+                    <h5 class="modal-title">Aufgabe hinzufügen</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body"  id="modalBody">
+                    <form action="" method="post" class="form-horizontal" id="taskForm">
+                        @csrf
+                        <div class="form-row p-2">
+                            <label for="date">zu erledigen bis...</label>
+                            <input type="date" name="date" min="{{\Carbon\Carbon::now()->addDay()->format('Y-m-d')}}" value="{{old('date')}}" class="form-control" required autofocus>
+                        </div>
+                        <div class="form-row p-2">
+                            <label for="task">Aufgabe</label>
+                            <input type="text" name="task" min="{{\Carbon\Carbon::now()->addDay()->format('Y-m-d')}}" value="{{old('task')}}" class="form-control" required>
+                        </div>
+                        <div class="form-row p-2">
+                            <label for="taskable">Aufgabe für ...</label>
+                            <select class="custom-select" name="taskable">
+                                <option value="{{request()->segment(1)}}">Gruppe {{request()->segment(1)}}</option>
+                                @foreach($theme->group->users as $user)
+                                    <option value="{{$user->id}}">{{$user->name}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit"  form="taskForm" class="btn btn-primary" id="submitTask">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="submitTaskModal" tabindex="-1" role="dialog"  aria-hidden="true">
+        <div class="modal-dialog modal-lg " role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-success" >
+                    <h5 class="modal-title">Aufgabe erstellt</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Aufgabe gespeichert
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+@endpush
+
+
 @push('css')
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css" />
@@ -79,6 +155,28 @@
 
 @endpush
 @push('js')
+    <script>
+        document.querySelector('#submitTask').addEventListener('click', function(e) {
+            e.preventDefault();
+            $('#submitTask').hide();
+
+            let url = "{{url(request()->segment(1).'/'.$theme->id.'/tasks')}}";
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: $("#taskForm").serialize(),
+                success: function (response) {
+                    $('#taskModal').modal('toggle');
+                    $('#submitTaskModal').modal('toggle');
+                },
+                error: function (error) {
+                    $('#modalHeader').addClass('bg-danger');
+                }
+            });
+        });
+    </script>
+
+
     @if($theme->date->startOfDay()->equalTo(\Carbon\Carbon::now()->startOfDay()))
         <script>
             function makeTimer() {

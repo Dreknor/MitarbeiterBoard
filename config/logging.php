@@ -40,6 +40,11 @@ return [
             'channels' => ['single'],
             'ignore_exceptions' => false,
         ],
+        'maillog' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/mail.log'),
+            'level' => 'info',
+        ],
 
         'single' => [
             'driver' => 'single',
