@@ -185,15 +185,21 @@
                 </div>
                 <div class="row p-2">
                     @if (!$theme->completed)
-                        <div class="col-6">
+                        <div class="col">
                                <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
                         </div>
-                        <div class="col-6">
+                        <div class="col">
                             <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">
                                 Aufgabe erstellen
                             </button>
-
                         </div>
+                        @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
+                            <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger">LÖSCHEN</button>
+                            </form>
+                        @endif
                     @endif
                 </div>
 

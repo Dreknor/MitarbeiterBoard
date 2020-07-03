@@ -80,6 +80,10 @@ class UserController extends Controller
         $user->groups()->detach();
         $user->groups()->attach($gruppen);
 
+        if (auth()->user()->can('set password') and $request->input('new-password') != ""){
+            $user->password = Hash::make($request->input('new-password'));
+        }
+
         if ($user->save()){
             return redirect()->back()->with([
                "type"   => "success",

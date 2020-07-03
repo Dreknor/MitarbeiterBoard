@@ -229,6 +229,21 @@ class ThemeController extends Controller
         ]);
     }
 
+    public function destroy($groupname, Theme $theme){
+        if (auth()->user()->id == $theme->creator_id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(Carbon::now()->startOfDay()->addDays(config('config.themes.addDays')))){
+            $theme->delete();
+            return redirect(url($groupname.'/themes'))->with([
+                'type'  => 'info',
+                'Meldung'   => "Thema wurde gelöscht."
+            ]);
+        }
+
+        return redirect()->back()->with([
+            'type'  => 'warning',
+            'Meldung'   => "Thema kann nicht gelöscht werden"
+        ]);
+    }
+
    public function move(Theme $theme, $date = null){
 
    }

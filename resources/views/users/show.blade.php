@@ -47,7 +47,29 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="form-group">
+                                                <label>Muss Passwort ändern</label>
+                                                <select class="custom-select" name="changePassword">
+                                                    <option value="1" @if($user->changePassword)selected @endif>Ja</option>
+                                                    <option value="0" @if(!$user->changePassword)selected @endif>Nein</option>
+                                                </select>
+                                            </div>
 
+                                        </div>
+                                    </div>
+                                    @can('set password')
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <div class="form-group">
+                                                    <label>neues Passwort</label>
+                                                    <input class="form-control" name="new-password" type="password" minlength="8">
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    @endcan
 
                                     <div class="row">
                                         <div class="col-12">

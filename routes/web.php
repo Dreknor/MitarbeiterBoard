@@ -19,70 +19,81 @@ Route::group([
     'middleware' => ['auth'],
 ],
     function () {
-        Route::get('/home', 'HomeController@index')->name('home');
-        Route::get('/', 'HomeController@index');
-        Route::resource('{groupname}/themes', 'ThemeController');
-        Route::get('{groupname}/archive', 'ThemeController@archive');
-        Route::post('priorities', 'PriorityController@store');
 
-        //Protocols
-        Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
-        Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
-        Route::get('{groupname}/protocols/{protocol}/edit', 'ProtocolController@edit');
-        Route::put('{groupname}/protocols/{protocol}/', 'ProtocolController@update');
+        Route::get('password/expired', 'Auth\ExpiredPasswordController@expired')
+            ->name('password.expired');
+        Route::post('password/post_expired', 'Auth\ExpiredPasswordController@postExpired')
+            ->name('password.post_expired');
 
-        Route::post('{groupname}/search', 'SearchController@search');
-        Route::get('{groupname}/search', 'SearchController@show');
+        Route::group([
+            'middleware' => ['password_expired'],
+        ],
+            function () {
 
-        Route::get('image/{media_id}', 'ImageController@getImage');
-        //Route::get('reminder', 'MailController@remind');
-        //Route::get('einladung', 'MailController@invitation');
-        //Route::get('delete', 'GroupController@deleteOldGroups');
+                Route::get('/home', 'HomeController@index')->name('home');
+                Route::get('/', 'HomeController@index');
+                Route::resource('{groupname}/themes', 'ThemeController');
+                Route::get('{groupname}/archive', 'ThemeController@archive');
+                Route::post('priorities', 'PriorityController@store');
 
-        //Route::get('import/', 'ImportController@show');
-        //Route::post('import/', 'ImportController@import');
+                //Protocols
+                Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
+                Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
+                Route::get('{groupname}/protocols/{protocol}/edit', 'ProtocolController@edit');
+                Route::put('{groupname}/protocols/{protocol}/', 'ProtocolController@update');
 
-        //Roles and permissions
-        Route::group(['middleware' => ['permission:edit permissions']], function () {
-            Route::get('roles', 'RolesController@edit');
-            Route::put('roles', 'RolesController@update');
-            Route::post('roles', 'RolesController@store');
-            Route::post('roles/permission', 'RolesController@storePermission');
+                Route::post('{groupname}/search', 'SearchController@search');
+                Route::get('{groupname}/search', 'SearchController@show');
 
-            Route::get('user', 'UserController@index');
-        });
+                Route::get('image/{media_id}', 'ImageController@getImage');
+                //Route::get('reminder', 'MailController@remind');
+                //Route::get('einladung', 'MailController@invitation');
+                //Route::get('delete', 'GroupController@deleteOldGroups');
 
-        //User-Route
-        Route::resource('users', 'UserController');
-        Route::get('importuser','UserController@importFromElternInfoBoard');
+                //Route::get('import/', 'ImportController@show');
+                //Route::post('import/', 'ImportController@import');
 
-        //Gruppen-Route
-        Route::get('groups', 'GroupController@index');
-        Route::post('groups', 'GroupController@store');
-        Route::put('{groupname}/addUser', 'GroupController@addUser');
-        Route::delete('{groupname}/removeUser', 'GroupController@removeUser');
+                //Roles and permissions
+                Route::group(['middleware' => ['permission:edit permissions']], function () {
+                    Route::get('roles', 'RolesController@edit');
+                    Route::put('roles', 'RolesController@update');
+                    Route::post('roles', 'RolesController@store');
+                    Route::post('roles/permission', 'RolesController@storePermission');
 
-        //Tasks
-        Route::post('{groupname}/{theme}/tasks', 'TaskController@store');
-        Route::get('tasks/{task}/complete', 'TaskController@complete');
-        //Route::get('remindtask', 'MailController@remindTaskMail');
+                    Route::get('user', 'UserController@index');
+                });
 
-        //Push-Notification
-        Route::post('{groupname?}/push','PushController@store');
-        Route::post('push', 'PushController@store');
+                //User-Route
+                Route::resource('users', 'UserController');
+                Route::get('importuser', 'UserController@importFromElternInfoBoard');
 
-        Route::group(['middlewareGroups' => ['role:Admin']], function () {
-            Route::get('showUser/{id}', 'UserController@loginAsUser');
-            Route::get('test', 'PushController@push');
-        });
+                //Gruppen-Route
+                Route::get('groups', 'GroupController@index');
+                Route::post('groups', 'GroupController@store');
+                Route::put('{groupname}/addUser', 'GroupController@addUser');
+                Route::delete('{groupname}/removeUser', 'GroupController@removeUser');
 
-        Route::get('logoutAsUser', function (){
-            if (session()->has('ownID')){
-                \Illuminate\Support\Facades\Auth::loginUsingId(session()->pull('ownID'));
-            }
-            return redirect(url('/'));
-        });
+                //Tasks
+                Route::post('{groupname}/{theme}/tasks', 'TaskController@store');
+                Route::get('tasks/{task}/complete', 'TaskController@complete');
+                //Route::get('remindtask', 'MailController@remindTaskMail');
 
-        Route::get('kiosk', 'KioskController@index');
+                //Push-Notification
+                Route::post('{groupname?}/push', 'PushController@store');
+                Route::post('push', 'PushController@store');
 
+                Route::group(['middlewareGroups' => ['role:Admin']], function () {
+                    Route::get('showUser/{id}', 'UserController@loginAsUser');
+                    Route::get('test', 'PushController@push');
+                });
+
+                Route::get('logoutAsUser', function () {
+                    if (session()->has('ownID')) {
+                        \Illuminate\Support\Facades\Auth::loginUsingId(session()->pull('ownID'));
+                    }
+                    return redirect(url('/'));
+                });
+
+                Route::get('kiosk', 'KioskController@index');
+            });
     });

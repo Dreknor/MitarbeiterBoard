@@ -83,7 +83,7 @@
 
 @endpush
 @push('js')
-   
+
 
     <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
     <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>

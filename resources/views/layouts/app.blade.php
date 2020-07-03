@@ -28,7 +28,7 @@
 <body id="app-layout">
 <div class="sidebar" data-color="white" data-active-color="danger">
     <div class="logo" style="word-wrap: normal;">
-        <a href="https://www.esz-radebeul.de" class="simple-text">
+        <a href="https://mitarbeiter.esz-radebeul.de" class="simple-text">
             <div class="logo-image-small">
                 <img src="{{asset('img/logo.png')}}">
             </div>
