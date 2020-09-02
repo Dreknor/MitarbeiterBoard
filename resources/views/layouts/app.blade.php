@@ -66,6 +66,12 @@
                                         <p>Archiv</p>
                                     </a>
                                 </li>
+                                <li class="@if(request()->segment(2)=="export" and request()->segment(1)=="$group->name"  ) active @endif">
+                                    <a href="{{url($group->name.'/export')}}">
+                                        <i class="fas fa-file-alt"></i>
+                                        <p>Protokoll</p>
+                                    </a>
+                                </li>
                                 <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
                                     <a href="{{url($group->name.'/search')}}">
                                         <i class="fas fa-search"></i>

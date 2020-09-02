@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProtocolRequest;
+use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ProtocolController extends Controller
@@ -113,5 +115,35 @@ class ProtocolController extends Controller
         ]);
     }
 
+    /**
+     * make paper protocol
+     */
+    public function createSheet($groupname, $date = ""){
+        $group = Group::where('name', $groupname)->first();
 
+        if (!auth()->user()->groups->contains($group)){
+            return redirect(url('home'))->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+
+
+        if ($date != ""){
+            $date = Carbon::createFromFormat('Y-m-d',$date);
+        } else {
+            $date = Carbon::now();
+        }
+
+
+        $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date){
+            $query->whereDate('created_at', '=', $date);
+        })->get();
+
+        return view('protocol.export')->with([
+            'themes'    => $themes,
+            'date'  => $date
+        ]);
+    }
 }

@@ -40,6 +40,7 @@ Route::group([
                 Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
                 Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
                 Route::get('{groupname}/protocols/{protocol}/edit', 'ProtocolController@edit');
+                Route::get('{groupname}/export/{date?}/', 'ProtocolController@createSheet');
                 Route::put('{groupname}/protocols/{protocol}/', 'ProtocolController@update');
 
                 Route::post('{groupname}/search', 'SearchController@search');
