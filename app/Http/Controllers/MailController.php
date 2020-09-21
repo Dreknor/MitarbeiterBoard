@@ -30,9 +30,10 @@ class MailController extends Controller
 
     public function invitation(){
         $groups = Group::with(['themes', 'users'])->get();
-        $date = Carbon::now()->addDays(config('config.themes.addDays'));
+
 
         foreach ($groups as $group){
+            $date = Carbon::now()->addDays($group->InvationDays);
             $users = "";
             $themes = $group->themes;
             $themes = $themes->filter(function ($theme) use ($date){

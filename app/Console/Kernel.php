@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();->weeklyOn(1, '8:00');
         $schedule->call('App\Http\Controllers\MailController@remind')->fridays()->at('12:00');
-        $schedule->call('App\Http\Controllers\MailController@invitation')->dailyAt('22:00');
+        $schedule->call('App\Http\Controllers\MailController@invitation')->dailyAt('23:00');
         $schedule->call('App\Http\Controllers\MailController@remindTaskMail')->dailyAt('07:15');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
 

@@ -129,7 +129,7 @@
                                                 <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
                                         @endif
 
-                                        {{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}
+                                        {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
                                         <p>
                                             {{$task->task}}
                                         </p>

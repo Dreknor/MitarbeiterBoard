@@ -18,6 +18,11 @@
     @if(!is_null($themes) and $themes->count() > 0)
         <div class="container-fluid">
         <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    Protokolle der Gruppe {{request()->segment(1)}} vom {{$date->format('d.m.Y')}}
+                </h5>
+            </div>
             <div class="card-body">
                 <table class="table table-bordered table-striped">
                     <thead>
@@ -47,6 +52,9 @@
                                     <b>
                                         {{$theme->theme}}
                                     </b>
+                                </p>
+                                <p>
+                                    <a href="{{url($theme->group->name.'/themes/'.$theme->id)}}">anzeigen</a>
                                 </p>
                                 <p>
                                     <!--
@@ -83,6 +91,11 @@
     @else
         <div class="container-fluid">
             <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        Protokolle der Gruppe {{request()->segment(1)}} vom {{$date->format('d.m.Y')}}
+                    </h5>
+                </div>
                 <div class="card-body">
                     <p>
                         Keine Protokolle gefunden

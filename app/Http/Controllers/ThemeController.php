@@ -79,10 +79,15 @@ class ThemeController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+    public function create($groupname)
     {
+        $group = Group::where([
+            'name'  => $groupname
+        ])->first();
+
         return view('themes.create',[
-            'types' => Type::all()
+            'types' => Type::all(),
+            'group' => $group
         ]);
     }
 
@@ -107,6 +112,14 @@ class ThemeController extends Controller
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+        $date = Carbon::createFromFormat('Y-m-d',$request->date);
+        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay())){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Thema kann für diesen Tag nicht mehr erstellt werden"
             ]);
         }
 
@@ -144,6 +157,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
+
         if (!auth()->user()->groups->contains($group)){
             return redirect()->back()->with([
                 'type'    => 'warning',
@@ -176,7 +190,8 @@ class ThemeController extends Controller
 
         return view('themes.edit',[
             'theme' => $theme,
-            'types' => Type::all()
+            'types' => Type::all(),
+            'group' => $group
         ]);
     }
 
@@ -195,6 +210,15 @@ class ThemeController extends Controller
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+        $date = Carbon::createFromFormat('Y-m-d',$request->date);
+
+        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay())){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Thema kann für diesen Tag nicht mehr erstellt werden"
             ]);
         }
 

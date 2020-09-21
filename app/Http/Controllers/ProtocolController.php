@@ -141,6 +141,7 @@ class ProtocolController extends Controller
             $query->whereDate('created_at', '=', $date);
         })->get();
 
+        $themes->load(['group', 'protocols']);
         return view('protocol.export')->with([
             'themes'    => $themes,
             'date'  => $date

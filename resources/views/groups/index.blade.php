@@ -56,6 +56,9 @@
                                 Erstellt von {{$group->creator->name}} und offen bis {{$group->enddate->format('d.m.Y')}} (noch {{$group->enddate->diffInDays(\Carbon\Carbon::now())}} Tage)
                             </p>
                         @endif
+                        <p class="small">
+                            Themen müssen <b>{{$group->InvationDays}}</b> Tage vorher angelegt werden
+                        </p>
                     </div>
                     <div class="card-footer">
                         @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))

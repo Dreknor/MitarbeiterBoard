@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
 {
-    protected $fillable = [ 'name', 'creator_id', 'enddate', 'homegroup'];
+    protected $fillable = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays'];
+    protected $visible = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays'];
 
     protected $dates = ['enddate'];
 

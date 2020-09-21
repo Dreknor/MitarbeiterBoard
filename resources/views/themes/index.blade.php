@@ -44,7 +44,7 @@
                                             <th style="max-width: 30%;">Ziel</th>
                                             <th>Dauer</th>
                                             <th>Priorität</th>
-                                            <th>Informationen</th>
+                                            <th colspan="2">Informationen</th>
                                         </tr>
                                         </thead>
                                         <tbody class="connectedSortable" >
@@ -76,7 +76,14 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">anzeigen</a>
+                                                    <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">
+                                                        <i class="far fa-eye"></i> zeigen
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <a href="{{url(request()->segment(1)."/protocols/$theme->id")}}">
+                                                        <i class="far fa-sticky-note"></i> Protokoll
+                                                    </a>
                                                 </td>
                                             </tr>
                                         @endforeach
