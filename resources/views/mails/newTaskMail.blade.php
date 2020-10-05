@@ -7,7 +7,7 @@
 
 <p>Liebe/r {{$name}}</p>
 <p>
-    Im <a href="https://mitarbeiter.esz-radebeul.de">MitarbeiterBoard</a> wurde  @if($group != true) dir @else einer deiner Gruppen @endif eine neue Aufgabe zugewiesen:
+    Im <a href="https://mitarbeiter.esz-radebeul.de">MitarbeiterBoard</a> wurde  @if($group != true) dir @else einer deiner Gruppe @isset($groupname) {{$groupname}} @endisset @endif eine neue Aufgabe zugewiesen:
     <br><br>
 </p>
 <p>

@@ -27,7 +27,9 @@ class SearchController extends Controller
                 $query->where('theme', 'Like', $text)
                     ->orWhere('goal', 'Like', $text)
                     ->orWhere('information', 'Like', $text);
-            })->get();
+            })
+            ->orderByDesc('date')
+            ->get();
 
         // search the protocols table
         $text = '*'.$request->input('text').'*';
@@ -38,13 +40,14 @@ class SearchController extends Controller
             ->get();
 
             if ($resultsProtocol->count() > 0){
-
                 foreach ($resultsProtocol as $protocol){
                     $theme = $protocol->theme;
                     $results->push($theme);
                 }
             }
 
+
+            $results->sortByDesc('date');
 
         // return the results
         return response()->json($results);

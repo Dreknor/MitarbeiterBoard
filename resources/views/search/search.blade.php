@@ -44,7 +44,7 @@
                             '_token': "{{ csrf_token() }}"
                         },
                         success: function(data) {
-                            console.log(data);
+
                             if (Object.keys(data).length == 0)
                             {
                                 $("#result").empty().append('<li class="list-group-item">Keine Ergebnisse gefunden</li>')
@@ -55,7 +55,7 @@
                                 {
                                     if (result != null){
                                         console.log(result);
-                                        $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+ result.theme + '</a></li>')
+                                        $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+result.date.substring(0,10) + ': '+ result.theme + '</a></li>')
                                     }
                                    });
                             }

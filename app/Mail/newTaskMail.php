@@ -16,6 +16,7 @@ class newTaskMail extends Mailable
     protected $task;
     protected $name;
     protected $group;
+    protected $groupname;
 
 
     /**
@@ -23,13 +24,14 @@ class newTaskMail extends Mailable
      *
      * @return void
      */
-    public function __construct($name, $date, $task, $theme, $group)
+    public function __construct($name, $date, $task, $theme, $group, $groupname)
     {
         $this->name = $name;
         $this->date = $date;
         $this->task = $task;
         $this->theme = $theme;
         $this->group = $group;
+        $this->groupname = $groupname;
     }
 
     /**
@@ -45,6 +47,7 @@ class newTaskMail extends Mailable
             "task" =>$this->task,
             "theme" =>$this->theme,
             "group" =>$this->group,
+            "groupname" =>$this->groupname,
         ]);
     }
 }

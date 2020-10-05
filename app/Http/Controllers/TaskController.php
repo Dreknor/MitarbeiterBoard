@@ -38,7 +38,7 @@ class TaskController extends Controller
             $group=true;
             $taskable_user = $this->group->users;
         } else {
-            $group = false;
+
             $user = User::where('id', $request->input('taskable'))->first();
             $taskable_user = collect();
             $taskable_user->push($user);
@@ -57,6 +57,7 @@ class TaskController extends Controller
         $task->theme_id = $theme->id;
 
         $taskable->tasks()->save($task);
+        $group = false;
 
         foreach ($taskable_user as $user){
             if ($group){
@@ -65,7 +66,7 @@ class TaskController extends Controller
                 $text = "Du hast eine neue persönliche Aufgabe im MitarbeiterBoard";
             }
             Notification::send($user,new Push('neue Aufgabe', $text));
-            Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'),$task->task, $task->theme->theme, $group));
+            Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'),$task->task, $task->theme->theme, $group, $this->group->name));
         }
 
 
