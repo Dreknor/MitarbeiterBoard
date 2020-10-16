@@ -18,7 +18,7 @@
                         <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="theme">Datum<a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss mindestens {{$group->InvationDays}} Tage in der Zukunft liegen, da {{$group->InvationDays}} Tage vor einer Sitzung die Themen versandt werden. Die ermöglicht die Vorbereitung auf Themen und der Priorisierung.">?</a> </label>
+                        <label for="theme">Datum der Besprechung*<a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss mindestens {{$group->InvationDays}} Tage in der Zukunft liegen, da {{$group->InvationDays}} Tage vor einer Sitzung die Themen versandt werden. Dies ermöglicht die Vorbereitung auf Themen und der Priorisierung. Verpflichtend">?</a> </label>
                         <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next(config('config.themes.defaultDay'))->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->addDays($group->InvationDays)->format('Y-m-d')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
@@ -31,13 +31,17 @@
                         </select>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-2">
-                        <label for="duration">Dauer <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Die Dauer wird in 5 Minuten Schritten angegeben. Sie kann {{config('config.themes.maxDuration')}} Minuten nicht überschreiten.">?</a></label>
+                        <label for="duration">Dauer <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Die Dauer wird in 5 Minuten Schritten angegeben. Sie kann {{config('config.themes.maxDuration')}} Minuten nicht überschreiten. Verpflichtend">?</a></label>
                         <input type="number" class="form-control" id="duration" name="duration" required min="5" max="240" step="5" value="{{old('duration', config('.config.themes.maxDuration'))}}">
                     </div>
                 </div>
                 <div class="form-row pt-2">
                     <div class="col-sm-12 col-md-12 col-lg-12">
-                        <label for="goal">Ziel</label>
+                        <label for="goal">Ziel
+                            <b>
+                                <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Das Ziel sollte spezifisch, messbar, akzeptiert, realistisch und terminiert sein. Verpflichtend">?</a>
+                            </b>
+                        </label>
                         <input type="text" class="form-control" id="goal" name="goal" required value="{{old('goal')}}">
                     </div>
                 </div>
@@ -86,7 +90,7 @@
         tinymce.init({
             selector: 'textarea',
             lang:'de',
-            height: 300,
+            height: 400,
             menubar: true,
             plugins: [
                 'advlist autolink lists link charmap',

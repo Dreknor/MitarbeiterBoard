@@ -24,7 +24,7 @@ class TaskController extends Controller
         $this->group = Group::where('name', $request->route('groupname'))->first();
     }
 
-    public function store($groupname,Theme $theme, $type,TaskRequest $request){
+    public function store($groupname,Theme $theme, TaskRequest $request){
 
         if (!auth()->user()->groups->contains($this->group)){
             return redirect()->back()->with([
