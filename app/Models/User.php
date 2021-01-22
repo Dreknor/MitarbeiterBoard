@@ -47,18 +47,23 @@ class User extends Authenticatable
     }
 
     public function groups(){
-        return $this->belongsToMany(Group::class);
+        return Cache::remember("groups_".$this->id, 60, function() {
+            $groups = $this->groups_rel;
+            $groups = $groups->concat(Group::where('protected', false)->get());
+            $groups = $groups->unique('name');
+            return $groups;
+        });
+
+
     }
 
 
     /**
      * This method can be used when we want to utilise a cache
      */
-    public function getGroups()
+    public function groups_rel()
     {
-        return Cache::remember("groupsByUser({$this->id})", 60, function() {
-            return $this->groups;
-        });
+        return $this->belongsToMany(Group::class);
     }
 
     /**

@@ -44,7 +44,7 @@
                         <p>Home</p>
                     </a>
                 </li>
-                @foreach(auth()->user()->groups AS $group)
+                @foreach(auth()->user()->groups() AS $group)
                     <li>
 
                         <a data-toggle="collapse" href="#{{$group->name}}">

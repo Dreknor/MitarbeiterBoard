@@ -45,7 +45,7 @@ class UserController extends Controller
     public function show(User $user)
     {
         return view('users.show',[
-            "user" => $user->load(['groups', 'permissions', 'roles']),
+            "user" => $user->load(['permissions', 'roles']),
             'permissions' => Permission::all(),
             'roles'     => Role::all(),
             'groups'    => Group::all()
@@ -77,8 +77,8 @@ class UserController extends Controller
                 $gruppen = Group::find($gruppen);
         }
 
-        $user->groups()->detach();
-        $user->groups()->attach($gruppen);
+        $user->groups_rel()->detach();
+        $user->groups_rel()->attach($gruppen);
 
         if (auth()->user()->can('set password') and $request->input('new-password') != ""){
             $user->password = Hash::make($request->input('new-password'));
@@ -156,8 +156,8 @@ class UserController extends Controller
                 ]);
             }
 
-            if (!$localUser->groups->where('name', 'Schulzentrum')->first()){
-                $localUser->groups()->attach($group);
+            if (!$localUser->groups_rel->where('name', 'Schulzentrum')->first()){
+                $localUser->groups_rel()->attach($group);
             }
 
         }

@@ -30,6 +30,14 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="form-row mt-1">
+                            <label for="name">Geschützt?</label>
+                            <select name="protected" class="custom-select">
+                                    <option disabled selected></option>
+                                    <option value="1">Gruppe nur für Mitglieder</option>
+                                    <option value="0">für alle sichtbar</option>
+                            </select>
+                        </div>
                         <div class="form-row">
                             <button type="submit" class="btn btn-success btn-block">
                                 speichern
@@ -60,51 +68,56 @@
                             Themen müssen <b>{{$group->InvationDays}}</b> Tage vorher angelegt werden
                         </p>
                     </div>
-                    <div class="card-footer">
-                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
-                            <form action="{{url($group->name.'/addUser')}}" method="post">
-                                @csrf
-                                @method('put')
-                                <div class="form-row">
-                                    <label for="name">Mitarbeiter hinzufügen</label>
-                                    <div class="input-group mb-3">
-                                        <input type="text" class="form-control" name="name" id="name" required>
-                                        <div class="input-group-append">
-                                            <button class="btn btn-outline-primary" type="submit">
-                                                <i class="fas fa-search"></i>
-                                            </button>
+                    @if($group->protected)
+                        <div class="card-footer">
+                            @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
+                                <form action="{{url($group->name.'/addUser')}}" method="post">
+                                    @csrf
+                                    @method('put')
+                                    <div class="form-row">
+                                        <label for="name">Mitarbeiter hinzufügen</label>
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control" name="name" id="name" required>
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-primary" type="submit">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                            </div>
                                         </div>
+
                                     </div>
 
-                                </div>
-
-                            </form>
-                        @endif
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group">
-                            @if($group->users->count() == 0)
-                                <li class="list-group-item"> Keine Benutzer in der Gruppe </li>
-                            @else
-                                @foreach($group->users as $user)
-                                    <li class="list-group-item">
-                                        {{$user->name}}
-                                        @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
-                                            <div class="pull-right">
-                                                <form action="{{url($group->name.'/removeUser')}}" method="post">
-                                                    @csrf
-                                                    @method('delete')
-                                                    <button type="submit" name="user_id" value="{{$user->id}}" class="btn btn-danger btn-xs"><i class="fas fa-user-minus"></i></button>
-                                                </form>
-                                            </div>
-
-                                        @endif
-                                    </li>
-                                @endforeach
+                                </form>
                             @endif
-                        </ul>
-                    </div>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group">
+                                @if($group->users->count() == 0)
+                                    <li class="list-group-item"> Keine Benutzer in der Gruppe </li>
+                                @else
+                                    @foreach($group->users as $user)
+                                        <li class="list-group-item">
+                                            {{$user->name}}
+                                            @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
+                                                <div class="pull-right">
+                                                    <form action="{{url($group->name.'/removeUser')}}" method="post">
+                                                        @csrf
+                                                        @method('delete')
+                                                        <button type="submit" name="user_id" value="{{$user->id}}" class="btn btn-danger btn-xs"><i class="fas fa-user-minus"></i></button>
+                                                    </form>
+                                                </div>
 
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                @endif
+                            </ul>
+                        </div>
+                    @else
+                        <div class="card-body bg-info">
+                            Die Gruppe ist offen für alle
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

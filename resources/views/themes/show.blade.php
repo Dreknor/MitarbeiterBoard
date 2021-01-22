@@ -4,17 +4,31 @@
     <div class="container-fluid">
             <p>
                 <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
-                @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
-                    <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-warning btn-link pull-right">bearbeiten</a>
-                @endif
+
             </p>
 
 
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title">
-                    {{$theme->theme}}
-                </h5>
+                <div class="row">
+                    <div class="col-8">
+                        <h5 class="card-title">
+                            {{$theme->theme}}
+                        </h5>
+                    </div>
+                    <div class="col-4">
+                        <div class="pull-right">
+                            @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
+                                <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">bearbeiten</a>
+                            @endif
+                            @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme')) and !$theme->completed)
+                                <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="btn btn-sm btn-outline-danger pull-right">Abschließen</a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+
             </div>
             <div class="card-body border-top">
                 <div class="container-fluid">
@@ -119,29 +133,114 @@
                             @endif
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-4 border-left p-sm-2 p-md-2">
-                            <b>
-                                Aufgaben:
-                            </b>
-                            <ul class="list-group">
-                                @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
-                                    <li class="list-group-item">
-                                        @if($task->completed)
-                                                <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
-                                        @endif
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <div class="col-12">
+                                        <b>
+                                            Aufgaben:
+                                        </b>
+                                        <ul class="list-group">
+                                            @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
+                                                <li class="list-group-item">
+                                                    @if($task->completed)
+                                                        <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
+                                                    @endif
 
-                                        {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
-                                        <p>
-                                            {{$task->task}}
-                                        </p>
-                                    </li>
-                                @endforeach
-                            </ul>
+                                                    {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
+                                                    <p>
+                                                        {{$task->task}}
+                                                    </p>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+
+                                </div>
+                                @can('view priorities')
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <b>
+                                                Prioritäten:
+                                            </b>
+                                            <br>
+                                            <ul class="list-group">
+                                                @foreach($theme->priorities as $priority)
+                                                    <li class="list-group-item">
+                                                        <label class="w-100">
+                                                            {{$priority->creator->name}}
+                                                            <div class="progress">
+                                                                <div class="progress-bar amount" role="progressbar" style="width: {{100-$priority->priority}}%;" ></div>
+                                                            </div>
+                                                        </label>
+
+                                                    </li>
+
+                                                @endforeach
+                                            </ul>
+                                        </div>
+
+                                    </div>
+                                @endcan
+                            </div>
+
                         </div>
                     </div>
 
                 </div>
+            </div>
+
+            <div class="card-body border-top">
+                <div class="row p-2">
+                    @if (!$theme->completed)
+                        <div class="col">
+                            <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" class="btn btn-primary btn-block">ausführliches Protokoll anlegen</a>
+                        </div>
+                        <div class="col">
+                            <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">
+                                Aufgabe erstellen
+                            </button>
+                        </div>
+                        @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
+                            <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger">LÖSCHEN</button>
+                            </form>
+                        @endif
+                    @endif
+                </div>
+            </div>
+            <div class="card-body mt-2 border-top">
+                <form action="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
+                    @csrf
+                    <div class="form-row">
+                        <div class="col-sm-12 col-md-12 col-lg-3">
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <label for="protocol">Schnelles Protokoll</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="col-12">
+                            <textarea name="protocol"  class="form-control border-input" >
+                                {{old('protocol')}}
+                            </textarea>
+                        </div>
+                    </div>
 
 
+                    <div class="form-row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success btn-block">speichern</button>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-body">
                 <div class="row mt-2 border-top">
                     <div class="container-fluid">
                         <div class="row mt-2">
@@ -159,7 +258,7 @@
                                     </p>
                                 @else
                                     <ul class="list-group">
-                                        @foreach($theme->protocols as $protocol)
+                                        @foreach($theme->protocols->sortDesc() as $protocol)
                                             <li class="list-group-item">
                                                 <p>
                                                     @if($protocol->creator_id == auth()->id() and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime'))))
@@ -183,26 +282,6 @@
 
 
                 </div>
-                <div class="row p-2">
-                    @if (!$theme->completed)
-                        <div class="col">
-                               <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" class="btn btn-primary btn-block">Protokoll anlegen</a>
-                        </div>
-                        <div class="col">
-                            <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">
-                                Aufgabe erstellen
-                            </button>
-                        </div>
-                        @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
-                            <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger">LÖSCHEN</button>
-                            </form>
-                        @endif
-                    @endif
-                </div>
-
             </div>
         </div>
     </div>
@@ -248,6 +327,8 @@
         </div>
     </div>
 @endpush
+
+
 @push('js')
     <script>
         $('input[type=range]').on("change", function() {
@@ -265,6 +346,26 @@
                     window.location.replace(url);
                 }
             });
+        });
+    </script>
+
+    <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
+    <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>
+    <script src="{{asset('js/plugins/tinymce/langs/de.js')}}"></script>
+    <script>
+        tinymce.init({
+            selector: 'textarea',
+            lang:'de',
+            height: 200,
+            menubar: false,
+            plugins: [
+                'advlist autolink lists link charmap',
+                'searchreplace visualblocks code',
+                'insertdatetime table paste code wordcount',
+                'contextmenu',
+            ],
+            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
+            contextmenu: " link paste inserttable | cell row column deletetable",
         });
     </script>
 @endpush

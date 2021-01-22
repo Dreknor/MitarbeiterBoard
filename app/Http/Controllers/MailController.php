@@ -29,7 +29,7 @@ class MailController extends Controller
     }
 
     public function invitation(){
-        $groups = Group::with(['themes', 'users'])->get();
+        $groups = Group::where('protected', 1)->with(['themes', 'users'])->get();
 
 
         foreach ($groups as $group){

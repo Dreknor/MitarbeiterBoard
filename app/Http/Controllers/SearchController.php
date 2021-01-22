@@ -13,7 +13,7 @@ class SearchController extends Controller
 
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return response()->json();
         }
 

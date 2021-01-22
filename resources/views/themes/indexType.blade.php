@@ -23,15 +23,13 @@
                 </div>
             </div>
         @else
-                    @foreach($themes as $day => $dayThemes)
-                        <div class="card" id="{{$day}}" >
+                    @foreach($themes as  $type=> $typeThemes)
+
+                        <div class="card" id="{{$type}}" >
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    {{$day}}
+                                    {{$type}}
                                 </h5>
-                                <p class="small">
-                                    Dauer: {{$dayThemes->sum('duration')}} Minuten
-                                </p>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive-sm table-responsive-md">
@@ -40,15 +38,13 @@
                                         <tr>
                                             <th>Von</th>
                                             <th>Thema</th>
-                                            <th>Typ</th>
-                                            <th style="max-width: 30%;">Ziel</th>
-                                            <th>Dauer</th>
+                                            <th>Datum</th>
                                             <th>Priorität</th>
                                             <th colspan="2">Informationen</th>
                                         </tr>
                                         </thead>
                                         <tbody class="connectedSortable" >
-                                        @foreach($dayThemes->sortByDesc('priority') as $theme)
+                                        @foreach($typeThemes->sortByDesc('priority') as $theme)
                                             <tr id="{{$theme->id}}" @if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) class="bg-warning" @endif>
                                                 <td>
                                                     {{$theme->ersteller->name}}
@@ -58,13 +54,7 @@
                                                 </td>
 
                                                 <td>
-                                                    {{$theme->type->type}}
-                                                </td>
-                                                <td>
-                                                    {{$theme->goal}}
-                                                </td>
-                                                <td>
-                                                    {{$theme->duration}} Minuten
+                                                    {{$theme->date->format('d.m.Y')}}
                                                 </td>
                                                 <td id="priority_{{$theme->id}}">
                                                     @if ($theme->priorities->where('creator_id', auth()->id())->first())

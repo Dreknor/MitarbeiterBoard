@@ -11,12 +11,12 @@ class newTaskMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    protected $theme;
-    protected $date;
-    protected $task;
-    protected $name;
-    protected $group;
-    protected $groupname;
+    public $theme;
+    public $date;
+    public $task;
+    public $name;
+    public $group;
+    public $groupname;
 
 
     /**

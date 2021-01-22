@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProtocolRequest;
+use App\Mail\newProtocolForTask;
+use App\Mail\newTaskMail;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
+use App\Notifications\Push;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 class ProtocolController extends Controller
 {
@@ -70,12 +75,22 @@ class ProtocolController extends Controller
      */
     public function store($groupname, ProtocolRequest $request, Theme $theme)
     {
+
+
         $protocol = new Protocol([
            'creator_id' => auth()->id(),
            'theme_id'   => $theme->id,
            'protocol'   => $request->protocol,
         ]);
         $protocol->save();
+
+        if ($theme->type->type == "Aufgabe" and $theme->creator_id != auth()->id()){
+            $user = auth()->user()->name;
+            $ersteller = $theme->ersteller;
+            Notification::send(auth()->user(),new Push('neues Protokoll', "Thema: ".$theme->theme));
+            Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme->theme));
+
+        }
 
         if ($request->hasFile('files')) {
             $files = $request->files->all();
@@ -121,7 +136,7 @@ class ProtocolController extends Controller
     public function createSheet($groupname, $date = ""){
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return redirect(url('home'))->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"

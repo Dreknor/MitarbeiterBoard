@@ -29,6 +29,7 @@ class GroupRequest extends FormRequest
                 'name' => 'required|alpha_dash|unique:groups,name',
                 'enddate'   => 'nullable|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'homegroup' => 'required_with:enddate|exists:groups,id',
+                'protected' => 'sometimes'
 
             ];
         } else {

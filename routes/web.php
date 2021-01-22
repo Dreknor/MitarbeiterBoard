@@ -32,9 +32,17 @@ Route::group([
 
                 Route::get('/home', 'HomeController@index')->name('home');
                 Route::get('/', 'HomeController@index');
+
+                //Themes
                 Route::resource('{groupname}/themes', 'ThemeController');
+                Route::get('{groupname}/view/{viewType}', 'ThemeController@setView');
                 Route::get('{groupname}/archive', 'ThemeController@archive');
+                Route::get('{groupname}/themes/{theme}/close', 'ThemeController@closeTheme');
+
+
+                //Prioritäten
                 Route::post('priorities', 'PriorityController@store');
+
 
                 //Protocols
                 Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
@@ -95,6 +103,6 @@ Route::group([
                     return redirect(url('/'));
                 });
 
-                Route::get('kiosk', 'KioskController@index');
+                //Route::get('kiosk', 'KioskController@index');
             });
     });

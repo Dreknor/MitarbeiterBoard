@@ -11,11 +11,31 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class ThemeController extends Controller
 {
 
+    public function setView($groupname, $viewType){
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups()->contains($group)){
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => "Kein Zugriff auf diese Gruppe"
+            ]);
+        }
+
+
+        if ($viewType != null){
+            Cache::forever('viewType_'.$groupname.'_'.auth()->id(), $viewType);
+        }
+
+        return redirect(url($groupname."/themes"));
+
+
+    }
     /**
      * Display a listing of the resource.
      *
@@ -25,7 +45,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
            return redirect()->back()->with([
               'type'    => 'warning',
               'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -34,12 +54,38 @@ class ThemeController extends Controller
 
         $themes=$group->themes()->where('completed', 0)->get();
         $themes->load('priorities', 'ersteller', 'type', 'protocols');
-        $themes = $themes->sortBy('date')->groupBy(function($item){
-            return  $item->date->format('d.m.Y');
-        });
 
-        return view('themes.index',[
+        $viewType = Cache::get('viewType_'.$groupname.'_'.auth()->id(), $group->viewType);
+
+        switch ($viewType){
+            case "date":
+                    $themes = $themes->sortBy('date')->groupBy(function($item){
+                        return  $item->date->format('d.m.Y');
+                    });
+                break;
+            case 'type':
+                $themes = $themes->sortBy('date')->groupBy(function($item){
+                    return  $item->type->type;
+                });
+                break;
+            case 'priority':
+                $themes = $themes->sortByDesc('priority');
+                break;
+        }
+
+
+
+        $views = [
+            "date"  => "index",
+            "type"  => "indexType",
+            'priority' => 'indexPriority'
+        ];
+
+
+
+        return view('themes.'.$views[$viewType],[
            'themes' => $themes,
+            'viewType' => $viewType
         ]);
     }
 
@@ -52,7 +98,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -108,7 +154,7 @@ class ThemeController extends Controller
 
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group) and $group->proteced){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -158,7 +204,7 @@ class ThemeController extends Controller
         $group = Group::where('name', $groupname)->first();
 
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -180,7 +226,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -206,7 +252,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups->contains($group)){
+        if (!auth()->user()->groups()->contains($group)){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -268,7 +314,29 @@ class ThemeController extends Controller
         ]);
     }
 
-   public function move(Theme $theme, $date = null){
+   public function closeTheme($groupname, Theme $theme){
+        if (!auth()->user()->can('complete theme')){
+            return redirect()->back()->with([
+                'type'  => 'danger',
+               'Meldung'=> 'Berechtigung fehlt'
+            ]);
+        }
+
+          $theme->update([
+               'completed' => 1
+           ]);
+
+           $protocol = new Protocol([
+               'creator_id' => auth()->id(),
+               'theme_id'   => $theme->id,
+               'protocol'   => "Thema geschlossen",
+           ]);
+           $protocol->save();
+
+           return redirect(url($groupname.'/themes'))->with([
+               'type'  => 'success',
+               'Meldung'=> 'Thema geschlossen'
+           ]);
 
    }
 }

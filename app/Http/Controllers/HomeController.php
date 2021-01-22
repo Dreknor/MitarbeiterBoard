@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Group;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -33,14 +34,18 @@ class HomeController extends Controller
         }
 
 
-        $groups = auth()->user()->groups;
+        $groups = auth()->user()->groups();
         $groups->load('themes', 'tasks', 'themes.group');
 
         $tasks = auth()->user()->tasks->where('completed', 0);
 
         foreach ($groups as $group){
-            $tasks = $tasks->concat($group->tasks()->whereDate('date', '>=', Carbon::now())->get());
+            if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)){
+                $tasks = $tasks->concat($group->tasks()->whereDate('date', '>=', Carbon::now())->get());
+            }
         }
+
+
 
         return view('home',[
             "groups"    => $groups,

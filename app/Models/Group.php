@@ -6,10 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
 {
-    protected $fillable = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays'];
-    protected $visible = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays'];
+    protected $fillable = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays', 'protected'];
+    protected $visible = [ 'name', 'creator_id', 'enddate', 'homegroup','InvationDays', 'protected'];
 
     protected $dates = ['enddate'];
+    protected $casts = [
+        'protected' => 'boolean'
+    ];
 
     public function users (){
         return $this->belongsToMany(User::class);

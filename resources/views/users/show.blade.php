@@ -93,7 +93,7 @@
                                 <div class="card-body">
                                     @foreach($groups as $group)
                                         <div>
-                                            <input type="checkbox" id="{{$group->name}}" name="groups[]" value="{{$group->id}}" @if($user->groups->contains('id', $group->id)) checked @endif>
+                                            <input type="checkbox" id="{{$group->name}}" name="groups[]" value="{{$group->id}}" @if($user->groups()->contains('id', $group->id)) checked @endif>
                                             <label for="{{$group->name}}">{{$group->name}}</label>
                                         </div>
                                     @endforeach
