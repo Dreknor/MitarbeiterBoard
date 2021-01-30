@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes(['register' => false]);
 
+Route::get('share/{uuid}', 'ShareController@getShare');
+Route::post('share/{share}/protocol', 'ShareController@protocol');
+
 Route::group([
     'middleware' => ['auth'],
 ],
@@ -38,6 +41,9 @@ Route::group([
                 Route::get('{groupname}/view/{viewType}', 'ThemeController@setView');
                 Route::get('{groupname}/archive', 'ThemeController@archive');
                 Route::get('{groupname}/themes/{theme}/close', 'ThemeController@closeTheme');
+                Route::post('share/{theme}', 'ShareController@shareTheme');
+
+                Route::delete('share/{theme}', 'ShareController@removeShare');
 
 
                 //Prioritäten

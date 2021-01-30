@@ -11,24 +11,84 @@
         <div class="card">
             <div class="card-header">
                 <div class="row">
-                    <div class="col-8">
+                    <div class="col-lg-6 col-md-12 col-sm-12">
                         <h5 class="card-title">
                             {{$theme->theme}}
                         </h5>
                     </div>
-                    <div class="col-4">
+                    <div class="col-lg-6 col-md-12 col-sm-12">
                         <div class="pull-right">
-                            @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
-                                <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">bearbeiten</a>
-                            @endif
-                            @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme')) and !$theme->completed)
-                                <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="btn btn-sm btn-outline-danger pull-right">Abschließen</a>
-                            @endif
+                            <div class="row">
+
+                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
+                                        <div class="col">
+                                            <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">bearbeiten</a>
+                                        </div>
+                                    @endif
+                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme')) and !$theme->completed)
+                                        <div class="col">
+                                            <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="btn btn-sm btn-outline-danger pull-right">Abschließen</a>
+                                        </div>
+                                    @endif
+                                        @can('share theme')
+                                            @if($theme->share == null)
+                                                <div class="col">
+                                                    <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn"">
+                                                    <i class="fas fa-share-alt"></i>
+                                                    freigeben
+                                                    </a>
+                                                </div>
+                                            @else
+                                                <div class="col">
+                                                    <form method="post" action="{{url('share/'.$theme->id)}}" >
+                                                        @csrf
+                                                        @method('delete')
+                                                        <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
+                                                        <button type="submit" class="btn btn-sm btn-warning p-2 pull-right" href="{{url('/share/')}}">
+                                                            <i class="fas fa-share-alt"></i>
+                                                            Freigabe entfernen
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endif
+                                        @endcan
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="card-body border-top collapse hide" id="shareForm">
+                <form method="post" action="{{url('share/'.$theme->id)}}" class="form-horizontal">
+                    @csrf
+                    <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
+                    <div class="form-row">
+                        <div class="col-md-4 col-sm-12">
+                            <div class="form-group">
+                                <label for="activ_until">
+                                    gueltig bis (ohne Angabe unbegrenzt)
+                                </label>
+                                <input type="date" name="active_until" class="form-control" id="activ_until">
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-12">
+                            <div class="form-group">
+                                <label for="readonly">
+                                    Dürfen Protokolle angelegt werden?
+                                </label>
+                                <select class="custom-select" name="readonly">
+                                    <option value="1">nur lesbar</option>
+                                    <option value="0">auch bearbeitbar</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-12">
+                            <div class="form-group mt-4">
+                                <button type="submit" class="btn btn-warning btn-block" id="btn">freigeben</button>
+                            </div>
+                        </div>
 
-
+                    </div>
+                </form>
             </div>
             <div class="card-body border-top">
                 <div class="container-fluid">
@@ -110,6 +170,20 @@
                                     {!! $theme->information !!}
                                 </div>
                             </div>
+                            @if($theme->share)
+                                <div class="row p-2">
+                                    <div class="col-sm-12 col-md-12 col-lg-3">
+                                        <b>
+                                            Freigabe
+                                        </b>
+                                    </div>
+                                    <div class="col-sm-12 col-md-12 col-lg-9">
+                                        <a href="{{url('share/'.$theme->share->uuid)}}">
+                                            {{url('share/'.$theme->share->uuid)}}
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
                             @if (count($theme->getMedia())>0)
                                 <div class="row p-2">
                                     <div class="col-sm-12 col-md-12 col-lg-3">
@@ -330,6 +404,15 @@
 
 
 @push('js')
+
+    <script>
+        $('#shareBtn').on("click", function() {
+            $('#shareForm').toggle();
+        });
+
+
+    </script>
+
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
@@ -369,3 +452,4 @@
         });
     </script>
 @endpush
+

@@ -17,7 +17,9 @@ class Theme extends Model implements HasMedia
     protected $dates = ['created_at', 'updated_at', 'date'];
 
     public function ersteller(){
-       return $this->belongsTo(User::class, 'creator_id');
+       return $this->belongsTo(User::class, 'creator_id')->withDefault([
+           'name' => 'System / gelöschter Benutzer',
+       ]);;
     }
 
     public function type(){
@@ -45,6 +47,10 @@ class Theme extends Model implements HasMedia
             return $this->priorities->sum('priority')/$this->priorities->count();
         }
         return null;
+    }
+
+    public function share(){
+        return $this->hasOne(Share::class);
     }
 
 }

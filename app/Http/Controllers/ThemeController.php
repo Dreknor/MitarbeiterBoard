@@ -204,7 +204,7 @@ class ThemeController extends Controller
         $group = Group::where('name', $groupname)->first();
 
 
-        if (!auth()->user()->groups()->contains($group)){
+        if (!auth()->user()->groups()->contains($group) and $group->protected){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -226,7 +226,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups()->contains($group)){
+        if (!auth()->user()->groups()->contains($group) and $group->protected){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"
@@ -252,7 +252,7 @@ class ThemeController extends Controller
     {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups()->contains($group)){
+        if (!auth()->user()->groups()->contains($group) and $group->protected){
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => "Kein Zugriff auf diese Gruppe"

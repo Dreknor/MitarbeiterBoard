@@ -7,6 +7,7 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header border-bottom">
+
                 <h5 class="card-title">
                     {{$user->name}}
                 </h5>
@@ -32,7 +33,7 @@
                                     </div>
                                 @endif
                                     <div class="row">
-                                        <div class="col-md-12">
+                                        <div class="col-lg-12 col-md-12 col-sm-12">
                                             <div class="form-group">
                                                 <label>Name</label>
                                                 <input type="text" class="form-control border-input" placeholder="Name" name="name" value="{{$user->name}}" required>
@@ -150,6 +151,19 @@
         </div>
     </div>
     </form>
+
+    <div class="container-fluid">
+        <div class="pull-right">
+            <form method="post" action="{{url("/users/".$user->id)}}">
+                @csrf
+                @method('delete')
+
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-user-slash"></i> Benutzer endgültig löschen
+                </button>
+            </form>
+        </div>
+    </div>
 
 @endsection
 

@@ -55,9 +55,7 @@
                                     @endforeach
                                 </td>
                                 <td>
-                                    <div class="btn btn-sm btn-danger user-delete" data-id="{{$user->id}}">
-                                        <i class="fas fa-user-slash"></i>
-                                    </div>
+
                                     @role('Admin')
                                         <a href="{{url("showUser/$user->id")}}" class="btn btn-sm btn-warning">
                                             <i class="fas fa-eye"></i>
@@ -82,39 +80,6 @@
      } );
  </script>
 
-
- @can('edit user')
-     <script src="{{asset('js/plugins/sweetalert2.all.min.js')}}"></script>
-
-     <script>
-         $('.user-delete').on('click', function () {
-             var userID = $(this).data('id');
-             var button = $(this);
-
-             swal.fire({
-                 title: "Benutzer wirklich entfernen?",
-                 type: "warning",
-                 showCancelButton: true,
-                 cancelButtonText: "Benutzer behalten",
-                 confirmButtonText: "Benutzer entfernen!",
-                 confirmButtonColor: "danger"
-             }).then((confirmed) => {
-                 if (confirmed.value) {
-                     $.ajax({
-                         url: '{{url("/users/")}}'+'/'+ userID,
-                         type: 'DELETE',
-                         data: {
-                             "_token": "{{csrf_token()}}",
-                         },
-                         success: function(result) {
-                             $(button).parents('tr').fadeOut();
-                         }
-                     });
-                 }
-             });
-         });
-     </script>
- @endcan
 @endpush
 
 @section('css')

@@ -11,7 +11,7 @@ class Protocol extends Model
 
     public function ersteller(){
         return $this->belongsTo(User::class, 'creator_id')->withDefault([
-            'name' => 'System',
+            'name' => 'System / gelöschter Benutzer',
         ]);
     }
 
