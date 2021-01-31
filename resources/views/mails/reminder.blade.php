@@ -11,7 +11,7 @@
 </p>
 
 <p>
-    <a href="https://leitung.esz-radebeul.de">leitung.esz-radebeul.de</a>
+    <a href="{{config('app.url')}}">{{config('app.name')}}</a>
 </p>
 
 </body>

@@ -1,6 +1,6 @@
 <div class="container-fluid">
     <div class="row">
-        <div class="col-8">
+        <div class="col-7">
             <h5 class="card-title">Themen {{request()->segment(1)}}</h5>
         </div>
         <div class="col-4 ">
@@ -25,6 +25,18 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="col-1 pull-right">
+            @if(!isset($subscription))
+                <a href="{{url("subscription/group/".request()->segment(1))}}" class="btn btn-sm btn-outline-info">
+                    <i class="far fa-bell"></i>
+                </a>
+            @else
+                <a href="{{url("subscription/group/".request()->segment(1)."/remove")}}" class="btn btn-sm btn-info">
+                    <i class="fas fa-bell"></i>
+                </a>
+            @endif
         </div>
     </div>
 </div>

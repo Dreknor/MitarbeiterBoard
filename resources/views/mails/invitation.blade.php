@@ -21,7 +21,7 @@
     Eventuell liegen auch noch weitere. ältere Themen vor, die jedoch nicht in dieser Mail erfasst wurden.
 </p>
 <p>
-    <a href="https://mitarbeiter.esz-radebeul.de">mitarbeiter.esz-radebeul.de</a>
+    <a href="{{config('app.url')}}">{{config('app.name')}}</a>
 </p>
 
 </body>

@@ -19,7 +19,6 @@
                     <div class="col-lg-6 col-md-12 col-sm-12">
                         <div class="pull-right">
                             <div class="row">
-
                                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
                                         <div class="col">
                                             <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">bearbeiten</a>
@@ -52,6 +51,18 @@
                                                 </div>
                                             @endif
                                         @endcan
+
+                                        <div class="col">
+                                            @if($subscription == null)
+                                                <a href="{{url("subscription/theme/$theme->id/")}}" class="btn btn-sm btn-outline-info">
+                                                    <i class="far fa-bell"></i>
+                                                </a>
+                                            @else
+                                                <a href="{{url("subscription/theme/$theme->id/remove")}}" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-bell"></i>
+                                                </a>
+                                            @endif
+                                        </div>
                             </div>
                         </div>
                     </div>
