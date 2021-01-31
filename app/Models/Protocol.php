@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Mail\newProtocolForTask;
+use App\Mail\NewThemeMail;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Mail;
 
 class Protocol extends Model
 {
@@ -17,5 +20,19 @@ class Protocol extends Model
 
     public function theme(){
         return $this->belongsTo(Theme::class, 'theme_id');
+    }
+
+    //Events
+    protected static function booted()
+    {
+        static::created(function ($protocol) {
+            $theme = $protocol->theme;
+
+            //dd($group->subscriptionable);
+            foreach ($theme->subscriptionable as $subscription){
+                Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme->theme));
+            }
+
+        });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Subscription;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -76,5 +77,14 @@ class User extends Authenticatable
     {
         return $this->morphMany('App\Models\Task', 'taskable');
     }
+    /**
+     * Get all of the Subscription.
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class, 'users_id');
+    }
+
+
 
 }

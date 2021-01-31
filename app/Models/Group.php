@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
@@ -38,5 +39,12 @@ class Group extends Model
         return $this->morphMany('App\Models\Task', 'taskable');
     }
 
+    /**
+     * Get all of the subscriptions.
+     */
+    public function subscriptionable()
+    {
+        return $this->morphMany(Subscription::class, 'subscriptionable');
+    }
 
 }

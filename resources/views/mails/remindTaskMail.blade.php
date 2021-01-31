@@ -7,7 +7,7 @@
 
 <p>Liebe/r {{$name}}</p>
 <p>
-    Im <a href="https://mitarbeiter.esz-radebeul.de">MitarbeiterBoard</a> steht die Erledigung folgender Aufgabe zum {{$date}} an:
+    Im <a href="{{config('app.url')}}">{{config('app.name')}}</a> steht die Erledigung folgender Aufgabe zum {{$date}} an:
     <br><br>
 </p>
 <p>
@@ -18,13 +18,13 @@
     @if($group == true)
         Dies ist eine Gruppenaufgabe, daher kann nicht kontrolliert werden, ob einzelne Personen diese bereits erledigt haben.
     @else
-        Erledigte Aufgaben können im <a href="https://mitarbeiter.esz-radebeul.de">MitarbeiterBoard</a> gekennzeichnet werden.
+        Erledigte Aufgaben können im <a href="{{config('app.url')}}">{{config('app.name')}}</a> gekennzeichnet werden.
     @endif
 
 </p>
 <p>
     <br>
-    <a href="https://mitarbeiter.esz-radebeul.de">mitarbeiter.esz-radebeul.de</a>
+    <a href="{{config('app.url')}}">{{config('app.name')}}</a>
 </p>
 
 </body>

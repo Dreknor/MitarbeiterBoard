@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Mail\NewThemeMail;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Mail;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -53,4 +56,27 @@ class Theme extends Model implements HasMedia
         return $this->hasOne(Share::class);
     }
 
+    /**
+     * Get all of the subscriptions.
+     */
+    public function subscriptionable()
+    {
+        return $this->morphMany(Subscription::class, 'subscriptionable');
+    }
+
+
+
+    //Events
+    protected static function booted()
+    {
+        static::created(function ($theme) {
+            $group = $theme->group;
+
+            //dd($group->subscriptionable);
+            foreach ($group->subscriptionable as $subscription){
+                Mail::to($subscription->user)->queue(new NewThemeMail($subscription->user->name, $theme->$theme));
+            }
+
+        });
+    }
 }

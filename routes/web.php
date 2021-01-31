@@ -32,6 +32,10 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
+                //Subscriptions
+                Route::get('subscription/{type}/{id}', 'SubscriptionController@add');
+                Route::get('subscription/{type}/{id}/remove', 'SubscriptionController@remove');
+
 
                 Route::get('/home', 'HomeController@index')->name('home');
                 Route::get('/', 'HomeController@index');
