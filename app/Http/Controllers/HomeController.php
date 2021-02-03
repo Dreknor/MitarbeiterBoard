@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\Procedure_Step;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -46,11 +47,15 @@ class HomeController extends Controller
         }
 
 
+        $procedures = [];
+
+        $steps = auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get();
 
         return view('home',[
             "groups"    => $groups,
             'tasks'     => $tasks,
-            'colors'    => $colors
+            'colors'    => $colors,
+            'steps' => $steps
         ]);
     }
 }

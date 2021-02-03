@@ -39,12 +39,22 @@
             @auth
                 @cannot('disable menu')
                     <li class="@if(request()->segment(1)=="home" or  request()->segment(1)=="" ) active @endif">
-                    <a href="{{url('/home')}}">
-                        <i class="fas fa-house"></i>
-                        <p>Home</p>
-                    </a>
-                </li>
-                @foreach(auth()->user()->groups() AS $group)
+                        <a href="{{url('/home')}}">
+                            <i class="fa fa-home"></i>
+                            <p>Home</p>
+                        </a>
+                    </li>
+
+                @if(request()->segment(1)!="procedure")
+                    @can('view procedures')
+                            <li>
+                                <a href="{{url('/procedure')}}">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <p>Prozesse</p>
+                                </a>
+                            </li>
+                    @endcan
+                    @foreach(auth()->user()->groups() AS $group)
                     <li>
 
                         <a data-toggle="collapse" href="#{{$group->name}}">
@@ -83,8 +93,11 @@
                     </li>
 
                 @endforeach
+                @else
 
 
+
+                @endif
 
                 <!-- Verwaltung -->
             <hr>

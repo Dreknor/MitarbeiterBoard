@@ -85,6 +85,10 @@ class User extends Authenticatable
         return $this->hasMany(Subscription::class, 'users_id');
     }
 
+    public function steps (){
+        return $this->belongsToMany(Procedure_Step::class, 'steps_users', 'users_id', 'steps_id');
+    }
+
 
 
 }
