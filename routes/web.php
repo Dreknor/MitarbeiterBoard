@@ -114,5 +114,36 @@ Route::group([
                 });
 
                 //Route::get('kiosk', 'KioskController@index');
+
+                Route::prefix('procedure')->group(function () {
+                    Route::get('/', 'ProcedureController@index');
+
+                    //Procedures
+                    Route::post('create/template', "ProcedureController@storeTemplate");
+                    Route::get('{procedure}/edit', "ProcedureController@edit");
+                    Route::get('{procedure}/start', "ProcedureController@start");
+                    Route::post('{procedure}/start', "ProcedureController@startNow");
+                    Route::get('step/{step}/edit', "ProcedureController@editStep");
+                    Route::put('step/{step}', "ProcedureController@storeStep");
+                    Route::get('step/{step}/remove/{user}', "ProcedureController@removeUser");
+                    Route::post('step/addUser', "ProcedureController@addUser");
+                    Route::put('step/{step}/done', "ProcedureController@done");
+
+
+
+                    //Step
+                    Route::post('{procedure}/step', "ProcedureController@addStep");
+
+
+                    //positions
+                    Route::get('/positions', 'PositionsController@index');
+                    Route::post('/positions/{position}/add', 'PositionsController@addUser');
+                    Route::get('/positions/{positions}/remove/{users}', 'PositionsController@removeUser');
+
+
+                    //Categories
+                    Route::post('categories', 'CategoryController@store');//Categories
+                    Route::post('position', 'PositionsController@store');
+                });
             });
     });
