@@ -149,6 +149,13 @@ class CreatePermissionTables extends Migration
             )
         );
 
+        \Illuminate\Support\Facades\DB::table($tableNames['model_has_roles'])->insert([
+            [
+                'role_id' => 1,
+                'model_type'    => 'App\Model\User',
+                'model_id'  => 1
+            ]
+        ]);
 
         app('cache')
             ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
