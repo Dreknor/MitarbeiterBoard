@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ElternInfoBoardRoles;
+use App\Http\Requests\createUserRequest;
 use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
@@ -141,8 +140,8 @@ class UserController extends Controller
 
 
     public function importFromElternInfoBoard(){
-        $users = ElternInfoBoardUser::where('email', 'LIKE', '%@esz-radebeul.de')->orWhere('email', 'LIKE', '%@ev-schulverein.de')->get();
-        $group = Group::where('name', 'Schulzentrum')->first();
+        $users = ElternInfoBoardUser::where('email', 'LIKE', '%@'.env('MAIL_DOMAIN'))->orWhere('email', 'LIKE', '%@'.env('MAIL_DOMAIN2'))->get();
+
         foreach ($users as $user){
             $localUser = User::firstOrCreate([
                 'email' => $user->email
@@ -159,12 +158,41 @@ class UserController extends Controller
                 ]);
             }
 
-            if (!$localUser->groups_rel->where('name', 'Schulzentrum')->first()){
-                $localUser->groups_rel()->attach($group);
-            }
-
         }
 
         return redirect('users');
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return View
+     */
+    public function create()
+    {
+        return view('users.create',[
+
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return RedirectResponse
+     */
+    public function store(createUserRequest $request)
+    {
+        $user = new User($request->all());
+        $user->password = Hash::make($request->input('password'));
+        $user->changePassword = true;
+        $user->save();
+
+
+        return redirect(url("users/$user->id"))->with([
+            'type'  => "success",
+            "Meldung"   => "Benutzer wurde angelegt"
+        ]);
+
     }
 }

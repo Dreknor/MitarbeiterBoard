@@ -62,8 +62,7 @@
             <div class="card-body border-top">
                 <div class="container-fluid">
                     <div class="row">
-
-                        <div class="col-md-3 col-sm-6">
+                        <div class="col">
                             @if($categories != null and count($categories)>0)
                                 <div class=" pull-right">
                                     <button data-target="#createProcedure" data-toggle="collapse" class="btn btn-outline-info">
@@ -76,7 +75,7 @@
                             @endif
 
                         </div>
-                        <div class="col-md-3 col-sm-6">
+                        <div class="col">
                             <div class=" pull-right">
                                 <button  data-toggle="modal" data-target="#CategoryModal" class="btn btn-outline-info">
                                     <i class="fas fa-folder-plus"></i>

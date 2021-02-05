@@ -115,6 +115,8 @@
                                 <p>Rechte</p>
                             </a>
                         </li>
+                    @endcan
+                    @can('edit users')
                         <li class="@if(request()->segment(1)=="users") active @endif">
                             <a href="{{url('/users')}}">
                                 <i class="fas fa-user"></i>

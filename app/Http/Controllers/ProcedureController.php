@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateProcedureTemplateRequest;
 use App\Http\Requests\CreateStepRequest;
 use App\Http\Requests\EditStepRequest;
+use App\Mail\newStepMail;
 use App\Models\Positions;
 use App\Models\Procedure;
 use App\Models\Procedure_Category;
@@ -13,6 +14,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Psy\Util\Str;
 
 class ProcedureController extends Controller
@@ -31,10 +33,8 @@ class ProcedureController extends Controller
         $procedures = Procedure::whereIn('id',$steps->pluck('procedure_id'))->whereNotNull('started_at')->whereNull('ended_at')->get();
 
 
-        $proceduresTemplate = Cache::remember('proceduresTemplate', 60*5, function (){
-            return  Procedure::where('started_at', null)->where(null)->with('category')->get();
+        $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
 
-        });
 
         $caregories = Cache::remember('categories', 60*5, function (){
             return Procedure_Category::all();
@@ -136,11 +136,16 @@ class ProcedureController extends Controller
             $users = $step->position->users;
 
             $newStep->users()->attach($users);
+            foreach ($users as $user) {
+                Mail::to($user)->queue(new newStepMail($user->name, Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'), $newStep->name, $newStep->procedure->name));
+
+            }
+
 
             $this->recursiveSteps($step->childs, $newStep);
         }
 
-        return redirect('procedure/'.$procedure->id.'/start');
+        return redirect('procedure/'.$startedProcedure->id.'/start');
     }
 
     public function addStep(CreateStepRequest $request, Procedure $procedure){
@@ -195,7 +200,9 @@ class ProcedureController extends Controller
 
         foreach ($step->childs as $child){
 
-            #TODO Send Mail for User
+            foreach ($child->users as $user){
+                Mail::to($user)->queue(new newStepMail($user->name, Carbon::now()->addDays($child->durationDays)->format('d.m.Y'), $child->name, $child->procedure->name));
+            }
 
             $child->update([
                'endDate' => Carbon::now()->addDays($child->durationDays)
