@@ -152,17 +152,17 @@
             <div class="card-body border-top border-info">
                 <h6>Vorlagen</h6>
                 <div class="row">
-                    @foreach($proceduresTemplate->unique('category_id') as $category)
+                    @foreach($categories as $category)
                         <div class="col-md-6 col-sm-12">
                             <div class="card">
                                 <div class="card-header">
                                     <h6>
-                                        {{$category->category->name}}
+                                        {{$category->name}}
                                     </h6>
                                 </div>
                                 <div class="card-body">
                                     <ul class="list-group">
-                                        @foreach($proceduresTemplate->where('category_id', $category->category_id) as $procedure)
+                                        @foreach($proceduresTemplate->where('category_id', $category->id) as $procedure)
                                             <li class="list-group-item">
                                                 {{$procedure->name}}
                                                 <div class="pull-right">
