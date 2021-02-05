@@ -139,12 +139,12 @@ class CreatePermissionTables extends Migration
         \Illuminate\Support\Facades\DB::table('role_has_permissions')->insert(
             array(
                 [
-                    'permission_id' => '1',
-                    'role_id' => '3'
+                    'permission_id' => '3',
+                    'role_id' => '1'
                 ],
                 [
-                    'permission_id' => '1',
-                    'role_id' => '10'
+                    'permission_id' => '10',
+                    'role_id' => '1'
                 ]
             )
         );
