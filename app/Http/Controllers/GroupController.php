@@ -24,7 +24,7 @@ class GroupController extends Controller
         if (auth()->user()->can('edit groups')){
             $groups = Group::all();
         } else {
-            $groups = auth()->user()->groups;
+            $groups = auth()->user()->groups();
         }
 
         $groups->load('users');
