@@ -74,7 +74,7 @@ class Theme extends Model implements HasMedia
 
             //dd($group->subscriptionable);
             foreach ($group->subscriptionable as $subscription){
-                Mail::to($subscription->user)->queue(new NewThemeMail($subscription->user->name, $theme->$theme));
+                Mail::to($subscription->user)->queue(new NewThemeMail($theme->theme, $group->name ));
             }
 
         });

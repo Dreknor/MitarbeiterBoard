@@ -33,10 +33,8 @@ class ProcedureController extends Controller
         $procedures = Procedure::whereIn('id',$steps->pluck('procedure_id'))->whereNotNull('started_at')->whereNull('ended_at')->get();
 
 
-        $proceduresTemplate = Cache::remember('proceduresTemplate', 60*5, function (){
-            return  Procedure::where('started_at', null)->where(null)->with('category')->get();
+        $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
 
-        });
 
         $caregories = Cache::remember('categories', 60*5, function (){
             return Procedure_Category::all();
@@ -138,11 +136,16 @@ class ProcedureController extends Controller
             $users = $step->position->users;
 
             $newStep->users()->attach($users);
+            foreach ($users as $user) {
+                Mail::to($user)->queue(new newStepMail($user->name, Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'), $newStep->name, $newStep->procedure->name));
+
+            }
+
 
             $this->recursiveSteps($step->childs, $newStep);
         }
 
-        return redirect('procedure/'.$procedure->id.'/start');
+        return redirect('procedure/'.$startedProcedure->id.'/start');
     }
 
     public function addStep(CreateStepRequest $request, Procedure $procedure){

@@ -14,6 +14,10 @@
                 </div>
             </div>
             <div class="card-body">
+                <a href="{{url('users/create')}}" class="btn">Benutzer erstellen</a>
+                <a href="{{url('importuser')}}" class="btn">Benutzer importieren</a>
+            </div>
+            <div class="card-body">
                 <table class="table table-hover" id="userTable">
                     <thead>
                         <tr>

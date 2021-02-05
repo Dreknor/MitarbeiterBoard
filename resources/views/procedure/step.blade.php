@@ -19,7 +19,7 @@
                         @endif
                     </p>
                     <small>
-                        {{$step->description}}
+                        {!! $step->description !!}
                     </small>
                 </div>
                 <div class="card-body">
