@@ -10,7 +10,7 @@
                 </h6>
                 <p>
                     <small>
-                        {{$procedure->description}}
+                        {!! $procedure->description !!}
                     </small>
                 </p>
             </div>

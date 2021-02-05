@@ -83,6 +83,73 @@ class CreatePermissionTables extends Migration
             $table->primary(['permission_id', 'role_id'], 'role_has_permissions_permission_id_role_id_primary');
         });
 
+        \Illuminate\Support\Facades\DB::table('permissions')->insert(
+            array(
+                [
+                    'name' => 'create themes',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'edit groups',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'edit permissions',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'complete theme',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'disable menu',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'set password',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'view priorities',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'share theme',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'view procedures',
+                    'guard_name' => 'web'
+                ],
+                [
+                    'name' => 'edit users',
+                    'guard_name' => 'web'
+                ],
+            )
+        );
+
+        \Illuminate\Support\Facades\DB::table('roles')->insert(
+            array(
+                [
+                    'name' => 'Admin',
+                    'guard_name' => 'web'
+                ])
+        );
+
+        \Illuminate\Support\Facades\DB::table('role_has_permissions')->insert(
+            array(
+                [
+                    'permission_id' => '1',
+                    'role_id' => '3'
+                ],
+                [
+                    'permission_id' => '1',
+                    'role_id' => '10'
+                ]
+            )
+        );
+
+
         app('cache')
             ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
             ->forget(config('permission.cache.key'));
