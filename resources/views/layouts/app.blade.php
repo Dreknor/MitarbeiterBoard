@@ -44,16 +44,16 @@
                             <p>Home</p>
                         </a>
                     </li>
-
-                @if(request()->segment(1)!="procedure")
                     @can('view procedures')
-                            <li>
-                                <a href="{{url('/procedure')}}">
-                                    <i class="fas fa-project-diagram"></i>
-                                    <p>Prozesse</p>
-                                </a>
-                            </li>
+                        <li>
+                            <a href="{{url('/procedure')}}">
+                                <i class="fas fa-project-diagram"></i>
+                                <p>Prozesse</p>
+                            </a>
+                        </li>
                     @endcan
+                @if(request()->segment(1)!="procedure")
+
                     @foreach(auth()->user()->groups() AS $group)
                     <li>
 
