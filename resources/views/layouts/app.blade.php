@@ -10,7 +10,7 @@
 
     <title>{{env('APP_NAME')}}</title>
     @can('disable menu')
-            <meta http-equiv="refresh" content="300; url=https://eltern.esz-radebeul.de/kiosk">
+            <meta http-equiv="refresh" content="300; url={{config('app.url')."/kiosk"}}">
     @endcan
 
     <!-- CSS Files -->
@@ -28,7 +28,7 @@
 <body id="app-layout">
 <div class="sidebar" data-color="white" data-active-color="danger">
     <div class="logo" style="word-wrap: normal;">
-        <a href="https://mitarbeiter.esz-radebeul.de" class="simple-text">
+        <a href="{{config('app.url')}}" class="simple-text">
             <div class="logo-image-small">
                 <img src="{{asset('img/logo.png')}}">
             </div>
