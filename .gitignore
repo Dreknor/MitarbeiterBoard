@@ -24,3 +24,5 @@ Homestead.json
 *.xml
 *.iml
 *.xml
+.idea/php.xml
+.idea/workspace.xml
