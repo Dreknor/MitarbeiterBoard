@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Erinnerung LeitungsBoard</title>
+    <title>Erinnerung {{config('app.name')}}</title>
 </head>
 <body>
 
