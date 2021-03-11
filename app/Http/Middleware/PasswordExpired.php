@@ -23,5 +23,4 @@ class PasswordExpired
 
         return $next($request);
     }
-
 }

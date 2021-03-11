@@ -15,8 +15,8 @@ class User extends Authenticatable
 {
     use Notifiable;
     use HasRoles;
-   use HasPushSubscriptions;
-   use SoftDeletes;
+    use HasPushSubscriptions;
+    use SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -24,7 +24,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword'
+        'name', 'email', 'password', 'changePassword',
     ];
 
     /**
@@ -45,22 +45,21 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    public function themes(){
+    public function themes()
+    {
         return $this->hasMany(Theme::class, 'creator_id');
     }
 
-    public function groups(){
-
-        return Cache::remember("groups_".$this->id, 60, function() {
+    public function groups()
+    {
+        return Cache::remember('groups_'.$this->id, 60, function () {
             $groups = $this->groups_rel;
             $groups = $groups->concat(Group::where('protected', '0')->get());
             $groups = $groups->unique('name');
+
             return $groups;
         });
-
-
     }
-
 
     /**
      * This method can be used when we want to utilise a cache
@@ -77,6 +76,7 @@ class User extends Authenticatable
     {
         return $this->morphMany('App\Models\Task', 'taskable');
     }
+
     /**
      * Get all of the Subscription.
      */
@@ -85,10 +85,8 @@ class User extends Authenticatable
         return $this->hasMany(Subscription::class, 'users_id');
     }
 
-    public function steps (){
+    public function steps()
+    {
         return $this->belongsToMany(Procedure_Step::class, 'steps_users', 'users_id', 'steps_id');
     }
-
-
-
 }

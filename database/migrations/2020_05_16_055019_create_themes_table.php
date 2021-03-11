@@ -28,9 +28,6 @@ class CreateThemesTable extends Migration
             $table->foreign('creator_id')->references('id')->on('users');
             $table->foreign('type_id')->references('id')->on('types');
         });
-
-
-
     }
 
     /**

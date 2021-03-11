@@ -9,18 +9,16 @@ use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
-    public function store (CreateCategoryRequest  $createCategoryRequest){
-
+    public function store(CreateCategoryRequest $createCategoryRequest)
+    {
         $category = new Procedure_Category($createCategoryRequest->validated());
         $category->save();
 
         Cache::forget('categories');
 
         return redirect()->back()->with([
-           'type'=>"success",
-           "Meldung"=>"Kategorie wurde erstellt"
+           'type'=>'success',
+           'Meldung'=>'Kategorie wurde erstellt',
         ]);
-
-
     }
 }

@@ -18,7 +18,6 @@ class newTaskMail extends Mailable
     public $group;
     public $groupname;
 
-
     /**
      * Create a new message instance.
      *
@@ -41,13 +40,13 @@ class newTaskMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('neue Aufgabe')->view('mails.newTaskMail',[
-            "name" =>$this->name,
-            "date" =>$this->date,
-            "task" =>$this->task,
-            "theme" =>$this->theme,
-            "group" =>$this->group,
-            "groupname" =>$this->groupname,
+        return $this->subject('neue Aufgabe')->view('mails.newTaskMail', [
+            'name' =>$this->name,
+            'date' =>$this->date,
+            'task' =>$this->task,
+            'theme' =>$this->theme,
+            'group' =>$this->group,
+            'groupname' =>$this->groupname,
         ]);
     }
 }

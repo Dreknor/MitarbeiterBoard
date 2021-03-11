@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class CreatePermissionTables extends Migration
 {
@@ -84,77 +84,77 @@ class CreatePermissionTables extends Migration
         });
 
         \Illuminate\Support\Facades\DB::table('permissions')->insert(
-            array(
+            [
                 [
                     'name' => 'create themes',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'edit groups',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'edit permissions',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'complete theme',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'disable menu',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'set password',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'view priorities',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'share theme',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'view procedures',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
                 [
                     'name' => 'edit users',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ],
-            )
+            ]
         );
 
         \Illuminate\Support\Facades\DB::table('roles')->insert(
-            array(
+            [
                 [
                     'name' => 'Admin',
-                    'guard_name' => 'web'
-                ])
+                    'guard_name' => 'web',
+                ], ]
         );
 
         \Illuminate\Support\Facades\DB::table('role_has_permissions')->insert(
-            array(
+            [
                 [
                     'permission_id' => '3',
-                    'role_id' => '1'
+                    'role_id' => '1',
                 ],
                 [
                     'permission_id' => '10',
-                    'role_id' => '1'
-                ]
-            )
+                    'role_id' => '1',
+                ],
+            ]
         );
 
         \Illuminate\Support\Facades\DB::table($tableNames['model_has_roles'])->insert([
             [
                 'role_id' => 1,
                 'model_type'    => 'App\Models\User',
-                'model_id'  => 1
-            ]
+                'model_id'  => 1,
+            ],
         ]);
 
         app('cache')

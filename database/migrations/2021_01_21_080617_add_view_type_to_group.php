@@ -14,7 +14,7 @@ class AddViewTypeToGroup extends Migration
     public function up()
     {
         Schema::table('groups', function (Blueprint $table) {
-            $table->string( 'viewType')->default('date');
+            $table->string('viewType')->default('date');
         });
     }
 

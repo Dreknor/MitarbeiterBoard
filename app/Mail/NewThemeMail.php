@@ -15,7 +15,6 @@ class NewThemeMail extends Mailable
     public $theme_id;
     public $groupname;
 
-
     /**
      * Create a new message instance.
      *
@@ -35,10 +34,10 @@ class NewThemeMail extends Mailable
      */
     public function build()
     {
-        return $this->subject($this->groupname.': neues Thema')->view('mails.newThemeMail',[
-            "theme" =>$this->theme,
-            "groupname" =>$this->groupname,
-            'theme_id' => $this->theme_id
+        return $this->subject($this->groupname.': neues Thema')->view('mails.newThemeMail', [
+            'theme' =>$this->theme,
+            'groupname' =>$this->groupname,
+            'theme_id' => $this->theme_id,
         ]);
     }
 }

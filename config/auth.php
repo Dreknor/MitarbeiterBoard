@@ -74,7 +74,7 @@ return [
         'users' => [
             'driver' => 'cache-user',
             'model' => App\Models\User::class,
-        ]
+        ],
     ],
 
     /*
