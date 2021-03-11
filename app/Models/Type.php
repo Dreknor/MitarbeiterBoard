@@ -9,6 +9,6 @@ class Type extends Model
     protected $fillable = ['type', 'needsProtocol'];
 
     protected $casts = [
-      'needProtocol' =>   "boolean"
+      'needProtocol' =>   'boolean',
     ];
 }

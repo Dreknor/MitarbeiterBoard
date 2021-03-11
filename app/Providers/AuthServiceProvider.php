@@ -27,7 +27,7 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         // Caching user
-        Auth::provider('cache-user', function() {
+        Auth::provider('cache-user', function () {
             return resolve(CacheUserProvider::class);
         });
     }

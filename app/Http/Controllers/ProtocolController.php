@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\Notification;
 
 class ProtocolController extends Controller
 {
-
-
     /**
      * Show the form for creating a new resource.
      *
@@ -25,14 +23,14 @@ class ProtocolController extends Controller
      */
     public function create($groupname, Theme $theme)
     {
-       return view('protocol.create', [
-           'theme'  => $theme
+        return view('protocol.create', [
+           'theme'  => $theme,
        ]);
     }
 
     public function edit($groupname, Protocol $protocol)
     {
-       return view('protocol.edit', [
+        return view('protocol.edit', [
            'theme'  => $protocol->theme,
            'protocol'  => $protocol,
        ]);
@@ -42,28 +40,27 @@ class ProtocolController extends Controller
     {
         $protocol->update($request->validated());
 
-        if ($request->completed == 1){
+        if ($request->completed == 1) {
             $protocol->theme->update([
-                'completed' => 1
+                'completed' => 1,
             ]);
 
             $protocol = new Protocol([
                 'creator_id' => auth()->id(),
                 'theme_id'   => $protocol->theme->id,
-                'protocol'   => "Thema geschlossen",
+                'protocol'   => 'Thema geschlossen',
             ]);
             $protocol->save();
 
-
-
             return redirect(url($groupname.'/themes'))->with([
                 'type'  => 'success',
-                'Meldung'=> 'Protokoll gespeichert und Thema geschlossen'
+                'Meldung'=> 'Protokoll gespeichert und Thema geschlossen',
             ]);
         }
-        return redirect(url($groupname."/themes/".$protocol->theme_id))->with([
-            'type'  => "success",
-            'Meldung'   => "Protokoll geändert"
+
+        return redirect(url($groupname.'/themes/'.$protocol->theme_id))->with([
+            'type'  => 'success',
+            'Meldung'   => 'Protokoll geändert',
         ]);
     }
 
@@ -75,8 +72,6 @@ class ProtocolController extends Controller
      */
     public function store($groupname, ProtocolRequest $request, Theme $theme)
     {
-
-
         $protocol = new Protocol([
            'creator_id' => auth()->id(),
            'theme_id'   => $theme->id,
@@ -84,82 +79,75 @@ class ProtocolController extends Controller
         ]);
         $protocol->save();
 
-        if ($theme->type->type == "Aufgabe" and $theme->creator_id != auth()->id()){
+        if ($theme->type->type == 'Aufgabe' and $theme->creator_id != auth()->id()) {
             $user = auth()->user()->name;
             $ersteller = $theme->ersteller;
-            Notification::send(auth()->user(),new Push('neues Protokoll', "Thema: ".$theme->theme));
+            Notification::send(auth()->user(), new Push('neues Protokoll', 'Thema: '.$theme->theme));
             Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme->theme));
-
         }
 
         if ($request->hasFile('files')) {
             $files = $request->files->all();
-            foreach ($files['files'] as $file){
-
+            foreach ($files['files'] as $file) {
                 $theme
                     ->addMedia($file)
                     ->toMediaCollection();
             }
-
         }
 
-
-        if ($request->completed == 1){
+        if ($request->completed == 1) {
             $theme->update([
-                'completed' => 1
+                'completed' => 1,
             ]);
 
             $protocol = new Protocol([
                 'creator_id' => auth()->id(),
                 'theme_id'   => $theme->id,
-                'protocol'   => "Thema geschlossen",
+                'protocol'   => 'Thema geschlossen',
             ]);
             $protocol->save();
 
-
-
             return redirect(url($theme->group->name.'/themes'))->with([
                 'type'  => 'success',
-                'Meldung'=> 'Protokoll gespeichert und Thema geschlossen'
+                'Meldung'=> 'Protokoll gespeichert und Thema geschlossen',
             ]);
         }
 
         return redirect(url($theme->group->name.'/themes/'.$theme->id))->with([
             'type'  => 'success',
-            'Meldung'=> 'Protokoll gespeichert'
+            'Meldung'=> 'Protokoll gespeichert',
         ]);
     }
 
     /**
      * make paper protocol
      */
-    public function createSheet($groupname, $date = ""){
+    public function createSheet($groupname, $date = '')
+    {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups()->contains($group)){
+        if (! auth()->user()->groups()->contains($group)) {
             return redirect(url('home'))->with([
                 'type'    => 'warning',
-                'Meldung' => "Kein Zugriff auf diese Gruppe"
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
             ]);
         }
 
-
-
-        if ($date != ""){
-            $date = Carbon::createFromFormat('Y-m-d',$date);
+        if ($date != '') {
+            $date = Carbon::createFromFormat('Y-m-d', $date);
         } else {
             $date = Carbon::now();
         }
 
-
-        $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date){
+        $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date) {
             $query->whereDate('created_at', '=', $date);
         })->get();
 
         $themes->load(['group', 'protocols']);
+
         return view('protocol.export')->with([
             'themes'    => $themes,
-            'date'  => $date
+            'date'  => $date,
         ]);
     }
 }

@@ -22,7 +22,6 @@ Route::group([
     'middleware' => ['auth'],
 ],
     function () {
-
         Route::get('password/expired', 'Auth\ExpiredPasswordController@expired')
             ->name('password.expired');
         Route::post('password/post_expired', 'Auth\ExpiredPasswordController@postExpired')
@@ -36,7 +35,6 @@ Route::group([
                 Route::get('subscription/{type}/{id}', 'SubscriptionController@add');
                 Route::get('subscription/{type}/{id}/remove', 'SubscriptionController@remove');
 
-
                 Route::get('/home', 'HomeController@index')->name('home');
                 Route::get('/', 'HomeController@index');
 
@@ -49,10 +47,8 @@ Route::group([
 
                 Route::delete('share/{theme}', 'ShareController@removeShare');
 
-
                 //Prioritäten
                 Route::post('priorities', 'PriorityController@store');
-
 
                 //Protocols
                 Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
@@ -110,6 +106,7 @@ Route::group([
                     if (session()->has('ownID')) {
                         \Illuminate\Support\Facades\Auth::loginUsingId(session()->pull('ownID'));
                     }
+
                     return redirect(url('/'));
                 });
 
@@ -119,30 +116,26 @@ Route::group([
                     Route::get('/', 'ProcedureController@index');
 
                     //Procedures
-                    Route::post('create/template', "ProcedureController@storeTemplate");
-                    Route::get('{procedure}/edit', "ProcedureController@edit");
-                    Route::get('{procedure}/start', "ProcedureController@start");
-                    Route::post('{procedure}/start', "ProcedureController@startNow");
-                    Route::get('step/{step}/edit', "ProcedureController@editStep");
-                    Route::put('step/{step}', "ProcedureController@storeStep");
-                    Route::get('step/{step}/remove/{user}', "ProcedureController@removeUser");
-                    Route::post('step/addUser', "ProcedureController@addUser");
-                    Route::put('step/{step}/done', "ProcedureController@done");
-
-
+                    Route::post('create/template', 'ProcedureController@storeTemplate');
+                    Route::get('{procedure}/edit', 'ProcedureController@edit');
+                    Route::get('{procedure}/start', 'ProcedureController@start');
+                    Route::post('{procedure}/start', 'ProcedureController@startNow');
+                    Route::get('step/{step}/edit', 'ProcedureController@editStep');
+                    Route::put('step/{step}', 'ProcedureController@storeStep');
+                    Route::get('step/{step}/remove/{user}', 'ProcedureController@removeUser');
+                    Route::post('step/addUser', 'ProcedureController@addUser');
+                    Route::put('step/{step}/done', 'ProcedureController@done');
 
                     //Step
-                    Route::post('{procedure}/step', "ProcedureController@addStep");
-
+                    Route::post('{procedure}/step', 'ProcedureController@addStep');
 
                     //positions
                     Route::get('/positions', 'PositionsController@index');
                     Route::post('/positions/{position}/add', 'PositionsController@addUser');
                     Route::get('/positions/{positions}/remove/{users}', 'PositionsController@removeUser');
 
-
                     //Categories
-                    Route::post('categories', 'CategoryController@store');//Categories
+                    Route::post('categories', 'CategoryController@store'); //Categories
                     Route::post('position', 'PositionsController@store');
                 });
             });

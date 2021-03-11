@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Class CacheUserProvider
- * @package App\Providers
  */
 class CacheUserProvider extends EloquentUserProvider
 {

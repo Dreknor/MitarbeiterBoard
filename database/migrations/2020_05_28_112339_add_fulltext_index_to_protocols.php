@@ -14,7 +14,6 @@ class AddFulltextIndexToProtocols extends Migration
     public function up()
     {
         \Illuminate\Support\Facades\DB::statement('ALTER TABLE protocols ADD FULLTEXT full(protocol)');
-
     }
 
     /**
@@ -24,6 +23,5 @@ class AddFulltextIndexToProtocols extends Migration
      */
     public function down()
     {
-
     }
 }
