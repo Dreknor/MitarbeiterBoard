@@ -152,7 +152,7 @@ class CreatePermissionTables extends Migration
         \Illuminate\Support\Facades\DB::table($tableNames['model_has_roles'])->insert([
             [
                 'role_id' => 1,
-                'model_type'    => 'App\Models\User',
+                'model_type'    => \App\Models\User::class,
                 'model_id'  => 1,
             ],
         ]);

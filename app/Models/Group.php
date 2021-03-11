@@ -40,7 +40,7 @@ class Group extends Model
      */
     public function tasks()
     {
-        return $this->morphMany('App\Models\Task', 'taskable');
+        return $this->morphMany(\App\Models\Task::class, 'taskable');
     }
 
     /**
