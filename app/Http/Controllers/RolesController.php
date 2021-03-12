@@ -9,46 +9,43 @@ use Spatie\Permission\Models\Role;
 
 class RolesController extends Controller
 {
-
-
     public function edit()
     {
-        return view('permissions.edit',[
+        return view('permissions.edit', [
             'roles' => Role::all(),
-            'permissions'    => Permission::all()
+            'permissions'    => Permission::all(),
         ]);
     }
 
-    public function update(Request $request){
+    public function update(Request $request)
+    {
+        foreach (Role::all() as $role) {
+            $role->syncPermissions($request->input($role->name));
+        }
 
-       foreach (Role::all() as $role){
-           $role->syncPermissions($request->input($role->name));
-       }
         return  redirect()->back()->with([
-            'type'   => "success",
-            "Meldung"    => "Berechtigungen gespeichert"
+            'type'   => 'success',
+            'Meldung'    => 'Berechtigungen gespeichert',
         ]);
     }
 
-
-    public function store(Request $request){
+    public function store(Request $request)
+    {
         $Role = Role::firstOrCreate(['name' => $request->name]);
 
         return redirect()->back()->with([
-            'type'   => "success",
-            "Meldung"    => "Rolle erstellt"
+            'type'   => 'success',
+            'Meldung'    => 'Rolle erstellt',
         ]);
-
     }
-    public function storePermission(Request $request){
+
+    public function storePermission(Request $request)
+    {
         $Role = Permission::firstOrCreate(['name' => $request->name]);
 
         return redirect()->back()->with([
-            'type'   => "success",
-            "Meldung"    => "Berechtigung erstellt"
+            'type'   => 'success',
+            'Meldung'    => 'Berechtigung erstellt',
         ]);
-
     }
-
-
 }

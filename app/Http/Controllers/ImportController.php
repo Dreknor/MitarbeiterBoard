@@ -8,25 +8,25 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ImportController extends Controller
 {
-    public function show(){
+    public function show()
+    {
         return view('imports.import');
     }
 
-    public function import(Request $request){
-        if ($request->hasFile('file')){
-
-
+    public function import(Request $request)
+    {
+        if ($request->hasFile('file')) {
             Excel::import(new ThemeImport(), request()->file('file'));
 
-
             return redirect(url('themes'))->with([
-                'type'  => "success",
-                'Meldung'   => "Erfolgreicher Import"
+                'type'  => 'success',
+                'Meldung'   => 'Erfolgreicher Import',
             ]);
         }
+
         return redirect()->back()->with([
-            "type" => "danger",
-            "Meldung" => "Keine Datei ausgewählt"
+            'type' => 'danger',
+            'Meldung' => 'Keine Datei ausgewählt',
         ]);
     }
 }

@@ -14,15 +14,18 @@ class Procedure extends Model
 
     protected $dates = ['started_at', 'ended_at'];
 
-    public function category(){
+    public function category()
+    {
         return $this->belongsTo(Procedure_Category::class);
     }
 
-    public function author(){
+    public function author()
+    {
         return $this->belongsTo(User::class);
     }
 
-    public function steps(){
+    public function steps()
+    {
         return $this->hasMany(Procedure_Step::class);
     }
 }

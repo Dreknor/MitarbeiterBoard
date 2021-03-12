@@ -8,34 +8,33 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Share extends Model
 {
-
     use SoftDeletes;
 
-
-    protected $fillable = ['uuid', 'theme_id','creators_id', 'readonly', 'activ_until'];
+    protected $fillable = ['uuid', 'theme_id', 'creators_id', 'readonly', 'activ_until'];
     protected $visible = ['uuid', 'theme_id', 'readonly', 'activ_until'];
 
     protected $casts = [
         'readonly'  => 'boolean',
     ];
 
-
-
-    public function theme () {
+    public function theme()
+    {
         return $this->belongsTo(Theme::class);
     }
-    public function creator () {
+
+    public function creator()
+    {
         return $this->belongsTo(User::class)->withDefault([
             'name' => 'System / gelöschter Benutzer',
-        ]);;
+        ]);
     }
 
-    public function getActivUntilAttribute($date){
-
-        if ($date){
+    public function getActivUntilAttribute($date)
+    {
+        if ($date) {
             return Carbon::createFromFormat('Y-m-d', $date);
         }
+
         return null;
     }
-
 }
