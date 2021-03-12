@@ -1,6 +1,24 @@
 <?php
 
+use App\Http\Controllers\Auth\ExpiredPasswordController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\GroupController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ImageController;
+use App\Http\Controllers\PositionsController;
+use App\Http\Controllers\PriorityController;
+use App\Http\Controllers\ProcedureController;
+use App\Http\Controllers\ProtocolController;
+use App\Http\Controllers\PushController;
+use App\Http\Controllers\RolesController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use \App\Http\Controllers\ShareController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,16 +33,16 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes(['register' => false]);
 
-Route::get('share/{uuid}', 'ShareController@getShare');
-Route::post('share/{share}/protocol', 'ShareController@protocol');
+Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
+Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
 
 Route::group([
     'middleware' => ['auth'],
 ],
     function () {
-        Route::get('password/expired', 'Auth\ExpiredPasswordController@expired')
+        Route::get('password/expired', [ExpiredPasswordController::class,'expired'])
             ->name('password.expired');
-        Route::post('password/post_expired', 'Auth\ExpiredPasswordController@postExpired')
+        Route::post('password/post_expired', [ExpiredPasswordController::class,'postExpired'])
             ->name('password.post_expired');
 
         Route::group([
@@ -32,74 +50,67 @@ Route::group([
         ],
             function () {
                 //Subscriptions
-                Route::get('subscription/{type}/{id}', 'SubscriptionController@add');
-                Route::get('subscription/{type}/{id}/remove', 'SubscriptionController@remove');
+                Route::get('subscription/{type}/{id}', [SubscriptionController::class,'add']);
+                Route::get('subscription/{type}/{id}/remove', [SubscriptionController::class,'remove']);
 
-                Route::get('/home', 'HomeController@index')->name('home');
-                Route::get('/', 'HomeController@index');
+                Route::get('/home', [HomeController::class, 'index'])->name('home');
+                Route::get('/', [HomeController::class, 'index']);
 
                 //Themes
-                Route::resource('{groupname}/themes', 'ThemeController');
-                Route::get('{groupname}/view/{viewType}', 'ThemeController@setView');
-                Route::get('{groupname}/archive', 'ThemeController@archive');
-                Route::get('{groupname}/themes/{theme}/close', 'ThemeController@closeTheme');
+                Route::resource('{groupname}/themes', ThemeController::class);
+                Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
+                Route::get('{groupname}/archive', [ThemeController::class,'archive']);
+                Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'@closeTheme']);
                 Route::post('share/{theme}', 'ShareController@shareTheme');
 
-                Route::delete('share/{theme}', 'ShareController@removeShare');
+                Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
                 //Prioritäten
-                Route::post('priorities', 'PriorityController@store');
+                Route::post('priorities', [PriorityController::class, 'store']);
 
                 //Protocols
-                Route::get('{groupname}/protocols/{theme}', 'ProtocolController@create');
-                Route::post('{groupname}/protocols/{theme}', 'ProtocolController@store');
-                Route::get('{groupname}/protocols/{protocol}/edit', 'ProtocolController@edit');
-                Route::get('{groupname}/export/{date?}/', 'ProtocolController@createSheet');
-                Route::put('{groupname}/protocols/{protocol}/', 'ProtocolController@update');
+                Route::get('{groupname}/protocols/{theme}', [ProtocolController::class,'create']);
+                Route::post('{groupname}/protocols/{theme}',  [ProtocolController::class,'store']);
+                Route::get('{groupname}/protocols/{protocol}/edit',  [ProtocolController::class,'edit']);
+                Route::get('{groupname}/export/{date?}/',  [ProtocolController::class,'createSheet']);
+                Route::put('{groupname}/protocols/{protocol}/',  [ProtocolController::class,'update']);
 
-                Route::post('{groupname}/search', 'SearchController@search');
-                Route::get('{groupname}/search', 'SearchController@show');
+                Route::post('{groupname}/search', [SearchController::class, 'search']);
+                Route::get('{groupname}/search', [SearchController::class, 'show']);
 
-                Route::get('image/{media_id}', 'ImageController@getImage');
-                //Route::get('reminder', 'MailController@remind');
-                //Route::get('einladung', 'MailController@invitation');
-                //Route::get('delete', 'GroupController@deleteOldGroups');
-
-                //Route::get('import/', 'ImportController@show');
-                //Route::post('import/', 'ImportController@import');
+                Route::get('image/{media_id}', [ImageController::class, 'getImage']);
+                ;
 
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
-                    Route::get('roles', 'RolesController@edit');
-                    Route::put('roles', 'RolesController@update');
-                    Route::post('roles', 'RolesController@store');
-                    Route::post('roles/permission', 'RolesController@storePermission');
+                    Route::get('roles', [RolesController::class, 'edit']);
+                    Route::put('roles', [RolesController::class, '@update']);
+                    Route::post('roles', [RolesController::class, 'store']);
+                    Route::post('roles/permission', [RolesController::class, 'storePermission']);
 
-                    Route::get('user', 'UserController@index');
+                    Route::get('user', [UserController::class, 'index']);
                 });
 
                 //User-Route
-                Route::resource('users', 'UserController');
-                Route::get('importuser', 'UserController@importFromElternInfoBoard');
+                Route::resource('users', UserController::class);
+                Route::get('importuser', [UserController::class, '@importFromElternInfoBoard']);
 
                 //Gruppen-Route
-                Route::get('groups', 'GroupController@index');
-                Route::post('groups', 'GroupController@store');
-                Route::put('{groupname}/addUser', 'GroupController@addUser');
-                Route::delete('{groupname}/removeUser', 'GroupController@removeUser');
+                Route::get('groups', [GroupController::class, 'index']);
+                Route::post('groups', [GroupController::class, 'store']);
+                Route::put('{groupname}/addUser', [GroupController::class, 'addUser']);
+                Route::delete('{groupname}/removeUser', [GroupController::class, 'removeUser']);
 
                 //Tasks
-                Route::post('{groupname}/{theme}/tasks', 'TaskController@store');
-                Route::get('tasks/{task}/complete', 'TaskController@complete');
-                //Route::get('remindtask', 'MailController@remindTaskMail');
+                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
+                Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
 
                 //Push-Notification
-                Route::post('{groupname?}/push', 'PushController@store');
-                Route::post('push', 'PushController@store');
+                Route::post('{groupname?}/push', [PushController::class, 'store']);
+                Route::post('push', [PushController::class, 'store']);
 
                 Route::group(['middlewareGroups' => ['role:Admin']], function () {
-                    Route::get('showUser/{id}', 'UserController@loginAsUser');
-                    Route::get('test', 'PushController@push');
+                    Route::get('showUser/{id}', [UserController::class, 'loginAsUser']);
                 });
 
                 Route::get('logoutAsUser', function () {
@@ -113,30 +124,30 @@ Route::group([
                 //Route::get('kiosk', 'KioskController@index');
 
                 Route::prefix('procedure')->group(function () {
-                    Route::get('/', 'ProcedureController@index');
+                    Route::get('/', [ProcedureController::class, 'index']);
 
                     //Procedures
-                    Route::post('create/template', 'ProcedureController@storeTemplate');
-                    Route::get('{procedure}/edit', 'ProcedureController@edit');
-                    Route::get('{procedure}/start', 'ProcedureController@start');
-                    Route::post('{procedure}/start', 'ProcedureController@startNow');
-                    Route::get('step/{step}/edit', 'ProcedureController@editStep');
-                    Route::put('step/{step}', 'ProcedureController@storeStep');
-                    Route::get('step/{step}/remove/{user}', 'ProcedureController@removeUser');
-                    Route::post('step/addUser', 'ProcedureController@addUser');
-                    Route::put('step/{step}/done', 'ProcedureController@done');
+                    Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
+                    Route::get('{procedure}/edit', [ProcedureController::class, 'edit']);
+                    Route::get('{procedure}/start', [ProcedureController::class, 'start']);
+                    Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
+                    Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
+                    Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
+                    Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
+                    Route::post('step/addUser', [ProcedureController::class, 'addUser']);
+                    Route::put('step/{step}/done', [ProcedureController::class, 'done']);
 
                     //Step
-                    Route::post('{procedure}/step', 'ProcedureController@addStep');
+                    Route::post('{procedure}/step', [ProcedureController::class, 'addStep']);
 
                     //positions
-                    Route::get('/positions', 'PositionsController@index');
-                    Route::post('/positions/{position}/add', 'PositionsController@addUser');
-                    Route::get('/positions/{positions}/remove/{users}', 'PositionsController@removeUser');
+                    Route::get('/positions', [PositionsController::class, 'index']);
+                    Route::post('/positions/{position}/add', [PositionsController::class, 'addUser']);
+                    Route::get('/positions/{positions}/remove/{users}', [PositionsController::class, 'removeUser']);
 
                     //Categories
-                    Route::post('categories', 'CategoryController@store'); //Categories
-                    Route::post('position', 'PositionsController@store');
+                    Route::post('categories', [CategoryController::class, 'store']); //Categories
+                    Route::post('position', [PositionsController::class, 'store']);
                 });
             });
     });
