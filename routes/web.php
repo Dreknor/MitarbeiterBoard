@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DailyNewsController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
@@ -16,6 +18,8 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VertretungController;
+use App\Http\Controllers\VertretungsplanController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use \App\Http\Controllers\ShareController;
@@ -32,6 +36,7 @@ use \App\Http\Controllers\ShareController;
 */
 
 Auth::routes(['register' => false]);
+Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
@@ -49,6 +54,20 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
+                //Klassen
+                Route::group(['middleware' => ['permission:edit klassen']], function () {
+                    Route::resource('klassen', KlasseController::class);
+                });
+
+                //Vertretungen planen
+                Route::group(['middleware' => ['permission:edit vertretungen']], function () {
+                    Route::resource('vertretungen', VertretungController::class);
+                    Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
+                    Route::post('dailyNews', [DailyNewsController::class, 'store']);
+                    Route::get('dailyNews', [DailyNewsController::class, 'index']);
+                    Route::delete('dailyNews/{dailyNews}', [DailyNewsController::class, 'destroy']);
+                });
+
                 //Subscriptions
                 Route::get('subscription/{type}/{id}', [SubscriptionController::class,'add']);
                 Route::get('subscription/{type}/{id}/remove', [SubscriptionController::class,'remove']);
@@ -60,8 +79,8 @@ Route::group([
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
                 Route::get('{groupname}/archive', [ThemeController::class,'archive']);
-                Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'@closeTheme']);
-                Route::post('share/{theme}', 'ShareController@shareTheme');
+                Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
+                Route::post('share/{theme}', [ShareController::class, 'shareTheme']);
 
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
@@ -84,7 +103,7 @@ Route::group([
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
                     Route::get('roles', [RolesController::class, 'edit']);
-                    Route::put('roles', [RolesController::class, '@update']);
+                    Route::put('roles', [RolesController::class, 'update']);
                     Route::post('roles', [RolesController::class, 'store']);
                     Route::post('roles/permission', [RolesController::class, 'storePermission']);
 
@@ -93,7 +112,7 @@ Route::group([
 
                 //User-Route
                 Route::resource('users', UserController::class);
-                Route::get('importuser', [UserController::class, '@importFromElternInfoBoard']);
+                Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);

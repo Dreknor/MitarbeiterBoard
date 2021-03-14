@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Vertretungsplan;
-use Illuminate\Http\Request;
-use Illuminate\View\View;
+use App\Models\DailyNews;
+use App\Models\Klasse;
+use App\Models\Vertretung;
+use Carbon\Carbon;
 
 class VertretungsplanController extends Controller
 {
@@ -13,74 +14,30 @@ class VertretungsplanController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index($gruppen = null)
     {
-        return response()->view('vertretungsplan.index')->header('Content-Security-Policy', 'frame-ancestors self https://*.esz-radebeul.de');
+
+        if ($gruppen != null){
+            $gruppen = explode('/', $gruppen);
+            $klassen = Klasse::whereIn('name',$gruppen)->get();
+
+        } else {
+            $klassen=Klasse::all();
+        }
+
+        $klassen= $klassen->pluck('id');
+
+
+
+        return response()->view('vertretungsplan.index',[
+            'vertretungen_heute' => Vertretung::whereDate('date', '=', Carbon::today())->whereIn('klassen_id',$klassen)->orderBy('klassen_id')->orderBy('stunde')->get(),
+            'vertretungen_morgen' => Vertretung::whereDate('date', '=', Carbon::tomorrow())->whereIn('klassen_id',$klassen)->orderBy('klassen_id')->orderBy('stunde')->get(),
+            'news_heute'=> DailyNews::whereDate('date_start', '=', Carbon::today())->orWhereDate('date_end', '>=', Carbon::today())->orderBy('date_start')->get(),
+            'news_morgen'=> DailyNews::whereDate('date_start', '=', Carbon::tomorrow())->orWhereDate('date_end', '>=', Carbon::tomorrow())->orderBy('date_start')->get()
+
+        ])
+            ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
+            ->header('X-Frame-Options', config('cors.X-Frame-Options'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Vertretungsplan  $vertretungsplan
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Vertretungsplan $vertretungsplan)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Vertretungsplan  $vertretungsplan
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Vertretungsplan $vertretungsplan)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Vertretungsplan  $vertretungsplan
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Vertretungsplan $vertretungsplan)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Vertretungsplan  $vertretungsplan
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Vertretungsplan $vertretungsplan)
-    {
-        //
-    }
 }

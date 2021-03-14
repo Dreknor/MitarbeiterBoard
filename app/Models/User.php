@@ -89,4 +89,8 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Procedure_Step::class, 'steps_users', 'users_id', 'steps_id');
     }
+
+    public function vertretungen(){
+        return $this->hasMany(Vertretung::class, 'users_id', 'id');
+    }
 }

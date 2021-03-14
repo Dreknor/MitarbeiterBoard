@@ -110,6 +110,29 @@
                         <p>Gruppen</p>
                     </a>
                 </li>
+
+                    @can('edit vertretungen')
+                        <li class="@if(request()->segment(1)=="vertretungen") active @endif">
+                            <a href="{{url('/vertretungen')}}">
+                                <i class="fas fa-exchange-alt"></i>
+                                <p>Vertreungen</p>
+                            </a>
+                        </li>
+                        <li class="@if(request()->segment(1)=="dailyNews") active @endif">
+                            <a href="{{url('/dailyNews')}}">
+                                <i class="fas fa-newspaper"></i>
+                                <p>News</p>
+                            </a>
+                        </li>
+                    @endcan
+                    @can('edit klassen')
+                        <li class="@if(request()->segment(1)=="klassen") active @endif">
+                            <a href="{{url('/klassen')}}">
+                                <i class="fas fa-users"></i>
+                                <p>Klassen</p>
+                            </a>
+                        </li>
+                    @endcan
                     @can('edit permissions')
                         <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                             <a href="{{url('/roles')}}">

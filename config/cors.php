@@ -31,4 +31,10 @@ return [
 
     'supports_credentials' => false,
 
+    'Content-Security-Policy' => env('Content_Security_Policy', 'self'),
+
+    'X-Frame-Options' => env('X_Frame_Options', 'DENY'),
+
+
+
 ];
