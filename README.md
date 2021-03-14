@@ -32,26 +32,45 @@ cp .env.example .env
 Die Datei per Texteditor öffnen und mindestens folgende Daten ausfüllen:
 
 APP_NAME=
+
 APP_LOGO=
+
 APP_ENV=production
+
 APP_DEBUG=false
+
 APP_URL=
 
+
 DB_CONNECTION=mysql
+
 DB_HOST=127.0.0.1
+
 DB_PORT=3306
+
 DB_DATABASE=laravel
+
 DB_USERNAME=root
+
 DB_PASSWORD=
 
+
 MAIL_MAILER=smtp
+
 MAIL_HOST=
+
 MAIL_PORT=
+
 MAIL_USERNAME=
+
 MAIL_PASSWORD=
+
 MAIL_ENCRYPTION=
+
 MAIL_FROM_ADDRESS=
+
 MAIL_FROM_NAME=
+
 
 Anschließend kann es weiter gehen:
 
