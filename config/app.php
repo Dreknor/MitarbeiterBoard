@@ -13,7 +13,15 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'MitarbeiterBoard'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Logo
+    |--------------------------------------------------------------------------
+    */
+
+    'logo' => env('APP_LOGO', 'logo.png'),
 
     /*
     |--------------------------------------------------------------------------
@@ -52,7 +60,7 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost/leitung'),
+    'url' => env('APP_URL', 'http://localhost/'),
 
     'asset_url' => env('ASSET_URL', null),
 

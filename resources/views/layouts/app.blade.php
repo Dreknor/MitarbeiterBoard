@@ -18,10 +18,8 @@
     <link href="{{asset('css/paper-dashboard.css?v=2.0.0')}}" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
 
-    <!--<script src="https://kit.fontawesome.com/c8f58e3eb6.js"></script>-->
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
-    @livewireStyles
 
     @stack('css')
 
@@ -32,7 +30,7 @@
     <div class="logo" style="word-wrap: normal;">
         <a href="{{config('app.url')}}" class="simple-text">
             <div class="logo-image-small">
-                <img src="{{asset('img/logo.png')}}">
+                <img src="{{asset('img/'.config('app.logo'))}}">
             </div>
         </a>
     </div>
