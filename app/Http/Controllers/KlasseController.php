@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateKlasseRequest;
 use App\Models\Klasse;
 use Illuminate\Http\Request;
 
@@ -14,18 +15,11 @@ class KlasseController extends Controller
      */
     public function index()
     {
-        //
+        return response()->view('klassen.klassen',[
+            'klassen' => Klasse::all()
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -33,44 +27,16 @@ class KlasseController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(CreateKlasseRequest $request)
     {
-        //
+        Klasse::create($request->validated());
+
+        return redirect()->back()->with([
+            'type'  => "success",
+            'Meldung'=> 'Klasse wurde angelegt.'
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Klasse  $klasse
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Klasse $klasse)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Klasse  $klasse
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Klasse $klasse)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Klasse  $klasse
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Klasse $klasse)
-    {
-        //
-    }
 
     /**
      * Remove the specified resource from storage.
@@ -78,8 +44,15 @@ class KlasseController extends Controller
      * @param  \App\Models\Klasse  $klasse
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Klasse $klasse)
+    public function destroy($klasse)
     {
-        //
+        $klasse = Klasse::find($klasse);
+        $name = $klasse->name;
+        $klasse->delete();
+
+        return redirect()->back()->with([
+            'type' => 'warning',
+            'Meldung' => $name.' wurde gelöscht.'
+        ]);
     }
 }

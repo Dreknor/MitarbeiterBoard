@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateKlassenTable extends Migration
+class CreateVertretungenTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,21 +13,27 @@ class CreateKlassenTable extends Migration
      */
     public function up()
     {
-        Schema::create('klassen', function (Blueprint $table) {
+        Schema::create('vertretungen', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->date('date');
+            $table->unsignedBigInteger('klassen_id');
+            $table->unsignedBigInteger('users_id')->nullable();
+            $table->integer('stunde')->unsigned();
+            $table->string('comment', 60)->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreign('klassen_id')->references('id')->on('klassen');
+            $table->foreign('users_id')->references('id')->on('users');
         });
 
+
         \Illuminate\Support\Facades\DB::table('permissions')->insert([
-            'name' => 'edit klassen',
+            'name' => 'edit vertretungen',
             'guard_name'=>'web'
         ]);
 
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
-
-
 
     }
 
@@ -38,6 +44,6 @@ class CreateKlassenTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('klassen');
+        Schema::dropIfExists('vertretungen');
     }
 }
