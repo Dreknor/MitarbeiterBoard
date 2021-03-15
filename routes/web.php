@@ -91,7 +91,8 @@ Route::group([
                 Route::get('{groupname}/protocols/{theme}', [ProtocolController::class,'create']);
                 Route::post('{groupname}/protocols/{theme}',  [ProtocolController::class,'store']);
                 Route::get('{groupname}/protocols/{protocol}/edit',  [ProtocolController::class,'edit']);
-                Route::get('{groupname}/export/{date?}/',  [ProtocolController::class,'createSheet']);
+                Route::get('{groupname}/export/{date?}/',  [ProtocolController::class,'showDailyProtocol']);
+                Route::get('{groupname}/export/{date}/download',  [ProtocolController::class,'createSheet']);
                 Route::put('{groupname}/protocols/{protocol}/',  [ProtocolController::class,'update']);
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
