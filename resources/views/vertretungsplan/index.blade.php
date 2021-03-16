@@ -67,7 +67,7 @@
                         </table>
                 </div>
                 <div class="card-body d-block d-md-none">
-                        <table class="table table-bordered table-striped">
+                        <table class="table table-bordered">
                             <thead>
                             <tr class="bg-success">
                                 <th rowspan="3">Datum</th>
@@ -84,21 +84,21 @@
                             </thead>
                             <tbody>
                             @foreach($vertretungen_heute as $vertretung)
-                                <tr @if($loop->itertion%2==0) class="bg-light">
+                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                     <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
                                     <td>{{$vertretung->stunde}}</td>
                                     <td>{{$vertretung->klasse->name}}</td>
                                 </tr>
-                                <tr @if($loop->itertion%2==0) class="bg-light">
+                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                     <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
                                     <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                                 </tr>
-                                <tr @if($loop->itertion%2==0) class="bg-light">
+                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                     <td colspan="2">{{$vertretung->comment}}</td>
                                 </tr>
                             @endforeach
                             @foreach($news_heute as $news)
-                                <tr @if($loop->itertion%2==0) class="bg-light">
+                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                     <td colspan="6">
                                         {{$news->news}}
                                     </td>
@@ -152,7 +152,7 @@
                         </table>
                 </div>
                 <div class="card-body d-block d-md-none">
-                    <table class="table table-bordered table-striped">
+                    <table class="table table-bordered">
                         <thead>
                         <tr class="bg-success">
                             <th rowspan="3">Datum</th>
@@ -169,21 +169,21 @@
                         </thead>
                         <tbody>
                         @foreach($vertretungen_morgen as $vertretung)
-                            <tr @if($loop->itertion%2==0) class="bg-light">
+                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                 <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
                                 <td>{{$vertretung->stunde}}</td>
                                 <td>{{$vertretung->klasse->name}}</td>
                             </tr>
-                            <tr @if($loop->itertion%2==0) class="bg-light">
+                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                 <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
                                 <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                             </tr>
-                            <tr @if($loop->itertion%2==0) class="bg-light">
+                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                 <td colspan="2">{{$vertretung->comment}}</td>
                             </tr>
                         @endforeach
                         @foreach($news_heute as $news)
-                            <tr @if($loop->itertion%2==0) class="bg-light">
+                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
                                 <td colspan="6">
                                     {{$news->news}}
                                 </td>
