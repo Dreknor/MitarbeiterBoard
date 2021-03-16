@@ -79,26 +79,26 @@
                                 <th>Fächer</th>
                             </tr>
                             <tr class="bg-success">
-                                <th>Kommentar</th>
+                                <th colspan="2">Kommentar</th>
                             </tr>
                             </thead>
                             <tbody>
                             @foreach($vertretungen_heute as $vertretung)
-                                <tr>
+                                <tr @if($loop->itertion%2==0) class="bg-light">
                                     <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
                                     <td>{{$vertretung->stunde}}</td>
                                     <td>{{$vertretung->klasse->name}}</td>
                                 </tr>
-                                <tr>
+                                <tr @if($loop->itertion%2==0) class="bg-light">
                                     <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
                                     <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                                 </tr>
-                                <tr>
-                                    <td colspan="">{{$vertretung->comment}}</td>
+                                <tr @if($loop->itertion%2==0) class="bg-light">
+                                    <td colspan="2">{{$vertretung->comment}}</td>
                                 </tr>
                             @endforeach
                             @foreach($news_heute as $news)
-                                <tr>
+                                <tr @if($loop->itertion%2==0) class="bg-light">
                                     <td colspan="6">
                                         {{$news->news}}
                                     </td>
@@ -155,7 +155,7 @@
                     <table class="table table-bordered table-striped">
                         <thead>
                         <tr class="bg-success">
-                            <th rowspan="2">Datum</th>
+                            <th rowspan="3">Datum</th>
                             <th>Stunde</th>
                             <th>Klasse</th>
                         </tr>
@@ -169,21 +169,21 @@
                         </thead>
                         <tbody>
                         @foreach($vertretungen_morgen as $vertretung)
-                            <tr>
+                            <tr @if($loop->itertion%2==0) class="bg-light">
                                 <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
                                 <td>{{$vertretung->stunde}}</td>
                                 <td>{{$vertretung->klasse->name}}</td>
                             </tr>
-                            <tr>
+                            <tr @if($loop->itertion%2==0) class="bg-light">
                                 <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
                                 <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                             </tr>
-                            <tr>
-                                <td colspan="">{{$vertretung->comment}}</td>
+                            <tr @if($loop->itertion%2==0) class="bg-light">
+                                <td colspan="2">{{$vertretung->comment}}</td>
                             </tr>
                         @endforeach
                         @foreach($news_heute as $news)
-                            <tr>
+                            <tr @if($loop->itertion%2==0) class="bg-light">
                                 <td colspan="6">
                                     {{$news->news}}
                                 </td>
