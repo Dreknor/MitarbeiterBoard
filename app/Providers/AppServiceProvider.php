@@ -7,6 +7,7 @@ use App\Observers\UserObserver;
 use App\Support\Collection;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        Paginator::useBootstrap();
+
         User::observe(UserObserver::class);
 
         Carbon::setUTF8(true);
