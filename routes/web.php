@@ -62,6 +62,7 @@ Route::group([
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
                     Route::resource('vertretungen', VertretungController::class);
+                    Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
                     Route::get('dailyNews', [DailyNewsController::class, 'index']);
