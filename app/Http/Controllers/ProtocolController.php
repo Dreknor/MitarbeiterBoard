@@ -304,7 +304,8 @@ class ProtocolController extends Controller
             $table->addCell(2750, $cellStyleLeftBottom)->addText($theme->theme, $paragraphStyle, $fontStyle);
             $cell = $table->addCell(4750, $cellStyleBorderBottom);
             foreach ($protocols as $protocol){
-                \PhpOffice\PhpWord\Shared\Html::addHtml($cell, str_replace('&', 'und',$protocol->protocol) );
+                $string = str_replace(' & ', ' und ',$protocol->protocol);
+                \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );
             }
             //$table->addCell(1750, $cellStyleRightBottom)->addText('');
 
