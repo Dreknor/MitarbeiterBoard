@@ -22,6 +22,7 @@ return [
     */
 
     'logo' => env('APP_LOGO', 'logo.png'),
+    'favicon' => env('APP_FAVICON', 'favicon.ico'),
 
     /*
     |--------------------------------------------------------------------------
