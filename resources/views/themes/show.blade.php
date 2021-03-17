@@ -313,7 +313,8 @@
                     @endif
                 </div>
             </div>
-            <div class="card-body mt-2 border-top">
+            @if (!$theme->completed)
+                <div class="card-body mt-2 border-top">
                 <form action="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
                     @csrf
                     <div class="form-row">
@@ -342,7 +343,7 @@
                     </div>
                 </form>
             </div>
-
+            @endif
             <div class="card-body">
                 <div class="row mt-2 border-top">
                     <div class="container-fluid">
