@@ -1,14 +1,14 @@
 {
-    "name": "laravel/laravel",
+    "name": "dreknor/mitarbeiterboard",
     "type": "project",
-    "description": "The Laravel Framework.",
+    "description": "MitarbeiterBoard des ESZ Radebeul",
     "keywords": [
-        "framework",
+        "school",
         "laravel"
     ],
     "license": "MIT",
     "require": {
-        "php": "^7.3|^8.0",
+        "php": "^7.4|^8.0",
         "fideloper/proxy": "^4.4",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
@@ -16,7 +16,6 @@
         "laravel/framework": "^8.32",
         "laravel/tinker": "^2.5",
         "laravel/ui": "^3.2",
-        "livewire/livewire": "^2.4",
         "maatwebsite/excel": "^3.1",
         "phpoffice/phpword": "^0.18.1",
         "sentry/sentry-laravel": "^2.4",
