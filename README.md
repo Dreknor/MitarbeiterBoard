@@ -10,20 +10,15 @@ Es basiert auf dem [Laravel-Framework](https://laravel.com/).
 Obwohl das MitarbeiterBoard ausschließlich für das Evangelische Schulzentrum Radebeul gedacht war, kann die Software frei für nicht-kommerzielle Projekte im Bereich der Bildung genutzt werden. Es gibt jedoch keinerlei Anspruch auf Support oder Haftung, sollten Schäden oder Probleme auftreten.
 Änderungen und Weiterentwicklungen sind ebenfalls als Open-Source zur Verfügung zu stellen.
 
+## Systemvoraussetzungen
+
+ * PHP 7.4
+ * Composer 2
+
 ## Installation
 
 Nach dem Upload der Dateien auf den Server ist zunächst die Datei ".env.example" in ".env" umzubenennen und auszufüllen. Entscheidend sind dabei die Eintragungen zu Datenbank und Mail-Server.
 
-Anschließend die Installation durchführen:
-
-```bash
-composer install
-```
-```bash
-php artisan key:generate
-```
-
-Bevor es weitergeht müssen ein paar Daten eingegeben werden. Dazu die Datei .env.example zu .env umbenennen bzw. kopieren: 
 
 ```bash
 cp .env.example .env
@@ -72,7 +67,14 @@ MAIL_FROM_ADDRESS=
 MAIL_FROM_NAME=
 
 
-Anschließend kann es weiter gehen:
+Anschließend die Installation durchführen:
+
+```bash
+composer install
+```
+```bash
+php artisan key:generate
+```
 
 ```bash
 php artisan webpush:vapid
