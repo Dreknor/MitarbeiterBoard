@@ -14,8 +14,8 @@ class UpdateMediaTable extends Migration
     public function up()
     {
         Schema::table('media', function (Blueprint $table) {
-            $table->uuid('uuid')->nullable()->unique();
-            $table->string('conversions_disk')->nullable();
+            //$table->uuid('uuid')->nullable()->unique();
+            //$table->string('conversions_disk')->nullable();
             $table->json('generated_conversions')->nullable();
 
         });
