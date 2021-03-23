@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{csrf_token()}}">
 
-    <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{asset('img/'.config('app.favicon'))}}" type="image/x-icon">
 
     <title>{{env('APP_NAME')}}</title>
     @can('disable menu')
-            <meta http-equiv="refresh" content="300; url=https://eltern.esz-radebeul.de/kiosk">
+            <meta http-equiv="refresh" content="300; url={{config('app.url')."/kiosk"}}">
     @endcan
 
     <!-- CSS Files -->
@@ -18,9 +18,9 @@
     <link href="{{asset('css/paper-dashboard.css?v=2.0.0')}}" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
 
-    <!--<script src="https://kit.fontawesome.com/c8f58e3eb6.js"></script>-->
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
+
     @stack('css')
 
 </head>
@@ -28,9 +28,9 @@
 <body id="app-layout">
 <div class="sidebar" data-color="white" data-active-color="danger">
     <div class="logo" style="word-wrap: normal;">
-        <a href="https://mitarbeiter.esz-radebeul.de" class="simple-text">
+        <a href="{{config('app.url')}}" class="simple-text">
             <div class="logo-image-small">
-                <img src="{{asset('img/logo.png')}}">
+                <img src="{{asset('img/'.config('app.logo'))}}">
             </div>
         </a>
     </div>
@@ -44,61 +44,93 @@
                             <p>Home</p>
                         </a>
                     </li>
-
-                @if(request()->segment(1)!="procedure")
                     @can('view procedures')
-                            <li>
-                                <a href="{{url('/procedure')}}">
-                                    <i class="fas fa-project-diagram"></i>
-                                    <p>Prozesse</p>
-                                </a>
-                            </li>
+                        <li>
+                            <a href="{{url('/procedure')}}">
+                                <i class="fas fa-project-diagram"></i>
+                                <p>Prozesse</p>
+                            </a>
+                        </li>
                     @endcan
-                    @foreach(auth()->user()->groups() AS $group)
                     <li>
-
-                        <a data-toggle="collapse" href="#{{$group->name}}">
+                        <a data-toggle="collapse" href="#Beratungen" >
                             <p>
-                                {{$group->name}} <b class="caret"></b>
+                                <i class="far fa-comments" ></i>
+                                Beratungen <b class="caret"></b>
                             </p>
                         </a>
-                        <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
+                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
-                                <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
-                                    <a href="{{url($group->name.'/themes')}}">
-                                        <i class="far fa-comments"></i>
-                                        <p>Themen</p>
-                                    </a>
-                                </li>
-                                <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
-                                    <a href="{{url($group->name.'/archive')}}">
-                                        <i class="fas fa-archive"></i>
-                                        <p>Archiv</p>
-                                    </a>
-                                </li>
-                                <li class="@if(request()->segment(2)=="export" and request()->segment(1)=="$group->name"  ) active @endif">
-                                    <a href="{{url($group->name.'/export')}}">
-                                        <i class="fas fa-file-alt"></i>
-                                        <p>Protokoll</p>
-                                    </a>
-                                </li>
-                                <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
-                                    <a href="{{url($group->name.'/search')}}">
-                                        <i class="fas fa-search"></i>
-                                        <p>Suche</p>
-                                    </a>
-                                </li>
+                                @foreach(auth()->user()->groups() AS $group)
+                                    <li>
+
+                                        <a data-toggle="collapse" href="#{{$group->name}}">
+                                            <p>
+                                                {{$group->name}} <b class="caret"></b>
+                                            </p>
+                                        </a>
+                                        <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
+                                            <ul class="nav pl-2">
+                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                                    <a href="{{url($group->name.'/themes')}}">
+                                                        <i class="far fa-comments"></i>
+                                                        <p>Themen</p>
+                                                    </a>
+                                                </li>
+                                                <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
+                                                    <a href="{{url($group->name.'/archive')}}">
+                                                        <i class="fas fa-archive"></i>
+                                                        <p>Archiv</p>
+                                                    </a>
+                                                </li>
+                                                <li class="@if(request()->segment(2)=="export" and request()->segment(1)=="$group->name"  ) active @endif">
+                                                    <a href="{{url($group->name.'/export')}}">
+                                                        <i class="fas fa-file-alt"></i>
+                                                        <p>Protokoll</p>
+                                                    </a>
+                                                </li>
+                                                <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
+                                                    <a href="{{url($group->name.'/search')}}">
+                                                        <i class="fas fa-search"></i>
+                                                        <p>Suche</p>
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </li>
+
+                                @endforeach
                             </ul>
                         </div>
                     </li>
 
-                @endforeach
-                @else
+                    @can('edit vertretungen')
+                        <li>
+                            <a data-toggle="collapse" href="#Vertretung">
+                                <p>
+                                    <i class="fas fa-columns"></i>
+                                    Vertretungsplan <b class="caret"></b>
+                                </p>
+                            </a>
+                            <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews") show  active @endif" id="Vertretung">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(1)=="vertretungen") active @endif">
+                                        <a href="{{url('/vertretungen')}}">
+                                            <i class="fas fa-exchange-alt"></i>
+                                            <p>Vertreungen</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(1)=="dailyNews") active @endif">
+                                        <a href="{{url('/dailyNews')}}">
+                                            <i class="fas fa-newspaper"></i>
+                                            <p>News</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
 
-
-
-                @endif
-
+                    @endcan
                 <!-- Verwaltung -->
             <hr>
 
@@ -108,6 +140,16 @@
                         <p>Gruppen</p>
                     </a>
                 </li>
+
+
+                    @can('edit klassen')
+                        <li class="@if(request()->segment(1)=="klassen") active @endif">
+                            <a href="{{url('/klassen')}}">
+                                <i class="fas fa-users"></i>
+                                <p>Klassen</p>
+                            </a>
+                        </li>
+                    @endcan
                     @can('edit permissions')
                         <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                             <a href="{{url('/roles')}}">
@@ -260,6 +302,7 @@
     @auth
         <script src="{{ asset('js/enable-push.js') }}" defer></script>
     @endauth
+    @livewireScripts
     @yield('js')
     @stack('js')
 

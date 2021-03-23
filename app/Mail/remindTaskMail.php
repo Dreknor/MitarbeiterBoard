@@ -11,12 +11,11 @@ class remindTaskMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    protected $theme;
-    protected $date;
-    protected $task;
-    protected $name;
-    protected $group;
-
+    public $theme;
+    public $date;
+    public $task;
+    public $name;
+    public $group;
 
     /**
      * Create a new message instance.
@@ -39,12 +38,12 @@ class remindTaskMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Ausstehende Aufgabe')->view('mails.remindTaskMail',[
-            "name" =>$this->name,
-            "date" =>$this->date,
-            "task" =>$this->task,
-            "theme" =>$this->theme,
-            "group" =>$this->group,
+        return $this->subject('Ausstehende Aufgabe')->view('mails.remindTaskMail', [
+            'name' =>$this->name,
+            'date' =>$this->date,
+            'task' =>$this->task,
+            'theme' =>$this->theme,
+            'group' =>$this->group,
         ]);
     }
 }

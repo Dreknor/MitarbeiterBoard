@@ -30,10 +30,9 @@ class UserController extends Controller
     public function index()
     {
         return view('users.index', [
-            'users' => User::all()
+            'users' => User::all(),
         ]);
     }
-
 
     /**
      * Display the specified resource.
@@ -43,14 +42,13 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return view('users.show',[
-            "user" => $user->load(['permissions', 'roles']),
+        return view('users.show', [
+            'user' => $user->load(['permissions', 'roles']),
             'permissions' => Permission::all(),
             'roles'     => Role::all(),
-            'groups'    => Group::all()
+            'groups'    => Group::all(),
         ]);
     }
-
 
     /**
      * Update the specified resource in storage.
@@ -63,36 +61,36 @@ class UserController extends Controller
     {
         $user->fill($request->all());
 
-        if (auth()->user()->can('edit permissions')){
-            $permissions= $request->input('permissions');
+        if (auth()->user()->can('edit permissions')) {
+            $permissions = $request->input('permissions');
             $user->syncPermissions($permissions);
 
-            $roles= $request->input('roles');
+            $roles = $request->input('roles');
             $user->syncRoles($roles);
         }
 
-        $gruppen= $request->input('groups');
-        if (!is_null($gruppen) ){
-                $gruppen = Group::find($gruppen);
+        $gruppen = $request->input('groups');
+        if (! is_null($gruppen)) {
+            $gruppen = Group::find($gruppen);
         }
 
         $user->groups_rel()->detach();
         $user->groups_rel()->attach($gruppen);
 
-        if (auth()->user()->can('set password') and $request->input('new-password') != ""){
+        if (auth()->user()->can('set password') and $request->input('new-password') != '') {
             $user->password = Hash::make($request->input('new-password'));
         }
 
-        if ($user->save()){
+        if ($user->save()) {
             return redirect()->back()->with([
-               "type"   => "success",
-               "Meldung"    => "Daten gespeichert."
+               'type'   => 'success',
+               'Meldung'    => 'Daten gespeichert.',
             ]);
         }
 
         return redirect()->back()->with([
-        "type"   => "danger",
-        "Meldung"    => "Update fehlgeschlagen"
+        'type'   => 'danger',
+        'Meldung'    => 'Update fehlgeschlagen',
     ]);
     }
 
@@ -107,19 +105,18 @@ class UserController extends Controller
         $user = User::find($id);
         $user->delete();
 
-
-
         return redirect(url('users'))->with([
            'type' => 'warning',
-           'Meldung'    => 'Benutzer gelöscht'
+           'Meldung'    => 'Benutzer gelöscht',
         ]);
     }
 
-    public function loginAsUser($id){
-        if (!auth()->user()->hasRole('Admin')){
+    public function loginAsUser($id)
+    {
+        if (! auth()->user()->hasRole('Admin')) {
             return redirect()->back()->with([
-               'Meldung'    => "Berechtigung fehlt",
-               'type'       => "danger"
+               'Meldung'    => 'Berechtigung fehlt',
+               'type'       => 'danger',
             ]);
         }
         session(['ownID' => auth()->user()->id]);
@@ -127,37 +124,36 @@ class UserController extends Controller
         Auth::loginUsingId($id);
 
         return redirect(url('/'));
-
     }
 
-    public function logoutAsUser(){
-        if (session()->has('ownID')){
+    public function logoutAsUser()
+    {
+        if (session()->has('ownID')) {
             Auth::loginUsingId(session()->pull('ownID'));
         }
+
         return redirect(url('/'));
     }
 
-
-
-    public function importFromElternInfoBoard(){
+    public function importFromElternInfoBoard()
+    {
         $users = ElternInfoBoardUser::where('email', 'LIKE', '%@'.env('MAIL_DOMAIN'))->orWhere('email', 'LIKE', '%@'.env('MAIL_DOMAIN2'))->get();
 
-        foreach ($users as $user){
+        foreach ($users as $user) {
             $localUser = User::firstOrCreate([
-                'email' => $user->email
+                'email' => $user->email,
             ], [
                'name'   => $user->name,
-                "password" =>$user->password,
-                "remember_token" => $user->remember_token
+                'password' =>$user->password,
+                'remember_token' => $user->remember_token,
             ]);
 
-            if ( $localUser->password != $user->password ){
+            if ($localUser->password != $user->password) {
                 $localUser->update([
-                    "password" =>$user->password,
-                    "remember_token" => $user->remember_token
+                    'password' =>$user->password,
+                    'remember_token' => $user->remember_token,
                 ]);
             }
-
         }
 
         return redirect('users');
@@ -170,7 +166,7 @@ class UserController extends Controller
      */
     public function create()
     {
-        return view('users.create',[
+        return view('users.create', [
 
         ]);
     }
@@ -188,11 +184,9 @@ class UserController extends Controller
         $user->changePassword = true;
         $user->save();
 
-
         return redirect(url("users/$user->id"))->with([
-            'type'  => "success",
-            "Meldung"   => "Benutzer wurde angelegt"
+            'type'  => 'success',
+            'Meldung'   => 'Benutzer wurde angelegt',
         ]);
-
     }
 }

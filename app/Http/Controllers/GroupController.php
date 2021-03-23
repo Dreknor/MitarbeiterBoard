@@ -20,17 +20,16 @@ class GroupController extends Controller
      */
     public function index()
     {
-
-        if (auth()->user()->can('edit groups')){
+        if (auth()->user()->can('edit groups')) {
             $groups = Group::all();
         } else {
-            $groups = auth()->user()->groups;
+            $groups = auth()->user()->groups();
         }
 
         $groups->load('users');
 
-        return view('groups.index',[
-            'groups'    =>$groups
+        return view('groups.index', [
+            'groups'    =>$groups,
         ]);
     }
 
@@ -49,12 +48,10 @@ class GroupController extends Controller
         $group->users()->attach(auth()->user());
 
         return redirect(url('groups'))->with([
-           'type'   => "success",
-           'Meldung'    => "Gruppe ".$group->name ." wurde erstellt."
+           'type'   => 'success',
+           'Meldung'    => 'Gruppe '.$group->name.' wurde erstellt.',
         ]);
     }
-
-
 
     /**
      * Update the specified resource in storage.
@@ -63,78 +60,76 @@ class GroupController extends Controller
      * @param  \App\Models\Group  $group
      * @return RedirectResponse
      */
-    public function addUser(Request $request,  $groupname)
+    public function addUser(Request $request, $groupname)
     {
-
         $group = Group::where('name', $groupname)->first();
 
-        if (!$group){
+        if (! $group) {
             return redirect()->back()->with([
                'type'   => 'danger',
-               'Meldung' => 'Gruppe exsistiert nicht'
+               'Meldung' => 'Gruppe exsistiert nicht',
             ]);
         }
 
-        if (!auth()->user()->can('edit groups')  and $group->creator_id != auth()->id()){
+        if (! auth()->user()->can('edit groups') and $group->creator_id != auth()->id()) {
             return redirect()->back()->with([
                 'type'   => 'danger',
-                'Meldung' => 'Berechtigung fehlt nicht'
+                'Meldung' => 'Berechtigung fehlt nicht',
             ]);
         }
 
-        $user = User::where('name','LIKE' ,'%'.$request->input('name').'%')->get();
+        $user = User::where('name', 'LIKE', '%'.$request->input('name').'%')->get();
 
-        if ($user->count() == 1){
+        if ($user->count() == 1) {
             $group->users()->attach($user);
+
             return  redirect()->back()->with([
                 'type'   => 'success',
-                'Meldung' => 'Benutzer hinzugefügt'
+                'Meldung' => 'Benutzer hinzugefügt',
             ]);
         } else {
             return  redirect()->back()->with([
                 'type'   => 'warning',
-                'Meldung' => 'Benutzer nicht gefunden oder nicht eindeutig'
+                'Meldung' => 'Benutzer nicht gefunden oder nicht eindeutig',
             ]);
         }
-
     }
 
-    public function removeUser(Request $request,  $groupname)
+    public function removeUser(Request $request, $groupname)
     {
-
         $group = Group::where('name', $groupname)->first();
 
-        if (!$group){
+        if (! $group) {
             return redirect()->back()->with([
                 'type'   => 'danger',
-                'Meldung' => 'Gruppe exsistiert nicht'
+                'Meldung' => 'Gruppe exsistiert nicht',
             ]);
         }
 
-        if (!auth()->user()->can('edit groups')  and $group->creator_id != auth()->id()){
+        if (! auth()->user()->can('edit groups') and $group->creator_id != auth()->id()) {
             return redirect()->back()->with([
                 'type'   => 'danger',
-                'Meldung' => 'Berechtigung fehlt nicht'
+                'Meldung' => 'Berechtigung fehlt nicht',
             ]);
         }
 
         $user_id = $request->input('user_id');
 
-        $user = User::where('id',$user_id)->first();
+        $user = User::where('id', $user_id)->first();
 
-        if (isset($user)){
+        if (isset($user)) {
             $group->users()->detach($user);
+
             return  redirect()->back()->with([
                 'type'   => 'success',
-                'Meldung' => 'Benutzer entfernt'
+                'Meldung' => 'Benutzer entfernt',
             ]);
         } else {
             return  redirect()->back()->with([
                 'type'   => 'warning',
-                'Meldung' => 'Benutzer nicht gefunden oder nicht eindeutig'
+                'Meldung' => 'Benutzer nicht gefunden oder nicht eindeutig',
             ]);
         }
-
     }
 
     /**
@@ -145,33 +140,31 @@ class GroupController extends Controller
      */
     public function destroy(Group $group)
     {
-        if ($group->homegroup != ""){
+        if ($group->homegroup != '') {
             $themes = $group->themes;
-            foreach ($themes as $theme){
-                    $protocol = new Protocol([
+            foreach ($themes as $theme) {
+                $protocol = new Protocol([
                         'creator_id' => 1,
                         'theme_id'   => $theme->id,
-                        'protocol'   => "Gruppe wurde geschlossen und das Thema der Hauptgruppe hinzugefügt",
+                        'protocol'   => 'Gruppe wurde geschlossen und das Thema der Hauptgruppe hinzugefügt',
                     ]);
-                    $protocol->save();
+                $protocol->save();
 
-                $theme->group_id=$group->homegroup;
+                $theme->group_id = $group->homegroup;
                 $theme->save();
             }
-
         }
 
         $group->users()->detach($group->users);
         $group->delete();
-
     }
 
-    public function deleteOldGroups(){
+    public function deleteOldGroups()
+    {
         $groups = Group::where('enddate', '!=', '')->whereDate('enddate', '<=', Carbon::yesterday())->get();
 
-        foreach ($groups as $group){
+        foreach ($groups as $group) {
             $this->destroy($group);
         }
-
     }
 }

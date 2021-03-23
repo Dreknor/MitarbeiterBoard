@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Subscription extends Model
 {
-
     protected $fillable = ['users_id', 'subscriptionable_type', 'subscriptionable_id'];
+
     /**
      * Get the owning subscriptionable model.
      */
@@ -16,7 +16,8 @@ class Subscription extends Model
         return $this->morphTo();
     }
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(User::class, 'users_id');
     }
 }

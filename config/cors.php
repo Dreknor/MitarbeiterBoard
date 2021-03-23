@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
@@ -25,10 +25,16 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['*'],
 
     'max_age' => 0,
 
     'supports_credentials' => false,
+
+    'Content-Security-Policy' => env('Content_Security_Policy', 'self'),
+
+    'X-Frame-Options' => env('X_Frame_Options', 'DENY'),
+
+
 
 ];

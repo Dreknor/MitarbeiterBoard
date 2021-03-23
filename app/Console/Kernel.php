@@ -29,7 +29,6 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\MailController@invitation')->dailyAt('23:00');
         $schedule->call('App\Http\Controllers\MailController@remindTaskMail')->dailyAt('07:15');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
-
     }
 
     /**

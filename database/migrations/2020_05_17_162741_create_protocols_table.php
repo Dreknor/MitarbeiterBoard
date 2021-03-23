@@ -23,7 +23,6 @@ class CreateProtocolsTable extends Migration
 
             $table->foreign('theme_id')->references('id')->on('themes');
             $table->foreign('creator_id')->references('id')->on('users');
-
         });
     }
 

@@ -26,7 +26,7 @@ class createShareRequest extends FormRequest
         return [
             'theme' => 'required|string',
             'active_until' => 'sometimes|nullable|date',
-            'readonly'  => 'required|boolean'
+            'readonly'  => 'required|boolean',
         ];
     }
 }

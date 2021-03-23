@@ -48,10 +48,10 @@
                 </div>
                 <div class="card-footer text-center">
                     <div class="btn btn-sm btn-outline-success newStep" data-parent="{{$step->id}}"  data-target="#stepModal"  data-toggle="modal">
-                        <i class="fas fa-plus" data-parent="{{$step->id}}"></i> <i class="fas fa-arrow-down"></i>
+                        <i class="fas fa-plus" data-parent="{{$step->id}}"></i> <i class="fas fa-arrow-down" data-parent="{{$step->id}}"></i>
                     </div>
                     <div class="btn btn-sm btn-outline-info newStep" data-parent="{{$step->parent}}"  data-target="#stepModal"  data-toggle="modal">
-                        <i class="fas fa-plus" data-parent="{{$step->parent}}"></i> <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-plus" data-parent="{{$step->parent}}"></i> <i class="fas fa-arrow-right" data-parent="{{$step->parent}}"></i>
                     </div>
                 </div>
             </div>

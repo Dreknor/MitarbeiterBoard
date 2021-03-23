@@ -60,11 +60,11 @@
                                 </td>
                                 <td>
 
-                                    @role('Admin')
+                                    @can('logInAs')
                                         <a href="{{url("showUser/$user->id")}}" class="btn btn-sm btn-warning">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                    @endrole
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach

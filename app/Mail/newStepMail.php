@@ -15,6 +15,7 @@ class newStepMail extends Mailable
     public $procedure;
     public $date;
     public $step;
+
     /**
      * Create a new message instance.
      *
@@ -26,7 +27,6 @@ class newStepMail extends Mailable
         $this->date = $date;
         $this->step = $step;
         $this->procedure = $procedure;
-
     }
 
     /**
@@ -36,11 +36,11 @@ class newStepMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('neuer Prozessfortschritt')->view('mails.newStepMail',[
-            "name" =>$this->name,
-            "date" =>$this->date,
-            "step" =>$this->step,
-            "procedure" =>$this->procedure
+        return $this->subject('neuer Prozessfortschritt')->view('mails.newStepMail', [
+            'name' =>$this->name,
+            'date' =>$this->date,
+            'step' =>$this->step,
+            'procedure' =>$this->procedure,
         ]);
     }
 }

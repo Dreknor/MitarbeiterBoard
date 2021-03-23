@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
 {
-
     use SoftDeletes;
 
     protected $fillable = ['task', 'date', 'theme_id', 'completed'];
@@ -15,10 +14,11 @@ class Task extends Model
     protected $dates = ['created_at', 'updated_at', 'deleted_at', 'date'];
 
     protected $casts = [
-        'completed' => 'boolean'
+        'completed' => 'boolean',
     ];
 
-    public function theme () {
+    public function theme()
+    {
         return $this->belongsTo(Theme::class);
     }
 

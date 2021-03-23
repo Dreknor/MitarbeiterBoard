@@ -21,7 +21,13 @@
             <div class="card-header">
                 <h5 class="card-title">
                     Protokolle der Gruppe {{request()->segment(1)}} vom {{$date->format('d.m.Y')}}
+                    <div class="d-inline pull-right">
+                        <a href="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/download')}}">
+                            <i class="fas fa-file-word"></i>
+                        </a>
+                    </div>
                 </h5>
+
             </div>
             <div class="card-body">
                 <table class="table table-bordered table-striped">

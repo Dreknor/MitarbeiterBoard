@@ -14,7 +14,6 @@ class newProtocolForTask extends Mailable
     public $theme;
     public $name;
 
-
     /**
      * Create a new message instance.
      *
@@ -33,9 +32,9 @@ class newProtocolForTask extends Mailable
      */
     public function build()
     {
-        return $this->subject('neues Protokoll')->view('mails.newProtocolForTask',[
-            "name" =>$this->name,
-            "theme" =>$this->theme
+        return $this->subject('neues Protokoll')->view('mails.newProtocolForTask', [
+            'name' =>$this->name,
+            'theme' =>$this->theme,
         ]);
     }
 }

@@ -58,14 +58,23 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <b>
-                                    zu erledigen bis:
+                                    @if($step->done)
+                                        erledigt:
+                                    @else
+                                        zu erledigen bis:
+                                    @endif
+
                                 </b>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-12">
                                 @if($step->endDate != null)
-                                    {{$step->endDate->format('d.m.Y')}}
+                                    @if($step->done)
+                                        {{$step->updated_at->format('d.m.Y H:i')}}
+                                    @else
+                                        {{$step->endDate->format('d.m.Y')}}
+                                    @endif
                                 @else
                                     {{$step->durationDays}} Tage nach Abschluss des letzten Schrittes
                                 @endif

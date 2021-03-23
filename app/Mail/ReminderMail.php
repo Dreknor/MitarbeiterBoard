@@ -11,7 +11,6 @@ class ReminderMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-
     /**
      * Create a new message instance.
      *
@@ -19,7 +18,6 @@ class ReminderMail extends Mailable
      */
     public function __construct()
     {
-
     }
 
     /**

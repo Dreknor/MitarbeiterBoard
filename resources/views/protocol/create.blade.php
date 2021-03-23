@@ -273,7 +273,7 @@
         $("#customFile").fileinput({
             'showUpload':false,
             'previewFileType':'any',
-            maxFileSize: 3000,
+            maxFileSize: {{config('app.maxFileSize')}},
             'theme': "fas",
         });
     </script>

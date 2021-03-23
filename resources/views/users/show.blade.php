@@ -41,6 +41,14 @@
                                         </div>
                                     </div>
                                     <div class="row">
+                                        <div class="col-lg-12 col-md-12 col-sm-12">
+                                            <div class="form-group">
+                                                <label>kürzel</label>
+                                                <input type="text" class="form-control border-input" placeholder="Kürzel" name="kuerzel" value="{{$user->kuerzel}}" >
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
                                         <div class="col-md-12">
                                             <div class="form-group">
                                                 <label>E-Mail</label>

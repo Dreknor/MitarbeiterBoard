@@ -1,11 +1,13 @@
 <?php
 
 namespace App\Providers;
+
 use App\Models\User;
 use App\Observers\UserObserver;
-use Illuminate\Pagination\LengthAwarePaginator;
-
 use App\Support\Collection;
+use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,10 +29,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        Paginator::useBootstrap();
 
         User::observe(UserObserver::class);
 
-        Collection::macro('paginate', function($perPage, $total = null, $page = null, $pageName = 'page') {
+        Carbon::setUTF8(true);
+        Carbon::setLocale(config('app.locale'));
+        setlocale(LC_TIME, config('app.locale'));
+
+        Collection::macro('paginate', function ($perPage, $total = null, $page = null, $pageName = 'page') {
             $page = $page ?: LengthAwarePaginator::resolveCurrentPage($pageName);
 
             return new LengthAwarePaginator(

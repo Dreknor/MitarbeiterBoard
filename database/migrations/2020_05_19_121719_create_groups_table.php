@@ -26,7 +26,6 @@ class CreateGroupsTable extends Migration
 
             $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('group_id')->references('id')->on('groups');
-
         });
     }
 

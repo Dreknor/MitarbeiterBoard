@@ -13,7 +13,25 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'MitarbeiterBoard'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Logo
+    |--------------------------------------------------------------------------
+    */
+
+    'logo' => env('APP_LOGO', 'logo.png'),
+    'favicon' => env('APP_FAVICON', 'favicon.ico'),
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | File Upload
+    |--------------------------------------------------------------------------
+    */
+
+    'maxFileSize' => env('MAX_FILE_SIZE', '10000'),
 
     /*
     |--------------------------------------------------------------------------
@@ -52,7 +70,7 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost/leitung'),
+    'url' => env('APP_URL', 'http://localhost/'),
 
     'asset_url' => env('ASSET_URL', null),
 
@@ -228,5 +246,4 @@ return [
         'View' => Illuminate\Support\Facades\View::class,
 
     ],
-
 ];
