@@ -19,9 +19,6 @@ class CreateTypesTable extends Migration
             $table->boolean('needsProtocol')->default(1);
             $table->timestamps();
         });
-
-
-
     }
 
     /**

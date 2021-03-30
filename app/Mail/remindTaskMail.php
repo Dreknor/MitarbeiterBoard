@@ -17,7 +17,6 @@ class remindTaskMail extends Mailable
     public $name;
     public $group;
 
-
     /**
      * Create a new message instance.
      *
@@ -39,12 +38,12 @@ class remindTaskMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Ausstehende Aufgabe')->view('mails.remindTaskMail',[
-            "name" =>$this->name,
-            "date" =>$this->date,
-            "task" =>$this->task,
-            "theme" =>$this->theme,
-            "group" =>$this->group,
+        return $this->subject('Ausstehende Aufgabe')->view('mails.remindTaskMail', [
+            'name' =>$this->name,
+            'date' =>$this->date,
+            'task' =>$this->task,
+            'theme' =>$this->theme,
+            'group' =>$this->group,
         ]);
     }
 }

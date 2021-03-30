@@ -10,7 +10,7 @@ class Collection extends BaseCollection
     public function paginate($perPage, $total = null, $page = null, $pageName = 'page')
     {
         $page = $page ?: LengthAwarePaginator::resolveCurrentPage($pageName);
-      
+
         return new LengthAwarePaginator(
             $this->forPage($page, $perPage),
             $total ?: $this->count(),

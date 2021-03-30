@@ -27,7 +27,7 @@ class TaskRequest extends FormRequest
         return [
             'date' => 'required|date|after:'.Carbon::now()->endOfDay(),
             'task' => 'required|string',
-            'taskable'  => 'required'
+            'taskable'  => 'required',
         ];
     }
 }

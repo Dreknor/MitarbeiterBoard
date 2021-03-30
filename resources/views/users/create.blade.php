@@ -31,6 +31,13 @@
                                                 <input type="text" class="form-control border-input" placeholder="Name" name="name" required autocomplete="off" value="{{old('name')}}">
                                             </div>
                                         </div>
+                                    </div><div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label>Kürzel</label>
+                                                <input type="text" class="form-control border-input" placeholder="Kürzel" name="kuerzel" autocomplete="off" value="{{old('name')}}">
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-12">

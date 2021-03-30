@@ -25,7 +25,7 @@ class ProtocolRequest extends FormRequest
     {
         return [
             'protocol'  => 'required|string',
-            'completed' => 'sometimes|integer|max:1'
+            'completed' => 'sometimes|integer|max:1',
         ];
     }
 }

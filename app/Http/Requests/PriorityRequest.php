@@ -25,7 +25,7 @@ class PriorityRequest extends FormRequest
     {
         return [
             'priority' => 'required|integer|min:1|max:100',
-            'theme' => 'required|exist:theme,id'
+            'theme' => 'required|exist:theme,id',
         ];
     }
 }

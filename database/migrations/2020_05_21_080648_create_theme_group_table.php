@@ -25,6 +25,5 @@ class CreateThemeGroupTable extends Migration
      */
     public function down()
     {
-
     }
 }

@@ -10,12 +10,11 @@ class PriorityController extends Controller
 {
     public function store(Request $request)
     {
-
         $priority = Priority::firstOrCreate([
             'creator_id' => auth()->id(),
-            'theme_id'   => $request->theme
-        ],[
-            'priority'  => $request->priority
+            'theme_id'   => $request->theme,
+        ], [
+            'priority'  => $request->priority,
         ]);
 
         //$priority->save();
@@ -23,7 +22,7 @@ class PriorityController extends Controller
         return response()->json([
 
             'theme_id'  => $request->theme,
-            'priority'  => $request->priority
+            'priority'  => $request->priority,
         ]);
     }
 }

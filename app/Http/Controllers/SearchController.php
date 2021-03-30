@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\DB;
 
 class SearchController extends Controller
 {
-    public function search($groupname, Request $request) {
-
+    public function search($groupname, Request $request)
+    {
         $group = Group::where('name', $groupname)->first();
 
-        if (!auth()->user()->groups()->contains($group)){
+        if (! auth()->user()->groups()->contains($group)) {
             return response()->json();
         }
 
@@ -23,7 +23,7 @@ class SearchController extends Controller
         // search the themes table
         $results = DB::table('themes')
             ->where('group_id', $group->id)
-            ->where(function ($query) use ($text){
+            ->where(function ($query) use ($text) {
                 $query->where('theme', 'Like', $text)
                     ->orWhere('goal', 'Like', $text)
                     ->orWhere('information', 'Like', $text);
@@ -36,26 +36,24 @@ class SearchController extends Controller
 
         $resultsProtocol = Protocol::with(['theme' => function ($query) use ($group) {
             $query->where('group_id', $group->id);
-        }]) ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)' , array($text))
+        }])->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text])
             ->get();
 
-            if ($resultsProtocol->count() > 0){
-                foreach ($resultsProtocol as $protocol){
-                    $theme = $protocol->theme;
-                    $results->push($theme);
-                }
+        if ($resultsProtocol->count() > 0) {
+            foreach ($resultsProtocol as $protocol) {
+                $theme = $protocol->theme;
+                $results->push($theme);
             }
+        }
 
-
-            $results->sortByDesc('date');
+        $results->sortByDesc('date');
 
         // return the results
         return response()->json($results);
     }
 
-
-    public function show($groupname){
+    public function show($groupname)
+    {
         return view('search.search');
     }
-
 }

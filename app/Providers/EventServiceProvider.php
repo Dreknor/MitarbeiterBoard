@@ -21,7 +21,7 @@ class EventServiceProvider extends ServiceProvider
             SendEmailVerificationNotification::class,
         ],
         MessageSending::class => [
-           LogEmail::class
+           LogEmail::class,
         ],
     ];
 
@@ -32,7 +32,6 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        parent::boot();
 
         //
     }

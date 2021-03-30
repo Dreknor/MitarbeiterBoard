@@ -29,6 +29,5 @@ class LogEmail
     {
         $message = $event->message;
         Log::channel('maillog')->info($message);
-
     }
 }
