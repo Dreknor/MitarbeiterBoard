@@ -175,10 +175,7 @@ class CreatePermissionTables extends Migration
                     'permission_id' => '9',
                     'role_id' => '1'
                 ],
-				[
-                    'permission_id' => '10',
-                    'role_id' => '1',
-                ],
+
             ]
 			);
 
