@@ -102,10 +102,6 @@ class CreatePermissionTables extends Migration
                     'guard_name' => 'web'
                 ],
                 [
-                    'name' => 'disable menu',
-                    'guard_name' => 'web'
-                ],
-                [
                     'name' => 'set password',
                     'guard_name' => 'web'
                 ],
@@ -125,6 +121,10 @@ class CreatePermissionTables extends Migration
                     'name' => 'edit users',
                     'guard_name' => 'web'
                 ],
+                [
+                    'name' => 'disable menu',
+                    'guard_name' => 'web'
+                ],
             )
         );
 
@@ -139,13 +139,41 @@ class CreatePermissionTables extends Migration
         \Illuminate\Support\Facades\DB::table('role_has_permissions')->insert(
             array(
                 [
+                    'permission_id' => '1',
+                    'role_id' => '1'
+                ],
+                [
+                    'permission_id' => '2',
+                    'role_id' => '1'
+                ],
+                [
                     'permission_id' => '3',
                     'role_id' => '1'
                 ],
                 [
-                    'permission_id' => '10',
+                    'permission_id' => '4',
                     'role_id' => '1'
-                ]
+                ],
+                [
+                    'permission_id' => '5',
+                    'role_id' => '1'
+                ],
+                [
+                    'permission_id' => '6',
+                    'role_id' => '1'
+                ],
+                [
+                    'permission_id' => '7',
+                    'role_id' => '1'
+                ],
+                [
+                    'permission_id' => '8',
+                    'role_id' => '1'
+                ],
+                [
+                    'permission_id' => '9',
+                    'role_id' => '1'
+                ],
             )
         );
 
