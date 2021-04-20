@@ -156,10 +156,14 @@ Route::group([
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
                     Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
                     Route::post('step/addUser', [ProcedureController::class, 'addUser']);
-                    Route::put('step/{step}/done', [ProcedureController::class, 'done']);
+
 
                     //Step
                     Route::post('{procedure}/step', [ProcedureController::class, 'addStep']);
+                    Route::put('step/{step}/done', [ProcedureController::class, 'done']);
+                    Route::get('step/{step}/done/mail', [ProcedureController::class, 'done']);
+                    Route::get('/stepMail', [ProcedureController::class, 'remindStepMail']);
+
 
                     //positions
                     Route::get('/positions', [PositionsController::class, 'index']);
