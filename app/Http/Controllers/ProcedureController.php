@@ -6,6 +6,7 @@ use App\Http\Requests\CreateProcedureTemplateRequest;
 use App\Http\Requests\CreateStepRequest;
 use App\Http\Requests\EditStepRequest;
 use App\Mail\newStepMail;
+use App\Mail\StepErinnerungMail;
 use App\Models\Positions;
 use App\Models\Procedure;
 use App\Models\Procedure_Category;
@@ -16,12 +17,32 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Psy\Util\Str;
+use StepsUsers;
 
 class ProcedureController extends Controller
 {
     public function __construct()
     {
         $this->middleware('permission:view procedures');
+    }
+
+    public function destroy(Procedure_Step $step){
+        try {
+            $step->users()->detach();
+            $step->delete();
+            return redirect()->back()->with([
+                'type'=>'warning',
+                'Meldung'=> 'Schritt wurde gelöscht.'
+            ]);
+
+        } catch (\Exception $exception){
+            return redirect()->back()->with([
+               'type'=>'danger',
+               'Meldung'=> 'Konnte nicht gelöscht werden.'
+            ]);
+        }
+
+
     }
 
     public function index()
@@ -221,5 +242,20 @@ class ProcedureController extends Controller
         $step->users()->attach($request->input('person_id'));
 
         return redirect()->back();
+    }
+
+    public function remindStepMail()
+    {
+        $steps = Procedure_Step::with(['users', 'procedure'])->where('endDate', '<=', now())->where('done', 0)->get();
+
+        foreach ($steps as $step){
+            foreach ($step->users as $user){
+                Mail::to($user)->queue(new StepErinnerungMail($user->name, $step->endDate->format('d.m.Y'), $step->procedure->name, $step->procedure_id, $step->name, $step->id));
+            }
+
+        }
+
+
+
     }
 }

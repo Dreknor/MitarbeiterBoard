@@ -12,6 +12,19 @@
                         {{$step->name}}
                     </p>
 
+                    <div class="pull-right">
+                        @if(count($step->childs)<1 and !$step->done )
+                            <form class="form-inline" action="{{url('procedure/step/'.$step->id."/delete")}}" method="post">
+                                @csrf
+                                @method('delete')
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+
+
                     @if($step->done == 0 and count($step->childs) > 0)
                         <a class="d-inline pull-right btn-link step_{{$step->parent}}" title="mehr Schritte einblenden" data-toggle="collapse" href=".step_{{$step->id}}">
                             <i class="fa fa-plus-circle pt-0"></i>
