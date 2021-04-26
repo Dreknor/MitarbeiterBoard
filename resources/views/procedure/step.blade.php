@@ -1,6 +1,6 @@
 <div class="col-auto">
-    <div class="row ">
-        <div class="col-12">
+    <div class="row small">
+        <div class="col">
             <div class="card bg-light border" data-step="{{$step->id}}">
                 <div class="card-header">
                     <h6>
@@ -27,7 +27,7 @@
                         <div class="row">
                             <div class="col-6">
                                 <b>
-                                    Verantwortlich:
+                                    Wer:
                                 </b>
                             </div>
                             <div class="col-6">
@@ -41,7 +41,7 @@
                                 </b>
                             </div>
                             <div class="col-6">
-                                {{$step->durationDays}} Tage
+                                {{$step->durationDays}}
                             </div>
                         </div>
                     </div>
@@ -58,14 +58,25 @@
         </div>
     </div>
         @if(count($step->childs)>0)
-            <div class="row text-center mb-4">
-                <div class="col-12">
+        <div class="container-fluid">
+            <div class="row text-center mb-2 @if(count($step->childs)>1) border-bottom border-primary @endif">
+                <div class="col">
                     <i class="fas fa-arrow-down"></i>
                 </div>
             </div>
+            @if(count($step->childs)>1)
+                <div class="row text-center mb-2">
+                    @for($x=0; $x<count($step->childs); $x++)
+                        <div class="col-{{12/round(count($step->childs))}}">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                    @endfor
+                </div>
+            @endif
             <div class="row">
                 @each('procedure.step',$step->childs, 'step')
             </div>
+        </div>
         @endif
 </div>
 

@@ -117,7 +117,7 @@
                     </button>
                 </h6>
             </div>
-            <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
+            <div id="collapseTwo" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordion">
                 <div class="card-body d-none d-md-block">
                         <table class="table table-bordered table-striped">
                             <thead>
