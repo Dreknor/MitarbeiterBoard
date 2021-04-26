@@ -112,7 +112,7 @@
         <div class="card">
             <div class="card-header" id="headingTwo">
                 <h6 class="mb-0">
-                    <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
                         <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::tomorrow()->format('d.m.Y')}}
                     </button>
                 </h6>
