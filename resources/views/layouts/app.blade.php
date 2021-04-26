@@ -95,6 +95,14 @@
                                                         <p>Suche</p>
                                                     </a>
                                                 </li>
+                                                @can('create Wochenplan')
+                                                    <li class="@if(request()->segment(2)=="wochenplan"  and request()->segment(1)=="$group->name") active @endif">
+                                                        <a href="{{url($group->name.'/wochenplan')}}">
+                                                            <i class="fas fa-tasks"></i>
+                                                            <p>Wochenplan</p>
+                                                        </a>
+                                                    </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </li>

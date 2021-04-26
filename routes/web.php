@@ -20,6 +20,8 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
+use App\Http\Controllers\WochenplanController;
+use App\Http\Controllers\WPRowsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use \App\Http\Controllers\ShareController;
@@ -54,6 +56,12 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
+                //Wochenplan
+                Route::group(['middleware' => ['permission:create Wochenplan']], function () {
+                    Route::resource('{groupname}/wochenplan', WochenplanController::class);
+                    Route::post('wprow/{wochenplan}', [WPRowsController::class, 'store']);
+                });
+
                 //Klassen
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
