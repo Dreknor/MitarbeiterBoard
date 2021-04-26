@@ -16,4 +16,8 @@ class WPRows extends Model
     public function wochenplan(){
         return $this->belongsTo(Wochenplan::class);
     }
+
+    public function tasks(){
+        return $this->hasMany(WpTask::class, 'wprow_id');
+    }
 }

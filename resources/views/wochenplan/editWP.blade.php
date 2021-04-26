@@ -5,6 +5,9 @@
         <div class="card">
             <div class="card-header border-bottom bg-light">
                 <h6>{{$wochenplan->name}}</h6>
+                <div class="d-inline pull-right">
+                    <a href="{{url('wochenplan/'.$wochenplan->id.'/export')}}" class="btn btn-sm btn-primary">export</a>
+                </div>
                 <p class="small">
                     gültig von {{$wochenplan->gueltig_ab->format('d.m.Y')}} bis {{$wochenplan->gueltig_bis->format('d.m.Y')}}
                 </p>
@@ -22,13 +25,26 @@
                                 {{$row->name}}
                             </b>
                         </div>
-                        <div class="col-7">
-                            Aufgaben
-                        </div>
-                        <div class="col-1">
-                            <a href="#" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus"></i>
-                            </a>
+                        <div class="col-8">
+                            <ul class="list-group">
+                                @foreach($row->tasks as $task)
+                                    <li class="list-group-item">
+                                        <div class="d-inline pull-right">
+                                            <a href="#">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+
+                                        </div>
+                                        {!! $task->task !!}
+                                    </li>
+                                @endforeach
+                                <li class="list-group-item">
+                                    <a href="{{url('wptask/'.$row->id.'/addTask')}}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                </li>
+                            </ul>
+
                         </div>
                     </div>
                 </div>

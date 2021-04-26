@@ -22,6 +22,7 @@ use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
+use App\Http\Controllers\WpTaskController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use \App\Http\Controllers\ShareController;
@@ -60,6 +61,9 @@ Route::group([
                 Route::group(['middleware' => ['permission:create Wochenplan']], function () {
                     Route::resource('{groupname}/wochenplan', WochenplanController::class);
                     Route::post('wprow/{wochenplan}', [WPRowsController::class, 'store']);
+                    Route::post('wptask/{wprow}/addTask', [WpTaskController::class, 'store']);
+                    Route::get('wptask/{wprow}/addTask', [WpTaskController::class, 'create']);
+                    Route::get('wochenplan/{wochenplan}/export', [WochenplanController::class, 'export']);
                 });
 
                 //Klassen

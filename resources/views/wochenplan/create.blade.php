@@ -20,6 +20,16 @@
                        <input type="text" name="name" id="name" class="form-control"  value="{{old('name')}}" required>
                    </div>
                    <div class="form-row">
+                       <label for="bewertung">
+                           Selbsteinschätzung?
+                       </label>
+                       <select name="bewertung" class="form-control custom-select">
+                           <option value="0">Keine Selbsteinschätzung</option>
+                           <option value="1">Smilie</option>
+                           <option value="2">Skala</option>
+                       </select>
+                   </div>
+                   <div class="form-row">
                        <div class="col-md-6 col-sm-12">
                            <label for="gueltig_ab">
                                gueltig ab

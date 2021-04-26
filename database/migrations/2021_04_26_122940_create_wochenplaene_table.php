@@ -18,6 +18,7 @@ class CreateWochenplaeneTable extends Migration
             $table->string('name');
             $table->dateTime('gueltig_ab');
             $table->dateTime('gueltig_bis');
+            $table->smallInteger('bewertung')->default(0);
             $table->unsignedBigInteger('group_id');
             $table->timestamps();
             $table->softDeletes();

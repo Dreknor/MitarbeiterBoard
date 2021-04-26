@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class createWPRequest extends FormRequest
+class createWPTaskRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,23 +24,9 @@ class createWPRequest extends FormRequest
     public function rules()
     {
         return [
-            'gueltig_ab' => [
-                'required',
-                'date',
-                'before:gueltig_bis'],
-            'gueltig_bis' => [
-                'required',
-                'date',
-                'after:gueltig_ab'],
-            'name' => [
+            'task' => [
                 'required',
                 'string'
-            ],
-            'bewertung' => [
-                'required',
-                'integer',
-                'min:0',
-                'max:2'
             ]
         ];
     }
