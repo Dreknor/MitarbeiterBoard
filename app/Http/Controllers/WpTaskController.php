@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\createWPTaskRequest;
 use App\Models\WPRows;
 use App\Models\WpTask;
-use Illuminate\Http\Request;
 
 class WpTaskController extends Controller
 {
@@ -38,16 +37,6 @@ class WpTaskController extends Controller
         ]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\WpTask  $wpTask
-     * @return \Illuminate\Http\Response
-     */
-    public function show(WpTask $wpTask)
-    {
-        //
-    }
 
     /**
      * Show the form for editing the specified resource.
@@ -55,9 +44,13 @@ class WpTaskController extends Controller
      * @param  \App\Models\WpTask  $wpTask
      * @return \Illuminate\Http\Response
      */
-    public function edit(WpTask $wpTask)
+    public function edit($wpTask)
     {
-        //
+        $task = WpTask::where('id', $wpTask)->first();
+
+        return response()->view('wochenplan.edittask', [
+           'task' => $task
+        ]);
     }
 
     /**
@@ -65,21 +58,26 @@ class WpTaskController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\WpTask  $wpTask
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(Request $request, WpTask $wpTask)
+    public function update(createWPTaskRequest $request, WpTask $wpTask)
     {
-        //
+        $wpTask->update($request->validated());
+        return redirect(url($wpTask->wprow->wochenplan->group->name.'/wochenplan/'.$wpTask->wprow->wochenplan->id));
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\WpTask  $wpTask
+     * @param  \App\Models\WpTask  $wptask
      * @return \Illuminate\Http\Response
      */
-    public function destroy(WpTask $wpTask)
+    public function destroy(WpTask $wptask)
     {
-        //
+        $wptask->delete();
+        return redirect()->back()->with([
+           'type' => 'warning',
+           'Meldung'=>"Aufgabe wurde gelöscht."
+        ]);
     }
 }

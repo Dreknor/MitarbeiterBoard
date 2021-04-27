@@ -9,6 +9,7 @@ use App\Models\Wochenplan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpWord\Style\Language;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WochenplanController extends Controller
 {
@@ -86,7 +87,7 @@ class WochenplanController extends Controller
      */
     public function edit(Wochenplan $wochenplan)
     {
-        //
+        //TODO
     }
 
     /**
@@ -98,18 +99,67 @@ class WochenplanController extends Controller
      */
     public function update(Request $request, Wochenplan $wochenplan)
     {
-        //
+        //TODO
+    }
+
+    /**
+     *
+     */
+    public function addFile(Request $request, Wochenplan $wochenplan)
+    {
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file) {
+                $wochenplan
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+        }
+
+        return redirect()->back()->with([
+           'type' => 'success',
+           'Meldung'=> 'Datei angehangen'
+        ]);
+    }
+
+    /**
+     *
+     */
+    public function removeFile(Request $request, Media $media)
+    {
+        $media->delete();
+
+        return redirect()->back()->with([
+           'type' => 'success',
+           'Meldung'=> 'Datei gelöscht'
+        ]);
     }
 
     /**
      * Remove the specified resource from storage.
      *
      * @param  \App\Models\Wochenplan  $wochenplan
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Wochenplan $wochenplan)
     {
-        //
+        $media = $wochenplan->getMedia();
+        foreach ($media as $medium){
+            $medium->delete();
+        }
+
+        $url = $wochenplan->group->name."/wochenplan";
+        $wochenplan->delete();
+
+        return redirect(url($url))->with([
+            'type' => 'success',
+            'Meldung'=> 'Wochenplan gelöscht'
+        ]);
+    }
+
+
+    public function copy(){
+        //TODO
     }
 
     public function export(Wochenplan $wochenplan)
@@ -154,7 +204,7 @@ class WochenplanController extends Controller
         $section->addText($wochenplan->name. ' vom '.$wochenplan->gueltig_ab->format('d.m.').' bis '.$wochenplan->gueltig_bis->format('d.m.Y')."\t". $klassen, $fontStyle, "leftRight");
 
         //Name
-        $section->addText('Name: ........................................................', ['size' => 18], ['spaceBefore' => 240]);
+        $section->addText('Name: ........................................................', ['size' => 14], ['spaceBefore' => 240]);
 
         //Kopftabelle
         $table = $section->addTable(['borderSize' => 1, 'borderColor' => '3D3D3D', 'cellMargin'=>200]);
@@ -189,7 +239,7 @@ class WochenplanController extends Controller
                     }
 
                 //Unterschrift
-                $cell2->addText('..........', [], ['spaceBefore' => 720]);
+                $cell2->addText('..........', [], ['spaceBefore' => ((count($wochenplan->rows)-1) * 720)+240]);
             }
 
         }
@@ -243,7 +293,6 @@ class WochenplanController extends Controller
         $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
 
         $filename = 'Wochenplan.docx';
-
         $objWriter->save(storage_path($filename));
 
         return response()->download(storage_path($filename));

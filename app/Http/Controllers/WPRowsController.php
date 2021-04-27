@@ -24,16 +24,6 @@ class WPRowsController extends Controller
         return redirect()->back();
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\WPRows  $wPRows
-     * @return \Illuminate\Http\Response
-     */
-    public function show(WPRows $wPRows)
-    {
-        //
-    }
 
     /**
      * Show the form for editing the specified resource.
@@ -43,7 +33,7 @@ class WPRowsController extends Controller
      */
     public function edit(WPRows $wPRows)
     {
-        //
+        //TODO
     }
 
     /**
@@ -55,17 +45,22 @@ class WPRowsController extends Controller
      */
     public function update(Request $request, WPRows $wPRows)
     {
-        //
+        //TODO
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\WPRows  $wPRows
-     * @return \Illuminate\Http\Response
+     * @param  \App\Models\WPRows  $wprows
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy(WPRows $wPRows)
+    public function destroy(WPRows $wprow)
     {
-        //
+
+        $wprow->delete();
+        return redirect()->back()->with([
+           'type'=>'success',
+           'Meldung'=>"Abschnitt gelöscht."
+        ]);
     }
 }
