@@ -43,6 +43,15 @@ class Group extends Model
         return $this->morphMany(\App\Models\Task::class, 'taskable');
     }
 
+
+    /**
+     * Get all of the tasks.
+     */
+    public function wochenplaene()
+    {
+        return $this->hasMany(Wochenplan::class, 'group_id');
+    }
+
     /**
      * Get all of the subscriptions.
      */
