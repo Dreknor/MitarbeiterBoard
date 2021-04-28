@@ -13,6 +13,8 @@ use Illuminate\View\View;
 
 class GroupController extends Controller
 {
+
+
     /**
      * Display a listing of the View.
      *
@@ -50,6 +52,15 @@ class GroupController extends Controller
         return redirect(url('groups'))->with([
            'type'   => 'success',
            'Meldung'    => 'Gruppe '.$group->name.' wurde erstellt.',
+        ]);
+    }
+
+    public function edit(Group $group){
+        $groups = Group::all();
+
+        return response()->view('groups.edit',[
+            'gruppe' => $group,
+            'groups' => $groups
         ]);
     }
 

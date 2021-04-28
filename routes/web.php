@@ -137,6 +137,7 @@ Route::group([
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);
+                Route::get('groups/{group}/edit', [GroupController::class, 'edit']);
                 Route::post('groups', [GroupController::class, 'store']);
                 Route::put('{groupname}/addUser', [GroupController::class, 'addUser']);
                 Route::delete('{groupname}/removeUser', [GroupController::class, 'removeUser']);

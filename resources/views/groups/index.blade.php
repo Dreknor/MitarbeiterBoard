@@ -56,6 +56,13 @@
                 @endif
                 <div class="card m-1">
                     <div class="card-header">
+                        @can('edit groups')
+                            <div class="d-inline pull-right">
+                                <a href="{{url('groups/'.$group->id.'/edit')}}" class="card-link">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                            </div>
+                        @endcan
                         <h5 class="card-title">
                             {{$group->name}}
                         </h5>
