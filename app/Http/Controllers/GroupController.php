@@ -9,7 +9,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Contracts\View\View;
 
 class GroupController extends Controller
 {
@@ -39,7 +39,7 @@ class GroupController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(GroupRequest $request)
     {
@@ -71,6 +71,16 @@ class GroupController extends Controller
      * @param  \App\Models\Group  $group
      * @return RedirectResponse
      */
+    public function update(GroupRequest $request, Group $group){
+        $group->update($request->validated());
+        return redirect(url('groups'))->with([
+            'type'   => 'success',
+            'Meldung'    => 'Gruppe '.$group->name.' wurde bearbeitet.',
+        ]);
+    }
+
+
+
     public function addUser(Request $request, $groupname)
     {
         $group = Group::where('name', $groupname)->first();

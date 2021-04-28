@@ -8,8 +8,9 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form action="{{url('groups')}}" method="post" class="form-horizontal">
+                <form action="{{url('groups/'.$gruppe->id)}}" method="post" class="form-horizontal">
                     @csrf
+                    @method('patch')
                     <div class="form-row">
                         <label for="name">Name der Gruppe</label>
                         <input type="text" class="form-control" name="name" id="name" required autofocus value="{{old('name', $gruppe->name)}}">
@@ -27,6 +28,7 @@
                     <div class="form-row mt-1">
                         <label for="homegroup">überführen in</label>
                         <select name="homegroup" class="custom-select">
+                            <option disabled></option>
                             @foreach($groups->where('enddate', '') as $newgroup)
                                 <option value="{{$newgroup->id}}" @if($gruppe->homegroup == $newgroup->id) selected @endif>{{$newgroup->name}}</option>
                             @endforeach
