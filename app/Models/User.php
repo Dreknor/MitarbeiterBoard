@@ -93,4 +93,10 @@ class User extends Authenticatable
     public function vertretungen(){
         return $this->hasMany(Vertretung::class, 'users_id', 'id');
     }
+
+    public function positions(){
+        return $this->belongsToMany(Positions::class, 'position_user', 'user_id', 'position_id');
+    }
+
+
 }

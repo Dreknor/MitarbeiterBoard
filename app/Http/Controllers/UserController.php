@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\createUserRequest;
 use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
+use App\Models\Positions;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +48,7 @@ class UserController extends Controller
             'permissions' => Permission::all(),
             'roles'     => Role::all(),
             'groups'    => Group::all(),
+            'positions' => Positions::all()
         ]);
     }
 
@@ -67,6 +69,12 @@ class UserController extends Controller
 
             $roles = $request->input('roles');
             $user->syncRoles($roles);
+        }
+
+        if (auth()->user()->can('view procedures')) {
+            $positions = $request->input('positions');
+            $user->positions->sync($positions);
+
         }
 
         $gruppen = $request->input('groups');
