@@ -4,6 +4,12 @@
     <div class="container-fluid">
         @include('vertretungsplan.create')
 
+                    <div class="card">
+                        <div class="card-body">
+                            Abrufbar unter: <a href="{{url('vertretungsplan')}}" target="_blank">{{url('vertretungsplan')}}</a>
+                        </div>
+                    </div>
+
                 <div id="accordion">
                     <div class="card">
                         <div class="card-header" id="headingOne">

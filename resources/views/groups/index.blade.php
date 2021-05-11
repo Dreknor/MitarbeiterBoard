@@ -106,11 +106,12 @@
                                         <li class="list-group-item">
                                             {{$user->name}}
                                             @if($group->creator_id != "" and $group->creator_id == auth()->id() or auth()->user()->can('edit groups'))
-                                                <div class="pull-right">
-                                                    <form action="{{url($group->name.'/removeUser')}}" method="post">
+                                                <div class="d-inline pull-right">
+                                                    <form action="{{url($group->name.'/removeUser')}}" method="post" class="form-inline">
                                                         @csrf
                                                         @method('delete')
-                                                        <button type="submit" name="user_id" value="{{$user->id}}" class="btn btn-danger btn-xs"><i class="fas fa-user-minus"></i></button>
+                                                        <input type="hidden" name="user_id" value="{{$user->id}}" >
+                                                        <button type="submit" class="btn btn-danger btn-link d-inline"><i class="fas fa-user-minus"></i></button>
                                                     </form>
                                                 </div>
 
