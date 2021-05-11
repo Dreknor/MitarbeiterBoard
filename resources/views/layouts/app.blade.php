@@ -174,6 +174,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('create types')
+                        <li class="@if(request()->segment(1)=="types") active @endif">
+                            <a href="{{url('/types')}}">
+                                <i class="fas fa-comments"></i>
+                                <p>Thementypen</p>
+                            </a>
+                        </li>
+                    @endcan
                 @endcan
             @endauth
 

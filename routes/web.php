@@ -131,6 +131,12 @@ Route::group([
                     Route::get('user', [UserController::class, 'index']);
                 });
 
+                //themeTypes
+                Route::group(['middleware' => ['permission:create types']], function () {
+                    Route::get('types', [\App\Http\Controllers\TypController::class, 'index']);
+                    Route::post('types', [\App\Http\Controllers\TypController::class, 'store']);
+                });
+
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
