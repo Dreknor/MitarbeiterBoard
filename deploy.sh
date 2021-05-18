@@ -11,5 +11,9 @@ composer install --no-interaction --prefer-dist
 # update database
 php artisan migrate --force
 # --force  Required to run when in production.
+
+#Cache clear
+php artisan cache:clear
+
 # stop maintenance mode
 php artisan up
