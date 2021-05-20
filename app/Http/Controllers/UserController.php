@@ -113,7 +113,7 @@ class UserController extends Controller
 
         return redirect(url('users'))->with([
            'type' => 'warning',
-           'Meldung'    => 'Benutzer gelöscht',
+           'Meldung'    => 'Benutzer deaktiviert.',
         ]);
     }
 
@@ -185,7 +185,20 @@ class UserController extends Controller
      */
     public function store(createUserRequest $request)
     {
-        $user = new User($request->all());
+        $OldUser = User::where('email', $request->email)->withTrashed()->first();
+        if (isset($OldUser)){
+            $OldUser->restore();
+            $OldUser->password = Hash::make($request->input('password'));
+            $OldUser->changePassword = true;
+            $OldUser->save();
+
+            return redirect(url("users/$OldUser->id"))->with([
+                'type'  => 'warning',
+                'Meldung'   => 'Der Benutzer bestand bereits und wurde daher reaktiviert.',
+            ]);
+        }
+
+        $user = new User($request->validated());
         $user->password = Hash::make($request->input('password'));
         $user->changePassword = true;
         $user->save();
