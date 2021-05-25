@@ -140,6 +140,7 @@ Route::group([
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
+                Route::get('users/restore/{user_id}', [UserController::class, 'restore']);
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);

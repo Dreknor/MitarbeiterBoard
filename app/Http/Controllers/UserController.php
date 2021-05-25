@@ -19,6 +19,7 @@ class UserController extends Controller
 {
     public function __construct()
     {
+        $this->middleware('permission:edit users');
     }
 
     /**
@@ -30,6 +31,19 @@ class UserController extends Controller
     {
         return view('users.index', [
             'users' => User::all(),
+            'disabledUser' => User::onlyTrashed()->get()
+        ]);
+    }
+
+    /**
+     * Benutzer reaktivieren
+     */
+    public function restore(Request $request, $user_id){
+        User::withTrashed()->find($user_id)->restore();
+
+        return redirect(url('users/'.$user_id))->with([
+            'type' => 'success',
+            'Meldung' => 'Benutzer aktiviert'
         ]);
     }
 
