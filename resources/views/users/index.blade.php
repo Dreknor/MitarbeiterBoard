@@ -21,12 +21,12 @@
                 <table class="table table-hover" id="userTable">
                     <thead>
                         <tr>
-                            <td></td>
+                            <th></th>
                             <th>Name</th>
                             <th>E-Mail</th>
                             <th>Rollen</th>
                             <th>Rechte</th>
-                            <td></td>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,6 +71,43 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5>
+                        deaktivierte Benutzer
+                    </h5>
+                </div>
+                <div class="card-body ">
+                    <table class="table table-hover" id="disabledUserTable">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>E-Mail</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($disabledUser as $user)
+                            <tr>
+                                <td>
+                                    {{$user->name}}
+                                </td>
+                                <td>
+                                    {{$user->email}}
+                                </td>
+                                <td>
+                                    <a href="{{url('users/restore/'.$user->id)}}" class="card-link">
+                                        Konto reaktivieren
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 
