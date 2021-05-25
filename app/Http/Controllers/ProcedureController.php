@@ -26,6 +26,25 @@ class ProcedureController extends Controller
         $this->middleware('permission:view procedures');
     }
 
+    public function destroy(Procedure_Step $step){
+        try {
+            $step->users()->detach();
+            $step->delete();
+            return redirect()->back()->with([
+                'type'=>'warning',
+                'Meldung'=> 'Schritt wurde gelöscht.'
+            ]);
+
+        } catch (\Exception $exception){
+            return redirect()->back()->with([
+               'type'=>'danger',
+               'Meldung'=> 'Konnte nicht gelöscht werden.'
+            ]);
+        }
+
+
+    }
+
     public function index()
     {
         $steps = auth()->user()->steps;

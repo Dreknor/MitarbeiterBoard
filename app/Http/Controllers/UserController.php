@@ -7,13 +7,11 @@ use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
 use App\Models\Positions;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -73,7 +71,7 @@ class UserController extends Controller
 
         if (auth()->user()->can('view procedures')) {
             $positions = $request->input('positions');
-            $user->positions->sync($positions);
+            $user->positions()->sync($positions);
 
         }
 
@@ -115,7 +113,7 @@ class UserController extends Controller
 
         return redirect(url('users'))->with([
            'type' => 'warning',
-           'Meldung'    => 'Benutzer gelöscht',
+           'Meldung'    => 'Benutzer deaktiviert.',
         ]);
     }
 
@@ -187,7 +185,20 @@ class UserController extends Controller
      */
     public function store(createUserRequest $request)
     {
-        $user = new User($request->all());
+        $OldUser = User::where('email', $request->email)->withTrashed()->first();
+        if (isset($OldUser)){
+            $OldUser->restore();
+            $OldUser->password = Hash::make($request->input('password'));
+            $OldUser->changePassword = true;
+            $OldUser->save();
+
+            return redirect(url("users/$OldUser->id"))->with([
+                'type'  => 'warning',
+                'Meldung'   => 'Der Benutzer bestand bereits und wurde daher reaktiviert.',
+            ]);
+        }
+
+        $user = new User($request->validated());
         $user->password = Hash::make($request->input('password'));
         $user->changePassword = true;
         $user->save();

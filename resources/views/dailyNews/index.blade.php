@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="container-fluid">
-        @include('dailyNews.createNews')
+        @include('themeTypes.createTyp')
                     <div class="card">
                         <div class="card-header" id="headingOne">
                             <h6>

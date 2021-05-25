@@ -20,6 +20,9 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
+use App\Http\Controllers\WochenplanController;
+use App\Http\Controllers\WPRowsController;
+use App\Http\Controllers\WpTaskController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use \App\Http\Controllers\ShareController;
@@ -54,6 +57,22 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
+                //Wochenplan
+                Route::group(['middleware' => ['permission:create Wochenplan']], function () {
+                    Route::resource('{groupname}/wochenplan', WochenplanController::class);
+                    Route::post('wochenplan/{wochenplan}/addfile', [WochenplanController::class, 'addFile']);
+                    Route::post('wprow/{wochenplan}', [WPRowsController::class, 'store']);
+                    Route::delete('wprow/{wprow}/remove', [WPRowsController::class, 'destroy']);
+                    Route::delete('wochenplan/media/{media}/remove', [WochenplanController::class, 'removeFile']);
+                    Route::delete('wochenplan/{wochenplan}/remove', [WochenplanController::class, 'destroy']);
+                    Route::delete('wptask/{wptask}/remove', [WpTaskController::class, 'destroy']);
+                    Route::post('wptask/{wprow}/addTask', [WpTaskController::class, 'store']);
+                    Route::get('wptask/{wprow}/addTask', [WpTaskController::class, 'create']);
+                    Route::get('wptask/{wptask}/edit', [WpTaskController::class, 'edit']);
+                    Route::put('wptask/{wpTask}/edit', [WpTaskController::class, 'update']);
+                    Route::get('wochenplan/{wochenplan}/export', [WochenplanController::class, 'export']);
+                });
+
                 //Klassen
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
@@ -112,13 +131,21 @@ Route::group([
                     Route::get('user', [UserController::class, 'index']);
                 });
 
+                //themeTypes
+                Route::group(['middleware' => ['permission:create types']], function () {
+                    Route::get('types', [\App\Http\Controllers\TypController::class, 'index']);
+                    Route::post('types', [\App\Http\Controllers\TypController::class, 'store']);
+                });
+
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);
+                Route::get('groups/{group}/edit', [GroupController::class, 'edit']);
                 Route::post('groups', [GroupController::class, 'store']);
+                Route::patch('groups/{group}', [GroupController::class, 'update']);
                 Route::put('{groupname}/addUser', [GroupController::class, 'addUser']);
                 Route::delete('{groupname}/removeUser', [GroupController::class, 'removeUser']);
 
@@ -153,6 +180,7 @@ Route::group([
                     Route::get('{procedure}/start', [ProcedureController::class, 'start']);
                     Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
                     Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
+                    Route::delete('step/{step}/delete', [ProcedureController::class, 'destroy']);
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
                     Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
                     Route::post('step/addUser', [ProcedureController::class, 'addUser']);

@@ -22,7 +22,7 @@
                             <label for="name">
                                 Bezeichnung des Prozesses:
                             </label>
-                            <input type="text" name="name" id="name" value="{{$procedure->name}}" class="form-control" required>
+                            <input type="text" name="name" id="name" placeholder="Bezeichnung für Prozess eingeben" class="form-control" required>
                         </div>
                         <div class="form-row">
                             <label for="started_at">
@@ -39,35 +39,17 @@
             @else
                 <div class="card-body border-top">
                     <div class="container-fluid">
-                        <div class="row">
-                            @if(count($procedure->steps->where('parent', null))>0)
-                                @each('procedure.stepStarted',$procedure->steps->where('parent', null), 'step')
-                            @elseif(count($procedure->steps)>0)
-                                <div class="col-12">
-                                    <p class="p-2 bg-warning">
-                                        Es kann kein Start-Schritt gefunden werden. Startschritte dürfen keinen Vorgängerschritt haben.
-                                    </p>
-                                    <ul class="list-group">
-                                        @foreach($procedure->steps as $step)
-                                            <li class="list-group-item">
-                                                {{$step->name}}
-                                                <div class="pull-right">
-                                                    <small>
-                                                        <a href="{{url('procedure/step/'.$step->id."/edit")}}">
-                                                            <i class="fas fa-pen"></i>
-                                                        </a>
-                                                    </small>
-                                                </div>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @else
-                                <div class="btn btn-sm btn-outline-success newStep" data-parent=""  data-target="#stepModal"  data-toggle="modal">
-                                    <i class="fas fa-plus" data-parent=""></i> Schritt erstellen
-                                </div>
-                            @endif
-                        </div>
+                        <ul class="list-group">
+                                @if(count($procedure->steps->where('parent', null))>0)
+                                    @each('procedure.stepStarted',$procedure->steps->where('parent', null), 'step')
+                                @elseif(count($procedure->steps)>0)
+                                    @if($procedure->started_at == null)
+                                        <div class="btn btn-sm btn-outline-success newStep" data-parent=""  data-target="#stepModal"  data-toggle="modal">
+                                            <i class="fas fa-plus" data-parent=""></i> Schritt erstellen
+                                        </div>
+                                    @endif
+                                @endif
+                        </ul>
                     </div>
                 </div>
             @endif

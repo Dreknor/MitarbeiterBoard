@@ -25,11 +25,17 @@ class GroupRequest extends FormRequest
     public function rules()
     {
         if (auth()->user()->can('edit groups')) {
+            if (isset($this->group['id'])){
+                $group = $this->group['id'];
+            } else {
+                $group = "";
+            }
             return [
-                'name' => 'required|alpha_dash|unique:groups,name',
+                'name' => 'required|alpha_dash|unique:groups,name,' . $group,
                 'enddate'   => 'nullable|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'homegroup' => 'required_with:enddate|exists:groups,id',
                 'protected' => 'sometimes',
+                'InvationDays' => ['nullable', 'integer', 'min:1']
 
             ];
         } else {

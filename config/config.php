@@ -4,7 +4,7 @@ return [
 
     'themes'    => [
         'addDays'   => env('THEME_MIN_DAYS_BEFORE_MEETING', 3),
-        'defaultDay'    => env('DEFAULT_WEEKDAY', 2),
+        'defaultDay'    => env('DEFAULT_WEEKDAY', 'Monday'),
         'maxDuration' => env('MAX_DURATION', 240),
     ],
 

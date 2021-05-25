@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class createUserRequest extends FormRequest
+class createWPRow extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -13,7 +13,7 @@ class createUserRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('edit users');
+        return auth()->user()->can('create Wochenplan');
     }
 
     /**
@@ -24,10 +24,14 @@ class createUserRequest extends FormRequest
     public function rules()
     {
         return [
-            'name'  => 'required|string',
-            'kuerzel'  => 'nullable|string|unique:users',
-            'email'  => 'required|email',
-            'password' => 'required|confirmed',
+            'name' => [
+                'required',
+                'string'
+            ],
+            'wochenplan_id' => [
+                'required',
+                'exists:wochenplaene,id'
+            ]
         ];
     }
 }

@@ -13,4 +13,8 @@ class Klasse extends Model
 
     protected $visible = ['name'];
     protected $fillable = ['name'];
+
+    public function wochenplaene(){
+        return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);
+    }
 }

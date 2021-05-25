@@ -74,7 +74,5 @@ class MailController extends Controller
                 Mail::to($task->taskable)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, false));
             }
         }
-
-        return view('welcome');
     }
 }

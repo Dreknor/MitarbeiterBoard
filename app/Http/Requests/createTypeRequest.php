@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class createUserRequest extends FormRequest
+class createTypeRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -13,7 +13,7 @@ class createUserRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('edit users');
+        return auth()->user()->can('create types');
     }
 
     /**
@@ -24,10 +24,9 @@ class createUserRequest extends FormRequest
     public function rules()
     {
         return [
-            'name'  => 'required|string',
-            'kuerzel'  => 'nullable|string|unique:users',
-            'email'  => 'required|email',
-            'password' => 'required|confirmed',
+            'type' => [
+                'alpha', 'unique:types,type'
+            ]
         ];
     }
 }

@@ -2,84 +2,51 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\createTypeRequest;
 use App\Models\Type;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+
 
 class TypController extends Controller
 {
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View | RedirectResponse
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
-    }
+        if (!$request->user()->can('create types')){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung'=>'Rechte fehlen'
+            ]);
+        }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
+        return view('themeTypes.index', [
+            'typen'=>Type::all()
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(createTypeRequest $request)
     {
-        //
+        #Todo Folgen von needsProtocol
+        $Typ = new Type($request->validated());
+        $Typ->save();
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Der Typ '.$Typ->type.' steht nun zur Verfügung'
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Type  $typ
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Type $typ)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Type  $typ
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Type $typ)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Type  $typ
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Type $typ)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Type  $typ
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Type $typ)
-    {
-        //
-    }
+    #Todo Update or delete Types
 }
