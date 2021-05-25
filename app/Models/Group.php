@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
 {
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan'];
 
     protected $dates = ['enddate'];
     protected $casts = [
         'protected' => 'boolean',
+        'hasWochenplan' => 'boolean',
     ];
 
     public function users()

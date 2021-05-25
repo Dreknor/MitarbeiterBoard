@@ -41,6 +41,14 @@
                             <option value="0" @if (!$gruppe->protected) selected @endif>für alle sichtbar</option>
                         </select>
                     </div>
+
+                    <div class="form-row mt-1">
+                        <label for="hasWochenplan">Wochenplan?</label>
+                        <select name="hasWochenplan" id="hasWochenplan" class="custom-select">
+                            <option value="1" @if($gruppe->hasWochenplan) selected @endif>braucht Wochenplan</option>
+                            <option value="0" @if(!$gruppe->hasWochenplan) selected @endif>kein Wochenplan</option>
+                        </select>
+                    </div>
                     <div class="form-row">
                         <button type="submit" class="btn btn-success btn-block">
                             speichern
