@@ -35,7 +35,8 @@ class GroupRequest extends FormRequest
                 'enddate'   => 'nullable|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'homegroup' => 'required_with:enddate|exists:groups,id',
                 'protected' => 'sometimes',
-                'InvationDays' => ['nullable', 'integer', 'min:1']
+                'InvationDays' => ['nullable', 'integer', 'min:1'],
+                'hasWochenplan' => ['required', 'boolean']
 
             ];
         } else {
@@ -43,6 +44,7 @@ class GroupRequest extends FormRequest
                 'name' => 'required|alpha_dash|unique:groups,name',
                 'homegroup' => 'required|exists:groups,id',
                 'enddate'   => 'required|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
+                'hasWochenplan' => ['required', 'boolean']
             ];
         }
     }
