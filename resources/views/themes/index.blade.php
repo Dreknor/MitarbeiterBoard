@@ -24,7 +24,7 @@
             </div>
         @else
                     @foreach($themes as $day => $dayThemes)
-                        <div class="card" id="{{$day}}" >
+                        <div class="card" id="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" >
                             <div class="card-header">
                                 <h5 class="card-title">
                                     {{$day}}

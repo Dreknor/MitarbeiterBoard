@@ -72,7 +72,7 @@
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
                                                 <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
-                                                    <a href="{{url($group->name.'/themes')}}">
+                                                    <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                         <i class="far fa-comments"></i>
                                                         <p>Themen</p>
                                                     </a>
