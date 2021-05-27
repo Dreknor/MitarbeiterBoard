@@ -26,6 +26,13 @@ class ProtocolController extends Controller
      */
     public function create($groupname, Theme $theme)
     {
+        if ($theme->completed ==1){
+            return  redirect()->back()->with([
+               'type' => 'warning',
+               'Meldung'=> 'Thema bereits geschlossen'
+            ]);
+        }
+
         return view('protocol.create', [
            'theme'  => $theme,
        ]);
@@ -33,6 +40,13 @@ class ProtocolController extends Controller
 
     public function edit($groupname, Protocol $protocol)
     {
+        if ($protocol->theme->completed ==1){
+            return  redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung'=> 'Thema bereits geschlossen'
+            ]);
+        }
+
         return view('protocol.edit', [
            'theme'  => $protocol->theme,
            'protocol'  => $protocol,
@@ -41,6 +55,13 @@ class ProtocolController extends Controller
 
     public function update($groupname, ProtocolRequest $request, Protocol $protocol)
     {
+        if ($protocol->theme->completed ==1){
+            return  redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung'=> 'Thema bereits geschlossen'
+            ]);
+        }
+
         $protocol->update($request->validated());
 
         if ($request->completed == 1) {
@@ -75,6 +96,13 @@ class ProtocolController extends Controller
      */
     public function store($groupname, ProtocolRequest $request, Theme $theme)
     {
+        if ($theme->completed ==1){
+            return  redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung'=> 'Thema bereits geschlossen'
+            ]);
+        }
+
         $protocol = new Protocol([
            'creator_id' => auth()->id(),
            'theme_id'   => $theme->id,
