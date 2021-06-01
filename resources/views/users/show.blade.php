@@ -7,7 +7,6 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header border-bottom">
-
                 <h5 class="card-title">
                     {{$user->name}}
                 </h5>
@@ -191,7 +190,7 @@
                 @method('delete')
 
                 <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-user-slash"></i> Benutzer endgültig löschen
+                    <i class="fas fa-user-slash"></i> Benutzer deaktivieren
                 </button>
             </form>
         </div>
