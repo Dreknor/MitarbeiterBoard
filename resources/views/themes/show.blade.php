@@ -3,7 +3,7 @@
 @section('content')
     <div class="container-fluid">
             <p>
-                <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
+                <a href="{{url(request()->segment(1).'/themes#'.$theme->id)}}" class="btn btn-primary btn-link">zurück</a>
 
             </p>
 
@@ -371,6 +371,8 @@
                                                                 bearbeiten
                                                             </a>
                                                         </div>
+                                                @else
+                                                        {{config('config.protocols.editableTime')}}
                                                     @endif
 
                                                     {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
