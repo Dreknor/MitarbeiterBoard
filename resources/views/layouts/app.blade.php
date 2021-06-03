@@ -52,6 +52,28 @@
                             </a>
                         </li>
                     @endcan
+                    @can('edit inventar')
+                        <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
+                            <a data-toggle="collapse" href="#inventory">
+                                <p>
+                                    <i class="fas fa-boxes"></i>
+                                     Inventar
+                                    <b class="caret"></b>
+                                </p>
+
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=="inventory" ) show  @endif" id="inventory">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(2)=="locations" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/locations')}}">
+                                            <i class="fas fa-map-marker"></i>
+                                            <p>Standort</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    @endcan
                     <li>
                         <a data-toggle="collapse" href="#Beratungen" >
                             <p>

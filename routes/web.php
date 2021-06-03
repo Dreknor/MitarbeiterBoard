@@ -6,6 +6,8 @@ use App\Http\Controllers\DailyNewsController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Inventory\LocationController;
+use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PriorityController;
@@ -25,7 +27,7 @@ use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use \App\Http\Controllers\ShareController;
+use App\Http\Controllers\ShareController;
 
 /*
 |--------------------------------------------------------------------------
@@ -76,6 +78,15 @@ Route::group([
                 //Klassen
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
+                });
+
+                //Inventar
+                Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
+                    Route::get('locations/import', [LocationController::class, 'showImport']);
+                    Route::post('locations/import', [LocationController::class, 'import']);
+                    Route::resource('locations', LocationController::class);
+                    Route::resource('locationtype', LocationTypeController::class);
+
                 });
 
                 //Vertretungen planen
