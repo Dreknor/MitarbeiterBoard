@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Inventory\Inventory;
+namespace App\Models\Inventory;
 
 use App\Models\Inventory\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
