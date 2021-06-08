@@ -27,7 +27,7 @@ class KioskController extends Controller
             'tasks'     => $tasks,
             'colors'    => $colors,
             'menue'     => 'false',
-            'refresh'   => 6,
+            'refresh'   => 600,
             'refreshUrl' => config('url_elterninfo'),
         ]);
     }
