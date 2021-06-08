@@ -9,9 +9,7 @@
     <link rel="shortcut icon" href="{{asset('img/'.config('app.favicon'))}}" type="image/x-icon">
 
     <title>{{env('APP_NAME')}}</title>
-    @can('disable menu')
-            <meta http-equiv="refresh" content="300; url={{config('app.url')."/kiosk"}}">
-    @endcan
+
 
     <!-- CSS Files -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />

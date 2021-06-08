@@ -16,4 +16,6 @@ return [
     'protocols'      => [
         'editableTime'    => env('EDITABLE_TIME', 60),
     ],
+
+    'url_elterninfo' => env('URL_ELTERNINFO', config('app.url'))
 ];
