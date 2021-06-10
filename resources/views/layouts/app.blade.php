@@ -318,7 +318,6 @@
     @auth
         <script src="{{ asset('js/enable-push.js') }}" defer></script>
     @endauth
-    @livewireScripts
     @yield('js')
     @stack('js')
 
