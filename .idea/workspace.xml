@@ -2,12 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4de96ea4-2a7c-4628-ba08-8c3c779ad913" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/app/Models/Inventory/InventoryCategory.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/database/migrations/2021_06_07_095318_create_table_inv_categories.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/leitung.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/leitung.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/php.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/php.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/UserController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/UserController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/resources/views/users/index.blade.php" beforeDir="false" afterPath="$PROJECT_DIR$/resources/views/users/index.blade.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/web.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/web.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,6 +70,9 @@
         <option value="$PROJECT_DIR$/app/Http/Controllers/ProtocolController.php" />
       </list>
     </option>
+  </component>
+  <component name="PackageJsonUpdateNotifier">
+    <dismissed value="$PROJECT_DIR$/package.json" />
   </component>
   <component name="PhpWorkspaceProjectConfiguration">
     <include_path>
@@ -234,6 +236,9 @@
       <path value="$PROJECT_DIR$/vendor/graham-campbell/result-type" />
       <path value="$PROJECT_DIR$/vendor/laravel-notification-channels/webpush" />
       <path value="$PROJECT_DIR$/vendor/ezyang/htmlpurifier" />
+      <path value="$PROJECT_DIR$/vendor/reecem/mocker" />
+      <path value="$PROJECT_DIR$/vendor/qoraiche/laravel-mail-editor" />
+      <path value="$PROJECT_DIR$/vendor/laravel/legacy-factories" />
     </include_path>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
@@ -346,7 +351,10 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../elternbrief/resources/views/nachrichten/create.blade.php" />
+    <property name="add_unversioned_files" value="$PROJECT_DIR$/.env" />
+    <property name="js.ns.project" value="true" />
+    <property name="js.ns.project.flavor" value="JavaScript" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="list.type.of.created.stylesheet" value="CSS" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
@@ -358,6 +366,7 @@
       <recent name="F:\www\leitung\resources\views\themes" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="F:\www\MitarbeiterBoard\app\Models\Inventory" />
       <recent name="F:\www\leitung\app\Models" />
       <recent name="F:\www\leitung\app\Http" />
     </key>
@@ -384,6 +393,9 @@
       <workItem from="1589631785480" duration="8010000" />
       <workItem from="1589692606834" duration="17022000" />
       <workItem from="1621942132071" duration="1731000" />
+      <workItem from="1623134973017" duration="430000" />
+      <workItem from="1623140120157" duration="2505000" />
+      <workItem from="1623593981718" duration="156000" />
     </task>
     <servers />
   </component>
