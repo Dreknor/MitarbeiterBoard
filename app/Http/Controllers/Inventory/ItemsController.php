@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
+use App\Models\Inventory\Location;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,17 +23,25 @@ class ItemsController extends Controller
      */
     public function index()
     {
-
+        return view('inventory.items.index',[
+            'items' => Items::all(),
+            'locations' => Location::count(),
+            'categories' => Category::count(),
+        ]);
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function create()
     {
-        //
+
+        return view('inventory.items.create',[
+            'locations' => Location::all(),
+            'categories' => Category::all(),
+        ]);
     }
 
     /**

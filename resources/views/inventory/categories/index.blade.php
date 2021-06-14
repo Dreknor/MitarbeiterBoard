@@ -33,7 +33,7 @@
                             {{optional($category->parent)->name}}
                         </td>
                         <td>
-                            <a href="{{url('inventory/categories/'.$location->id.'/edit')}}" title="{{$category->name}} bearbeiten">
+                            <a href="{{url('inventory/categories/'.$category->id.'/edit')}}" title="{{$category->name}} bearbeiten">
                                 <i class="fas fa-edit"></i>
                             </a>
                         </td>

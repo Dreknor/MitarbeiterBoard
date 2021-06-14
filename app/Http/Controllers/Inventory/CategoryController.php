@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\createInventoryCategoryRequest;
+use App\Http\Requests\editInventoryCategoryRequest;
 use App\Models\Inventory\Category;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
@@ -16,7 +19,7 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function index()
     {
@@ -28,44 +31,48 @@ class CategoryController extends Controller
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function create()
     {
-        //
+
+        return  view('inventory.categories.create', [
+            'categories' => Category::all()
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(createInventoryCategoryRequest $request)
     {
-        //
+        $category = new Category($request->validated());
+        $category->save();
+
+        return redirect(url('inventory/categories'))->with([
+            'type' => 'success',
+            'Meldung'=>'Kategorie wurde angelegt'
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
 
     /**
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function edit($id)
     {
-        //
+
+
+        return  view('inventory.categories.edit', [
+            'categories' => Category::all(),
+            'category' => Category::find($id)
+        ]);
     }
 
     /**
@@ -73,11 +80,22 @@ class CategoryController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(Request $request, $id)
+    public function update(editInventoryCategoryRequest $request, $id)
     {
-        //
+        $category = Category::find($id);
+
+
+        $category->update([
+            'name' => $request->name,
+            'parent_id' => optional($request)->parent_id
+        ]);
+
+        return redirect(url('inventory/categories'))->with([
+            'type' => 'success',
+            'Meldung'=>'Änderungen gespeichert.'
+        ]);
     }
 
     /**
@@ -88,6 +106,6 @@ class CategoryController extends Controller
      */
     public function destroy($id)
     {
-        //
+        #ToDo
     }
 }

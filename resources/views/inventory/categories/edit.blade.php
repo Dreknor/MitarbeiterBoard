@@ -9,19 +9,19 @@
             </h5>
         </div>
         <div class="card-body">
-            <form action="{{url('inventory/categories/'.$categoriy->id)}}" method="post" class="form-horizontal">
+            <form action="{{url('inventory/categories/'.$category->id)}}" method="post" class="form-horizontal">
                 @csrf
                 @method('put')
                 <div class="form-row">
                     <label for="name">Bezeichnung</label>
-                    <input type="text" name="name"  id="name" class="form-control" value="{{old('name', $location->name)}}">
+                    <input type="text" name="name"  id="name" class="form-control" value="{{old('name', $category->name)}}">
                 </div>
                 <div class="form-row">
-                    <label for="type">Typ</label>
-                    <select name="type" id="type" class="custom-select">
+                    <label for="parent_id">Übergeordnete Kategorie</label>
+                    <select name="parent_id" id="parent_id" class="custom-select">
                         <option></option>
                         @foreach($categories as $Category)
-                            <option value="{{$Category->id}}" @if($category->parent->id  == $Category->id) selected @endif>
+                            <option value="{{$Category->id}}" @if(optional($category->parent)->id  == $Category->id) selected @endif @if($category->id  == $Category->id) disabled @endif>
                                 {{$Category->name}}
                             </option>
                         @endforeach

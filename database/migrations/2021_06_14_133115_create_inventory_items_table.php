@@ -25,6 +25,9 @@ class CreateInventoryItemsTable extends Migration
             $table->string('oldInvNumber')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreign('category_id')->references('id')->on('inv_categories');
+            $table->foreign('location_id')->references('id')->on('inv_locations');
         });
     }
 

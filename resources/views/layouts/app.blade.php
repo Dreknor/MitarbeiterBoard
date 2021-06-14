@@ -70,10 +70,16 @@
                                             <p>Standort</p>
                                         </a>
                                     </li>
-                                    <li class="@if(request()->segment(2)=="categories" and request()->segment(1)=="categories" ) active @endif">
+                                    <li class="@if(request()->segment(2)=="categories" and request()->segment(1)=="inventory" ) active @endif">
                                         <a href="{{url('inventory/categories')}}">
                                             <i class="far fa-folder-open"></i>
-                                            <p>Standort</p>
+                                            <p>Kategorien</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(2)=="items" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/items')}}">
+                                            <i class="fas fa-dice-d6"></i>
+                                            <p>Inventar</p>
                                         </a>
                                     </li>
                                 </ul>
