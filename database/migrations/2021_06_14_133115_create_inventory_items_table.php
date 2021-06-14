@@ -21,6 +21,7 @@ class CreateInventoryItemsTable extends Migration
             $table->date('date')->nullable();
             $table->unsignedBigInteger('category_id');
             $table->unsignedBigInteger('location_id');
+            $table->unsignedBigInteger('lieferant_id')->nullable();
             $table->decimal('price')->nullable();
             $table->string('oldInvNumber')->nullable();
             $table->timestamps();
@@ -28,6 +29,7 @@ class CreateInventoryItemsTable extends Migration
 
             $table->foreign('category_id')->references('id')->on('inv_categories');
             $table->foreign('location_id')->references('id')->on('inv_locations');
+            $table->foreign('lieferant_id')->references('id')->on('inv_lieferanten');
         });
     }
 
@@ -38,6 +40,6 @@ class CreateInventoryItemsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('inventory_items');
+        Schema::dropIfExists('inv_items');
     }
 }

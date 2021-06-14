@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
 @section('content')
-<a href="{{url('inventory/locations')}}" class="btn btn-primary">zurück</a>
+<a href="{{url('inventory/items')}}" class="btn btn-primary">zurück</a>
     <div class="card">
         <div class="card-header">
             <h5>
-                {{$location->name}} bearbeiten
+                {{$item->name}} bearbeiten
             </h5>
         </div>
         <div class="card-body">
-            <form action="{{url('inventory/locations/'.$location->id)}}" method="post" class="form-horizontal">
+            <form action="{{url('inventory/items/'.$item->id)}}" method="post" class="form-horizontal">
                 @csrf
                 @method('put')
                 <div class="form-row">
@@ -37,13 +37,16 @@
                         @endforeach
                     </select>
                 </div>
+
                 <div class="form-row">
-                    <label for="user">Verantwortlicher</label>
-                    <select name="user" id="user" class="custom-select">
+                    <label for="lieferant">
+                        Lieferant
+                    </label>
+                    <select name="lieferant_id" id="lieferant" class="custom-select">
                         <option></option>
-                        @foreach($users as $user)
-                            <option value="{{$user->id}}" @if($location->verantwortlicher_id  == $user->id) selected @endif>
-                                {{$user->name}}
+                        @foreach($lieferanten as $lieferant)
+                            <option value="{{$lieferant->id}}" @if($lieferant->id == optional($item->lieferant)->id) selected @endif>
+                                {{$lieferant->name}}
                             </option>
                         @endforeach
                     </select>

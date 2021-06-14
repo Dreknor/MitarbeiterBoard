@@ -48,6 +48,19 @@
                     </select>
                 </div>
                 <div class="form-row">
+                    <label for="lieferant">
+                        Lieferant
+                    </label>
+                    <select name="lieferant_id" id="lieferant" class="custom-select">
+                        <option disabled selected></option>
+                        @foreach($lieferanten as $lieferant)
+                            <option value="{{$lieferant->id}}">
+                                {{$lieferant->name}}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-row">
                     <div class="col-sm-12 col-md-6 ">
                         <label for="date">Anschaffung am</label>
                         <input type="date" name="date" id="date" class="form-control" value="{{old('date')}}">

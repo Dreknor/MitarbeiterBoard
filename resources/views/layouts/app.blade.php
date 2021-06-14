@@ -76,6 +76,12 @@
                                             <p>Kategorien</p>
                                         </a>
                                     </li>
+                                    <li class="@if(request()->segment(2)=="lieferanten" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/lieferanten')}}">
+                                            <i class="fas fa-shipping-fast"></i>
+                                            <p>Lieferanten</p>
+                                        </a>
+                                    </li>
                                     <li class="@if(request()->segment(2)=="items" and request()->segment(1)=="inventory" ) active @endif">
                                         <a href="{{url('inventory/items')}}">
                                             <i class="fas fa-dice-d6"></i>

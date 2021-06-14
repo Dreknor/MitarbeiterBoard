@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\createInventoryLieferantenRequest;
+use App\Http\Requests\editInventoryLieferantenRequest;
 use App\Models\Inventory\Lieferant;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class LieferantController extends Controller
 {
@@ -15,32 +18,38 @@ class LieferantController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function index()
     {
-        //
+        return  view('inventory.lieferanten.index', [
+            'lieferanten' => Lieferant::all()
+        ]);
     }
-
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function create()
     {
-        //
+        return  view('inventory.lieferanten.create', [
+
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(createInventoryLieferantenRequest $request)
     {
-        //
+        $lieferant = new Lieferant($request->validated());
+        $lieferant->save();
+
+        return redirect(url('inventory/lieferanten'));
     }
 
     /**
@@ -58,11 +67,13 @@ class LieferantController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Inventory\Lieferant  $lieferant
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function edit(Lieferant $lieferant)
     {
-        //
+        return  view('inventory.lieferanten.edit', [
+            'lieferant' => $lieferant
+        ]);
     }
 
     /**
@@ -70,11 +81,16 @@ class LieferantController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\Inventory\Lieferant  $lieferant
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(Request $request, Lieferant $lieferant)
+    public function update(editInventoryLieferantenRequest $request, Lieferant $lieferant)
     {
-        //
+        $lieferant->update($request->validated());
+
+        return redirect(url('inventory/lieferanten'))->with([
+            'type' => 'success',
+            'Meldung' => 'Lieferant wurde aktualisiert'
+        ]);
     }
 
     /**
@@ -85,6 +101,6 @@ class LieferantController extends Controller
      */
     public function destroy(Lieferant $lieferant)
     {
-        //
+        #ToDo
     }
 }
