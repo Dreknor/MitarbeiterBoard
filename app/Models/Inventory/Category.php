@@ -4,7 +4,7 @@ namespace App\Models\Inventory;
 
 use Illuminate\Database\Eloquent\Model;
 
-class InventoryCategory extends Model
+class Category extends Model
 {
     protected $table = "inv_categories";
 
@@ -12,6 +12,10 @@ class InventoryCategory extends Model
     protected $visible = ['name'];
 
     public function parent(){
-        return $this->belongsTo(InventoryCategory::class, 'parent_id', 'id');
+        return $this->belongsTo(Category::class, 'parent_id', 'id');
+    }
+
+    public function items(){
+        return $this->hasMany(Items::class);
     }
 }

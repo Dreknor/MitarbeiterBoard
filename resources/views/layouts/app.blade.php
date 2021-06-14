@@ -70,6 +70,12 @@
                                             <p>Standort</p>
                                         </a>
                                     </li>
+                                    <li class="@if(request()->segment(2)=="categories" and request()->segment(1)=="categories" ) active @endif">
+                                        <a href="{{url('inventory/categories')}}">
+                                            <i class="far fa-folder-open"></i>
+                                            <p>Standort</p>
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </li>
@@ -342,7 +348,6 @@
     @auth
         <script src="{{ asset('js/enable-push.js') }}" defer></script>
     @endauth
-    @livewireScripts
     @yield('js')
     @stack('js')
 

@@ -2,11 +2,20 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4de96ea4-2a7c-4628-ba08-8c3c779ad913" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/app/Models/Inventory/InventoryCategory.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/database/migrations/2021_06_07_095318_create_table_inv_categories.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/leitung.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/leitung.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/php.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/php.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/Http/Controllers/Inventory/CategoryController.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/Http/Controllers/Inventory/ItemsController.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/Models/Inventory/Items.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/database/migrations/2021_06_14_133115_create_inventory_items_table.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/resources/views/inventory/category/create.blade.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/resources/views/inventory/category/edit.blade.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/resources/views/inventory/category/index.blade.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/Inventory/LieferantController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/Inventory/LieferantController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/Inventory/LocationTypeController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/Inventory/LocationTypeController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Models/Inventory/InventoryCategory.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Models/Inventory/Category.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/migrations/2021_06_07_095318_create_table_inv_categories.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2021_06_07_095318_create_table_inv_categories.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/views/layouts/app.blade.php" beforeDir="false" afterPath="$PROJECT_DIR$/resources/views/layouts/app.blade.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/web.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/web.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -247,6 +256,9 @@
     <option name="height" value="1047" />
   </component>
   <component name="ProjectId" id="1t1ghCrqCOeF5Kt4tBTTGGV19IM" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
@@ -348,13 +360,14 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="add_unversioned_files" value="$PROJECT_DIR$/.env" />
     <property name="js.ns.project" value="true" />
     <property name="js.ns.project.flavor" value="JavaScript" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/resources/views/inventory" />
     <property name="list.type.of.created.stylesheet" value="CSS" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
@@ -363,9 +376,12 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="F:\www\MitarbeiterBoard\resources\views\inventory" />
       <recent name="F:\www\leitung\resources\views\themes" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="F:\www\MitarbeiterBoard\app\Http\Controllers" />
+      <recent name="F:\www\MitarbeiterBoard\app\Http\Controllers\Inventory" />
       <recent name="F:\www\MitarbeiterBoard\app\Models\Inventory" />
       <recent name="F:\www\leitung\app\Models" />
       <recent name="F:\www\leitung\app\Http" />
@@ -395,7 +411,9 @@
       <workItem from="1621942132071" duration="1731000" />
       <workItem from="1623134973017" duration="430000" />
       <workItem from="1623140120157" duration="2505000" />
-      <workItem from="1623593981718" duration="156000" />
+      <workItem from="1623593981718" duration="195000" />
+      <workItem from="1623597257584" duration="11000" />
+      <workItem from="1623670077411" duration="2778000" />
     </task>
     <servers />
   </component>
@@ -452,6 +470,9 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/public/.htaccess">

@@ -10,7 +10,10 @@ use Illuminate\Http\Request;
 
 class LocationTypeController extends Controller
 {
-
+    public function __construct()
+    {
+        $this->middleware('permission:edit inventar');
+    }
 
     /**
      * Store a newly created resource in storage.

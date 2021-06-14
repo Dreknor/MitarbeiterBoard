@@ -3,23 +3,26 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inventory\Lieferant;
+use App\Models\Inventory\Category;
+use App\Models\Inventory\Items;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
-class LieferantController extends Controller
+class ItemsController extends Controller
 {
     public function __construct()
     {
         $this->middleware('permission:edit inventar');
     }
+
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function index()
     {
-        //
+
     }
 
     /**
@@ -46,10 +49,10 @@ class LieferantController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
+     * @param  \App\Models\Inventory\Items  $inventoryItems
      * @return \Illuminate\Http\Response
      */
-    public function show(Lieferant $lieferant)
+    public function show(Items $inventoryItems)
     {
         //
     }
@@ -57,10 +60,10 @@ class LieferantController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
+     * @param  \App\Models\Inventory\Items  $inventoryItems
      * @return \Illuminate\Http\Response
      */
-    public function edit(Lieferant $lieferant)
+    public function edit(Items $inventoryItems)
     {
         //
     }
@@ -69,10 +72,10 @@ class LieferantController extends Controller
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
+     * @param  \App\Models\Inventory\Items  $inventoryItems
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Lieferant $lieferant)
+    public function update(Request $request, Items $inventoryItems)
     {
         //
     }
@@ -80,10 +83,10 @@ class LieferantController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
+     * @param  \App\Models\Inventory\Items  $inventoryItems
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Lieferant $lieferant)
+    public function destroy(Items $inventoryItems)
     {
         //
     }
