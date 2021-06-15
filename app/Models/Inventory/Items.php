@@ -5,9 +5,11 @@ namespace App\Models\Inventory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
 
-class Items extends Model
+class Items extends Model implements HasMedia
 {
+    use \Spatie\MediaLibrary\InteractsWithMedia;
 
     protected $table = 'inv_items';
     use SoftDeletes;
@@ -15,11 +17,13 @@ class Items extends Model
     protected $fillable = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'location_id', 'category_id', 'lieferant_id'];
     protected $visible = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'lieferant_id'];
 
+    protected $dates = ['date'];
+
     public function category(){
         return $this->belongsTo(Category::class, 'category_id');
     }
     public function location(){
-        return $this->belongsTo(Location::class, 'category_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
     public function lieferant(){
         return $this->belongsTo(Lieferant::class, 'lieferant_id');

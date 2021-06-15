@@ -38,7 +38,7 @@
                     <label for="category">
                         Standort <i class="text-danger">(benötigt)</i>
                     </label>
-                    <select name="category_id" id="category" class="custom-select">
+                    <select name="location_id" id="category" class="custom-select">
                         <option disabled selected></option>
                         @foreach($locations as $location)
                             <option value="{{$location->id}}">
@@ -61,13 +61,17 @@
                     </select>
                 </div>
                 <div class="form-row">
-                    <div class="col-sm-12 col-md-6 ">
+                    <div class="col-sm-12 col-md-4 ">
                         <label for="date">Anschaffung am</label>
                         <input type="date" name="date" id="date" class="form-control" value="{{old('date')}}">
                     </div>
-                    <div class="col-sm-12 col-md-6">
-                        <label for="price">Preis</label>
-                        <input type="number"  name="price" id="price" class="form-control" value="{{old('price')}}" step="0.01">
+                    <div class="col-sm-12 col-md-4">
+                            <label for="price">Preis</label>
+                            <input type="number"  name="price" id="price" class="form-control" value="{{old('price')}}" step="0.01">
+                    </div>
+                    <div class="col-sm-12 col-md-4">
+                            <label for="number">Anzahl</label>
+                            <input type="number"  name="number" id="number" class="form-control" value="{{old('number', 1)}}" step="1" required>
                     </div>
                 </div>
                 <div class="form-row ">
@@ -77,7 +81,6 @@
                         </label>
                         <input type="file"  name="files[]" id="customFile" multiple>
                     </div>
-
                 </div>
 
                 <button type="submit" class="btn btn-success btn-block">speichern</button>
@@ -121,6 +124,7 @@
             'showUpload':false,
             'previewFileType':'any',
             'theme': "fas",
+            'allowedFileTypes' : ['image'],
         });
     </script>
 

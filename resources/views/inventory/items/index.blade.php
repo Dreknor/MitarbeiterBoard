@@ -40,7 +40,7 @@
                 @foreach($items as $item)
                     <tr>
                         <td>
-                            {{$item->location->name}}
+                            {{optional($item->location)->name}}
                         </td>
                         <td>
                             {{$item->name}}
@@ -60,7 +60,7 @@
                             {{number_format($item->price, 2)}} €
                         </td>
                         <td>
-                            <a href="{{url('inventory/locations/'.$location->id.'/edit')}}" title="{{$location->name}} bearbeiten">
+                            <a href="{{url('inventory/locations/'.$item->id.'/edit')}}" title="{{$item->name}} bearbeiten">
                                 <i class="fas fa-edit"></i>
                             </a>
                         </td>

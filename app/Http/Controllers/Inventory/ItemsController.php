@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\createInventoryItemRequest;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Ramsey\Uuid\Uuid;
 
 class ItemsController extends Controller
 {
@@ -43,6 +45,7 @@ class ItemsController extends Controller
         return view('inventory.items.create',[
             'locations' => Location::all(),
             'categories' => Category::all(),
+            'lieferanten' => Lieferant::all(),
         ]);
     }
 
@@ -50,11 +53,29 @@ class ItemsController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(createInventoryItemRequest $request)
     {
-        //
+        for ($x=0; $x < $request->number; $x++){
+            $item = new Items($request->validated());
+            $item->uuid = uuid_create();
+            $item->save();
+
+            if ($request->hasFile('files')){
+                $files = $request->files->all();
+                foreach ($files['files'] as $file) {
+                    $item
+                        ->addMedia($file)
+                        ->toMediaCollection('image');
+                }
+            }
+        }
+
+        return redirect(url())->with([
+            'type'  => 'success',
+            'Meldung' => 'Items wurden angelegt.'
+        ]);
     }
 
     /**
