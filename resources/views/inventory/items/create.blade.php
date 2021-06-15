@@ -9,7 +9,7 @@
             </h5>
         </div>
         <div class="card-body">
-            <form action="{{url('inventory/items')}}" method="post" class="form-horizontal">
+            <form action="{{url('inventory/items')}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
                 @csrf
                 <div class="form-row">
                     <label for="name">

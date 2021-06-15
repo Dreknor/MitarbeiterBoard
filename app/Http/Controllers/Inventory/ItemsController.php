@@ -61,18 +61,17 @@ class ItemsController extends Controller
             $item = new Items($request->validated());
             $item->uuid = uuid_create();
             $item->save();
-
             if ($request->hasFile('files')){
                 $files = $request->files->all();
                 foreach ($files['files'] as $file) {
                     $item
                         ->addMedia($file)
-                        ->toMediaCollection('image');
+                        ->toMediaCollection();
                 }
             }
         }
 
-        return redirect(url())->with([
+        return redirect(url('inventory/items'))->with([
             'type'  => 'success',
             'Meldung' => 'Items wurden angelegt.'
         ]);
@@ -81,12 +80,14 @@ class ItemsController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Inventory\Items  $inventoryItems
+     * @param  \App\Models\Inventory\Items  $item
      * @return \Illuminate\Http\Response
      */
-    public function show(Items $inventoryItems)
+    public function show(Items $item)
     {
-        //
+        return view('inventory.items.show', [
+            'item' => $item
+        ]);
     }
 
     /**
