@@ -25,8 +25,8 @@ class editInventoryLieferantenRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => ['required', 'string', Rule::unique('inv_lieferanten')->ignore($this->lieferant)],
-            'kuerzel' => ['required', 'string', Rule::unique('inv_lieferanten')->ignore($this->lieferant)],
+            'name' => ['required', 'string', Rule::unique('inv_lieferanten')->ignore($this->lieferanten)],
+            'kuerzel' => ['required', 'string', Rule::unique('inv_lieferanten')->ignore($this->lieferanten)],
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
+use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -27,6 +28,7 @@ class ItemsController extends Controller
             'items' => Items::all(),
             'locations' => Location::count(),
             'categories' => Category::count(),
+            'lieferanten' => Lieferant::count(),
         ]);
     }
 

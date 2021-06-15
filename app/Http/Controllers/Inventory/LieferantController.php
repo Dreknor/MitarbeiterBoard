@@ -53,26 +53,15 @@ class LieferantController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Lieferant $lieferant)
-    {
-        //
-    }
-
-    /**
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Inventory\Lieferant  $lieferant
      * @return View
      */
-    public function edit(Lieferant $lieferant)
+    public function edit( $id)
     {
         return  view('inventory.lieferanten.edit', [
-            'lieferant' => $lieferant
+            'lieferant' => Lieferant::find($id)
         ]);
     }
 
@@ -80,11 +69,12 @@ class LieferantController extends Controller
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Inventory\Lieferant  $lieferant
+     * @param    $lieferant
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(editInventoryLieferantenRequest $request, Lieferant $lieferant)
+    public function update(editInventoryLieferantenRequest $request, $lieferant)
     {
+        $lieferant = Lieferant::find($lieferant);
         $lieferant->update($request->validated());
 
         return redirect(url('inventory/lieferanten'))->with([

@@ -30,7 +30,7 @@
                             {{$lieferant->name}}
                         </td>
                         <td>
-                            {{$category->kuerzel}}
+                            {{$lieferant->kuerzel}}
                         </td>
                         <td>
                             <a href="{{url('inventory/lieferanten/'.$lieferant->id.'/edit')}}" title="{{$lieferant->name}} bearbeiten">

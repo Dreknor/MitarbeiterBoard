@@ -3,7 +3,7 @@
 @section('content')
     <div class="card">
         <div class="card-body">
-            @if($categories >0 and  $locations >0)
+            @if($categories >0 and  $locations >0 and  $lieferanten >0)
             <a href="{{url('inventory/items/create')}}" class="btn btn-simple">
                 neuer Gegenstand
             </a>
@@ -12,7 +12,7 @@
             </a>
             @else
                 <p class="alert alert-info">
-                    Es müssen erst Räume und Kategorien erstellt werden.
+                    Es müssen erst Lieferanten, Räume und Kategorien erstellt werden.
                 </p>
             @endif
         </div>
