@@ -11,6 +11,7 @@ use App\Models\Inventory\Location;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Ramsey\Uuid\Uuid;
+use Barryvdh\DomPDF\Facade as PDF;
 
 class ItemsController extends Controller
 {
@@ -122,5 +123,19 @@ class ItemsController extends Controller
     public function destroy(Items $inventoryItems)
     {
         //
+    }
+
+    public function print(Request $request){
+
+        $items = Items::whereIn('uuid',$request->selected)->get();
+
+        $pdf = PDF::loadView('inventory.pdf.etikett', [
+            'items'=>$items,
+            'reihe' => $request->reihe,
+            'spalte' => $request->spalte,
+        ]);
+        $pdf->setPaper('A4');
+
+        return $pdf->stream();
     }
 }

@@ -3,18 +3,32 @@
 @section('content')
     <div class="card">
         <div class="card-body">
-            @if($categories >0 and  $locations >0 and  $lieferanten >0)
-            <a href="{{url('inventory/items/create')}}" class="btn btn-simple">
-                neuer Gegenstand
-            </a>
-            <a href="{{url('inventory/items/import')}}" class="btn btn-simple">
-                Importieren
-            </a>
-            @else
-                <p class="alert alert-info">
-                    Es müssen erst Lieferanten, Räume und Kategorien erstellt werden.
-                </p>
-            @endif
+            <div class="row">
+                <div class="col">
+                    @if($categories >0 and  $locations >0 and  $lieferanten >0)
+                        <a href="{{url('inventory/items/create')}}" class="btn btn-simple">
+                            neuer Gegenstand
+                        </a>
+                        <a href="{{url('inventory/items/import')}}" class="btn btn-simple">
+                            Importieren
+                        </a>
+                    @else
+                        <p class="alert alert-info">
+                            Es müssen erst Lieferanten, Räume und Kategorien erstellt werden.
+                        </p>
+                    @endif
+                </div>
+                <div class="col">
+                    <form class="form-inline d-none" id="printForm" method="post" action="{{url('inventory/items/print')}}">
+                        @csrf
+                        <button type="submit" class="btn btn-simple btn-info pull-right" id="druckenBtn">Etikett drucken</button>
+                                <label for="spalte">Spalte</label>
+                                <input type="number" name="spalte" min="1" step="1" value="1" id="spalte" class="form-control" size="10">
+                                <label for="spalte">Reihe</label>
+                                <input type="number" name="reihe" min="1" step="1" value="1" id="reihe" class="form-control" size="10">
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     <div class="card">
@@ -41,7 +55,7 @@
                 @foreach($items as $item)
                     <tr>
                         <td>
-                            <input type="checkbox" name="selected" value="{{$item->id}}" class="custom-checkbox">
+                            <input type="checkbox" name="selected[]" value="{{$item->uuid}}" class="custom-checkbox" form="printForm">
                         </td>
                         <td>
                             {{optional($item->location)->name}}
@@ -87,6 +101,23 @@
         $(document).ready( function () {
             $('#itemTable').DataTable();
         } );
+
+
+        $(':checkbox').change(function() {
+            var array = [];
+            $("input:checked").each(function() {
+                array.push($(this).val());
+            });
+
+            console.log(array)
+
+            if (array.length > 0){
+                $('#printForm').removeClass('d-none');
+            } else {
+                $('#printForm').addClass('d-none');
+            }
+        });
+
     </script>
 
 @endpush

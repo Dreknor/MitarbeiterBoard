@@ -22,6 +22,10 @@
                     <input type="text" name="description" id="description" class="form-control" value="{{old('description')}}">
                 </div>
                 <div class="form-row">
+                    <label for="oldInvNumber">eigene Inv.-Nr.</label>
+                    <input type="text" name="oldInvNumber" id="oldInvNumber" class="form-control" value="{{old('oldInvNumber')}}">
+                </div>
+                <div class="form-row">
                     <label for="category">
                         Kategorie <i class="text-danger">(benötigt)</i>
                         </label>

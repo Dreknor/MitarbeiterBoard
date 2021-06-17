@@ -28,4 +28,8 @@ class Items extends Model implements HasMedia
     public function lieferant(){
         return $this->belongsTo(Lieferant::class, 'lieferant_id');
     }
+
+    public function QR(){
+        return  \SimpleSoftwareIO\QrCode\Facades\QrCode::size(50)->generate(url('item/'.$this->uuid));
+    }
 }

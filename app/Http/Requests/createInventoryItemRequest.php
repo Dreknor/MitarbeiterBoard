@@ -32,6 +32,7 @@ class createInventoryItemRequest extends FormRequest
                 'location_id' => ['required', 'exists:inv_locations,id'],
                 'category_id' => ['required', 'exists:inv_categories,id'],
                 'lieferanten_id' =>   ['nullable', 'exists:inv_lieferanten,id'],
+                'oldInvNumber' =>   ['nullable', 'string'],
                 'number' =>   ['required', 'integer', 'min:1']
 
         ];

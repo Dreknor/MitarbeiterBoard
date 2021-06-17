@@ -85,6 +85,10 @@ Route::group([
                     Route::get('locations/import', [LocationController::class, 'showImport']);
                     Route::post('locations/import', [LocationController::class, 'import']);
                     Route::resource('locations', LocationController::class);
+
+                    Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
+
+
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
                     Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
                     Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
