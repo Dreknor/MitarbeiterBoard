@@ -10,12 +10,15 @@
                             <h5 class="d-inline">
                                 {{$item->name}} ({{$item->status}})
                             </h5>
-                            <a href="{{url('inventory/items/'.$item->id.'/edit')}}" title="{{$item->name}} bearbeiten" class="pull-right">
+                            @if (app()->environment('local'))
+                                <a href="{{url('inventory/item/'.$item->uuid)}}" title="{{$item->name}} " class="pull-right mr-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            @endif
+                            <a href="{{url('inventory/items/'.$item->id.'/edit')}}" title="{{$item->name}} bearbeiten" class="pull-right mr-2">
                                 <i class="fas fa-edit"></i>
                             </a>
-                        <a href="{{url('inventory/item/'.$item->uuid)}}" title="{{$item->name}} " class="pull-right">
-                            <i class="fas fa-eye"></i>
-                        </a>
+
                     </div>
                     <div class="card-body">
                             {{$item->descripton}}

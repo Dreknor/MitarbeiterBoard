@@ -176,9 +176,14 @@ class ItemsController extends Controller
      * @param  \App\Models\Inventory\Items  $inventoryItems
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Items $inventoryItems)
+    public function destroy($uuid)
     {
-        //
+        $item = Items::where('uuid', $uuid)->first()->delete();
+
+        return redirect(url('inventory/items'))->with([
+           'type'   => 'warning',
+           'Meldung' => 'Gegenstand wurde entfernt'
+        ]);
     }
 
     public function print(Request $request){

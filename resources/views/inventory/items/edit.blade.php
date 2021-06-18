@@ -5,9 +5,16 @@
 
     <div class="card">
         <div class="card-header">
-            <h5>
+            <h5 class="d-inline">
                 {{$item->name}} bearbeiten
             </h5>
+            <form action="{{url('inventory/items/'.$item->uuid)}}" method="post" class="d-inline pull-right">
+                @csrf
+                @method('delete')
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash"></i>Löschen
+                </button>
+            </form>
         </div>
         <div class="card-body">
             <form action="{{url('inventory/items/'.$item->id)}}" method="post" class="form-horizontal"  enctype="multipart/form-data">
