@@ -47,7 +47,9 @@
                     <th>Beschreibung</th>
                     <th>Kategorie</th>
                     <th>Anschaffung am</th>
-                    <th>Anschaffungspreis</th>
+                    <th>Preis</th>
+                    <th>Status</th>
+                    <th>Update</th>
                     <th></th>
                 </tr>
                 </thead>
@@ -76,6 +78,23 @@
                         </td>
                         <td>
                             {{number_format($item->price, 2)}} €
+                        </td>
+                        <td>
+                            @switch($item->status)
+                                @case('defekt')
+                                    <i class="far fa-thumbs-down text-danger">defekt</i>
+                                @break
+
+                                @case('abgenutzt')
+                                    <i class="far fa-hand-point-right text-warning">gebraucht</i>
+                                @break
+
+                                @default
+                                    <i class="far fa-thumbs-up text-success">neu</i>
+                            @endswitch
+                        </td>
+                        <td>
+                            {{$item->updated_at->format('Y-m-d')}}
                         </td>
                         <td>
                             <div class="row">
