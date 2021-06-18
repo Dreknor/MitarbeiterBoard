@@ -46,6 +46,9 @@ Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'in
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
 
+Route::get('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'edit']);
+Route::post('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'update']);
+
 Route::group([
     'middleware' => ['auth'],
 ],
@@ -85,6 +88,7 @@ Route::group([
                     Route::get('locations/import', [LocationController::class, 'showImport']);
                     Route::post('locations/import', [LocationController::class, 'import']);
                     Route::resource('locations', LocationController::class);
+                    Route::post('locations/print', [LocationController::class, 'print']);
 
                     Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
 

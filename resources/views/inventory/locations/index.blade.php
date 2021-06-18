@@ -3,15 +3,27 @@
 @section('content')
     <div class="card">
         <div class="card-body">
-            <a href="#" data-toggle="modal" data-target="#typeModal" class="btn btn-simple">
-                neuer Typ
-            </a>
-            <a href="{{url('inventory/locations/create')}}" class="btn btn-simple">
-                neuer Ort
-            </a>
-            <a href="{{url('inventory/locations/import')}}" class="btn btn-simple">
-                Importieren
-            </a>
+            <div class="row">
+                <div class="col">
+                    <a href="#" data-toggle="modal" data-target="#typeModal" class="btn btn-simple">
+                        neuer Typ
+                    </a>
+                    <a href="{{url('inventory/locations/create')}}" class="btn btn-simple">
+                        neuer Ort
+                    </a>
+                    <a href="{{url('inventory/locations/import')}}" class="btn btn-simple">
+                        Importieren
+                    </a>
+                </div>
+                <div class="col">
+                    <div class="d-inline">
+                        <form class="form-inline d-none " id="printForm" method="post" action="{{url('inventory/locations/print')}}">
+                            @csrf
+                            <button type="submit" class="btn btn-simple btn-info pull-right" id="druckenBtn">Liste drucken</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="card">
@@ -24,6 +36,7 @@
             <table class="table table-hover" id="locationTable">
                 <thead>
                 <tr>
+                    <td></td>
                     <th>Kennzeichnung</th>
                     <th>Name</th>
                     <th>Beschreibung</th>
@@ -35,6 +48,9 @@
                 <tbody>
                 @foreach($locations as $location)
                     <tr>
+                        <td>
+                            <input type="checkbox" name="selected[]" value="{{$location->id}}" class="custom-checkbox" form="printForm">
+                        </td>
                         <td>
                             {{$location->kennzeichnung}}
                         </td>
@@ -74,6 +90,22 @@
         } );
     </script>
 
+    <script>
+        $(':checkbox').change(function() {
+            var array = [];
+            $("input:checked").each(function() {
+                array.push($(this).val());
+            });
+
+            console.log(array)
+
+            if (array.length > 0){
+                $('#printForm').removeClass('d-none');
+            } else {
+                $('#printForm').addClass('d-none');
+            }
+        });
+    </script>
 @endpush
 
 @section('css')

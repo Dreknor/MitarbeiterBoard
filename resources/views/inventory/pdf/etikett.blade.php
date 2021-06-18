@@ -79,6 +79,7 @@
                                      {{$items->first()->name}}<br>
                                      {{\Illuminate\Support\Str::limit($items->first()->description, 15, $end='...')}}<br>
                                      {{$items->first()->oldInvNumber}}<br>
+                                     {{$items->first()->uuid}}<br>
                                      {{$items->first()->location->name}} ({{$items->first()->location->kennzeichnung}})<br>
                                  </p>
 

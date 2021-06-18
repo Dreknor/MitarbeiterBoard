@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class createInventoryItemRequest extends FormRequest
+class editInventoryItemRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -34,7 +34,6 @@ class createInventoryItemRequest extends FormRequest
                 'lieferanten_id' =>   ['nullable', 'exists:inv_lieferanten,id'],
                 'oldInvNumber' =>   ['nullable', 'string'],
                 'status' =>   ['nullable', 'string'],
-                'number' =>   ['required', 'integer', 'min:1']
 
         ];
     }

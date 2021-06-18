@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createInventoryItemRequest;
+use App\Http\Requests\editInventoryItemRequest;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Ramsey\Uuid\Uuid;
 use Barryvdh\DomPDF\Facade as PDF;
@@ -62,11 +64,19 @@ class ItemsController extends Controller
             $item = new Items($request->validated());
             $item->uuid = uuid_create();
             $item->save();
+
+
             if ($request->hasFile('files')){
+
                 $files = $request->files->all();
+
                 foreach ($files['files'] as $file) {
+
+                    $originalFileName = $file->getClientOriginalName();
+                    Storage::disk('upload')->put($originalFileName, file_get_contents($file));
+
                     $item
-                        ->addMedia($file)
+                        ->addMedia(Storage::disk('upload')->path($originalFileName))
                         ->toMediaCollection();
                 }
             }
@@ -94,24 +104,43 @@ class ItemsController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\Models\Inventory\Items  $inventoryItems
+     * @param  \App\Models\Inventory\Items  $item
      * @return \Illuminate\Http\Response
      */
-    public function edit(Items $inventoryItems)
+    public function edit($item)
     {
-        //
+        $item = Items::where('id', $item)->first();
+
+        return view('inventory.items.edit', [
+            'item' => $item,
+            'locations' => Location::all(),
+            'categories' => Category::all(),
+            'lieferanten' => Lieferant::all(),
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Inventory\Items  $inventoryItems
+     * @param  \App\Models\Inventory\Items  $item
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Items $inventoryItems)
+    public function update(editInventoryItemRequest $request, Items $item)
     {
-        //
+        $item->update($request->validated());
+        if ($request->hasFile('files')){
+            $files = $request->files->all();
+            foreach ($files['files'] as $file) {
+                $item
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+        }
+        return redirect(url('inventory/items/'.$item->id))->with([
+           'type'=>'success',
+           'Meldung'=>'Daten wurden aktualisiert.'
+        ]);
     }
 
     /**

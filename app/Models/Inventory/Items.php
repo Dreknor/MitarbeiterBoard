@@ -14,8 +14,8 @@ class Items extends Model implements HasMedia
     protected $table = 'inv_items';
     use SoftDeletes;
 
-    protected $fillable = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'location_id', 'category_id', 'lieferant_id'];
-    protected $visible = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'lieferant_id'];
+    protected $fillable = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'location_id', 'category_id', 'lieferant_id', 'status'];
+    protected $visible = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'lieferant_id', 'status'];
 
     protected $dates = ['date'];
 

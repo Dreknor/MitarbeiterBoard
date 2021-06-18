@@ -1,14 +1,18 @@
 @extends('layouts.app')
+
 @section('content')
-    <a href="{{url('inventory/items')}}" class="btn btn-primary btn-link">zurück</a>
+    <a href="{{url('inventory/items/')}}" class="btn btn-primary btn-link">zurück</a>
 
     <div class="card">
             <div class="row">
                 <div class="col-sm-12 col-md-9">
                     <div class="card-header border-bottom">
-                            <h5>
-                                {{$item->name}}
+                            <h5 class="d-inline">
+                                {{$item->name}} ({{$item->status}})
                             </h5>
+                            <a href="{{url('inventory/items/'.$item->id.'/edit')}}" title="{{$item->name}} bearbeiten" class="pull-right">
+                                <i class="fas fa-edit"></i>
+                            </a>
                     </div>
                     <div class="card-body">
                             {{$item->descripton}}

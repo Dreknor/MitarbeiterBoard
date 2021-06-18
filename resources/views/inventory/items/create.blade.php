@@ -78,6 +78,16 @@
                             <input type="number"  name="number" id="number" class="form-control" value="{{old('number', 1)}}" step="1" required>
                     </div>
                 </div>
+                <div class="form-row">
+                    <label for="status">
+                        Zustand
+                    </label>
+                    <select name="status" id="status" class="custom-select">
+                        <option value="neu"  selected >neuwertig</option>
+                        <option value="abgenutzt"  >abgenutzt</option>
+                        <option value="defekt"  >defekt</option>
+                    </select>
+                </div>
                 <div class="form-row ">
                     <div class="col">
                         <label for="customFile">

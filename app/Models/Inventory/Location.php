@@ -22,6 +22,9 @@ class Location extends Model
     public function type(){
         return $this->belongsTo(LocationType::class, 'locationtype_id', 'id');
     }
+    public function items(){
+        return $this->hasMany(Items::class, 'location_id');
+    }
 
     public function verantwortlicher(){
         return $this->belongsTo(User::class, 'verantwortlicher_id', 'id');
