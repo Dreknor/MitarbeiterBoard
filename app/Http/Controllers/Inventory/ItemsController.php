@@ -9,6 +9,7 @@ use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -162,9 +163,10 @@ class ItemsController extends Controller
             $item = Items::where('uuid', $uuid)->first();
             $item->update([
                 'status' => $request->status,
-                'location_id' => $request->location_id
+                'location_id' => $request->location_id,
             ]);
 
+            $item->touch();
             return \view('inventory.items.scanSuccess');
         }
 
