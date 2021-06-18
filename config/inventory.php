@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'organisation' => env('ORGANISATION', null)
+    'organisation' => env('ORGANISATION', null),
 ];

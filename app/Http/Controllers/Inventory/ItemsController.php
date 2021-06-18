@@ -102,6 +102,20 @@ class ItemsController extends Controller
     }
 
     /**
+     * Display the specified resource.
+     *
+     * @param  \App\Models\Inventory\Items  $item
+     * @return \Illuminate\Http\Response
+     */
+    public function scan($uuid)
+    {
+        return view('inventory.items.scan', [
+            'item' => Items::where('uuid', $uuid)->first(),
+            'locations' => Location::all()
+        ]);
+    }
+
+    /**
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Inventory\Items  $item
@@ -142,6 +156,17 @@ class ItemsController extends Controller
            'Meldung'=>'Daten wurden aktualisiert.'
         ]);
     }
+
+    public function scanUpdate(Request $request, $uuid)
+        {
+            $item = Items::where('uuid', $uuid)->first();
+            $item->update([
+                'status' => $request->status,
+                'location_id' => $request->location_id
+            ]);
+
+            return \view('inventory.items.scanSuccess');
+        }
 
     /**
      * Remove the specified resource from storage.

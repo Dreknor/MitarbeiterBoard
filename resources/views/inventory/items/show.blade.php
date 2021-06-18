@@ -13,6 +13,9 @@
                             <a href="{{url('inventory/items/'.$item->id.'/edit')}}" title="{{$item->name}} bearbeiten" class="pull-right">
                                 <i class="fas fa-edit"></i>
                             </a>
+                        <a href="{{url('inventory/item/'.$item->uuid)}}" title="{{$item->name}} " class="pull-right">
+                            <i class="fas fa-eye"></i>
+                        </a>
                     </div>
                     <div class="card-body">
                             {{$item->descripton}}
