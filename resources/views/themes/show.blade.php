@@ -365,7 +365,7 @@
                                         @foreach($theme->protocols->sortDesc() as $protocol)
                                             <li class="list-group-item">
                                                 <p>
-                                                    @if($protocol->creator_id == auth()->id() and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime'))))
+                                                    @if($protocol->creator_id == auth()->user()->id and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime'))))
                                                         <div class="pull-right">
                                                             <a href="{{url(request()->segment(1)."/protocols/$protocol->id/edit")}}" class="btn-link btn-danger">
                                                                 bearbeiten

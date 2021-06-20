@@ -11,7 +11,7 @@ class KioskController extends Controller
     {
         $colors = ['#6495ed', 'Orange', '#ffca00', '#d9335c', '#99ff80', 'Persian Green', '#bfffff', '#bf7660', '#b3b017', '#149ab5'];
 
-        $groups = auth()->user()->groups;
+        $groups = auth()->user()->groups_rel()->where('protected', 1)->get();
         $groups->load('themes', 'tasks', 'themes.group');
 
         foreach ($groups as $group) {
@@ -22,11 +22,13 @@ class KioskController extends Controller
             }
         }
 
-        return view('home', [
+        return view('kiosk.index', [
             'groups'    => $groups,
             'tasks'     => $tasks,
             'colors'    => $colors,
             'menue'     => 'false',
+            'refresh'   => 600,
+            'refreshUrl' => config('url_elterninfo'),
         ]);
     }
 }
