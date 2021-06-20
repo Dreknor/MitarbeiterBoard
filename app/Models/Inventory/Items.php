@@ -2,20 +2,21 @@
 
 namespace App\Models\Inventory;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Items extends Model implements HasMedia
 {
-    use \Spatie\MediaLibrary\InteractsWithMedia;
+    use InteractsWithMedia;
 
     protected $table = 'inv_items';
     use SoftDeletes;
 
-    protected $fillable = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'location_id', 'category_id', 'lieferant_id', 'status'];
-    protected $visible = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'lieferant_id', 'status'];
+    protected $fillable = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'location_id', 'category_id', 'lieferant_id', 'status', 'number'];
+    protected $visible = ['uuid', 'name', 'description', 'date', 'price', 'oldInvNumber', 'lieferant_id', 'status', 'number'];
 
     protected $dates = ['date'];
 
@@ -30,6 +31,6 @@ class Items extends Model implements HasMedia
     }
 
     public function QR(){
-        return  \SimpleSoftwareIO\QrCode\Facades\QrCode::size(50)->generate(url('item/'.$this->uuid));
+        return  QrCode::size(50)->generate(url('item/'.$this->uuid));
     }
 }

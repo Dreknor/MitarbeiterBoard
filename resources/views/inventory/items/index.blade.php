@@ -89,6 +89,10 @@
                                     <i class="far fa-hand-point-right text-warning">gebraucht</i>
                                 @break
 
+                                @case('fehlt')
+                                    <i class="far fa-question-circle text-danger"></i>
+                                @break
+
                                 @default
                                     <i class="far fa-thumbs-up text-success">neu</i>
                             @endswitch

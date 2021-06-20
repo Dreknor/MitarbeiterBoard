@@ -65,17 +65,21 @@
                     </select>
                 </div>
                 <div class="form-row">
-                    <div class="col-sm-12 col-md-4 ">
+                    <div class="col-sm-12 col-md-3 ">
                         <label for="date">Anschaffung am</label>
                         <input type="date" name="date" id="date" class="form-control" value="{{old('date')}}">
                     </div>
-                    <div class="col-sm-12 col-md-4">
+                    <div class="col-sm-12 col-md-3">
                             <label for="price">Preis</label>
                             <input type="number"  name="price" id="price" class="form-control" value="{{old('price')}}" step="0.01">
                     </div>
-                    <div class="col-sm-12 col-md-4">
+                    <div class="col-sm-12 col-md-3">
                             <label for="number">Anzahl</label>
                             <input type="number"  name="number" id="number" class="form-control" value="{{old('number', 1)}}" step="1" required>
+                    </div>
+                    <div class="col-sm-12 col-md-3">
+                            <label for="number_indiv" title="Es wird nicht für jeden Gegenstand einzeln ein COde erzeugt">Gemeinsam?</label>
+                            <input type="checkbox"  name="number_indiv" id="number_indiv" class="form-check">
                     </div>
                 </div>
                 <div class="form-row">
