@@ -23,9 +23,6 @@ Homestead.json
 .phpunit.result.cache
 *.xml
 *.iml
-*.xml
-.idea/php.xml
-.idea/workspace.xml
-.idea/workspace.xml
-.idea/php.xml
-.idea/leitung.iml
+
+.idea/
+

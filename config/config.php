@@ -1,19 +1,20 @@
 <?php
-
 return [
 
     'themes'    => [
-        'addDays'   => env('THEME_MIN_DAYS_BEFORE_MEETING', 3),
+        'addDays'   => (is_numeric(env('THEME_MIN_DAYS_BEFORE_MEETING'))) ? env('THEME_MIN_DAYS_BEFORE_MEETING') : 3,
         'defaultDay'    => env('DEFAULT_WEEKDAY', 'Monday'),
-        'maxDuration' => env('MAX_DURATION', 240),
+        'maxDuration' => (is_numeric(env('MAX_DURATION'))) ? env('MAX_DURATION') : 240,
     ],
 
     //Anzahl der Tage vor Ablauf einer Aufgabe , wenn eine Erinnerung verschickt wird
     'tasks'      => [
-        'remind'    => env('REMIND_TASK', 2),
+        'remind'    => (is_numeric(env('REMIND_TASK'))) ? env('REMIND_TASK') : 2,
     ],
 
     'protocols'      => [
-        'editableTime'    => env('EDITABLE_TIME', 60),
+        'editableTime'    => (is_numeric(env('EDITABLE_TIME'))) ? env('EDITABLE_TIME') : 60,
     ],
+
+    'url_elterninfo' => env('URL_ELTERNINFO', config('app.url'))
 ];

@@ -9,6 +9,9 @@
     <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
 
     <title>{{env('APP_NAME')}}</title>
+    @can('disable menu')
+        <meta http-equiv="refresh" content="{{@$refresh}}; url={{@$refreshUrl}}/kiosk">
+    @endcan
 
     <!-- CSS Files -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />
@@ -23,6 +26,15 @@
 </head>
 
 <body id="app-layout">
+<div class="sidebar" data-color="white" data-active-color="danger">
+    <div class="logo" style="word-wrap: normal;">
+        <a href="{{config('app.url')}}" class="simple-text">
+            <div class="logo-image-small">
+                <img src="{{asset('img/'.config('app.logo'))}}">
+            </div>
+        </a>
+    </div>
+</div>
 <div class="main-panel">
 
 

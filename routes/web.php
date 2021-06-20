@@ -192,7 +192,7 @@ Route::group([
                     return redirect(url('/'));
                 });
 
-                //Route::get('kiosk', 'KioskController@index');
+                Route::get('kiosk', 'KioskController@index');
 
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);

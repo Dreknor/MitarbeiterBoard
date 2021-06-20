@@ -42,6 +42,7 @@
                                 <th>Datum</th>
                                 <th>Stunde</th>
                                 <th>Klasse</th>
+                                <th>Fächer</th>
                                 <th>Lehrer</th>
                                 <th>Kommentar</th>
                             </tr>
@@ -52,6 +53,7 @@
                                     <td>{{$vertretung->date->format('d.m.Y')}}</td>
                                     <td>{{$vertretung->stunde}}</td>
                                     <td>{{$vertretung->klasse->name}}</td>
+                                    <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                                     <td>{{optional($vertretung->lehrer)->name}}</td>
                                     <td>{{$vertretung->comment}}</td>
                                 </tr>
