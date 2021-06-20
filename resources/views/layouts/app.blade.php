@@ -50,6 +50,46 @@
                             </a>
                         </li>
                     @endcan
+                    @can('edit inventar')
+                        <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
+                            <a data-toggle="collapse" href="#inventory">
+                                <p>
+                                    <i class="fas fa-boxes"></i>
+                                     Inventar
+                                    <b class="caret"></b>
+                                </p>
+
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=="inventory" ) show  @endif" id="inventory">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(2)=="locations" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/locations')}}">
+                                            <i class="fas fa-map-marker"></i>
+                                            <p>Standort</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(2)=="categories" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/categories')}}">
+                                            <i class="far fa-folder-open"></i>
+                                            <p>Kategorien</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(2)=="lieferanten" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/lieferanten')}}">
+                                            <i class="fas fa-shipping-fast"></i>
+                                            <p>Lieferanten</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(2)=="items" and request()->segment(1)=="inventory" ) active @endif">
+                                        <a href="{{url('inventory/items')}}">
+                                            <i class="fas fa-dice-d6"></i>
+                                            <p>Inventar</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    @endcan
                     <li>
                         <a data-toggle="collapse" href="#Beratungen" >
                             <p>
