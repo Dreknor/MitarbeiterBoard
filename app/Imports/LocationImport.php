@@ -2,9 +2,9 @@
 
 namespace App\Imports;
 
-use App\Models\Inventory\Inventory\Location;
-use App\Models\Inventory\Inventory\LocationType;
-use App\Models\Inventory\User;
+use App\Models\Inventory\Location;
+use App\Models\Inventory\LocationType;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Illuminate\Support\Str;
