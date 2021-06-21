@@ -87,11 +87,13 @@ Route::group([
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
                     Route::get('locations/import', [LocationController::class, 'showImport']);
                     Route::post('locations/import', [LocationController::class, 'import']);
-                    Route::resource('locations', LocationController::class);
                     Route::post('locations/print', [LocationController::class, 'print']);
 
                     Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
+                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
+                    Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
 
+                    Route::resource('locations', LocationController::class);
 
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
                     Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
@@ -192,7 +194,7 @@ Route::group([
                     return redirect(url('/'));
                 });
 
-                Route::get('kiosk', 'KioskController@index');
+                //Route::get('kiosk', 'KioskController@index');
 
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);

@@ -5,61 +5,17 @@
     <div class="card">
         <div class="card-header">
             <h6 class="card-title">
-                Räume importieren
+                Items importieren
             </h6>
         </div>
         <div class="card-body">
-            <form action="{{url('inventory/locations/import')}}" method="post" class="form form-horizontal" enctype="multipart/form-data">
+            <form action="{{url('inventory/items/import')}}" method="post" class="form form-horizontal" enctype="multipart/form-data">
                 @csrf
                 <div class="form-row">
                         <div class="">
                             <input type="file"  name="file" id="customFile" accept=".xls,.xlsx">
                         </div>
                 </div>
-                <div class="form-row">
-                    <p>Bitte die genaue Bezeichnung für die einzelnen Spalten angeben. Leer lassen, wenn nicht vorhanden.</p>
-                </div>
-                <div class="form-row">
-                    <label for="kennzeichen">
-                        Kennzeichen
-                    </label>
-                    <input type="text" id="kennzeichen" name="kennzeichen" class="form-control">
-                </div>
-                <div class="form-row">
-                    <label for="name">
-                        Name <i class="text-danger">(benötigt)</i>
-                    </label>
-                    <input type="text" id="name" name="name" class="form-control">
-                </div>
-                <div class="form-row">
-                    <label for="description">
-                        Beschreibung
-                    </label>
-                    <input type="text" id="description" name="description" class="form-control">
-                </div>
-                <div class="form-row">
-                    <label for="user">
-                        Verantwortlicher
-                    </label>
-                    <input type="text" id="user" name="user" class="form-control">
-                </div>
-                <div class="form-row">
-                    <label for="type">
-                        Typ
-                    </label>
-                    <input type="text" id="type" name="type" class="form-control">
-                </div>
-                <!-- ToDo
-                <div class="form-row">
-                    <label for="newType">
-                        Sollen unbekannte Raum-Typen angelegt werden?
-                    </label>
-                    <select id="newType" name="newType" class="custom-select">
-                        <option value="new">Typ neu anlegen</option>
-                        <option value="setull">Typ nicht zuordnen</option>
-                    </select>
-                </div>
-                -->
                 <div class="form-row">
                     <button type="submit" class="btn btn-primary btn-block">
                             Import starten

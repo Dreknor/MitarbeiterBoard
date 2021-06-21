@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createInventoryItemRequest;
 use App\Http\Requests\editInventoryItemRequest;
+use App\Imports\InventoryItemsImport;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Barryvdh\DomPDF\Facade as PDF;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ItemsController extends Controller
 {
@@ -209,4 +211,25 @@ class ItemsController extends Controller
 
         return $pdf->stream();
     }
+
+
+    public function showImport(){
+        return view('inventory.items.import');
+    }
+
+    public function import (Request $request){
+        if ($request->hasFile('file')){
+
+            //dd($header);
+            Excel::import(new InventoryItemsImport(), request()->file('file'));
+            return redirect(url('inventory/items'));
+        } else {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Datei fehlt'
+            ]);
+        }
+
+    }
+
 }
