@@ -4,7 +4,7 @@
     <div class="card">
         <div class="card-body">
             <div class="row">
-                <div class="col">
+                <div class="col-auto">
                     @if($categories >0 and  $locations >0 and  $lieferanten >0)
                         <a href="{{url('inventory/items/create')}}" class="btn btn-simple">
                             neuer Gegenstand
@@ -17,6 +17,15 @@
                             Es müssen erst Lieferanten, Räume und Kategorien erstellt werden.
                         </p>
                     @endif
+                </div>
+                <div class="col-auto">
+                    <form class="form-inline" id="searchForm" method="post" action="{{url('inventory/items/search')}}">
+                        @csrf
+                                <input type="text" name="search" placeholder="Gegenstand suchen" id="search" class="form-control">
+                        <button type="submit" class="btn btn-simple btn-info pull-right" id="searchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
                 </div>
                 <div class="col">
                     <form class="form-inline d-none" id="printForm" method="post" action="{{url('inventory/items/print')}}">
@@ -111,6 +120,13 @@
                         </td>
                     </tr>
                 @endforeach
+                <tr>
+                    <td colspan="10">
+                        @if(method_exists($items, 'links'))
+                            {{$items->links()}}
+                        @endif
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>

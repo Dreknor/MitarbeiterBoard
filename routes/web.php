@@ -89,6 +89,7 @@ Route::group([
                     Route::post('locations/import', [LocationController::class, 'import']);
                     Route::post('locations/print', [LocationController::class, 'print']);
 
+                    Route::post('items/search', [\App\Http\Controllers\Inventory\ItemsController::class, 'index']);
                     Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
                     Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
 

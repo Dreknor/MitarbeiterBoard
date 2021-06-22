@@ -28,10 +28,19 @@ class ItemsController extends Controller
      *
      * @return View
      */
-    public function index()
+    public function index(Request $request)
     {
+
+        if ($request->search and $request->search != "") {
+            $items = Items::where('name', 'LIKE' ,$request->search.'%')->orWhere('description', 'LIKE' ,$request->search.'%')->with('category', 'location')->limit(150)->get();
+            //dd($items);
+
+        } else {
+            $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->paginate(100);
+        }
+
         return view('inventory.items.index',[
-            'items' => Items::all(),
+            'items' => $items,
             'locations' => Location::count(),
             'categories' => Category::count(),
             'lieferanten' => Lieferant::count(),
