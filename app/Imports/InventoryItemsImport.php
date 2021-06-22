@@ -36,10 +36,18 @@ class InventoryItemsImport implements ToCollection, WithHeadingRow
                 if ($row['standort'] != ''){
                     $standort = $this->locations->where('kennzeichnung', $row['standort'])->first();
                     if (is_null($standort)){
-                        $standort = $this->locations->where('name', 'Unbekannt')->first();
+                        $standort = $this->locations->firstOrCreate([
+                            'name'=> 'Unbekannt'
+                        ], [
+                            'uuid' => uuid_create()
+                        ]);
                     }
                 } else {
-                    $standort = $this->locations->where('name', 'Unbekannt')->first();
+                    $standort = $this->locations->firstOrCreate([
+                        'name'=> 'Unbekannt'
+                    ], [
+                        'uuid' => uuid_create()
+                    ]);;
 
                 }
                 if ($row['bemerkungen'] != ''){
