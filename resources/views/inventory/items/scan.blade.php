@@ -43,9 +43,22 @@
                                     <option value="neu"  @if($item->status == 'neu') selected @endif>neuwertig</option>
                                     <option value="abgenutzt"  @if($item->status == 'abgenutzt') selected @endif>abgenutzt</option>
                                     <option value="defekt"  @if($item->status == 'defekt') selected @endif>defekt</option>
+                                    <option value="fehlt"  @if($item->status == 'defekt') selected @endif>fehlt</option>
                                 </select>
                             </div>
                         </div>
+                        @if ($item->number > 1)
+                            <div class="form-row mt-2">
+                                <div class="col-3">
+                                    <b>
+                                        Anzahl
+                                    </b>
+                                </div>
+                                <div class="col">
+                                    <input type="number"  name="number" id="number" class="form-control" value="{{old('number', $item->number)}}" step="1" required>
+                                </div>
+                            </div>
+                        @endif
                         <div class="form-row mt-2">
                             <button type="submit" class="btn btn-success btn-block">aktualisieren</button>
                         </div>

@@ -5,16 +5,16 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createInventoryItemRequest;
 use App\Http\Requests\editInventoryItemRequest;
+use App\Imports\InventoryItemsImport;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use Ramsey\Uuid\Uuid;
 use Barryvdh\DomPDF\Facade as PDF;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ItemsController extends Controller
 {
@@ -28,10 +28,19 @@ class ItemsController extends Controller
      *
      * @return View
      */
-    public function index()
+    public function index(Request $request)
     {
+
+        if ($request->search and $request->search != "") {
+            $items = Items::where('name', 'LIKE' ,$request->search.'%')->orWhere('description', 'LIKE' ,$request->search.'%')->with('category', 'location')->limit(150)->get();
+            //dd($items);
+
+        } else {
+            $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->paginate(100);
+        }
+
         return view('inventory.items.index',[
-            'items' => Items::all(),
+            'items' => $items,
             'locations' => Location::count(),
             'categories' => Category::count(),
             'lieferanten' => Lieferant::count(),
@@ -61,8 +70,19 @@ class ItemsController extends Controller
      */
     public function store(createInventoryItemRequest $request)
     {
-        for ($x=0; $x < $request->number; $x++){
+
+        if ($request->has('number_indiv')){
+            $y = 1;
+            $number = $request->number;
+        } else {
+            $y = $request->number;
+            $number = 1;
+        }
+
+
+        for ($x=0; $x < $y; $x++){
             $item = new Items($request->validated());
+            $item->number = $number;
             $item->uuid = uuid_create();
             $item->save();
 
@@ -93,7 +113,7 @@ class ItemsController extends Controller
      * Display the specified resource.
      *
      * @param  \App\Models\Inventory\Items  $item
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function show(Items $item)
     {
@@ -106,7 +126,7 @@ class ItemsController extends Controller
      * Display the specified resource.
      *
      * @param  \App\Models\Inventory\Items  $item
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function scan($uuid)
     {
@@ -120,7 +140,7 @@ class ItemsController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Inventory\Items  $item
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function edit($item)
     {
@@ -139,7 +159,7 @@ class ItemsController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\Inventory\Items  $item
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(editInventoryItemRequest $request, Items $item)
     {
@@ -164,6 +184,7 @@ class ItemsController extends Controller
             $item->update([
                 'status' => $request->status,
                 'location_id' => $request->location_id,
+                'number'    => $request->number ?: 1
             ]);
 
             $item->touch();
@@ -174,11 +195,11 @@ class ItemsController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  \App\Models\Inventory\Items  $inventoryItems
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy($uuid)
     {
-        $item = Items::where('uuid', $uuid)->first()->delete();
+        Items::where('uuid', $uuid)->first()->delete();
 
         return redirect(url('inventory/items'))->with([
            'type'   => 'warning',
@@ -199,4 +220,25 @@ class ItemsController extends Controller
 
         return $pdf->stream();
     }
+
+
+    public function showImport(){
+        return view('inventory.items.import');
+    }
+
+    public function import (Request $request){
+        if ($request->hasFile('file')){
+
+            //dd($header);
+            Excel::import(new InventoryItemsImport(), request()->file('file'));
+            return redirect(url('inventory/items'));
+        } else {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Datei fehlt'
+            ]);
+        }
+
+    }
+
 }

@@ -87,12 +87,15 @@ Route::group([
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
                     Route::get('locations/import', [LocationController::class, 'showImport']);
                     Route::post('locations/import', [LocationController::class, 'import']);
-                    Route::resource('locations', LocationController::class);
                     Route::post('locations/print', [LocationController::class, 'print']);
 
+                    Route::post('items/search', [\App\Http\Controllers\Inventory\ItemsController::class, 'index']);
                     Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
+                    Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
 
+                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
 
+                    Route::resource('locations', LocationController::class);
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
                     Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
                     Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
@@ -192,7 +195,7 @@ Route::group([
                     return redirect(url('/'));
                 });
 
-                Route::get('kiosk', 'KioskController@index');
+                Route::get('kiosk', [\App\Http\Controllers\KioskController::class, 'index']);
 
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);

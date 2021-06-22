@@ -92,6 +92,10 @@
                         <label for="price">Preis</label>
                         <input type="number"  name="price" id="price" class="form-control" value="{{old('price', $item->price)}}" step="0.01">
                     </div>
+                    <div class="col-sm-12 col-md-4">
+                        <label for="number">Anzahl</label>
+                        <input type="number"  name="number" id="number" class="form-control" value="{{old('number', $item->number)}}" step="1" required>
+                    </div>
                 </div>
                 <div class="form-row ">
                     <div class="col">

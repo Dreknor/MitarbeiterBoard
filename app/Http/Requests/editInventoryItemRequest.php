@@ -26,6 +26,7 @@ class editInventoryItemRequest extends FormRequest
         return [
 
                 'name' => ['required', 'string'],
+                'number' => ['required', 'integer'],
                 'description' => ['nullable', 'string'],
                 'date' => ['nullable', 'date'],
                 'price' => ['nullable', 'numeric'],

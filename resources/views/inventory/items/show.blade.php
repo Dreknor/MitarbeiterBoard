@@ -65,6 +65,11 @@
                                             Preis:
                                         </b> {{number_format($item->price,2)}} €
                                     </p>
+                                    <p>
+                                        <b>
+                                            Anzahl:
+                                        </b> {{$item->number}}
+                                    </p>
                                 </div>
                             </div>
                         </div>

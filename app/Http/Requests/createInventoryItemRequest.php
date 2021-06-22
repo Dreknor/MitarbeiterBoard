@@ -34,8 +34,7 @@ class createInventoryItemRequest extends FormRequest
                 'lieferanten_id' =>   ['nullable', 'exists:inv_lieferanten,id'],
                 'oldInvNumber' =>   ['nullable', 'string'],
                 'status' =>   ['nullable', 'string'],
-                'number' =>   ['required', 'integer', 'min:1']
-
+                'number' =>   ['required', 'integer', 'min:1'],
         ];
     }
 }
