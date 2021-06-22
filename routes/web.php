@@ -90,11 +90,11 @@ Route::group([
                     Route::post('locations/print', [LocationController::class, 'print']);
 
                     Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
-                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
                     Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
 
-                    Route::resource('locations', LocationController::class);
+                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
 
+                    Route::resource('locations', LocationController::class);
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
                     Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
                     Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
