@@ -21,7 +21,10 @@
 
                     </div>
                     <div class="card-body">
-                            {{$item->descripton}}
+                            {{$item->descripton}}<br>
+                            <p>
+                                Inventarnummer: {{$item->oldInvNumber?:$item->uuid}}
+                            </p>
                     </div>
                     <div class="card-body">
                         <div class="card-columns">

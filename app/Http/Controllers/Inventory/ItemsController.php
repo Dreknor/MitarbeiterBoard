@@ -32,9 +32,7 @@ class ItemsController extends Controller
     {
 
         if ($request->search and $request->search != "") {
-            $items = Items::where('name', 'LIKE' ,$request->search.'%')->orWhere('description', 'LIKE' ,$request->search.'%')->with('category', 'location')->limit(150)->get();
-            //dd($items);
-
+            $items = Items::where('name', 'LIKE' ,'%'.$request->search.'%')->orWhere('oldInvNumber', 'LIKE' , $request->search.'%')->orWhere('description', 'LIKE' , '%'.$request->search.'%')->with('category', 'location')->limit(150)->get();
         } else {
             $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->paginate(100);
         }
@@ -81,7 +79,31 @@ class ItemsController extends Controller
 
 
         for ($x=0; $x < $y; $x++){
+            $ownNumber = $request->oldInvNumber;
+            $newNumber = $ownNumber;
+
+            //Eigene Nummer auf Zahlen durchsuchen und das letzte Vorkommen um eines erhöhen, wenn dies nicht der erste Durchlauf ist
+            if ($request->oldInvNumber != "" and $number == 1){
+                preg_match_all('!\d+!', $request->oldInvNumber, $matches);
+
+                if ($x > 0 and end($matches) != []){
+                    $match = end($matches);
+                        if (!is_array(end($match))){
+                            $match= end($match);
+                        }
+
+                    $pos = strrpos($ownNumber, $match );
+                    $lastNumber = $match + $x;
+                    if($pos !== false)
+                        {
+                            $newNumber = substr_replace($ownNumber, $lastNumber , $pos, strlen($ownNumber));
+                        }
+                }
+            }
+
+
             $item = new Items($request->validated());
+            $item->oldInvNumber = $newNumber;
             $item->number = $number;
             $item->uuid = uuid_create();
             $item->save();

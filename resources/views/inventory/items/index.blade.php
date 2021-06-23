@@ -53,6 +53,7 @@
                     <td></td>
                     <th>Raum</th>
                     <th>Name</th>
+                    <th>eigene Inv. - Nr.</th>
                     <th>Beschreibung</th>
                     <th>Kategorie</th>
                     <th>Anschaffung am</th>
@@ -73,6 +74,11 @@
                         </td>
                         <td>
                             {{$item->name}}
+                        </td>
+                        <td>
+                            <small>
+                                {{$item->oldInvNumber?:$item->uuid}}
+                            </small>
                         </td>
                         <td>
                             <small>
@@ -121,7 +127,7 @@
                     </tr>
                 @endforeach
                 <tr>
-                    <td colspan="10">
+                    <td colspan="11">
                         @if(method_exists($items, 'links'))
                             {{$items->links()}}
                         @endif
