@@ -1,11 +1,10 @@
 <html>
 <head>
     <style>
-
         body {
             margin-top: 9mm;
             margin-left: -3mm;
-            margin-bottom: -3mm;
+            margin-bottom: -8mm;
             font-size: xx-small;
         }
 
@@ -15,46 +14,73 @@
             border-collapse: collapse;
         }
 
-        td.inhalt {
+
+        td {
             width: 46mm;
             max-width: 46mm;
-            height: 20.9mm;
-            max-height: 20.9mm;
+            height: 80px;
+            max-height: 80px;
             margin-bottom: 0;
-            margin-top: 0;
+            margin-top: 2px;
             margin-left: 2mm;
             border-style: solid;
             border-width: 1px;
-            border: #00bbff;
+            border: rgba(0, 187, 255, 0);
             padding-right: 2mm;
             overflow: hidden;
-            word-wrap:break-word;
-            box-sizing: border-box;
+            white-space: nowrap;
         }
 
-        td.inhalt2 {
-            width: 46mm;
-            max-width: 46mm;
-            height: 21.1mm;
-            max-height: 21.1mm;
-            margin-bottom: 0;
-            margin-top: 0;
-            margin-left: 2mm;
-            border-style: solid;
-            border-width: 1px;
-            border: #00bbff;
-            padding-right: 2mm;
-            overflow: hidden;
-            box-sizing: border-box;
-            word-wrap:break-word;
+        td.reihe3{
+            height: 77px;
+            max-height: 77px;
         }
 
-        .text {
-            border: 1px solid black;
+
+        td.reihe4{
+            height: 78px;
+            max-height: 78px;
         }
-        .qr {
-            float: left;
+
+
+        td.reihe5{
+            height: 77px;
+            max-height: 77px;
         }
+
+
+        td.reihe6{
+            height: 77px;
+            max-height: 77px;
+        }
+
+        td.reihe7{
+            height: 77px;
+            max-height: 77px;
+        }
+
+        td.reihe8{
+            height: 77px;
+            max-height: 77px;
+        }
+        td.reihe9{
+            height: 77px;
+            max-height: 77px;
+        }
+        td.reihe10{
+            height: 77px;
+            max-height: 77px;
+        }
+        td.reihe11{
+            height: 77px;
+            max-height: 77px;
+        }
+
+        td.reihe12{
+            height: 77px;
+            max-height: 77px;
+        }
+
 
 
         img {
@@ -64,7 +90,7 @@
         }
 
         p {
-            margin-top: -30px;
+            margin-top: -5px;
             margin-bottom: 0;
             margin-left: 42%;
             margin-right: 0;
@@ -81,12 +107,12 @@
             @for($y=1; $y<=4; $y++)
                 @if(($x == $reihe and $y>=$spalte) or ($x > $reihe)))
                     @if(!is_null($items) and count($items)>0)
-                        <td @if($x%3 == 0) class="inhalt" @else class="inhalt2" @endif>
+                        <td class="reihe{{$x}}">
                                     <img src="data:image/png;base64, {!! base64_encode(QrCode::size(60)->generate(url('inventory/item/'.$items->first()->uuid))) !!} ">
                                     <p>
                                         {{config('inventory.organisation')}}<br>
                                         {{$items->first()->name}}<br>
-                                        {{\Illuminate\Support\Str::limit($items->first()->description, 15, $end='...')}}<br>
+                                        {{\Illuminate\Support\Str::limit($items->first()->description, 20, $end='...')}}<br>
                                         @if($items->first()->oldInvNumber) {{$items->first()->oldInvNumber}}<br> @else {{$items->first()->uuid}}<br> @endif
                                         {{$items->first()->location->name}} ({{$items->first()->location->kennzeichnung}})<br>
                                     </p>
@@ -94,12 +120,12 @@
                             @php($items->forget($items->keys()->first()))
                         </td>
                     @else
-                            <td class="inhalt">
+                            <td class="reihe{{$x}}">
                                 &nbsp;
                             </td>
                     @endif
                 @else
-                    <td class="inhalt">
+                    <td class="reihe{{$x}}">
                         &nbsp;
                     </td>
 
