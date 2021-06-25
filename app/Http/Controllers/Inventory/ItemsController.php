@@ -54,9 +54,9 @@ class ItemsController extends Controller
     {
 
         return view('inventory.items.create',[
-            'locations' => Location::orderBy('name')->all(),
-            'categories' => Category::orderBy('name')->all(),
-            'lieferanten' => Lieferant::orderBy('name')->all(),
+            'locations' => Location::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
+            'lieferanten' => Lieferant::orderBy('name')->get(),
         ]);
     }
 
@@ -154,7 +154,7 @@ class ItemsController extends Controller
     {
         return view('inventory.items.scan', [
             'item' => Items::where('uuid', $uuid)->first(),
-            'locations' => Location::orderBy('name')->all()
+            'locations' => Location::orderBy('name')->get()
         ]);
     }
 
@@ -170,9 +170,9 @@ class ItemsController extends Controller
 
         return view('inventory.items.edit', [
             'item' => $item,
-            'locations' => Location::orderBy('name')->all(),
-            'categories' => Category::orderBy('name')->all(),
-            'lieferanten' => Lieferant::orderBy('name')->all(),
+            'locations' => Location::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
+            'lieferanten' => Lieferant::orderBy('name')->get(),
         ]);
     }
 
