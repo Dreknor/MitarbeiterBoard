@@ -27,16 +27,35 @@
                         </button>
                     </form>
                 </div>
-                <div class="col">
-                    <form class="form-inline d-none" id="printForm" method="post" action="{{url('inventory/items/print')}}">
-                        @csrf
-                        <button type="submit" class="btn btn-simple btn-info pull-right" id="druckenBtn">Etikett drucken</button>
-                                <label for="spalte">Spalte</label>
-                                <input type="number" name="spalte" min="1" step="1" value="1" id="spalte" class="form-control" size="10">
-                                <label for="spalte">Reihe</label>
-                                <input type="number" name="reihe" min="1" step="1" value="1" id="reihe" class="form-control" size="10">
-                    </form>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="container-fluid">
+                        <form class="form-inline d-none"  target="_blank" id="printForm" method="post" action="{{url('inventory/items/print')}}">
+                            @csrf
+                            <div class="form-row">
+                                <div class="col-sm-12 col-md-3 ml-2">
+                                    <label for="spalte">Spalte</label>
+                                    <input type="number" name="spalte" min="1" step="1" value="1" id="spalte" class="form-control" >
+                                </div>
+                                <div class="col-sm-12 col-md-3 ml-2">
+                                    <label for="reihe">Reihe</label>
+                                    <input type="number" name="reihe" min="1" step="1" value="1" id="reihe" class="form-control" >
+                                </div>
+                                <div class="col-sm-12 col-md-3 ml-2">
+                                    <label for="anzahl">Etiketten je Item</label>
+                                    <input type="number" name="anzahl" min="1" step="1" value="1" id="anzahl" class="form-control" >
+                                </div>
+                                <div class="col-sm-12 col-md-2 ml-2 mt-2">
+                                    <button type="submit" class="btn btn-simple btn-info form-control" id="druckenBtn">Etikett drucken</button>
+                                </div>
+                            </div>
+
+                        </form>
+                    </div>
+
                 </div>
+
             </div>
         </div>
     </div>
@@ -153,8 +172,6 @@
             $("input:checked").each(function() {
                 array.push($(this).val());
             });
-
-            console.log(array)
 
             if (array.length > 0){
                 $('#printForm').removeClass('d-none');

@@ -233,8 +233,15 @@ class ItemsController extends Controller
 
         $items = Items::whereIn('uuid',$request->selected)->get();
 
+        $newItems = collect();
+            for ($x = 0; $x < $request->anzahl; $x++){
+                foreach ($items as $item){
+                   $newItems = $newItems->add($item->replicate());
+                }
+            }
+
         $pdf = PDF::loadView('inventory.pdf.etikett', [
-            'items'=>$items,
+            'items'=>$newItems,
             'reihe' => $request->reihe,
             'spalte' => $request->spalte,
         ]);
