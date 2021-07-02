@@ -371,8 +371,6 @@
                                                                 bearbeiten
                                                             </a>
                                                         </div>
-                                                @else
-                                                        {{config('config.protocols.editableTime')}}
                                                     @endif
 
                                                     {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
@@ -385,8 +383,6 @@
                             </div>
                         </div>
                     </div>
-
-
                 </div>
             </div>
         </div>
