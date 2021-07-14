@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Barryvdh\DomPDF\Facade as PDF;
 use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 
 class ItemsController extends Controller
 {
@@ -28,13 +29,26 @@ class ItemsController extends Controller
      *
      * @return View
      */
-    public function index(Request $request)
+    public function index(Request $request, $column = null, $order=null)
     {
-
         if ($request->search and $request->search != "") {
             $items = Items::where('name', 'LIKE' ,'%'.$request->search.'%')->orWhere('oldInvNumber', 'LIKE' , $request->search.'%')->orWhere('description', 'LIKE' , '%'.$request->search.'%')->with('category', 'location')->limit(150)->get();
         } else {
             $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->paginate(100);
+        }
+
+        switch ($column){
+            case 'room':
+                    $order=='desc'? $items=$items->sortByDesc('location.name'): $items=$items->sortBy('location.name');
+                break;
+            case 'name':
+                    $order=='desc'? $items=$items->sortByDesc('name'): $items=$items->sortBy('name');
+                break;
+            case 'oldNr':
+                    $order=='desc'? $items=$items->sortByDesc('oldInvNumber'): $items=$items->sortBy('oldInvNumber');
+                break;
+            default:
+                break;
         }
 
         return view('inventory.items.index',[
@@ -42,6 +56,8 @@ class ItemsController extends Controller
             'locations' => Location::count(),
             'categories' => Category::count(),
             'lieferanten' => Lieferant::count(),
+            'column' => $column?:null,
+            'order' => $order == "desc"? 'asc' :'desc',
         ]);
     }
 
