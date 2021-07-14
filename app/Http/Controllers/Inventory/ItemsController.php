@@ -34,30 +34,15 @@ class ItemsController extends Controller
         if ($request->search and $request->search != "") {
             $items = Items::where('name', 'LIKE' ,'%'.$request->search.'%')->orWhere('oldInvNumber', 'LIKE' , $request->search.'%')->orWhere('description', 'LIKE' , '%'.$request->search.'%')->with('category', 'location')->limit(150)->get();
         } else {
-            $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->paginate(100);
+            $items = Items::orderBy('created_at', 'Desc')->with('category', 'location')->get();
         }
 
-        switch ($column){
-            case 'room':
-                    $order=='desc'? $items=$items->sortByDesc('location.name'): $items=$items->sortBy('location.name');
-                break;
-            case 'name':
-                    $order=='desc'? $items=$items->sortByDesc('name'): $items=$items->sortBy('name');
-                break;
-            case 'oldNr':
-                    $order=='desc'? $items=$items->sortByDesc('oldInvNumber'): $items=$items->sortBy('oldInvNumber');
-                break;
-            default:
-                break;
-        }
 
         return view('inventory.items.index',[
             'items' => $items,
             'locations' => Location::count(),
             'categories' => Category::count(),
             'lieferanten' => Lieferant::count(),
-            'column' => $column?:null,
-            'order' => $order == "desc"? 'asc' :'desc',
         ]);
     }
 
