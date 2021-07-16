@@ -159,12 +159,7 @@
     <script type="text/javascript" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
     <script>
         $(document).ready(function () {
-            $('#itemTable').DataTable({
-                dom: 'Bfrtip',
-                buttons: [
-
-                ]
-            });
+            $('#itemTable').DataTable();
         });
 
         $(':checkbox').change(function() {
