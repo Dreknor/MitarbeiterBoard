@@ -6,6 +6,8 @@ use App\Http\Controllers\DailyNewsController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Inventory\LocationController;
+use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PriorityController;
@@ -25,7 +27,7 @@ use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use \App\Http\Controllers\ShareController;
+use App\Http\Controllers\ShareController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,6 +45,9 @@ Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'in
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
+
+Route::get('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scan']);
+Route::post('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scanUpdate']);
 
 Route::group([
     'middleware' => ['auth'],
@@ -76,6 +81,26 @@ Route::group([
                 //Klassen
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
+                });
+
+                //Inventar
+                Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
+                    Route::get('locations/import', [LocationController::class, 'showImport']);
+                    Route::post('locations/import', [LocationController::class, 'import']);
+                    Route::post('locations/print', [LocationController::class, 'print']);
+
+                    Route::post('items/search', [\App\Http\Controllers\Inventory\ItemsController::class, 'index']);
+                    Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
+                    Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
+
+                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
+
+                    Route::resource('locations', LocationController::class);
+                    Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
+                    Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
+                    Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
+                    Route::resource('locationtype', LocationTypeController::class);
+
                 });
 
                 //Vertretungen planen
@@ -170,7 +195,7 @@ Route::group([
                     return redirect(url('/'));
                 });
 
-                Route::get('kiosk', 'KioskController@index');
+                Route::get('kiosk', [\App\Http\Controllers\KioskController::class, 'index']);
 
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);
