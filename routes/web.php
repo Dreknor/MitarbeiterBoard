@@ -131,6 +131,7 @@ Route::group([
 
                 //Prioritäten
                 Route::post('priorities', [PriorityController::class, 'store']);
+                Route::get('priorities/{theme}', [PriorityController::class, 'delete'])->name('priorities.delete');
 
                 //Protocols
                 Route::get('{groupname}/protocols/{theme}', [ProtocolController::class,'create']);

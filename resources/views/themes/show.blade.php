@@ -131,9 +131,15 @@
                                 </div>
                                 <div class="col-sm-12 col-md-12 col-lg-9">
                                     @if ($theme->completed or $theme->priorities->where('creator_id', auth()->id())->first())
+                                        <div class="d-inline pull-right">
+                                            <a href="{{route('priorities.delete',[$theme->id])}}">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                        </div>
                                         <div class="progress">
                                             <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
                                         </div>
+
                                     @else
                                         <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">
                                     @endif
