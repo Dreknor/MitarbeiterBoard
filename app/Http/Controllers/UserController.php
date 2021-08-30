@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createUserRequest;
+use App\Imports\UsersImport;
 use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
 use App\Models\Positions;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -179,6 +181,29 @@ class UserController extends Controller
         return redirect('users');
     }
 
+    public function import(){
+        return view('users.import');
+    }
+    public function importFromXls(Request $request){
+        if ($request->hasFile('file')) {
+        Excel::import(new UsersImport(), request()->file('file'));
+
+        return redirect(url('users'))->with([
+            'type'  => 'success',
+            'Meldung'   => 'Erfolgreicher Import',
+        ]);
+    }
+
+        return redirect()->back()->with([
+            'type' => 'danger',
+            'Meldung' => 'Keine Datei ausgewählt',
+        ]);
+    }
+
+
+    public function downloadImportFile(){
+        return response()->download(storage_path('/app/UsersImport.xls'));
+    }
     /**
      * Show the form for creating a new resource.
      *

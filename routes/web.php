@@ -166,7 +166,12 @@ Route::group([
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
+                Route::post('import/users', [UserController::class, 'importFromXLS']);
+                Route::get('import/users/file', [UserController::class, 'downloadImportFile']);
+                Route::get('import/users', [UserController::class, 'import']);
+
                 Route::get('users/restore/{user_id}', [UserController::class, 'restore']);
+
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);
