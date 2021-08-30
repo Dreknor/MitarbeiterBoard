@@ -26,6 +26,7 @@ class UsersImport implements ToCollection, WithHeadingRow
                     ],
                     [
                         'name' => $row['name'],
+                        'changePassword' => 1,
                         'password' => !is_null($row['password']) ? Hash::make($row['password'] ): Hash::make(Carbon::now()->format('Ymd'))
                     ]);
 
