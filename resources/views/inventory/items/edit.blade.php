@@ -98,11 +98,17 @@
                     </div>
                 </div>
                 <div class="form-row ">
-                    <div class="col">
+                    <div class="col-md-4 col-sm-12">
                         <label for="customFile">
                             Bild
                         </label>
                         <input type="file"  name="files[]" id="customFile" multiple>
+                    </div>
+                    <div class="col-md-4 col-sm-12 offset-md-4">
+                        <label for="customFile">
+                            Rechnung
+                        </label>
+                        <input type="file"  name="invoice[]" id="invoiceFile" multiple>
                     </div>
                 </div>
 
@@ -148,6 +154,13 @@
             'previewFileType':'any',
             'theme': "fas",
             'allowedFileTypes' : ['image'],
+        });
+
+        $("#invoiceFile").fileinput({
+            'showUpload':false,
+            'previewFileType':'any',
+            'theme': "fas",
+            'allowedFileTypes' : ['pdf', 'image'],
         });
     </script>
 

@@ -38,6 +38,28 @@
                                     {{optional($item->category)->name}}
                                 </div>
                             </div>
+                            @if (count($item->getMedia('invoice')) > 0)
+                                <div class="card">
+                                    <div class="card-header">
+                                        <b>
+                                            Rechnung
+                                        </b>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group">
+                                            @foreach($item->getMedia('invoice') as $media)
+                                                <li class="list-group-item  list-group-item-action ">
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                                        <i class="fas fa-file-download"></i>
+                                                        {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+                            @endif
+
                             <div class="card bg-warning">
                                 <div class="card-header">
                                     <b>

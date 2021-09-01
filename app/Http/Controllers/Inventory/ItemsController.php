@@ -124,6 +124,20 @@ class ItemsController extends Controller
                         ->toMediaCollection();
                 }
             }
+
+            if ($request->hasFile('invoice')){
+
+                $files = $request->files->all();
+
+                foreach ($files['invoice'] as $file) {
+
+                    $originalFileName = $file->getClientOriginalName();
+                    Storage::disk('upload')->put($originalFileName, file_get_contents($file));
+                    $item
+                        ->addMedia(Storage::disk('upload')->path($originalFileName))
+                        ->toMediaCollection('invoice');
+                }
+            }
         }
 
         return redirect(url('inventory/items'))->with([
@@ -193,6 +207,21 @@ class ItemsController extends Controller
                 $item
                     ->addMedia($file)
                     ->toMediaCollection();
+            }
+        }
+
+
+        if ($request->hasFile('invoice')) {
+
+            $files = $request->files->all();
+
+            foreach ($files['invoice'] as $file) {
+
+                $originalFileName = $file->getClientOriginalName();
+                Storage::disk('upload')->put($originalFileName, file_get_contents($file));
+                $item
+                    ->addMedia(Storage::disk('upload')->path($originalFileName))
+                    ->toMediaCollection('invoice');
             }
         }
         return redirect(url('inventory/items/'.$item->id))->with([
