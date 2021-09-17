@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
+use App\Http\Requests\moveThemesRequest;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
@@ -332,5 +333,30 @@ class ThemeController extends Controller
                'type'  => 'success',
                'Meldung'=> 'Thema geschlossen',
            ]);
+    }
+
+    public function move($groupname, moveThemesRequest $request){
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group) and $group->protected) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $oldDate = Carbon::createFromFormat('Y-m-d', $request->oldDate);
+        $date = Carbon::createFromFormat('Y-m-d', $request->date);
+
+        $themes = $group->themes()->where('date', $oldDate->format('Y-m-d'))->update([
+            'date' => $date->format("Y-m-d")
+        ]);
+
+
+        return redirect(url($groupname."/themes/"))->with([
+            'type'  => 'success',
+            'Meldung'=> $themes.' Themen wurden verschoben',
+        ]);
     }
 }

@@ -122,6 +122,7 @@ Route::group([
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
+                Route::post('{groupname}/move/themes', [ThemeController::class,'move']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
                 Route::get('{groupname}/archive', [ThemeController::class,'archive']);
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
