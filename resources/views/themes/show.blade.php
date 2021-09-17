@@ -28,6 +28,14 @@
                                                 </div>
                                             </a>
                                         </div>
+                                        <div class="col-auto">
+                                            <a href="{{url(request()->segment(1)."/memory/$theme->id")}}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-memory"></i>
+                                                <div class="d-none d-md-none d-lg-inline-block">
+                                                    in Speicher
+                                                </div>
+                                            </a>
+                                        </div>
                                     @endif
                                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme')) and !$theme->completed)
                                         <div class="col-auto">
@@ -42,7 +50,7 @@
                                         @can('share theme')
                                             @if($theme->share == null)
                                                 <div class="col-auto">
-                                                    <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn"">
+                                                    <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn">
                                                         <i class="fas fa-share-alt"></i>
                                                         <div class="d-none d-md-none d-lg-inline-block">
                                                             freigeben

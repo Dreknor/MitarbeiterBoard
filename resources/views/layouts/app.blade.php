@@ -133,6 +133,12 @@
                                                         <p>Suche</p>
                                                     </a>
                                                 </li>
+                                                <li class="@if(request()->segment(2)=="memory"  and request()->segment(1)=="$group->name") active @endif">
+                                                    <a href="{{url($group->name.'/memory')}}">
+                                                        <i class="fas fa-save"></i>
+                                                        <p>Themenspeicher</p>
+                                                    </a>
+                                                </li>
                                                 @can('create Wochenplan')
                                                     @if($group->hasWochenplan == 1)
                                                         <li class="@if(request()->segment(2)=="wochenplan"  and request()->segment(1)=="$group->name") active @endif">
