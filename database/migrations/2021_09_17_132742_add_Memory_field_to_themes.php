@@ -14,7 +14,7 @@ class AddMemoryFieldToThemes extends Migration
     public function up()
     {
         Schema::table('themes', function (Blueprint $table) {
-            $table->boolean('memory');
+            $table->boolean('memory')->default(false);
         });
     }
 

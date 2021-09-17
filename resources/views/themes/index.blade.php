@@ -26,26 +26,36 @@
                     @foreach($themes as $day => $dayThemes)
                         <div class="card" id="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" >
                             <div class="card-header">
-                                @can('move themes')
-                                    <div class="d-inline pull-right">
-                                        <a href="#" title="Alle Themen verschieben" class="changeDateLink" id="link_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}"> alle Themen verschieben</a>
-                                        <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
-                                            <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
-                                                @csrf
-                                                <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->addWeek()->format('Y-m-d')}}">
-                                                <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
-                                                <button type="submit" class="btn btn-sm btn-success">verschieben</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                @endcan
-                                <h5 class="card-title">
-                                    {{$day}}
-                                </h5>
+                                <div class="row">
+                                    <div class="col-sm-12 col-md-8">
+                                        <h5 class="card-title">
+                                            {{$day}}
+                                        </h5>
 
-                                <p class="small">
-                                    Dauer: {{$dayThemes->sum('duration')}} Minuten
-                                </p>
+                                        <p class="small">
+                                            Dauer: {{$dayThemes->sum('duration')}} Minuten
+                                        </p>
+                                    </div>
+                                    <div class="col-sm-12 col-md-4 pull-right">
+                                        @can('move themes')
+                                            <div class="pull-right">
+                                                <a href="#" title="Alle Themen verschieben" class="changeDateLink" id="link_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                                                    <i class="fa fa-calendar-day"></i>
+                                                </a>
+                                                <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                                                    <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
+                                                        @csrf
+                                                        <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->addWeek()->format('Y-m-d')}}">
+                                                        <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
+                                                        <button type="submit" class="btn btn-sm btn-success">verschieben</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        @endcan
+                                    </div>
+                                </div>
+
+
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive-sm table-responsive-md">
@@ -143,7 +153,7 @@
                 this.text = 'ausblenden'
             } else {
                 $(form).addClass('d-none');
-                this.text = 'alle Themen verschieben';
+                this.innerHTML = '<i class="fa fa-calendar-day"></i>';
             }
 
 
