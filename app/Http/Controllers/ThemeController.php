@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
+use App\Http\Requests\moveThemesRequest;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
+use function Symfony\Component\String\u;
 
 class ThemeController extends Controller
 {
@@ -50,7 +52,7 @@ class ThemeController extends Controller
            ]);
         }
 
-        $themes = $group->themes()->where('completed', 0)->get();
+        $themes = $group->themes()->where('completed', 0)->where('memory', false)->get();
         $themes->load('priorities', 'ersteller', 'type', 'protocols');
 
         $viewType = Cache::get('viewType_'.$groupname.'_'.auth()->id(), $group->viewType);
@@ -83,6 +85,26 @@ class ThemeController extends Controller
            'themes' => $themes,
             'viewType' => $viewType,
             'subscription'  => $subscription,
+        ]);
+    }
+    public function memory($groupname)
+    {
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+              'type'    => 'warning',
+              'Meldung' => 'Kein Zugriff auf diese Gruppe',
+           ]);
+        }
+
+        $themes = $group->themes()->where('completed', 0)->where('memory', true)->get();
+        $themes->load('priorities', 'ersteller');
+
+        $themes = $themes->sortByDesc('priority');
+
+        return view('themes.memory', [
+           'themes' => $themes,
         ]);
     }
 
@@ -203,11 +225,73 @@ class ThemeController extends Controller
             ]);
         }
 
+        if ($theme->memory == true) {
+            return redirect(url($groupname.'/memory'))->with([
+                'type'    => 'warning',
+                'Meldung' => 'Thema ist im Themenspeicher',
+            ]);
+        }
+
         $subscription = auth()->user()->subscriptions->where('subscriptionable_type', Theme::class)->where('subscriptionable_id', $theme->id)->first();
 
         return view('themes.show', [
             'theme' => $theme->load(['protocols', 'tasks', 'type', 'priorities', 'tasks.taskable']),
             'subscription' => $subscription,
+        ]);
+    }
+
+    public function memoryTheme($groupname, Theme $theme)
+    {
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group) and $group->protected) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $theme->update([
+            'memory' => true
+        ]);
+
+        $protocol = Protocol::create([
+            'creator_id' => auth()->id(),
+            'theme_id' => $theme->id,
+            'protocol'  => 'Thema in Themenspeicher verschoben',
+        ]);
+        $protocol->save();
+
+        return redirect(url($groupname."/themes/"))->with([
+            'type'  => 'success',
+            'Meldung' => 'Thema wurde aktiviert.'
+        ]);
+    }
+    public function activate($groupname, Theme $theme)
+    {
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group) and $group->protected) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $theme->update([
+            'memory' => false
+        ]);
+
+        $protocol = Protocol::create([
+            'creator_id' => auth()->id(),
+            'theme_id' => $theme->id,
+            'protocol'  => 'Thema aktiviert',
+        ]);
+        $protocol->save();
+
+        return redirect(url($groupname."/themes/".$theme->id))->with([
+            'type'  => 'success',
+            'Meldung' => 'Thema wurde aktiviert.'
         ]);
     }
 
@@ -262,6 +346,14 @@ class ThemeController extends Controller
             ]);
         }
 
+        if ($request->memory == true) {
+            $protocol = Protocol::create([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'In Themenspeicher verschoben'
+            ]);
+            $protocol->save();
+        }
         if ($request->input('date') != $theme->date) {
             $newDate = Carbon::parse($request->input('date'));
             $protocol = Protocol::create([
@@ -332,5 +424,30 @@ class ThemeController extends Controller
                'type'  => 'success',
                'Meldung'=> 'Thema geschlossen',
            ]);
+    }
+
+    public function move($groupname, moveThemesRequest $request){
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group) and $group->protected) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $oldDate = Carbon::createFromFormat('Y-m-d', $request->oldDate);
+        $date = Carbon::createFromFormat('Y-m-d', $request->date);
+
+        $themes = $group->themes()->where('date', $oldDate->format('Y-m-d'))->update([
+            'date' => $date->format("Y-m-d")
+        ]);
+
+
+        return redirect(url($groupname."/themes/"))->with([
+            'type'  => 'success',
+            'Meldung'=> $themes.' Themen wurden verschoben',
+        ]);
     }
 }

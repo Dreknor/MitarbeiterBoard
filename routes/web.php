@@ -122,9 +122,13 @@ Route::group([
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
+                Route::post('{groupname}/move/themes', [ThemeController::class,'move']);
+                Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
+                Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
                 Route::get('{groupname}/archive', [ThemeController::class,'archive']);
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
+                Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class,'activate']);
                 Route::post('share/{theme}', [ShareController::class, 'shareTheme']);
 
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);

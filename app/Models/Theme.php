@@ -13,9 +13,13 @@ class Theme extends Model implements HasMedia
 {
     use InteractsWithMedia;
 
-    protected $fillable = ['duration', 'theme', 'information', 'goal', 'type_id', 'completed', 'creator_id', 'type_id', 'created_at', 'updated_at', 'date'];
+    protected $fillable = ['memory','duration', 'theme', 'information', 'goal', 'type_id', 'completed', 'creator_id', 'type_id', 'created_at', 'updated_at', 'date'];
 
     protected $dates = ['created_at', 'updated_at', 'date'];
+
+    protected $casts = [
+      'memory'  => 'boolean'
+    ];
 
     public function ersteller()
     {
