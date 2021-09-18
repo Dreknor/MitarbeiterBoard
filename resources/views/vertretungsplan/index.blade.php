@@ -55,7 +55,7 @@
                                 }
                             }) as $vertretung)
                                 <tr>
-                                    <td>{{$vertretung->date}}</td>
+                                    <td>{{$vertretung->date->format('d.m.Y')}}</td>
                                     <td>{{$vertretung->stunde}}</td>
                                     <td>{{$vertretung->klasse->name}}</td>
                                     <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
