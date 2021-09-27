@@ -87,7 +87,15 @@
                                             </div>
 
                                         </div>
-                                        {!! $task->task !!}
+                                        <p>
+                                            {!! $task->task !!}
+                                            @if($wochenplan->hasDuration)
+                                                <div class="small m-0 p-0 d-inline">
+                                                    Dauer: {{$task->duration}}
+                                                </div>
+                                            @endif
+                                        </p>
+
                                     </li>
                                 @endforeach
                                 <li class="list-group-item">
@@ -173,10 +181,11 @@
     <script>
         // initialize with defaults
 
+        console.log('#customFile')
         $("#customFile").fileinput({
             'showUpload':false,
             'previewFileType':'any',
-            maxFileSize: {{config('app.maxFileSize')}},
+            'maxFileSize': 15000,
             'theme': "fas",
         });
     </script>

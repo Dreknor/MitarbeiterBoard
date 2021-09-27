@@ -41,6 +41,9 @@ class createWPRequest extends FormRequest
                 'integer',
                 'min:0',
                 'max:2'
+            ],
+            'hasDuration' => [
+                'nullable'
             ]
         ];
     }

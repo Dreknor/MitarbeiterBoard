@@ -12,6 +12,19 @@
             <div class="card-body">
                 <form action="{{url('wptask/'.$row->id.'/addTask')}}" method="post" class="form-horizontal">
                     @csrf
+                    <div class="form-row mb-2">
+                        <div class="col-sm-12 col-md-12 col-lg-3">
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <label for="duration">Dauer</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-12 col-md-12 col-lg-9">
+                            <input type="text" name="duration" id="duration" class="form-control">
+                        </div>
+                    </div>
+
                     <div class="form-row">
                         <div class="col-sm-12 col-md-12 col-lg-3">
                             <div class="container-fluid">

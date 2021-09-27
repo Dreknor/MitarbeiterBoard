@@ -10,8 +10,8 @@ class WpTask extends Model
     use HasFactory;
 
     protected $table = 'wp_tasks';
-    protected $visible = ['task'];
-    protected $fillable = ['task'];
+    protected $visible = ['task', 'duration'];
+    protected $fillable = ['task', 'duration'];
 
     public function wprow(){
         return $this->belongsTo(WPRows::class, 'wprow_id');
