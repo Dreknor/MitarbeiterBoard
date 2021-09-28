@@ -23,7 +23,7 @@
 </head>
 
 <body id="app-layout">
-<div class="main-panel" style="width: 100%; background-color: #f4f3ef;">
+<div class="main-panel" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
 <div class="content">
     <div id="accordion">
         @for($x=0; $x< config('config.show_vertretungen_days'); $x++)
