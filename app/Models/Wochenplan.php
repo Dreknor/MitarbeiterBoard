@@ -14,12 +14,13 @@ class Wochenplan extends Model implements HasMedia
 
     protected $table = 'wochenplaene';
 
-    protected $visible = ['gueltig_ab', 'gueltig_bis', 'name', 'bewertung'];
-    protected $fillable = ['gueltig_ab', 'gueltig_bis', 'group_id', 'name', 'bewertung'];
+    protected $visible = ['gueltig_ab', 'gueltig_bis', 'name', 'bewertung', 'hasDuration'];
+    protected $fillable = ['gueltig_ab', 'gueltig_bis', 'group_id', 'name', 'bewertung', 'hasDuration'];
 
     protected $casts = [
         'gueltig_ab'   => 'datetime',
-        'gueltig_bis'   => 'datetime'
+        'gueltig_bis'   => 'datetime',
+        'hasDuration'   => 'boolean'
     ];
 
 
