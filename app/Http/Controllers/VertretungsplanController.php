@@ -42,9 +42,10 @@ class VertretungsplanController extends Controller
 
         $targetDate = Carbon::today()->addDays($addDays);
         $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])->whereIn('klassen_id',$klassen)->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get();
+
         $news = DailyNews::whereBetween('date_start', [Carbon::today()->format('Y-m-d'),$targetDate->format('Y-m-d')])
             ->orWhereDate('date_end', '>=', $targetDate->format('Y-m-d'))->orderBy('date_start')->get();
-
+dump($news);
         return response()->view('vertretungsplan.index',[
             'vertretungen' => $vertretungen,
             'news'          => $news,
