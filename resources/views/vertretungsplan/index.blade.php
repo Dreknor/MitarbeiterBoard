@@ -30,7 +30,7 @@
             <div class="card">
             <div class="card-header" id="heading{{$x}}">
                 <h6>
-                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapse{{$x}}" aria-expanded="true" aria-controls="collapse{{$x}}">
+                    <button class="btn btn-link" data-toggle="collapse"  data-target="#collapse{{$x}}" aria-expanded="true" aria-controls="collapse{{$x}}">
                         <i class="far fa-caret-square-down"></i> Vertretungen für <div class="text-danger d-inline">{{\Carbon\Carbon::today()->addDays($x)->locale('de')->dayName}} </div>, den {{\Carbon\Carbon::today()->addDays($x)->format('d.m.Y')}}
                     </button>
                 </h6>
