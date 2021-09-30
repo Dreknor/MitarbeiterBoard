@@ -27,6 +27,10 @@ class createWPTaskRequest extends FormRequest
             'task' => [
                 'required',
                 'string'
+            ],
+            'duration' => [
+                'nullable',
+                'string'
             ]
         ];
     }

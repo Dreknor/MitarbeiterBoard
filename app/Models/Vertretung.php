@@ -15,7 +15,7 @@ class Vertretung extends Model
     protected $visible = ['date', 'stunde', 'comment', 'altFach', 'neuFach'];
 
     protected $casts =[
-        'date'=> 'datetime:Y-m-d',
+        'date'=> 'date',
     ];
 
     public function lehrer (){

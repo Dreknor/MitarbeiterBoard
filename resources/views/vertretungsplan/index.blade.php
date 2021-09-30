@@ -23,18 +23,19 @@
 </head>
 
 <body id="app-layout">
-<div class="main-panel" style="width: 100%; background-color: #f4f3ef;">
+<div class="main-panel" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
 <div class="content">
     <div id="accordion">
-        <div class="card">
-            <div class="card-header" id="headingOne">
+        @for($x=0; $x< config('config.show_vertretungen_days'); $x++)
+            <div class="card">
+            <div class="card-header" id="heading{{$x}}">
                 <h6>
-                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::today()->format('d.m.Y')}}
+                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapse{{$x}}" aria-expanded="true" aria-controls="collapse{{$x}}">
+                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::today()->addDays($x)->locale('de')->dayName}} {{\Carbon\Carbon::today()->addDays($x)->format('d.m.Y')}}
                     </button>
                 </h6>
             </div>
-            <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
+            <div id="collapse{{$x}}" class="collapse show" aria-labelledby="heading{{$x}}" data-parent="#accordion">
                 <div class="card-body d-none d-md-block">
                         <table class="table table-bordered table-striped">
                             <thead>
@@ -48,7 +49,11 @@
                             </tr>
                             </thead>
                             <tbody>
-                            @foreach($vertretungen_heute as $vertretung)
+                            @foreach($vertretungen->filter(function ($vertretung) use ($x) {
+                                if ($vertretung->date->eq(\Carbon\Carbon::today()->addDays($x))){
+                                    return $vertretung;
+                                }
+                            }) as $vertretung)
                                 <tr>
                                     <td>{{$vertretung->date->format('d.m.Y')}}</td>
                                     <td>{{$vertretung->stunde}}</td>
@@ -58,51 +63,14 @@
                                     <td>{{$vertretung->comment}}</td>
                                 </tr>
                             @endforeach
-                            @foreach($news_heute as $news)
+                            @foreach($news->filter(function ($news) use ($x) {
+                                if ($news->date_start->lessThanOrEqualTo(\Carbon\Carbon::today()->addDays($x)) and optional($news->date_end)->greaterThanOrEqualTo(\Carbon\Carbon::today()->addDays($x))){
+                                    return $news;
+                                }
+                            }) as $dailyNews)
                                 <tr>
                                     <td colspan="6">
-                                        {{$news->news}}
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                </div>
-                <div class="card-body d-block d-md-none">
-                        <table class="table table-bordered">
-                            <thead>
-                            <tr class="bg-success">
-                                <th rowspan="3">Datum</th>
-                                <th>Stunde</th>
-                                <th>Klasse</th>
-                            </tr>
-                            <tr class="bg-success">
-                                <th>Lehrer</th>
-                                <th>Fächer</th>
-                            </tr>
-                            <tr class="bg-success">
-                                <th colspan="2">Kommentar</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($vertretungen_heute as $vertretung)
-                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                    <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
-                                    <td>{{$vertretung->stunde}}</td>
-                                    <td>{{$vertretung->klasse->name}}</td>
-                                </tr>
-                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                    <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
-                                    <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                </tr>
-                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                    <td colspan="2">{{$vertretung->comment}}</td>
-                                </tr>
-                            @endforeach
-                            @foreach($news_heute as $news)
-                                <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                    <td colspan="6">
-                                        {{$news->news}}
+                                        {{$dailyNews->news}}
                                     </td>
                                 </tr>
                             @endforeach
@@ -111,91 +79,7 @@
                 </div>
             </div>
         </div>
-        <div class="card">
-            <div class="card-header" id="headingTwo">
-                <h6 class="mb-0">
-                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::tomorrow()->format('d.m.Y')}}
-                    </button>
-                </h6>
-            </div>
-            <div id="collapseTwo" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordion">
-                <div class="card-body d-none d-md-block">
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                            <tr>
-                                <th>Datum</th>
-                                <th>Stunde</th>
-                                <th>Klasse</th>
-                                <th>Fächer</th>
-                                <th>Lehrer</th>
-                                <th>Kommentar</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($vertretungen_morgen as $vertretung)
-                                <tr>
-                                    <td>{{$vertretung->date->format('d.m.Y')}}</td>
-                                    <td>{{$vertretung->stunde}}</td>
-                                    <td>{{$vertretung->klasse->name}}</td>
-                                    <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                    <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
-                                    <td>{{$vertretung->comment}}</td>
-                                </tr>
-                            @endforeach
-                            @foreach($news_morgen as $news)
-                                <tr>
-                                    <td colspan="6">
-                                        {{$news->news}}
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                </div>
-                <div class="card-body d-block d-md-none">
-                    <table class="table table-bordered">
-                        <thead>
-                        <tr class="bg-success">
-                            <th rowspan="3">Datum</th>
-                            <th>Stunde</th>
-                            <th>Klasse</th>
-                        </tr>
-                        <tr class="bg-success">
-                            <th>Lehrer</th>
-                            <th>Fächer</th>
-                        </tr>
-                        <tr class="bg-success">
-                            <th colspan="2">Kommentar</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($vertretungen_morgen as $vertretung)
-                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                <td rowspan="3">{{$vertretung->date->format('d.m.Y')}}</td>
-                                <td>{{$vertretung->stunde}}</td>
-                                <td>{{$vertretung->klasse->name}}</td>
-                            </tr>
-                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                <td>{{optional($vertretung->lehrer)->kuerzel}}</td>
-                                <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                            </tr>
-                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                <td colspan="2">{{$vertretung->comment}}</td>
-                            </tr>
-                        @endforeach
-                        @foreach($news_heute as $news)
-                            <tr @if($loop->iteration%2==0) class="bg-light" @endif>
-                                <td colspan="6">
-                                    {{$news->news}}
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        @endfor
     </div>
 
 </div>

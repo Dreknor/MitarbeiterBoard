@@ -16,5 +16,9 @@ return [
         'editableTime'    => (is_numeric(env('EDITABLE_TIME'))) ? env('EDITABLE_TIME') : 60,
     ],
 
-    'url_elterninfo' => env('URL_ELTERNINFO', config('app.url'))
+    'url_elterninfo' => env('URL_ELTERNINFO', config('app.url')),
+
+    //angezeigt Tage Vertretungsplan
+    'show_vertretungen_days' => env('Show_Days', 2),
+    'show_background' => env('BACKGROUND_IMAGE', ''),
 ];

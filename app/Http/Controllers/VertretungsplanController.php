@@ -27,14 +27,13 @@ class VertretungsplanController extends Controller
 
         $klassen= $klassen->pluck('id');
 
-
+        $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), Carbon::today()->addDays(config('config.show_vertretungen_days'))->format('Y-m-d')])->whereIn('klassen_id',$klassen)->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get();
+        $news = DailyNews::whereBetween('date_start', [Carbon::today()->format('Y-m-d'), Carbon::today()->addDays(config('config.show_vertretungen_days'))->format('Y-m-d')])
+            ->orWhereDate('date_end', '>=', Carbon::today()->addDays(config('config.show_vertretungen_days')))->orderBy('date_start')->get();
 
         return response()->view('vertretungsplan.index',[
-            'vertretungen_heute' => Vertretung::whereDate('date', '=', Carbon::today())->whereIn('klassen_id',$klassen)->orderBy('klassen_id')->orderBy('stunde')->get(),
-            'vertretungen_morgen' => Vertretung::whereDate('date', '=', Carbon::tomorrow())->whereIn('klassen_id',$klassen)->orderBy('klassen_id')->orderBy('stunde')->get(),
-            'news_heute'=> DailyNews::whereDate('date_start', '=', Carbon::today())->orWhereDate('date_end', '>=', Carbon::today())->orderBy('date_start')->get(),
-            'news_morgen'=> DailyNews::whereDate('date_start', '=', Carbon::tomorrow())->orWhereDate('date_end', '>=', Carbon::tomorrow())->orderBy('date_start')->get()
-
+            'vertretungen' => $vertretungen,
+            'news'          => $news
         ])
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'));

@@ -44,15 +44,26 @@
                        </div>
                    </div>
                    <div class="form-row">
-                       <div class="form-group">
-                           <label>Für welche Klassen?</label>
-                           <br>
-                           @foreach($klassen as $klasse)
-                                   <div>
-                                       <input type="checkbox" name="klassen[]" value="{{$klasse->id}}" id="checkbox{{$klasse->id}}"/>
-                                       <label for="checkbox{{$klasse->id}}" id="labelCheck{{$klasse->id}}">{{$klasse->name}}</label>
-                                   </div>
-                           @endforeach
+                       <div class="col-sm-12 col-md-6">
+                           <div class="form-group">
+                               <label>Für welche Klassen?</label>
+                               <br>
+                               @foreach($klassen as $klasse)
+                                       <div>
+                                           <input type="checkbox" name="klassen[]" value="{{$klasse->id}}" id="checkbox{{$klasse->id}}"/>
+                                           <label for="checkbox{{$klasse->id}}" id="labelCheck{{$klasse->id}}">{{$klasse->name}}</label>
+                                       </div>
+                               @endforeach
+                           </div>
+                       </div>
+                       <div class="col-sm-12 col-md-6">
+                           <div class="form-group">
+                               <label>Hat Zeitvorganben</label>
+                                <select name="hasDuration" class="custom-select">
+                                    <option value=1>Ja</option>
+                                    <option value=0 selected>Nein</option>
+                                </select>
+                           </div>
                        </div>
                    </div>
                    <div class="form-row">
