@@ -31,7 +31,7 @@
             <div class="card-header" id="heading{{$x}}">
                 <h6>
                     <button class="btn btn-link" data-toggle="collapse" data-target="#collapse{{$x}}" aria-expanded="true" aria-controls="collapse{{$x}}">
-                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::today()->addDays($x)->format('d.m.Y')}}
+                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::today()->addDays($x)->locale('de')->dayName}} {{\Carbon\Carbon::today()->addDays($x)->format('d.m.Y')}}
                     </button>
                 </h6>
             </div>
@@ -64,7 +64,7 @@
                                 </tr>
                             @endforeach
                             @foreach($news->filter(function ($news) use ($x) {
-                                if ($news->date_start->lessThanOrEqualTo(\Carbon\Carbon::today()->addDays($x)) and $news->date_end->greaterThanOrEqualTo(\Carbon\Carbon::today()->addDays($x))){
+                                if ($news->date_start->lessThanOrEqualTo(\Carbon\Carbon::today()->addDays($x)) and optional($news->date_end)->greaterThanOrEqualTo(\Carbon\Carbon::today()->addDays($x))){
                                     return $news;
                                 }
                             }) as $dailyNews)
