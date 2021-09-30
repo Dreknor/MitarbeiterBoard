@@ -34,16 +34,21 @@
                     </div>
                     <div id="collapse{{$x->format('Ymd')}}"  aria-labelledby="heading{{$x->format('Ymd')}}" >
                         <div class="card-body">
-                            <table class="table table-bordered table-striped">
-                                <thead>
-                                <tr>
-                                    <th>Datum</th>
-                                    <th>Stunde</th>
-                                    <th>Klasse</th>
-                                    <th>Fächer</th>
-                                    <th>Lehrer</th>
-                                    <th>Kommentar</th>
-                                </tr>
+                            <div class="">
+                                <table class="table table-bordered">
+                                <thead  class="thead-light">
+                                    <tr class="">
+                                        <th class="d-none d-lg-table-cell">Datum</th>
+                                        <th class="d-lg-table-cell">Stunde</th>
+                                        <th class="d-lg-table-cell">Klasse</th>
+                                        <th class="d-lg-table-cell">Fächer</th>
+                                        <th class="d-none d-lg-table-cell">Lehrer</th>
+                                        <th class="d-none d-lg-table-cell">Kommentar</th>
+                                    </tr>
+                                    <tr class="d-lg-none">
+                                        <th class="d-lg-table-cell">Lehrer</th>
+                                        <th class="d-lg-table-cell" colspan="2">Kommentar</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                 @foreach($vertretungen->filter(function ($vertretung) use ($x) {
@@ -51,28 +56,36 @@
                                         return $vertretung;
                                     }
                                 }) as $vertretung)
-                                    <tr>
-                                        <td>{{$vertretung->date->format('d.m.Y')}}</td>
-                                        <td>{{$vertretung->stunde}}</td>
-                                        <td>{{$vertretung->klasse->name}}</td>
-                                        <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                        <td>{{optional($vertretung->lehrer)->name}}</td>
-                                        <td>{{$vertretung->comment}}</td>
+                                    <tr @if(($loop->iteration-1)%2 == 0) class="bg-secondary text-white" @endif>
+                                        <td class="d-none d-lg-table-cell">{{$vertretung->date->format('d.m.Y')}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->stunde}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->klasse->name}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
+                                        <td class="d-none d-lg-table-cell">{{optional($vertretung->lehrer)->name}}</td>
+                                        <td class="d-none d-lg-table-cell">{{$vertretung->comment}}</td>
+                                    </tr>
+                                    <tr class="d-lg-none @if(($loop->iteration-1)%2 == 0) bg-secondary text-white @endif">
+                                        <td class="d-lg-table-cell">{{optional($vertretung->lehrer)->name}}</td>
+                                        <td class="d-lg-table-cell" colspan="2">{{$vertretung->comment}}</td>
                                     </tr>
                                 @endforeach
+                                <tr class="">
+
+                                </tr>
                                 @foreach($news->filter(function ($news) use ($x) {
                                     if (($news->date_start->lessThanOrEqualTo($x) and $news->date_end == null) or ($news->date_start->lessThanOrEqualTo($x) and $news->date_end->greaterThanOrEqualTo($x))){
                                         return $news;
                                     }
                                 }) as $dailyNews)
                                     <tr>
-                                        <td colspan="6">
+                                        <th colspan="6" class="border-outline-info">
                                             {{$dailyNews->news}}
-                                        </td>
+                                        </th>
                                     </tr>
                                 @endforeach
                                 </tbody>
                             </table>
+                            </div>
                     </div>
                     </div>
                 </div>
