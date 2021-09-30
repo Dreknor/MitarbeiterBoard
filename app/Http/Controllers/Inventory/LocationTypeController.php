@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createLocationTypeRequest;
-use App\Models\Inventory\Inventory\LocationType;
+use App\Models\Inventory\LocationType;
 use Illuminate\Http\Request;
 
 class LocationTypeController extends Controller
