@@ -28,6 +28,15 @@
                                                         </div>
                                                     @endif
                                                     {{$news->news}}
+                                                    <div class="pull-right">
+                                                        <form action="{{url('dailyNews/'.$news->id)}}" method="post" class="form-inline">
+                                                            @csrf
+                                                            @method('delete')
+                                                            <button type="submit" class="btn-link btn-danger">
+                                                                <i class="fa fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </li>
                                             @endforeach
                                         </ul>
