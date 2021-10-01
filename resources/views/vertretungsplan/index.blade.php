@@ -73,7 +73,7 @@
 
                                 </tr>
                                 @foreach($news->filter(function ($news) use ($x) {
-                                    if (($news->date_start->eq($x) and $news->date_end == null) or ($news->date_start->lessThanOrEqualTo($x) and $news->date_end->greaterThanOrEqualTo($x))){
+                                    if (($news->date_start->eq($x) and $news->date_end == null) or ($news->date_start->lessThanOrEqualTo($x) and $news->date_end != null and $news->date_end->greaterThanOrEqualTo($x))){
                                         return $news;
                                     }
                                 }) as $dailyNews)
