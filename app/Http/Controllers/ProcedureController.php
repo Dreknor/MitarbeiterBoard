@@ -16,8 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
-use Psy\Util\Str;
-use StepsUsers;
+
 
 class ProcedureController extends Controller
 {
@@ -246,7 +245,7 @@ class ProcedureController extends Controller
 
     public function remindStepMail()
     {
-        $steps = Procedure_Step::with(['users', 'procedure'])->where('endDate', '<=', now())->where('done', 0)->get();
+        $steps = Procedure_Step::with(['users', 'procedure'])->where('endDate', '<=', Carbon::now())->where('done', 0)->get();
 
         foreach ($steps as $step){
             foreach ($step->users as $user){
