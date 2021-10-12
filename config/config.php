@@ -21,4 +21,8 @@ return [
     //angezeigt Tage Vertretungsplan
     'show_vertretungen_days' => env('Show_Days', 2),
     'show_background' => env('BACKGROUND_IMAGE', ''),
+
+    //Schuljahresbeginn
+    'schuljahresbeginn' => (\Carbon\Carbon::now()->month >= 8) ? \Carbon\Carbon::parse(\Carbon\Carbon::now()->year.'-08-01') : \Carbon\Carbon::parse(\Carbon\Carbon::now()->subYear()->year.'-08-01')
+
 ];

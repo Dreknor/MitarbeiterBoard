@@ -89,6 +89,9 @@
                             </h6>
                         </div>
                         <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
+                            <div class="card-body " id="exportOld">
+                                @include('vertretungsplan.export')
+                            </div>
                             <div class="card-body">
                                 @foreach($vertretungen_alt->pluck('date')->unique() as $date )
                                     <p class="">
