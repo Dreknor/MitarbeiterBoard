@@ -37,6 +37,9 @@ class CreateVertretungRequest extends FormRequest
             'stunde' => [
                 'required','integer','min:0'
             ],
+            'Doppelstunde' => [
+                'nullable'
+            ],
             'comment' => [
                 'nullable','string'
             ],
