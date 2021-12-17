@@ -38,9 +38,8 @@
                                 <table class="table table-bordered">
                                 <thead  class="thead-light">
                                     <tr class="">
-                                        <th class="d-none d-lg-table-cell">Datum</th>
-                                        <th class="d-lg-table-cell">Stunde</th>
                                         <th class="d-lg-table-cell">Klasse</th>
+                                        <th class="d-lg-table-cell">Stunde</th>
                                         <th class="d-lg-table-cell">Fächer</th>
                                         <th class="d-none d-lg-table-cell">Lehrer</th>
                                         <th class="d-none d-lg-table-cell">Kommentar</th>
@@ -57,9 +56,8 @@
                                     }
                                 }) as $vertretung)
                                     <tr @if(($loop->iteration-1)%2 == 0) class="bg-secondary text-white" @endif>
-                                        <td class="d-none d-lg-table-cell">{{$vertretung->date->format('d.m.Y')}}</td>
-                                        <td class="d-lg-table-cell">{{$vertretung->stunde}}</td>
                                         <td class="d-lg-table-cell">{{$vertretung->klasse->name}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->stunde}}</td>
                                         <td class="d-lg-table-cell">{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
                                         <td class="d-none d-lg-table-cell">{{optional($vertretung->lehrer)->name}}</td>
                                         <td class="d-none d-lg-table-cell">{{$vertretung->comment}}</td>

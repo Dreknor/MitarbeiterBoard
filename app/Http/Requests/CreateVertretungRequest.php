@@ -44,10 +44,10 @@ class CreateVertretungRequest extends FormRequest
                 'nullable','string'
             ],
             'altFach' => [
-                'nullable','string'
+                'nullable','string', 'max:12'
             ],
             'neuFach' => [
-                'nullable','string'
+                'nullable','string', 'max:12'
             ],
 
         ];
