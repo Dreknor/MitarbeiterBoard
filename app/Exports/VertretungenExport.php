@@ -13,9 +13,9 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class VertretungenExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting
 {
-    private $startDate;
+    private String $startDate;
     private $endDate;
-    private $rows = 0;
+    private Int $rows = 0;
 
     public function __construct($startDate, $endDate=null)
     {
@@ -23,16 +23,16 @@ class VertretungenExport implements FromCollection, WithHeadings, WithMapping, W
         $this->endDate = $endDate;
     }
 
-    public function map($vertretung): array
+    public function map($row): array
     {
         return [
             ++$this->rows,
-            Date::dateTimeToExcel($vertretung->date),
-            $vertretung->klasse->name,
-            $vertretung->altFach,
-            $vertretung->neuFach,
-            optional($vertretung->lehrer)->name,
-            $vertretung->comment
+            Date::dateTimeToExcel($row->date),
+            $row->klasse->name,
+            $row->altFach,
+            $row->neuFach,
+            optional($row->lehrer)->name,
+            $row->comment
         ];
     }
 
