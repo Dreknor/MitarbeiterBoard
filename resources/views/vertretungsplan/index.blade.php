@@ -21,12 +21,12 @@
     @stack('css')
 
 </head>
-<body id="app-layout">
-<div class="main-panel" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
+<body id="">
+<div class="bg-secondary" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
 <div class="content">
         @for($x=Carbon\Carbon::today(); $x< $targetDate; $x->addDay())
             @if(!$x->isWeekend())
-                 <div class="card">
+                 <div class="card border border-dark">
                     <div class="card-header" id="heading{{$x->format('Ymd')}}">
                         <h6>
                              Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}}
