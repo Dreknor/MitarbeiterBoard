@@ -36,7 +36,7 @@
                                     </td>
                                     <td >
                                         @if(!is_null($vertretung->lehrer))
-                                            {{\Illuminate\Support\Str::limit(\Illuminate\Support\Str::after($vertretung->lehrer->name, ' '),5,'')}}
+                                            {{\Illuminate\Support\Str::limit(\Illuminate\Support\Str::after($vertretung->lehrer->name, ' '),4,'...')}}
                                         @endif
                                     </td>
                                     <td >
