@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DailyNewsController;
@@ -82,6 +83,15 @@ Route::group([
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
                 });
+
+                //absences
+                Route::middleware(['permission:view absences'])->group(function (){
+                    Route::post('absences', [AbsenceController::class, 'store']);
+                    Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
+                    Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
+                    //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);
+                });
+
 
                 //Inventar
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {

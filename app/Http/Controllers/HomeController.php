@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Absence;
 use App\Models\Group;
 use App\Models\Procedure_Step;
 use Carbon\Carbon;
@@ -49,11 +50,19 @@ class HomeController extends Controller
 
         $steps = auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get();
 
+        //absences
+        if (auth()->user()->can('view absences')){
+            $absences = Absence::whereDate('end', '>=', Carbon::now()->startOfDay())->orderBy('start')->get();
+        } else {
+            $absences = [];
+        }
+
         return view('home', [
             'groups'    => $groups,
             'tasks'     => $tasks,
             'colors'    => $colors,
             'steps' => $steps,
+            'absences' => $absences
         ]);
     }
 }

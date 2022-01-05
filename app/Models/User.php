@@ -24,7 +24,9 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now'
+    ];protected $visible = [
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now'
     ];
 
     /**
@@ -43,6 +45,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'absence_abo_daily' => 'boolean',
+        'absence_abo_now' => 'boolean'
     ];
 
     public function themes()
@@ -97,6 +101,7 @@ class User extends Authenticatable
     public function positions(){
         return $this->belongsToMany(Positions::class, 'position_user', 'user_id', 'position_id');
     }
+
 
 
 }

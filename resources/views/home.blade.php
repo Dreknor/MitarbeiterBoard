@@ -9,9 +9,16 @@
                 </h5>
             </p>
         </div>
+        @can('view absences')
+            <div class="row mt-1">
+                <div class="col-12">
+                    @include('absences.index')
+                </div>
+            </div>
+        @endcan
         <div class="row mt-2">
             <div class="col-sm-12 col-md-auto">
-                        <div class="card">
+                    <div class="card">
                             <div class="card-header">
                                 <h5 class="card-title">
                                     anstehende Aufgaben
@@ -50,50 +57,50 @@
                             </div>
                         </div>
             </div>
-                    @if(auth()->user()->can('view procedures'))
-                            <div class="col-sm-12 col-md-auto mt-2">
-                                <div class="container-fluid">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5 class="card-title">
-                                                offene Prozessschritte
-                                            </h5>
-                                        </div>
-                                        <div class="card-body">
-                                            @if($steps and $steps->count() > 0)
-                                                <ul class="list-group">
-                                                    @foreach($steps->sortByDate('endDate', 'desc') as $step)
-                                                        <li class="list-group-item">
-                                                            <b>
-                                                                {{$step->endDate->format('d.m.Y')}} - {{$step->name}}
-                                                            </b>
-                                                            <small>
-                                                                {{$step->procedure->name}}
-                                                            </small>
-                                                            <div class="pull-right ml-1">
-                                                                <a href="{{url('procedure/'.$step->procedure->id.'/start')}}">
-                                                                    <i class="fas fa-eye"></i> zum Prozess
-                                                                </a>
-                                                            </div>
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            @else
-                                                <p>
-                                                    Es stehen keine Aufgaben an
-                                                </p>
-                                            @endif
-                                        </div>
-                                    </div>
+            @if(auth()->user()->can('view procedures'))
+                    <div class="col-sm-12 col-md-auto mt-2">
+                        <div class="container-fluid">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        offene Prozessschritte
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    @if($steps and $steps->count() > 0)
+                                        <ul class="list-group">
+                                            @foreach($steps->sortByDate('endDate', 'desc') as $step)
+                                                <li class="list-group-item">
+                                                    <b>
+                                                        {{$step->endDate->format('d.m.Y')}} - {{$step->name}}
+                                                    </b>
+                                                    <small>
+                                                        {{$step->procedure->name}}
+                                                    </small>
+                                                    <div class="pull-right ml-1">
+                                                        <a href="{{url('procedure/'.$step->procedure->id.'/start')}}">
+                                                            <i class="fas fa-eye"></i> zum Prozess
+                                                        </a>
+                                                    </div>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    @else
+                                        <p>
+                                            Es stehen keine Aufgaben an
+                                        </p>
+                                    @endif
                                 </div>
                             </div>
-                    @endif
-
-                    @if(auth()->user()->kuerzel != "")
-                        <div class="col-sm-12 col-md-auto">
-                            @include('vertretungsplan.UserVertretungen')
                         </div>
-                    @endif
+                    </div>
+            @endif
+
+            @if(auth()->user()->kuerzel != "")
+                <div class="col-sm-12 col-md-auto">
+                    @include('vertretungsplan.UserVertretungen')
+                </div>
+            @endif
                 </div>
         </div>
 

@@ -36,4 +36,5 @@ class Vertretung extends Model
         return $this->attributes['stunde'];
     }
 
+
 }
