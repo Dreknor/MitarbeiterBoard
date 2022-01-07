@@ -81,6 +81,21 @@
                                         </th>
                                     </tr>
                                 @endforeach
+                                @if(!is_null($absences))
+                                    <tr>
+                                        <th colspan="6">
+                                            @if($absences->count() > 1)
+                                                Es fehlen:
+                                            @else
+                                                Es fehlt:
+                                            @endif
+
+                                            @foreach($absences as $absence)
+                                                {{$absence->user->name}}@if(!$loop->last),@endif
+                                            @endforeach
+                                        </th>
+                                    </tr>
+                                @endif
                                 </tbody>
                             </table>
                             </div>
