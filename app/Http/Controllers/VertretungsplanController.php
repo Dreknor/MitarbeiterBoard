@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Vertretung;
@@ -49,10 +50,19 @@ class VertretungsplanController extends Controller
 
         $news = DailyNews::whereDate('date_start', '<=', Carbon::today())->whereDate('date_end', '>=', Carbon::today())->whereDate('date_end', '<=', $targetDate)->orderBy('date_start')->get();
 
+        //Absences
+        $absences = Absence::whereDate('start', '<=', Carbon::today())
+            ->whereDate('end', '>=', Carbon::today())
+            ->whereHas('user', function ($query){
+            $query->whereNotNull('kuerzel');
+            })
+        ->get()->unique('users_id')->sortBy('user.name');
+
         return response()->view('vertretungsplan.index',[
             'vertretungen' => $vertretungen,
             'news'          => $news,
-            'targetDate' => $targetDate
+            'targetDate' => $targetDate,
+            'absences' => $absences
         ])
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'));
