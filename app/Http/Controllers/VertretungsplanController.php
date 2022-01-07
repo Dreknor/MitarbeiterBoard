@@ -47,7 +47,7 @@ class VertretungsplanController extends Controller
             ->orWhereDate('date_end', '>=', $targetDate->format('Y-m-d'))->orderBy('date_start')->get();
 */
 
-        $news = DailyNews::whereDate('date_start', '<=', Carbon::today())->whereDate('date_end', '>=', $targetDate)->whereDate('date_end', '<=', Carbon::today())->orderBy('date_start')->get();
+        $news = DailyNews::whereDate('date_start', '<=', Carbon::today())->whereDate('date_end', '>=', Carbon::today())->whereDate('date_end', '<=', $targetDate)->orderBy('date_start')->get();
 
         return response()->view('vertretungsplan.index',[
             'vertretungen' => $vertretungen,
