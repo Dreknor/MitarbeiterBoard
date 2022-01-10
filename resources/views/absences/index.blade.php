@@ -50,7 +50,7 @@
                                 {{$absence->user->name}}
                             </td>
                             <td>
-                                {{$absence->start->format('d.m.Y')}} - {{$absence->end->format('d.m.Y')}}
+                                {{$absence->start->format('d.m.Y')}} @if($absence->end->gt($absence->start))- {{$absence->end->format('d.m.Y')}}@endif
                             </td>
                             <td>
                                 {{$absence->reason}}
@@ -70,7 +70,7 @@
                                 {{$absence->user->name}}
                             </td>
                             <td>
-                                {{$absence->start->format('d.m.Y')}} - {{$absence->end->format('d.m.Y')}}
+                                {{$absence->start->format('d.m.Y')}} @if($absence->end->gt($absence->start))- {{$absence->end->format('d.m.Y')}}@endif
                             </td>
                             <td>
                                 {{$absence->reason}}
