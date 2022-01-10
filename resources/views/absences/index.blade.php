@@ -64,6 +64,27 @@
                             </td>
                         </tr>
                     @endforeach
+                    @foreach($oldAbsences as $absence)
+                        <tr class="border-info">
+                            <td>
+                                {{$absence->user->name}}
+                            </td>
+                            <td>
+                                {{$absence->start->format('d.m.Y')}} - {{$absence->end->format('d.m.Y')}}
+                            </td>
+                            <td>
+                                {{$absence->reason}}
+                            </td>
+                            <td>
+                                beendet
+                            </td>
+                        </tr>
+                    @endforeach
+                    <tr class="border-info">
+                        <td colspan="4">
+                            {{$oldAbsences->links()}}
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         @else

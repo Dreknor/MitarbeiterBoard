@@ -53,6 +53,7 @@ class HomeController extends Controller
         //absences
         if (auth()->user()->can('view absences')){
             $absences = Absence::whereDate('end', '>=', Carbon::now()->startOfDay())->orderBy('start')->get();
+            $oldAbsences = Absence::whereDate('end', '<', Carbon::now()->startOfDay())->orderBy('start')->paginate();
         } else {
             $absences = [];
         }
@@ -62,7 +63,8 @@ class HomeController extends Controller
             'tasks'     => $tasks,
             'colors'    => $colors,
             'steps' => $steps,
-            'absences' => $absences
+            'absences' => $absences,
+            'oldAbsences' => $oldAbsences,
         ]);
     }
 }
