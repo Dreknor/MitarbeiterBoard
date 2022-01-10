@@ -65,7 +65,7 @@
                         </tr>
                     @endforeach
                     @foreach($oldAbsences as $absence)
-                        <tr class="border-info">
+                        <tr class="border border-info">
                             <td>
                                 {{$absence->user->name}}
                             </td>
