@@ -50,7 +50,7 @@ class CreateVertretungRequest extends FormRequest
                 'nullable','string', 'max:12'
             ],
             'type' => [
-                'string', 'required', 'max:32'
+                'string', 'nullable', 'max:32'
             ]
 
         ];
