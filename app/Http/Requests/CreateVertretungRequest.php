@@ -49,6 +49,9 @@ class CreateVertretungRequest extends FormRequest
             'neuFach' => [
                 'nullable','string', 'max:12'
             ],
+            'type' => [
+                'string', 'required', 'max:32'
+            ]
 
         ];
     }

@@ -11,8 +11,8 @@ class Vertretung extends Model
 
     protected $table = 'vertretungen';
 
-    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach', 'Doppelstunde'];
-    protected $visible = ['date', 'stunde', 'Doppelstunde', 'comment', 'altFach', 'neuFach'];
+    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach', 'Doppelstunde', 'type'];
+    protected $visible = ['date', 'stunde', 'Doppelstunde', 'comment', 'altFach', 'neuFach', 'type'];
 
     protected $casts =[
         'date'=> 'date',

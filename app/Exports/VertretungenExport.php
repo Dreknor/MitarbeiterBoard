@@ -28,6 +28,7 @@ class VertretungenExport implements FromCollection, WithHeadings, WithMapping, W
         return [
             ++$this->rows,
             Date::dateTimeToExcel($row->date),
+            $row->type,
             $row->klasse->name,
             $row->stunde,
             $row->Doppelstunde,
@@ -43,6 +44,7 @@ class VertretungenExport implements FromCollection, WithHeadings, WithMapping, W
         return [
             '#',
             'Datum',
+            'Typ',
             'Klasse',
             'Stunde',
             'Doppelstunde',

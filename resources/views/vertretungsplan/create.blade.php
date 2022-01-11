@@ -11,7 +11,22 @@
                         <input type="date" min="{{\Carbon\Carbon::today()}}" id="date" name="date" required class="form-control" value="{{old('date')}}">
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-3 col-lg-4">
+                <div class="col-sm-12 col-md-2 col-lg-3">
+                    <div class="form-group">
+                        <label for="type">
+                            Typ
+                        </label>
+                        <select name="type" id="type" class="custom-select" >
+                            <option></option>
+                            <option value="Ausfall">Ausfall</option>
+                            <option value="Vertretung (fachgerecht)">Vertretung (Fachgerecht)</option>
+                            <option value="Vertretung (fachfremd)">Vertretung (Fachfremd)</option>
+                            <option value="Aufgaben">Aufgaben</option>
+                            <option value="Sonstiges">Sonstiges</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-2 col-lg-3">
                     <div class="form-group">
                         <label for="lehrer">
                             neuer Lehrer
@@ -24,7 +39,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-3 col-lg-5">
+                <div class="col-sm-12 col-md-2 col-lg-3">
                     <div class="form-group">
                         <label for="klasse">
                             Klasse
