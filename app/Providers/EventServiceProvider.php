@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
 use App\Listeners\LogEmail;
+use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -46,12 +47,14 @@ class EventServiceProvider extends ServiceProvider
                 'assertion' => $user->getRawSamlAssertion()
             ];
 
-            ddd($userData);
-            /*
-            $laravelUser = //find user by ID or attribute
+
+            $laravelUser = User::where('email', $userData['attributes']['mailPrimaryAddress'])->first();
+            if (!is_null($laravelUser)){
+                Auth::login($laravelUser);
+            }
                 //if it does not exist create it and go on  or show an error message
-                //Auth::login($laravelUser);
-            */
+                //
+
         });
     }
 }
