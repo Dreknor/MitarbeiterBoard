@@ -10,6 +10,15 @@
                         SSO
                     </a>
                 </div>
+                @if(session()->has('saml2_error_detail'))
+                    <div class="card-body">
+                        @foreach(session('saml2_error_detail') as $error)
+                            <p class="text-danger">
+                                {{$error}}
+                            </p>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
         <div class="col-md-8">
