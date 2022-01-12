@@ -33,8 +33,8 @@ return $settings = array(
 
         // Usually x509cert and privateKey of the SP are provided by files placed at
         // the certs folder. But we can also provide them with the following parameters
-        'x509cert' => env('SAML2_'.$this_idp_env_id.'_SP_x509',''),
-        'privateKey' => env('SAML2_'.$this_idp_env_id.'_SP_PRIVATEKEY',''),
+        'x509cert' => trim(str_replace(array("\r", "\n"), "", env('SAML2_'.$this_idp_env_id.'_SP_x509',''))),
+        'privateKey' => trim(str_replace(array("\r", "\n"), "", env('SAML2_'.$this_idp_env_id.'_SP_PRIVATEKEY',''))),
 
         // Identifier (URI) of the SP entity.
         // Leave blank to use the '{idpName}_metadata' route, e.g. 'test_metadata'.

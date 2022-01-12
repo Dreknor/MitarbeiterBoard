@@ -1,6 +1,11 @@
 <?php
 return [
 
+    'auth' => [
+        'saml2' => env("SAML2_ENABLE",false),
+        'saml2_btn' => env("SAML2_BUTTON_TEXT",'SSO - Login'),
+    ],
+
     'themes'    => [
         'addDays'   => (is_numeric(env('THEME_MIN_DAYS_BEFORE_MEETING'))) ? env('THEME_MIN_DAYS_BEFORE_MEETING') : 3,
         'defaultDay'    => env('DEFAULT_WEEKDAY', 'Monday'),
