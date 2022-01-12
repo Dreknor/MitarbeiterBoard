@@ -53,7 +53,7 @@ class EventServiceProvider extends ServiceProvider
             if (!is_null($laravelUser)){
                 Auth::login($laravelUser);
                 session()->regenerate();
-
+ddd(session());
                 return redirect(url('/'));
             }
                 //if it does not exist create it and go on  or show an error message
