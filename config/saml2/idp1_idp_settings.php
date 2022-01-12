@@ -162,6 +162,11 @@ return $settings = array(
             'displayname' => 'Display Name',
             'url' => 'http://url'
         ),
+        'de-DE' => array(
+            'name' => 'Name',
+            'displayname' => 'Display Name',
+            'url' => 'http://url'
+        ),
     ),
 
 /* Interoperable SAML 2.0 Web Browser SSO Profile [saml2int]   http://saml2int.org/profile/current
