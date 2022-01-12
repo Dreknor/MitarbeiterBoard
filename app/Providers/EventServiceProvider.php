@@ -49,8 +49,9 @@ class EventServiceProvider extends ServiceProvider
 
 
             $laravelUser = User::where('email', $userData['attributes']['mailPrimaryAddress'])->first();
-            dd($laravelUser);
+
             if (!is_null($laravelUser)){
+                Auth::login($laravelUser);
                 session()->regenerate();
 
                 return redirect(url('/'));
