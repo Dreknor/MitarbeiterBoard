@@ -89,8 +89,11 @@
                                             @else
                                                 Es fehlt:
                                             @endif
-
-                                            @foreach($absences as $absence)
+                                                @foreach($absences->filter(function ($absence) use ($x) {
+                                                    if ($absence->start->lte($x) and $absence->end->gte($x)){
+                                                        return $absence;
+                                                    }
+                                                }) as $absence)
                                                 {{$absence->user->name}}@if(!$loop->last),@endif
                                             @endforeach
                                         </th>
