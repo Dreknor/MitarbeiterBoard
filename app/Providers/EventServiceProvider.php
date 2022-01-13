@@ -5,6 +5,7 @@ namespace App\Providers;
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
 use App\Listeners\LogEmail;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -72,7 +73,7 @@ class EventServiceProvider extends ServiceProvider
                     'email' => $userData['attributes']['mailPrimaryAddress'][0],
                     'username' => $userData['attributes']['uid'][0],
                     'name' => $userData['attributes']['givenName'][0].' '.$userData['attributes']['sn'][0],
-                    'password' => Hash::make(Str::random(16)),
+                    'password' => Hash::make(Carbon::now()->format('dmY')),
                     'changePassword' => 1
                 ]);
 
