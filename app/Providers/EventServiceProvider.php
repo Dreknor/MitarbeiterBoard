@@ -58,7 +58,7 @@ class EventServiceProvider extends ServiceProvider
                 if ($laravelUser->username == "")
                 {
                     $laravelUser->update([
-                        'username' => $userData['attributes']['uid']
+                        'username' => $userData['attributes']['uid'][0]
                     ]);
                 }
 
@@ -66,7 +66,7 @@ class EventServiceProvider extends ServiceProvider
             } else {
                 $laravelUser = new User([
                     'email' => $userData['attributes']['mailPrimaryAddress'],
-                    'username' => $userData['attributes']['uid'],
+                    'username' => $userData['attributes']['uid'][0],
                     'name' => $userData['attributes']['givenName'].' '.$userData['attributes']['sn'],
                     'password' => Hash::make(Str::random(16)),
                     'changePassword' => 1
