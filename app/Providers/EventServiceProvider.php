@@ -71,7 +71,7 @@ class EventServiceProvider extends ServiceProvider
                 $laravelUser = new User([
                     'email' => $userData['attributes']['mailPrimaryAddress'],
                     'username' => $userData['attributes']['uid'][0],
-                    'name' => $userData['attributes']['givenName'].' '.$userData['attributes']['sn'],
+                    'name' => $userData['attributes']['givenName'][0].' '.$userData['attributes']['sn'][0],
                     'password' => Hash::make(Str::random(16)),
                     'changePassword' => 1
                 ]);
