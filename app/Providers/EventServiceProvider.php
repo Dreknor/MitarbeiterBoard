@@ -76,7 +76,6 @@ class EventServiceProvider extends ServiceProvider
                     'changePassword' => 1
                 ]);
 
-                $laravelUser->save();
             }
 
             Auth::loginUsingId($laravelUser->id);
