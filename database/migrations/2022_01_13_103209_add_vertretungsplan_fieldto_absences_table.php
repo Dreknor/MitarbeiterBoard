@@ -13,7 +13,7 @@ class AddVertretungsplanFieldtoAbsencesTable extends Migration
      */
     public function up()
     {
-        \Illuminate\Support\Facades\DB::table('absences', function (Blueprint $table){
+        Schema::table('absences', function (Blueprint $table) {
            $table->boolean('showVertretungsplan')->default(0);
         });
     }
