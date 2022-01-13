@@ -60,6 +60,10 @@ class EventServiceProvider extends ServiceProvider
                     $laravelUser->update([
                         'username' => $userData['attributes']['uid'][0]
                     ]);
+                } elseif ($laravelUser->username == $userData['attributes']['uid'] and $laravelUser->email != $userData['attributes']['mailPrimaryAddress']){
+                    $laravelUser->update([
+                        'email' => $userData['attributes']['mailPrimaryAddress']
+                    ]);
                 }
 
 
