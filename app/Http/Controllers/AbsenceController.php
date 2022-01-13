@@ -14,13 +14,23 @@ use Illuminate\Support\Facades\Mail;
 class AbsenceController extends Controller
 {
     public function store(CreateAbsenceRequest $request){
-        $absence = new Absence($request->validated());
-        if (!auth()->user()->can('create absences')){
-            $absence->users_id = auth()->id();
-        }
-        $absence->save();
 
-        $users = User::where('absence_abo_now', 1)->get();
+        $absence = Absence::whereDate('end', '>=', $request->start)->where('users_id', $request->users->id)->first();
+
+        if (is_null($absence)){
+            $absence = new Absence($request->validated());
+            if (!auth()->user()->can('create absences')){
+                $absence->users_id = auth()->id();
+            }
+            $absence->save();
+
+            $users = User::where('absence_abo_now', 1)->get();
+        } else {
+            $absence->update([
+                'end' => $request->end
+            ]);
+        }
+
 
         foreach ($users as $user){
             $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
