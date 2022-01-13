@@ -28,7 +28,8 @@ class CreateAbsenceRequest extends FormRequest
             'reason' => ['required', 'string', 'max:64'],
             'start'=> ['required', 'date'],
             'end'=> ['required', 'date'],
-            'before' => ['nullable', 'exists:absences,id']
+            'before' => ['nullable', 'exists:absences,id'],
+            'showVertretungsplan' => ['nullable','integer', 'min:0', 'max:1'],
         ];
     }
 }

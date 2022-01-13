@@ -120,7 +120,18 @@
                     <label>Bis</label>
                     <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
                 </div>
+            </div>
+            <div class="form-row mt-1">
                 <div class=" col-md-4 col-sm-12">
+                    <label>
+                        Anzeige Vertretungsplan
+                    </label>
+                    <select name="showVertretungsplan" class="custom-select">
+                            <option value="1">anzeigen</option>
+                            <option value="0">nicht anzeigen</option>
+                    </select>
+                </div>
+                <div class=" col-md-8 col-sm-12">
                     <label>Grund</label>
                     <input type="text" name="reason" class="form-control" value="{{old('reason', 'krank')}}" required>
                 </div>
@@ -135,6 +146,7 @@
 @push('js')
     <script type="text/javascript">
         $('#addAbsenceLink').on('click', function (ev){
+            ev.preventDefault();
             $('#absenceForm').removeClass('d-none')
             ev.target.classList.add('d-none')
         })

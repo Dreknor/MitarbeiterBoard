@@ -56,6 +56,7 @@ class VertretungsplanController extends Controller
             ->whereHas('user', function ($query){
             $query->whereNotNull('kuerzel');
             })
+            ->where('showVertretungsplan',1)
         ->get()->unique('users_id')->sortBy('user.name');
 
         return response()->view('vertretungsplan.index',[

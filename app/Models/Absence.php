@@ -10,11 +10,12 @@ class Absence extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before'];
+    protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan'];
 
     protected $casts = [
         'start' =>  'date',
-        'end' =>  'date'
+        'end' =>  'date',
+        'showVertretungsplan' =>  'boolean',
     ];
 
     protected static function boot()
