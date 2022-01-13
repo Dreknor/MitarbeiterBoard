@@ -56,6 +56,7 @@ class HomeController extends Controller
             $oldAbsences = Absence::whereDate('end', '>=', Carbon::now()->subWeek()->startOfDay())->orderBy('start')->paginate(5);
         } else {
             $absences = [];
+            $oldAbsences = [];
         }
 
         return view('home', [
