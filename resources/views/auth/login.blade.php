@@ -8,7 +8,7 @@
             <div class="card">
                 <div class="card-body">
                     <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
-                        {{config('config.auth.saml2.saml2_btn')}}
+                        {{config('config.auth.saml2_btn')}}
                     </a>
                 </div>
                 @if(session()->has('saml2_error_detail'))

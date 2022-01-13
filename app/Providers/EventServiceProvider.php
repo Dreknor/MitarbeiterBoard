@@ -11,6 +11,8 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -48,18 +50,36 @@ class EventServiceProvider extends ServiceProvider
             ];
 
 
-            $laravelUser = User::where('email', $userData['attributes']['mailPrimaryAddress'])->first();
+            $laravelUser = User::where('username', $userData['attributes']['uid'])
+                ->orWhere('email', $userData['attributes']['mailPrimaryAddress'])
+                ->first();
 
             if (!is_null($laravelUser)){
-                Auth::loginUsingId($laravelUser->id);
+                if (is_null($laravelUser->username))
+                {
+                    $laravelUser->update([
+                        'username' => $userData['attributes']['uid']
+                    ]);
+                }
 
-                session()->regenerate();
 
-                return redirect(url('/'));
+            } else {
+                $laravelUser = new User([
+                    'email' => $userData['attributes']['mailPrimaryAddress'],
+                    'username' => $userData['attributes']['uid'],
+                    'name' => $userData['attributes']['givenName'].' '.$userData['attributes']['sn'],
+                    'password' => Hash::make(Str::random(16)),
+                    'changePassword' => 1
+                ]);
+
+                $laravelUser->save();
             }
-                //if it does not exist create it and go on  or show an error message
-                //
 
+            Auth::loginUsingId($laravelUser->id);
+
+            session()->regenerate();
+
+            return redirect(url('/'));
         });
     }
 }
