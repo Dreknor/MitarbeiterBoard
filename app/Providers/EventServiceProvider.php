@@ -50,8 +50,8 @@ class EventServiceProvider extends ServiceProvider
             ];
 
 
-            $laravelUser = User::where('username', $userData['attributes']['uid'])
-                ->orWhere('email', $userData['attributes']['mailPrimaryAddress'])
+            $laravelUser = User::where('username', $userData['attributes']['uid'][0])
+                ->orWhere('email', $userData['attributes']['mailPrimaryAddress'][0])
                 ->first();
 
             if (!is_null($laravelUser)){
@@ -62,21 +62,20 @@ class EventServiceProvider extends ServiceProvider
                     ]);
                 } elseif ($laravelUser->username == $userData['attributes']['uid'] and $laravelUser->email != $userData['attributes']['mailPrimaryAddress']){
                     $laravelUser->update([
-                        'email' => $userData['attributes']['mailPrimaryAddress']
+                        'email' => $userData['attributes']['mailPrimaryAddress'][0]
                     ]);
                 }
 
 
             } else {
                 $laravelUser = new User([
-                    'email' => $userData['attributes']['mailPrimaryAddress'],
+                    'email' => $userData['attributes']['mailPrimaryAddress'][0],
                     'username' => $userData['attributes']['uid'][0],
                     'name' => $userData['attributes']['givenName'][0].' '.$userData['attributes']['sn'][0],
                     'password' => Hash::make(Str::random(16)),
                     'changePassword' => 1
                 ]);
 
-                ddd($laravelUser);
                 $laravelUser->save();
 
             }
