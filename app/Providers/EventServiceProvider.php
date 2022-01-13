@@ -75,6 +75,7 @@ class EventServiceProvider extends ServiceProvider
                     'password' => Hash::make(Str::random(16)),
                     'changePassword' => 1
                 ]);
+                $laravelUser->save();
 
             }
 
