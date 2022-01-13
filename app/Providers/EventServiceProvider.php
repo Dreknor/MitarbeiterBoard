@@ -55,7 +55,7 @@ class EventServiceProvider extends ServiceProvider
                 ->first();
 
             if (!is_null($laravelUser)){
-                if (is_null($laravelUser->username))
+                if ($laravelUser->username == "")
                 {
                     $laravelUser->update([
                         'username' => $userData['attributes']['uid']
