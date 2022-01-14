@@ -64,6 +64,30 @@
                             </td>
                         </tr>
                     @endforeach
+                </tbody>
+            </table>
+            @can('view old absences')
+                <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th colspan="4">
+                        abgelaufene Abwesenheiten
+                    </th>
+                </tr>
+                <tr>
+                    <th>
+                        Name
+                    </th>
+                    <th>
+                        Zeitraum
+                    </th>
+                    <th>
+                        Grund
+                    </th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
                     @foreach($oldAbsences as $absence)
                         <tr class="border border-info">
                             <td>
@@ -87,6 +111,7 @@
                     </tr>
                 </tbody>
             </table>
+            @endcan
         @else
             Keine Abwesenheiten vorhanden
         @endif

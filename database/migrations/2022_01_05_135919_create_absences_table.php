@@ -34,6 +34,10 @@ class CreateAbsencesTable extends Migration
             'guard_name'=>'web'
         ]);
         \Illuminate\Support\Facades\DB::table('permissions')->insert([
+            'name' => 'view old absences',
+            'guard_name'=>'web'
+        ]);
+        \Illuminate\Support\Facades\DB::table('permissions')->insert([
             'name' => 'create absences',
             'guard_name'=>'web'
         ]);
