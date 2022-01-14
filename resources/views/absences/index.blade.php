@@ -50,6 +50,9 @@
                                 {{$absence->user->name}}
                             </td>
                             <td>
+                                @if($absence->showVertretungsplan)
+                                    <i class="fas fa-columns text-info" title="Anzeige auf Vertretungsplan"></i>
+                                @endif
                                 {{$absence->start->format('d.m.Y')}} @if($absence->end->gt($absence->start))- {{$absence->end->format('d.m.Y')}}@endif
                             </td>
                             <td>
