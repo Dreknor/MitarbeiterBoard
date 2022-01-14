@@ -2,6 +2,7 @@
 return [
 
     'auth' => [
+        'auth_local' => env('AUTH_LOCAL', true),
         'saml2' => env("SAML2_ENABLE",false),
         'saml2_btn' => env("SAML2_BUTTON_TEXT",'SSO - Login'),
     ],

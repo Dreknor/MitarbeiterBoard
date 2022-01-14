@@ -257,4 +257,16 @@ class ProcedureController extends Controller
 
 
     }
+
+    public function endProcedure(Procedure $procedure){
+        $procedure->steps()->where('done', '=',0)->update(['done' => 1]);
+        $procedure->update([
+            'ended_at' => Carbon::now()
+        ]);
+
+        return redirect()->back()->with([
+            'type' => 'warning',
+            'Meldung' => 'Prozess'. $procedure->name.' wurde beendet'
+        ]);
+    }
 }

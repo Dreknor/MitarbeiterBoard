@@ -40,8 +40,15 @@ use App\Http\Controllers\ShareController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+if (config('config.auth.auth_local')){
+    Auth::routes(['register' => false]);
+} else {
+    Auth::routes(['register' => false]);
+    Route::post('login', function(){
+        return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
+        });
 
-Auth::routes(['register' => false]);
+}
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
@@ -225,6 +232,7 @@ Route::group([
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
                     Route::get('{procedure}/edit', [ProcedureController::class, 'edit']);
                     Route::get('{procedure}/start', [ProcedureController::class, 'start']);
+                    Route::get('{procedure}/ends', [ProcedureController::class, 'endProcedure']);
                     Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
                     Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
                     Route::delete('step/{step}/delete', [ProcedureController::class, 'destroy']);

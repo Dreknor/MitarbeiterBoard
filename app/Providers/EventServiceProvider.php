@@ -73,8 +73,8 @@ class EventServiceProvider extends ServiceProvider
                     'email' => $userData['attributes']['mailPrimaryAddress'][0],
                     'username' => $userData['attributes']['uid'][0],
                     'name' => $userData['attributes']['givenName'][0].' '.$userData['attributes']['sn'][0],
-                    'password' => Hash::make(Carbon::now()->format('dmY')),
-                    'changePassword' => 1
+                    'password' => Hash::make(Str::random()),
+                    'changePassword' => 0
                 ]);
 
                 $laravelUser->save();
