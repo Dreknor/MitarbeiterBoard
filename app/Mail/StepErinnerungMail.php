@@ -12,26 +12,18 @@ class StepErinnerungMail extends Mailable
     use Queueable, SerializesModels;
 
     public $name;
-    public $date;
-    public $procedure;
-    public $procedureId;
-    public $step;
-    public $stepId;
-    public $group;
+    public $steps;
+
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($name, $date, $procedureName, $procedureId, $step, $stepId)
+    public function __construct($name, Array $steps)
     {
         $this->name = $name;
-        $this->date = $date;
-        $this->procedure = $procedureName;
-        $this->procedureId = $procedureId;
-        $this->step = $step;
-        $this->stepId = $stepId;
+        $this->steps = $steps;
     }
 
     /**
@@ -43,11 +35,7 @@ class StepErinnerungMail extends Mailable
     {
         return $this->subject('Ausstehender Auftrag')->view('mails.remindStepMail', [
             'name' =>$this->name,
-            'date' =>$this->date,
-            'procedure' =>$this->procedure,
-            'procedureID' =>$this->procedureId,
-            'step' =>$this->step,
-            'stepId' =>$this->stepId,
+            'steps' =>$this->steps,
         ]);
     }
 }
