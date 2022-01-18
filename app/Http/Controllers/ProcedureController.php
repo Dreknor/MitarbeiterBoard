@@ -264,8 +264,7 @@ class ProcedureController extends Controller
                 ];
             }
 
-            dump($step_array);
-            //Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
+            Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
 
             return '';
         }

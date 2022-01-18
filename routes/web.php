@@ -50,8 +50,6 @@ if (config('config.auth.auth_local')){
 
 }
 
-Route::get('testMail', [\App\Http\Controllers\ProcedureController::class, 'remindStepMail']);
-
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
