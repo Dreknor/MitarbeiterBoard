@@ -94,7 +94,7 @@
                                                         return $absence;
                                                     }
                                                 }) as $absence)
-                                                {{$absence->user->name}}@if(!$loop->last),@endif
+                                                {{$absence->user->shortname}}@if(!$loop->last),@endif
                                             @endforeach
                                         </th>
                                     </tr>
