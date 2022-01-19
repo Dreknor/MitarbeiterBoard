@@ -5,10 +5,13 @@ namespace App\Models;
 use App\Mail\newProtocolForTask;
 use App\Mail\NewThemeMail;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Mail;
 
 class Protocol extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['theme_id', 'creator_id', 'protocol', 'created_at', 'updated_at'];
 
     public function ersteller()
