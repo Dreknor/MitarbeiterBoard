@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
 use App\Listeners\LogEmail;
+use App\Models\Group;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
@@ -78,6 +79,11 @@ class EventServiceProvider extends ServiceProvider
                 ]);
 
                 $laravelUser->save();
+
+                if (config('config.auth.set_groups') != "" and is_array(config('config.auth.set_groups') )){
+                    $groups = Group::whereIn('name', config('config.auth.set_groups'))->get();
+                    $laravelUser->groups_rel()->attach($groups);
+                }
 
             }
 
