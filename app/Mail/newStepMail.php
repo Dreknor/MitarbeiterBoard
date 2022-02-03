@@ -15,14 +15,14 @@ class newStepMail extends Mailable
     public $procedure;
     public $date;
     public $step;
-    public $procedure_id;
+    private Int $procedure_id;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($name, $date, $step, $procedure, $procedure_id)
+    public function __construct(String $name, String $date, String $step, String $procedure, Int $procedure_id)
     {
         $this->name = $name;
         $this->date = $date;
