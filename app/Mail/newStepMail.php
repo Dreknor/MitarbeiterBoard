@@ -15,18 +15,20 @@ class newStepMail extends Mailable
     public $procedure;
     public $date;
     public $step;
+    public $procedure_id;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($name, $date, $step, $procedure)
+    public function __construct($name, $date, $step, $procedure, $procedure_id)
     {
         $this->name = $name;
         $this->date = $date;
         $this->step = $step;
         $this->procedure = $procedure;
+        $this->procedure_id = $procedure_id;
     }
 
     /**
@@ -41,6 +43,7 @@ class newStepMail extends Mailable
             'date' =>$this->date,
             'step' =>$this->step,
             'procedure' =>$this->procedure,
+            'procedure_id'  => $this->procedure_id
         ]);
     }
 }
