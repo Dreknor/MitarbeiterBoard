@@ -259,7 +259,6 @@ class ProtocolController extends Controller
             'borderSize'=> 1,
             'borderRightSize'=> 1,
             'borderColor'=> 'black',
-            'bgColor' => ''
         ];
 
         $fontStyle = [
@@ -330,8 +329,8 @@ class ProtocolController extends Controller
 
 
             $table->addRow(null, ['cantSplit'=> true]);
-            $table->addCell(3000)->addText($theme->theme, $paragraphStyle, $fontStyle);
-            $cell = $table->addCell(6000);
+            $table->addCell(3000, ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
+            $cell = $table->addCell(6000, ['borderSize' => 1]);
             foreach ($protocols as $protocol){
                 $string = str_replace(' & ', ' und ',$protocol->protocol);
                 \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );
