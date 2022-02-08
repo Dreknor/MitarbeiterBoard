@@ -234,8 +234,8 @@ class ProtocolController extends Controller
         $header = $section->addHeader();
         $table = $header->addTable();
         $table->addRow();
-        $cell = $table->addCell(8000)->addText('Protokoll', ['bold'=>true,'size'=>25]);
-        $table->addCell(1000)->addImage(asset('img/logo.png'), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
+        $table->addCell(8000)->addText('Protokoll', ['bold'=>true,'size'=>25]);
+        $table->addCell(1000)->addImage(asset('img/'.config('app.logo')), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
 
         // Add footer
         $footer = $section->addFooter();
@@ -323,18 +323,19 @@ class ProtocolController extends Controller
                         return $protocol;
                     }
                 }
-
             });
 
+            if ($protocols->count()>0){
+                $table->addRow(null, ['cantSplit'=> true]);
+                $table->addCell(Converter::cmToTwip(4), ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
+                $cell = $table->addCell(Converter::cmToTwip(13), ['borderSize' => 1]);
+                foreach ($protocols as $protocol){
+                    $string = str_replace(' & ', ' und ',$protocol->protocol);
+                    \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );
+                }
+                //$table->addCell(1750, $cellStyleRightBottom)->addText('');
 
-            $table->addRow(null, ['cantSplit'=> true]);
-            $table->addCell(Converter::cmToTwip(4), ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
-            $cell = $table->addCell(Converter::cmToTwip(13), ['borderSize' => 1]);
-            foreach ($protocols as $protocol){
-                $string = str_replace(' & ', ' und ',$protocol->protocol);
-                \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );
             }
-            //$table->addCell(1750, $cellStyleRightBottom)->addText('');
 
         }
 
