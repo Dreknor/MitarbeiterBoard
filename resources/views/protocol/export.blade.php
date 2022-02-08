@@ -21,14 +21,9 @@
             <div class="card-header">
                 <h5 class="card-title">
                     Protokolle der Gruppe {{request()->segment(1)}} vom {{$date->format('d.m.Y')}}
-                    <div class="d-inline pull-right">
-                        <a href="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/download')}}">
-                            <i class="fas fa-file-word"></i>
-                        </a>
-                    </div>
                 </h5>
-
             </div>
+
             <div class="card-body">
                 <table class="table table-bordered table-striped">
                     <thead>
@@ -72,7 +67,10 @@
                                 @foreach($theme->protocols->filter(function ($value) use ($date){
                                     return $value->created_at->format('Y-m-d') == $date->format('Y-m-d');
                                 })  as $protocol)
-                                    {!! $protocol->protocol !!}
+                                    <p>
+                                        {!! $protocol->protocol !!}
+                                    </p>
+
                                 @endforeach
                             </td>
                             <td>
@@ -90,6 +88,46 @@
                     @endforeach
                     </tbody>
                 </table>
+            </div>
+            <div class="card-footer border border-info">
+                <h6>Protokolle exportieren</h6>
+                <p>
+                    Zusätzliche Protokollearten auswählen
+                </p>
+                <form action="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/download')}}" method="post">
+                    @csrf
+
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="closed">
+                                <input type="checkbox" name="closed" class="custom-checkbox" checked>
+                                Thema geschlossen
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="changed">
+                                <input type="checkbox" name="changed" class="custom-checkbox" checked>
+                                Thema verschoben
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="memory">
+                                <input type="checkbox" name="memory" class="custom-checkbox checkbox" checked>
+                                Änderung Themenspeicher
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <button type="submit" class="btn btn-success"> exportieren</button>
+                    </div>
+
+                </form>
             </div>
         </div>
 

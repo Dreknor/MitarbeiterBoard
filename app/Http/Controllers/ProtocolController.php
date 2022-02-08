@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\Style\Language;
 use PhpOffice\PhpWord\Style\Table;
@@ -182,8 +183,12 @@ class ProtocolController extends Controller
     /**
      * make paper protocol
      */
-    public function createSheet($groupname, $date = '')
+    public function createSheet(Request $request, $groupname, $date = '')
     {
+        ($request->closed == "on")? $closed = true : $closed=false;
+        ($request->changed == "on")? $changed = true : $changed=false;
+        ($request->memory == "on")? $memory = true : $memory=false;
+
         $group = Group::where('name', $groupname)->first();
 
         if (! auth()->user()->groups()->contains($group)) {
@@ -210,7 +215,10 @@ class ProtocolController extends Controller
 
 
         $sectionStyle = array(
-            'marginTop' => 400,
+            'marginTop' => Converter::cmToTwip(3),
+            'marginLeft' => Converter::cmToTwip(2),
+            'marginRight' => Converter::cmToTwip(2),
+            'marginBottom' => Converter::cmToTwip(1.5)
         );
 
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
@@ -240,27 +248,6 @@ class ProtocolController extends Controller
             'valign'=> 'center',
         ];
 
-        $cellStyleBorderBottom = [
-            'valign' => 'center',
-            'borderSize'=> 1,
-            'borderColor'=> 'black',
-            'bgColor' => ''
-        ];
-
-        $cellStyleLeftBottom = [
-            'valign'=> 'center',
-            'borderSize'=> 1,
-            'borderLeftSize'=> 1,
-            'borderColor'=> 'black',
-            'bgColor' => ''
-        ];
-        $cellStyleRightBottom = [
-            'valign'=> 'center',
-            'borderSize'=> 1,
-            'borderRightSize'=> 1,
-            'borderColor'=> 'black',
-        ];
-
         $fontStyle = [
             'align' => 'center',
         ];
@@ -276,61 +263,73 @@ class ProtocolController extends Controller
         $TableStyle = array(
             'cellMargin' => 80,
             'alignment' => \PhpOffice\PhpWord\SimpleType\JcTable::CENTER,
-            'width'=> 100*50
+            'width'=> Converter::cmToTwip(17),
+            'borderSize' => 1,
         );
 
         //Kopftabelle
-        //$tableHead = $section->addTable(['borderSize' => 1, 'borderColor' => '3D3D3D']);
         $tableHead = $section->addTable($TableStyle);
         $tableHead->addRow();
-        $tableHead->addCell(3000)->addText('Gremium');
-        $tableHead->addCell(6000, ['gridSpan'=>2])->addText($group->name);
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Gremium');
+        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2])->addText($group->name);
 
         $tableHead->addRow();
-        $tableHead->addCell('3000')->addText('Datum:');
-        $tableHead->addCell('6000', ['gridSpan'=>2])->addText($date->format('d.m.Y'));
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Datum:');
+        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2])->addText($date->format('d.m.Y'));
 
         $tableHead->addRow();
-        $tableHead->addCell('3000')->addText('Teilnehmer:');
-        $tableHead->addCell('2000');
-        $tableHead->addCell('4000')->addText('Es fehlen:');
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Teilnehmer:');
+        $tableHead->addCell(Converter::cmToTwip(12));
+        $tableHead->addRow();
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Es fehlen:');
+        $tableHead->addCell(Converter::cmToTwip(12));
+
 
         $tableHead->addRow();
-        $tableHead->addCell('3000')->addText('Gäste:');
-        $tableHead->addCell('6000', ['gridSpan'=>2]);
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Gäste:');
+        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2]);
 
         $tableHead->addRow();
-        $tableHead->addCell('3000')->addText('Protokoll:');
-        $tableHead->addCell('6000', ['gridSpan'=>2])->addText($protocolCreator->name);
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Protokoll:');
+        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2])->addText($protocolCreator->name);
 
         $tableHead->addRow();
-        $tableHead->addCell('3000')->addText('Nächstes Treffen:');
-        $tableHead->addCell('6000', ['gridSpan'=>2]);
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Nächstes Treffen:');
+        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2]);
 
 
         $section->addText('');
 
         //$Protokolltabelle
-        $phpWord->addTableStyle($TableStyleName, $TableStyle );
+        //$phpWord->addTableStyle($TableStyleName, $TableStyle );
         $table = $section->addTable($TableStyle);
         //TableHeader
         $table->addRow();
-        $table->addCell(3000, $cellStyleHead)->addText('Thema', '', $fontStyle);
-        $table->addCell(6000, $cellStyleHead)->addText('Protokoll', '', $fontStyle);
+        $table->addCell(Converter::cmToTwip(4), $cellStyleHead)->addText('Thema', '', $fontStyle);
+        $table->addCell(Converter::cmToTwip(13), $cellStyleHead)->addText('Protokoll', '', $fontStyle);
         //$table->addCell(1750, $cellStyleHead)->addText('Aufgabe', '', $fontStyle);
 
         //Vertretungen
         foreach ($themes as $theme){
 
             //Protokolle für Thema laden
-            $protocols= $theme->protocols->filter(function ($value) use ($date){
-                return $value->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            $protocols= $theme->protocols->filter(function ($protocol) use ($date, $closed, $memory, $changed){
+                if ($protocol->created_at->format('Y-m-d') == $date->format('Y-m-d')){
+                    if (
+                        (!$protocol->isMemory() or $memory == true) and
+                        (!$protocol->isClosed() or $closed == true) and
+                        (!$protocol->isChanged() or $changed == true)
+                    ){
+                        return $protocol;
+                    }
+                }
+
             });
 
 
             $table->addRow(null, ['cantSplit'=> true]);
-            $table->addCell(3000, ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
-            $cell = $table->addCell(6000, ['borderSize' => 1]);
+            $table->addCell(Converter::cmToTwip(4), ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
+            $cell = $table->addCell(Converter::cmToTwip(13), ['borderSize' => 1]);
             foreach ($protocols as $protocol){
                 $string = str_replace(' & ', ' und ',$protocol->protocol);
                 \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );

@@ -46,8 +46,7 @@ if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
     Route::post('login', function(){
         return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
-        });
-
+    });
 }
 
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
@@ -161,7 +160,7 @@ Route::group([
                 Route::post('{groupname}/protocols/{theme}',  [ProtocolController::class,'store']);
                 Route::get('{groupname}/protocols/{protocol}/edit',  [ProtocolController::class,'edit']);
                 Route::get('{groupname}/export/{date?}/',  [ProtocolController::class,'showDailyProtocol']);
-                Route::get('{groupname}/export/{date}/download',  [ProtocolController::class,'createSheet']);
+                Route::post('{groupname}/export/{date}/download',  [ProtocolController::class,'createSheet']);
                 Route::put('{groupname}/protocols/{protocol}/',  [ProtocolController::class,'update']);
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);

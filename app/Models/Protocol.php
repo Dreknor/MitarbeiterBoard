@@ -7,6 +7,7 @@ use App\Mail\NewThemeMail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class Protocol extends Model
 {
@@ -30,6 +31,17 @@ class Protocol extends Model
     public function theme()
     {
         return $this->belongsTo(Theme::class, 'theme_id');
+    }
+
+    public function isMemory(){
+        return ($this->attributes['protocol'] == "Thema aktiviert" or $this->attributes['protocol']=="Thema in Themenspeicher verschoben")? true : false;
+    }
+    public function isClosed(){
+        return (bool) Str::contains($this->attributes['protocol'], "Thema geschlossen");
+    }
+    public function isChanged(){
+        return (bool) Str::contains($this->attributes['protocol'], "Verschoben zum ");
+
     }
 
     //Events
