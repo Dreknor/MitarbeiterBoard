@@ -226,8 +226,8 @@ class ProtocolController extends Controller
         $header = $section->addHeader();
         $table = $header->addTable();
         $table->addRow();
-        $cell = $table->addCell(6000)->addText('Protokoll', ['bold'=>true,'size'=>25]);
-        $table->addCell(12000)->addImage(asset('img/logo.png'), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
+        $cell = $table->addCell(8000)->addText('Protokoll', ['bold'=>true,'size'=>25]);
+        $table->addCell(1000)->addImage(asset('img/logo.png'), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
 
         // Add footer
         $footer = $section->addFooter();
@@ -281,30 +281,31 @@ class ProtocolController extends Controller
         );
 
         //Kopftabelle
-        $tableHead = $section->addTable(['borderSize' => 1, 'borderColor' => '3D3D3D']);
+        //$tableHead = $section->addTable(['borderSize' => 1, 'borderColor' => '3D3D3D']);
+        $tableHead = $section->addTable($TableStyle);
         $tableHead->addRow();
-        $tableHead->addCell(6000)->addText('Gremium');
+        $tableHead->addCell(3000)->addText('Gremium');
         $tableHead->addCell(6000, ['gridSpan'=>2])->addText($group->name);
 
         $tableHead->addRow();
-        $tableHead->addCell('6000')->addText('Datum:');
+        $tableHead->addCell('3000')->addText('Datum:');
         $tableHead->addCell('6000', ['gridSpan'=>2])->addText($date->format('d.m.Y'));
 
         $tableHead->addRow();
-        $tableHead->addCell('6000')->addText('Teilnehmer:');
-        $tableHead->addCell('6000');
-        $tableHead->addCell('6000')->addText('Es fehlen:');
+        $tableHead->addCell('3000')->addText('Teilnehmer:');
+        $tableHead->addCell('2000');
+        $tableHead->addCell('4000')->addText('Es fehlen:');
 
         $tableHead->addRow();
-        $tableHead->addCell('6000')->addText('Gäste:');
+        $tableHead->addCell('3000')->addText('Gäste:');
         $tableHead->addCell('6000', ['gridSpan'=>2]);
 
         $tableHead->addRow();
-        $tableHead->addCell('6000')->addText('Protokoll:');
+        $tableHead->addCell('3000')->addText('Protokoll:');
         $tableHead->addCell('6000', ['gridSpan'=>2])->addText($protocolCreator->name);
 
         $tableHead->addRow();
-        $tableHead->addCell('6000')->addText('Nächstes Treffen:');
+        $tableHead->addCell('3000')->addText('Nächstes Treffen:');
         $tableHead->addCell('6000', ['gridSpan'=>2]);
 
 
@@ -316,7 +317,7 @@ class ProtocolController extends Controller
         //TableHeader
         $table->addRow();
         $table->addCell(3000, $cellStyleHead)->addText('Thema', '', $fontStyle);
-        $table->addCell(8000, $cellStyleHead)->addText('Protokoll', '', $fontStyle);
+        $table->addCell(6000, $cellStyleHead)->addText('Protokoll', '', $fontStyle);
         //$table->addCell(1750, $cellStyleHead)->addText('Aufgabe', '', $fontStyle);
 
         //Vertretungen
@@ -329,8 +330,8 @@ class ProtocolController extends Controller
 
 
             $table->addRow(null, ['cantSplit'=> true]);
-            $table->addCell(2750, $cellStyleLeftBottom)->addText($theme->theme, $paragraphStyle, $fontStyle);
-            $cell = $table->addCell(4750, $cellStyleBorderBottom);
+            $table->addCell(3000)->addText($theme->theme, $paragraphStyle, $fontStyle);
+            $cell = $table->addCell(6000);
             foreach ($protocols as $protocol){
                 $string = str_replace(' & ', ' und ',$protocol->protocol);
                 \PhpOffice\PhpWord\Shared\Html::addHtml($cell, $string );
