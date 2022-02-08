@@ -59,11 +59,11 @@
                                         <td class="d-lg-table-cell">{{$vertretung->klasse->name}}</td>
                                         <td class="d-lg-table-cell">{{$vertretung->stunde}}</td>
                                         <td class="d-lg-table-cell">{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                        <td class="d-none d-lg-table-cell">{{optional($vertretung->lehrer)->name}}</td>
+                                        <td class="d-none d-lg-table-cell">{{optional($vertretung->lehrer)->shortname}}</td>
                                         <td class="d-none d-lg-table-cell">{{$vertretung->comment}}</td>
                                     </tr>
                                     <tr class="d-lg-none @if(($loop->iteration-1)%2 == 0) bg-secondary text-white @endif">
-                                        <td class="d-lg-table-cell">{{optional($vertretung->lehrer)->name}}</td>
+                                        <td class="d-lg-table-cell">{{optional($vertretung->lehrer)->shortname}}</td>
                                         <td class="d-lg-table-cell" colspan="2">{{$vertretung->comment}}</td>
                                     </tr>
                                 @endforeach
