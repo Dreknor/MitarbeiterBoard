@@ -14,6 +14,12 @@ class Protocol extends Model
 
     protected $fillable = ['theme_id', 'creator_id', 'protocol', 'created_at', 'updated_at'];
 
+    public function setProtocolAttribute($protocol){
+        $protocol = str_replace('&amp;', ' und ',$protocol);
+        $protocol = str_replace('  ', ' ',$protocol);
+        $this->attributes['protocol'] = $protocol;
+    }
+
     public function ersteller()
     {
         return $this->belongsTo(User::class, 'creator_id')->withDefault([
