@@ -20,12 +20,12 @@ use PhpOffice\PhpWord\Style\Table;
 
 class ProtocolController extends Controller
 {
+
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * @param Theme $theme
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function create($groupname, Theme $theme)
+    public function create(Theme $theme)
     {
         if ($theme->completed ==1){
             return  redirect()->back()->with([
@@ -39,7 +39,11 @@ class ProtocolController extends Controller
        ]);
     }
 
-    public function edit($groupname, Protocol $protocol)
+    /**
+     * @param Protocol $protocol
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
+     */
+    public function edit(Protocol $protocol)
     {
         if ($protocol->theme->completed ==1){
             return  redirect()->back()->with([
@@ -89,13 +93,15 @@ class ProtocolController extends Controller
         ]);
     }
 
+
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @param ProtocolRequest $request
+     * @param Theme $theme
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist
+     * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig
      */
-    public function store($groupname, ProtocolRequest $request, Theme $theme)
+    public function store(ProtocolRequest $request, Theme $theme)
     {
         if ($theme->completed ==1){
             return  redirect()->back()->with([
@@ -152,6 +158,11 @@ class ProtocolController extends Controller
     }
 
 
+    /**
+     * @param $groupname
+     * @param $date
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
     public function showDailyProtocol($groupname, $date = '')
     {
         $group = Group::where('name', $groupname)->first();
@@ -180,8 +191,14 @@ class ProtocolController extends Controller
             'date'  => $date,
         ]);
     }
+
+
     /**
-     * make paper protocol
+     * @param Request $request
+     * @param $groupname
+     * @param $date
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Symfony\Component\HttpFoundation\BinaryFileResponse
+     * @throws \PhpOffice\PhpWord\Exception\Exception
      */
     public function createSheet(Request $request, $groupname, $date = '')
     {
@@ -287,11 +304,11 @@ class ProtocolController extends Controller
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Gäste:');
-        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2]);
+        $tableHead->addCell(Converter::cmToTwip(12));
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Protokoll:');
-        $tableHead->addCell(Converter::cmToTwip(12), ['gridSpan'=>2])->addText($protocolCreator->name);
+        $tableHead->addCell(Converter::cmToTwip(12))->addText($protocolCreator->name);
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Nächstes Treffen:');
@@ -325,7 +342,10 @@ class ProtocolController extends Controller
                 }
             });
 
-            if ($protocols->count()>0){
+            #TODO add Tasks
+
+
+            if ($protocols->count() >0 ){
                 $table->addRow(null, ['cantSplit'=> true]);
                 $table->addCell(Converter::cmToTwip(4), ['borderSize' => 1])->addText($theme->theme, $paragraphStyle, $fontStyle);
                 $cell = $table->addCell(Converter::cmToTwip(13), ['borderSize' => 1]);
