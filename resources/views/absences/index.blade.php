@@ -3,22 +3,20 @@
         <div class="pull-right ml-2">
             <a href="{{url('absences/abo/daily')}}" class="card-link text-success">
                 @if(auth()->user()->absence_abo_daily != 1)
-                    <i class="far fa-envelope"></i>
-                    tägliche Benachrichtigung
+                    <i class="fa fa-bell" title="tägliche Zusammenfassung per E-Mail aktivieren"></i> täglich
                 @else
-                    <i class="fas fa-ban"></i>
-                    keine tägliche Benachrichtigung
+                    <i class="fa fa-bell-slash" title="tägliche Zusammenfassung per E-Mail deaktivieren"></i> täglich
                 @endif
             </a>
         </div>
         <div class="pull-right ml-2">
             <a href="{{url('absences/abo/now')}}" class="card-link">
                 @if(auth()->user()->absence_abo_now != 1)
-                    <i class="far fa-envelope"></i>
-                    sofortige Benachrichtigung
+                    <i class="fa fa-bell" title="sofortige Benachrichtigung per E-Mail aktivieren"></i>
+                    sofort
                 @else
-                    <i class="fas fa-ban"></i>
-                    keine sofortige Benachrichtigung
+                    <i class="fa fa-bell-slash" title="sofortige Benachrichtigung per E-Mail deaktivieren"></i>
+                   sofort
                 @endif
             </a>
         </div>
