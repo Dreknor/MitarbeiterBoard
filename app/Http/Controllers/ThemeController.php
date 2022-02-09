@@ -111,7 +111,7 @@ class ThemeController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return View
+     * @return View|RedirectResponse
      */
     public function archive($groupname)
     {
@@ -159,7 +159,7 @@ class ThemeController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(createThemeRequest $request, $groupname)
     {
@@ -180,7 +180,7 @@ class ThemeController extends Controller
         }
 
         $date = Carbon::createFromFormat('Y-m-d', $request->date);
-        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay())) {
+        if ($date->lessThan(Carbon::today()->startOfDay())) {
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => 'Thema kann für diesen Tag nicht mehr erstellt werden',
@@ -212,7 +212,7 @@ class ThemeController extends Controller
      * Display the specified resource.
      *
      * @param  \App\Models\Theme  $theme
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function show($groupname, Theme $theme)
     {
