@@ -31,12 +31,11 @@ class MailController extends Controller
 
     public function invitation()
     {
-        $groups = Group::where('protected', 1)->with(['themes', 'users'])->get();
+        $groups = Group::where('protected', 1)->with(['users'])->get();
 
         foreach ($groups as $group) {
-            $date = Carbon::now()->addDays($group->InvationDays);
-            $users = '';
-            $themes = $group->themes;
+            $date = Carbon::today()->addDays(max(1,$group->InvationDays));
+            $themes = $group->themes()->whereDate('date', $date)->where('completed', 0)->get();
             $themes = $themes->filter(function ($theme) use ($date) {
                 return $theme->completed == 0 and $theme->date->startOfDay()->eq($date->startOfDay());
             });
@@ -49,15 +48,6 @@ class MailController extends Controller
                 }
             }
 
-            if ($users != '') {
-                $admins = User::whereHas('roles', function ($q) {
-                    $q->where('name', 'admin');
-                })->get();
-
-                foreach ($admins as $admin) {
-                    Notification::send($admins, new Push('Einladung an '.$group->name.' verschickt', $users->count().' gefundene User'));
-                }
-            }
         }
     }
 
