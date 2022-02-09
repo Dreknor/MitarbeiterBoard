@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DailyNewsController;
@@ -39,8 +40,15 @@ use App\Http\Controllers\ShareController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+if (config('config.auth.auth_local')){
+    Auth::routes(['register' => false]);
+} else {
+    Auth::routes(['register' => false]);
+    Route::post('login', function(){
+        return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
+    });
+}
 
-Auth::routes(['register' => false]);
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
@@ -83,6 +91,15 @@ Route::group([
                     Route::resource('klassen', KlasseController::class);
                 });
 
+                //absences
+                Route::middleware(['permission:view absences'])->group(function (){
+                    Route::post('absences', [AbsenceController::class, 'store']);
+                    Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
+                    Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
+                    //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);
+                });
+
+
                 //Inventar
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
                     Route::get('locations/import', [LocationController::class, 'showImport']);
@@ -106,6 +123,7 @@ Route::group([
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
                     Route::resource('vertretungen', VertretungController::class);
+                    Route::post('export/vertretungen', [VertretungController::class, 'export']);
                     Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
@@ -142,7 +160,7 @@ Route::group([
                 Route::post('{groupname}/protocols/{theme}',  [ProtocolController::class,'store']);
                 Route::get('{groupname}/protocols/{protocol}/edit',  [ProtocolController::class,'edit']);
                 Route::get('{groupname}/export/{date?}/',  [ProtocolController::class,'showDailyProtocol']);
-                Route::get('{groupname}/export/{date}/download',  [ProtocolController::class,'createSheet']);
+                Route::post('{groupname}/export/{date}/download',  [ProtocolController::class,'createSheet']);
                 Route::put('{groupname}/protocols/{protocol}/',  [ProtocolController::class,'update']);
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
@@ -214,6 +232,7 @@ Route::group([
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
                     Route::get('{procedure}/edit', [ProcedureController::class, 'edit']);
                     Route::get('{procedure}/start', [ProcedureController::class, 'start']);
+                    Route::get('{procedure}/ends', [ProcedureController::class, 'endProcedure']);
                     Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
                     Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
                     Route::delete('step/{step}/delete', [ProcedureController::class, 'destroy']);

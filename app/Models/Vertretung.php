@@ -11,11 +11,12 @@ class Vertretung extends Model
 
     protected $table = 'vertretungen';
 
-    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach'];
-    protected $visible = ['date', 'stunde', 'comment', 'altFach', 'neuFach'];
+    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach', 'Doppelstunde', 'type'];
+    protected $visible = ['date', 'stunde', 'Doppelstunde', 'comment', 'altFach', 'neuFach', 'type'];
 
     protected $casts =[
         'date'=> 'date',
+        'Doppelstunde'=>'boolean'
     ];
 
     public function lehrer (){
@@ -25,4 +26,15 @@ class Vertretung extends Model
     public function klasse (){
         return $this->hasOne(Klasse::class, 'id', 'klassen_id' );
     }
+
+    public function getStundeAttribute(){
+        if ($this->attributes['Doppelstunde'] == true){
+            $increment = $this->attributes['stunde'];
+            $increment++;
+            return $this->attributes['stunde'].'. / '.$increment.'.';
+        }
+        return $this->attributes['stunde'];
+    }
+
+
 }

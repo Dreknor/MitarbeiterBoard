@@ -3,8 +3,29 @@
 @section('content')
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        @if(config('config.auth.saml2'))
+            <div class="col-md-6">
             <div class="card">
+                <div class="card-body">
+                    <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
+                        {{config('config.auth.saml2_btn')}}
+                    </a>
+                </div>
+                @if(session()->has('saml2_error_detail'))
+                    <div class="card-body">
+                        @foreach(session('saml2_error_detail') as $error)
+                            <p class="text-danger">
+                                {{$error}}
+                            </p>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endif
+        @if(config('config.auth.auth_local'))
+            <div class="col-md-8">
+                <div class="card">
                 <div class="card-header">{{ __('Login') }}</div>
 
                 <div class="card-body">
@@ -68,7 +89,8 @@
                     </form>
                 </div>
             </div>
-        </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection

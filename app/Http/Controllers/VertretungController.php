@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\VertretungenExport;
 use App\Http\Requests\CreateVertretungRequest;
+use App\Http\Requests\exportVertretungenRequest;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\User;
 use App\Models\Vertretung;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Writer\Exception;
 
 class VertretungController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      *
@@ -205,5 +209,9 @@ class VertretungController extends Controller
         $objWriter->save(storage_path('Vertretungsplan.docx'));
 
         return response()->download(storage_path('Vertretungsplan.docx'));
+    }
+
+    public function export(exportVertretungenRequest $request){
+        return Excel::download(new VertretungenExport($request->startDate, $request->endDate), 'Vertretungen.xlsx');
     }
 }

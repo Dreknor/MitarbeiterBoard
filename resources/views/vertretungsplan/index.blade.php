@@ -21,69 +21,99 @@
     @stack('css')
 
 </head>
+<body id="">
+<div class="bg-secondary" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
+<div class="content d-none d-lg-block">
+        @for($x=Carbon\Carbon::today(); $x< $targetDate; $x->addDay())
+            @if(!$x->isWeekend())
+                 <div class="card border border-dark">
+                    <div class="card-header" id="heading{{$x->format('Ymd')}}">
+                        <h6>
+                             Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}}
+                        </h6>
+                    </div>
+                    <div id="collapse{{$x->format('Ymd')}}"  aria-labelledby="heading{{$x->format('Ymd')}}" >
+                        <div class="card-body">
+                            <div class="">
+                                <table class="table table-bordered">
+                                <thead  class="thead-light">
+                                    <tr class="">
+                                        <th class="d-lg-table-cell">Klasse</th>
+                                        <th class="d-lg-table-cell">Stunde</th>
+                                        <th class="d-lg-table-cell">Fächer</th>
+                                        <th class="d-none d-lg-table-cell">Lehrer</th>
+                                        <th class="d-none d-lg-table-cell">Kommentar</th>
+                                    </tr>
+                                    <tr class="d-lg-none">
+                                        <th class="d-lg-table-cell">Lehrer</th>
+                                        <th class="d-lg-table-cell" colspan="2">Kommentar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($vertretungen->filter(function ($vertretung) use ($x) {
+                                    if ($vertretung->date->eq($x)){
+                                        return $vertretung;
+                                    }
+                                }) as $vertretung)
+                                    <tr @if(($loop->iteration-1)%2 == 0) class="bg-secondary text-white" @endif>
+                                        <td class="d-lg-table-cell">{{$vertretung->klasse->name}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->stunde}}</td>
+                                        <td class="d-lg-table-cell">{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
+                                        <td class="d-none d-lg-table-cell">{{optional($vertretung->lehrer)->shortname}}</td>
+                                        <td class="d-none d-lg-table-cell">{{$vertretung->comment}}</td>
+                                    </tr>
+                                    <tr class="d-lg-none @if(($loop->iteration-1)%2 == 0) bg-secondary text-white @endif">
+                                        <td class="d-lg-table-cell">{{optional($vertretung->lehrer)->shortname}}</td>
+                                        <td class="d-lg-table-cell" colspan="2">{{$vertretung->comment}}</td>
+                                    </tr>
+                                @endforeach
+                                <tr class="">
 
-<body id="app-layout">
-<div class="main-panel" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
-<div class="content">
-    <div id="accordion">
-        @for($x=0; $x< config('config.show_vertretungen_days'); $x++)
-            <div class="card">
-            <div class="card-header" id="heading{{$x}}">
-                <h6>
-                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapse{{$x}}" aria-expanded="true" aria-controls="collapse{{$x}}">
-                        <i class="far fa-caret-square-down"></i> Vertretungen für {{\Carbon\Carbon::today()->addDays($x)->locale('de')->dayName}} {{\Carbon\Carbon::today()->addDays($x)->format('d.m.Y')}}
-                    </button>
-                </h6>
-            </div>
-            <div id="collapse{{$x}}" class="collapse show" aria-labelledby="heading{{$x}}" data-parent="#accordion">
-                <div class="card-body d-none d-md-block">
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                            <tr>
-                                <th>Datum</th>
-                                <th>Stunde</th>
-                                <th>Klasse</th>
-                                <th>Fächer</th>
-                                <th>Lehrer</th>
-                                <th>Kommentar</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($vertretungen->filter(function ($vertretung) use ($x) {
-                                if ($vertretung->date->eq(\Carbon\Carbon::today()->addDays($x))){
-                                    return $vertretung;
-                                }
-                            }) as $vertretung)
-                                <tr>
-                                    <td>{{$vertretung->date->format('d.m.Y')}}</td>
-                                    <td>{{$vertretung->stunde}}</td>
-                                    <td>{{$vertretung->klasse->name}}</td>
-                                    <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                    <td>{{optional($vertretung->lehrer)->name}}</td>
-                                    <td>{{$vertretung->comment}}</td>
                                 </tr>
-                            @endforeach
-                            @foreach($news->filter(function ($news) use ($x) {
-                                if ($news->date_start->lessThanOrEqualTo(\Carbon\Carbon::today()->addDays($x)) and optional($news->date_end)->greaterThanOrEqualTo(\Carbon\Carbon::today()->addDays($x))){
-                                    return $news;
-                                }
-                            }) as $dailyNews)
-                                <tr>
-                                    <td colspan="6">
-                                        {{$dailyNews->news}}
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
+                                @foreach($news->filter(function ($news) use ($x) {
+                                    if (($news->date_start->eq($x) and $news->date_end == null) or ($news->date_start->lessThanOrEqualTo($x) and $news->date_end != null and $news->date_end->greaterThanOrEqualTo($x))){
+                                        return $news;
+                                    }
+                                }) as $dailyNews)
+                                    <tr>
+                                        <th colspan="6" class="border-outline-info">
+                                            {{$dailyNews->news}}
+                                        </th>
+                                    </tr>
+                                @endforeach
+                                @if(!is_null($absences))
+                                    <tr>
+                                        <th colspan="6">
+                                            @if($absences->count() > 1)
+                                                Es fehlen:
+                                            @else
+                                                Es fehlt:
+                                            @endif
+                                                @foreach($absences->filter(function ($absence) use ($x) {
+                                                    if ($absence->start->lte($x) and $absence->end->gte($x)){
+                                                        return $absence;
+                                                    }
+                                                }) as $absence)
+                                                {{$absence->user->shortname}}@if(!$loop->last),@endif
+                                            @endforeach
+                                        </th>
+                                    </tr>
+                                @endif
+                                </tbody>
+                            </table>
+                            </div>
+                    </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            @endif
         @endfor
-    </div>
+</div>
 
+    <div class="content d-block d-lg-none">
+        @include('vertretungsplan.vertretungMobil')
+    </div>
 </div>
-</div>
+
 
 
 

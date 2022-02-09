@@ -2,28 +2,26 @@
 
 namespace App\Mail;
 
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class StepErinnerungMail extends Mailable
+class DailyAbsenceReport extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $name;
-    public $steps;
-
+    public $absences;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($name, Array $steps)
+    public function __construct($absences)
     {
-        $this->name = $name;
-        $this->steps = $steps;
+        $this->absences = $absences;
     }
 
     /**
@@ -33,9 +31,10 @@ class StepErinnerungMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Ausstehender Auftrag')->view('mails.remindStepMail', [
-            'name' =>$this->name,
-            'steps' =>$this->steps,
-        ]);
+        return $this
+            ->subject('Abwesenheiten am '.Carbon::now()->format('d.m.Y'))
+            ->view('mails.dailyAbsenceReport', [
+                'absences'    =>$this->absences,
+            ]);
     }
 }

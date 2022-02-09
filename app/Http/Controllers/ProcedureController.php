@@ -13,11 +13,11 @@ use App\Models\Procedure_Category;
 use App\Models\Procedure_Step;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
-use Psy\Util\Str;
-use StepsUsers;
+
 
 class ProcedureController extends Controller
 {
@@ -214,7 +214,7 @@ class ProcedureController extends Controller
 
         foreach ($step->childs as $child) {
             foreach ($child->users as $user) {
-                Mail::to($user)->queue(new newStepMail($user->name, Carbon::now()->addDays($child->durationDays)->format('d.m.Y'), $child->name, $child->procedure->name));
+                Mail::to($user)->send(new newStepMail($user->name, Carbon::now()->addDays($child->durationDays)->format('d.m.Y'), $child->name, $child->procedure->name, $step->procedure->id));
             }
 
             $child->update([
@@ -246,16 +246,39 @@ class ProcedureController extends Controller
 
     public function remindStepMail()
     {
-        $steps = Procedure_Step::with(['users', 'procedure'])->where('endDate', '<=', now())->where('done', 0)->get();
+        $users = User::whereHas('steps', function (Builder $query){
+            $query->where('endDate', '<=', Carbon::now())->where('done', 0);
+        })->get();
 
-        foreach ($steps as $step){
-            foreach ($step->users as $user){
-                Mail::to($user)->queue(new StepErinnerungMail($user->name, $step->endDate->format('d.m.Y'), $step->procedure->name, $step->procedure_id, $step->name, $step->id));
+        foreach ($users as $user){
+            $steps = $user->steps()->with('procedure')->where('endDate', '<=', Carbon::now())->where('done', 0)->get();
+            $step_array = [];
+
+            foreach ($steps as $step){
+                $step_array[]= [
+                    'endDate' => $step->endDate->format('d.m.Y'),
+                    'procedureName' => $step->procedure->name,
+                    'procedureId' => $step->procedure_id,
+                    'stepName' => $step->name,
+                    'stepId' => $step->id
+                ];
             }
 
+            Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
+
+            return '';
         }
+    }
 
+    public function endProcedure(Procedure $procedure){
+        $procedure->steps()->where('done', '=',0)->update(['done' => 1]);
+        $procedure->update([
+            'ended_at' => Carbon::now()
+        ]);
 
-
+        return redirect()->back()->with([
+            'type' => 'warning',
+            'Meldung' => 'Prozess'. $procedure->name.' wurde beendet'
+        ]);
     }
 }

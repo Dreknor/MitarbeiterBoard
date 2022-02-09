@@ -5,11 +5,21 @@ namespace App\Models;
 use App\Mail\newProtocolForTask;
 use App\Mail\NewThemeMail;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class Protocol extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['theme_id', 'creator_id', 'protocol', 'created_at', 'updated_at'];
+
+    public function setProtocolAttribute($protocol){
+        $protocol = str_replace('&amp;', ' und ',$protocol);
+        $protocol = str_replace('  ', ' ',$protocol);
+        $this->attributes['protocol'] = $protocol;
+    }
 
     public function ersteller()
     {
@@ -21,6 +31,17 @@ class Protocol extends Model
     public function theme()
     {
         return $this->belongsTo(Theme::class, 'theme_id');
+    }
+
+    public function isMemory(){
+        return ($this->attributes['protocol'] == "Thema aktiviert" or $this->attributes['protocol']=="Thema in Themenspeicher verschoben")? true : false;
+    }
+    public function isClosed(){
+        return (bool) Str::contains($this->attributes['protocol'], "Thema geschlossen");
+    }
+    public function isChanged(){
+        return (bool) Str::contains($this->attributes['protocol'], "Verschoben zum ");
+
     }
 
     //Events

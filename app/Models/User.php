@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -24,7 +25,9 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username'
+    ];protected $visible = [
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username'
     ];
 
     /**
@@ -43,6 +46,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'absence_abo_daily' => 'boolean',
+        'absence_abo_now' => 'boolean'
     ];
 
     public function themes()
@@ -98,5 +103,10 @@ class User extends Authenticatable
         return $this->belongsToMany(Positions::class, 'position_user', 'user_id', 'position_id');
     }
 
+
+    public function getShortnameAttribute(){
+        $familiename= Str::afterLast($this->name, ' ');
+        return Str::limit($this->name, 1, '.').' '.$familiename;
+    }
 
 }

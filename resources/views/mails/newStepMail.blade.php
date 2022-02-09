@@ -11,7 +11,7 @@
     <br><br>
 </p>
 <p>
-    Prozess: {{$procedure}}<br>
+    Prozess: <a href="{{config('app.url')}}/procedure/{{$procedure_id}}/start">{{$procedure}}</a> <br>
     Schritt: {{$step}}<br>
     Bis: {{$date}}
 </p>
