@@ -30,7 +30,7 @@ class createThemeRequest extends FormRequest
             'duration' => 'required|integer|min:5|max:240',
             'type'     => 'required|exists:types,id',
             'information' => 'nullable|string',
-            'date'  => 'required|date|min:'.Carbon::today()->format('Y-m-d'),
+            'date'  => 'required|date',
             'memory'  => 'sometime|nullable|boolean',
         ];
     }
