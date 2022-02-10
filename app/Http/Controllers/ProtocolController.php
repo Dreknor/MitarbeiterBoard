@@ -101,7 +101,7 @@ class ProtocolController extends Controller
      * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist
      * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig
      */
-    public function store(ProtocolRequest $request, Theme $theme)
+    public function store( $groupname ,Theme $theme,ProtocolRequest $request,)
     {
         if ($theme->completed ==1){
             return  redirect()->back()->with([
