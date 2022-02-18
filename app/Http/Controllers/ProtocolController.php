@@ -127,7 +127,7 @@ class ProtocolController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->files->all();
             foreach ($files['files'] as $file) {
-                $theme
+                $protocol
                     ->addMedia($file)
                     ->toMediaCollection();
             }
