@@ -1,6 +1,4 @@
-<div class="container-fluid">
-    <div class="row">
-        <div class="card">
+<div class="card">
             <div class="card-header">
                 Meine Vertretungen
             </div>
@@ -29,5 +27,4 @@
                 </table>
             </div>
         </div>
-    </div>
-</div>
+
