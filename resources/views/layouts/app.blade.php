@@ -18,6 +18,7 @@
 
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
+    <link href="{{asset('css/own.css')}}" rel="stylesheet" />
 
     @stack('css')
 

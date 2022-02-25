@@ -3,9 +3,12 @@
         <div class="pull-right ml-2">
             <a href="{{url('absences/abo/daily')}}" class="card-link text-success">
                 @if(auth()->user()->absence_abo_daily != 1)
-                    <i class="fa fa-bell" title="tägliche Zusammenfassung per E-Mail aktivieren"></i> täglich
+                    <i class="fa fa-bell" title="tägliche Zusammenfassung per E-Mail aktivieren"></i> <div class="d-none d-md-block">täglich</div>
                 @else
-                    <i class="fa fa-bell-slash" title="tägliche Zusammenfassung per E-Mail deaktivieren"></i> täglich
+                    <i class="fa fa-bell-slash" title="tägliche Zusammenfassung per E-Mail deaktivieren"></i>
+                    <div class="d-none d-md-block">
+                        täglich
+                    </div>
                 @endif
             </a>
         </div>
@@ -13,16 +16,21 @@
             <a href="{{url('absences/abo/now')}}" class="card-link">
                 @if(auth()->user()->absence_abo_now != 1)
                     <i class="fa fa-bell" title="sofortige Benachrichtigung per E-Mail aktivieren"></i>
-                    sofort
+                    <div class="d-none d-md-block">
+                        sofort
+                    </div>
                 @else
                     <i class="fa fa-bell-slash" title="sofortige Benachrichtigung per E-Mail deaktivieren"></i>
-                   sofort
+                    <div class="d-none d-md-block">
+                        sofort
+                    </div>
                 @endif
             </a>
         </div>
         <h6>
             Abwesenheiten
         </h6>
+
     </div>
     <div class="card-body">
         @if(isset($absences) and $absences->count() > 0)
@@ -67,52 +75,55 @@
                     @endforeach
                 </tbody>
             </table>
-            @can('view old absences')
-                <table class="table table-striped">
-                <thead>
-                <tr>
-                    <th colspan="4">
-                        abgelaufene Abwesenheiten
-                    </th>
-                </tr>
-                <tr>
-                    <th>
-                        Name
-                    </th>
-                    <th>
-                        Zeitraum
-                    </th>
-                    <th>
-                        Grund
-                    </th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                    @foreach($oldAbsences as $absence)
-                        <tr class="border border-info">
-                            <td>
-                                {{$absence->user->name}}
-                            </td>
-                            <td>
-                                {{$absence->start->format('d.m.Y')}} @if($absence->end->gt($absence->start))- {{$absence->end->format('d.m.Y')}}@endif
-                            </td>
-                            <td>
-                                {{$absence->reason}}
-                            </td>
-                            <td>
-                                beendet
+            <div class="d-none d-lg-block">
+                @can('view old absences')
+                    <table class="table table-striped">
+                        <thead>
+                        <tr>
+                            <th colspan="4">
+                                abgelaufene Abwesenheiten
+                            </th>
+                        </tr>
+                        <tr>
+                            <th>
+                                Name
+                            </th>
+                            <th>
+                                Zeitraum
+                            </th>
+                            <th>
+                                Grund
+                            </th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($oldAbsences as $absence)
+                            <tr class="border border-info">
+                                <td>
+                                    {{$absence->user->name}}
+                                </td>
+                                <td>
+                                    {{$absence->start->format('d.m.Y')}} @if($absence->end->gt($absence->start))- {{$absence->end->format('d.m.Y')}}@endif
+                                </td>
+                                <td>
+                                    {{$absence->reason}}
+                                </td>
+                                <td>
+                                    beendet
+                                </td>
+                            </tr>
+                        @endforeach
+                        <tr class="border-info">
+                            <td colspan="4">
+                                {{$oldAbsences->links()}}
                             </td>
                         </tr>
-                    @endforeach
-                    <tr class="border-info">
-                        <td colspan="4">
-                            {{$oldAbsences->links()}}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            @endcan
+                        </tbody>
+                    </table>
+                @endcan
+            </div>
+
         @else
             Keine Abwesenheiten vorhanden
         @endif

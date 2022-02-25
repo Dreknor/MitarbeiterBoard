@@ -28,7 +28,7 @@
                                 @if($tasks and $tasks->count() > 0)
                                     <ul class="list-group">
                                         @foreach($tasks->sortByDate('date', 'desc') as $task)
-                                            <li class="list-group-item">
+                                            <li class="list-group-item word-wrap">
                                                 <b>{{$task->date->format('d.m.Y')}} - {{$task->taskable->name}}: </b>
                                                 {{$task->task}}
                                                 <div class="pull-right ml-1">
