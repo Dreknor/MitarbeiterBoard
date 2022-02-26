@@ -26,4 +26,8 @@ class Task extends Model
     {
         return $this->morphTo();
     }
+
+    public function taskUsers(){
+        return $this->hasMany(GroupTaskUser::class, 'taskable_id');
+    }
 }

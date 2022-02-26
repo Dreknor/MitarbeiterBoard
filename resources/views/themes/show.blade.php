@@ -258,14 +258,19 @@
                                         <ul class="list-group">
                                             @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
                                                 <li class="list-group-item">
-                                                    @if($task->completed)
+                                                    @if($task->completed or $task->taskUsers->count() == 0)
                                                         <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
                                                     @endif
-
                                                     {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
                                                     <p>
                                                         {{$task->task}}
+                                                        @if($task->taskUsers->count() >0)
+                                                            <small>
+                                                                (noch offen: {{$task->taskUsers->count()}} )
+                                                            </small>
+                                                        @endif
                                                     </p>
+
                                                 </li>
                                             @endforeach
                                         </ul>

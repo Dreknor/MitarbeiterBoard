@@ -5,13 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\TaskRequest;
 use App\Mail\newTaskMail;
 use App\Models\Group;
+use App\Models\GroupTaskUser;
 use App\Models\Task;
 use App\Models\Theme;
 use App\Models\User;
 use App\Notifications\Push;
-use function GuzzleHttp\Promise\queue;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 
@@ -59,13 +58,24 @@ class TaskController extends Controller
         $taskable->tasks()->save($task);
 
         foreach ($taskable_user as $user) {
+
+
             if ($group) {
+                $usersTask=new GroupTaskUser([
+                    'taskable_id' => $task->id,
+                    'users_id' => $user->id,
+                ]);
+                $usersTask->save();
                 $text = 'Du hast eine neue Gruppenaufgabe im MitarbeiterBoard';
             } else {
                 $text = 'Du hast eine neue persönliche Aufgabe im MitarbeiterBoard';
             }
-            Notification::send($user, new Push('neue Aufgabe', $text));
-            Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, $group, $this->group->name));
+
+            if ($user->id != \auth()->id()){
+                Notification::send($user, new Push('neue Aufgabe', $text));
+                Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, $group, $this->group->name));
+            }
+
         }
 
         return redirect()->back();
@@ -77,6 +87,11 @@ class TaskController extends Controller
             $task->update([
                 'completed' => 1,
             ]);
+        } elseif ($task->taskable_type == "App\Models\Group"){
+            $task->taskUsers()
+                ->where('users_id', auth()->id())
+                ->where('taskable_id', $task->id)
+                ->delete();
         }
 
         return redirect()->back();
