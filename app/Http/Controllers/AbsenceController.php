@@ -26,14 +26,13 @@ class AbsenceController extends Controller
             }
             $absence->save();
 
-            $users = User::where('absence_abo_now', 1)->whereNot('id', auth()->id())->get();
+
         } else {
             $absence->update([
                 'end' => $request->end
             ]);
         }
-
-        $users = User::where('absence_abo_now', 1)->get();
+        $users = User::where('absence_abo_now', 1)->whereNot('id', auth()->id())->get();
         foreach ($users as $user){
             $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
         }
