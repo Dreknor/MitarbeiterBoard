@@ -17,7 +17,8 @@ class AbsenceController extends Controller
 
         $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())
             ->where('users_id', $request->users_id)
-            ->where('reason', $request->reason)->first();
+            ->where('reason', $request->reason)
+            ->first();
 
         if (is_null($absence)){
             $absence = new Absence($request->validated());
@@ -32,7 +33,7 @@ class AbsenceController extends Controller
                 'end' => $request->end
             ]);
         }
-        $users = User::where('absence_abo_now', 1)->whereNot('id', auth()->id())->get();
+        $users = User::where('absence_abo_now', 1)->get();
         foreach ($users as $user){
             $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
         }
