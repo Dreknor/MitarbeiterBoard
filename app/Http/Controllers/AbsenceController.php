@@ -15,7 +15,7 @@ class AbsenceController extends Controller
 {
     public function store(CreateAbsenceRequest $request){
 
-        $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())->where('users_id', $request->users_id)->first();
+        $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())->where('users_id', $request->users_id)->where('reason', '!=', $request->reason)->first();
 
         if (is_null($absence)){
             $absence = new Absence($request->validated());
@@ -24,7 +24,7 @@ class AbsenceController extends Controller
             }
             $absence->save();
 
-            $users = User::where('absence_abo_now', 1)->get();
+            $users = User::where('absence_abo_now', 1)->where('id', '!=', auth()->id())->get();
         } else {
             $absence->update([
                 'end' => $request->end

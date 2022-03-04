@@ -299,7 +299,7 @@ class ThemeController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Theme  $theme
-     * @return \Illuminate\Http\Response
+     * @return View|RedirectResponse
      */
     public function edit($groupname, Theme $theme)
     {
@@ -339,7 +339,7 @@ class ThemeController extends Controller
 
         $date = Carbon::createFromFormat('Y-m-d', $request->date);
 
-        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay())) {
+        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay()) and !$date->isSameDay(Carbon::today())) {
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => 'Thema kann für diesen Tag nicht mehr erstellt werden',
@@ -354,12 +354,11 @@ class ThemeController extends Controller
             ]);
             $protocol->save();
         }
-        if ($request->input('date') != $theme->date) {
-            $newDate = Carbon::parse($request->input('date'));
+        if (!$date->eq($theme->date)) {
             $protocol = Protocol::create([
                 'creator_id' => auth()->id(),
                 'theme_id' => $theme->id,
-                'protocol'  => 'Verschoben zum '.$newDate->format('d.m.Y'),
+                'protocol'  => 'Verschoben zum '.$date->format('d.m.Y'),
             ]);
             $protocol->save();
         }
