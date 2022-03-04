@@ -59,7 +59,10 @@ class User extends Authenticatable
     {
         return Cache::remember('groups_'.$this->id, 60, function () {
             $groups = $this->groups_rel;
-            $groups = $groups->concat(Group::where('protected', '0')->get());
+
+            if ($this->can('see unprotected groups')){
+                $groups = $groups->concat(Group::where('protected', '0')->get());
+            }
             $groups = $groups->unique('name');
 
             return $groups;
