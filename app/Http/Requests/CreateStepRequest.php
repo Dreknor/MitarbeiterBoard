@@ -26,7 +26,7 @@ class CreateStepRequest extends FormRequest
         return [
             'parent' => 'nullable|exists:procedure_steps,id',
             'position_id' => 'required|exists:positions,id',
-            'name'=>    'required|string',
+            'name'=>    'required|string|max:60',
             'description'=>'string|nullable',
             'durationDays'=>'integer|min:1',
         ];
