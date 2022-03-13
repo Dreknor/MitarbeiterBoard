@@ -10,7 +10,7 @@
                                 <h5 class="col-auto">
                                     aktuelle Listen
                                 </h5>
-                                @can('create Terminlisten')
+                                @can('create Terminliste')
                                     <div class="col-auto pull-right">
                                         <a href="{{url('listen/create')}}" class="card-link">erstellen</a>
                                     </div>
