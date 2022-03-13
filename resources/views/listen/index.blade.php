@@ -7,14 +7,15 @@
                     <div class="col-md-12 col-sm-12">
                         <div class="card">
                             <div class="card-header">
-                                @can('create Terminliste')
-                                    <div class="col-auto pull-right">
-                                        <a href="{{url('listen/create')}}" class="btn btn-outline-info btn-sm">erstellen</a>
-                                    </div>
-                                @endcan
+
                                     <h5 class="col-auto">
                                         aktuelle Listen
                                     </h5>
+                                @can('create Terminliste')
+                                        <div class="col-auto pull-right">
+                                            <a href="{{url('listen/create')}}" class="btn btn-outline-info btn-sm">erstellen</a>
+                                        </div>
+                                    @endcan
                             </div>
                             @if(count($listen)<1)
                                 <div class="card-body alert-info">
