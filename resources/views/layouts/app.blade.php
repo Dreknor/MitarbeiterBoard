@@ -51,6 +51,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('see terminlisten')
+                        <li>
+                            <a href="{{url('/listen')}}">
+                                <i class="fas fa-calendar"></i>
+                                <p>Listen</p>
+                            </a>
+                        </li>
+                    @endcan
                     @can('edit inventar')
                         <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
                             <a data-toggle="collapse" href="#inventory">

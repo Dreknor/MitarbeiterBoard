@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Liste;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Model;
 
@@ -51,6 +52,14 @@ class Group extends Model
     public function wochenplaene()
     {
         return $this->hasMany(Wochenplan::class, 'group_id');
+    }
+
+    /**
+     * Get all of the Listen.
+     */
+    public function listen()
+    {
+        return $this->belongsToMany(Liste::class, 'group_listen', 'group_id', 'liste_id');
     }
 
     /**

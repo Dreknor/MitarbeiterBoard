@@ -19,6 +19,9 @@ use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TerminListen\ListenController;
+use App\Http\Controllers\TerminListen\ListenTerminController;
+
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
@@ -225,6 +228,25 @@ Route::group([
 
                 Route::get('kiosk', [\App\Http\Controllers\KioskController::class, 'index']);
 
+                //Terminlisten
+                Route::get('listen', [ListenController::class, 'index']);
+                Route::post('listen', [ListenController::class, 'store']);
+                Route::get('listen/create', [ListenController::class, 'create']);
+                Route::get('listen/{terminListe}', [ListenController::class, 'show']);
+                Route::get('listen/{terminListe}/edit', [ListenController::class, 'edit']);
+                Route::put('listen/{terminListe}', [ListenController::class, 'update']);
+                Route::get('listen/{liste}/activate', [ListenController::class, 'activate']);
+                Route::get('listen/{liste}/refresh', [ListenController::class, 'refresh']);
+                Route::get('listen/{liste}/archiv', [ListenController::class, 'archiv']);
+                Route::get('listen/{liste}/deactivate', [ListenController::class, 'deactivate']);
+                Route::get('listen/{liste}/export', [ListenController::class, 'pdf']);
+                Route::get('listen/{terminListe}/auswahl', [ListenController::class, 'auswahl']);
+                Route::post('eintragungen/{liste}/store', [ListenTerminController::class, 'store']);
+                Route::put('eintragungen/{listen_termine}', [ListenTerminController::class, 'update']);
+                Route::delete('eintragungen/{listen_termine}', [ListenTerminController::class, 'destroy']);
+                Route::delete('eintragungen/absagen/{listen_termine}', [ListenTerminController::class, 'absagen']);
+
+                //Prozesse
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);
 
