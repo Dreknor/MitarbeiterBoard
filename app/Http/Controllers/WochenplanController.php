@@ -8,6 +8,7 @@ use App\Models\Klasse;
 use App\Models\Wochenplan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\Style\Language;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -165,11 +166,10 @@ class WochenplanController extends Controller
     public function export(Wochenplan $wochenplan)
     {
 
-        $centimerterToTwips = 565.217;
 
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
         $phpWord->getSettings()->setThemeFontLang(new Language(Language::DE_DE));
-        //$phpWord->setDefaultFontName('MetaPro-Normal');
+        $phpWord->setDefaultFontName('Comic Sans');
 
         //Klassen
         $klassen = "";
@@ -188,8 +188,11 @@ class WochenplanController extends Controller
             'underline' => \PhpOffice\PhpWord\Style\Font::UNDERLINE_SINGLE
         ];
 
-        $page_margins=  array('marginLeft' => 900, 'marginRight' => 600,
-            'marginTop' => 900, 'marginBottom' => 600);
+        $page_margins=  array(
+            'marginLeft' => Converter::cmToTwip(2),
+            'marginRight' => Converter::cmToTwip(2),
+            'marginTop' => Converter::cmToTwip(2),
+            'marginBottom' => Converter::cmToTwip(2));
 
 
         //Überschrift
@@ -220,7 +223,7 @@ class WochenplanController extends Controller
         //Tabelle
         $table = $section->addTable([
             'unit' => \PhpOffice\PhpWord\Style\Table::WIDTH_PERCENT,
-            'width'=> 100*50,
+            'width'=> Converter::cmToTwip(9),
             'borderSize' => 0,
             'borderColor' => '3D3D3D',
             'cellMargin'=>200
@@ -229,19 +232,20 @@ class WochenplanController extends Controller
 
         if ($wochenplan->hasDuration) {
             $columnWidth = [
-                2.5, 7.5, 1.5, 0.75, 2
+                2.5, 7, 1.7, 0.75, 3
             ];
         } else {
             $columnWidth = [
-                2.5, 7.5, 0, 0.75, 2
+                2.5, 7, 0, 0.75, 3
             ];
         }
 
-            $table->addCell($columnWidth[0] * $centimerterToTwips)->addText('');
-            $table->addCell($columnWidth[1]  * $centimerterToTwips)->addText('Aufgaben');
-            $table->addCell($columnWidth[2] * $centimerterToTwips)->addText('Dauer');
-
-            $table->addCell($columnWidth[3] * $centimerterToTwips)->addImage(
+            $table->addCell( Converter::cmToTwip($columnWidth[0]) )->addText('');
+            $table->addCell(Converter::cmToTwip($columnWidth[1]))->addText('Aufgaben');
+            if ($wochenplan->hasDuration) {
+                $table->addCell(Converter::cmToTwip($columnWidth[2]))->addText('Dauer');
+            }
+            $table->addCell(Converter::cmToTwip($columnWidth[3]))->addImage(
                 asset('img/check.png'),
                 array(
                     'width'         => 10,
@@ -251,20 +255,23 @@ class WochenplanController extends Controller
                     'margin-top'    => 50
                 ));
 
-            $table->addCell($columnWidth[4]  * $centimerterToTwips)->addText('Unterschrift');
+            $table->addCell($columnWidth[4])->addText('Unterschrift');
 
 
         foreach ($wochenplan->rows as $row){
             $table->addRow();
-            $table->addCell($columnWidth[0] * $centimerterToTwips, ['valign'=>'center'])->addText($row->name, ['bold' => true, 'size' => 9], ['alignment'=>\PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-            $cell1 = $table->addCell($columnWidth[1] * $centimerterToTwips);
-            $table->addCell($columnWidth[2] * $centimerterToTwips)->addText('');
+            $table->addCell(Converter::cmToTwip($columnWidth[0]), ['valign'=>'center'])->addText($row->name, ['bold' => true, 'size' => 9], ['alignment'=>\PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
+            $cell1 = $table->addCell(Converter::cmToTwip($columnWidth[1]));
 
-            $table->addCell($columnWidth[3] * $centimerterToTwips);
+            if ($wochenplan->hasDuration) {
+                $table->addCell(Converter::cmToTwip($columnWidth[2]))->addText('');
+            }
+
+            $table->addCell(Converter::cmToTwip($columnWidth[3]));
 
 
 
-            $cell2 = $table->addCell($columnWidth[4] * $centimerterToTwips);
+            $cell2 = $table->addCell(Converter::cmToTwip($columnWidth[4]));
             foreach ($row->tasks as $key => $task){
 
                 //Aufgabe
@@ -272,11 +279,11 @@ class WochenplanController extends Controller
                 \PhpOffice\PhpWord\Shared\Html::addHtml($cell1, $string);
 
                     if ($key != array_key_last($row->tasks->toArray())){
-                        $cell1->addText('________________________________________________________',['size' => 10],['spaceBefore'=>0, 'spaceAfter'=>150]);
+                        $cell1->addText('_______________________________________________',['size' => 10],['spaceBefore'=>0, 'spaceAfter'=>150]);
                     }
 
                 //Unterschrift
-                $cell2->addText('..........', [], ['spaceBefore' => ((count($wochenplan->rows)-1) * 720)+240]);
+                $cell2->addText('..........', [], ['spaceBefore' => ((count($wochenplan->rows)-1) * 120)+240]);
             }
 
         }
