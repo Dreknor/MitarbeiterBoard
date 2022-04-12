@@ -46,6 +46,10 @@ class StoreListeTerminRequest extends FormRequest
                 'min:1',
                 'nullable',
             ],
+            'duration' => [
+                'integer',
+                'nullable',
+            ],
         ];
     }
 }

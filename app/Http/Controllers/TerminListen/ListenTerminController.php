@@ -40,7 +40,9 @@ class ListenTerminController extends Controller
             'listen_id' => $liste->id,
             'termin' => $datum,
             'comment' => $request->comment,
+            'duration' => ($request->duration > 0)? $request->duration : $liste->duration
         ]);
+        dd($termin);
 
         if ($request->weekly == 1) {
             for ($x = 1; $x < $request->repeat; $x++) {
