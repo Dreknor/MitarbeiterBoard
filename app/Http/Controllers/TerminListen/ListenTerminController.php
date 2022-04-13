@@ -42,7 +42,7 @@ class ListenTerminController extends Controller
             'comment' => $request->comment,
             'duration' => ($request->duration > 0)? $request->duration : $liste->duration
         ]);
-        dd($termin);
+
 
         if ($request->weekly == 1) {
             for ($x = 1; $x < $request->repeat; $x++) {
