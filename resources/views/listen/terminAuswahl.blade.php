@@ -43,7 +43,7 @@
 
                                     <div class="col-sm-6 col-md-3 m-auto">
                                         <b>
-                                            {{	$eintrag->termin->format('H:i')}} - {{$eintrag->termin->copy()->addMinutes($liste->duration)->format('H:i')}} Uhr
+                                            {{	$eintrag->termin->format('H:i')}} - {{$eintrag->termin->copy()->addMinutes(($eintrag->duration)? $eintrag->duration : $liste->duration)->format('H:i')}} Uhr
                                         </b>
 
                                     </div>
