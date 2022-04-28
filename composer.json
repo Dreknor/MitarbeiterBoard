@@ -10,8 +10,9 @@
     "require": {
         "php": "^8.0.2",
         "aacotroneo/laravel-saml2": "^2.1",
-        "barryvdh/laravel-dompdf": "^1.0",
-        "composer/composer": "2.1.9",
+        "barryvdh/laravel-dompdf": "^0.9.0",
+        "composer/composer": "2.2.12",
+        "fideloper/proxy": "^4.4",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "laravel-notification-channels/webpush": "^6.0",
