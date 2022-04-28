@@ -25,7 +25,7 @@ class ProtocolController extends Controller
      * @param Theme $theme
      * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function create(Theme $theme)
+    public function create($groupname, Theme $theme)
     {
         if ($theme->completed ==1){
             return  redirect()->back()->with([
@@ -43,7 +43,7 @@ class ProtocolController extends Controller
      * @param Protocol $protocol
      * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function edit(Protocol $protocol)
+    public function edit($groupname, Protocol $protocol)
     {
         if ($protocol->theme->completed ==1){
             return  redirect()->back()->with([
@@ -101,7 +101,7 @@ class ProtocolController extends Controller
      * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist
      * @throws \Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig
      */
-    public function store(ProtocolRequest $request, Theme $theme)
+    public function store( $groupname ,Theme $theme,ProtocolRequest $request,)
     {
         if ($theme->completed ==1){
             return  redirect()->back()->with([
@@ -127,7 +127,7 @@ class ProtocolController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->files->all();
             foreach ($files['files'] as $file) {
-                $theme
+                $protocol
                     ->addMedia($file)
                     ->toMediaCollection();
             }

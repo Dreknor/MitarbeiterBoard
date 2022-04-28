@@ -18,6 +18,7 @@
 
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
+    <link href="{{asset('css/own.css')}}" rel="stylesheet" />
 
     @stack('css')
 
@@ -47,6 +48,14 @@
                             <a href="{{url('/procedure')}}">
                                 <i class="fas fa-project-diagram"></i>
                                 <p>Prozesse</p>
+                            </a>
+                        </li>
+                    @endcan
+                    @can('see terminlisten')
+                        <li>
+                            <a href="{{url('/listen')}}">
+                                <i class="fas fa-calendar"></i>
+                                <p>Listen</p>
                             </a>
                         </li>
                     @endcan

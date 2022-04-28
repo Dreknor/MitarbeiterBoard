@@ -227,27 +227,26 @@
                                     </div>
                                 </div>
                             @endif
-                            @if (count($theme->getMedia())>0)
-                                <div class="row p-2">
-                                    <div class="col-sm-12 col-md-12 col-lg-3">
-                                        <b>
-                                            Dateien
-                                        </b>
-                                    </div>
-                                    <div class="col-sm-12 col-md-12 col-lg-9">
-                                        <ul class="list-group">
-                                            @foreach($theme->getMedia()->sortBy('name') as $media)
-                                                <li class="list-group-item  list-group-item-action ">
-                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
-                                                        <i class="fas fa-file-download"></i>
-                                                        {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
-                                                    </a>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
+                            <div class="row p-2">
+                                <div class="col-sm-12 col-md-12 col-lg-3">
+                                    <b>
+                                        Dateien
+                                    </b>
                                 </div>
-                            @endif
+                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                    <ul class="list-group">
+                                        @foreach($theme->getMedia()->sortBy('name') as $media)
+                                            <li class="list-group-item  list-group-item-action ">
+                                                <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                                    <i class="fas fa-file-download"></i>
+                                                    {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
+                                                </a>
+                                            </li>
+                                        @endforeach
+
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-4 border-left p-sm-2 p-md-2">
                             <div class="container-fluid">
@@ -259,14 +258,19 @@
                                         <ul class="list-group">
                                             @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
                                                 <li class="list-group-item">
-                                                    @if($task->completed)
+                                                    @if($task->completed or $task->taskUsers->count() == 0)
                                                         <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
                                                     @endif
-
                                                     {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
                                                     <p>
                                                         {{$task->task}}
+                                                        @if($task->taskUsers->count() >0)
+                                                            <small>
+                                                                (noch offen: {{$task->taskUsers->count()}} )
+                                                            </small>
+                                                        @endif
                                                     </p>
+
                                                 </li>
                                             @endforeach
                                         </ul>
@@ -389,7 +393,19 @@
 
                                                     {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
                                                 </p>
+
                                                 {!! $protocol->protocol !!}
+
+                                                <ul class="list-group">
+                                                    @foreach($protocol->getMedia()->sortBy('name') as $media)
+                                                        <li class="list-group-item  list-group-item-action ">
+                                                            <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                                                <i class="fas fa-file-download"></i>
+                                                                {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
+                                                            </a>
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
                                             </li>
                                         @endforeach
                                     </ul>

@@ -154,7 +154,12 @@ class ProcedureController extends Controller
 
             $newStep->users()->attach($users);
             foreach ($users as $user) {
-                Mail::to($user)->queue(new newStepMail($user->name, Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'), $newStep->name, $newStep->procedure->name));
+                Mail::to($user)->queue(new newStepMail(
+                    $user->name,
+                    Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
+                    $newStep->name,
+                    $newStep->procedure->name,
+                    $step->procedure->id));
             }
 
             $this->recursiveSteps($step->childs, $newStep);
@@ -214,7 +219,12 @@ class ProcedureController extends Controller
 
         foreach ($step->childs as $child) {
             foreach ($child->users as $user) {
-                Mail::to($user)->send(new newStepMail($user->name, Carbon::now()->addDays($child->durationDays)->format('d.m.Y'), $child->name, $child->procedure->name, $step->procedure->id));
+                Mail::to($user)->send(new newStepMail(
+                    $user->name,
+                    Carbon::now()->addDays($child->durationDays)->format('d.m.Y'),
+                    $child->name,
+                    $child->procedure->name,
+                    $step->procedure->id));
             }
 
             $child->update([

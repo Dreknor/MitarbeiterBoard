@@ -27,7 +27,7 @@ class LogEmail
      */
     public function handle(MessageSending $event)
     {
-        $message = $event->message;
-        Log::channel('maillog')->info($message);
+        /*$message = $event->message;
+        Log::channel('maillog')->info($message);*/
     }
 }

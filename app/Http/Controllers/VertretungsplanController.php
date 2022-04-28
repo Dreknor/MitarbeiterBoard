@@ -13,11 +13,10 @@ class VertretungsplanController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return array
      */
-    public function index($gruppen = null)
-    {
 
+    public function make($gruppen = null){
         if ($gruppen != null){
             $gruppen = explode('/', $gruppen);
             $klassen = Klasse::whereIn('name',$gruppen)->get();
@@ -43,30 +42,82 @@ class VertretungsplanController extends Controller
 
         $targetDate = Carbon::today()->addDays($addDays);
         $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])->whereIn('klassen_id',$klassen)->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get();
-/*
-        $news = DailyNews::whereBetween('date_start', [Carbon::today()->format('Y-m-d'),$targetDate->format('Y-m-d')])
-            ->orWhereDate('date_end', '>=', $targetDate->format('Y-m-d'))->orderBy('date_start')->get();
-*/
 
-        $news = DailyNews::whereDate('date_start', '<=', Carbon::today())->whereDate('date_end', '>=', Carbon::today())->whereDate('date_end', '<=', $targetDate)->orderBy('date_start')->get();
+        $news = DailyNews::whereDate('date_start', '<=', $targetDate)
+            ->whereDate('date_end', '>=', Carbon::today())
+            ->whereDate('date_end', '<=', $targetDate)
+            ->orderBy('date_start')
+            ->get();
 
         //Absences
         $absences = Absence::whereDate('start', '<=', Carbon::today())
             ->whereDate('end', '>=', Carbon::today())
             ->whereHas('user', function ($query){
-            $query->whereNotNull('kuerzel');
+                $query->whereNotNull('kuerzel');
             })
             ->where('showVertretungsplan',1)
-        ->get()->unique('users_id')->sortBy('user.name');
+            ->get()->unique('users_id')->sortBy('user.name');
 
-        return response()->view('vertretungsplan.index',[
+        return [
             'vertretungen' => $vertretungen,
             'news'          => $news,
             'targetDate' => $targetDate,
             'absences' => $absences
-        ])
+        ];
+
+
+    }
+
+    public function index($gruppen = null)
+    {
+        return response()->view('vertretungsplan.index',$this->make($gruppen))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'));
+
+    }
+
+    public function toJSON($gruppen = null){
+        $plan = $this->make($gruppen);
+
+        $vertretungen = [];
+        foreach ($plan['vertretungen'] as $vertretung){
+            $vertretungen[]=[
+              'date' => $vertretung->date->format('Y-m-d'),
+              'klasse' => $vertretung->klasse->name,
+              'stunde' => $vertretung->stunde,
+              'altFach' => $vertretung->altFach,
+              'neuFach' => $vertretung->neuFach,
+              'lehrer' => optional($vertretung->lehrer)->shortname,
+              'comment' => $vertretung->comment,
+            ];
+        }
+
+        $news = [];
+        foreach ($plan['news'] as $News){
+            $news[]=[
+              'date_start' => $News->date_start,
+              'date_end' => $News->date_end,
+              'news' => $News->news,
+            ];
+        }
+
+        $absences = [];
+        foreach ($plan['absences'] as $absence){
+            $absences[]=[
+              'start' => $absence->start,
+              'end' => $absence->end,
+              'user' => $absence->user->shortname,
+            ];
+        }
+
+
+
+        return json_encode([
+            'vertretungen' => $vertretungen,
+            'news' => $news,
+            'absences' => $absences,
+            'targetDate' => $plan['targetDate']
+        ]);
     }
 
 }

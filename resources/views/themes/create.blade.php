@@ -18,8 +18,8 @@
                         <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="theme">Datum der Besprechung*<a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss mindestens {{$group->InvationDays}} Tage in der Zukunft liegen, da {{$group->InvationDays}} Tage vor einer Sitzung die Themen versandt werden. Dies ermöglicht die Vorbereitung auf Themen und der Priorisierung. Verpflichtend">?</a> </label>
-                        <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next(config('config.themes.defaultDay'))->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->addDays($group->InvationDays)->format('Y-m-d')}}">
+                        <label for="theme">Datum der Besprechung*<a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss sollte {{$group->InvationDays}} Tage in der Zukunft liegen, da {{$group->InvationDays}} Tage vor einer Sitzung die Themen versandt werden. Dies ermöglicht die Vorbereitung auf Themen und der Priorisierung. Verpflichtend">?</a> </label>
+                        <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next(config('config.themes.defaultDay'))->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->format('Y-m-d')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
                         <label for="type">Typ</label>

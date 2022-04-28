@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Model\listen_termine;
 use Illuminate\Foundation\Http\FormRequest;
 
-class CreateStepRequest extends FormRequest
+class TerminabsageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -13,7 +14,11 @@ class CreateStepRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('view procedures');
+        $listen_termine =$this->route('listen_termine');
+        if (auth()->id() == $listen_termine->reserviert_fuer or auth()->id() == $listen_termine->liste->user_id){
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -24,11 +29,7 @@ class CreateStepRequest extends FormRequest
     public function rules()
     {
         return [
-            'parent' => 'nullable|exists:procedure_steps,id',
-            'position_id' => 'required|exists:positions,id',
-            'name'=>    'required|string|max:60',
-            'description'=>'string|nullable',
-            'durationDays'=>'integer|min:1',
+            'text' => ['nullable', 'string']
         ];
     }
 }

@@ -2,8 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Subscription;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,12 +11,17 @@ use Illuminate\Support\Str;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
+use Staudenmeir\EloquentHasManyDeep\HasManyDeep;
+use Staudenmeir\EloquentHasManyDeep\HasRelationships;
+
 class User extends Authenticatable
 {
     use Notifiable;
     use HasRoles;
     use HasPushSubscriptions;
     use SoftDeletes;
+    use HasRelationships;
+
 
     /**
      * The attributes that are mass assignable.
@@ -59,7 +63,10 @@ class User extends Authenticatable
     {
         return Cache::remember('groups_'.$this->id, 60, function () {
             $groups = $this->groups_rel;
-            $groups = $groups->concat(Group::where('protected', '0')->get());
+
+            if ($this->can('see unprotected groups')){
+                $groups = $groups->concat(Group::where('protected', '0')->get());
+            }
             $groups = $groups->unique('name');
 
             return $groups;
@@ -108,5 +115,16 @@ class User extends Authenticatable
         $familiename= Str::afterLast($this->name, ' ');
         return Str::limit($this->name, 1, '.').' '.$familiename;
     }
+
+    public function listen()
+    {
+        return $this->hasManyDeep(Liste::class, ['group_user', Group::class, 'group_listen']);
+    }
+
+    public function listen_eintragungen()
+    {
+        return $this->hasMany(ListenTermin::class, 'reserviert_fuer');
+    }
+
 
 }

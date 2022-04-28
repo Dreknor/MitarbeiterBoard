@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absence;
-use App\Models\Group;
-use App\Models\Procedure_Step;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Builder;
+
 
 class HomeController extends Controller
 {
@@ -36,13 +34,17 @@ class HomeController extends Controller
         }
 
         $groups = auth()->user()->groups();
-        $groups->load('themes', 'tasks', 'themes.group');
+        $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
 
         $tasks = auth()->user()->tasks->where('completed', 0);
 
         foreach ($groups as $group) {
             if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)) {
-                $tasks = $tasks->concat($group->tasks()->whereDate('date', '>=', Carbon::now())->get());
+                $group_tasks=$group->tasks()->whereDate('date', '>=', Carbon::now())->whereHas('taskUsers', function (Builder $query) {
+                    $query->where('users_id', auth()->id());
+                })->get();;
+
+                $tasks = $tasks->concat($group_tasks);
             }
         }
 

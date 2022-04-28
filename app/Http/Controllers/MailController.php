@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\Push;
 use App\Notifications\PushNews;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -58,7 +59,9 @@ class MailController extends Controller
         foreach ($tasks as $task) {
             if ($task->taskable instanceof Group) {
                 foreach ($task->taskable->users as $user) {
-                    Mail::to($user)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, true));
+                    if ($task->taskUsers()->where('users_id', auth()->id())->first() != null){
+                        Mail::to($user)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, true));
+                    }
                 }
             } else {
                 Mail::to($task->taskable)->queue(new remindTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, false));

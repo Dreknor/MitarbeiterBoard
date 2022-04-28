@@ -16,7 +16,7 @@
                         <label for="name">
                             Bezeichnung des Schrittes
                         </label>
-                        <input  id="name" name="name" type="text" class="form-control" value="{{old('name', $step->name)}}" required>
+                        <input  id="name" name="name" type="text" class="form-control" value="{{old('name', $step->name)}}" maxlength="60" required>
                     </div>
                 </div>
                 <div class="form-row">
