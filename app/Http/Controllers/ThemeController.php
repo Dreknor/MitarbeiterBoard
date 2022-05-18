@@ -225,7 +225,7 @@ class ThemeController extends Controller
             ]);
         }
 
-        if ($theme->memory == true) {
+        if ($theme->memory == true and $theme->completed == false) {
             return redirect(url($groupname.'/memory'))->with([
                 'type'    => 'warning',
                 'Meldung' => 'Thema ist im Themenspeicher',
