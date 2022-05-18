@@ -55,6 +55,7 @@
     <script>
         tinymce.init({
             selector: 'textarea',
+            inline_styles : true,
             lang:'de',
             height: 500,
             menubar: true,

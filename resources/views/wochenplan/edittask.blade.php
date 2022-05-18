@@ -76,6 +76,7 @@
         tinymce.init({
             selector: 'textarea',
             lang:'de',
+            inline_styles : true,
             height: 500,
             menubar: true,
             plugins: [
