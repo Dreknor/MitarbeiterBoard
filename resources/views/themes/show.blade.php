@@ -46,49 +46,51 @@
                                                 </div>
                                             </a>
                                         </div>
-                                    @endif
-                                        @can('share theme')
-                                            @if($theme->share == null)
-                                                <div class="col-auto">
-                                                    <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn">
-                                                        <i class="fas fa-share-alt"></i>
+
+                                            @can('share theme')
+                                                @if($theme->share == null)
+                                                    <div class="col-auto">
+                                                        <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn">
+                                                            <i class="fas fa-share-alt"></i>
+                                                            <div class="d-none d-md-none d-lg-inline-block">
+                                                                freigeben
+                                                            </div>
+                                                        </a>
+                                                    </div>
+                                                @else
+                                                    <div class="col-auto">
+                                                        <form method="post" action="{{url('share/'.$theme->id)}}" >
+                                                            @csrf
+                                                            @method('delete')
+                                                            <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
+                                                            <button type="submit" class="btn btn-sm btn-warning p-2 pull-right" href="{{url('/share/')}}">
+                                                                <i class="fas fa-share-alt"></i>
+                                                                Freigabe entfernen
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                @endif
+                                            @endcan
+
+                                            <div class="col-auto">
+                                                @if($subscription == null)
+                                                    <a href="{{url("subscription/theme/$theme->id/")}}" class="btn btn-sm btn-outline-info">
+                                                        <i class="far fa-bell"></i>
                                                         <div class="d-none d-md-none d-lg-inline-block">
-                                                            freigeben
+                                                            Abonieren
                                                         </div>
                                                     </a>
-                                                </div>
-                                            @else
-                                                <div class="col-auto">
-                                                    <form method="post" action="{{url('share/'.$theme->id)}}" >
-                                                        @csrf
-                                                        @method('delete')
-                                                        <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
-                                                        <button type="submit" class="btn btn-sm btn-warning p-2 pull-right" href="{{url('/share/')}}">
-                                                            <i class="fas fa-share-alt"></i>
-                                                            Freigabe entfernen
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            @endif
-                                        @endcan
+                                                @else
+                                                    <a href="{{url("subscription/theme/$theme->id/remove")}}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-bell"></i>
+                                                        <div class="d-none d-md-none d-lg-inline-block">
+                                                            Abo beenden
+                                                        </div>
+                                                    </a>
+                                                @endif
+                                            </div>
+                                    @endif
 
-                                        <div class="col-auto">
-                                            @if($subscription == null)
-                                                <a href="{{url("subscription/theme/$theme->id/")}}" class="btn btn-sm btn-outline-info">
-                                                    <i class="far fa-bell"></i>
-                                                    <div class="d-none d-md-none d-lg-inline-block">
-                                                        Abonieren
-                                                    </div>
-                                                </a>
-                                            @else
-                                                <a href="{{url("subscription/theme/$theme->id/remove")}}" class="btn btn-sm btn-info">
-                                                    <i class="fas fa-bell"></i>
-                                                    <div class="d-none d-md-none d-lg-inline-block">
-                                                        Abo beenden
-                                                    </div>
-                                                </a>
-                                            @endif
-                                        </div>
                             </div>
                         </div>
                     </div>
