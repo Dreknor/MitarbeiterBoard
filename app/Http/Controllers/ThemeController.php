@@ -98,7 +98,7 @@ class ThemeController extends Controller
            ]);
         }
 
-        $themes = $group->themes()->where('completed', 0)->where('memory', true)->get();
+        $themes = $group->themes()->where('completed', 0)->where('memory', 1)->get();
         $themes->load('priorities', 'ersteller');
 
         $themes = $themes->sortByDesc('priority');
