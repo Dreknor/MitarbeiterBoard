@@ -52,7 +52,7 @@ class ThemeController extends Controller
            ]);
         }
 
-        $themes = $group->themes()->where('completed', 0)->where('memory', null)->get();
+        $themes = $group->themes()->where('completed', 0)->where('memory', '!=', 1)->get();
         $themes->load('priorities', 'ersteller', 'type', 'protocols');
 
         $viewType = Cache::get('viewType_'.$groupname.'_'.auth()->id(), $group->viewType);
