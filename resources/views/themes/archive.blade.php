@@ -65,7 +65,15 @@
                                                 </div>
                                         </td>
                                         <td>
-                                            <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">anzeigen</a>
+                                           <div class="row">
+                                               <div class="col-auto">
+                                                   <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">anzeigen</a>
+                                               </div>
+                                           @can('unarchive theme')
+                                               <div class="col-auto">
+                                                   <a href="{{url("/unarchiv/$theme->id")}}">reaktivieren</a>
+                                               </div>
+                                            @endcan
                                         </td>
                                     </tr>
                                 @endforeach

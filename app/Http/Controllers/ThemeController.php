@@ -138,6 +138,32 @@ class ThemeController extends Controller
         ]);
     }
 
+    public function unArchive(Theme $theme)
+    {
+
+        if (! auth()->user()->can('unarchive theme')) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $theme->update(['completed' => 0]);
+
+        $protocol = Protocol::create([
+            'creator_id' => auth()->id(),
+            'theme_id' => $theme->id,
+            'protocol'  => 'Thema wieder aktiviert',
+        ]);
+        $protocol->save();
+
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Thema erneut geöffnet'
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      *
