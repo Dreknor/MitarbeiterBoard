@@ -9,7 +9,9 @@ use App\Models\Wochenplan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpWord\Shared\Converter;
+use PhpOffice\PhpWord\SimpleType\TblWidth;
 use PhpOffice\PhpWord\Style\Language;
+use PhpOffice\PhpWord\Style\Table;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WochenplanController extends Controller
@@ -219,24 +221,23 @@ class WochenplanController extends Controller
         $section->addText('');
 
 
-
         //Tabelle
+
         $table = $section->addTable([
-            'unit' => \PhpOffice\PhpWord\Style\Table::WIDTH_PERCENT,
-            'width'=> Converter::cmToTwip(9),
             'borderSize' => 0,
             'borderColor' => '3D3D3D',
-            'cellMargin'=>200
+
+            'intend' => TblWidth::TWIP
         ]);
         $table->addRow();
 
         if ($wochenplan->hasDuration) {
             $columnWidth = [
-                2.5, 7, 1.7, 0.75, 3
+                3, 9, 1.7, 0.75, 3
             ];
         } else {
             $columnWidth = [
-                2.5, 7, 0, 0.75, 3
+                3, 8.5, 0, 1, 4.5
             ];
         }
 
@@ -255,7 +256,7 @@ class WochenplanController extends Controller
                     'margin-top'    => 50
                 ));
 
-            $table->addCell($columnWidth[4])->addText('Unterschrift');
+            $table->addCell(Converter::cmToTwip($columnWidth[4]))->addText('Unterschrift');
 
 
         foreach ($wochenplan->rows as $row){
