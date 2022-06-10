@@ -6,6 +6,7 @@ use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanWeek;
 use Carbon\Carbon;
 
 class VertretungsplanController extends Controller
@@ -49,6 +50,13 @@ class VertretungsplanController extends Controller
             ->orderBy('date_start')
             ->get();
 
+        //Wochentyp
+
+        $weeks = VertretungsplanWeek::where('week',  Carbon::today()->copy()->startOfWeek()->format('Y-m-d'))
+            ->orWhere('week', $targetDate->copy()->startOfWeek()->format('Y-m-d'))
+            ->orderBy('week')
+            ->get();
+
         //Absences
         $absences = Absence::whereDate('start', '<=', Carbon::today())
             ->whereDate('end', '>=', Carbon::today())
@@ -62,7 +70,8 @@ class VertretungsplanController extends Controller
             'vertretungen' => $vertretungen,
             'news'          => $news,
             'targetDate' => $targetDate,
-            'absences' => $absences
+            'absences' => $absences,
+            'weeks' => $weeks
         ];
 
 
@@ -110,13 +119,21 @@ class VertretungsplanController extends Controller
             ];
         }
 
+        $weeks = [];
+
+        foreach ($plan['weeks'] as $week){
+            $weeks[$week->week]=[
+                'type' => $week->type,
+            ];
+        }
 
 
         return json_encode([
             'vertretungen' => $vertretungen,
             'news' => $news,
             'absences' => $absences,
-            'targetDate' => $plan['targetDate']
+            'targetDate' => $plan['targetDate'],
+            'weeks' => $weeks
         ]);
     }
 

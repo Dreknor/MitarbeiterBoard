@@ -26,6 +26,7 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
+use App\Http\Controllers\VertretungsplanWeekController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
@@ -133,6 +134,8 @@ Route::group([
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
                     Route::get('dailyNews', [DailyNewsController::class, 'index']);
                     Route::delete('dailyNews/{dailyNews}', [DailyNewsController::class, 'destroy']);
+                    Route::get('weeks', [VertretungsplanWeekController::class, 'index']);
+                    Route::get('weeks/change/{week}', [VertretungsplanWeekController::class, 'update']);
                 });
 
                 //Subscriptions

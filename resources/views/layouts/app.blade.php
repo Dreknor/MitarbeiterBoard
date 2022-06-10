@@ -175,11 +175,11 @@
                                     Vertretungsplan <b class="caret"></b>
                                 </p>
                             </a>
-                            <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews") show  active @endif" id="Vertretung">
+                            <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews" or request()->segment(1)=="weeks") show  active @endif" id="Vertretung">
                                 <ul class="nav pl-2">
                                     <li class="@if(request()->segment(1)=="vertretungen") active @endif">
                                         <a href="{{url('/vertretungen')}}">
-                                            <i class="fas fa-exchange-alt"></i>
+                                            <i class="fas fa-sync"></i>
                                             <p>Vertreungen</p>
                                         </a>
                                     </li>
@@ -187,6 +187,12 @@
                                         <a href="{{url('/dailyNews')}}">
                                             <i class="fas fa-newspaper"></i>
                                             <p>News</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(1)=="weeks") active @endif">
+                                        <a href="{{url('/weeks')}}">
+                                            <i class="fas fa-calendar"></i>
+                                            <p>Wochen</p>
                                         </a>
                                     </li>
                                 </ul>
