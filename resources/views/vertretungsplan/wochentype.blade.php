@@ -31,9 +31,22 @@
                                 {{$week->type}}
                             </td>
                             <td>
-                                <a href="{{url('weeks/change/'.$week->id)}}" class="">
-                                    <i class="fas fa-sync"></i>
-                                </a>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <a href="{{url('weeks/change/'.$week->id)}}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-sync"></i>
+                                        </a>
+                                    </div>
+                                    <div class="col-6 ">
+                                        <form class="form-inline" method="post" action="{{url('weeks/delete/'.$week->id)}}">
+                                            @csrf
+                                            @method('delete')
+                                            <button type="submit" class=" btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    </div>
+                                </div>
+
+
 
                             </td>
                         </tr>

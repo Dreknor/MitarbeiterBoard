@@ -136,6 +136,7 @@ Route::group([
                     Route::delete('dailyNews/{dailyNews}', [DailyNewsController::class, 'destroy']);
                     Route::get('weeks', [VertretungsplanWeekController::class, 'index']);
                     Route::get('weeks/change/{week}', [VertretungsplanWeekController::class, 'update']);
+                    Route::delete('weeks/delete/{week}', [VertretungsplanWeekController::class, 'destroy']);
                 });
 
                 //Subscriptions

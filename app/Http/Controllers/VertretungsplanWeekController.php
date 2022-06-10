@@ -71,8 +71,13 @@ class VertretungsplanWeekController extends Controller
      * @param  \App\Models\VertretungsplanWeek  $vertretungsplanWeek
      * @return \Illuminate\Http\Response
      */
-    public function destroy(VertretungsplanWeek $vertretungsplanWeek)
+    public function destroy(VertretungsplanWeek $week)
     {
-        //
+        $week->delete();
+
+        return redirect()->back()->with([
+            'type' => 'info',
+            'Meldung' => "Wochentype wurde gelöscht"
+        ]);
     }
 }
