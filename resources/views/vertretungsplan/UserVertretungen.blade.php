@@ -39,7 +39,7 @@
             </tr>
             </thead>
             <tbody>
-            @foreach(\App\Models\VertretungsplanWeek::where('week', '>=', \Carbon\Carbon::today()->startOfWeek())->get() as $week)
+            @foreach(\App\Models\VertretungsplanWeek::where('week', '>=', \Carbon\Carbon::today()->startOfWeek())->take(3)->get() as $week)
                 <tr>
                     <td>
                         {{$week->date}}
