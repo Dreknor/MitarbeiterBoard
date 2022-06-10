@@ -120,21 +120,18 @@ class VertretungsplanController extends Controller
         }
 
         $weeks = [];
-
         foreach ($plan['weeks'] as $week){
-            $weeks[$week->week]=[
-                'type' => $week->type,
-            ];
+            $weeks[$week->week->format('Y-m-d')]=$week->type;
         }
 
-
-        return json_encode([
+        $array = [
             'vertretungen' => $vertretungen,
             'news' => $news,
             'absences' => $absences,
             'targetDate' => $plan['targetDate'],
             'weeks' => $weeks
-        ]);
+        ];
+        return json_encode($array);
     }
 
 }
