@@ -19,7 +19,8 @@ class VertretungsplanWeekController extends Controller
         $weeks = VertretungsplanWeek::where('week', '>=', Carbon::now()->startOfWeek())->get();
 
         if (is_null($weeks) or $weeks->count() == 0){
-            for ($week = Carbon::now()->startOfWeek(); $week->lessThan(Carbon::createFromFormat('d.m.Y', '31.07.'.Carbon::now()->format('Y'))); $week->addWeek()){
+            $year = (Carbon::now()->month < 7)? Carbon::now()->format('Y') : Carbon::now()->addYear()->format('Y');
+            for ($week = Carbon::now()->startOfWeek(); $week->lessThan(Carbon::createFromFormat('d.m.Y', '31.07.'.$year)); $week->addWeek()){
                 $newWeek = new VertretungsplanWeek([
                   'week' => $week,
                   'type' => ($week->weekOfYear%2 == 0)? 'A' : 'B'
