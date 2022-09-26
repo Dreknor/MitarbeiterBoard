@@ -36,13 +36,21 @@
                     </div>
                 </div>
                 <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="col-sm-12 col-md-12 col-lg-9">
                         <label for="goal">Ziel
                             <b>
                                 <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Das Ziel sollte spezifisch, messbar, akzeptiert, realistisch und terminiert sein. Verpflichtend">?</a>
                             </b>
                         </label>
                         <input type="text" class="form-control" id="goal" name="goal" required value="{{old('goal')}}">
+                    </div>
+
+                    <div class="col-sm-12 col-md-12 col-lg-3">
+                        <label for="type">direkt in Themenspeicher?</label>
+                        <select name="memory" id="memory" class="custom-select">
+                            <option value="0">nein</option>
+                            <option value="1" @if($speicher) selected @endif>ja</option>
+                        </select>
                     </div>
                 </div>
                 <div class="form-row pt-2">
@@ -138,8 +146,8 @@
 
         $("#customFile").fileinput({
             'showUpload':false,
-            'previewFileType':'any',
-            maxFileSize: {{config('app.maxFileSize')}},
+            'previewFileType': 'any',
+            maxFileSize: '{{config('app.maxFileSize', 100)}}',
             'theme': "fas",
         });
     </script>

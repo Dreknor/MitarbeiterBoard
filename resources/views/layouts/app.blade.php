@@ -14,6 +14,7 @@
     <!-- CSS Files -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />
     <link href="{{asset('css/paper-dashboard.css?v=2.0.0')}}" rel="stylesheet" />
+    <link href="{{asset('css/palette-gradient.css')}}" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
 
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
@@ -25,7 +26,7 @@
 </head>
 
 <body id="app-layout">
-<div class="sidebar" data-color="white" data-active-color="danger">
+<div class="sidebar" data-active-color="danger">
     <div class="logo" style="word-wrap: normal;">
         <a href="{{config('app.url')}}" class="simple-text">
             <div class="logo-image-small">
@@ -106,7 +107,7 @@
                                 Beratungen <b class="caret"></b>
                             </p>
                         </a>
-                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
+                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
                                 @foreach(auth()->user()->groups() AS $group)
                                     <li>

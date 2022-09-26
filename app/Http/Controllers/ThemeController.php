@@ -169,7 +169,7 @@ class ThemeController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create($groupname)
+    public function create($groupname, $speicher=null)
     {
         $group = Group::where([
             'name'  => $groupname,
@@ -178,6 +178,7 @@ class ThemeController extends Controller
         return view('themes.create', [
             'types' => Type::all(),
             'group' => $group,
+            'speicher' => $speicher
         ]);
     }
 

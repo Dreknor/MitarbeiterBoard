@@ -9,7 +9,7 @@
             </div>
             @can('create themes')
                 <div class="card-body">
-                    <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-primary">neues Thema</a>
+                    <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-bg-gradient-x-blue-cyan">neues Thema</a>
                 </div>
             @endcan
         </div>
@@ -23,9 +23,9 @@
                 </div>
             </div>
         @else
-                    @foreach($themes as $day => $dayThemes)
+            @foreach($themes as $day => $dayThemes)
                         <div class="card" id="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" >
-                            <div class="card-header">
+                            <div class="card-header bg-gradient-directional-blue-grey text-white">
                                 <div class="row">
                                     <div class="col-sm-12 col-md-8">
                                         <h5 class="card-title">
@@ -73,7 +73,7 @@
                                         </thead>
                                         <tbody class="connectedSortable" >
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
-                                            <tr id="{{$theme->id}}" @if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) class="bg-warning" @endif>
+                                            <tr id="{{$theme->id}}" @if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) class="bg-gradient-striped-success" @endif>
                                                 <td>
                                                     {{$theme->ersteller->name}}
                                                 </td>

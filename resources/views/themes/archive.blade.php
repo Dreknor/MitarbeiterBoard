@@ -21,7 +21,7 @@
         @else
             @foreach($themes as $day => $dayThemes)
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header  bg-gradient-directional-blue-grey text-white">
                         <h5 class="card-title">
                             {{$day}}
                         </h5>

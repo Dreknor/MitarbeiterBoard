@@ -2,12 +2,15 @@
 @section('content')
     <div class="container-fluid">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header  bg-gradient-directional-blue-grey text-white">
                 <h5 class="card-title">
                     Suche
                 </h5>
-                <p class="text-info">
-                    ... in Themen, Zielen und Informationen und in Protokollen. Das Ergebnis sind immer die Themen.
+                <p class="text-white">
+                    ... in Themen, Zielen und Informationen und in Protokollen.
+                </p>
+                <p class="text-white">
+                   Das Ergebnis sind immer die Themen.
                 </p>
             </div>
             <div class="card-body">

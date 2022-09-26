@@ -358,7 +358,7 @@
 
                     <div class="form-row">
                         <div class="col-12">
-                            <button type="submit" class="btn btn-success btn-block">speichern</button>
+                            <button type="submit" class="btn btn-bg-gradient-x-blue-green btn-block">speichern</button>
                         </div>
 
                     </div>
