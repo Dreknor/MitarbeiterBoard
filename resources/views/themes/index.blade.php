@@ -96,7 +96,7 @@
                                                             <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
                                                         </div>
                                                     @else
-                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">
+                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
                                                     @endif
                                                 </td>
                                                 <td>
@@ -126,7 +126,9 @@
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
-            let url = "{{url(request()->segment(1).'/themes')}}";
+            let day = $(this).data('date');
+            let url = "{{url(request()->segment(1).'/themes#' )}}"+day;
+            console.log(url)
             $.ajax({
                     type: "POST",
                     url: '{{url('priorities')}}',
