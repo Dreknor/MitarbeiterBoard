@@ -126,8 +126,7 @@
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
-            let day = $(this).data('date');
-            let url = "{{url(request()->segment(1).'/themes#' )}}"+day;
+            let url = "{{url(request()->segment(1).'/themes/' )}}"
             console.log(url)
             $.ajax({
                     type: "POST",
