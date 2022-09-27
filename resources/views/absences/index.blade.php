@@ -77,7 +77,7 @@
             </table>
             <div class="d-none d-lg-block">
                 @can('view old absences')
-                    <table class="table table-striped">
+                    <table class="table table-striped table-responsive">
                         <thead>
                         <tr>
                             <th colspan="4">
