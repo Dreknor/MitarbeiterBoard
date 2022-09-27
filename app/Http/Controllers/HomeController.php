@@ -72,7 +72,7 @@ class HomeController extends Controller
             'steps' => $steps,
             'absences' => $absences,
             'oldAbsences' => $oldAbsences,
-            'posts' => auth()->user()->posts()->paginate(15)
+            'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15)
         ]);
     }
 }

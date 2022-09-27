@@ -14,7 +14,7 @@ class Post extends Model implements HasMedia
     use InteractsWithMedia;
 
     protected $fillable = [
-      'author_id', 'header', 'text', 'released'
+      'author_id', 'header', 'text', 'released', 'created_at'
     ];
 
     public function author(){
