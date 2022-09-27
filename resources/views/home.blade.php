@@ -15,11 +15,13 @@
                     <div class="row">
                         <div class="card w-100">
                             <div class="card-header bg-gradient-directional-blue text-white">
-                                <div class="pull-right">
-                                    <a href="{{url('posts/create')}}" class="btn btn-bg-gradient-x-blue-green">
-                                        <i class="fa fa-plus"></i>
-                                    </a>
-                                </div>
+                                @can('create posts')
+                                    <div class="pull-right">
+                                        <a href="{{url('posts/create')}}" class="btn btn-bg-gradient-x-blue-green">
+                                            <i class="fa fa-plus"></i>
+                                        </a>
+                                    </div>
+                                @endcan
                                 <h5>
                                     Nachrichten
                                 </h5>
