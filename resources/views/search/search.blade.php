@@ -4,7 +4,7 @@
         <div class="card">
             <div class="card-header  bg-gradient-directional-blue-grey text-white">
                 <h5 class="card-title">
-                    Suche
+                    Suche @if(request()->segment(1) != 'search') in {{request()->segment(1)}} @else global @endif
                 </h5>
                 <p class="text-white">
                     ... in Themen, Zielen und Informationen und in Protokollen.
@@ -57,7 +57,7 @@
                                 data.forEach(result =>
                                 {
                                     if (result != null){
-                                        console.log(result);
+
                                         $("#result").append('<li class="list-group-item"><a href="{{url(request()->segment(1).'/themes')}}/'+ result.id +'">'+result.date.substring(0,10) + ': '+ result.theme + '</a></li>')
                                     }
                                    });

@@ -44,6 +44,12 @@
                             <p>Home</p>
                         </a>
                     </li>
+                    <li class="@if(request()->segment(1)=="search") active @endif">
+                    <a href="{{url('/search')}}">
+                        <i class="fa fa-search"></i>
+                        <p>Suche</p>
+                    </a>
+                    </li>
                     @can('view procedures')
                         <li>
                             <a href="{{url('/procedure')}}">

@@ -151,6 +151,11 @@ Route::group([
                 Route::resource('posts', PostsController::class);
                 Route::get('posts/{post}/release', [PostsController::class, 'release']);
 
+                //globale Suche
+                Route::post('search/search', [SearchController::class, 'searchGlobal']);
+                Route::get('search', [SearchController::class, 'globalSearch']);
+
+
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
