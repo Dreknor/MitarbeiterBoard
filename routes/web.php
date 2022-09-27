@@ -11,6 +11,7 @@ use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\PositionsController;
+use App\Http\Controllers\PostsController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
@@ -145,6 +146,10 @@ Route::group([
 
                 Route::get('/home', [HomeController::class, 'index'])->name('home');
                 Route::get('/', [HomeController::class, 'index']);
+
+                //Posts
+                Route::resource('posts', PostsController::class);
+                Route::get('posts/{post}/release', [PostsController::class, 'release']);
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);

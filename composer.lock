@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d698bcbc210d2618245c60146f3ec630",
+    "content-hash": "abd9e23cd6d489742ad54c4fd3d72ff3",
     "packages": [
         {
             "name": "aacotroneo/laravel-saml2",
@@ -6622,16 +6622,16 @@
         },
         {
             "name": "staudenmeir/eloquent-has-many-deep",
-            "version": "v1.15.1",
+            "version": "v1.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/staudenmeir/eloquent-has-many-deep.git",
-                "reference": "c21dcb2bfa9618e8eaaeda95541d2ffb3f421ecd"
+                "reference": "14abcb86912d306862841edc8279d94117fed526"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/staudenmeir/eloquent-has-many-deep/zipball/c21dcb2bfa9618e8eaaeda95541d2ffb3f421ecd",
-                "reference": "c21dcb2bfa9618e8eaaeda95541d2ffb3f421ecd",
+                "url": "https://api.github.com/repos/staudenmeir/eloquent-has-many-deep/zipball/14abcb86912d306862841edc8279d94117fed526",
+                "reference": "14abcb86912d306862841edc8279d94117fed526",
                 "shasum": ""
             },
             "require": {
@@ -6639,6 +6639,7 @@
                 "php": "^8.0.2"
             },
             "require-dev": {
+                "awobaz/compoships": "^2.1",
                 "illuminate/pagination": "^9.0",
                 "phpunit/phpunit": "^9.5",
                 "staudenmeir/eloquent-eager-limit": "^1.7"
@@ -6662,7 +6663,7 @@
             "description": "Laravel Eloquent HasManyThrough relationships with unlimited levels",
             "support": {
                 "issues": "https://github.com/staudenmeir/eloquent-has-many-deep/issues",
-                "source": "https://github.com/staudenmeir/eloquent-has-many-deep/tree/v1.15.1"
+                "source": "https://github.com/staudenmeir/eloquent-has-many-deep/tree/v1.16"
             },
             "funding": [
                 {
@@ -6670,7 +6671,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2022-03-15T20:45:07+00:00"
+            "time": "2022-08-27T06:55:03+00:00"
         },
         {
             "name": "symfony/console",

@@ -46,6 +46,17 @@ class Group extends Model
     }
 
 
+
+    /**
+     * Get all of the posts.
+     */
+    public function posts()
+    {
+        return $this->hasMany(Post::class, 'group_id');
+    }
+
+
+
     /**
      * Get all of the tasks.
      */

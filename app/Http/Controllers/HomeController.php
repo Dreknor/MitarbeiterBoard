@@ -36,6 +36,7 @@ class HomeController extends Controller
         $groups = auth()->user()->groups();
         $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
 
+
         $tasks = auth()->user()->tasks->where('completed', 0);
 
         foreach ($groups as $group) {
@@ -61,6 +62,9 @@ class HomeController extends Controller
             $oldAbsences = [];
         }
 
+
+
+
         return view('home', [
             'groups'    => $groups,
             'tasks'     => $tasks,
@@ -68,6 +72,7 @@ class HomeController extends Controller
             'steps' => $steps,
             'absences' => $absences,
             'oldAbsences' => $oldAbsences,
+            'posts' => auth()->user()->posts()->paginate(15)
         ]);
     }
 }

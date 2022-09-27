@@ -3,7 +3,7 @@
         Meine Vertretungen
     </div>
     <div class="card-body">
-        <table class="table table-bordered table-striped">
+        <table class="table table-bordered table-striped table-responsive">
             <thead>
             <tr>
                 <th>Datum</th>

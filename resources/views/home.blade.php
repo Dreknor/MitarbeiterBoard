@@ -9,17 +9,57 @@
                 </h5>
             </p>
         </div>
-        @can('view absences')
-            <div class="row mt-1">
-                <div class="col-12">
-                    @include('absences.index')
+        <div class="row">
+            <div class="col-md-12 col-lg-8 ">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="card w-100">
+                            <div class="card-header bg-gradient-directional-blue text-white">
+                                <div class="pull-right">
+                                    <a href="{{url('posts/create')}}" class="btn btn-bg-gradient-x-blue-green">
+                                        <i class="fa fa-plus"></i>
+                                    </a>
+                                </div>
+                                <h5>
+                                    Nachrichten
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="container-fluid">
+                                    <div class="row">
+                                        <div class="container-fluid">
+                                            @foreach($posts as $post)
+                                                @if($post->released == 1 or $post->author_id == auth()->id())
+                                                    @include('posts.post')
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="container-fluid">
+                                            {{$posts->links()}}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-        @endcan
-        @include('tasks.tasksCard')
-            @if(auth()->user()->can('view procedures'))
-                <div class="row mt-2">
-                    <div class="col-12 mt-2">
+            <div class="col-md-12 col-lg-4 ">
+                @can('view absences')
+                    <div class="row mt-1">
+                        <div class="col-12">
+                            @include('absences.index')
+                        </div>
+                    </div>
+                @endcan
+                @include('tasks.tasksCard')
+                @if(auth()->user()->can('view procedures'))
+                    <div class="row mt-2">
+                        <div class="col-12 mt-2">
                             <div class="card">
                                 <div class="card-header">
                                     <h5 class="card-title">
@@ -52,80 +92,20 @@
                                     @endif
                                 </div>
                             </div>
-                    </div>
-                </div>
-            @endif
-
-            @if(auth()->user()->kuerzel != "")
-            <div class="row mt-2">
-                <div class="col-12">
-                    @include('vertretungsplan.UserVertretungen')
-                </div>
-            </div>
-            @endif
-
-        </div>
-
-        <div class="row mt-2">
-            <div class="container-fluid">
-                <div class="card-deck">
-                    @foreach($groups as $group)
-                        @if($loop->index%2 == 0)
-                            <div class="w-100 d-none d-sm-block d-md-none"><!-- wrap every 2 on sm--></div>
-                        @elseif($loop->index%3 == 0)
-                            <div class="w-100 d-none  d-md-block d-lg-block"><!-- wrap every 3 on md--></div>
-                        @endif
-                        <div class="card m-1">
-                            <div class="card-header" style="background-color: {{$colors[$loop->index]}}">
-                                <h5 class="card-title">
-                                    {{$group->name}}
-                                </h5>
-                                @if($group->enddate != "")
-                                    <p class="small">
-                                        Erstellt von {{$group->creator->name}} und offen bis {{$group->enddate->format('d.m.Y')}} (noch {{$group->enddate->diffInDays(\Carbon\Carbon::now())}} Tage)
-                                    </p>
-                                @endif
-                            </div>
-                            <div class="card-body">
-                                <p>
-                                    <b>
-                                        nächste Besprechung:
-                                    </b>
-                                    {{optional(optional($group->themes->sortBy('date')->filter(function ($theme){
-                                       return $theme->completed == 0 and $theme->date->startOfDay()->greaterThanOrEqualTo(\Carbon\Carbon::now()->startOfDay());
-                                    })->first())->date)->format('d.m.Y')}}
-                                </p>
-                            </div>
-                            <div class="card-body h-100">
-                                <p>
-                                    <b>
-                                        Themen:
-                                    </b>
-                                </p>
-                                <ul class="list-group">
-                                    @foreach($group->themes->sortBy('date')->filter(function ($theme){
-                                           return $theme->completed == 0 and $theme->date->startOfDay()->greaterThanOrEqualTo(\Carbon\Carbon::now()->startOfDay());
-                                        }) as $theme)
-                                        <li class="list-group-item ">
-                                            <a href="{{url($group->name.'/themes/').'/'.$theme->id}}" class="btn-link">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {{$theme->theme}}
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                            <div class="card-footer">
-                                <a href="{{url($group->name."/themes")}}" class="btn btn-primary btn-block">
-                                    anzeigen
-                                </a>
-                            </div>
                         </div>
-                    @endforeach
+                    </div>
+                @endif
+
+                @if(auth()->user()->kuerzel != "")
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            @include('vertretungsplan.UserVertretungen')
+                        </div>
+                    </div>
+                @endif
+
                 </div>
             </div>
-
-        </div>
 
     </div>
 @endsection

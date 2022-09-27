@@ -54,6 +54,10 @@ class User extends Authenticatable
         'absence_abo_now' => 'boolean'
     ];
 
+    public function posts(){
+        return $this->hasManyDeep(Post::class, ['group_user', Group::class, 'group_post'])->distinct() ;
+    }
+
     public function themes()
     {
         return $this->hasMany(Theme::class, 'creator_id');

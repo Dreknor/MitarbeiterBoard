@@ -31,6 +31,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\AbsenceController@dailyReport')->weekdays()->at('07:30');
         $schedule->call('App\Http\Controllers\ProcedureController@remindStepMail')->weekdays()->at('07:30');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
+        $schedule->call('App\Http\Controllers\PostController@dailyMail')->dailyAt('18:00');
     }
 
     /**
