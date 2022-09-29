@@ -45,7 +45,7 @@ class SearchController extends Controller
             if ($resultsProtocol->count() > 0) {
                 foreach ($resultsProtocol as $protocol) {
                     $theme = $protocol->theme;
-                    $results[$group->name]->push($theme);
+                    $results[$group->name.'_Protokolle']->push($theme);
                 }
             }
         }
