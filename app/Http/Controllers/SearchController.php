@@ -42,11 +42,12 @@ class SearchController extends Controller
             }])->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text])
                 ->get();
 
+
             if ($resultsProtocol->count() > 0) {
                 foreach ($resultsProtocol as $protocol) {
-                    $theme = $protocol->theme;
-                    $results[$group->name.'_Protokolle']->push($theme);
+                    $themes[] = $protocol->theme;
                 }
+                $results[$group->name.'_Protokolle'] = $themes;
             }
         }
 
