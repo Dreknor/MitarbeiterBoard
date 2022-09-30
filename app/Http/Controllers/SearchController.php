@@ -47,7 +47,7 @@ class SearchController extends Controller
                 foreach ($resultsProtocol as $protocol) {
                     $themes[] = $protocol->theme;
                 }
-                $results[$group->name.'_Protokolle'] = $themes;
+                $results['Protokolle_'.$group->name] = $themes;
             }
         }
 
