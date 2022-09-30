@@ -74,7 +74,12 @@
                                             {
                                                 if (result != null){
                                                     var date = new Date(result.date)
-                                                    $("#resultPosts").append('<li class="list-group-item "><a class="" href="{{url('/')}}'+'/' + key +'/themes/'+ result.id +'">'+ formatDate(date)  + ': '+ result.theme + '</a></li>')
+                                                    if (key.indexOf('_') > 0){
+                                                        var group = key.substring((key.indexOf('_')+1));
+                                                    } else {
+                                                        var group = key
+                                                    }
+                                                    $("#resultPosts").append('<li class="list-group-item "><a class="" href="{{url('/')}}'+'/' + group +'/themes/'+ result.id +'">'+ formatDate(date)  + ': '+ result.theme + '</a></li>')
                                                 }
 
                                             } else {
