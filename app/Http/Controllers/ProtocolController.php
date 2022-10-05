@@ -361,7 +361,7 @@ class ProtocolController extends Controller
 
         $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
 
-        $filename='Protocol.docx';
+        $filename=Carbon::now()->format('Ymd_Hi').'_Protokoll_'.$groupname.'.docx';
 
         $objWriter->save(storage_path($filename));
 
