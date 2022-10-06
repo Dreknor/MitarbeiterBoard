@@ -38,6 +38,10 @@ class DailyNewsController extends Controller
     public function store(CreateDailyNewsRequest $request)
     {
         $news = new DailyNews($request->validated());
+
+        if (is_null($request->date_end)){
+            $news->date_end = $request->date_start;
+        }
         $news->save();
 
         return redirect()->back()->with([
