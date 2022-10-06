@@ -19,10 +19,6 @@ class DailyNews extends Model
 
     public function isActive(Carbon $date = NULL): bool {
 
-        if ($date == null){
-            $date = Carbon::today();
-        }
-
         $start = Carbon::parse($this->date_start);
 
         //Datum in der Zukunft
@@ -31,7 +27,7 @@ class DailyNews extends Model
         }
 
         if ($this->date_end == null and $start->lessThanOrEqualTo($date)) {
-            return false ;
+            return true ;
         }
 
         if ($this->date_end != null){
