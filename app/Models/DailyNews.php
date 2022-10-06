@@ -20,23 +20,19 @@ class DailyNews extends Model
     public function isActive(Carbon $date = NULL): bool {
 
         $start = Carbon::parse($this->date_start);
+        if ($this->date_end != null) {
+            $end = Carbon::parse($this->date_end);
+        } else {
+            $end = Carbon::parse($this->date_end);
+        }
 
         //Datum in der Zukunft
         if ($start->greaterThan($date)) {
             return false ;
         }
 
-        if ($this->date_end == null and $start->lessThanOrEqualTo($date)) {
+        if ($start->lessThanOrEqualTo($date) and $end->greaterThanOrEqualTo($date)) {
             return true ;
-        }
-
-        if ($this->date_end != null){
-            $end = Carbon::parse($this->date_end);
-
-            if ($end->greaterThanOrEqualTo($date)){
-                return true;
-            }
-
         }
 
 
