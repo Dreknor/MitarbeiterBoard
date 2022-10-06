@@ -23,7 +23,7 @@ class DailyNews extends Model
         if ($this->date_end != null) {
             $end = Carbon::parse($this->date_end);
         } else {
-            $end = Carbon::parse($this->date_end);
+            $end = Carbon::parse($this->date_start);
         }
 
         //Datum in der Zukunft
