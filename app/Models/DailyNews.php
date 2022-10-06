@@ -19,7 +19,7 @@ class DailyNews extends Model
 
     public function isActive(Carbon $date = NULL): bool {
 
-        $start = Carbon::parse($this->date_start);
+        $start = Carbon::parse($this->date_start)->startOfDay();
         if ($this->date_end != null) {
             $end = Carbon::parse($this->date_end);
         } else {
@@ -31,7 +31,7 @@ class DailyNews extends Model
             return false ;
         }
 
-        if ($start->lessThanOrEqualTo($date) and $end->greaterThanOrEqualTo($date)) {
+        if ($start->lessThanOrEqualTo($date) and $end->startOfDay()->greaterThanOrEqualTo($date)) {
             return true ;
         }
 
