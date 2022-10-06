@@ -47,9 +47,16 @@ class VertretungsplanController extends Controller
             ->orderBy('date')
             ->orderBy('stunde')->get();
 
-        $news = DailyNews::whereDate('date_start', '<=', $targetDate)
-            ->whereDate('date_end', '>=', Carbon::today())
-            ->whereDate('date_end', '<=', $targetDate)
+        $news = DailyNews::query()
+            ->where(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereNull('date_end');
+            })
             ->orderBy('date_start')
             ->get();
 
