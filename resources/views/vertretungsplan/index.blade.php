@@ -34,9 +34,11 @@
                         <h6>
                              Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}} @if($weeks->count() > 0) ({{$weeks->where('week', $x->copy()->startOfWeek())->first()->type}} - Woche) @endif
                         </h6>
-                        <div class="d-inline pull-right">
-                            abgerufen: {{\Carbon\Carbon::now()->format('d.m.Y H:i')}}
-                        </div>
+                        @if($x == \Carbon\Carbon::today())
+                            <div class="pull-right">
+                                abgerufen: {{\Carbon\Carbon::now()->format('d.m.Y H:i')}}
+                            </div>
+                        @endif
                     </div>
                     <div id="collapse{{$x->format('Ymd')}}"  aria-labelledby="heading{{$x->format('Ymd')}}" >
                         <div class="card-body">
