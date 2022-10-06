@@ -22,13 +22,15 @@ class DailyNews extends Model
         $start = Carbon::parse($this->date_start)->startOfDay();
         if ($this->date_end != null) {
             $end = Carbon::parse($this->date_end);
-        } else {
-            $end = Carbon::parse($this->date_start);
         }
 
         //Datum in der Zukunft
         if ($start->greaterThan($date)) {
             return false ;
+        }
+
+        if ($start->lessThanOrEqualTo($date) and is_null($this->date_end)) {
+            return true ;
         }
 
         if ($start->lessThanOrEqualTo($date) and $end->startOfDay()->greaterThanOrEqualTo($date)) {
