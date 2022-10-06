@@ -13,8 +13,21 @@ class DailyNewsController extends Controller
 
     public function index(){
 
+        $news = DailyNews::query()
+            ->where(function($query){
+                $query ->whereDate('date_start', '>=', Carbon::today());
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) {
+                $query ->whereDate('date_start', '>=', Carbon::today());
+                $query->whereNull('date_end');
+            })
+            ->orderBy('date_start')
+            ->get();
+
+
         return response()->view('dailyNews.index', [
-           'dailyNews'=>DailyNews::whereDate('date_start', '>=', Carbon::today())->orWhereDate('date_end', '>=', Carbon::today())->orderBy('date_start')->get()
+           'dailyNews'=> $news
         ]);
     }
 
