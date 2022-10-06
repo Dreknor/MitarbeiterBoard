@@ -55,6 +55,10 @@ class VertretungsplanController extends Controller
             })
             ->orWhere(function($query) use ($targetDate){
                 $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
                 $query->whereNull('date_end');
             })
             ->orderBy('date_start')
