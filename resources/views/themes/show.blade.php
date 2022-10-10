@@ -104,9 +104,9 @@
                         <div class="col-md-4 col-sm-12">
                             <div class="form-group">
                                 <label for="activ_until">
-                                    gueltig bis (ohne Angabe unbegrenzt)
+                                    gültig bis
                                 </label>
-                                <input type="date" name="active_until" class="form-control" id="activ_until">
+                                <input type="date" name="active_until" class="form-control" id="activ_until" required value="{{\Carbon\Carbon::now()->addWeek()->format('Y-m-d')}}">
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-12">
