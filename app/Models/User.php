@@ -82,7 +82,7 @@ class User extends Authenticatable
      */
     public function groups_rel()
     {
-        return $this->belongsToMany(Group::class);
+        return $this->belongsToMany(Group::class)->orderBy('name');
     }
 
     /**
