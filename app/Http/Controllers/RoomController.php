@@ -152,7 +152,7 @@ class RoomController extends Controller
         $end = Carbon::parse($request->end);
 
         for ($x = $start->copy(); $x->lessThanOrEqualTo($end); $x->addMinutes(15)){
-            if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'))){
+            if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i')) and $room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'))->id != $booking->id){
                 return redirect()->back()->with([
                     'type' => 'warning',
                     'Meldung'=> 'Raum ist bereits belegt'
