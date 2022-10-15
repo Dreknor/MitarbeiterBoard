@@ -110,11 +110,6 @@
             contextmenu: " link paste inserttable | cell row column deletetable",
         });
     </script>
-
-
-
-
-
 @endpush
 
 

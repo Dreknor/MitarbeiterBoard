@@ -50,6 +50,31 @@
                         <p>Suche</p>
                     </a>
                     </li>
+                    @can('view roomBooking')
+                        <li class="@if(request()->segment(1)=="rooms" ) active  @endif">
+                            <a data-toggle="collapse" href="#rooms">
+                                <p>
+                                    <i class="fa fa-calendar-alt"></i>
+                                    Raumplan
+                                    <b class="caret"></b>
+                                </p>
+
+                            </a>
+                            @can('manage rooms')
+                                <div class="collapse @if(request()->segment(1)=="rooms" ) show  @endif" id="rooms">
+                                    <ul class="nav pl-2">
+                                        <li class="@if(request()->segment(2)=="rooms" and request()->segment(1)=="rooms" ) active @endif">
+                                            <a href="{{url('rooms/rooms')}}">
+                                                <i class="fa fa-house"></i>
+                                                <p>Räume</p>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            @endcan
+                        </li>
+
+                    @endif
                     @can('view procedures')
                         <li>
                             <a href="{{url('/procedure')}}">
@@ -125,7 +150,7 @@
                                         </a>
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
-                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
                                                     <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                         <i class="far fa-comments"></i>
                                                         <p>Themen</p>
@@ -164,6 +189,14 @@
                                                             </a>
                                                         </li>
                                                     @endif
+                                                @endcan
+                                                @can('manage recurring themes')
+                                                    <li class="@if(request()->segment(3)=="recurring" and request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                                        <a href="{{url($group->name.'/themes/recurring')}}">
+                                                            <i class="fas fa-redo"></i>
+                                                            <p>wiederk. Themen</p>
+                                                        </a>
+                                                    </li>
                                                 @endcan
                                             </ul>
                                         </div>

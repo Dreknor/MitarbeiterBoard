@@ -13,34 +13,37 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('author_id')->nullable();
-            $table->text('header');
-            $table->longText('text');
-            $table->boolean('released')->default(0);
-            $table->timestamps();
-            $table->softDeletes();
+        if (!Schema::hasTable('posts')) {
 
-            $table->foreign('author_id')->references('id')->on('users')->cascadeOnDelete();
+            Schema::create('posts', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('author_id')->nullable();
+                $table->text('header');
+                $table->longText('text');
+                $table->boolean('released')->default(0);
+                $table->timestamps();
+                $table->softDeletes();
+
+                $table->foreign('author_id')->references('id')->on('users')->cascadeOnDelete();
 
 
-        });
+            });
 
-        Schema::create('group_post', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('group_id');
-            $table->unsignedBigInteger('post_id');
-            $table->timestamps();
-            $table->foreign('group_id')->references('id')->on('groups')->cascadeOnDelete();
-            $table->foreign('post_id')->references('id')->on('posts')->cascadeOnDelete();
+            Schema::create('group_post', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('group_id');
+                $table->unsignedBigInteger('post_id');
+                $table->timestamps();
+                $table->foreign('group_id')->references('id')->on('groups')->cascadeOnDelete();
+                $table->foreign('post_id')->references('id')->on('posts')->cascadeOnDelete();
 
-        });
+            });
 
-        Spatie\Permission\Models\Permission::create([
-            'name' => 'create posts',
-            'guard_name'=>'web'
-        ]);
+            Spatie\Permission\Models\Permission::firstOrCreate([
+                'name' => 'create posts',
+                'guard_name' => 'web'
+            ]);
+        }
 
     }
 

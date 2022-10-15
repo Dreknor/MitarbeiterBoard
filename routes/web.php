@@ -16,7 +16,9 @@ use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
+use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
@@ -76,7 +78,15 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
-                //Wochenplan
+
+            //Raumplan
+                Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
+                    Route::resource('rooms', RoomController::class)->except('create');
+
+                });
+
+
+                    //Wochenplan
                 Route::group(['middleware' => ['permission:create Wochenplan']], function () {
                     Route::resource('{groupname}/wochenplan', WochenplanController::class);
                     Route::post('wochenplan/{wochenplan}/addfile', [WochenplanController::class, 'addFile']);
@@ -155,6 +165,11 @@ Route::group([
                 Route::post('search/search', [SearchController::class, 'searchGlobal']);
                 Route::get('search', [SearchController::class, 'globalSearch']);
 
+
+                //recurring Themes
+                Route::middleware('permission:manage recurring themes')->group(function (){
+                    Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
+                });
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);

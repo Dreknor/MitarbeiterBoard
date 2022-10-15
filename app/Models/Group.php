@@ -27,6 +27,11 @@ class Group extends Model
         return $this->hasMany(Theme::class);
     }
 
+    public function recurringThemes()
+    {
+        return $this->hasMany(RecurringTheme::class);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
