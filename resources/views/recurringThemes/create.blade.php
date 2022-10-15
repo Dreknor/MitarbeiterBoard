@@ -18,11 +18,20 @@
                         <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="type">Monat</label>
+                        <label for="month">Monat</label>
                         <select name="month" id="month" class="custom-select" required>
                             <option disabled selected></option>
-                            @foreach(config('config.months') as $key => $month)
-                                <option value="{{$key}}"  @if (old('month') == $key) selected @endif>{{$month}}</option>
+                            @foreach(config('config.months') as $key => $day)
+                                <option value="{{$key}}"  @if (old('month') == $key) selected @endif>{{$day}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-sm-12 col-md-12 col-lg-3">
+                        <label for="start">Von</label>
+                        <select name="month" id="month" class="custom-select" required>
+                            <option disabled selected></option>
+                            @foreach(config('config.months') as $key => $day)
+                                <option value="{{$key}}"  @if (old('month') == $key) selected @endif>{{$day}}</option>
                             @endforeach
                         </select>
                     </div>

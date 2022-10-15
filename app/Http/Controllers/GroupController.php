@@ -176,7 +176,7 @@ class GroupController extends Controller
             }
         }
 
-        $group->users()->detach($group->users);
+        $group->users()->sync([]);
         $group->delete();
     }
 

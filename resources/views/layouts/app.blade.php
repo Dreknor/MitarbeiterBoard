@@ -52,26 +52,14 @@
                     </li>
                     @can('view roomBooking')
                         <li class="@if(request()->segment(1)=="rooms" ) active  @endif">
-                            <a data-toggle="collapse" href="#rooms">
+                            <a href="{{url('rooms/rooms')}}">
                                 <p>
                                     <i class="fa fa-calendar-alt"></i>
                                     Raumplan
-                                    <b class="caret"></b>
+
                                 </p>
 
                             </a>
-                            @can('manage rooms')
-                                <div class="collapse @if(request()->segment(1)=="rooms" ) show  @endif" id="rooms">
-                                    <ul class="nav pl-2">
-                                        <li class="@if(request()->segment(2)=="rooms" and request()->segment(1)=="rooms" ) active @endif">
-                                            <a href="{{url('rooms/rooms')}}">
-                                                <i class="fa fa-house"></i>
-                                                <p>Räume</p>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            @endcan
                         </li>
 
                     @endif
