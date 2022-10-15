@@ -44,12 +44,7 @@
                             <p>Home</p>
                         </a>
                     </li>
-                    <li class="@if(request()->segment(1)=="search") active @endif">
-                    <a href="{{url('/search')}}">
-                        <i class="fa fa-search"></i>
-                        <p>Suche</p>
-                    </a>
-                    </li>
+
                     @can('view roomBooking')
                         <li class="@if(request()->segment(1)=="rooms" ) active  @endif">
                             <a href="{{url('rooms/rooms')}}">
@@ -128,6 +123,12 @@
                         </a>
                         <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
+                                <li class="@if(request()->segment(1)=="search") active @endif">
+                                    <a href="{{url('/search')}}">
+                                        <i class="fa fa-search"></i>
+                                        <p>Suche</p>
+                                    </a>
+                                </li>
                                 @foreach(auth()->user()->groups() AS $group)
                                     <li>
 
