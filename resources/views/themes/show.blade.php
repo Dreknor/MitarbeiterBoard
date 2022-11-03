@@ -243,6 +243,7 @@
                                                     <i class="fas fa-file-download"></i>
                                                     {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
                                                 </a>
+
                                             </li>
                                         @endforeach
 

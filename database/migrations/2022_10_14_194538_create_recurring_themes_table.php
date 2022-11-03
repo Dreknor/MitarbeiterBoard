@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('recurring_themes', function (Blueprint $table) {
             $table->id();
             $table->text('theme');
-            $table->text('information');
+            $table->text('information')->nullable();
             $table->text('goal');
             $table->unsignedBigInteger( 'type_id');
             $table->unsignedBigInteger( 'creator_id');

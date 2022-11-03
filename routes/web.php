@@ -174,6 +174,7 @@ Route::group([
                 //recurring Themes
                 Route::middleware('permission:manage recurring themes')->group(function (){
                     Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
+                    Route::get('{groupname}/themes/recurring/file/{media}/delete', [ImageController::class, 'removeImage']);
                 });
 
                 //Themes

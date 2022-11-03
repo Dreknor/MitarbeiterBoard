@@ -78,6 +78,16 @@ class RecurringThemeController extends Controller
         $theme->creator_id = auth()->id();
         $theme->group_id = $group->id;
         $theme->save();
+
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file) {
+                $theme
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+        }
+
         return redirect(url($groupname.'/themes/recurring'))->with([
             'type' => 'success',
             'Meldung' => 'Wiederkehrendes Thema wurde erstellt'
@@ -139,6 +149,15 @@ class RecurringThemeController extends Controller
         };
         $theme->update($request->validated());
 
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file) {
+                $theme
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+        }
+
         return redirect($groupname.'/themes/recurring')->with([
             'type' => 'success',
             'Meldung' => 'Thema gespeichert',
@@ -184,6 +203,12 @@ class RecurringThemeController extends Controller
                $newTheme->duration = 10;
                $newTheme->theme = $newTheme->theme.' '.$month->year;
                $newTheme->save();
+
+               if ($theme->hasMedia()){
+                   foreach ($theme->getMedia() as $media){
+                       $media->copy($newTheme);
+                   }
+               }
 
                $protocol = new Protocol([
                    'theme_id' => $newTheme->id,
