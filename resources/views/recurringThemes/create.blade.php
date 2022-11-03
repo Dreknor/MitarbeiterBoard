@@ -27,15 +27,6 @@
                         </select>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="start">Von</label>
-                        <select name="month" id="month" class="custom-select" required>
-                            <option disabled selected></option>
-                            @foreach(config('config.months') as $key => $day)
-                                <option value="{{$key}}"  @if (old('month') == $key) selected @endif>{{$day}}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-3">
                         <label for="type">Typ</label>
                         <select name="type" id="type" class="custom-select" required>
                             <option disabled></option>
