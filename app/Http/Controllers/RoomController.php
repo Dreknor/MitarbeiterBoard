@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\createRoomBookingRequest;
 use App\Http\Requests\createRoomRequest;
+use App\Http\Requests\editRoomRequest;
 use App\Models\Room;
 use App\Models\RoomBooking;
 use Barryvdh\DomPDF\Facade as PDF;
@@ -103,11 +104,13 @@ class RoomController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  \App\Models\Room  $modelRoom
-     * @return \Illuminate\Http\Response
+     * @return View
      */
-    public function edit(Room $modelRoom)
+    public function edit(Room $room)
     {
-        //
+        return view('rooms.rooms.edit', [
+            'room' => $room
+        ]);
     }
 
     /**
@@ -117,7 +120,7 @@ class RoomController extends Controller
      * @param  \App\Models\Room  $room
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Room $room)
+    public function update(editRoomRequest $request, Room $room)
     {
         //
     }

@@ -28,6 +28,9 @@
                                     <small>{{$theme->type->type}}</small>
                                 </div>
                                 <p class="mb-1">{{$theme->goal}}</p>
+                                @if($theme->hasMedia())
+                                    <p class="mb-1">Enthält Anhang</p>
+                                @endif
                             </a>
                         @endforeach
                     </ul>

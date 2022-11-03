@@ -37,6 +37,11 @@
                                     <a href="{{url('rooms/rooms/'.$room->id.'')}}" class="btn btn-bg-gradient-x-blue-purple-1 btn-sm">
                                         <i class="fa fa-eye"></i>
                                     </a>
+                                    @can('manage rooms')
+                                        <a href="{{url('rooms/rooms/'.$room->id.'/edit')}}" class="btn btn-sm btn-bg-gradient-x-orange-yellow">
+                                            <i class="fa fa-edit"></i>
+                                        </a>
+                                    @endcan
                                     <!--
                                     <a href="{{url('rooms/rooms/'.$room->id.'/export')}}" class="btn btn-bg-gradient-x-blue-green btn-sm">
                                         <i class="fa fa-file-export"></i>
