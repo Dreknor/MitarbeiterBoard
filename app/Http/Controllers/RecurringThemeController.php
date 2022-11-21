@@ -196,12 +196,15 @@ class RecurringThemeController extends Controller
 
 
            foreach ($themes as $theme){
+
                $newTheme = new Theme($theme->toArray());
                $newTheme->date = $month;
                $newTheme->duration = 10;
                $newTheme->theme = $newTheme->theme.' '.$month->year;
                $newTheme->save();
-
+               if ($now == "start"){
+                   dump($newTheme);
+               }
                if ($theme->hasMedia()){
                    foreach ($theme->getMedia() as $media){
                        $media->copy($newTheme);
