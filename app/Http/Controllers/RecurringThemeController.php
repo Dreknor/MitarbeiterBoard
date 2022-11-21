@@ -10,8 +10,6 @@ use App\Models\Theme;
 use App\Models\Type;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class RecurringThemeController extends Controller
@@ -190,15 +188,15 @@ class RecurringThemeController extends Controller
         ]);
     }
 
-    public function createNewThemes(){
+    public function createNewThemes($now = null){
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
-        if ($month->day == 1){
+        if ($month->day == 1 or $now == "start"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
 
 
            foreach ($themes as $theme){
-               $newTheme = new Theme($theme->getAttributes());
+               $newTheme = new Theme($theme->toArray());
                $newTheme->date = $month;
                $newTheme->duration = 10;
                $newTheme->theme = $newTheme->theme.' '.$month->year;
