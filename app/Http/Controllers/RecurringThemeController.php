@@ -194,7 +194,7 @@ class RecurringThemeController extends Controller
         dump($month);
         if ($month->day == 1 or $now == "start"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
-
+            dump($themes);
 
            foreach ($themes as $theme){
 
