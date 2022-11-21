@@ -188,7 +188,7 @@ class RecurringThemeController extends Controller
         ]);
     }
 
-    public function createNewThemes($group, $now = null){
+    public function createNewThemes($now = null){
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
         dump($month);
