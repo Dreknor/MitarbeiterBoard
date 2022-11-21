@@ -192,6 +192,7 @@ class RecurringThemeController extends Controller
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
         dump($month);
+        dump($now);
         if ($month->day == 1 or $now == "start"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
             dump($themes);
