@@ -44,7 +44,7 @@ function money($money = null, $symbol = true)
 
 function is_holiday(Carbon $date)
 {
-    $holidays = Cache::remember('holidays', 2628000, function () use ($date) {
+    $holidays = Cache::remember('holidays_'.$date->format('Y'), 1200, function () use ($date) {
         return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
     });
 
