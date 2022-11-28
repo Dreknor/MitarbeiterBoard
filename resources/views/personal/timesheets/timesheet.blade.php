@@ -15,7 +15,14 @@
                 <h6>Arbeitszeitnachweis {{$employe->vorname}} {{$employe->familienname}}</h6>
                 <p>
                     <div class="d-inline">
+                    <a href="{{url('timesheets/'.$employe->id.'/'.$month->copy()->subMonth()->format('Y-m'))}}" class="btn btn-sm btn-outline-primary"> <-- </a>
+                    </div>
+                    <div class="d-inline">
                     {{$month->monthName}} {{$month->year}}
+                    </div>
+
+                    <div class="d-inline">
+                        <a href="{{url('timesheets/'.$employe->id.'/'.$month->copy()->addMonth()->format('Y-m'))}}" class="btn btn-sm btn-outline-primary"> --> </a>
                     </div>
                     <div class="d-inline pull-right">
                         <div class="dropleft">
@@ -33,7 +40,7 @@
                                 @endfor
                             </ul>
                         </div>
-                    </div>
+                    </>
                 </p>
             </div>
             <div class="card-body border-bottom border-top">
@@ -45,12 +52,21 @@
                             </b>
                         </p>
                         <p>
-                            @if($timesheet_old)
-                                <p>
-                                    {{convertTime($timesheet_old->working_time_account)}}
-                                </p>
-                            @else
-                                kein Arbeitszeitnachweis vorhanden
+                        @if($timesheet_old)
+                            <div class="row">
+                                <div class="col-auto">
+                                    Stundenkonto: {{convertTime($timesheet_old->working_time_account)}} h
+                                </div>
+                                <div class="col-auto">
+                                    Urlaub bisher: {{$timesheet_old->holidays_old}}
+                                </div>
+                                <div class="col-auto">
+                                    Urlaub Rest: {{$timesheet_old->holidays_rest}}
+                                </div>
+                            </div>
+
+                        @else
+                            kein Arbeitszeitnachweis gespeichert
                             @endif
                         </p>
                     </div>

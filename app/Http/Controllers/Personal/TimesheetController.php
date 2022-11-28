@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 class TimesheetController extends Controller
 {
 
+    /*
     private function getGroup($old_group_id){
 
         return Cache::remember($old_group_id.'_gruppe', 60, function() use ($old_group_id){
@@ -53,7 +54,6 @@ class TimesheetController extends Controller
         });
 
     }
-
     public function importEmployments(){
         if (!auth()->user()->can('edit employe')){
             return redirect()->back();
@@ -97,7 +97,6 @@ class TimesheetController extends Controller
 
                 return redirect(url('timesheets/import/roster'));
     }
-
     public function getTimesheets($day, $user)
     {
         $day = Carbon::createFromFormat('Y-m-d', $day);
@@ -111,9 +110,6 @@ class TimesheetController extends Controller
             ]);
         });
     }
-
-
-
     public function importRoster($year = 2005){
         $rosters_old = collect(DB::connection('dienstplan')->select("SELECT * FROM `dienstplan` WHERE `startdatum` BETWEEN '".$year."-01-01' AND '".$year."-12-31' "));
         $new_roster = [];
@@ -183,8 +179,6 @@ class TimesheetController extends Controller
             return redirect(url('timesheets/import/2015'));
         }
     }
-
-
     public function import($year){
         if (!auth()->user()->can('edit employe')){
             return redirect()->back();
@@ -209,8 +203,8 @@ class TimesheetController extends Controller
 
 
 
-        /*Arbeitszeitnachweise
-         */
+        //Arbeitszeitnachweise
+
        $arbeitszeitnachweis = collect(DB::connection('dienstplan')->select("SELECT * FROM `arbeitszeitnachweis` WHERE `datum` BETWEEN '$year-01-01' AND '$year-12-31' ORDER BY `id` DESC"));
 
         $new_arbeitszeitnachweis = [];
@@ -279,7 +273,7 @@ class TimesheetController extends Controller
             return redirect(url('http://mitarbeiter.local/'));
         }
     }
-
+    */
     /**
      * Display a listing of the resource.
      *
@@ -408,7 +402,6 @@ class TimesheetController extends Controller
         }
 
         $old = $act_month->copy()->subMonth();
-
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
             return Timesheet::where('employe_id', $user->id)
                 ->where('year', $old->year)
