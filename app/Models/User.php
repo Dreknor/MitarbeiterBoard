@@ -4,8 +4,10 @@ namespace App\Models;
 
 
 use App\Models\personal\EmployeData;
+use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\Employment;
 use App\Models\personal\RosterEvents;
+use App\Models\personal\Timesheet;
 use App\Models\personal\WorkingTime;
 use Carbon\Carbon;
 use DateTime;
@@ -171,6 +173,19 @@ class User extends Authenticatable implements HasMedia
 
     //Dienstpläne
 
+    public function holiday_claim(){
+        return $this->hasMany(EmployeHolidayClaim::class, 'employe_id');
+    }
+
+    #TODO neue anlegen
+    public function getHolidayClaim(Carbon $year = null){
+        if ($year == null) {$year = Carbon::now();}
+
+        $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
+
+        return ($claim == null)? 26 : $claim->holiday_claim;
+    }
+
     public function working_times()
     {
         return $this->hasMany(WorkingTime::class, 'employe_id');
@@ -205,7 +220,12 @@ class User extends Authenticatable implements HasMedia
 
     }
 
-
+    public function timesheets(){
+        return $this->hasMany(Timesheet::class, 'employe_id');
+    }
+    public function getTimesheetLatestAttribute(){
+        return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
+    }
 
 
 }

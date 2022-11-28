@@ -29,10 +29,11 @@ class Timesheet extends Model
         $monthBefore = $start_of_month->copy()->subMonth();
         $employe = $this->employe;
 
-
-        $working_time = Cache::remember('timesheet_'.$this->employe_id.'_'.$monthBefore->format('Y_m'), 1, function () use ($employe, $monthBefore){
+        $timesheet_old = Cache::remember('timesheet_'.$this->employe_id.'_'.$monthBefore->format('Y_m'), 1, function () use ($employe, $monthBefore){
             return Timesheet::where('month', $monthBefore->month)->where('year', $monthBefore->year)->where('employe_id', $employe->id)->first();
-        })?->working_time_account;
+        });
+
+        $working_time = $timesheet_old?->working_time_account;
 
         for ($x = $start_of_month->copy(); $x->lessThanOrEqualTo($start_of_month->endOfMonth()); $x->addDay()){
             $timesheet_day = $timesheet_days->filterDay($x);
@@ -48,7 +49,14 @@ class Timesheet extends Model
 
         $this->working_time_account = $working_time;
 
+        //Urlaub berechnen
         $this->holidays_new = $timesheet_days->where('comment', 'Urlaub')->count();
+        $this->holidays_old = ($timesheet_old == null)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) :$timesheet_old?->holidays_rest;
+        $this->holidays_rest = $this->holidays_old - $this->holidays_new;
+
+        if ($this->month == 1){
+            $this->holidays_rest = $this->holidays_old - $this->holidays_new + $this->employe->getHolidayClaim($start_of_month);
+        }
 
         $this->save();
     }

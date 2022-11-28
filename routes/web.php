@@ -98,9 +98,13 @@ Route::group([
 
 
                 //Timesheets
+                /*
                 Route::get('timesheets/import/roster/{year?}', [TimesheetController::class, 'importRoster']);
                 Route::get('timesheets/import/employments', [TimesheetController::class, 'importEmployments']);
                 Route::get('timesheets/import/{year}', [TimesheetController::class, 'import']);
+                */
+
+                Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
 
 
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);

@@ -519,5 +519,23 @@ class TimesheetController extends Controller
     {
         //
     }
+
+    public function updateTimesheets(User $user){
+        if (!auth()->user()->can('edit employe') and auth()->user()->can('has timesheet')){
+            return redirect(url('timesheets/'.auth()->id()));
+        }
+
+        $timesheets = $user->timesheets;
+        $timesheets = $timesheets->sortBy([
+            ['year', 'asc'],
+            ['month', 'asc'],
+        ]);
+
+
+        foreach ($timesheets as $timesheet){
+            $timesheet->updateTime();
+        }
+        return redirectBack('success', 'Aktualisierung erfolgreich');
+    }
 }
 
