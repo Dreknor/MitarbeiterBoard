@@ -1,5 +1,19 @@
 <?php
 return [
+    'abwesenheiten_arbeitszeit' => [
+        'Urlaub' => 100,
+        'Fortbildung' => 100,
+        'Weiterbildung' => 100,
+        'krank' => 100,
+        'Kind krank' => 100,
+        'eingeschränkter Regelbetrieb' => 100,
+        'eingeschr. Regelbetrieb' => 100,
+        'Corona'    => 100,
+        'Homeoffice'    => 100,
+        'Kur'   => 100,
+        'Bildungstag' => 100,
+
+    ],
 
     'auth' => [
         'auth_local' => env('AUTH_LOCAL', true),

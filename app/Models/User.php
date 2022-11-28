@@ -3,25 +3,31 @@
 namespace App\Models;
 
 
+use App\Models\personal\EmployeData;
+use App\Models\personal\Employment;
+use App\Models\personal\RosterEvents;
+use App\Models\personal\WorkingTime;
+use Carbon\Carbon;
+use DateTime;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use NotificationChannels\WebPush\HasPushSubscriptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
-
-use Staudenmeir\EloquentHasManyDeep\HasManyDeep;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
 
-class User extends Authenticatable
+class User extends Authenticatable implements HasMedia
 {
     use Notifiable;
     use HasRoles;
     use HasPushSubscriptions;
     use SoftDeletes;
     use HasRelationships;
-
+    use InteractsWithMedia;
 
     /**
      * The attributes that are mass assignable.
@@ -54,6 +60,13 @@ class User extends Authenticatable
         'absence_abo_now' => 'boolean'
     ];
 
+    public function getGeburtstagAttribute(){
+        return $this->employe_data?->geburtstag;
+    }
+
+    public function employe_data(){
+        return $this->hasOne(EmployeData::class);
+    }
     public function posts(){
         return $this->hasManyDeep(Post::class, ['group_user', Group::class, 'group_post'])->distinct() ;
     }
@@ -116,8 +129,34 @@ class User extends Authenticatable
 
 
     public function getShortnameAttribute(){
-        $familiename= Str::afterLast($this->name, ' ');
+
+        if ($this->employe_data != null and $this->employe_data->familienname != null){
+            $familiename = $this->employe_data->vorname;
+        } else {
+            $familiename= Str::afterLast($this->name, ' ');
+        }
+
         return Str::limit($this->name, 1, '.').' '.$familiename;
+    }
+
+    public function getVornameAttribute(){
+
+        if ($this->employe_data != null and $this->employe_data->vorname != null){
+            return $this->employe_data->vorname;
+        }
+
+        $vorname= Str::before($this->name, ' ');
+        return $vorname;
+    }
+
+    public function getFamiliennameAttribute(){
+
+        if ($this->employe_data != null and $this->employe_data->familienname != null){
+            return $this->employe_data->familienname;
+        }
+
+        $vorname= Str::afterLast($this->name, ' ');
+        return $vorname;
     }
 
     public function listen()
@@ -129,6 +168,44 @@ class User extends Authenticatable
     {
         return $this->hasMany(ListenTermin::class, 'reserviert_fuer');
     }
+
+    //Dienstpläne
+
+    public function working_times()
+    {
+        return $this->hasMany(WorkingTime::class, 'employe_id');
+    }
+
+    public function roster_events()
+    {
+        return $this->hasMany(RosterEvents::class);
+    }
+
+    public function employments()
+    {
+        return $this->hasMany(Employment::class, 'employe_id');
+    }
+
+    public function employments_date(DateTime $date = null, DateTime $end = null)
+    {
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
+        if (is_null($end)) {
+            $end = Carbon::now();
+        }
+
+        $employments = Cache::remember('user_employments_'.$this->id, 1, function (){
+            return $this->employments;
+        });
+
+        return $employments->filter(function ($item) use ($date, $end){
+                return $item->start->startOfDay()->lessThanOrEqualTo($date) and (is_null($item->end) or $item->end->startOfDay()->greaterThan($end->startOfDay()));
+        });
+
+    }
+
+
 
 
 }

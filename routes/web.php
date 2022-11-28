@@ -10,6 +10,16 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
+use App\Http\Controllers\Personal\AddressController;
+use App\Http\Controllers\Personal\ContactController;
+use App\Http\Controllers\Personal\EmployeController;
+use App\Http\Controllers\Personal\EmploymentController;
+use App\Http\Controllers\Personal\RosterCheckController;
+use App\Http\Controllers\Personal\RosterController;
+use App\Http\Controllers\Personal\RosterEventsController;
+use App\Http\Controllers\Personal\RosterNewsController;
+use App\Http\Controllers\Personal\TimesheetController;
+use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\PriorityController;
@@ -78,6 +88,67 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
+
+                Route::middleware(['permission:edit employe'])->group(function () {
+                    Route::resource('employes', EmployeController::class)->names([
+                        'show' => 'employes.show',
+                        'index' => 'employes.index',
+                    ])->except('create');
+                });
+
+
+                //Timesheets
+                Route::get('timesheets/import/roster/{year?}', [TimesheetController::class, 'importRoster']);
+                Route::get('timesheets/import/employments', [TimesheetController::class, 'importEmployments']);
+                Route::get('timesheets/import/{year}', [TimesheetController::class, 'import']);
+
+
+                Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
+                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
+                Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
+                Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
+                Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
+                Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
+
+                //Anstellungen
+                Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
+
+                Route::post('addresses/{employe}',[AddressController::class, 'update']);
+                Route::post('contacts/{employe}',[ContactController::class, 'store']);
+                Route::delete('contacts/{contact}',[ContactController::class, 'delete']);
+
+                Route::middleware(['permission:create roster'])->group(function () {
+                    //Roster - Dienstpläne
+                    Route::resource('roster', RosterController::class)
+                        ->except(['create'])
+                        ->names([
+                            'index' => 'roster.index',
+                            'show' => 'roster.show',
+                        ]);
+                    Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
+                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
+                    Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
+                    Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
+                    Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
+                    Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
+                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
+
+                    Route::get('roster/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
+
+                    //Create Checks
+                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
+
+
+                    Route::post('working_time', [WorkingTimeController::class, 'store']);
+                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);
+                    //events
+                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store']);
+                    Route::get('tasks/{event}/remember', [RosterEventsController::class, 'remember']);
+                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update']);
+                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate']);
+                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy']);
+                });
+
 
             //Raumplan
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {

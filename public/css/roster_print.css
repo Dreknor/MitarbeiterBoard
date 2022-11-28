@@ -1,0 +1,187 @@
+table {
+    page-break-inside: auto
+}
+
+tr {
+    page-break-inside: avoid;
+    page-break-after: auto
+}
+
+.day {
+    height: 109mm;
+    border: black 1px solid;
+
+}
+
+
+.new-page {
+    page-break-after: always;
+}
+
+.new-page td {
+    font-size: 20px;
+    margin: 5mm;
+    padding: 5mm;
+}
+
+.date {
+    max-width: 25mm;
+}
+
+.rotate {
+    position: relative;
+
+    top: -67mm;
+    left: -85mm;
+
+    height: 25mm;
+    width: 110mm;
+
+    -moz-transform: rotate(-90deg);
+    -ms-transform: rotate(-90deg);
+    -o-transform: rotate(-90deg);
+    -webkit-transform: rotate(-90deg);
+
+    transform: rotate(-90deg);
+
+    -moz-transform-origin: 100% 100%;
+    -ms-transform-origin: 100% 100%;
+    -o-transform-origin: 100% 100%;
+    -webkit-transform-origin: 100% 100%;
+    transform-origin: 100% 100%;
+
+    background: rgba(67, 67, 67, 0.18);
+
+    padding-top: 15px;
+    line-height: 1.3;
+    font-size: 13pt;
+    text-align: center;
+
+}
+
+.employes {
+
+}
+
+.employe {
+    padding: 0;
+}
+
+.employe > table {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 109mm;
+    text-align: center;
+}
+
+
+.employe {
+    border-right: 1px solid black;
+    padding: 0;
+}
+
+.name {
+    height: 10mm;
+    font-weight: bold;
+    box-sizing: border-box;
+    margin-top: 0;
+}
+
+.working_times {
+    height: 8mm;
+    border-bottom: black 1px solid;
+    box-sizing: border-box;
+}
+
+.function {
+    height: 8mm;
+    font-weight: bold;
+}
+
+.time {
+    width: 20mm;
+    padding: 0;
+    margin: 0;
+    border: 1px solid black;
+}
+
+.time > table {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 109mm;
+    text-align: center;
+}
+
+.leererTermin {
+    border-bottom: 1px dotted red;
+    box-sizing: border-box;
+    height: 6mm;
+    font-size: 14px;
+    padding: 0;
+    top: -5px;
+    position: relative;
+}
+
+.times {
+    height: 91mm;
+
+}
+
+.times > td {
+    border: 1px solid red;
+    padding: 0;
+    margin-top: 0;
+
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+
+.Termin {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    vertical-align: middle;
+    margin-left: 1px;
+    margin-right: 1px;
+    margin-top: 0;
+    margin-bottom: 0;
+    word-break: break-all;
+    background-color: #bce8f1;
+    box-sizing: border-box;
+    display: table;
+    width: 100%;
+
+    border-bottom: 1px solid grey;
+/ / border-top: 1 px solid grey;
+}
+
+.innerText {
+    display: table-cell;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.leererTermin_15, .leererTermin_45 {
+    border-bottom-color: crimson;
+    border-bottom-width: 1px;
+    height: 3mm;
+    color: white;
+    box-sizing: border-box;
+    border-bottom: dashed;
+
+    border-bottom-color: crimson;
+    border-bottom-width: 1px;
+}
+
+.leererTermin_30, .leererTermin_0 {
+    height: 3mm;
+    box-sizing: border-box;
+
+
+}

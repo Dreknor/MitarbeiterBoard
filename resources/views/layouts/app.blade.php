@@ -18,6 +18,7 @@
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
 
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
+    <link href="{{asset('/css/solid.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
     <link href="{{asset('css/own.css')}}" rel="stylesheet" />
 
@@ -44,7 +45,57 @@
                             <p>Home</p>
                         </a>
                     </li>
+                @canany(['create roster', 'edit employe', 'has timesheet'])
+                    <li>
+                        <a data-toggle="collapse" href="#personal">
+                            <p>
+                                <i class="fas fa-user-friends"></i>
+                                Personal <b class="caret"></b>
+                            </p>
+                        </a>
+                        <div class="collapse  @if(request()->segment(1)=="roster" or request()->segment(1)=="timesheets" or request()->segment(1)=="employes") show  active @endif" id="personal">
+                            <ul class="nav pl-2">
+                                @can('create roster')
+                                    <li class="@if(request()->segment(1)=="roster" ) active  @endif">
+                                        <a href="{{route('roster.index')}}">
+                                            <i class="la la-columns"></i>
+                                            <span class="menu-title" data-i18n="">
+                                                Dienstpläne
+                                            </span>
+                                        </a>
+                                    </li>
+                                @endcan
+                                @can('edit employe')
+                                    <li class="@if(request()->segment(1)=="employes" or request()->segment(1)=="timesheets") active  @endif">
+                                        <li class="@if(Route::currentRouteName() == 'employes.index' or Route::currentRouteName() == 'employes.show') active @endif">
+                                            <a class="menu-item" href="{{route('employes.index')}}">
+                                                Personal Übersicht
+                                            </a>
+                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/select/employe')}}">
+                                                Arbeitszeitnachweise
+                                            </a>
+                                        </li>
+                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) == 'import') active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/import')}}">
+                                                Import
+                                            </a>
+                                        </li>
+                                    </li>
+                                @endcan
+                                @can('has timesheet')
+                                        <li class="@if(request()->segment(1)=="timesheets" and request()->segment(2) == auth()->id()) active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/'.auth()->id())}}">
+                                                eigene Arbeitszeitnachweise
+                                            </a>
+                                        </li>
+                                @endcan
+                                </li>
 
+                            </ul>
+                        </div>
+                    </li>
+                @endcanany
                     @can('view roomBooking')
                         <li class="@if(request()->segment(1)=="rooms" ) active  @endif">
                             <a href="{{url('rooms/rooms')}}">

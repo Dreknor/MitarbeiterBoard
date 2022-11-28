@@ -11,3 +11,8 @@ word-wrap: break-word;
 .sidebar .nav li>a {
     opacity: 1;
 }
+.scrollable-menu {
+    height: auto;
+    max-height: 200px;
+    overflow-x: hidden;
+}

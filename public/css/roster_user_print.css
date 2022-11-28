@@ -1,0 +1,141 @@
+table {
+    page-break-inside: auto
+}
+
+.roster-table {
+    width: 100%;
+    height: 22cm;
+    max-height: 22cm;
+}
+
+tr {
+    page-break-inside: avoid;
+    page-break-after: auto
+}
+
+.day {
+    height: 100%;
+    border: #000000 1px solid;
+    width: 13.5%;
+}
+
+.day > table {
+    height: 100%;
+}
+
+.new-page {
+    page-break-after: always;
+}
+
+.new-page td {
+    font-size: 25px;
+    margin: 5mm;
+    padding: 5mm;
+}
+
+.time {
+
+}
+
+.time > table {
+    height: 100%;
+}
+
+.name {
+    height: 11mm;
+    font-weight: bold;
+    box-sizing: border-box;
+    margin-top: 0;
+    text-align: center;
+}
+
+.working_times {
+    height: 10mm;
+    border-bottom: black 1px solid;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.function {
+    height: 12mm;
+    font-weight: bold;
+    border-top: black 1px solid;
+}
+
+.plan > td {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.plan > td > ul > li {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    text-align: center;
+}
+
+
+.leererTermin {
+    border-bottom: 1px dotted red;
+    box-sizing: border-box;
+    height: 7mm;
+    font-size: 14px;
+    padding: 0;
+    top: -5px;
+    position: relative;
+}
+
+.leererTermin_15, .leererTermin_45 {
+    height: 7mm;
+    color: white;
+    box-sizing: border-box;
+    border-bottom: dashed;
+    background: rgba(213, 213, 213, 0.22);
+
+    border-bottom-color: crimson;
+    border-bottom-width: 1px;
+}
+
+.border_30, .border_0 {
+    border-bottom: dashed;
+
+    border-bottom-color: crimson;
+    border-bottom-width: 1px;
+}
+
+.leererTermin_30, .leererTermin_0 {
+    height: 7mm;
+    box-sizing: border-box;
+
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+
+.Termin {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    vertical-align: middle;
+    margin-left: 1px;
+    margin-right: 1px;
+    margin-top: 0;
+    margin-bottom: 0;
+    word-break: break-all;
+    background-color: #bce8f1;
+    box-sizing: border-box;
+    display: table;
+    width: 100%;
+}
+
+.innerText {
+    display: table-cell;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+

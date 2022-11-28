@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Employe;
 use App\Models\User;
 use App\Observers\UserObserver;
 use App\Support\Collection;
@@ -57,6 +58,43 @@ class AppServiceProvider extends ServiceProvider
             return $this->sortBy(function ($datum) use ($column) {
                 return strtotime($datum->$column);
             }, SORT_REGULAR, $order == SORT_DESC);
+        });
+
+        /**
+         * Filter RosterEvents for Employe and Time
+         *
+         * @param User $employe Carbon $carbon
+         * @param Carbon $carbon
+         * @return \Illuminate\Support\Collection
+         */
+        Collection::macro('searchRosterEvent', function (User $employe, Carbon $carbon) {
+            return $this->filter(function ($roster_event) use ($employe, $carbon) {
+                if ($roster_event->employe_id == $employe->id and $roster_event->start->lessThanOrEqualTo($carbon) and $roster_event->end->greaterThan($carbon)) {
+                    return $roster_event;
+                }
+            });
+        });
+        /**
+         * Filter WorkingTimeCollectionForDay for Employe and Time
+         *
+         * @param User $employe Carbon $carbon
+         * @param Carbon $carbon
+         * @return Collection
+         */
+        Collection::macro('searchWorkingTime', function (User $employe, Carbon $carbon) {
+            return $this->filter(function ($working_time) use ($employe, $carbon) {
+                if ($working_time->employe_id == $employe->id and $working_time->date->isSameDay($carbon)) {
+                    return $working_time;
+                }
+            });
+        });
+
+        Collection::macro('filterDay', function(Carbon $day){
+            return $this->filter(function ($item) use ($day){
+                if (array_key_exists('date', $item->toArray())){
+                    return $item->date?->format('Y-m-d') == $day->format('Y-m-d');
+                }
+            });
         });
     }
 }
