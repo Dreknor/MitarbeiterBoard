@@ -18,9 +18,8 @@
                     <a href="{{url('timesheets/'.$employe->id.'/'.$month->copy()->subMonth()->format('Y-m'))}}" class="btn btn-sm btn-outline-primary"> <-- </a>
                     </div>
                     <div class="d-inline">
-                    {{$month->monthName}} {{$month->year}}
+                    {{$month->monthName}} {{$month->year}} @if($timesheet->is_locked) <i class="fa-solid fa-lock"></i> @endif
                     </div>
-
                     <div class="d-inline">
                         <a href="{{url('timesheets/'.$employe->id.'/'.$month->copy()->addMonth()->format('Y-m'))}}" class="btn btn-sm btn-outline-primary"> --> </a>
                     </div>
@@ -92,6 +91,15 @@
                                         Urlaub Rest: {{$timesheet->holidays_rest}}
                                     </div>
                                 </div>
+                                @if(!$timesheet->is_locked)
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/lock')}}" class=" btn btn-sm btn-block btn-bg-gradient-x-orange-yellow">
+                                                abschließen
+                                            </a>
+                                        </div>
+                                    </div>
+                                @endif
 
                             @else
                                 kein Arbeitszeitnachweis gespeichert
@@ -121,9 +129,11 @@
                         <th>
                             Std.Konto
                         </th>
+                        @if(!$timesheet->is_locked)
                         <th>
 
                         </th>
+                        @endif
                     </tr>
                     @for($day = $month->copy()->startOfMonth(); $day->lessThanOrEqualTo($month->copy()->endOfMonth()); $day->addDay())
                         @include('personal.timesheets.day')

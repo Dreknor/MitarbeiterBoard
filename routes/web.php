@@ -105,6 +105,7 @@ Route::group([
                 */
 
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
+                Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
 
 
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);

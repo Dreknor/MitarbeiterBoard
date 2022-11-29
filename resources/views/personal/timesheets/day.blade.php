@@ -42,58 +42,59 @@
            @endif
        @endif
    </td>
-    <td >
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col">
-                    <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/add')}}" class="btn btn-sm btn-bg-gradient-x-blue-green">
-                        <i class="fa fa-plus"></i>
-                    </a>
-                </div>
-                <div class="col">
-                    @if($timesheet_days->filterDay($day)->count()>1)
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-danger dropdown-toggle"  data-toggle="dropdown"  id="dropdownMenuButton_{{$day->format('Y-m-d')}}">
-                                    <i class="fa fa-trash "></i>
-                            </button>
-                            <div class="dropdown-menu">
-                                @foreach($timesheet_days->filterDay($day) as $timesheet_day)
-                                    <a href='{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$timesheet_day->id.'/delete')}}' class="dropdown-item text-danger">
-                                        @if($timesheet_day->percent_of_workingtime != null)
-                                            {{$timesheet_day?->comment}} löschen
-                                        @else
-                                            {{$timesheet_day?->start?->format('H:i')}} - {{$timesheet_day?->end?->format('H:i')}} Uhr löschen
-                                        @endif
-                                    </a>
-                                @endforeach
-                            </div>
-                        </div>
-                    @elseif($timesheet_days->filterDay($day)->count() == 1)
-                        <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$timesheet_days->filterDay($day)->first()->id.'/delete')}}" class="btn btn-sm btn-outline-danger">
-                            <i class="fa fa-trash"></i>
+    @if(!$timesheet->is_locked)
+        <td >
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col">
+                        <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/add')}}" class="btn btn-sm btn-bg-gradient-x-blue-green">
+                            <i class="fa fa-plus"></i>
                         </a>
-                    @endif
-                </div>
-                <div class="col">
-                        <div class="dropleft">
-                            <button class="btn btn-sm btn-bg-gradient-x-blue-green dropdown-toggle"  data-toggle="dropdown"  id="dropdownMenuButton_item_{{$day->format('Y-m-d')}}">
-                                <i class="fa fa-scroll"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                @foreach(config('config.abwesenheiten_arbeitszeit') as $key => $absence)
-                                    <li>
-                                        <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/addFromAbsence/'.$key)}}" class="dropdown-item text-info">
-                                            {{$key}}
+                    </div>
+                    <div class="col">
+                        @if($timesheet_days->filterDay($day)->count()>1)
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-danger dropdown-toggle"  data-toggle="dropdown"  id="dropdownMenuButton_{{$day->format('Y-m-d')}}">
+                                        <i class="fa fa-trash "></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    @foreach($timesheet_days->filterDay($day) as $timesheet_day)
+                                        <a href='{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$timesheet_day->id.'/delete')}}' class="dropdown-item text-danger">
+                                            @if($timesheet_day->percent_of_workingtime != null)
+                                                {{$timesheet_day?->comment}} löschen
+                                            @else
+                                                {{$timesheet_day?->start?->format('H:i')}} - {{$timesheet_day?->end?->format('H:i')}} Uhr löschen
+                                            @endif
                                         </a>
-                                    </li>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @elseif($timesheet_days->filterDay($day)->count() == 1)
+                            <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$timesheet_days->filterDay($day)->first()->id.'/delete')}}" class="btn btn-sm btn-outline-danger">
+                                <i class="fa fa-trash"></i>
+                            </a>
+                        @endif
+                    </div>
+                    <div class="col">
+                            <div class="dropleft">
+                                <button class="btn btn-sm btn-bg-gradient-x-blue-green dropdown-toggle"  data-toggle="dropdown"  id="dropdownMenuButton_item_{{$day->format('Y-m-d')}}">
+                                    <i class="fa fa-scroll"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    @foreach(config('config.abwesenheiten_arbeitszeit') as $key => $absence)
+                                        <li>
+                                            <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/addFromAbsence/'.$key)}}" class="dropdown-item text-info">
+                                                {{$key}}
+                                            </a>
+                                        </li>
 
-                                @endforeach
-                            </ul>
-                        </div>
+                                    @endforeach
+                                </ul>
+                            </div>
 
+                    </div>
                 </div>
             </div>
-        </div>
-
-    </td>
+        </td>
+    @endif
 </tr>

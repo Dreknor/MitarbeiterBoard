@@ -537,5 +537,20 @@ class TimesheetController extends Controller
         }
         return redirectBack('success', 'Aktualisierung erfolgreich');
     }
+
+    public function lock(User $user, Timesheet $timesheet){
+        if (!auth()->user()->can('edit employe') and (auth()->id() != $timesheet->employe_id or $user->id != $timesheet->employe_id)){
+            return redirectBack('warning', 'Recht fehlt');
+        }
+
+        $timesheet->update([
+            'locked_at' => Carbon::now(),
+            'locked_by' => auth()->id()
+        ]);
+
+        return redirectBack('success', 'Nachweis gespeichert und geschlossen');
+
+
+    }
 }
 

@@ -13,8 +13,15 @@ class Timesheet extends Model
     use SoftDeletes;
 
     public $fillable = [
-        'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment'
+        'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment', 'locked_at', 'locked_by'
     ];
+
+    public function getIsLockedAttribute(){
+        if ($this->locked_at != null){
+            return true;
+        }
+        return false;
+    }
 
     public function timesheet_days(){
         return $this->hasMany(TimesheetDays::class);
@@ -23,7 +30,19 @@ class Timesheet extends Model
         return $this->belongsTo(User::class, 'employe_id');
     }
 
+    public function locked_by(){
+        return $this->belongsTo(User::class);
+    }
+
+
+
+
+
     public function updateTime(){
+        if ($this->is_locked){
+            return false;
+        }
+
         $timesheet_days = $this->timesheet_days;
         $start_of_month = Carbon::createFromFormat('m-Y', $this->month.'-'.$this->year)->startOfMonth();
         $monthBefore = $start_of_month->copy()->subMonth();
