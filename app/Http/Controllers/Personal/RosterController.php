@@ -43,7 +43,7 @@ class RosterController extends Controller
 
         return view('personal.rosters.create', [
             'department' => $department,
-            'templates' => $department->rosters()->where('type', 'template')->get()
+            'templates' => $department->rosters()->where('type', 'template')->orderByDesc('start_date')->get()
         ]);
 
     }
