@@ -187,7 +187,7 @@
 
                     $('#editDate').val(new Date($(this).data('date')).toString('dd.MM.yyyy'));
                     console.log(new Date($(this).data('date')).toString('dd.MM.yyyy'))
-                    console.log($('#editDate'))
+                    console.log($(this))
                     $('#editEvent').val($(this).data('event'));
                     $('#editStart').val($(this).data('start'));
                     $('#editEnd').val($(this).data('end'));
