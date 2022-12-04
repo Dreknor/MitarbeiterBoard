@@ -220,6 +220,13 @@
                             <li class="">
                                 Angestellt seit: ???
                             </li>
+                            <li class="">
+                                Urlaubsanspruch: {{$employe->getHolidayClaim()}}
+                            </li>
+                            <li class="">
+                                 Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
+                                (<a href="{{url('timesheets/update/employe/'.$employe->id)}}" class="card-link">aktualiseren</a>)
+                            </li>
 
                         </ul>
                     </div>
