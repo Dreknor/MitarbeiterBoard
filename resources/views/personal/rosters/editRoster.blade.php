@@ -105,7 +105,7 @@
                                                     data-id="{{$events->searchRosterEvent($employe, $time)->first()->id}}"
                                                     data-start="{{$events->searchRosterEvent($employe, $time)->first()->start->format('H:i')}}"
                                                     data-end="{{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}"
-                                                    data-date="{{$events->searchRosterEvent($employe, $time)->first()->date}}"
+                                                    data-date="{{$events->searchRosterEvent($employe, $time)->first()->date->format('Y-m-d')}}"
                                                     data-event="{{$events->searchRosterEvent($employe, $time)->first()->event}}"
                                                     data-employe="{{$events->searchRosterEvent($employe, $time)->first()->employe_id}}"
                                                     @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' 14:00')))
