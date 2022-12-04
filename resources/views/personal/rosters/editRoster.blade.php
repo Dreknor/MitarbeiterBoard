@@ -186,6 +186,7 @@
                     document.getElementById('rememberEvent').href = "{{url('tasks/')}}" + '/' + $(this).data('id') + '/remember';  //Will set it
 
                     $('#editDate').val($(this).data('date'));
+                    console.log($(this).data('date'))
                     $('#editEvent').val($(this).data('event'));
                     $('#editStart').val($(this).data('start'));
                     $('#editEnd').val($(this).data('end'));

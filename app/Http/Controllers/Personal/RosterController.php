@@ -14,6 +14,7 @@ use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -128,9 +129,11 @@ class RosterController extends Controller
      */
     public function show(Roster $roster)
     {
-        $department = $roster->department;
 
-        $employes = $department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
+        $department = $roster->department;
+        $employes = Cache::remember($roster->id.'roster_employes', 1200, function () use ($department, $roster){
+            return $department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
+        });
 
         $working_times = $roster->working_times;
         $events = $roster->events;
@@ -142,6 +145,7 @@ class RosterController extends Controller
         }
 
         //Checks
+        /*
         foreach ($department->roster_checks()->orderBy('weekday')->get() as $check) {
             $day = $roster->start_date->addDays($check->weekday);
             $field = $check->field_name;
@@ -206,7 +210,7 @@ class RosterController extends Controller
                     break;
             }
         }
-
+*/
 
         return view('personal.rosters.editRoster', [
             'department' => $department,
