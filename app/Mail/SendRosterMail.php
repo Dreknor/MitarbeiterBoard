@@ -38,7 +38,9 @@ class SendRosterMail extends Mailable
      */
     public function build()
     {
-        $view = $this->view('personal.rosters.mails.sendRoster', [
+        $view = $this
+            ->subject('Dienstplan')
+            ->view('personal.rosters.mails.sendRoster', [
             'vorname' => $this->vorname,
             'nachname' => $this->nachname,
             'date' => $this->date,
