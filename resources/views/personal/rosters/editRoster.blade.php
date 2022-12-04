@@ -16,7 +16,7 @@
 @section('content')
     <div class="container-fluid">
         @include('personal.rosters.elements.info')
-        @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay())
+        @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->addDays(4)); $day->addDay())
             <div id="{{$day->format('Y-m-d')}}">
 
             </div>
