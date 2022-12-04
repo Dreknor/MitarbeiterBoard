@@ -185,7 +185,7 @@
                     document.getElementById('delteTaskForm').action = "{{url('tasks/')}}" + '/' + $(this).data('id'); //Will set it
                     document.getElementById('rememberEvent').href = "{{url('tasks/')}}" + '/' + $(this).data('id') + '/remember';  //Will set it
 
-                    $('#editDate').val(new Date($(this).data('date')).toString('yyyy-MM-dd'));
+                    $('#editDate').val(new Date($(this).data('date')).toString('dd.MM.yyyy'));
                     console.log($(this).data('date'))
                     $('#editEvent').val($(this).data('event'));
                     $('#editStart').val($(this).data('start'));
