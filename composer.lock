@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4e820aa54d87fc81292960a71d9387cd",
+    "content-hash": "d6b04b8755fde619d4038db2d5dfc373",
     "packages": [
         {
             "name": "aacotroneo/laravel-saml2",
@@ -6995,6 +6995,80 @@
             "time": "2020-09-05T13:00:25+00:00"
         },
         {
+            "name": "ryangjchandler/blade-cache-directive",
+            "version": "v0.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ryangjchandler/blade-cache-directive.git",
+                "reference": "c6b2795af01b1e6faf4325dfd7728a607ffc4c06"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ryangjchandler/blade-cache-directive/zipball/c6b2795af01b1e6faf4325dfd7728a607ffc4c06",
+                "reference": "c6b2795af01b1e6faf4325dfd7728a607ffc4c06",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^8.83|^9.0",
+                "php": "^8.0",
+                "spatie/laravel-package-tools": "^1.4.3"
+            },
+            "require-dev": {
+                "brianium/paratest": "^6.2",
+                "nunomaduro/collision": "^5.3|^6.0",
+                "orchestra/testbench": "^6.15|^7.0",
+                "phpunit/phpunit": "^9.3",
+                "spatie/laravel-ray": "^1.9",
+                "vimeo/psalm": "^4.4"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "RyanChandler\\BladeCacheDirective\\BladeCacheDirectiveServiceProvider"
+                    ],
+                    "aliases": {
+                        "BladeCacheDirective": "RyanChandler\\BladeCacheDirective\\BladeCacheDirectiveFacade"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "RyanChandler\\BladeCacheDirective\\": "src",
+                    "RyanChandler\\BladeCacheDirective\\Database\\Factories\\": "database/factories"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ryan Chandler",
+                    "email": "support@ryangjchandler.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Cache chunks of your Blade markup with ease.",
+            "homepage": "https://github.com/ryangjchandler/blade-cache-directive",
+            "keywords": [
+                "blade-cache-directive",
+                "laravel",
+                "ryangjchandler"
+            ],
+            "support": {
+                "issues": "https://github.com/ryangjchandler/blade-cache-directive/issues",
+                "source": "https://github.com/ryangjchandler/blade-cache-directive/tree/v0.3.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/ryangjchandler",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-05-31T14:59:27+00:00"
+        },
+        {
             "name": "sabberworm/php-css-parser",
             "version": "8.4.0",
             "source": {
@@ -7841,6 +7915,66 @@
                 }
             ],
             "time": "2022-11-27T10:46:08+00:00"
+        },
+        {
+            "name": "spatie/laravel-package-tools",
+            "version": "1.13.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/spatie/laravel-package-tools.git",
+                "reference": "4af8e608184471b5568af6265ebb0ca0025c131a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/4af8e608184471b5568af6265ebb0ca0025c131a",
+                "reference": "4af8e608184471b5568af6265ebb0ca0025c131a",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^9.28",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.5",
+                "orchestra/testbench": "^7.7",
+                "pestphp/pest": "^1.22",
+                "phpunit/phpunit": "^9.5.24",
+                "spatie/pest-plugin-test-time": "^1.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Spatie\\LaravelPackageTools\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Freek Van der Herten",
+                    "email": "freek@spatie.be",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Tools for creating Laravel packages",
+            "homepage": "https://github.com/spatie/laravel-package-tools",
+            "keywords": [
+                "laravel-package-tools",
+                "spatie"
+            ],
+            "support": {
+                "issues": "https://github.com/spatie/laravel-package-tools/issues",
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.13.7"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/spatie",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-11-15T09:10:09+00:00"
         },
         {
             "name": "spatie/laravel-permission",

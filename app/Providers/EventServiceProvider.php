@@ -5,7 +5,11 @@ namespace App\Providers;
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
 use App\Listeners\LogEmail;
 use App\Models\Group;
+use App\Models\personal\RosterEvents;
+use App\Models\personal\WorkingTime;
 use App\Models\User;
+use App\Observers\RosterEventsObserver;
+use App\Observers\WorkingTimeObserver;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -39,6 +43,8 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        RosterEvents::observe(RosterEventsObserver::class);
+        WorkingTime::observe(WorkingTimeObserver::class);
 
         Event::listen('Aacotroneo\Saml2\Events\Saml2LoginEvent', function (Saml2LoginEvent $event) {
             $messageId = $event->getSaml2Auth()->getLastMessageId();

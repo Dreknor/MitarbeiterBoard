@@ -16,151 +16,153 @@
 @section('content')
     <div class="container-fluid">
         @include('personal.rosters.elements.info')
-        @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->addDays(4)); $day->addDay())
-            <div id="{{$day->format('Y-m-d')}}">
+        @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay())
+            @cache('roster_'.$roster->id.'_'.$day->format('Ymd'))
+                <div id="{{$day->format('Y-m-d')}}">
 
-            </div>
-
-            <div class="card @if($roster->is_template) bg-info bg-accent-2 @endif">
-                <div class="card-header">
-                    <div @class(['card-title'])>
-                        <div class="d-flex w-100 justify-content-between">
-                            {{$day->locale('de')->dayName}}
-                            @if(!$roster->is_template), den {{$day->format('d.m.Y')}}@endif
-                            <small>
-                                <a @class(['trashDay', 'm-2', 'text-danger']) data-day="{{$day->format('Y-m-d')}}" href="#">
-                                    <i class="fa fa-trash"></i>
-                                </a>
-                                <a href="{{route('toggleDayView', $day->format('Y-m-d'))}}" class="m-2">
-                                    @if(session()->exists($day->format('Y-m-d')))
-                                        <i class="fa fa-expand-arrows-alt"></i>
-                                    @else
-                                        <i class="fa fa-compress-arrows-alt"></i>
-                                    @endif
-                                </a>
-                            </small>
-                        </div>
-                    </div>
-                    <p class='description'>
-                        {{is_holiday($day)?->title}}
-                    </p>
                 </div>
-                <div
-                    @class(["card-body", 'd-none' => session($day->format('Y-m-d')) == true]) id="dayRoster_{{$day->format('Y-m-d')}}">
-                    <div class="card-group ">
-                        @include('personal.rosters.elements.time')
-                        @foreach($employes as $employe)
-                            <div class="card border @if(!$loop->first) border-left-0 @endif">
-                                <div class="card-header border-bottom" style="height: 45px;">
-                                    {{$employe->vorname}}
-                                    @if($working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events))
-                                        <div @class(['description', 'd-inline', 'pull-right', 'text-danger'])>
-                                            <small>Pause fehlt</small>
-                                        </div>
-                                    @endif
-                                </div>
-                                <div
-                                    @class(['card-body','border-bottom', 'pt-0', 'pb-0', 'info' => $working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events)]) style="max-height: 50px; min-height: 50px;">
-                                    <div @class(['row', 'h-100'])>
-                                        <div class="col m-0 p-1 workingTime "
-                                             data-date="{{$day->format('Y-m-d')}}"
-                                             @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                             data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
-                                             data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
-                                             data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
-                                             @endif
-                                             data-employe="{{$employe->id}}">
-                                            @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                                {{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}
-                                            @else
-                                                &nbsp;
-                                            @endif
-                                        </div>
-                                        <div
-                                            @class(['col','m-0','p-1','workingTime'])data-date="{{$day->format('Y-m-d')}}"
-                                            @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                            data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
-                                            data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
-                                            data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
-                                            @endif
-                                            data-employe="{{$employe->id}}">
-                                            @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                                {{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}
-                                            @else
-                                                &nbsp;
-                                            @endif
 
-                                        </div>
-                                    </div>
-
-                                </div>
-                                <div @class(['card-body' ,'p-0', 'm-0']) style="height: 534px;">
-                                    <ul @class(['selectable']) data-employe="{{$employe->id}}"
-                                        data-date="{{$day->format('Y-m-d')}}">
-                                        @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y 8:00')); $time->format('H:i') < '14:30'; $time->addMinutes(15))
-                                            @if($events->searchRosterEvent($employe, $time)->count() > 0 and $events->searchRosterEvent($employe, $time)->first()->start == $time)
-                                                <li @class(['Termin'])
-                                                    draggable="true" ondragstart="drag(event)"
-                                                    id="task_{{$events->searchRosterEvent($employe, $time)->first()->id}}"
-                                                    data-id="{{$events->searchRosterEvent($employe, $time)->first()->id}}"
-                                                    data-start="{{$events->searchRosterEvent($employe, $time)->first()->start->format('H:i')}}"
-                                                    data-end="{{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}"
-                                                    data-date="{{$events->searchRosterEvent($employe, $time)->first()->date->format('Y-m-d')}}"
-                                                    data-event="{{$events->searchRosterEvent($employe, $time)->first()->event}}"
-                                                    data-employe="{{$events->searchRosterEvent($employe, $time)->first()->employe_id}}"
-                                                    @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' 14:00')))
-                                                        style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->duration / 15) * 20 }}px"
-                                                    @else
-                                                        style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' 14:30')) / 15) * 20 }}px"
-                                                        @endif
-                                                    >
-                                                        {{$events->searchRosterEvent($employe, $time)->first()->event}}
-                                                        @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > '14:30')
-                                                            (bis {{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}
-                                                            Uhr)
-                                                        @endif
-                                                    </li>
-                                                @elseif(!$events->searchRosterEvent($employe, $time)->count() > 0)
-                                                    <li @class('leererTermin leererTermin_'.$time->minute.' selectable')
-                                                        id="date_{{$employe->id}}_{{$time->format('Y-m-d_H:i')}}"
-                                                        data-time="{{$time->format('H:i')}}"
-                                                        data-date="{{$time->format('Y-m-d')}}"
-                                                        ondrop="drop(event)" ondragover="allowDrop(event)"
-                                                        ondragleave="leveDrop(event)">
-
-                                                    </li>
-
-                                            @endif
-
-                                        @endfor
-                                    </ul>
-                                </div>
-                                <div
-                                    @class(['card-footer','border-top', 'm-0', 'workingTime']) style="max-height: 60px; min-height: 60px;"
-                                    data-date="{{$day->format('Y-m-d')}}"
-                                    data-employe="{{$employe->id}}"
-                                    @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                    data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
-                                    data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
-                                    data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
-                                    @endif
-                                >
-                                    <div @class(['aufgabe'])
-                                         id="{{$employe->id.'_'.$day->format('Y-m-d'.'_function')}}"
-                                    >
-                                        @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
-                                            {{$working_times->searchWorkingTime($employe, $day)->first()->function}}
+                <div class="card @if($roster->is_template) bg-info bg-accent-2 @endif">
+                    <div class="card-header">
+                        <div @class(['card-title'])>
+                            <div class="d-flex w-100 justify-content-between">
+                                {{$day->locale('de')->dayName}}
+                                @if(!$roster->is_template), den {{$day->format('d.m.Y')}}@endif
+                                <small>
+                                    <a @class(['trashDay', 'm-2', 'text-danger']) data-day="{{$day->format('Y-m-d')}}" href="#">
+                                        <i class="fa fa-trash"></i>
+                                    </a>
+                                    <a href="{{route('toggleDayView', $day->format('Y-m-d'))}}" class="m-2">
+                                        @if(session()->exists($day->format('Y-m-d')))
+                                            <i class="fa fa-expand-arrows-alt"></i>
+                                        @else
+                                            <i class="fa fa-compress-arrows-alt"></i>
+                                        @endif
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+                        <p class='description'>
+                            {{is_holiday($day)?->title}}
+                        </p>
+                    </div>
+                    <div
+                        @class(["card-body", 'd-none' => session($day->format('Y-m-d')) == true]) id="dayRoster_{{$day->format('Y-m-d')}}">
+                        <div class="card-group ">
+                            @include('personal.rosters.elements.time')
+                            @foreach($employes as $employe)
+                                <div class="card border @if(!$loop->first) border-left-0 @endif">
+                                    <div class="card-header border-bottom" style="height: 45px;">
+                                        {{$employe->vorname}}
+                                        @if($working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events))
+                                            <div @class(['description', 'd-inline', 'pull-right', 'text-danger'])>
+                                                <small>Pause fehlt</small>
+                                            </div>
                                         @endif
                                     </div>
-                                </div>
-                            </div>
-                        @endforeach
-                        @includeWhen($events->where('employe_id', null)->where('date', $day->format('Y-m-d'))->count() > 0,'personal.rosters.elements.bookmarks')
-                        @includeWhen($roster->department->roster_checks->count() > 0,'personal.rosters.elements.checks')
+                                    <div
+                                        @class(['card-body','border-bottom', 'pt-0', 'pb-0', 'info' => $working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events)]) style="max-height: 50px; min-height: 50px;">
+                                        <div @class(['row', 'h-100'])>
+                                            <div class="col m-0 p-1 workingTime "
+                                                 data-date="{{$day->format('Y-m-d')}}"
+                                                 @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                                 data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
+                                                 data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
+                                                 data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
+                                                 @endif
+                                                 data-employe="{{$employe->id}}">
+                                                @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                                    {{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}
+                                                @else
+                                                    &nbsp;
+                                                @endif
+                                            </div>
+                                            <div
+                                                @class(['col','m-0','p-1','workingTime'])data-date="{{$day->format('Y-m-d')}}"
+                                                @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                                data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
+                                                data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
+                                                data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
+                                                @endif
+                                                data-employe="{{$employe->id}}">
+                                                @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                                    {{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}
+                                                @else
+                                                    &nbsp;
+                                                @endif
 
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div @class(['card-body' ,'p-0', 'm-0']) style="height: 534px;">
+                                        <ul @class(['selectable']) data-employe="{{$employe->id}}"
+                                            data-date="{{$day->format('Y-m-d')}}">
+                                            @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y 8:00')); $time->format('H:i') < '14:30'; $time->addMinutes(15))
+                                                @if($events->searchRosterEvent($employe, $time)->count() > 0 and $events->searchRosterEvent($employe, $time)->first()->start == $time)
+                                                    <li @class(['Termin'])
+                                                        draggable="true" ondragstart="drag(event)"
+                                                        id="task_{{$events->searchRosterEvent($employe, $time)->first()->id}}"
+                                                        data-id="{{$events->searchRosterEvent($employe, $time)->first()->id}}"
+                                                        data-start="{{$events->searchRosterEvent($employe, $time)->first()->start->format('H:i')}}"
+                                                        data-end="{{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}"
+                                                        data-date="{{$events->searchRosterEvent($employe, $time)->first()->date->format('Y-m-d')}}"
+                                                        data-event="{{$events->searchRosterEvent($employe, $time)->first()->event}}"
+                                                        data-employe="{{$events->searchRosterEvent($employe, $time)->first()->employe_id}}"
+                                                        @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' 14:00')))
+                                                            style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->duration / 15) * 20 }}px"
+                                                        @else
+                                                            style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' 14:30')) / 15) * 20 }}px"
+                                                            @endif
+                                                        >
+                                                            {{$events->searchRosterEvent($employe, $time)->first()->event}}
+                                                            @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > '14:30')
+                                                                (bis {{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}
+                                                                Uhr)
+                                                            @endif
+                                                        </li>
+                                                    @elseif(!$events->searchRosterEvent($employe, $time)->count() > 0)
+                                                        <li @class('leererTermin leererTermin_'.$time->minute.' selectable')
+                                                            id="date_{{$employe->id}}_{{$time->format('Y-m-d_H:i')}}"
+                                                            data-time="{{$time->format('H:i')}}"
+                                                            data-date="{{$time->format('Y-m-d')}}"
+                                                            ondrop="drop(event)" ondragover="allowDrop(event)"
+                                                            ondragleave="leveDrop(event)">
+
+                                                        </li>
+
+                                                @endif
+
+                                            @endfor
+                                        </ul>
+                                    </div>
+                                    <div
+                                        @class(['card-footer','border-top', 'm-0', 'workingTime']) style="max-height: 60px; min-height: 60px;"
+                                        data-date="{{$day->format('Y-m-d')}}"
+                                        data-employe="{{$employe->id}}"
+                                        @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                        data-start="{{optional($working_times->searchWorkingTime($employe, $day)->first()->start)->format('H:i')}}"
+                                        data-end="{{optional($working_times->searchWorkingTime($employe, $day)->first()->end)->format('H:i')}}"
+                                        data-function="{{optional($working_times->searchWorkingTime($employe, $day)->first())->function}}"
+                                        @endif
+                                    >
+                                        <div @class(['aufgabe'])
+                                             id="{{$employe->id.'_'.$day->format('Y-m-d'.'_function')}}"
+                                        >
+                                            @if($working_times->searchWorkingTime($employe, $day)->count() == 1)
+                                                {{$working_times->searchWorkingTime($employe, $day)->first()->function}}
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                            @includeWhen($events->where('employe_id', null)->where('date', $day->format('Y-m-d'))->count() > 0,'personal.rosters.elements.bookmarks')
+                            @includeWhen($roster->department->roster_checks->count() > 0,'personal.rosters.elements.checks')
+
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endcache
         @endfor
 
 
