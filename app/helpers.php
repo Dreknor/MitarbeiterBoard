@@ -25,7 +25,7 @@ function random_color()
 
 function redirectBack(string $type = null, string $meldung = null, $anchor = null)
 {
-    return redirect()->to(url()->previous())->with([
+    return redirect()->to(url()->previous().$anchor)->with([
         'type' => $type,
         'Meldung' => $meldung
     ]);

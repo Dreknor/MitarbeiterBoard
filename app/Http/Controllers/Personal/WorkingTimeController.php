@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\CreateWorkingTimeRequest;
 use App\Models\personal\WorkingTime;
-use http\Client\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Spatie\GoogleCalendar\Event;
 
@@ -17,8 +17,8 @@ class WorkingTimeController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param Request $request
-     * @return Response
+     * @param CreateWorkingTimeRequest $request
+     * @return RedirectResponse
      */
     public function store(CreateWorkingTimeRequest $request)
     {

@@ -7,16 +7,17 @@
 
             </p>
 
-
-        <div class="card">
-            <div class="card-header">
+        <div class="sticky-top">
+            <div class="card">
+                <div class="card-header">
                 <div class="row">
-                    <div class="col-lg-6 col-md-12 col-sm-12">
-                        <h5 class="card-title">
-                            {{$theme->theme}}
-                        </h5>
+                    <div class="col-lg-auto col-md-12 col-sm-12">
+                            <h5 class="card-title">
+                                {{$theme->theme}}
+                            </h5>
                     </div>
-                    <div class="col-lg-6 col-md-12 col-sm-12">
+                    <div class="col"></div>
+                    <div class="col-lg-auto col-md-12 col-sm-12">
                         <div class="pull-right">
                             <div class="row">
                                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
@@ -96,6 +97,9 @@
                     </div>
                 </div>
             </div>
+            </div>
+        </div>
+        <div class="card">
             <div class="card-body border-top collapse hide" id="shareForm">
                 <form method="post" action="{{url('share/'.$theme->id)}}" class="form-horizontal">
                     @csrf

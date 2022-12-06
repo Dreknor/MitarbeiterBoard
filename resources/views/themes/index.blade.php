@@ -3,16 +3,19 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="card">
-            <div class="card-header">
-                @include('themes.element.header')
-            </div>
-            @can('create themes')
-                <div class="card-body">
-                    <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-bg-gradient-x-blue-cyan">neues Thema</a>
+        <div class="sticky-top">
+            <div class="card ">
+                <div class="card-header">
+                    @include('themes.element.header')
                 </div>
-            @endcan
+                @can('create themes')
+                    <div class="card-body">
+                        <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-bg-gradient-x-blue-cyan">neues Thema</a>
+                    </div>
+                @endcan
+            </div>
         </div>
+
 
         @if (count($themes) == 0)
             <div class="card">

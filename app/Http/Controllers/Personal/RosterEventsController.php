@@ -41,7 +41,7 @@ class RosterEventsController extends Controller
 
             }
         }
-        return redirectBack(null, null, '#' . $task->date);
+        return redirectBack('success', 'Termin gespeichert', '#' . $task->date->format('Y-m-d'));
     }
 
 
@@ -112,7 +112,7 @@ class RosterEventsController extends Controller
 
         }
 
-        return redirectBack(null, null, '#' . $rosterEvent->date);
+        return redirectBack(null, null, '#' . $task->date->format('Y-m-d'));
 
 
     }
@@ -153,7 +153,7 @@ class RosterEventsController extends Controller
      */
     public function destroy(RosterEvents $rosterEvent)
     {
-        $day = $rosterEvent->date;
+        $day = $rosterEvent->date->format('Y-m-d');
         $rosterEvent->delete();
 
         return redirectBack('warning', 'Aufgabe wurde gelöscht', '#' . $day);
@@ -167,7 +167,7 @@ class RosterEventsController extends Controller
             return redirectBack('success', 'Alle Termine wurden gelöscht.', '#' . $request->date);
         }
 
-        return redirectBack('warning', 'Termine konnten nicht gelöscht werden.');
+        return redirectBack('warning', 'Termine konnten nicht gelöscht werden.', '#' . $request->date);
     }
 
     public function remember(RosterEvents $event)
@@ -176,7 +176,7 @@ class RosterEventsController extends Controller
             $event->update([
                 'employe_id' => null
             ]);
-            return redirectBack();
+            return redirectBack('success', 'Termin gemerkt', '#'.$event->date->format('Y-m-d'));
         }
 
         return redirectBack('warning', 'Berechtigung.');

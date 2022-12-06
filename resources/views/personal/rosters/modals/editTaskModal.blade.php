@@ -51,7 +51,7 @@
                     @csrf
                     @method('delete')
                     <button type="submit" @class('btn btn-danger')>
-                        <i @class('la la-trash')>
+                        <i @class('fa fa-trash')>
                         </i>
                     </button>
                 </form>

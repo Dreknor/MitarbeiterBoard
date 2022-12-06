@@ -16,6 +16,34 @@
 @section('content')
     <div class="container-fluid">
         @include('personal.rosters.elements.info')
+        <div class=" sticky-top">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col">
+                            <a href="#{{$roster->start_date->format('Y-m-d')}}" class="btn btn-sm btn-block btn-outline-primary">Montag</a>
+                        </div>
+                        <div class="col">
+                            <a href="#{{$roster->start_date->addDays(1)->format('Y-m-d')}}" class="btn btn-sm  btn-block btn-outline-primary">Dienstag</a>
+                        </div>
+                        <div class="col">
+                            <a href="#{{$roster->start_date->addDays(2)->format('Y-m-d')}}" class="btn btn-sm btn-block  btn-outline-primary">Mittwoch</a>
+                        </div>
+                        <div class="col">
+                            <a href="#{{$roster->start_date->addDays(3)->format('Y-m-d')}}" class="btn btn-sm btn-block  btn-outline-primary">Donnerstag</a>
+                        </div>
+                        <div class="col">
+                            <a href="#{{$roster->start_date->addDays(4)->format('Y-m-d')}}" class="btn btn-sm btn-block  btn-outline-primary">Freitag</a>
+                        </div>
+                        <div class="col">
+                            <a href="#{{$roster->start_date->addDays(5)->format('Y-m-d')}}" class="btn btn-sm btn-block  btn-outline-primary">Wochenende</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
         @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay())
             @cache('roster_'.$roster->id.'_'.$day->format('Ymd'))
                 <div id="{{$day->format('Y-m-d')}}">
