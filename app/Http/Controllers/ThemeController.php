@@ -6,6 +6,7 @@ use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
 use App\Models\Group;
 use App\Models\Protocol;
+use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\Type;
 use Carbon\Carbon;
@@ -227,6 +228,14 @@ class ThemeController extends Controller
                     ->addMedia($file)
                     ->toMediaCollection();
             }
+        }
+
+        if ($group->protected == null){
+            $subscription = new Subscription([
+                'users_id' => auth()->id(),
+                'subscriptionable_type' => Theme::class,
+                'subscriptionable_id'=>$theme->id,
+            ]);
         }
 
         return redirect(url($groupname.'/themes'))->with([
