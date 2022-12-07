@@ -236,6 +236,7 @@ class ThemeController extends Controller
                 'subscriptionable_type' => Theme::class,
                 'subscriptionable_id'=>$theme->id,
             ]);
+            $subscription->save();
         }
 
         return redirect(url($groupname.'/themes'))->with([
