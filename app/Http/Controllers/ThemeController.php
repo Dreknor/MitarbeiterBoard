@@ -10,12 +10,9 @@ use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\Type;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
-use function Symfony\Component\String\u;
 
 class ThemeController extends Controller
 {

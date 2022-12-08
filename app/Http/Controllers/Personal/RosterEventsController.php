@@ -112,7 +112,7 @@ class RosterEventsController extends Controller
 
         }
 
-        return redirectBack(null, null, '#' . $task->date->format('Y-m-d'));
+        return redirectBack(null, null, '#' . $rosterEvent->date->format('Y-m-d'));
 
 
     }
