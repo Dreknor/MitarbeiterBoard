@@ -145,7 +145,7 @@ class RosterController extends Controller
         }
 
         //Checks
-        /*
+
         foreach ($department->roster_checks()->orderBy('weekday')->get() as $check) {
             $day = $roster->start_date->addDays($check->weekday);
             $field = $check->field_name;
@@ -210,7 +210,7 @@ class RosterController extends Controller
                     break;
             }
         }
-*/
+
 
         return view('personal.rosters.editRoster', [
             'department' => $department,
