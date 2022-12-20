@@ -194,10 +194,10 @@ class RecurringThemeController extends Controller
     public function createNewThemes($now = null){
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
-        $Anzahl = 0;
+
         if ($month->day == 3 or $now == "now"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
-            $Anzahl = $themes->count();
+
            foreach ($themes as $theme){
 
                $newTheme = new Theme($theme->toArray());
@@ -205,9 +205,7 @@ class RecurringThemeController extends Controller
                $newTheme->duration = 10;
                $newTheme->theme = $newTheme->theme.' '.$month->year;
                $newTheme->save();
-               if ($now == "start"){
-                   dump($newTheme);
-               }
+
                if ($theme->hasMedia()){
                    foreach ($theme->getMedia() as $media){
                        $media->copy($newTheme);
@@ -223,7 +221,6 @@ class RecurringThemeController extends Controller
 
         }
 
-        Mail::to(User::find(1))->send(new TestMailReccuringTheme($Anzahl));
 
     }
 }
