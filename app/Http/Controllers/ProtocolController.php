@@ -11,6 +11,7 @@ use App\Models\Theme;
 use App\Notifications\Push;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use PhpOffice\PhpWord\Shared\Converter;
@@ -184,11 +185,24 @@ class ProtocolController extends Controller
             $query->whereDate('created_at', '=', $date);
         })->get();
 
+        $dates = Protocol::query()->WhereHas('theme', function ($query) use ($group) {
+            $query->where('group_id', '=', $group->id);
+            })
+            ->whereNot('protocol', 'LIKE', '%Verschoben zum%')
+            ->whereBetween('created_at', [Carbon::now()->subMonths(2)->format('Y-m-d'), Carbon::now()])
+            ->orderBy('created_at', 'DESC')->get();
+        $dates = array_keys($dates->groupBy(function($item)
+        {
+            return $item->created_at->format('Y-m-d');
+        })->toArray());
+
+
         $themes->load(['group', 'protocols']);
 
         return view('protocol.export')->with([
             'themes'    => $themes,
             'date'  => $date,
+            'dates' => $dates
         ]);
     }
 
@@ -326,7 +340,7 @@ class ProtocolController extends Controller
         $table->addCell(Converter::cmToTwip(13), $cellStyleHead)->addText('Protokoll', '', $fontStyle);
         //$table->addCell(1750, $cellStyleHead)->addText('Aufgabe', '', $fontStyle);
 
-        //Vertretungen
+        //Pthemen
         foreach ($themes as $theme){
 
             //Protokolle für Thema laden
