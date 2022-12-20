@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\Type;
 use Carbon\Carbon;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
@@ -165,7 +166,7 @@ class ThemeController extends Controller
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
     public function create($groupname, $speicher=null)
     {
