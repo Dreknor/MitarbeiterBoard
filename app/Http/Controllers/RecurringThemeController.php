@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createRecurringThemeRequest;
+use App\Mail\TestMailReccuringTheme;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\RecurringTheme;
 use App\Models\Theme;
 use App\Models\Type;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Mail;
@@ -192,10 +194,10 @@ class RecurringThemeController extends Controller
     public function createNewThemes($now = null){
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
-
+        $Anzahl = 0;
         if ($month->day == 3 or $now == "now"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
-
+            $Anzahl = $themes->count();
            foreach ($themes as $theme){
 
                $newTheme = new Theme($theme->toArray());
@@ -220,6 +222,8 @@ class RecurringThemeController extends Controller
            }
 
         }
+
+        Mail::to(User::find(1))->send(new TestMailReccuringTheme($Anzahl));
 
     }
 }
