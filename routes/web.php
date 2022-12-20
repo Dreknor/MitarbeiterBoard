@@ -251,6 +251,7 @@ Route::group([
                 Route::middleware('permission:manage recurring themes')->group(function (){
                     Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
                     Route::get('{groupname}/themes/recurring/file/{media}/delete', [ImageController::class, 'removeImage']);
+                    Route::get('themes/recurring/start/{now?}', [RecurringThemeController::class, 'createNewThemes']);
                 });
 
                 //Themes
