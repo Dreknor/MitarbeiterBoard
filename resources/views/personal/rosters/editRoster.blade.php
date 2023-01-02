@@ -184,7 +184,7 @@
                                     </div>
                                 </div>
                             @endforeach
-                            @dd($events->where('employe_id', null))
+                            @dd($events)
                             @includeWhen($events->where('employe_id', null)->where('date', $day->format('Y-m-d'))->count() > 0,'personal.rosters.elements.bookmarks')
                             @includeWhen($roster->department->roster_checks->count() > 0,'personal.rosters.elements.checks')
 
