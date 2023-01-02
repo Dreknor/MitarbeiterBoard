@@ -26,7 +26,7 @@ class createRosterRequest extends FormRequest
     {
         return [
             'start_date' => [
-                'required', 'date', 'after_or_equal:' . Carbon::now()->next('monday')
+                'required', 'date'
             ],
             'comment' => ['nullable', 'string'],
             'type' => ['required', 'in:normal,template'],
