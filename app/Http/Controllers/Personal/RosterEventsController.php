@@ -11,6 +11,7 @@ use App\Models\personal\RosterEvents;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class RosterEventsController extends Controller
@@ -21,7 +22,7 @@ class RosterEventsController extends Controller
      * Store a newly created resource in storage.
      *
      * @param CreateTaskRequest $request
-     * @return Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(CreateTaskRequest $request, Roster $roster)
     {
@@ -50,7 +51,7 @@ class RosterEventsController extends Controller
      *
      * @param Request $request
      * @param RosterEvents $rosterEvent
-     * @return Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(EditRosterEventRequest $request, RosterEvents $rosterEvent)
     {
@@ -149,7 +150,7 @@ class RosterEventsController extends Controller
      * Remove the specified resource from storage.
      *
      * @param RosterEvents $rosterEvent
-     * @return Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(RosterEvents $rosterEvent)
     {
@@ -173,9 +174,12 @@ class RosterEventsController extends Controller
     public function remember(RosterEvents $event)
     {
         if (auth()->user()->can('create roster')) {
+            Cache::forget('roster_'.$event->roster_id.'_'.$event->date->format('Ymd'));
             $event->update([
                 'employe_id' => null
             ]);
+
+
             return redirectBack('success', 'Termin gemerkt', '#'.$event->date->format('Y-m-d'));
         }
 

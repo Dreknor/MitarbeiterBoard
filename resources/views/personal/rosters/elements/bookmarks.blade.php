@@ -4,13 +4,13 @@
     </div>
     <div class="card-body">
         <ul class="list-group">
-            @foreach($events->where('employe_id', null)->where('date', $day->format('Y-m-d')) as $event)
+            @foreach($events->where('employe_id', null)->where('date', $day) as $event)
                 <li class="list-group-item Termin"
                     id="task_{{$event->id}}"
                     data-id="{{$event->id}}"
                     data-start="{{$event->start->format('H:i')}}"
                     data-end="{{$event->end->format('H:i')}}"
-                    data-date="{{$event->date}}"
+                    data-date="{{$event->date->format('Y-m-d')}}"
                     data-event="{{$event->event}}"
                     data-employe="{{$event->employe_id}}">
                     {{$event->event}} ({{$event->start->format('H:i')}})

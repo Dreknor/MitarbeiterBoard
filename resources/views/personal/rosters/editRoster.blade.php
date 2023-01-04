@@ -49,7 +49,6 @@
                 <div id="{{$day->format('Y-m-d')}}">
 
                 </div>
-
                 <div class="card @if($roster->is_template) bg-info bg-accent-2 @endif">
                     <div class="card-header">
                         <div @class(['card-title'])>
@@ -150,7 +149,7 @@
                                                             @endif
                                                         </li>
                                                     @elseif(!$events->searchRosterEvent($employe, $time)->count() > 0)
-                                                        <li @class('leererTermin leererTermin_'.$time->minute.' selectable')
+                                                        <li @class(['leererTermin', 'leererTermin_'.$time->minute,' selectable'])
                                                             id="date_{{$employe->id}}_{{$time->format('Y-m-d_H:i')}}"
                                                             data-time="{{$time->format('H:i')}}"
                                                             data-date="{{$time->format('Y-m-d')}}"
@@ -184,7 +183,8 @@
                                     </div>
                                 </div>
                             @endforeach
-                            @include('personal.rosters.elements.bookmarks')
+
+                            @includeWhen($events->where('employe_id', null)->where('date', $day)->count() > 0,'personal.rosters.elements.bookmarks')
                             @includeWhen($roster->department->roster_checks->count() > 0,'personal.rosters.elements.checks')
 
                         </div>
