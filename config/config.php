@@ -12,6 +12,7 @@ return [
         'Homeoffice'    => 100,
         'Kur'   => 100,
         'Bildungstag' => 100,
+        'Entlastungstag' => 100,
 
     ],
 
