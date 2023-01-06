@@ -121,7 +121,7 @@ class ProtocolController extends Controller
         if ($theme->type->type == 'Aufgabe' and $theme->creator_id != auth()->id()) {
             $user = auth()->user()->name;
             $ersteller = $theme->ersteller;
-            Notification::send(auth()->user(), new Push('neues Protokoll', 'Thema: '.$theme->theme));
+            Notification::send($ersteller, new Push('neues Protokoll', 'Thema: '.$theme->theme));
             Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme->theme));
         }
 
