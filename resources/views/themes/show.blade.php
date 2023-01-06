@@ -39,7 +39,7 @@
                                             </a>
                                         </div>
                                     @endif
-                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme')) and !$theme->completed)
+                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme') or (!$theme->group->proteced and auth()->user()->groups()->contains($theme->group))) and !$theme->completed)
                                         <div class="col-auto">
                                             <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="btn btn-sm btn-outline-danger pull-right">
                                                 <i class="fas fa-lock"></i>
