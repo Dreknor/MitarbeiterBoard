@@ -15,14 +15,15 @@ class Group extends Model
 {
     use HasRelationships;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations'];
 
     protected $dates = ['enddate'];
     protected $casts = [
         'protected' => 'boolean',
         'hasWochenplan' => 'boolean',
         'needsRoster' => 'boolean',
+        'hasAllocations' => 'boolean',
     ];
 
     public function users()

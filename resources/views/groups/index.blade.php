@@ -45,6 +45,13 @@
                                     <option value="0" selected>kein Wochenplan</option>
                             </select>
                         </div>
+                        <div class="form-row mt-1">
+                            <label for="hasAllocations">ganze Themen einem Benutzer zuweisen?</label>
+                            <select name="hasAllocations" id="hasAllocations" class="custom-select">
+                                <option value="0" selected >nein</option>
+                                <option value="1" >ja</option>
+                            </select>
+                        </div>
                         <div class="form-row">
                             <button type="submit" class="btn btn-success btn-block">
                                 speichern

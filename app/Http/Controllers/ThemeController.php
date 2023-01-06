@@ -4,19 +4,64 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
+use App\Mail\newThemeAssignMail;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\Type;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class ThemeController extends Controller
 {
+    public function assgin_to(Theme $theme, User $user){
+        if (! auth()->user()->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if (! $user->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Benutzer ist nicht in dieser Gruppe',
+            ]);
+        }
+
+        $theme->update([
+           'assigned_to' => $user->id
+        ]);
+
+
+        //Subscription erstellen
+        $type = Theme::class;
+        $subscription = $user->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $theme->id)->first();
+        if ($subscription == null) {
+            $subscription = new Subscription([
+                'users_id' => $user->id,
+                'subscriptionable_type' => $type,
+                'subscriptionable_id'=>$theme->id,
+            ]);
+
+            $subscription->save();
+        }
+
+        //Benachrichtigen
+        Mail::to($user->email)->queue(new newThemeAssignMail($theme, $user));
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema zugewiesen',
+        ]);
+
+    }
     public function setView($groupname, $viewType)
     {
         $group = Group::where('name', $groupname)->first();
@@ -84,6 +129,7 @@ class ThemeController extends Controller
            'themes' => $themes,
             'viewType' => $viewType,
             'subscription'  => $subscription,
+            'group' => $group
         ]);
     }
     public function memory($groupname)

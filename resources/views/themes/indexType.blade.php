@@ -39,6 +39,11 @@
                                             <th>Von</th>
                                             <th>Thema</th>
                                             <th>Datum</th>
+                                            @if($group->hasAllocations)
+                                                <th>
+                                                    zugewiesen
+                                                </th>
+                                            @endif
                                             <th>Priorität</th>
                                             <th colspan="2">Informationen</th>
                                         </tr>
@@ -56,6 +61,15 @@
                                                 <td>
                                                     {{$theme->date->format('d.m.Y')}}
                                                 </td>
+                                                @if($group->hasAllocations)
+                                                    <td>
+                                                        @if($theme->zugewiesen_an != null)
+                                                            <div class="badge bg-gradient-directional-amber p-2">
+                                                                {{$theme->zugewiesen_an?->name}}
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                @endif
                                                 <td id="priority_{{$theme->id}}">
                                                     @if ($theme->priorities->where('creator_id', auth()->id())->first())
                                                         <div class="progress">

@@ -69,6 +69,11 @@
                                             <th>Thema</th>
                                             <th>Typ</th>
                                             <th style="max-width: 30%;">Ziel</th>
+                                            @if($group->hasAllocations)
+                                                <th>
+                                                    zugewiesen
+                                                </th>
+                                            @endif
                                             <th>Dauer</th>
                                             <th>Priorität</th>
                                             <th colspan="2">Informationen</th>
@@ -90,6 +95,15 @@
                                                 <td>
                                                     {{$theme->goal}}
                                                 </td>
+                                                @if($group->hasAllocations)
+                                                    <td>
+                                                        @if($theme->zugewiesen_an != null)
+                                                            <div class="badge bg-gradient-directional-amber p-2">
+                                                                {{$theme->zugewiesen_an?->name}}
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                @endif
                                                 <td>
                                                     {{$theme->duration}} Minuten
                                                 </td>
@@ -146,11 +160,11 @@
         });
 
         $('.changeDateLink').on('click', function (link){
-            var date;
+            let date;
             date = $(this).data('date');
             id  = '#form_' + date;
 
-            form = $(id);
+            const form = $(id);
 
             if ($(form).hasClass('d-none')){
                 $(form).removeClass('d-none');

@@ -49,6 +49,13 @@
                             <option value="0" @if(!$gruppe->hasWochenplan) selected @endif>kein Wochenplan</option>
                         </select>
                     </div>
+                    <div class="form-row mt-1">
+                        <label for="hasAllocations">ganze Themen einem Benutzer zuweisen?</label>
+                        <select name="hasAllocations" id="hasAllocations" class="custom-select">
+                            <option value="0" @if(!$gruppe->hasAllocations) selected @endif>nein</option>
+                            <option value="1" @if($gruppe->hasAllocations) selected @endif>ja</option>
+                        </select>
+                    </div>
                     <div class="form-row">
                         <button type="submit" class="btn btn-success btn-block">
                             speichern

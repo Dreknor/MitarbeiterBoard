@@ -34,6 +34,11 @@
                                 <th>Thema</th>
                                 <th>Datum</th>
                                 <th>Typ</th>
+                                @if($group->hasAllocations)
+                                    <th>
+                                        zugewiesen
+                                    </th>
+                                @endif
                                 <th style="max-width: 30%;">Ziel</th>
                                 <th>Priorität</th>
                                 <th colspan="2">Informationen</th>
@@ -52,9 +57,19 @@
                                     <td>
                                         {{$theme->date->format('d.m.Y')}}
                                     </td>
+
                                     <td>
                                         {{$theme->type->type}}
                                     </td>
+                                    @if($group->hasAllocations)
+                                        <td>
+                                            @if($theme->zugewiesen_an != null)
+                                                <div class="badge bg-gradient-directional-amber p-2">
+                                                    {{$theme->zugewiesen_an?->name}}
+                                                </div>
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td>
                                         {{$theme->goal}}
                                     </td>

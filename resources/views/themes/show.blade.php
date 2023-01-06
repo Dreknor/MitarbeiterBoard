@@ -12,6 +12,7 @@
                 <div class="card-header">
                 <div class="row">
                     <div class="col-lg-auto col-md-12 col-sm-12">
+                        @if($theme->zugewiesen_an != null) <div class="badge bg-gradient-directional-amber p-2">{{$theme->zugewiesen_an->name}}</div> @endif
                             <h5 class="card-title">
                                 {{$theme->theme}}
                             </h5>
@@ -329,6 +330,26 @@
                                 Aufgabe erstellen
                             </button>
                         </div>
+                        @if($theme->group->hasAllocations and auth()->user()->groups()->contains($theme->group))
+                            <div class="col">
+                                <div class="dropdown">
+                                    <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        @if($theme->zugewiesen_an != null)
+                                            zugewiesen: {{$theme->zugewiesen_an->name}}
+                                        @else
+                                            Zuweisen an
+                                        @endif
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                        @foreach($theme->group->users as $user)
+                                            @if($theme->zugewiesen_an == null or $theme->zugewiesen_an->id != $user->id )
+                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/assign/'.$user->id)}}">{{$user->name}}</a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                         @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
                             <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
                                 @csrf
