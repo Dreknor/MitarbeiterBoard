@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class GroupRequest extends FormRequest
 {
@@ -38,6 +39,7 @@ class GroupRequest extends FormRequest
                 'InvationDays' => ['nullable', 'integer', 'min:1'],
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
+                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])]
 
             ];
         } else {
@@ -47,6 +49,8 @@ class GroupRequest extends FormRequest
                 'enddate'   => 'required|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
+                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])]
+
             ];
         }
     }

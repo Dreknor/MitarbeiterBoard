@@ -43,6 +43,14 @@
                     </div>
 
                     <div class="form-row mt-1">
+                        <label for="viewType">Ansicht?</label>
+                        <select name="viewType" id="viewType" class="custom-select">
+                            <option value="date" @if($gruppe->viewType == 'date') selected @endif>nach Datum</option>
+                            <option value="priority" @if(!$gruppe->viewType == 'priority') selected @endif>Priorität</option>
+                            <option value="type" @if(!$gruppe->viewType == 'type') selected @endif>Themen-Typ</option>
+                        </select>
+                    </div>
+                    <div class="form-row mt-1">
                         <label for="hasWochenplan">Wochenplan?</label>
                         <select name="hasWochenplan" id="hasWochenplan" class="custom-select">
                             <option value="1" @if($gruppe->hasWochenplan) selected @endif>braucht Wochenplan</option>

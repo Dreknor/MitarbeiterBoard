@@ -38,6 +38,15 @@
                                     <option value="0">für alle sichtbar</option>
                             </select>
                         </div>
+
+                        <div class="form-row mt-1">
+                            <label for="viewType">Ansicht?</label>
+                            <select name="viewType" id="viewType" class="custom-select">
+                                <option value="date"  selected >nach Datum</option>
+                                <option value="priority" >Priorität</option>
+                                <option value="type" >Themen-Typ</option>
+                            </select>
+                        </div>
                         <div class="form-row mt-1">
                             <label for="hasWochenplan">Wochenplan?</label>
                             <select name="hasWochenplan" id="hasWochenplan" class="custom-select">
