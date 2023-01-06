@@ -35,7 +35,7 @@ class WorkingTimeController extends Controller
         if ($working_time->employe->employe_data?->google_calendar_link != null ){
             if ($working_time->googleCalendarId != null){
                 try {
-                    $event = Event::find($working_time->googleCalendarId, $working_time->employe->google_calendar_link);
+                    $event = Event::find($working_time->googleCalendarId, $working_time->employe->employe_data->google_calendar_link);
 
                     if (isset($request->start) and isset($request->end)){
                         $event->startDateTime = Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->start);
