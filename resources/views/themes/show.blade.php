@@ -350,6 +350,23 @@
                                 </div>
                             </div>
                         @endif
+                        @can('move themes')
+                            <div class="col">
+                                <div class="dropdown">
+                                    <button class="btn btn-bg-gradient-x-orange-yellow pull-right dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        In andere Gruppe verschieben
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                        @foreach(auth()->user()->groups() as $group)
+                                            @if($theme->group_id !=  $group->id )
+                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/change/group/'.$group->id)}}">{{$group->name}}</a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+
+                        @endcan
                         @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
                             <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
                                 @csrf

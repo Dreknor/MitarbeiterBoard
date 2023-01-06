@@ -20,6 +20,41 @@ use Illuminate\View\View;
 
 class ThemeController extends Controller
 {
+
+    public function change_group(Theme $theme, Group $group){
+        if (! auth()->user()->groups()->contains($theme->group) or (! auth()->user()->groups()->contains($group) and $group->protected)) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if (! auth()->user()->can('move themes')) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Berechtigung fehlt',
+            ]);
+        }
+
+        $oldGroup = $theme->group;
+
+        $theme->update([
+           'group_id' => $group->id
+        ]);
+
+        $protocol = new Protocol([
+            'theme_id' => $theme->id,
+            'creator_id' => auth()->id(),
+            'protocol' =>  auth()->user()->name.' hat das Thema aus der Gruppe '.$oldGroup->name.' nach '.$group->name.' verschoben.'
+        ]);
+        $protocol->save();
+
+        return redirect(url($oldGroup->name.'/themes'))->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema zur Gruppe '.$group->name.' verschoben.',
+        ]);
+    }
+
     public function assgin_to(Theme $theme, User $user){
         if (! auth()->user()->groups()->contains($theme->group)) {
             return redirect()->back()->with([
@@ -55,6 +90,15 @@ class ThemeController extends Controller
 
         //Benachrichtigen
         Mail::to($user->email)->queue(new newThemeAssignMail($theme, $user));
+
+        //Log erstellen
+        $protocol = new Protocol([
+           'theme_id' => $theme->id,
+           'creator_id' => auth()->id(),
+           'protocol' =>  auth()->user()->name.' hat das Thema '.$user->name.' zugewiesen.'
+        ]);
+        $protocol->save();
+
 
         return redirect()->back()->with([
             'type'    => 'success',
@@ -303,6 +347,13 @@ class ThemeController extends Controller
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if ($group->id != $theme->group_id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Thema nicht gefunden',
             ]);
         }
 

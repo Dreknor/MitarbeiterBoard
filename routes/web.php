@@ -267,6 +267,7 @@ Route::group([
                 Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class,'activate']);
                 Route::post('share/{theme}', [ShareController::class, 'shareTheme']);
                 Route::get('theme/{theme}/assign/{user}', [ThemeController::class, 'assgin_to']);
+                Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
                 //Prioritäten
