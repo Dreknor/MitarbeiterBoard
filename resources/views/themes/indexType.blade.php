@@ -50,7 +50,7 @@
                                         </thead>
                                         <tbody class="connectedSortable" >
                                         @foreach($typeThemes->sortByDesc('priority') as $theme)
-                                            <tr id="{{$theme->id}}" @if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) class="bg-warning" @endif>
+                                            <tr id="{{$theme->id}}" @if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) class="bg-gradient-striped-success" @endif>
                                                 <td>
                                                     {{$theme->ersteller->name}}
                                                 </td>
