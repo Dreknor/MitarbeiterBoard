@@ -39,7 +39,8 @@ class GroupRequest extends FormRequest
                 'InvationDays' => ['nullable', 'integer', 'min:1'],
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
-                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])]
+                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
+                'information_template' => ['nullable', 'string']
 
             ];
         } else {
@@ -49,7 +50,9 @@ class GroupRequest extends FormRequest
                 'enddate'   => 'required|before_or_equal:'.Carbon::now()->addYear()->format('Y-m-d').'|after:'.Carbon::now()->format('Y-m-d'),
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
-                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])]
+                'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
+                'information_template' => ['nullable', 'string']
+
 
             ];
         }

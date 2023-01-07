@@ -57,7 +57,7 @@
                     <div class="col-sm-12 col-md-12 col-lg-12">
                         <label for="information">Informationen</label>
                         <textarea class="form-control" id="information" name="information">
-                            {{old('information')}}
+                            {{old('information', $group->information_template)}}
                         </textarea>
                     </div>
                 </div>
