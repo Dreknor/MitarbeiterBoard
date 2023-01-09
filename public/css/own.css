@@ -16,3 +16,7 @@ word-wrap: break-word;
     max-height: 200px;
     overflow-x: hidden;
 }
+
+.border-left-10{
+    border-left: 10px solid #17a2b8!important
+}
