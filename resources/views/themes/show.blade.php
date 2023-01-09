@@ -330,7 +330,7 @@
                                 Aufgabe erstellen
                             </button>
                         </div>
-                        @if($theme->group->hasAllocations and auth()->user()->groups()->contains($theme->group))
+                        @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
                             <div class="col">
                                 <div class="dropdown">
                                     <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -365,7 +365,6 @@
                                     </div>
                                 </div>
                             </div>
-
                         @endcan
                         @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
                             <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
