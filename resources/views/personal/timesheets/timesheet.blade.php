@@ -99,6 +99,14 @@
                                             </a>
                                         </div>
                                     </div>
+                                @else
+                                <div class="row">
+                                    <div class="col-12">
+                                        <a href="{{url('timesheets/'.$employe->id.'/export/'.$timesheet->id)}}" class=" btn btn-sm btn-block btn-bg-gradient-x-orange-yellow">
+                                            EXPORT
+                                        </a>
+                                    </div>
+                                </div>
                                 @endif
 
                             @else

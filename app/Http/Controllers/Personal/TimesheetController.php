@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class TimesheetController extends Controller
 {
@@ -505,6 +506,51 @@ class TimesheetController extends Controller
             'month' => $act_month
         ]);
 
+    }
+
+    public function export(User $user, Timesheet $timesheet)
+    {
+        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back();
+        }
+
+
+            $act_month = Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month);
+
+
+        //keine Anstellung in diesem Monat
+        if ($user->employments_date($act_month)->count() <1){
+            return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
+        }
+        //nur bis aktuellem Monat
+        if ($act_month->copy()->endOfMonth()->greaterThan(Carbon::today()->endOfMonth())){
+            return redirectBack('warning', 'Dieses Datum liegt in der Zukunft');
+        }
+
+        $old = $act_month->copy()->subMonth();
+        $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
+            return Timesheet::where('employe_id', $user->id)
+                ->where('year', $old->year)
+                ->where('month', $old->month)
+                ->first();
+        });
+
+        $timesheet = Timesheet::firstWhere([
+                'employe_id' => $user->id,
+                'year' => $act_month->year,
+                'month' => $act_month->month,
+            ]);
+
+        $timesheet_days = $timesheet->timesheet_days;
+
+        $pdf = PDF::loadView('personal.timesheets.pdf', [
+            'timesheet_old' => $timesheet_old,
+            'timesheet' => $timesheet,
+            'timesheet_days' => $timesheet_days,
+            'employe' => $user,
+            'month' => $act_month
+        ]);
+        return $pdf->download('timesheet.pdf');
     }
 
     /**
