@@ -34,10 +34,9 @@
 </header>
 <body>
 <div class="container-fluid">
-        <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
-    <div class="card border w-50">
-            <div class="col-auto">
-                <div class="card-header">
+    <div class="card border w-100">
+        <div class="card-header">
+            <div class="w-75">
                     <div class="row">
                         <div style="width: 50%">
                             <h6>
@@ -50,24 +49,26 @@
                             {{$employe->vorname}} {{$employe->familienname}}
                         </div>
                     </div>
-                </div>
-                <div class="card-body border-bottom border-top">
-                    <div class="row">
-                        <div class="col-auto">
+                <div class="row">
+                        <div class="w-25">
                             Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                         </div>
-                        <div class="col-auto">
+                        <div class="w-25">
                             Urlaub bisher: {{$timesheet->holidays_old}}
                         </div>
-                        <div class="col-auto">
+                        <div class="w-auto">
                             Urlaub neu: {{$timesheet->holidays_new}}
                         </div>
-                        <div class="col-auto">
+                        <div class="w-auto">
                             Urlaub Rest: {{$timesheet->holidays_rest}}
                         </div>
-                    </div>
                 </div>
             </div>
+            <div class="w-25">
+                <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
+            </div>
+        </div>
+    </div>
     </div>
         <div class="">
             <table class="table w-100 table-striped border table-bordered table-sm">
