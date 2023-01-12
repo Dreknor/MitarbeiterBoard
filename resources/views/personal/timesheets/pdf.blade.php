@@ -28,6 +28,7 @@
             top: 0.0cm;
             right: 0.5cm;
             max-height: 75px;
+            float: left;
         }
     </style>
 </header>
