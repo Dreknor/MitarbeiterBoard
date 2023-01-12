@@ -44,7 +44,7 @@
                         </h6>
                     </div>
                 </div>
-                <p class="row mt-2 w-100 ">
+                <p class="row w-100 border">
                         <div style="width: 50%">
                             Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                         </div>
