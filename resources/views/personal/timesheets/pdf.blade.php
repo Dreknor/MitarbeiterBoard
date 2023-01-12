@@ -23,21 +23,27 @@
         td {
             font-size: 10px;
         }
+        #logo{
+            position: absolute;
+            top: 0.0cm;
+            right: 0.5cm;
+            max-height: 75px;
+        }
     </style>
 </header>
 <body>
 <div class="container-fluid">
+        <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
     <div class="card border">
         <div class="row">
             <div class="col-auto">
                 <div class="card-header">
                     <div class="row">
-                        <div class="col">
+                        <div style="width: 50%">
                             <h6>
                                 Arbeitszeitnachweis {{$month->month}}/{{$month->year}}
                             </h6>
                         </div>
-
                     </div>
                     <div class="row">
                         <div class="col">
@@ -62,9 +68,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col" >
-                <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" style="max-height: 75px;">
-            </div>
+
         </div>
     </div>
         <div class="">
