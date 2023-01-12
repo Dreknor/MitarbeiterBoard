@@ -45,16 +45,16 @@
                     </div>
                 </div>
                 <p class="row w-100 border">
-                        <div style="width: 50%">
+                        <div style="width: 25%">
                             Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                         </div>
-                        <div class="w-25">
+                        <div style="width: 25%">
                             Urlaub bisher: {{$timesheet->holidays_old}}
                         </div>
-                        <div class="w-auto">
+                        <div style="width: 25%">
                             Urlaub neu: {{$timesheet->holidays_new}}
                         </div>
-                        <div class="w-auto">
+                        <div style="width: 25%">
                             Urlaub Rest: {{$timesheet->holidays_rest}}
                         </div>
                 </div>
