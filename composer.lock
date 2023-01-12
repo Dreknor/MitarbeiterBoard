@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d6b04b8755fde619d4038db2d5dfc373",
+    "content-hash": "92f741eb6b1da8685766e949a76925b6",
     "packages": [
         {
             "name": "aacotroneo/laravel-saml2",
@@ -5047,6 +5047,59 @@
                 }
             ],
             "time": "2022-06-22T07:13:36+00:00"
+        },
+        {
+            "name": "olsgreen/wkhtmltopdf-amd64",
+            "version": "0.12.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/olsgreen/wkhtmltopdf-amd64.git",
+                "reference": "1415c67bdccd0438a7463fbf7fe1594607ae7f85"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/olsgreen/wkhtmltopdf-amd64/zipball/1415c67bdccd0438a7463fbf7fe1594607ae7f85",
+                "reference": "1415c67bdccd0438a7463fbf7fe1594607ae7f85",
+                "shasum": ""
+            },
+            "bin": [
+                "bin/wkhtmltopdf-amd64"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "h4cc\\WKHTMLToPDF\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL Version 3"
+            ],
+            "authors": [
+                {
+                    "name": "Oliver Green",
+                    "email": "oliver@boxedcode.co.uk"
+                },
+                {
+                    "name": "Julius Beckmann",
+                    "email": "github@h4cc.de"
+                }
+            ],
+            "description": "Convert html to pdf using webkit (qtwebkit). Static linked linux binary for amd64 systems.",
+            "homepage": "http://wkhtmltopdf.org/",
+            "keywords": [
+                "binary",
+                "convert",
+                "pdf",
+                "snapshot",
+                "thumbnail",
+                "wkhtmltopdf"
+            ],
+            "support": {
+                "issues": "https://github.com/olsgreen/wkhtmltopdf-amd64/issues",
+                "source": "https://github.com/olsgreen/wkhtmltopdf-amd64/tree/0.12.6"
+            },
+            "time": "2020-06-30T19:35:22+00:00"
         },
         {
             "name": "onelogin/php-saml",
