@@ -35,8 +35,7 @@
 <body>
 <div class="container-fluid">
         <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
-    <div class="card border">
-        <div class="row">
+    <div class="card border w-50">
             <div class="col-auto">
                 <div class="card-header">
                     <div class="row">
@@ -69,8 +68,6 @@
                     </div>
                 </div>
             </div>
-
-        </div>
     </div>
         <div class="">
             <table class="table w-100 table-striped border table-bordered table-sm">
