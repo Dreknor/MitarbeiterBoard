@@ -37,20 +37,15 @@
     <div class="card border w-100">
         <div class="card-header">
             <div class="w-75">
-                    <div class="row">
-                        <div style="width: 50%">
-                            <h6>
-                                Arbeitszeitnachweis {{$month->month}}/{{$month->year}}
-                            </h6>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            {{$employe->vorname}} {{$employe->familienname}}
-                        </div>
-                    </div>
                 <div class="row">
-                        <div class="w-25">
+                    <div style="width: 50%">
+                        <h6>
+                            Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
+                        </h6>
+                    </div>
+                </div>
+                <p class="row mt-2 w-100">
+                        <div style="width: 50%">
                             Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                         </div>
                         <div class="w-25">
