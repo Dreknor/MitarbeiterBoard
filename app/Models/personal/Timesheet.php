@@ -74,7 +74,12 @@ class Timesheet extends Model
         $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->holidays_old - $this->holidays_new;
 
         if ($this->month == 1){
+            $this->holidays_old =  0;
             $this->holidays_rest = $this->holidays_old - $this->holidays_new + $this->employe->getHolidayClaim($start_of_month);
+        } else {
+            $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->holidays_rest : 0;
+            $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->holidays_old - $this->holidays_new;
+
         }
 
         $this->save();

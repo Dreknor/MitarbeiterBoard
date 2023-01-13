@@ -14,18 +14,35 @@
     <link href="{{asset('css/palette-gradient.css')}}" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
     <style>
+        #leftBox{
+            width: 49%;
+            float: left;
+            border-collapse: collapse;
+        }
+        #rightBox{
+            width: 50%;
+            float: right;
+            border-collapse: collapse;
+
+        }
         body {
-            font-size: 11px;
+            font-size: 10px;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        tr {
+            padding: 1px;
         }
         th {
-            font-size: 11px;
-            padding: 5px;
+            font-size: 10px;
+            padding: 2px;
         }
         td {
-            font-size: 10px;
-            padding: 5px;
+            font-size: 8px;
+            padding: 2px;
+            text-align: center;
         }
-
         #logo{
             position: absolute;
             top: 0.0cm;
@@ -37,32 +54,16 @@
 </header>
 <body>
 <div class="container-fluid">
-    <div class="w-75">
+    <div style="width: 75%;">
         <div class="card border w-100">
             <div class="card-header">
-                <div class="row">
                     <h6>
                         Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
                     </h6>
-                </div>
-                <div class="row">
-                    <div style="width: 25%; float: left">
-                        Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
-                    </div>
-                    <div style="width: 25%; float: left">
-                        Urlaub bisher: {{$timesheet->holidays_old}}
-                    </div>
-                    <div style="width: 25%; float: left">
-                        Urlaub neu: {{$timesheet->holidays_new}}
-                    </div>
-                    <div style="width: 25%; float: left">
-                        Urlaub Rest: {{$timesheet->holidays_rest}}
-                    </div>
-                </div>
             </div>
         </div>
     </div>
-    <div class="w-25">
+    <div style="width: 75%;">
         <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
     </div>
 
@@ -139,32 +140,58 @@
                 @endfor
             </table>
             </div>
-            <p style="position: absolute; bottom: 0px; width: 100%;">
-                <p class="row">
-                    <div style="float: left; width: 50%;">
-                        <p>
-                            __________________________________________
-                        </p>
-                    </div>
-                    <div style="float: left;">
-                        <p>
-                            __________________________________________
-                        </p>
-                    </div>
-                </p>
-                <p class="row">
-                    <div class="col">
-                        <p>
-                            Unterschrift Mitarbeiter
-                        </p>
-                    </div>
-                    <div class="col">
-                        <p>
-                            Unterschrift Leitung
-                        </p>
-                    </div>
-                </p>
-            </p>
+
+    <div id="leftBox">
+        <div style="width: 75%;">
+            <div class="leftBox" style="margin-top: 20px">
+                <div class="border-bottom ">
+                    Unterschrift Mitarbeiter:
+                </div>
+            </div>
+            <div class="rightBox" style="margin-top: 20px">
+                <div class="border-bottom ">
+                    Unterschrift Leitung:
+                </div>
+            </div>
+        </div>
     </div>
+    <div id="rightBox" class="border">
+        <table class="w-100 table-bordered">
+            <tr>
+                <th ">
+                    Stundenkonto neu:
+                </th>
+                <td style="text-align: left; font-size: 9px;">
+                    {{convertTime($timesheet->working_time_account)}} h
+                </td>
+            </tr>
+            <tr>
+                <th >
+                    Urlaub bisher:
+                </th>
+                <td style="text-align: left; font-size: 9px;">
+                    {{$timesheet->holidays_old}}
+                </td>
+            </tr>
+            <tr>
+                <th >
+                    Urlaub neu:
+                </th>
+                <td style="text-align: left; font-size: 9px;">
+                    {{$timesheet->holidays_new}}
+                </td>
+            </tr>
+            <tr>
+                <th  >
+                    Urlaub Rest:
+                </th>
+                <td style="text-align: left; font-size: 9px;">
+                    {{$timesheet->holidays_rest}}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</div>
 </body>
 </html>

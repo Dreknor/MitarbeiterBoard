@@ -51,21 +51,20 @@
                             </b>
                         </p>
                         <p>
-                        @if($timesheet_old)
-                            <div class="row">
-                                <div class="col-auto">
-                                    Stundenkonto: {{convertTime($timesheet_old->working_time_account)}} h
+                            @if($timesheet_old)
+                                <div class="row">
+                                    <div class="col-auto">
+                                        Stundenkonto: {{convertTime($timesheet_old->working_time_account)}} h
+                                    </div>
+                                    <div class="col-auto">
+                                        Urlaub bisher: {{$timesheet_old->holidays_old}}
+                                    </div>
+                                    <div class="col-auto">
+                                        Urlaub Rest: {{$timesheet_old->holidays_rest}}
+                                    </div>
                                 </div>
-                                <div class="col-auto">
-                                    Urlaub bisher: {{$timesheet_old->holidays_old}}
-                                </div>
-                                <div class="col-auto">
-                                    Urlaub Rest: {{$timesheet_old->holidays_rest}}
-                                </div>
-                            </div>
-
-                        @else
-                            kein Arbeitszeitnachweis gespeichert
+                            @else
+                                kein Arbeitszeitnachweis gespeichert
                             @endif
                         </p>
                     </div>
