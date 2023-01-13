@@ -29,7 +29,7 @@
                                 <i class="fa fa-scroll"></i> {{$month->monthName}} {{$month->year}}
                             </button>
                             <ul class="dropdown-menu pre-scrollable">
-                                @for($selectMonth = $employe->employments->sortBy('start')->first()->start; $selectMonth->lessThanOrEqualTo(\Carbon\Carbon::today()->endOfMonth()); $selectMonth->addMonth())
+                                @for($selectMonth = \Carbon\Carbon::now(); $selectMonth->greaterThanOrEqualTo($employe->employments->sortBy('start')->first()->start); $selectMonth->subMonth())
                                     <li>
                                         <a href="{{url('timesheets/'.$employe->id.'/'.$selectMonth->format('Y-m'))}}" class="dropdown-item text-info">
                                             {{$selectMonth->monthName}} {{$selectMonth->year}}
