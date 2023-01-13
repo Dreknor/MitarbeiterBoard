@@ -39,14 +39,12 @@
 <div class="container-fluid">
                 <div class="card border w-100">
                     <div class="card-header">
-                        <div class="w-75" style="float: right;">
-                            <div class="row">
-                                <div style="width: 50%">
-                                    <h6>
-                                        Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
-                                    </h6>
-                                </div>
-                            </div>
+                        <div class="w-75">
+
+                            <h6>
+                                Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
+                            </h6>
+
                             <div class="w-100 border">
                                 <div style="width: 25%; float: left">
                                     Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
