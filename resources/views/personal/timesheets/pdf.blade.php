@@ -37,34 +37,36 @@
 </header>
 <body>
 <div class="container-fluid">
-                <div class="card border w-100">
-                    <div class="card-header">
-                        <div class="w-75">
-                            <div class="row">
-                                <h6>
-                                    Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
-                                </h6>
-                            </div>
-                            <div class="row">
-                                <div style="width: 25%; float: left">
-                                    Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
-                                </div>
-                                <div style="width: 25%; float: left">
-                                    Urlaub bisher: {{$timesheet->holidays_old}}
-                                </div>
-                                <div style="width: 25%; float: left">
-                                    Urlaub neu: {{$timesheet->holidays_new}}
-                                </div>
-                                <div style="width: 25%; float: left">
-                                    Urlaub Rest: {{$timesheet->holidays_rest}}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="w-25">
-                            <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
-                        </div>
+    <div class="w-75">
+        <div class="card border w-100">
+            <div class="card-header">
+                <div class="row">
+                    <h6>
+                        Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
+                    </h6>
+                </div>
+                <div class="row">
+                    <div style="width: 25%; float: left">
+                        Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
+                    </div>
+                    <div style="width: 25%; float: left">
+                        Urlaub bisher: {{$timesheet->holidays_old}}
+                    </div>
+                    <div style="width: 25%; float: left">
+                        Urlaub neu: {{$timesheet->holidays_new}}
+                    </div>
+                    <div style="width: 25%; float: left">
+                        Urlaub Rest: {{$timesheet->holidays_rest}}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="w-25">
+        <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
+    </div>
+
+
             <div class="row">
                 <table class="table w-100 table-striped border table-bordered table-sm">
                 <tr style="padding: 0px;">
