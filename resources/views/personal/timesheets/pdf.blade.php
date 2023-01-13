@@ -39,7 +39,7 @@
 <div class="container-fluid">
                 <div class="card border w-100">
                     <div class="card-header">
-                        <div class="w-75">
+                        <div class="w-75" style="float: right;">
                             <div class="row">
                                 <div style="width: 50%">
                                     <h6>
