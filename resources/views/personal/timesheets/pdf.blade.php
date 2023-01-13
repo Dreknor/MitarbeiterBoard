@@ -34,9 +34,10 @@
 </header>
 <body>
 <div class="container-fluid">
-    <div class="card border w-100">
-        <div class="card-header">
+
             <div class="w-75">
+                <div class="card border w-100">
+                    <div class="card-header">
                 <div class="row">
                     <div style="width: 50%">
                         <h6>
@@ -45,24 +46,25 @@
                     </div>
                 </div>
                 <p class="row w-100 border">
-                        <div style="width: 25%">
+                        <div style="width: 25%; float: left">
                             Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                         </div>
-                        <div style="width: 25%">
+                        <div style="width: 25%; float: left">
                             Urlaub bisher: {{$timesheet->holidays_old}}
                         </div>
-                        <div style="width: 25%">
+                        <div style="width: 25%; float: left">
                             Urlaub neu: {{$timesheet->holidays_new}}
                         </div>
-                        <div style="width: 25%">
+                        <div style="width: 25%; float: left">
                             Urlaub Rest: {{$timesheet->holidays_rest}}
                         </div>
                 </div>
             </div>
+        </div>
             <div class="w-25">
                 <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
             </div>
-        </div>
+
     </div>
     </div>
         <div class="">
@@ -137,14 +139,14 @@
                 @endfor
             </table>
         </div>
-        <div class="">
+        <div style="position: absolute; bottom: 0px; width: 100%;">
             <div class="row">
-                <div class="col">
+                <div style="float: left; width: 50%;">
                     <p>
                         __________________________________________
                     </p>
                 </div>
-                <div class="col">
+                <div style="float: left;">
                     <p>
                         __________________________________________
                     </p>

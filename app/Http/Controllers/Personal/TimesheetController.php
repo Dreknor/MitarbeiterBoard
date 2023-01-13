@@ -550,7 +550,7 @@ class TimesheetController extends Controller
             'employe' => $user,
             'month' => $act_month
         ]);
-        return $pdf->download('timesheet.pdf');
+        return $pdf->download('AZN_'.$user->familienname.'_'.$timesheet->year.'_'.$timesheet->month.'.pdf');
     }
 
     /**
