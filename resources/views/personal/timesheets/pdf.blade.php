@@ -23,6 +23,11 @@
         td {
             font-size: 10px;
         }
+
+        th, td {
+            padding: 5px;
+        }
+
         #logo{
             position: absolute;
             top: 0.0cm;
@@ -44,7 +49,7 @@
                                     </h6>
                                 </div>
                             </p>
-                            <p class="row w-100 border">
+                            <p class="w-100 border">
                                 <div style="width: 25%; float: left">
                                     Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                                 </div>
