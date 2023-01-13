@@ -34,18 +34,17 @@
 </header>
 <body>
 <div class="container-fluid">
-
                 <div class="card border w-100">
                     <div class="card-header">
                         <div class="w-75">
-                            <div class="row">
+                            <p class="row">
                                 <div style="width: 50%">
                                     <h6>
                                         Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
                                     </h6>
                                 </div>
-                            </div>
-                            <div class="row w-100 border">
+                            </p>
+                            <p class="row w-100 border">
                                 <div style="width: 25%; float: left">
                                     Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                                 </div>
@@ -58,15 +57,14 @@
                                 <div style="width: 25%; float: left">
                                     Urlaub Rest: {{$timesheet->holidays_rest}}
                                 </div>
-                            </div>
+                            </p>
                         </div>
                         <div class="w-25">
                             <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
                         </div>
                     </div>
                 </div>
-    <div class="card">
-            <div class="card-body">
+            <p>
                 <table class="table w-100 table-striped border table-bordered table-sm">
                 <tr style="padding: 0px;">
                     <th>
@@ -137,9 +135,9 @@
 
                 @endfor
             </table>
-            </div>
-            <div class="card-footer">
-                <div style="position: absolute; bottom: 0px; width: 100%;">
+            </p>
+            <p style="position: absolute; bottom: 0px; width: 100%;">
+                <div >
             <div class="row">
                 <div style="float: left; width: 50%;">
                     <p>
@@ -165,7 +163,7 @@
                 </div>
             </div>
         </div>
-            </div>
+            </p>
     </div>
 </div>
 
