@@ -19,12 +19,10 @@
         }
         th {
             font-size: 11px;
+            padding: 5px;
         }
         td {
             font-size: 10px;
-        }
-
-        th, td {
             padding: 5px;
         }
 
@@ -32,7 +30,7 @@
             position: absolute;
             top: 0.0cm;
             right: 0.5cm;
-            max-height: 75px;
+            max-height: 50px;
             float: left;
         }
     </style>
@@ -142,35 +140,31 @@
             </table>
             </p>
             <p style="position: absolute; bottom: 0px; width: 100%;">
-                <div >
-            <div class="row">
-                <div style="float: left; width: 50%;">
-                    <p>
-                        __________________________________________
-                    </p>
-                </div>
-                <div style="float: left;">
-                    <p>
-                        __________________________________________
-                    </p>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <p>
-                        Unterschrift Mitarbeiter
-                    </p>
-                </div>
-                <div class="col">
-                    <p>
-                        Unterschrift Leitung
-                    </p>
-                </div>
-            </div>
-        </div>
+                <p class="row">
+                    <div style="float: left; width: 50%;">
+                        <p>
+                            __________________________________________
+                        </p>
+                    </div>
+                    <div style="float: left;">
+                        <p>
+                            __________________________________________
+                        </p>
+                    </div>
+                </p>
+                <p class="row">
+                    <div class="col">
+                        <p>
+                            Unterschrift Mitarbeiter
+                        </p>
+                    </div>
+                    <div class="col">
+                        <p>
+                            Unterschrift Leitung
+                        </p>
+                    </div>
+                </p>
             </p>
     </div>
-</div>
-
 </body>
 </html>
