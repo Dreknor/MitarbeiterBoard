@@ -40,14 +40,14 @@
                 <div class="card border w-100">
                     <div class="card-header">
                         <div class="w-75">
-                            <p class="row">
+                            <div class="row">
                                 <div style="width: 50%">
                                     <h6>
                                         Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
                                     </h6>
                                 </div>
-                            </p>
-                            <p class="w-100 border">
+                            </div>
+                            <div class="w-100 border">
                                 <div style="width: 25%; float: left">
                                     Stundenkonto neu: {{convertTime($timesheet->working_time_account)}} h
                                 </div>
@@ -60,14 +60,14 @@
                                 <div style="width: 25%; float: left">
                                     Urlaub Rest: {{$timesheet->holidays_rest}}
                                 </div>
-                            </p>
+                            </div>
                         </div>
                         <div class="w-25">
                             <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
                         </div>
                     </div>
                 </div>
-            <p>
+            <div class="row">
                 <table class="table w-100 table-striped border table-bordered table-sm">
                 <tr style="padding: 0px;">
                     <th>
@@ -138,7 +138,7 @@
 
                 @endfor
             </table>
-            </p>
+            </div>
             <p style="position: absolute; bottom: 0px; width: 100%;">
                 <p class="row">
                     <div style="float: left; width: 50%;">
