@@ -177,7 +177,7 @@
         </div>
     </div>
     <div id="leftBox" class="" style="height: 150px; margin-top: 15px">
-        <table class="w-75 table-bordered">
+        <table class="w-100 table-bordered">
             <tr>
                 <th>
                     Stundenkonto alt:
