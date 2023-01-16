@@ -1,4 +1,4 @@
-<tr class="@if(!$day->isWeekday() or is_holiday($day)) bg-gradient-radial-info @endif">
+<tr class="@if(!$day->isWeekday() or is_holiday($day)) bg-gradient-radial-info @endif" id="{{$day->format('Y-m-d')}}">
     <td>
         {{$day->dayName}}, {{$day->format('d.m.Y')}}
     </td>
