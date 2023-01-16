@@ -180,14 +180,22 @@
         <table class="w-75 table-bordered">
             <tr>
                 <th>
-                    Stundenkonto neu:
+                    Stundenkonto alt:
                 </th>
                 <td >
-                    {{convertTime($timesheet->working_time_account)}} h
+                    {{convertTime($timesheet_old->working_time_account)}} h
                 </td>
             </tr>
             <tr>
-                <th >
+                <th>
+                    Stundenkonto neu:
+                </th>
+                <td >
+                    {{convertTime($timesheet->working_time_account)}} h ({{convertTime($timesheet->working_time_account - $timesheet_old->working_time_account)}} h)
+                </td>
+            </tr>
+            <tr>
+                <th>
                     Urlaub bisher:
                 </th>
                 <td>
