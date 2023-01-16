@@ -20,10 +20,12 @@ class PriorityController extends Controller
 
         //$priority->save();
 
-        return response()->json([
+        $theme = Theme::find($request->theme);
 
+        return response()->json([
             'theme_id'  => $request->theme,
-            'priority'  => $request->priority,
+            'priority'  => $theme->priority,
+            'day'   => $theme->date->format('d.m.Y')
         ]);
     }
 

@@ -62,7 +62,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive-sm table-responsive-md">
-                                    <table class="table">
+                                    <table class="table" id="{{$day}}_themes">
                                         <thead>
                                         <tr>
                                             <th>Von</th>
@@ -81,7 +81,7 @@
                                         </thead>
                                         <tbody class="connectedSortable" >
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
-                                            <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif">
+                                            <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
                                                 <td>
                                                     {{$theme->ersteller->name}}
                                                 </td>
@@ -110,7 +110,7 @@
                                                 <td id="priority_{{$theme->id}}">
                                                     @if ($theme->priorities->where('creator_id', auth()->id())->first())
                                                         <div class="progress">
-                                                            <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
+                                                            <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
                                                         </div>
                                                     @else
                                                         <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
@@ -143,6 +143,7 @@
     <script>
         $('input[type=range]').on("change", function() {
             let theme = $(this).data('theme');
+
             let url = "{{url(request()->segment(1).'/themes/' )}}"
             console.log(url)
             $.ajax({
@@ -154,7 +155,16 @@
                         "_token": "{{ csrf_token() }}",
                     },
                 success: function(responseText){
-                    window.location.replace(url);
+                        let percent = 100 -responseText['priority']
+                        let element = document.getElementById('priority_'+theme)
+
+                        element.innerHTML = '<div class="progress">'+
+                            '<div class="progress-bar amount" role="progressbar" id="progress_'+theme+'" style="width: '+percent+'%;" ></div>'+
+                        '</div>'
+
+                        document.getElementById(theme).dataset.priority = responseText['priority']
+                        sortTable(responseText['day']+"_themes")
+                        document.getElementById(theme).scrollTo()
                 }
             });
         });
@@ -176,6 +186,44 @@
 
 
         });
+
+        function sortTable(id ,) {
+            var table, rows, switching, i, x, y, shouldSwitch;
+            table = document.getElementById(id);
+            switching = true;
+            /* Make a loop that will continue until
+            no switching has been done: */
+            while (switching) {
+                // Start by saying: no switching is done:
+                switching = false;
+                rows = table.rows;
+                /* Loop through all table rows (except the
+                first, which contains table headers): */
+                for (i = 0; i < (rows.length - 1); i++) {
+                    // Start by saying there should be no switching:
+                    shouldSwitch = false;
+                    /* Get the two elements you want to compare,
+                    one from current row and one from the next: */
+                    x = rows[i];
+                    y = rows[i + 1];
+                    // Check if the two rows should switch place:
+                    if (((x.dataset.priority !== "") ? x.dataset.priority : 0) < ((y.dataset.priority !== "") ? y.dataset.priority : 0)) {
+                        // If so, mark as a switch and break the loop:
+                        console.log(x.dataset.priority + '<' + y.dataset.priority)
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+                if (shouldSwitch) {
+                    /* If a switch has been marked, make the switch
+                    and mark that a switch has been done: */
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                }
+            }
+
+        }
+
 
     </script>
 @endpush

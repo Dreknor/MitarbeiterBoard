@@ -64,8 +64,15 @@ class Theme extends Model implements HasMedia
     public function getPriorityAttribute(): float|int|null
     {
         if ($this->priorities->count() > 0) {
+
+            if ($this->priorities->sum('priority') == 100){
+                return 99 / $this->priorities->count();
+
+            }
+
             return $this->priorities->sum('priority') / $this->priorities->count();
         }
+
 
         return null;
     }
