@@ -70,7 +70,7 @@ class Timesheet extends Model
         //Urlaub berechnen
         $this->holidays_new = $timesheet_days->where('comment', 'Urlaub')->count();
         $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->old + $timesheet_old-> holidays_new: 0;
-        $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->holidays_old - $this->holidays_new;
+        $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->employe->getHolidayClaim($start_of_month) - $this->holidays_old - $this->holidays_new;
 
         if ($this->month == 1){
             $this->holidays_old =  0;
