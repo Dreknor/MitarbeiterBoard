@@ -317,7 +317,7 @@ class TimesheetController extends Controller
 
         $timesheet->updateTime();
 
-        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
+        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
 
     }
 
@@ -349,7 +349,7 @@ class TimesheetController extends Controller
 
         $timesheet->updateTime();
 
-        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
+        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
 
     }
 
@@ -364,7 +364,7 @@ class TimesheetController extends Controller
         if ($timesheetDay->timesheet_id == $timesheet->id and $timesheet->employe_id == $user->id){
             $timesheetDay->delete();
             $timesheet->updateTime();
-            return redirect(url('timesheets/'.$timesheet->employe_id.'/'.$day->format('Y-m').'#'.$day->format('Y-m-d')))->with('success', 'Eintrag gelöscht');
+            return redirect(url('timesheets/'.$timesheet->employe_id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag gelöscht');
         }
         return redirectBack('warning', 'Fehler bei der Zuordnung');
     }
