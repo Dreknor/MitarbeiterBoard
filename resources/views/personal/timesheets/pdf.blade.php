@@ -20,27 +20,33 @@
             border-collapse: collapse;
         }
         #rightBox{
-            width: 50%;
+            width: 35%;
             float: right;
             border-collapse: collapse;
+            margin-right: 90px;
 
         }
         body {
-            font-size: 10px;
+            font-size: 1em;
+            margin-left: 10mm;
         }
         table {
             border-collapse: collapse;
+            border: 1px solid black;
+
+            width: 100%;
         }
         tr {
-            padding: 1px;
+            border: 1px solid black;
+            border-top: 0;
         }
         th {
-            font-size: 10px;
-            padding: 2px;
+            font-size: 1.0em;
+            padding: 6px;
         }
         td {
-            font-size: 8px;
-            padding: 2px;
+            font-size: 0.9em;
+            padding: 6px;
             text-align: center;
         }
         #logo{
@@ -55,23 +61,27 @@
 <body>
 <div class="container-fluid">
     <div style="width: 75%;">
-        <div class="card border w-100">
+        <div class="card border">
             <div class="card-header">
                     <h6>
-                        Arbeitszeitnachweis {{$month->month}}/{{$month->year}} - {{$employe->vorname}} {{$employe->familienname}}
+                        Arbeitszeitnachweis {{$month->month}}/{{$month->year}}
                     </h6>
+                <p>
+                    {{$employe->vorname}} {{$employe->familienname}}
+                </p>
             </div>
         </div>
+
     </div>
-    <div style="width: 75%;">
-        <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
+    <div style="width: 25%;">
+                <img src="{{asset('img/'.config('app.logo'))}}" class=" pull-right" id="logo">
     </div>
 
 
             <div class="row">
-                <table class="table w-100 table-striped border table-bordered table-sm">
+                <table>
                 <tr style="padding: 0px;">
-                    <th>
+                    <th colspan="2">
                         Datum
                     </th>
                     <th>
@@ -93,7 +103,10 @@
                 @for($day = $month->copy()->startOfMonth(); $day->lessThanOrEqualTo($month->copy()->endOfMonth()); $day->addDay())
                     <tr style="padding: 0px;">
                         <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
-                            {{$day->dayName}}, {{$day->format('d.m.Y')}}
+                            {{$day->dayName}}
+                        </td>
+                        <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
+                            {{$day->format('d.m.Y')}}
                         </td>
                         <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
                             @foreach($timesheet_days->filterDay($day) as $timesheet_day)
@@ -112,7 +125,15 @@
                             @endif
                         </td>
                         <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
-                            {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}} h @if($day->isWeekday() and !is_holiday($day)) / {{convertTime(percent_to_minutes($employe->employments_date($day)->sum('percent'))/5)}} h @endif
+                            @if(!$day->isWeekday() or is_holiday($day))
+                                @if($timesheet_days->filterDay($day)->sum('duration') > 0 )
+                                    {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}} h
+                                @endif
+                            @else
+                                {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}} h @if($day->isWeekday() and !is_holiday($day)) / {{convertTime(percent_to_minutes($employe->employments_date($day)->sum('percent'))/5)}} h @endif
+
+                            @endif
+
                         </td>
                         <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
                             @foreach($timesheet_days->filterDay($day) as $timesheet_day)
@@ -141,27 +162,27 @@
             </table>
             </div>
 
-    <div id="leftBox">
-        <div style="width: 75%;">
-            <div class="leftBox" style="margin-top: 20px">
+    <div id="rightBox" style="height: 150px; margin-top: 15px">
+        <div>
+            <div class="leftBox" style="margin-top: 30px">
                 <div class="border-bottom ">
                     Unterschrift Mitarbeiter:
                 </div>
             </div>
-            <div class="rightBox" style="margin-top: 20px">
+            <div class="rightBox" style="margin-top: 40px">
                 <div class="border-bottom ">
                     Unterschrift Leitung:
                 </div>
             </div>
         </div>
     </div>
-    <div id="rightBox" class="border">
-        <table class="w-100 table-bordered">
+    <div id="leftBox" class="" style="height: 150px; margin-top: 15px">
+        <table class="w-75 table-bordered">
             <tr>
-                <th ">
+                <th>
                     Stundenkonto neu:
                 </th>
-                <td style="text-align: left; font-size: 9px;">
+                <td >
                     {{convertTime($timesheet->working_time_account)}} h
                 </td>
             </tr>
@@ -169,7 +190,7 @@
                 <th >
                     Urlaub bisher:
                 </th>
-                <td style="text-align: left; font-size: 9px;">
+                <td>
                     {{$timesheet->holidays_old}}
                 </td>
             </tr>
@@ -177,7 +198,7 @@
                 <th >
                     Urlaub neu:
                 </th>
-                <td style="text-align: left; font-size: 9px;">
+                <td >
                     {{$timesheet->holidays_new}}
                 </td>
             </tr>
@@ -185,7 +206,7 @@
                 <th  >
                     Urlaub Rest:
                 </th>
-                <td style="text-align: left; font-size: 9px;">
+                <td >
                     {{$timesheet->holidays_rest}}
                 </td>
             </tr>
