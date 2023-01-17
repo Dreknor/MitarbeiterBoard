@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absence;
+use App\Models\personal\Roster;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -62,17 +63,26 @@ class HomeController extends Controller
             $oldAbsences = [];
         }
 
+        //Roster
+        $groups_arr = [];
+        foreach ($groups as $group){
+            $groups_arr[] = $group->id;
+        }
 
-
+        $rosters = Roster::whereIn('department_id', $groups_arr)
+            ->whereDate('start_date', Carbon::now()->startOfWeek()->format('Y-m-d'))
+            ->get();
+        /*$rosters = auth()->user()->groups_rel()->whereHas('rosters', function (Builder $query) {
+            $query->whereDate('start_date', Carbon::now()->startOfWeek()->format('Y-m-d'));
+        })->get();*/
 
         return view('home', [
-            'groups'    => $groups,
             'tasks'     => $tasks,
-            'colors'    => $colors,
             'steps' => $steps,
             'absences' => $absences,
             'oldAbsences' => $oldAbsences,
-            'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15)
+            'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15),
+            'rosters' => $rosters
         ]);
     }
 }

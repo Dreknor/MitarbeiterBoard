@@ -123,6 +123,9 @@ Route::group([
                 Route::post('contacts/{employe}',[ContactController::class, 'store']);
                 Route::delete('contacts/{contact}',[ContactController::class, 'delete']);
 
+
+                Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
+
                 Route::middleware(['permission:create roster'])->group(function () {
                     //Roster - Dienstpläne
                     Route::resource('roster', RosterController::class)
@@ -133,7 +136,6 @@ Route::group([
                         ]);
                     Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
                     Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
-                    Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
                     Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
                     Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
                     Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');

@@ -280,8 +280,11 @@ class RosterController extends Controller
 
     public function exportPDF(Roster $roster)
     {
+        if (auth()->user()->can('create roster') or auth()->user()->groups->contains($roster->department)){
+            return $this->createPDF($roster)->stream($roster->start_date->format('Y_m_d') . '_dienstplan.pdf');
+        }
+        return redirectBack('danger', 'Berechtigung fehlt');
 
-        return $this->createPDF($roster)->stream($roster->start_date->format('Y_m_d') . '_dienstplan.pdf');
     }
 
     public function createPDF(Roster $roster)

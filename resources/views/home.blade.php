@@ -51,6 +51,9 @@
                 </div>
             </div>
             <div class="col-md-12 col-lg-4 ">
+                @if($rosters->count() > 0)
+                    @include('personal.rosters.homeView')
+                @endif
                 @can('view absences')
                     <div class="row mt-1">
                         <div class="col-12">
