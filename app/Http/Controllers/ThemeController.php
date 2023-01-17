@@ -49,7 +49,7 @@ class ThemeController extends Controller
         ]);
         $protocol->save();
 
-        return redirect(url($oldGroup->name.'/themes'))->with([
+        return redirect(url($oldGroup->name.'/themes#'.$theme->date->format('Ymd')))->with([
             'type'    => 'success',
             'Meldung' => 'Thema zur Gruppe '.$group->name.' verschoben.',
         ]);
@@ -327,7 +327,7 @@ class ThemeController extends Controller
             $subscription->save();
         }
 
-        return redirect(url($groupname.'/themes'))->with([
+        return redirect(url($groupname.'/themes#'.$theme->date->format('Ymd')))->with([
            'type'   => 'success',
            'Meldung'    => 'Thema erstellt',
         ]);
@@ -394,7 +394,7 @@ class ThemeController extends Controller
         ]);
         $protocol->save();
 
-        return redirect(url($groupname."/themes/"))->with([
+        return redirect(url($groupname."/themes#".$theme->date->format('Ymd')))->with([
             'type'  => 'success',
             'Meldung' => 'Thema wurde aktiviert.'
         ]);
@@ -471,6 +471,8 @@ class ThemeController extends Controller
 
         $date = Carbon::createFromFormat('Y-m-d', $request->date);
 
+        (!$date->eq($theme->date))? $redirectDate = $date->format('Ymd') : $redirectDate = $theme->date->format('Ymd');
+
         if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay()) and !$date->isSameDay(Carbon::today())) {
             return redirect()->back()->with([
                 'type'    => 'warning',
@@ -508,7 +510,7 @@ class ThemeController extends Controller
             }
         }
 
-        return redirect(url($groupname."/themes/$theme->id"))->with([
+        return redirect(url($groupname."/themes#$redirectDate"))->with([
             'type'  => 'success',
             'Meldung'=> 'Änderungen gespeichert.',
         ]);
@@ -516,10 +518,11 @@ class ThemeController extends Controller
 
     public function destroy($groupname, Theme $theme)
     {
+        $date = $theme->date->format('Ymd');
         if (auth()->user()->id == $theme->creator_id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(Carbon::now()->startOfDay()->addDays(config('config.themes.addDays')))) {
             $theme->delete();
 
-            return redirect(url($groupname.'/themes'))->with([
+            return redirect(url($groupname.'/themes#'.$date))->with([
                 'type'  => 'info',
                 'Meldung'   => 'Thema wurde gelöscht.',
             ]);
@@ -551,7 +554,7 @@ class ThemeController extends Controller
            ]);
         $protocol->save();
 
-        return redirect(url($groupname.'/themes'))->with([
+        return redirect(url($groupname.'/themes#'.$theme->date->format('Ymd')))->with([
                'type'  => 'success',
                'Meldung'=> 'Thema geschlossen',
            ]);
@@ -576,7 +579,7 @@ class ThemeController extends Controller
         ]);
 
 
-        return redirect(url($groupname."/themes/"))->with([
+        return redirect(url($groupname."/themes#".$oldDate->format('Ymd')))->with([
             'type'  => 'success',
             'Meldung'=> $themes.' Themen wurden verschoben',
         ]);
