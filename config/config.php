@@ -1,5 +1,7 @@
 <?php
 return [
+    'logo_small' => env('APP_LOGO_SMALL', 'logo-small.png'),
+
     'abwesenheiten_arbeitszeit' => [
         'Urlaub' => 100,
         'Fortbildung' => 100,
