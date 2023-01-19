@@ -19,7 +19,7 @@
         @endif
     </td>
     <td>
-        {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}} h @if($day->isWeekday() and !is_holiday($day)) / {{(percent_to_minutes($employe->employments_date($day)->sum('percent'))/5)}} h @endif
+        {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}} h @if($day->isWeekday() and !is_holiday($day)) / {{convertTime($employe->employments_date($day)->sum('percent')*40/100/5)}} h @endif
     </td>
     @can('edit employe')
         <td>
