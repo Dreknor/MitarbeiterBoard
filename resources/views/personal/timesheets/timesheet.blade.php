@@ -44,7 +44,7 @@
             </div>
             <div class="card-body border-bottom border-top">
                 <div class="row">
-                    <div class="col-md-12 col-lg-6">
+                    <div class="col-md-12 col-lg-4">
                         <p>
                             <b>
                                 letzter Monat:
@@ -130,6 +130,9 @@
                         <th>
                             Gesamt-Std.
                         </th>
+                        @can('edit employe')
+                            <th>Anstellungen</th>
+                        @endcan
                         <th>
                            Bemerkungen
                         </th>
