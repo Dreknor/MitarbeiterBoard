@@ -15,12 +15,14 @@ return new class extends Migration
     {
         Schema::create('employe_holiday_claims', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('employe_id');
-            $table->date('date_start');
-            $table->integer('holiday_claim')->default(26);
             $table->timestamps();
+            $table->unsignedBigInteger('employe_id');
+            $table->integer('holiday_claim')->default(26);
+            $table->date('date_start');
+            $table->unsignedBigInteger('changedBy');
 
             $table->foreign('employe_id')->references('id')->on('users');
+            $table->foreign('changedBy')->references('id')->on('users');
         });
     }
 
@@ -31,6 +33,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('table_employe_holiday_claims');
+        Schema::dropIfExists('holiday_claim');
     }
 };

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\personal\CreateEmployeRequest;
+use App\Http\Requests\UpdateEmployeDataRequest;
 use App\Models\Group;
 use App\Models\personal\EmployeData;
+use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\HourType;
 use App\Models\User;
 use Carbon\Carbon;
@@ -94,6 +96,22 @@ class EmployeController extends Controller
         }
 
 
+        return redirect()->back()->with([
+            'type' => "success",
+            'Meldung' => 'Daten aktualisiert.'
+        ]);
+    }
+    public function updateData(UpdateEmployeDataRequest $request, User $employe)
+    {
+
+        $claim = new EmployeHolidayClaim([
+           'holiday_claim' => $request->holidayClaim,
+           'employe_id' => $employe->id,
+           'date_start' => $request->date_start,
+           'changedBy' => auth()->id()
+        ]);
+
+        $claim->save();
         return redirect()->back()->with([
             'type' => "success",
             'Meldung' => 'Daten aktualisiert.'

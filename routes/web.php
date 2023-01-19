@@ -94,6 +94,8 @@ Route::group([
                         'show' => 'employes.show',
                         'index' => 'employes.index',
                     ])->except('create');
+
+                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
 
 

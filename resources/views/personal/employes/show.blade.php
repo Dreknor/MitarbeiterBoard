@@ -213,6 +213,13 @@
                     <div class="card-header border-bottom">
                         <h5 class="card-title">
                             Arbeitsdaten
+                            @can('edit employe')
+                                <div class="d-inline pull-right">
+                                    <a href="#" onclick="toogleEditHolidayClaimForm()">
+                                        <i class="fa fa-edit" id="EditEmployeDataIcon"></i>
+                                    </a>
+                                </div>
+                            @endcan
                         </h5>
                     </div>
                     <div class="card-body">
@@ -220,8 +227,29 @@
                             <li class="">
                                 Angestellt seit: ???
                             </li>
-                            <li class="">
+                            <li class="" id="Holidayclaim_list_item">
                                 Urlaubsanspruch: {{$employe->getHolidayClaim()}}
+                            </li>
+                            <li class="d-none" id="editEmpolyeDataForm">
+                                <form method="post" action="{{route('employes.data.update', [$employe->id])}}" class="form-horizontal" id="editHolidayClaimForm">
+                                    @csrf
+                                    @method('put')
+                                    <div class="row">
+                                        <label class="label-control">
+                                            Urlaubsanspruch
+                                        </label>
+                                        <input name="holidayClaim" type="number" min="1" value="{{$employe->getHolidayClaim()}}" class="form-control">
+                                    </div>
+                                    <div class="row">
+                                        <label class="label-control">
+                                            ab ...
+                                        </label>
+                                        <input name="date_start" type="date" value="{{\Carbon\Carbon::now()->format('Y-m-d')}}" class="form-control">
+                                    </div>
+
+
+                                    <button type="submit" form="editHolidayClaimForm" class="btn btn-sm btn-success">speichern</button>
+                                </form>
                             </li>
                             <li class="">
                                  Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
@@ -523,6 +551,11 @@
             function toggleEditEmployeForm(){
                 $('#editEmpolyeForm').toggleClass('d-none');
                 $('#EditEmployeIcon').toggleClass('fa fa-edit fa fa-minus-circle text-danger')
+            }
+
+            function toogleEditHolidayClaimForm(){
+                $('#editEmpolyeDataForm').toggleClass('d-none');
+                $('#EditEmployeDataIcon').toggleClass('fa fa-edit fa fa-minus-circle text-danger')
             }
 
             $.ajaxSetup({
