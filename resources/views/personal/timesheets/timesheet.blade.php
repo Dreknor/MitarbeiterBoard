@@ -78,7 +78,7 @@
                             @if(!is_null($timesheet))
                                 <div class="row">
                                     <div class="col-auto">
-                                        Stundenkonto: {{convertTime($timesheet->working_time_account)}} h ({{convertTime($timesheet->working_time_account - $timesheet_old->working_time_account)}} h)
+                                        Stundenkonto: {{convertTime($timesheet?->working_time_account)}} h ({{convertTime($timesheet?->working_time_account - $timesheet_old?->working_time_account)}} h)
                                     </div>
                                     <div class="col-auto">
                                         Urlaub bisher: {{$timesheet->holidays_old}}
