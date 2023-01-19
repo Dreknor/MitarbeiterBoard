@@ -537,7 +537,7 @@ class TimesheetController extends Controller
                 ->first();
         });
 
-        $timesheet = Timesheet::firstWhere([
+        $timesheet = Timesheet::firstOrCreate([
                 'employe_id' => $user->id,
                 'year' => $act_month->year,
                 'month' => $act_month->month,
