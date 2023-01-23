@@ -53,7 +53,8 @@ class Protocol extends Model implements HasMedia
             $theme = $protocol->theme;
             foreach ($theme->subscriptionable as $subscription) {
                 if ($subscription->user != $protocol->ersteller){
-                    Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme->theme));
+                    Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme, $theme->group->name, $protocol->protocol));
+                    //Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme->theme));
                 }
             }
         });
