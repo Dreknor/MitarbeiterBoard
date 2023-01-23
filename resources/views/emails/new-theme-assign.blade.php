@@ -9,7 +9,11 @@
     <br><br>
 </p>
 <p>
-    Thema: <a href="{{config('app.url').'/themes/'.$theme->group->name.'/'.$theme->id}}">{{$theme->theme}}</a> <br>
+    Thema: <a href="{{config('app.url').$theme->group->name.'/themes'.'/'.$theme->id}}">{{$theme->theme}}</a> <br>
+</p>
+<p>
+    Informationen:<br>
+    {!! $theme->information !!}}
 </p>
 <p>
     <br>
