@@ -122,7 +122,7 @@ class ProtocolController extends Controller
             $user = auth()->user()->name;
             $ersteller = $theme->ersteller;
             Notification::send($ersteller, new Push('neues Protokoll', 'Thema: '.$theme->theme));
-            Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme, $groupname, $protocol->protocol));
+            Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme, $groupname, $protocol));
         }
 
         if ($request->hasFile('files')) {
