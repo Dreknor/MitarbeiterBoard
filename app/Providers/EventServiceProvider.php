@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -58,6 +59,8 @@ class EventServiceProvider extends ServiceProvider
             ];
 
 
+
+
             $laravelUser = User::where('username', $userData['attributes']['uid'][0])
                 ->orWhere('email', $userData['attributes']['mailPrimaryAddress'][0])
                 ->first();
@@ -86,9 +89,33 @@ class EventServiceProvider extends ServiceProvider
 
                 $laravelUser->save();
 
+                $groups_cn = collect();
+                $groups_env = collect();
+
+                //get member_of groups
+                foreach ($userData['attributes']['memberOf'] as $memberOf){
+                    $arr = explode(',', $memberOf);
+                    $cn = explode('-',$arr[0]);
+
+                    if (!is_null($cn) and count($cn) > 1){
+                        $groups_cn = Group::whereIn('name', config('config.auth.set_groups'))->get();
+                        $laravelUser->groups_rel()->attach($groups_cn);
+                    }
+
+                }
+
+
                 if (config('config.auth.set_groups') != "" and is_array(config('config.auth.set_groups') )){
-                    $groups = Group::whereIn('name', config('config.auth.set_groups'))->get();
-                    $laravelUser->groups_rel()->attach($groups);
+                    $groups_env = Group::whereIn('name', config('config.auth.set_groups'))->get();
+                    $laravelUser->groups_rel()->attach($groups_env);
+                }
+
+
+
+                if (config('config.auth.set_roles') != "" and is_array(config('config.auth.set_roles') )){
+                    $roles = Role::whereIn('name', config('config.auth.set_roles'))->get();
+                    $laravelUser->roles()->attach($roles);
+
                 }
 
             }

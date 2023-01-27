@@ -23,6 +23,8 @@ return [
         'saml2' => env("SAML2_ENABLE",false),
         'saml2_btn' => env("SAML2_BUTTON_TEXT",'SSO - Login'),
         'set_groups' => explode('|',env('DEFAULT_GROUPS', '')),
+        'saml_member_of_prefix' => env('SAML_PREFIX',''),
+        'set_roles' => explode('|',env('DEFAULT_ROLES', '')),
     ],
 
     'themes'    => [
