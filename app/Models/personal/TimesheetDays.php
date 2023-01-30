@@ -26,21 +26,20 @@ class TimesheetDays extends Model
 
     public function getDurationAttribute()
     {
-        $minutes = 0;
+        $seconds = 0;
         if (!is_null($this->start) and !is_null($this->end)){
-            $minutes = $this->start->diffInMinutes($this->end);
+            $seconds = $this->start->diffInSeconds($this->end);
         }
-
-
 
         if ($this->percent_of_workingtime != null){
             $employment =  Cache::remember('employments_date_'.$this->timesheet->id.'_'.$this->date,60, function (){
                 return $this->timesheet->employe->employments_date($this->date)->sum('percent');
             });
-            $minutes = (percent_to_minutes($employment)/5)/100*$this->percent_of_workingtime;
+
+            $seconds = (percent_to_seconds($employment)/5)/100 * $this->percent_of_workingtime;
         }
 
-        return $minutes-$this->pause;
+        return $seconds - ($this->pause*60);
     }
 
 }
