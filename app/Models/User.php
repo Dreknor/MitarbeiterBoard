@@ -207,7 +207,7 @@ class User extends Authenticatable implements HasMedia
             $date = Carbon::now();
         }
         if (is_null($end)) {
-            $end = Carbon::now();
+            $end = $date;
         }
 
         $employments = Cache::remember('user_employments_'.$this->id, 1, function (){
@@ -215,7 +215,7 @@ class User extends Authenticatable implements HasMedia
         });
 
         return $employments->filter(function ($item) use ($date, $end){
-                return $item->start->startOfDay()->lessThanOrEqualTo($date) and (is_null($item->end) or $item->end->startOfDay()->greaterThan($end->startOfDay()));
+                return $item->start->startOfDay()->lessThanOrEqualTo($date) and (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
         });
 
     }

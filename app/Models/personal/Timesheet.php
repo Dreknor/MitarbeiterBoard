@@ -67,7 +67,7 @@ class Timesheet extends Model
             $employment = $employe->employments_date($x);
 
             if($x->isWeekday() and !is_holiday($x)){
-                $working_time += $timesheet_day->sum('duration')-percent_to_seconds($employment->sum('percent'))/5;
+                $working_time += $timesheet_day->sum('duration')- percent_to_seconds($employment->sum('percent'))/5;
             } else{
                 $working_time += $timesheet_day->sum('duration');
             }
