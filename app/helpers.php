@@ -86,55 +86,44 @@ function format_number($number){
  * @param $dec
  * @return string
  */
-function convertTime(String|Int $time, units $unit = units::minutes)
+
+function convertTime($dec)
 {
-    $hours = 0;
-    $minutes = 0;
-    $seconds = 0;
-    $sign = null;
-
-    if ($unit != units::mixed and $time < 0){
+    $sign = false;
+    if ($dec < 0){
         $sign = true;
-        $time = abs($time);
+        $dec = abs($dec);
     }
 
-    switch ($unit){
-        case units::mixed:
-            $parsed =  explode(':', $time);
-            $hours = $parsed[0];
-            $minutes = (array_key_exists(1, $parsed))? $parsed[1] : 0;
-            $seconds = (array_key_exists(2, $parsed))? $parsed[2] : 0;
-            break;
-        case units::hours:
-            $hours = $time;
-            break;
-        case units::minutes:
-            $minutes = $time;
-            break;
-        case units::seconds:
-            $seconds = $time;
-            break;
+    // start by converting to seconds
+    $seconds = $dec;
+    $minutes = floor($dec / 60);
 
-    }
+    //rest Sekunden
+    $seconds -= $minutes * 60;
+    $hours = floor($minutes / 60);
+    $minutes -= $hours *60;
 
-    //seconds  to minutes
-    $minutes += floor($seconds/60);
-    $seconds = $seconds%60;
-
-    //minutes to hour
-    $hours += floor($minutes/60);
-    $minutes = $minutes%60;
-
-
+    $seconds = round($seconds);
 
     // return the time formatted HH:MM:SS
-    return ($sign == true)? '-'.format_number($hours).":".format_number($minutes): format_number($hours).":".format_number($minutes);
+    if ($sign) {
+        return '-'.lz($hours).":".lz($minutes).":".lz($seconds);
+    }
+    return lz($hours).":".lz($minutes).":".lz($seconds);
 }
 
-function percent_to_minutes(Int $percent, $full_hours = 40){
-    $full_minutes = $full_hours*60;
+// lz = leading zero
+function lz($num)
+{
+    return (strlen($num) < 2) ? "0{$num}" : $num;
+}
+function percent_to_seconds($percent, $full_hours = 40){
+    $hours = $percent * $full_hours/100;
+    $minutes = $hours*60;
+    $seconds = $minutes*60;
 
-    return round(($percent*$full_minutes)/100);
+    return ($seconds);
 }
 
 
