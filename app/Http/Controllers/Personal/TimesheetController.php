@@ -504,6 +504,7 @@ class TimesheetController extends Controller
             'timesheet_old' => $timesheet_old,
             'timesheet' => $timesheet,
             'timesheet_days' => $timesheet_days,
+            'balance' => $timesheet->working_time_account,
             'employe' => $user,
             'month' => $act_month
         ]);
@@ -571,11 +572,21 @@ class TimesheetController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\personal\Timesheet  $timesheet
-     * @return \Illuminate\Http\Response
+     * @return RedirectResponse
      */
-    public function update(Request $request, Timesheet $timesheet)
+    public function updateSheet(User $user,  Timesheet $timesheet)
     {
-        //
+
+        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => "Zigriff verweigert"
+            ]);
+        }
+
+        $timesheet->updateTime();
+
+        return redirectBack('success', 'Aktuslisierung erfolgt');
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models\personal;
 
 use App\Models\User;
+use Attribute;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,6 +16,13 @@ class Timesheet extends Model
     public $fillable = [
         'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment', 'locked_at', 'locked_by'
     ];
+
+    public function working_time_account(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => (!is_null($value))? $value : 0,
+        );
+    }
 
     public function getIsLockedAttribute(){
         if ($this->locked_at != null){
@@ -59,7 +67,7 @@ class Timesheet extends Model
             $employment = $employe->employments_date($x);
 
             if($x->isWeekday() and !is_holiday($x)){
-                $working_time += $timesheet_day->sum('duration')-percent_to_minutes($employment->sum('percent'))/5;
+                $working_time += $timesheet_day->sum('duration')-percent_to_seconds($employment->sum('percent'))/5;
             } else{
                 $working_time += $timesheet_day->sum('duration');
             }
@@ -68,17 +76,16 @@ class Timesheet extends Model
         $this->working_time_account = $working_time;
 
         //Urlaub berechnen
-        $this->holidays_new = $timesheet_days->where('comment', 'Urlaub')->count();
+        $this->holidays_new = $timesheet_days->where('comment', 'LIKE','Urlaub')->count();
         $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->old + $timesheet_old-> holidays_new: 0;
-        $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->employe->getHolidayClaim($start_of_month) - $this->holidays_old - $this->holidays_new;
+        $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $timesheet_old->holidays_rest - $this->holidays_new;
 
         if ($this->month == 1){
             $this->holidays_old =  0;
-            $this->holidays_rest = $this->holidays_old - $this->holidays_new + $this->employe->getHolidayClaim($start_of_month);
+            $this->holidays_rest = $this->employe->getHolidayClaim($start_of_month) + $timesheet_old?->holidays_rest - $this->holidays_new;
         } else {
             $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->holidays_rest : 0;
-            $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $this->holidays_old - $this->holidays_new;
-
+            $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $timesheet_old?->holidays_rest - $this->holidays_new;
         }
 
         $this->save();

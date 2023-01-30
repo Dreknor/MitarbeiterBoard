@@ -78,7 +78,7 @@
                             @if(!is_null($timesheet))
                                 <div class="row">
                                     <div class="col-auto">
-                                        Stundenkonto: {{convertTime($timesheet?->working_time_account)}} h ({{convertTime($timesheet?->working_time_account - $timesheet_old?->working_time_account)}} h)
+                                        Stundenkonto: {{convertTime($timesheet?->working_time_account)}} h ({{convertTime($timesheet?->working_time_account - $timesheet_old?->working_time_account)}} h Diff)
                                     </div>
                                     <div class="col-auto">
                                         Urlaub bisher: {{$timesheet->holidays_old}}
@@ -92,7 +92,12 @@
                                 </div>
                                 @if(!$timesheet->is_locked)
                                     <div class="row">
-                                        <div class="col-12">
+                                        <div class="col-9">
+                                            <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/update')}}" class=" btn btn-sm btn-block btn-bg-gradient-x-blue-cyan">
+                                                aktualisieren
+                                            </a>
+                                        </div>
+                                        <div class="col-3">
                                             <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/lock')}}" class=" btn btn-sm btn-block btn-bg-gradient-x-orange-yellow">
                                                 abschließen
                                             </a>
@@ -130,9 +135,6 @@
                         <th>
                             Gesamt-Std.
                         </th>
-                        @can('edit employe')
-                            <th>Anstellungen</th>
-                        @endcan
                         <th>
                            Bemerkungen
                         </th>
