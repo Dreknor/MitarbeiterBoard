@@ -95,7 +95,7 @@
                                     <li>
                                         <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/addFromAbsence/'.$key)}}"
                                            class="dropdown-item text-info">
-                                            {{$key}}
+                                            {{$key}} ({{$absence}}%)
                                         </a>
                                     </li>
 
