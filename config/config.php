@@ -15,7 +15,8 @@ return [
         'Kur'   => 100,
         'Bildungstag' => 100,
         'Entlastungstag' => 100,
-        'Feiertag' => 100
+        'Feiertag' => 100,
+        'Vorbereitungszeit' => 2.5
 
     ],
 
