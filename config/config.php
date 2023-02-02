@@ -15,6 +15,7 @@ return [
         'Kur'   => 100,
         'Bildungstag' => 100,
         'Entlastungstag' => 100,
+        'Feiertag' => 100
 
     ],
 
