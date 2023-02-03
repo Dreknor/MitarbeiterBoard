@@ -57,11 +57,11 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
-        $employments = $employe->employments()->active()->get();
+        $employments = $employe->employments()->active()->get()->sortByDesc('start');
 
         $employments_old = $employe->employments->filter(function ($employment){
             return $employment->end != null and $employment->end->lessThan(Carbon::now());
-        });
+        })->sortByDesc('end');
 
 
         return view('personal.employes.show', [
