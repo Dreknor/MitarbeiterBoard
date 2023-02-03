@@ -452,7 +452,7 @@
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        @foreach($employe->employments()->where('employe_id', $employe->id)->where('end', null)->orWhere('end', '>', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
+                                        @foreach($employments as $employment)
                                             <tr>
                                                 <td >
                                                     {{$employment->department->name}}
@@ -489,7 +489,7 @@
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        @foreach($employe->employments()->where('employe_id', $employe->id)->whereNotNull('end')->orWhere('end', '<', \Carbon\Carbon::now())->get()->sortByDesc('start')  as $employment)
+                                        @foreach($employments_old as $employment)
                                             <tr>
                                                 <td style="background-color: {{$employment->department->color}} ">
                                                     {{$employment->department->name}}

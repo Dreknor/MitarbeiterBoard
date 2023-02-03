@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use function PHPUnit\Framework\greaterThanOrEqual;
 
 class EmployeController extends Controller
 {
@@ -56,10 +57,19 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
+        $employments = $employe->employments()->active()->get();
+
+        $employments_old = $employe->employments->filter(function ($employment){
+            return $employment->end != null and $employment->end->lessThan(Carbon::now());
+        });
+
+
         return view('personal.employes.show', [
             'employe' => $employe,
             'departments' => Group::all(),
             'hour_types' => HourType::all(),
+            'employments' => $employments,
+            'employments_old' => $employments_old
         ]);
     }
 
