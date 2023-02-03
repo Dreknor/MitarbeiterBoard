@@ -208,7 +208,7 @@
 
         <div class="container-fluid">
             <div class="row">
-                <div class="col-lg-4 col-md-6 col-sm-12">
+                <div class="col-12">
                     <div class="card">
                     <div class="card-header border-bottom">
                         <h5 class="card-title">
@@ -316,19 +316,7 @@
                 </div>
             </div>
             <div class="row">
-                    <div class="col-md-6 col-sm-12">
-                        <div class="card">
-                            <div class="card-header border-bottom">
-                                <h5 class="card-title">
-                                    Dokumente
-                                </h5>
-                            </div>
-                            <div class="card-body">
-
-                            </div>
-                        </div>
-                    </div>
-                <div class="col-md-6 col-sm-12">
+                <div class="col-12">
                     <div class="card">
                         <div class="card-header border-bottom">
                             <h5 class="card-title">
@@ -343,165 +331,205 @@
                                 @endcan
                             </h5>
                         </div>
-                        @if($employe->employments->count() == 0)
-                                <div class="card-body">
-                                    Keine Anstellung hinterlegt
+                        <div class="card-body d-none" id="addEmploymentForm">
+                            <form action="{{url('employments/'.$employe->id.'/add')}}" method="post">
+                                @csrf
+                                <div class="row">
+                                    <div class="col">
+                                        <label for="department" class="text-danger">Bereich</label>
+                                        <select name="department_id" class="custom-select">
+                                            @foreach($departments as $department)
+                                                <option value="{{$department->id}}" style="color: {{$department->color}};">
+                                                    {{$department->name}}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
                                 </div>
-                        @else
-                            <div class="card-body">
-                                <ul class="list-group">
-                                    @foreach($employe->employments()->where('end', null)->orWhere('end', '>', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
-                                        <li class="list-group-item @if(!is_null($employment->end) and $employment->end->lessThan(\Carbon\Carbon::now())) text-danger bg-info @endif">
-                                            <div class="row">
-                                                <div class="col-1"
-                                                     style="background: {{$employment->department->color}}">&nbsp;
-                                                </div>
-                                                <div class="col">
+                                <div class="row">
+                                    <div class="col">
+                                        <label for="hour_type_id" class="text-danger">Stundentyp</label>
+                                        <select name="hour_type_id" class="custom-select">
+                                            @foreach($hour_types as $hour_type)
+                                                <option value="{{$hour_type->id}}">
+                                                    {{$hour_type->name}}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col">
+                                        <label class="text-danger w-100">
+                                            Stunden
+                                            <input type="number" step="0.01" name="hours" class="form-control">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class=" col-md-6 col-sm-12">
+                                        <label class="text-danger">
+                                            Ab ...
+                                            <input type="date" name="start" class="form-control">
+                                        </label>
+                                    </div>
+                                    <div class=" col-md-6 col-sm-12">
+                                        <label>
+                                            befristet bis ...
+                                            <input type="date" name="end" class="form-control">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col">
+                                        <label class="w-100">
+                                            Bemerkung
+                                            <input type="text" name="comment" class="form-control">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col">
+                                        <label for="salary_type" class="text-danger">Bezahlung</label>
+                                        <select name="salary_type" id="salary_type" class="custom-select">
+                                            <option value="salary_table">Gehaltsstufe</option>
+                                            <option value="invoice">Rechnung</option>
+                                            <option value="one-time">Einmalig</option>
+                                            <option value="salary">Gehalt (monatlich)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row d-none" id="salaryInputRow">
+                                    <div class="col">
+                                        <label class="w-100">
+                                            Gehalt
+                                            <input type="number" step="0.01" name="salary" class="form-control">
+                                        </label>
+                                    </div>
+                                </div>
+                                @if($employe->employments->where('end', '')->count() > 0)
+                                    <div class="row">
+                                        <div class="col">
+                                            <label for="replaced_employment_id">Ersetzt Anstellung vom ?</label>
+                                            <select name="replaced_employment_id" id="replaced_employment_id"
+                                                    class="custom-select">
+                                                <option value="">keine</option>
+                                                @foreach($employe->employments->where('end', '') as $employment)
+                                                    <option
+                                                        value="{{$employment->id}}">{{$employment->start->format('d.m.Y')}} {{$employment->department->name}} {{$employment->comment}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                @endif
+                                <div class="row mt-1">
+                                    <button type="submit" class="btn btn-block btn-bg-gradient-x-blue-green">
+                                        speichern
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="card-body">
+                            <ul class="nav nav-tabs">
+                                <li class="nav-item">
+                                    <a class="nav-link active" data-toggle="tab" href="#current">Current</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" data-toggle="tab" href="#past">Past</a>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div id="current" class="tab-pane active">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                        <tr>
+                                            <th>Bereich</th>
+                                            <th>Stunden</th>
+                                            <th>Start</th>
+                                            <th>Ende</th>
+                                            <th>Kommentar</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($employe->employments()->where('employe_id', $employe->id)->where('end', null)->orWhere('end', '>', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
+                                            <tr>
+                                                <td >
                                                     {{$employment->department->name}}
-                                                </div>
-                                                <div class="col">
+                                                </td>
+                                                <td>
                                                     {{$employment->hours}} Stunden ({{$employment->percent}}%)
-                                                </div>
-                                                <div class="col">
+                                                </td>
+                                                <td>
                                                     vom {{$employment->start->format('d.m.Y')}}
-                                                </div>
-                                                <div class="col">
+                                                </td>
+                                                <td>
+                                                    @if(!is_null($employment->end))
+                                                        bis {{$employment->end->format('d.m.Y')}}
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    {{$employment->comment}}
+                                                </td>
+                                            </tr>
+                                            </li>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="past" class="tab-pane">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                        <tr>
+                                            <th>Bereich</th>
+                                            <th>Stunden</th>
+                                            <th>Start</th>
+                                            <th>Ende</th>
+                                            <th>Kommentar</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($employe->employments()->where('employe_id', $employe->id)->whereNotNull('end')->orWhere('end', '<', \Carbon\Carbon::now())->get()->sortByDesc('start')  as $employment)
+                                            <tr>
+                                                <td style="background-color: {{$employment->department->color}} ">
+                                                    {{$employment->department->name}}
+                                                </td>
+                                                <td>
+                                                    {{$employment->hours}} Stunden ({{$employment->percent}}%)
+                                                </td>
+                                                <td>
+                                                    vom {{$employment->start->format('d.m.Y')}}
+                                                </td>
+                                                <td>
                                                     @if(!is_null($employment->end))
                                                         bis {{$employment->end->format('d.m.Y')}} @endif
-                                                </div>
-                                            </div>
-                                        </li>
-                                    @endforeach
-                                    </ul>
-                                </div>
-                            <div class="card-footer">
-                                <h6>abgelaufene Anstellungen</h6>
-                                <ul class="list-group">
-                                    @foreach($employe->employments()->whereNotNull('end')->orWhere('end', '<', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
-                                        <li class="list-group-item @if(!is_null($employment->end) and $employment->end->lessThan(\Carbon\Carbon::now())) text-danger border-info @endif">
-                                            <div class="row">
-                                                <div class="col" style="background-color: {{$employment->department->color}} ">
-                                                    {{$employment->department->name}}
-                                                </div>
-                                                <div class="col">
-                                                    {{$employment->hours}} Stunden ({{$employment->percent}}%)
-                                                </div>
-                                                <div class="col">
-                                                    vom {{$employment->start->format('d.m.Y')}}
-                                                </div>
-                                                <div class="col">
-                                                    @if(!is_null($employment->end))
-                                                        bis {{$employment->end->format('d.m.Y')}} @endif
-                                                </div>
-                                                <div class="col">
+                                                </td>
+                                                <td>
                                                     @if(!is_null($employment->comment))
                                                         {{$employment->comment}}
                                                     @endif
-                                                </div>
-                                            </div>
-                                        </li>
-                                    @endforeach
-                                </ul>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        @endif
-                            <div class="card-footer d-none" id="addEmploymentForm">
-                                <form action="{{url('employments/'.$employe->id.'/add')}}" method="post">
-                                    @csrf
-                                    <div class="row">
-                                        <div class="col">
-                                            <label for="department" class="text-danger">Bereich</label>
-                                            <select name="department_id" class="custom-select">
-                                                @foreach($departments as $department)
-                                                    <option value="{{$department->id}}" style="color: {{$department->color}};">
-                                                        {{$department->name}}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
+                        </div>
+                    </div>
+                </div>
 
-                                    </div>
-                                    <div class="row">
-                                        <div class="col">
-                                            <label for="hour_type_id" class="text-danger">Stundentyp</label>
-                                            <select name="hour_type_id" class="custom-select">
-                                                @foreach($hour_types as $hour_type)
-                                                    <option value="{{$hour_type->id}}">
-                                                        {{$hour_type->name}}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col">
-                                            <label class="text-danger w-100">
-                                                Stunden
-                                                <input type="number" step="0.01" name="hours" class="form-control">
-                                            </label>
-                                        </div>
-                                    </div>
-                                        <div class="row">
-                                        <div class=" col-md-6 col-sm-12">
-                                            <label class="text-danger">
-                                                Ab ...
-                                                <input type="date" name="start" class="form-control">
-                                            </label>
-                                        </div>
-                                        <div class=" col-md-6 col-sm-12">
-                                            <label>
-                                                befristet bis ...
-                                                <input type="date" name="end" class="form-control">
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col">
-                                            <label class="w-100">
-                                                Bemerkung
-                                                <input type="text" name="comment" class="form-control">
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col">
-                                            <label for="salary_type" class="text-danger">Bezahlung</label>
-                                            <select name="salary_type" id="salary_type" class="custom-select">
-                                               <option value="salary_table">Gehaltsstufe</option>
-                                               <option value="invoice">Rechnung</option>
-                                                <option value="one-time">Einmalig</option>
-                                                <option value="salary">Gehalt (monatlich)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row d-none" id="salaryInputRow">
-                                        <div class="col">
-                                            <label class="w-100">
-                                                Gehalt
-                                                <input type="number" step="0.01" name="salary" class="form-control">
-                                            </label>
-                                        </div>
-                                    </div>
-                                    @if($employe->employments->where('end', '')->count() > 0)
-                                        <div class="row">
-                                            <div class="col">
-                                                <label for="replaced_employment_id">Ersetzt Anstellung vom ?</label>
-                                                <select name="replaced_employment_id" id="replaced_employment_id"
-                                                        class="custom-select">
-                                                    <option value="">keine</option>
-                                                    @foreach($employe->employments->where('end', '') as $employment)
-                                                        <option
-                                                            value="{{$employment->id}}">{{$employment->start->format('d.m.Y')}} {{$employment->department->name}} {{$employment->comment}}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                    @endif
-                                    <div class="row mt-1">
-                                        <button type="submit" class="btn btn-block btn-bg-gradient-x-blue-green">
-                                            speichern
-                                        </button>
-                                    </div>
-                                </form>
+            </div>
+            <div class="row">
+                <div class="col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-header border-bottom">
+                                <h5 class="card-title">
+                                    Dokumente
+                                </h5>
+                            </div>
+                            <div class="card-body">
+
                             </div>
                         </div>
                     </div>
