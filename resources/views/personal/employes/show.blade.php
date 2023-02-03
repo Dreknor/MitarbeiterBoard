@@ -377,7 +377,7 @@
                             <div class="card-footer">
                                 <h6>abgelaufene Anstellungen</h6>
                                 <ul class="list-group">
-                                    @foreach($employe->employments->whereNotNull('end') as $employment)
+                                    @foreach($employe->employments->whereNotNull('end')->sortByDesc('start') as $employment)
                                         <li class="list-group-item @if(!is_null($employment->end) and $employment->end->lessThan(\Carbon\Carbon::now())) text-danger border-info @endif">
                                             <div class="row">
                                                 <div class="col-1"
