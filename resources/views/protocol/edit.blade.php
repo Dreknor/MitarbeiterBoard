@@ -94,13 +94,15 @@
             lang:'de',
             height: 500,
             menubar: true,
+            autosave_ask_before_unload: true,
+            autosave_interval: '40s',
             plugins: [
                 'advlist autolink lists link charmap',
                 'searchreplace visualblocks code',
                 'insertdatetime table paste code wordcount',
-                'contextmenu',
+                'contextmenu autosave',
             ],
-            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
+            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link | restoredraft',
             contextmenu: " link paste inserttable | cell row column deletetable",
         });
     </script>
