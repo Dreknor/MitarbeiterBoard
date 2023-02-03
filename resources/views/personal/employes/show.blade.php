@@ -350,7 +350,7 @@
                         @else
                             <div class="card-body">
                                 <ul class="list-group">
-                                    @foreach($employe->employments->where('end', null) as $employment)
+                                    @foreach($employe->employments()->where('end', null)->orWhere('end', '>', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
                                         <li class="list-group-item @if(!is_null($employment->end) and $employment->end->lessThan(\Carbon\Carbon::now())) text-danger bg-info @endif">
                                             <div class="row">
                                                 <div class="col-1"
@@ -377,13 +377,10 @@
                             <div class="card-footer">
                                 <h6>abgelaufene Anstellungen</h6>
                                 <ul class="list-group">
-                                    @foreach($employe->employments->whereNotNull('end')->sortByDesc('start') as $employment)
+                                    @foreach($employe->employments()->whereNotNull('end')->orWhere('end', '<', \Carbon\Carbon::now())->get()->sortByDesc('start') as $employment)
                                         <li class="list-group-item @if(!is_null($employment->end) and $employment->end->lessThan(\Carbon\Carbon::now())) text-danger border-info @endif">
                                             <div class="row">
-                                                <div class="col-1"
-                                                     style="background: {{$employment->department->color}}">&nbsp;
-                                                </div>
-                                                <div class="col">
+                                                <div class="col" style="background-color: {{$employment->department->color}} ">
                                                     {{$employment->department->name}}
                                                 </div>
                                                 <div class="col">
@@ -395,6 +392,11 @@
                                                 <div class="col">
                                                     @if(!is_null($employment->end))
                                                         bis {{$employment->end->format('d.m.Y')}} @endif
+                                                </div>
+                                                <div class="col">
+                                                    @if(!is_null($employment->comment))
+                                                        {{$employment->comment}}
+                                                    @endif
                                                 </div>
                                             </div>
                                         </li>
