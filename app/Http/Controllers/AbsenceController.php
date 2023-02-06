@@ -80,7 +80,7 @@ class AbsenceController extends Controller
     }
 
     public function delete(Absence $absence){
-        if (auth()->user()->can('delete absences')){
+        if (auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id){
             $absence->delete();
             return redirect()->back()->with([
                 'type' => 'info',
