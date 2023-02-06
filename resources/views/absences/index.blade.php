@@ -69,6 +69,8 @@
                                     <a href="{{url('absences/'.$absence->id.'/delete')}}">
                                         <i class="fas fa-trash text-danger"></i>
                                     </a>
+                                @else
+                                    {{$absence->crator_id}} == {{auth()->id()}}
                                 @endif
                             </td>
                         </tr>
