@@ -65,12 +65,11 @@
                                 {{$absence->reason}}
                             </td>
                             <td>
-                                @if(auth()->user()->can('delete absences') or $absence->crator_id == auth()->id())
+                                @if(auth()->user()->can('delete absences') or $absence->creator_id == auth()->id())
                                     <a href="{{url('absences/'.$absence->id.'/delete')}}">
                                         <i class="fas fa-trash text-danger"></i>
                                     </a>
-                                @else
-                                    {{$absence->crator_id}} == {{auth()->id()}}
+
                                 @endif
                             </td>
                         </tr>
