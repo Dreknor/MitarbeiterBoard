@@ -32,7 +32,7 @@
                  <div class="card border border-dark">
                     <div class="card-header" id="heading{{$x->format('Ymd')}}">
                         <h6>
-                             Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}} @if($weeks->count() > 0) ({{$weeks->where('week', $x->copy()->startOfWeek())->first()->type}} - Woche) @endif
+                             Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}} @if($weeks->count() > 0 and $weeks->where('week', $x->copy()->startOfWeek())->first() != null) ({{$weeks->where('week', $x->copy()->startOfWeek())->first()->type}} - Woche) @endif
                         </h6>
                         @if($x == \Carbon\Carbon::today())
                             <div class="pull-right">
