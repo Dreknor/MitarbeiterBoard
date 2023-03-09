@@ -45,6 +45,14 @@
                             <p>Home</p>
                         </a>
                     </li>
+                @can('view wiki')
+                        <li class="@if(request()->segment(1)=="wiki") active @endif">
+                            <a href="{{url('/wiki')}}">
+                                <i class="fa fa-book"></i>
+                                <p>Wiki</p>
+                            </a>
+                        </li>
+                @endcan
                 @canany(['create roster', 'edit employe', 'has timesheet'])
                     <li>
                         <a data-toggle="collapse" href="#personal">

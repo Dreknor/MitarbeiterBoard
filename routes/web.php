@@ -40,6 +40,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
 use App\Http\Controllers\VertretungsplanWeekController;
+use App\Http\Controllers\WikiController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
@@ -89,6 +90,22 @@ Route::group([
         ],
             function () {
 
+                /*
+                 * Routes for Wiki
+                 */
+                Route::middleware(['permission:view wiki'])->group(function () {
+                    Route::post('wiki', [WikiController::class, 'store']);
+                    Route::post('wiki/add', [WikiController::class, 'new']);
+                    Route::get('wiki/all', [WikiController::class, 'all_sites']);
+                    Route::post('wiki/search', [WikiController::class, 'search']);
+                    Route::get('wiki/create/{slug}', [WikiController::class, 'create']);
+                    Route::get('wiki/{slug?}', [WikiController::class, 'index']);
+
+                });
+
+                /*
+                 * Edit Employes
+                 */
                 Route::middleware(['permission:edit employe'])->group(function () {
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
