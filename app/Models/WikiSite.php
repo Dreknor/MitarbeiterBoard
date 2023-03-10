@@ -40,6 +40,6 @@ class WikiSite extends Model
     }
 
     public function previous(){
-        return WikiSite::where('previous_version', $this->previous_version)->orderByDesc('created_at')->whereNot('id', $this->id)->get();
+        return WikiSite::where('previous_version', $this->previous_version)->whereDate('updated_at', '<', $this->updated_at)->orderByDesc('created_at')->whereNot('id', $this->id)->get(10);
     }
 }
