@@ -64,6 +64,11 @@
                 'insertdatetime table paste code wordcount',
                 'contextmenu autosave',
             ],
+            link_list: [
+                @foreach($sites as $link_site)
+                    {title: '{{$link_site->title}}', value: '{{url('wiki/'.$link_site->slug)}}'},
+                @endforeach
+            ],
             toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link | restoredraft',
             contextmenu: " link paste inserttable | cell row column deletetable",
         });

@@ -26,9 +26,10 @@ class WikiController extends Controller
 
     public function create($slug){
         $site = WikiSite::where('title', str_replace('-', ' ', $slug))->latest()->first();
-
+        $sites = WikiSite::all()->unique('slug');
         return view('wiki.create')->with([
-            'site' => (!is_null($site))? $site : new WikiSite(['title' => str_replace('-', ' ', $slug)])
+            'site' => (!is_null($site))? $site : new WikiSite(['title' => str_replace('-', ' ', $slug)]),
+            'sites' => $sites
         ]);
     }
 
