@@ -9,11 +9,15 @@ use Illuminate\Http\Request;
 
 class WikiController extends Controller
 {
-    public function index($slug = "Start"){
-        $site = WikiSite::where('title', str_replace('-', ' ', $slug))->latest()->first();
+    public function index($slug = "Start", $version=null){
+        if (is_null($version)){
+            $site = WikiSite::where('title', str_replace('-', ' ', $slug))->latest()->first();
+        } else {
+            $site = WikiSite::where('title', str_replace('-', ' ', $slug))->where('id', $version)->first();
+        }
 
         if (is_null($site)){
-            if (auth()->user()->can('edit wiki')) {
+            if (auth()->user()->can('edit wiki') and is_null($version)) {
                 return redirect(url('wiki/create/'.$slug));
             }  else {
                 return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Seite nicht gefunden']);

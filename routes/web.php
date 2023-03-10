@@ -99,7 +99,7 @@ Route::group([
                     Route::get('wiki/all', [WikiController::class, 'all_sites']);
                     Route::post('wiki/search', [WikiController::class, 'search']);
                     Route::get('wiki/create/{slug}', [WikiController::class, 'create']);
-                    Route::get('wiki/{slug?}', [WikiController::class, 'index'])->name('wiki');
+                    Route::get('wiki/{slug?}/{version?}', [WikiController::class, 'index'])->name('wiki');
 
                 });
 

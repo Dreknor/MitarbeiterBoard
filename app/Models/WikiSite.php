@@ -38,4 +38,8 @@ class WikiSite extends Model
             'text' => $this->text,
         ];
     }
+
+    public function previous(){
+        return WikiSite::where('previous_version', $this->previous_version)->orderByDesc('created_at')->whereNot('id', $this->id)->get();
+    }
 }
