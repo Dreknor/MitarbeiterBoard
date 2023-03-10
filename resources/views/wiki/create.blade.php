@@ -66,7 +66,7 @@
             ],
             link_list: [
                 @foreach($sites as $link_site)
-                    {title: '{{$link_site->title}}', value: '{{url("wiki/$link_site->slug")}}'},
+                    {title: '{{$link_site->title}}', value: '{{"wiki/$link_site->slug"}}'},
                 @endforeach
             ],
             toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link | restoredraft | preview',
