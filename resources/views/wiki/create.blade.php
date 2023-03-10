@@ -59,17 +59,17 @@
             autosave_ask_before_unload: true,
             autosave_interval: '40s',
             plugins: [
-                'advlist autolink lists link charmap',
+                'advlist anchor autolink lists link charmap',
                 'searchreplace visualblocks code',
                 'insertdatetime table paste code wordcount',
                 'contextmenu autosave preview',
             ],
             link_list: [
                 @foreach($sites as $link_site)
-                    {title: '{{$link_site->title}}', value: '{{"wiki/$link_site->slug"}}'},
+                    {title: '{{$link_site->title}}', value: '{{route("wiki", ['slug' => $link_site->slug])}}'},
                 @endforeach
             ],
-            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link | restoredraft | preview',
+            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | anchor  bullist numlist outdent indent | removeformat | link | restoredraft | preview',
             contextmenu: " link paste inserttable | cell row column deletetable",
         });
     </script>
