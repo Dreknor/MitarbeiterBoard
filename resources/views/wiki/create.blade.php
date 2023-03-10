@@ -71,8 +71,8 @@
             ],
             toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | anchor  bullist numlist outdent indent | removeformat | link | restoredraft | preview',
             contextmenu: " link paste inserttable | cell row column deletetable",
-            relative_urls : true,
-            document_base_url : 'https://{{config('app.url')}}/wiki/'
+            relative_urls : false,
+            document_base_url : 'http://{{config('app.url')}}/wiki/'
         });
     </script>
 
