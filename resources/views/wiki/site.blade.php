@@ -30,6 +30,22 @@
                     <div class="col-auto pull-right">
                         bearbeitet: {{$site->updated_at->format('d.m.Y H:i')}}
                     </div>
+                    <div class="col pull-right">
+                        <a href="#" class="dropdown-toggle card-link" data-toggle="dropdown" aria-expanded="false">
+                           ältere Version
+                        </a>
+                        <ul class="dropdown-menu">
+                            @foreach($site->previous() as $version)
+                                <li>
+                                    <a class="dropdown-item" href="{{url('wiki/'.$version->slug.'/'.$version->id)}}">
+                                        {{$version->updated_at->format('d.m.Y H:i')}}
+                                    </a>
+                                </li>
+                            @endforeach
+
+
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
