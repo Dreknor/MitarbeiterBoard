@@ -129,7 +129,7 @@
                     </td>
                     <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
                         @if($timesheet_days->filterDay($day)->sum('pause') > 0)
-                            {{$timesheet_days->filterDay($day)->sum('pause')}} Minuten
+                            {{$timesheet_days->filterDay($day)->sum('pause')}} Min
                         @endif
                     </td>
                     <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;" @endif >
@@ -151,7 +151,7 @@
                         @foreach($timesheet_days->filterDay($day) as $timesheet_day)
                             <div class="row">
                                 <div class="col">
-                                    {{$timesheet_day?->comment}}
+                                    {{\Illuminate\Support\Str::limit($timesheet_day?->comment, 15)}}
                                 </div>
                             </div>
                         @endforeach
