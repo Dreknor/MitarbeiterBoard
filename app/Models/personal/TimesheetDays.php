@@ -39,6 +39,7 @@ class TimesheetDays extends Model
             $seconds = (percent_to_seconds($employment)/5)/100 * $this->percent_of_workingtime;
         }
 
+
         return $seconds - ($this->pause*60);
     }
 
