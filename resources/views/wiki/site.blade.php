@@ -4,7 +4,7 @@
     <div class="container-fluid">
         @include('wiki.header')
 
-        <div class="card @if(!is_null($akt_site)) col-6 @endif">
+        <div class="card @if(isset($akt_site)) col-6 @endif">
             <div class="card-header border-bottom">
                 @if(!is_null($akt_site))
                     @can('edit wiki')
@@ -31,7 +31,7 @@
                     <div class="col-auto pull-right">
                         bearbeitet: {{$site->updated_at->format('d.m.Y H:i')}}
                     </div>
-                    @if(is_null($akt_site))
+                    @if(!isset($akt_site))
                         <div class="col pull-right">
                             <a href="#" class="dropdown-toggle card-link" data-toggle="dropdown" aria-expanded="false">
                                ältere Version
@@ -50,8 +50,8 @@
                 </div>
             </div>
         </div>
-        @if(!is_null($akt_site))
-            <div class="card @if(!is_null($akt_site)) col-6 @endif">
+        @if(!isset($akt_site))
+            <div class="card @if(isset($akt_site)) col-6 @endif">
                 <div class="card-header border-bottom">
                     @can('edit wiki')
                         <div class="pull-right">
