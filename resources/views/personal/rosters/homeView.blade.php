@@ -12,7 +12,7 @@
                 </div>
                 <div class="col">
                     <div class="pull-left">
-                        <a href="{{route('roster.export.pdf', $roster->id)}}">Dienstplan anzeigen</a>
+                        <a href="{{route('roster.export.pdf', $roster->id)}}">Dienstplan vom {{$roster->start_date->format('d.m.Y')}} anzeigen</a>
                     </div>
                 </div>
             </div>

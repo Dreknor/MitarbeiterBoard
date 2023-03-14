@@ -70,7 +70,8 @@ class HomeController extends Controller
         }
 
         $rosters = Roster::whereIn('department_id', $groups_arr)
-            ->whereDate('start_date', Carbon::now()->startOfWeek()->format('Y-m-d'))
+            ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
+            ->where('type', '!=', 'template')
             ->get();
         /*$rosters = auth()->user()->groups_rel()->whereHas('rosters', function (Builder $query) {
             $query->whereDate('start_date', Carbon::now()->startOfWeek()->format('Y-m-d'));
