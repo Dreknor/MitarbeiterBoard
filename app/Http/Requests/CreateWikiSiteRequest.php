@@ -26,7 +26,7 @@ class CreateWikiSiteRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:80'],
             'text'  => ['required', 'string'],
-            'previous_version' => ['nullable', 'exists:wiki_sites,id']
+            'previous_version' => ['nullable']
         ];
     }
 }
