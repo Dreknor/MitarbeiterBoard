@@ -50,8 +50,8 @@
                 </div>
             </div>
         </div>
-        @if(!isset($akt_site))
-            <div class="card @if(isset($akt_site)) col-6 @endif">
+        @if(isset($akt_site))
+            <div class="card  col-6 ">
                 <div class="card-header border-bottom">
                     @can('edit wiki')
                         <div class="pull-right">
