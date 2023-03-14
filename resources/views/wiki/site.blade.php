@@ -6,7 +6,7 @@
 
         <div class="card @if(isset($akt_site)) col-6 @endif">
             <div class="card-header border-bottom">
-                @if(!is_null($akt_site))
+                @if(isset($akt_site))
                     @can('edit wiki')
                     <div class="pull-right">
                         <a href="{{url('wiki/create/'.$site->slug)}}" class="btn-link">
