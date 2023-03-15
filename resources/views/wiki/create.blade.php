@@ -64,6 +64,7 @@
                 'insertdatetime table paste code wordcount',
                 'contextmenu autosave preview',
             ],
+
             link_list: [
                 @foreach($sites as $link_site)
                     {title: '{{$link_site->title}}', value: '{{route("wiki", ['slug' => $link_site->slug])}}'},
