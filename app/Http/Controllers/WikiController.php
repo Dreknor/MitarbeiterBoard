@@ -12,8 +12,10 @@ class WikiController extends Controller
     public function index($slug = "Start", $version=null){
         if (is_null($version)){
             $site = WikiSite::where('title', str_replace('-', ' ', $slug))->latest()->first();
+            $akt_site = null;
         } else {
             $site = WikiSite::where('title', str_replace('-', ' ', $slug))->where('id', $version)->first();
+            $akt_site = WikiSite::where('title', str_replace('-', ' ', $slug))->latest()->first();
         }
 
         if (is_null($site)){
@@ -24,7 +26,8 @@ class WikiController extends Controller
             }
         }
         return view('wiki.site')->with([
-           'site' => $site
+           'site' => $site,
+            'akt_version' => $akt_site
         ]);
     }
 
