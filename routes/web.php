@@ -309,6 +309,7 @@ Route::group([
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
 
                 Route::get('image/{media_id}', [ImageController::class, 'getImage']);
+                Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 ;
 
                 //Roles and permissions

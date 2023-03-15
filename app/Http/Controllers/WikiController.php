@@ -27,7 +27,7 @@ class WikiController extends Controller
         }
         return view('wiki.site')->with([
            'site' => $site,
-            'akt_version' => $akt_site
+            'akt_site' => $akt_site
         ]);
     }
 
@@ -45,6 +45,24 @@ class WikiController extends Controller
         $site->author_id = auth()->id();
 
         $site->save();
+
+        if ($request->hasFile('files')) {
+            $files = $request->files->all();
+            foreach ($files['files'] as $file) {
+                $site
+                    ->addMedia($file)
+                    ->toMediaCollection();
+            }
+        }
+
+        if ($site->previous_version != $site->id and $site->previous()->first()?->getMedia()->count() > 0){
+            foreach ($site->previous()->first()->getMedia() as $media){
+                $site
+                    ->copyMedia($media->getPath())
+                    ->toMediaCollection();
+            }
+        }
+
 
         return redirect(url('wiki/'.$site->slug));
     }

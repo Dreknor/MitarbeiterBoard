@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class WikiSite extends Model
+class WikiSite extends Model implements HasMedia
 {
+    use InteractsWithMedia;
     use Searchable;
     use SoftDeletes;
 
@@ -41,7 +44,7 @@ class WikiSite extends Model
 
     public function previous(){
         return WikiSite::where('previous_version', $this->previous_version)
-            ->whereDate('updated_at', '<', $this->updated_at)
+            ->where('updated_at', '<', $this->updated_at)
             ->where('title', $this->title)
             ->orderByDesc('created_at')->whereNot('id', $this->id)->take(10)->get();
     }
