@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\CreateWorkingTimeRequest;
+use App\Models\personal\Roster;
 use App\Models\personal\WorkingTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ class WorkingTimeController extends Controller
      */
     public function store(CreateWorkingTimeRequest $request)
     {
+        $roster = Roster::findOrFail($request->roster_id);
         $working_time = WorkingTime::updateOrCreate([
             'roster_id' => $request->roster_id,
             'employe_id' => $request->employe_id,
@@ -32,7 +34,7 @@ class WorkingTimeController extends Controller
             'function' => $request->function,
         ]);
 
-        if ($working_time->employe->employe_data?->google_calendar_link != null ){
+        if ($working_time->employe->employe_data?->google_calendar_link != null and $roster->type != 'template'){
             if ($working_time->googleCalendarId != null){
                 try {
                     $event = Event::find($working_time->googleCalendarId, $working_time->employe->employe_data->google_calendar_link);
