@@ -110,6 +110,7 @@ class RosterController extends Controller
                 if (!is_null($employes->firstWhere('id', $workingTime->employe_id))) {
                     $newWorkingTime = $workingTime->replicate();
                     $newWorkingTime->roster_id = $roster->id;
+                    $newWorkingTime->googleCalendarId = null;
                     $days = $template->start_date->diffInDays($workingTime->date);
                     $newWorkingTime->date = $roster->start_date->addDays($days);
                     $newWorkingTime->save();
