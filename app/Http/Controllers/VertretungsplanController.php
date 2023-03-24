@@ -95,8 +95,8 @@ class VertretungsplanController extends Controller
     {
         return response()->view('vertretungsplan.index',$this->make($gruppen))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
-            ->header('X-Frame-Options', config('cors.X-Frame-Options'));
-
+            ->header('X-Frame-Options', config('cors.X-Frame-Options'))
+            ->header("Cache-Control","no-cache, no-store, must-revalidate");
     }
 
     public function toJSON($gruppen = null){
