@@ -91,8 +91,17 @@ class VertretungsplanController extends Controller
 
     }
 
+    public function allowAllIndex($key){
+        if ($key == env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY')){
+            return response()->view('vertretungsplan.index',$this->make())
+                ->header('Content-Security-Policy', '*')
+                ->header('X-Frame-Options', '*');
+        }
+    }
+
     public function index($gruppen = null)
     {
+
         return response()->view('vertretungsplan.index',$this->make($gruppen))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'))
