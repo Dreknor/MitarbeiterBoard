@@ -95,7 +95,7 @@ class VertretungsplanController extends Controller
         if ($key == env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY')){
             return response()->view('vertretungsplan.index',$this->make())
                 ->header('Content-Security-Policy', '*')
-                ->header('X-Frame-Options', '*');
+                ->header('X-Frame-Options', 'allow-from *');
         }
     }
 
