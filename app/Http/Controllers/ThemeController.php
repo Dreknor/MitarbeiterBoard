@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
 use App\Mail\newThemeAssignMail;
+use App\Mail\RemindAssignedThemes;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Subscription;
@@ -105,6 +106,18 @@ class ThemeController extends Controller
             'Meldung' => 'Thema zugewiesen',
         ]);
 
+    }
+
+    public function remind_assigned_themes(){
+        $users = User::whereHas('assigned_themes', function ($query){
+            return $query->where('completed', '!=', 1);
+        })
+            ->where('remind_assign_themes', 1)
+            ->with('assigned_themes')->get();
+
+        foreach ($users as $user){
+            Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes));
+        }
     }
     public function setView($groupname, $viewType)
     {

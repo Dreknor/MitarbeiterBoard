@@ -37,9 +37,9 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themesphp '
     ];protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes'
     ];
 
     /**
@@ -59,7 +59,8 @@ class User extends Authenticatable implements HasMedia
     protected $casts = [
         'email_verified_at' => 'datetime',
         'absence_abo_daily' => 'boolean',
-        'absence_abo_now' => 'boolean'
+        'absence_abo_now' => 'boolean',
+        'remind_assign_themes' => 'boolean',
     ];
 
     public function getGeburtstagAttribute(){
@@ -76,6 +77,11 @@ class User extends Authenticatable implements HasMedia
     public function themes()
     {
         return $this->hasMany(Theme::class, 'creator_id');
+    }
+
+    public function assigned_themes()
+    {
+        return $this->hasMany(Theme::class, 'assigned_to');
     }
 
     public function groups()

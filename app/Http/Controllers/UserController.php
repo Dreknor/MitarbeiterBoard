@@ -76,6 +76,8 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $user->fill($request->all());
+        $user->remind_assign_themes = $request->remind_assign_themes;
+
 
         if (auth()->user()->can('edit permissions')) {
             $permissions = $request->input('permissions');
