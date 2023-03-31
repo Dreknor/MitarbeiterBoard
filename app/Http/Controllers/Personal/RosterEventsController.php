@@ -165,6 +165,8 @@ class RosterEventsController extends Controller
         if ($roster->id == $request->roster_id) {
             $roster->events()->whereDate('date', $request->date)->delete();
             $roster->working_times()->whereDate('date', $request->date)->delete();
+            Cache::forget('roster_'.$roster->id.'_'.Carbon::createFromFormat('Y-m-d',$request->date)->format('Ymd'));
+
             return redirectBack('success', 'Alle Termine wurden gelöscht.', '#' . $request->date);
         }
 
