@@ -225,13 +225,15 @@ class RosterController extends Controller
 
     }
 
-    public function toogleDayView($day)
+    public function toogleDayView($roster, $day)
     {
         if (session()->exists($day)) {
             session()->remove($day);
         } else {
             session()->put($day, true);
         }
+        Cache::forget('roster_'.$roster.'_'.Carbon::createFromFormat('Y-m-d',$day)->format('Ymd'));
+
 
         return redirectBack(null, null, '#' . $day);
     }

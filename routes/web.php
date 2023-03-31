@@ -162,7 +162,7 @@ Route::group([
                     Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
                     Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
 
-                    Route::get('roster/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
+                    Route::get('roster/{roster}/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
 
                     //Create Checks
                     Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');

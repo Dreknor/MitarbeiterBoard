@@ -59,7 +59,7 @@
                                     <a @class(['trashDay', 'm-2', 'text-danger']) data-day="{{$day->format('Y-m-d')}}" href="#">
                                         <i class="fa fa-trash"></i>
                                     </a>
-                                    <a href="{{route('toggleDayView', $day->format('Y-m-d'))}}" class="m-2">
+                                    <a href="{{route('toggleDayView', [$roster->id,$day->format('Y-m-d')])}}" class="m-2">
                                         @if(session()->exists($day->format('Y-m-d')))
                                             <i class="fa fa-expand-arrows-alt"></i>
                                         @else
