@@ -112,6 +112,7 @@
             relative_urls : false,
             a11y_advanced_options: true,
             document_base_url : 'http://{{config('app.url')}}/wiki/',
+            paste_data_images: true,
         });
     </script>
 @endpush
