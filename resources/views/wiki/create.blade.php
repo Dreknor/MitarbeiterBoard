@@ -98,8 +98,9 @@
             plugins: [
                 'advlist anchor autolink lists link charmap',
                 'searchreplace visualblocks code',
-                'insertdatetime table paste code wordcount',
+                'insertdatetime table code wordcount',
                 'contextmenu autosave preview',
+                'powerpaste'
             ],
             link_list: [
                 @foreach($sites as $link_site)
