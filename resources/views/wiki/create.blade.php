@@ -100,7 +100,7 @@
                 'searchreplace visualblocks code',
                 'insertdatetime table code wordcount',
                 'contextmenu autosave preview',
-                'powerpaste'
+                'paste'
             ],
             link_list: [
                 @foreach($sites as $link_site)
