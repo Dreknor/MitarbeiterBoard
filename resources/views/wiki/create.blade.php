@@ -113,6 +113,7 @@
             a11y_advanced_options: true,
             document_base_url : 'http://{{config('app.url')}}/wiki/',
             paste_data_images: true,
+            image_advtab: true,
         });
     </script>
 @endpush
