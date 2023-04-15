@@ -91,6 +91,7 @@ Route::group([
         ],
             function () {
 
+                //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
                 /*
                  * Routes for Wiki
                  */

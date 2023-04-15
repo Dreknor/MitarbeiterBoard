@@ -115,6 +115,14 @@ class User extends Authenticatable implements HasMedia
     }
 
     /**
+     * get Group Tasks
+     */
+    public function group_tasks()
+    {
+        return $this->hasMany(GroupTaskUser::class, 'users_id');
+    }
+
+    /**
      * Get all of the Subscription.
      */
     public function subscriptions()

@@ -38,7 +38,12 @@ class HomeController extends Controller
         $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
 
 
-        $tasks = auth()->user()->tasks->where('completed', 0);
+        $tasks = auth()->user()->tasks;
+        $group_tasks =  auth()->user()->group_tasks;
+
+        foreach ($group_tasks as $group_task){
+            $tasks = $tasks->push($group_task->task);
+        }
 
         foreach ($groups as $group) {
             if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)) {
@@ -73,9 +78,6 @@ class HomeController extends Controller
             ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
             ->where('type', '!=', 'template')
             ->get();
-        /*$rosters = auth()->user()->groups_rel()->whereHas('rosters', function (Builder $query) {
-            $query->whereDate('start_date', Carbon::now()->startOfWeek()->format('Y-m-d'));
-        })->get();*/
 
         return view('home', [
             'tasks'     => $tasks,

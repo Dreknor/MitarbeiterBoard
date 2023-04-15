@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Task extends Model
 {
@@ -29,5 +30,12 @@ class Task extends Model
 
     public function taskUsers(){
         return $this->hasMany(GroupTaskUser::class, 'taskable_id');
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('active', function (Builder $builder) {
+            $builder->where('completed', 0);
+        });
     }
 }
