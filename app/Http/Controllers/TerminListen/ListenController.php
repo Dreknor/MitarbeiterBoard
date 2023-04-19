@@ -36,7 +36,7 @@ class ListenController extends Controller
         $listen = auth()->user()->listen()->whereDate('ende', '>=', Carbon::now())->active()->with('eintragungen')->get();
 
         return view('listen.index', [
-            'listen' => $listen,
+            'listen' => $listen->unique(),
             'archiv' => $oldListen
         ]);
     }
