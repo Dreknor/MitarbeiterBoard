@@ -12,10 +12,11 @@ class Task extends Model
 
     protected $fillable = ['task', 'date', 'theme_id', 'completed'];
 
-    protected $dates = ['created_at', 'updated_at', 'deleted_at', 'date'];
+    protected $dates = [];
 
     protected $casts = [
         'completed' => 'boolean',
+        'date' => 'date'
     ];
 
     public function theme()

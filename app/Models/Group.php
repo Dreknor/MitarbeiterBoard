@@ -18,12 +18,12 @@ class Group extends Model
     protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template'];
     protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template'];
 
-    protected $dates = ['enddate'];
     protected $casts = [
         'protected' => 'boolean',
         'hasWochenplan' => 'boolean',
         'needsRoster' => 'boolean',
         'hasAllocations' => 'boolean',
+        'enddate'  => 'date'
     ];
 
     public function users()

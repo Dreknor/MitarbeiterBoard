@@ -11,7 +11,9 @@ class Procedure_Step extends Model
     protected $visible = ['name', 'description', 'durationDays', 'done', 'endDate'];
     protected $fillable = ['name', 'description', 'durationDays', 'done', 'procedure_id', 'parent', 'position_id', 'endDate'];
 
-    protected $dates = ['endDate'];
+    protected $casts = [
+        'endDate' => 'date'
+    ];
 
     public function position()
     {

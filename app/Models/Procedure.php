@@ -12,7 +12,10 @@ class Procedure extends Model
     protected $fillable = ['name', 'description', 'author_id', 'category_id', 'started_at', 'ended_at'];
     protected $visible = ['name', 'description', 'author_id', 'category_id', 'started_at', 'ended_at'];
 
-    protected $dates = ['started_at', 'ended_at'];
+    protected $casts = [
+        'started_at' => 'date',
+        'ended_at' => 'date'
+    ];
 
     public function category()
     {

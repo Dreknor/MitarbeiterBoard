@@ -19,10 +19,9 @@ class Theme extends Model implements HasMedia
 
     protected $fillable = ['memory','duration', 'theme', 'information', 'goal', 'type_id', 'completed', 'creator_id', 'group_id', 'created_at', 'updated_at', 'date', 'assigned_to'];
 
-    protected $dates = ['created_at', 'updated_at', 'date'];
-
     protected $casts = [
-      'memory'  => 'boolean'
+      'memory'  => 'boolean',
+        'date' => 'date'
     ];
 
     public function ersteller(): BelongsTo
