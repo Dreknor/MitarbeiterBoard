@@ -116,7 +116,7 @@ class ThemeController extends Controller
             ->with('assigned_themes')->get();
 
         foreach ($users as $user){
-            Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes));
+            Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes->where('completed', 0)));
         }
     }
     public function setView($groupname, $viewType)
