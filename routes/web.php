@@ -92,6 +92,8 @@ Route::group([
             function () {
 
                 //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
+                Route::get('test/doc', [\App\Http\Controllers\DocumentsController::class, 'index']);
+                Route::post('test/doc', [\App\Http\Controllers\DocumentsController::class, 'import']);
                 /*
                  * Routes for Wiki
                  */
@@ -216,6 +218,7 @@ Route::group([
                 //absences
                 Route::middleware(['permission:view absences'])->group(function (){
                     Route::post('absences', [AbsenceController::class, 'store']);
+                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
                     Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
                     //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);

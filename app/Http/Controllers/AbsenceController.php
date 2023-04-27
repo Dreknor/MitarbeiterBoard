@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AbsenceExport;
 use App\Http\Requests\CreateAbsenceRequest;
 use App\Mail\DailyAbsenceReport;
 use App\Mail\NewAbsenceMail;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AbsenceController extends Controller
 {
@@ -80,7 +82,7 @@ class AbsenceController extends Controller
     }
 
     public function delete(Absence $absence){
-        if (auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id){
+        if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id) and $absence->end->greaterThan(Carbon::tomorrow()) ){
             $absence->delete();
             return redirect()->back()->with([
                 'type' => 'info',
@@ -92,6 +94,18 @@ class AbsenceController extends Controller
             'type' => 'danger',
             'Meldung' => 'Berechtigung fehlt'
         ]);
+    }
+
+    public function export (){
+        if (!auth()->user()->can('export absence')){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        return Excel::download(new AbsenceExport(), 'Abwesenheiten.xlsx');
+
     }
 }
 

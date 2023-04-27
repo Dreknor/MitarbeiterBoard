@@ -1,5 +1,15 @@
 <div class="card">
     <div class="card-header">
+        @can('export absence')
+            <div class="pull-right ml-2">
+                <a href="{{url('absences/export')}}" class="card-link text-warning">
+                    <i class="fa fa-file-export" title="Excel export"></i>
+                    <div class="d-none d-md-block">
+                        export
+                    </div>
+                </a>
+            </div>
+        @endcan
         <div class="pull-right ml-2">
             <a href="{{url('absences/abo/daily')}}" class="card-link text-success">
                 @if(auth()->user()->absence_abo_daily != 1)
