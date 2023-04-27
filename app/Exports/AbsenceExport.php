@@ -18,8 +18,8 @@ class AbsenceExport implements FromCollection, WithHeadings, WithMapping, WithCo
         return [
             ++$this->rows,
             $row->user->name,
-            $row->start,
-            $row->end,
+            $row->start->format('d.m.Y'),
+            $row->end->format('d.m.Y'),
             $row->reason
         ];
     }
