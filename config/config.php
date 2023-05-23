@@ -17,7 +17,8 @@ return [
         'Entlastungstag' => 100,
         'Feiertag' => 100,
         'Vorbereitungszeit' => 15,
-        'Ausgleichstag' => 100
+        'Ausgleichstag' => 100,
+        'Klassenfahrt' => 100,
 
     ],
 
