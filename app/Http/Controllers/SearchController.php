@@ -37,11 +37,11 @@ class SearchController extends Controller
             // search the protocols table
             $text = '*'.$request->input('text').'*';
 
-            $resultsProtocol = Protocol::with(['theme' => function ($query) use ($group) {
-                $query->where('group_id', $group->id);
-            }])->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text])
+            $resultsProtocol = Protocol::whereHas('theme', function ($query) use ($group){
+                return $query->where('group_id', $group->id);
+            })
+                ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text])
                 ->get();
-
 
             if ($resultsProtocol->count() > 0) {
                 foreach ($resultsProtocol as $protocol) {
