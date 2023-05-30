@@ -17,6 +17,7 @@ class SearchController extends Controller
     public function searchGlobal( Request $request){
         // get the search term
         $text = '%'.$request->input('text').'%';
+        $text_protocol = '*'.$request->input('text').'*';
 
         $results['Nachrichten'] = auth()->user()->posts()
             ->where('header', 'LIKE', $text)
@@ -35,12 +36,11 @@ class SearchController extends Controller
                 ->get();
 
             // search the protocols table
-            $text = '*'.$request->input('text').'*';
 
             $resultsProtocol = Protocol::whereHas('theme', function ($query) use ($group){
                 return $query->where('group_id', $group->id);
             })
-                ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text])
+                ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text_protocol])
                 ->get();
 
             if ($resultsProtocol->count() > 0) {
