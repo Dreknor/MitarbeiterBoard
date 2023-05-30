@@ -14,7 +14,7 @@
     <p>
         Aufgabe: {{$task->task}} <br>
         Fällig: {{$task->date?->format('d.m.Y')}}<br>
-        <a href="{{config('app.url').'/tasks/'.$task->id.'/complete'}}">bereits erledigt</a>
+        <a href="{{config('app.url').'/tasks/'.$task->id.'/complete'}}">bereits erledigt? Dann hier abhaken.</a>
     </p>
 @endforeach
 <p>
