@@ -87,6 +87,9 @@
             ],
             toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
             contextmenu: " link paste inserttable | cell row column deletetable",
+            table_default_attributes: {
+                border: '1'
+            }
         });
     </script>
 

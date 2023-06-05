@@ -36,7 +36,7 @@
                     </div>
                 </div>
                 <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="col-sm-12 col-md-12 col-lg-9">
                         <label for="goal">Ziel
                             <b>
                                 <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Das Ziel sollte spezifisch, messbar, akzeptiert, realistisch und terminiert sein. Verpflichtend">?</a>
@@ -44,12 +44,20 @@
                         </label>
                         <input type="text" class="form-control" id="goal" name="goal" required value="{{old('goal')}}">
                     </div>
+
+                    <div class="col-sm-12 col-md-12 col-lg-3">
+                        <label for="type">direkt in Themenspeicher?</label>
+                        <select name="memory" id="memory" class="custom-select">
+                            <option value="0">nein</option>
+                            <option value="1" @if($speicher) selected @endif>ja</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-row pt-2">
                     <div class="col-sm-12 col-md-12 col-lg-12">
                         <label for="information">Informationen</label>
                         <textarea class="form-control" id="information" name="information">
-                            {{old('information')}}
+                            {{old('information', $group->information_template)}}
                         </textarea>
                     </div>
                 </div>
@@ -100,13 +108,11 @@
             ],
             toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
             contextmenu: " link paste inserttable | cell row column deletetable",
+            table_default_attributes: {
+                border: '1'
+            }
         });
     </script>
-
-
-
-
-
 @endpush
 
 
@@ -138,8 +144,8 @@
 
         $("#customFile").fileinput({
             'showUpload':false,
-            'previewFileType':'any',
-            maxFileSize: {{config('app.maxFileSize')}},
+            'previewFileType': 'any',
+            maxFileSize: '{{config('app.maxFileSize', 100)}}',
             'theme': "fas",
         });
     </script>

@@ -1,3 +1,22 @@
 .word-wrap{
 word-wrap: break-word;
 }
+
+.menu-dark {
+    color: #dcdcdc;
+    background: #2C303B;
+
+}
+
+.sidebar .nav li>a {
+    opacity: 1;
+}
+.scrollable-menu {
+    height: auto;
+    max-height: 200px;
+    overflow-x: hidden;
+}
+
+.border-left-10{
+    border-left: 10px solid #17a2b8!important
+}

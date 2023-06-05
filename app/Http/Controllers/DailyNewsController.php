@@ -13,8 +13,19 @@ class DailyNewsController extends Controller
 
     public function index(){
 
+        $news = DailyNews::query()
+            ->where(function($query){
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) {
+                $query->whereNull('date_end');
+            })
+            ->orderBy('date_start')
+            ->get();
+
+
         return response()->view('dailyNews.index', [
-           'dailyNews'=>DailyNews::whereDate('date_start', '>=', Carbon::today())->orWhereDate('date_end', '>=', Carbon::today())->orderBy('date_start')->get()
+           'dailyNews'=> $news
         ]);
     }
 
@@ -27,6 +38,10 @@ class DailyNewsController extends Controller
     public function store(CreateDailyNewsRequest $request)
     {
         $news = new DailyNews($request->validated());
+
+        if (is_null($request->date_end)){
+            $news->date_end = $request->date_start;
+        }
         $news->save();
 
         return redirect()->back()->with([

@@ -36,7 +36,7 @@ class ListenController extends Controller
         $listen = auth()->user()->listen()->whereDate('ende', '>=', Carbon::now())->active()->with('eintragungen')->get();
 
         return view('listen.index', [
-            'listen' => $listen,
+            'listen' => $listen->unique(),
             'archiv' => $oldListen
         ]);
     }
@@ -157,8 +157,8 @@ class ListenController extends Controller
 
         $gruppen = $request->gruppen;
 
-        $terminListe->groups_rel()->detach();
-        $terminListe->groups_rel()->attach($gruppen);
+        $terminListe->groups()->detach();
+        $terminListe->groups()->attach($gruppen);
 
         return redirect()->to(url('listen'));
     }

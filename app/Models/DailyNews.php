@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,4 +16,28 @@ class DailyNews extends Model
       'date_start' => 'datetime',
       'date_end' => 'datetime',
     ];
+
+    public function isActive(Carbon $date = NULL): bool {
+
+        $start = Carbon::parse($this->date_start)->startOfDay();
+        if ($this->date_end != null) {
+            $end = Carbon::parse($this->date_end);
+        }
+
+        //Datum in der Zukunft
+        if ($start->greaterThan($date)) {
+            return false ;
+        }
+
+        if ($start->lessThanOrEqualTo($date) and is_null($this->date_end)) {
+            return true ;
+        }
+
+        if ($start->lessThanOrEqualTo($date) and $end->startOfDay()->greaterThanOrEqualTo($date)) {
+            return true ;
+        }
+
+
+        return false;
+    }
 }

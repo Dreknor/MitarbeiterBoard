@@ -9,7 +9,11 @@
     {{$name}} hat ein neues Protokoll angelegt.
 </p>
 <p>
-    Thema: {{$theme}}
+    Thema: <a href="{{config('app.url')."/$groupname/themes/$theme_id"}}">{{$theme}}</a> <br>
+</p>
+<p>
+    Protokoll:<br>
+    {!! $protocol !!}
 </p>
 <p>
     <br>

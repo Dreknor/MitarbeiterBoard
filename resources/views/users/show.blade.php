@@ -58,6 +58,18 @@
                                     <div class="row">
                                         <div class="col-12">
                                             <div class="form-group">
+                                                <label>Benachrichtigung bei zugewiesenen Themen</label>
+                                                <select class="custom-select" name="remind_assign_themes">
+                                                    <option value="1" @if($user->remind_assign_themes)selected @endif>Ja</option>
+                                                    <option value="0" @if(!$user->remind_assign_themes)selected @endif>Nein</option>
+                                                </select>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="form-group">
                                                 <label>Muss Passwort ändern</label>
                                                 <select class="custom-select" name="changePassword">
                                                     <option value="1" @if($user->changePassword)selected @endif>Ja</option>

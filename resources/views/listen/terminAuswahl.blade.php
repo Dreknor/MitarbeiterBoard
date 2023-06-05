@@ -37,7 +37,7 @@
                                 <div class="row">
                                     <div class="col-sm-6 col-md-3 m-auto">
 
-                                            {{	$eintrag->termin->formatLocalized('%A')}}, <b>{{	$eintrag->termin->format('d.m.Y')}}</b>
+                                            {{	$eintrag->termin->isoFormat('dddd')}}, <b>{{	$eintrag->termin->format('d.m.Y')}}</b>
 
                                     </div>
 

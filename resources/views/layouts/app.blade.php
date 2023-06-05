@@ -14,9 +14,11 @@
     <!-- CSS Files -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />
     <link href="{{asset('css/paper-dashboard.css?v=2.0.0')}}" rel="stylesheet" />
+    <link href="{{asset('css/palette-gradient.css')}}" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
 
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
+    <link href="{{asset('/css/solid.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
     <link href="{{asset('css/own.css')}}" rel="stylesheet" />
 
@@ -25,7 +27,7 @@
 </head>
 
 <body id="app-layout">
-<div class="sidebar" data-color="white" data-active-color="danger">
+<div class="sidebar" data-active-color="danger">
     <div class="logo" style="word-wrap: normal;">
         <a href="{{config('app.url')}}" class="simple-text">
             <div class="logo-image-small">
@@ -43,6 +45,78 @@
                             <p>Home</p>
                         </a>
                     </li>
+                @can('view wiki')
+                        <li class="@if(request()->segment(1)=="wiki") active @endif">
+                            <a href="{{url('/wiki')}}">
+                                <i class="fa fa-book"></i>
+                                <p>Wiki</p>
+                            </a>
+                        </li>
+                @endcan
+                @canany(['create roster', 'edit employe', 'has timesheet'])
+                    <li>
+                        <a data-toggle="collapse" href="#personal">
+                            <p>
+                                <i class="fas fa-user-friends"></i>
+                                Personal <b class="caret"></b>
+                            </p>
+                        </a>
+                        <div class="collapse  @if(request()->segment(1)=="roster" or request()->segment(1)=="timesheets" or request()->segment(1)=="employes") show  active @endif" id="personal">
+                            <ul class="nav pl-2">
+                                @can('create roster')
+                                    <li class="@if(request()->segment(1)=="roster" ) active  @endif">
+                                        <a href="{{route('roster.index')}}">
+                                            <i class="la la-columns"></i>
+                                            <span class="menu-title" data-i18n="">
+                                                Dienstpläne
+                                            </span>
+                                        </a>
+                                    </li>
+                                @endcan
+                                @can('edit employe')
+                                    <li class="@if(request()->segment(1)=="employes" or request()->segment(1)=="timesheets") active  @endif">
+                                        <li class="@if(Route::currentRouteName() == 'employes.index' or Route::currentRouteName() == 'employes.show') active @endif">
+                                            <a class="menu-item" href="{{route('employes.index')}}">
+                                                Personal Übersicht
+                                            </a>
+                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/select/employe')}}">
+                                                Arbeitszeitnachweise
+                                            </a>
+                                        </li>
+                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) == 'import') active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/import')}}">
+                                                Import
+                                            </a>
+                                        </li>
+                                    </li>
+                                @endcan
+                                @can('has timesheet')
+                                        <li class="@if(request()->segment(1)=="timesheets" and request()->segment(2) == auth()->id()) active  @endif">
+                                            <a class="menu-item" href="{{url('timesheets/'.auth()->id())}}">
+                                                eigene Arbeitszeitnachweise
+                                            </a>
+                                        </li>
+                                @endcan
+                                </li>
+
+                            </ul>
+                        </div>
+                    </li>
+                @endcanany
+                    @can('view roomBooking')
+                        <li class="@if(request()->segment(1)=="rooms" ) active  @endif">
+                            <a href="{{url('rooms/rooms')}}">
+                                <p>
+                                    <i class="fa fa-calendar-alt"></i>
+                                    Raumplan
+
+                                </p>
+
+                            </a>
+                        </li>
+
+                    @endif
                     @can('view procedures')
                         <li>
                             <a href="{{url('/procedure')}}">
@@ -106,8 +180,14 @@
                                 Beratungen <b class="caret"></b>
                             </p>
                         </a>
-                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
+                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
+                                <li class="@if(request()->segment(1)=="search") active @endif">
+                                    <a href="{{url('/search')}}">
+                                        <i class="fa fa-search"></i>
+                                        <p>Suche</p>
+                                    </a>
+                                </li>
                                 @foreach(auth()->user()->groups() AS $group)
                                     <li>
 
@@ -118,7 +198,7 @@
                                         </a>
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
-                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
                                                     <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                         <i class="far fa-comments"></i>
                                                         <p>Themen</p>
@@ -158,6 +238,14 @@
                                                         </li>
                                                     @endif
                                                 @endcan
+                                                @can('manage recurring themes')
+                                                    <li class="@if(request()->segment(3)=="recurring" and request()->segment(2)=="themes" and request()->segment(1)=="$group->name" ) active @endif">
+                                                        <a href="{{url($group->name.'/themes/recurring')}}">
+                                                            <i class="fas fa-redo"></i>
+                                                            <p>wiederk. Themen</p>
+                                                        </a>
+                                                    </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </li>
@@ -175,11 +263,11 @@
                                     Vertretungsplan <b class="caret"></b>
                                 </p>
                             </a>
-                            <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews") show  active @endif" id="Vertretung">
+                            <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews" or request()->segment(1)=="weeks") show  active @endif" id="Vertretung">
                                 <ul class="nav pl-2">
                                     <li class="@if(request()->segment(1)=="vertretungen") active @endif">
                                         <a href="{{url('/vertretungen')}}">
-                                            <i class="fas fa-exchange-alt"></i>
+                                            <i class="fas fa-sync"></i>
                                             <p>Vertreungen</p>
                                         </a>
                                     </li>
@@ -187,6 +275,12 @@
                                         <a href="{{url('/dailyNews')}}">
                                             <i class="fas fa-newspaper"></i>
                                             <p>News</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(1)=="weeks") active @endif">
+                                        <a href="{{url('/weeks')}}">
+                                            <i class="fas fa-calendar"></i>
+                                            <p>Wochen</p>
                                         </a>
                                     </li>
                                 </ul>

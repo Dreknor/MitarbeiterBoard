@@ -6,6 +6,7 @@ use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanWeek;
 use Carbon\Carbon;
 
 class VertretungsplanController extends Controller
@@ -41,12 +42,33 @@ class VertretungsplanController extends Controller
         }
 
         $targetDate = Carbon::today()->addDays($addDays);
-        $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])->whereIn('klassen_id',$klassen)->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get();
+        $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])
+            ->whereIn('klassen_id',$klassen)
+            ->orderBy('date')
+            ->orderBy('stunde')->get();
 
-        $news = DailyNews::whereDate('date_start', '<=', $targetDate)
-            ->whereDate('date_end', '>=', Carbon::today())
-            ->whereDate('date_end', '<=', $targetDate)
+        $news = DailyNews::query()
+            ->where(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', Carbon::today());
+            })
+            ->orWhere(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereNull('date_end');
+            })
             ->orderBy('date_start')
+            ->get();
+
+        //Wochentyp
+
+        $weeks = VertretungsplanWeek::where('week',  Carbon::today()->copy()->startOfWeek()->format('Y-m-d'))
+            ->orWhere('week', $targetDate->copy()->startOfWeek()->format('Y-m-d'))
+            ->orderBy('week')
             ->get();
 
         //Absences
@@ -62,18 +84,28 @@ class VertretungsplanController extends Controller
             'vertretungen' => $vertretungen,
             'news'          => $news,
             'targetDate' => $targetDate,
-            'absences' => $absences
+            'absences' => $absences,
+            'weeks' => $weeks
         ];
 
 
     }
 
+    public function allowAllIndex($key){
+        if ($key == env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY')){
+            return response()->view('vertretungsplan.index',$this->make())
+                ->header('Content-Security-Policy', '*')
+                ->header('X-Frame-Options', 'allow-from *');
+        }
+    }
+
     public function index($gruppen = null)
     {
+
         return response()->view('vertretungsplan.index',$this->make($gruppen))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
-            ->header('X-Frame-Options', config('cors.X-Frame-Options'));
-
+            ->header('X-Frame-Options', config('cors.X-Frame-Options'))
+            ->header("Cache-Control","no-cache, no-store, must-revalidate");
     }
 
     public function toJSON($gruppen = null){
@@ -110,14 +142,19 @@ class VertretungsplanController extends Controller
             ];
         }
 
+        $weeks = [];
+        foreach ($plan['weeks'] as $week){
+            $weeks[$week->week->format('Y-m-d')]=$week->type;
+        }
 
-
-        return json_encode([
+        $array = [
             'vertretungen' => $vertretungen,
             'news' => $news,
             'absences' => $absences,
-            'targetDate' => $plan['targetDate']
-        ]);
+            'targetDate' => $plan['targetDate'],
+            'weeks' => $weeks
+        ];
+        return json_encode($array);
     }
 
 }

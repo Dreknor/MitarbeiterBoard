@@ -43,11 +43,34 @@
                     </div>
 
                     <div class="form-row mt-1">
+                        <label for="viewType">Ansicht?</label>
+                        <select name="viewType" id="viewType" class="custom-select">
+                            <option value="date" @if($gruppe->viewType == 'date') selected @endif>nach Datum</option>
+                            <option value="priority" @if(!$gruppe->viewType == 'priority') selected @endif>Priorität</option>
+                            <option value="type" @if(!$gruppe->viewType == 'type') selected @endif>Themen-Typ</option>
+                        </select>
+                    </div>
+                    <div class="form-row mt-1">
                         <label for="hasWochenplan">Wochenplan?</label>
                         <select name="hasWochenplan" id="hasWochenplan" class="custom-select">
                             <option value="1" @if($gruppe->hasWochenplan) selected @endif>braucht Wochenplan</option>
                             <option value="0" @if(!$gruppe->hasWochenplan) selected @endif>kein Wochenplan</option>
                         </select>
+                    </div>
+                    <div class="form-row mt-1">
+                        <label for="hasAllocations">ganze Themen einem Benutzer zuweisen?</label>
+                        <select name="hasAllocations" id="hasAllocations" class="custom-select">
+                            <option value="0" @if(!$gruppe->hasAllocations) selected @endif>nein</option>
+                            <option value="1" @if($gruppe->hasAllocations) selected @endif>ja</option>
+                        </select>
+                    </div>
+                    <div class="form-row pt-2">
+                        <div class="col-sm-12 col-md-12 col-lg-12">
+                            <label for="information_template">Vorlage Informationen</label>
+                            <textarea class="form-control" id="information_template" name="information_template">
+                            {{old('information_template')}}
+                        </textarea>
+                        </div>
                     </div>
                     <div class="form-row">
                         <button type="submit" class="btn btn-success btn-block">
@@ -60,3 +83,26 @@
     </div>
 
 @endsection
+
+
+@push('js')
+    <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
+    <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>
+    <script src="{{asset('js/plugins/tinymce/langs/de.js')}}"></script>
+    <script>
+        tinymce.init({
+            selector: 'textarea',
+            lang:'de',
+            height: 400,
+            menubar: true,
+            plugins: [
+                'advlist autolink lists link charmap',
+                'searchreplace visualblocks code',
+                'insertdatetime table paste code wordcount',
+                'contextmenu',
+            ],
+            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
+            contextmenu: " link paste inserttable | cell row column deletetable",
+        });
+    </script>
+@endpush

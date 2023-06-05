@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absence;
+use App\Models\personal\Roster;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -36,7 +37,13 @@ class HomeController extends Controller
         $groups = auth()->user()->groups();
         $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
 
-        $tasks = auth()->user()->tasks->where('completed', 0);
+
+        $tasks = auth()->user()->tasks;
+        $group_tasks =  auth()->user()->group_tasks;
+
+        foreach ($group_tasks as $group_task){
+            $tasks = $tasks->push($group_task->task);
+        }
 
         foreach ($groups as $group) {
             if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)) {
@@ -61,13 +68,24 @@ class HomeController extends Controller
             $oldAbsences = [];
         }
 
+        //Roster
+        $groups_arr = [];
+        foreach ($groups as $group){
+            $groups_arr[] = $group->id;
+        }
+
+        $rosters = Roster::whereIn('department_id', $groups_arr)
+            ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
+            ->where('type', '!=', 'template')
+            ->get();
+
         return view('home', [
-            'groups'    => $groups,
             'tasks'     => $tasks,
-            'colors'    => $colors,
             'steps' => $steps,
             'absences' => $absences,
             'oldAbsences' => $oldAbsences,
+            'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15),
+            'rosters' => $rosters
         ]);
     }
 }

@@ -53,7 +53,7 @@ class ListenTerminController extends Controller
         } elseif ($request->weekly == 0 and $request->repeat > 1) {
             for ($x = 1; $x < $request->repeat; $x++) {
                 $newTermin = $termin->replicate();
-                $newTermin->termin = $newTermin->termin->addMinutes($x * $liste->duration);
+                $newTermin->termin = $newTermin->termin->addMinutes($x * $termin->duration);
                 $newTermin->save();
             }
         }

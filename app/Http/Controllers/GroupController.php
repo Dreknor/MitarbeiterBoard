@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cache;
 
 class GroupController extends Controller
 {
@@ -48,6 +49,8 @@ class GroupController extends Controller
         $group->save();
 
         $group->users()->attach(auth()->user());
+
+        Cache::forget('groups_'.auth()->id());
 
         return redirect(url('groups'))->with([
            'type'   => 'success',
@@ -176,7 +179,7 @@ class GroupController extends Controller
             }
         }
 
-        $group->users()->detach($group->users);
+        $group->users()->sync([]);
         $group->delete();
     }
 

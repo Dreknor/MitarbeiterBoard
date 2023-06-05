@@ -5,6 +5,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{csrf_token()}}">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="refresh" content="600">
+
 
     <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
 
@@ -29,8 +34,13 @@
                  <div class="card border border-dark">
                     <div class="card-header" id="heading{{$x->format('Ymd')}}">
                         <h6>
-                             Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}}
+                             Vertretungen für <div class="text-danger d-inline">{{$x->locale('de')->dayName}} </div>, den {{$x->format('d.m.Y')}} @if($weeks->count() > 0 and $weeks->where('week', $x->copy()->startOfWeek())->first() != null) ({{$weeks->where('week', $x->copy()->startOfWeek())->first()->type}} - Woche) @endif
                         </h6>
+                        @if($x == \Carbon\Carbon::today())
+                            <div class="pull-right">
+                                abgerufen: {{\Carbon\Carbon::now()->format('d.m.Y H:i')}}
+                            </div>
+                        @endif
                     </div>
                     <div id="collapse{{$x->format('Ymd')}}"  aria-labelledby="heading{{$x->format('Ymd')}}" >
                         <div class="card-body">
@@ -50,7 +60,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                @foreach($vertretungen->filter(function ($vertretung) use ($x) {
+                                @foreach($vertretungen->sortBy('klasse.name')->filter(function ($vertretung) use ($x) {
                                     if ($vertretung->date->eq($x)){
                                         return $vertretung;
                                     }
@@ -71,8 +81,8 @@
 
                                 </tr>
                                 @foreach($news->filter(function ($news) use ($x) {
-                                    if (($news->date_start->eq($x) and $news->date_end == null) or ($news->date_start->lessThanOrEqualTo($x) and $news->date_end != null and $news->date_end->greaterThanOrEqualTo($x))){
-                                        return $news;
+                                    if ($news->isActive($x)){
+                                         return $news;
                                     }
                                 }) as $dailyNews)
                                     <tr>

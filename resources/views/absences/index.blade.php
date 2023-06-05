@@ -1,5 +1,15 @@
 <div class="card">
     <div class="card-header">
+        @can('export absence')
+            <div class="pull-right ml-2">
+                <a href="{{url('absences/export')}}" class="card-link text-warning">
+                    <i class="fa fa-file-export" title="Excel export"></i>
+                    <div class="d-none d-md-block">
+                        export
+                    </div>
+                </a>
+            </div>
+        @endcan
         <div class="pull-right ml-2">
             <a href="{{url('absences/abo/daily')}}" class="card-link text-success">
                 @if(auth()->user()->absence_abo_daily != 1)
@@ -65,11 +75,12 @@
                                 {{$absence->reason}}
                             </td>
                             <td>
-                                @can('delete absences')
+                                @if(auth()->user()->can('delete absences') or $absence->creator_id == auth()->id())
                                     <a href="{{url('absences/'.$absence->id.'/delete')}}">
                                         <i class="fas fa-trash text-danger"></i>
                                     </a>
-                                @endcan
+
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -77,7 +88,7 @@
             </table>
             <div class="d-none d-lg-block">
                 @can('view old absences')
-                    <table class="table table-striped">
+                    <table class="table table-striped table-responsive">
                         <thead>
                         <tr>
                             <th colspan="4">

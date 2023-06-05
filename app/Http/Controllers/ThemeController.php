@@ -4,20 +4,121 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
+use App\Mail\newThemeAssignMail;
+use App\Mail\RemindAssignedThemes;
 use App\Models\Group;
 use App\Models\Protocol;
+use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\Type;
+use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
-use function Symfony\Component\String\u;
 
 class ThemeController extends Controller
 {
+
+    public function change_group(Theme $theme, Group $group){
+        if (! auth()->user()->groups()->contains($theme->group) or (! auth()->user()->groups()->contains($group) and $group->protected)) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if (! auth()->user()->can('move themes')) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Berechtigung fehlt',
+            ]);
+        }
+
+        $oldGroup = $theme->group;
+
+        $theme->update([
+           'group_id' => $group->id
+        ]);
+
+        $protocol = new Protocol([
+            'theme_id' => $theme->id,
+            'creator_id' => auth()->id(),
+            'protocol' =>  auth()->user()->name.' hat das Thema aus der Gruppe '.$oldGroup->name.' nach '.$group->name.' verschoben.'
+        ]);
+        $protocol->save();
+
+        return redirect(url($oldGroup->name.'/themes#'.$theme->date->format('Ymd')))->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema zur Gruppe '.$group->name.' verschoben.',
+        ]);
+    }
+
+    public function assgin_to(Theme $theme, User $user){
+        if (! auth()->user()->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if (! $user->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Benutzer ist nicht in dieser Gruppe',
+            ]);
+        }
+
+        $theme->update([
+           'assigned_to' => $user->id
+        ]);
+
+
+        //Subscription erstellen
+        $type = Theme::class;
+        $subscription = $user->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $theme->id)->first();
+        if ($subscription == null) {
+            $subscription = new Subscription([
+                'users_id' => $user->id,
+                'subscriptionable_type' => $type,
+                'subscriptionable_id'=>$theme->id,
+            ]);
+
+            $subscription->save();
+        }
+
+        //Benachrichtigen
+        Mail::to($user->email)->queue(new newThemeAssignMail($theme, $user));
+
+        //Log erstellen
+        $protocol = new Protocol([
+           'theme_id' => $theme->id,
+           'creator_id' => auth()->id(),
+           'protocol' =>  auth()->user()->name.' hat das Thema '.$user->name.' zugewiesen.'
+        ]);
+        $protocol->save();
+
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema zugewiesen',
+        ]);
+
+    }
+
+    public function remind_assigned_themes(){
+        $users = User::whereHas('assigned_themes', function ($query){
+            return $query->where('completed', '!=', 1);
+        })
+            ->where('remind_assign_themes', 1)
+            ->with('assigned_themes')->get();
+
+        foreach ($users as $user){
+            Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes->where('completed', 0)));
+        }
+    }
     public function setView($groupname, $viewType)
     {
         $group = Group::where('name', $groupname)->first();
@@ -52,7 +153,7 @@ class ThemeController extends Controller
            ]);
         }
 
-        $themes = $group->themes()->where('completed', 0)->where('memory', false)->get();
+        $themes = $group->themes()->where('completed', 0)->where('memory', 0)->get();
         $themes->load('priorities', 'ersteller', 'type', 'protocols');
 
         $viewType = Cache::get('viewType_'.$groupname.'_'.auth()->id(), $group->viewType);
@@ -85,6 +186,7 @@ class ThemeController extends Controller
            'themes' => $themes,
             'viewType' => $viewType,
             'subscription'  => $subscription,
+            'group' => $group
         ]);
     }
     public function memory($groupname)
@@ -98,7 +200,7 @@ class ThemeController extends Controller
            ]);
         }
 
-        $themes = $group->themes()->where('completed', 0)->where('memory', true)->get();
+        $themes = $group->themes()->where('completed', 0)->where('memory', 1)->get();
         $themes->load('priorities', 'ersteller');
 
         $themes = $themes->sortByDesc('priority');
@@ -138,12 +240,38 @@ class ThemeController extends Controller
         ]);
     }
 
+    public function unArchive(Theme $theme)
+    {
+
+        if (! auth()->user()->can('unarchive theme')) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $theme->update(['completed' => 0]);
+
+        $protocol = Protocol::create([
+            'creator_id' => auth()->id(),
+            'theme_id' => $theme->id,
+            'protocol'  => 'Thema wieder aktiviert',
+        ]);
+        $protocol->save();
+
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Thema erneut geöffnet'
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return View
      */
-    public function create($groupname)
+    public function create($groupname, $speicher=null)
     {
         $group = Group::where([
             'name'  => $groupname,
@@ -152,6 +280,7 @@ class ThemeController extends Controller
         return view('themes.create', [
             'types' => Type::all(),
             'group' => $group,
+            'speicher' => $speicher
         ]);
     }
 
@@ -202,7 +331,16 @@ class ThemeController extends Controller
             }
         }
 
-        return redirect(url($groupname.'/themes'))->with([
+        if ($group->protected == null){
+            $subscription = new Subscription([
+                'users_id' => auth()->id(),
+                'subscriptionable_type' => Theme::class,
+                'subscriptionable_id'=>$theme->id,
+            ]);
+            $subscription->save();
+        }
+
+        return redirect(url($groupname.'/themes#'.$theme->date->format('Ymd')))->with([
            'type'   => 'success',
            'Meldung'    => 'Thema erstellt',
         ]);
@@ -225,7 +363,14 @@ class ThemeController extends Controller
             ]);
         }
 
-        if ($theme->memory == true) {
+        if ($group->id != $theme->group_id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Thema nicht gefunden',
+            ]);
+        }
+
+        if ($theme->memory == true and $theme->completed == false) {
             return redirect(url($groupname.'/memory'))->with([
                 'type'    => 'warning',
                 'Meldung' => 'Thema ist im Themenspeicher',
@@ -262,7 +407,7 @@ class ThemeController extends Controller
         ]);
         $protocol->save();
 
-        return redirect(url($groupname."/themes/"))->with([
+        return redirect(url($groupname."/themes#".$theme->date->format('Ymd')))->with([
             'type'  => 'success',
             'Meldung' => 'Thema wurde aktiviert.'
         ]);
@@ -339,6 +484,8 @@ class ThemeController extends Controller
 
         $date = Carbon::createFromFormat('Y-m-d', $request->date);
 
+        (!$date->eq($theme->date))? $redirectDate = $date->format('Ymd') : $redirectDate = $theme->date->format('Ymd');
+
         if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay()) and !$date->isSameDay(Carbon::today())) {
             return redirect()->back()->with([
                 'type'    => 'warning',
@@ -376,7 +523,7 @@ class ThemeController extends Controller
             }
         }
 
-        return redirect(url($groupname."/themes/$theme->id"))->with([
+        return redirect(url($groupname."/themes#$redirectDate"))->with([
             'type'  => 'success',
             'Meldung'=> 'Änderungen gespeichert.',
         ]);
@@ -384,10 +531,11 @@ class ThemeController extends Controller
 
     public function destroy($groupname, Theme $theme)
     {
+        $date = $theme->date->format('Ymd');
         if (auth()->user()->id == $theme->creator_id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(Carbon::now()->startOfDay()->addDays(config('config.themes.addDays')))) {
             $theme->delete();
 
-            return redirect(url($groupname.'/themes'))->with([
+            return redirect(url($groupname.'/themes#'.$date))->with([
                 'type'  => 'info',
                 'Meldung'   => 'Thema wurde gelöscht.',
             ]);
@@ -419,7 +567,7 @@ class ThemeController extends Controller
            ]);
         $protocol->save();
 
-        return redirect(url($groupname.'/themes'))->with([
+        return redirect(url($groupname.'/themes#'.$theme->date->format('Ymd')))->with([
                'type'  => 'success',
                'Meldung'=> 'Thema geschlossen',
            ]);
@@ -444,7 +592,7 @@ class ThemeController extends Controller
         ]);
 
 
-        return redirect(url($groupname."/themes/"))->with([
+        return redirect(url($groupname."/themes#".$oldDate->format('Ymd')))->with([
             'type'  => 'success',
             'Meldung'=> $themes.' Themen wurden verschoben',
         ]);

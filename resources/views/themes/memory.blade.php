@@ -5,9 +5,19 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header">
-                Themenspeicher
+                <h6>
+                    Themenspeicher
+                </h6>
+            </div>
+            <div class="card-body">
+                @can('create themes')
+                    <div class="card-body">
+                        <a href="{{url(request()->segment(1).'/themes/create/speicher')}}" class="btn btn-bg-gradient-x-blue-cyan btn-block">neues Thema</a>
+                    </div>
+                @endcan
             </div>
         </div>
+
 
         @if (count($themes) == 0)
             <div class="card">

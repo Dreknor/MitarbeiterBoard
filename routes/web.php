@@ -10,12 +10,25 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
+use App\Http\Controllers\Personal\AddressController;
+use App\Http\Controllers\Personal\ContactController;
+use App\Http\Controllers\Personal\EmployeController;
+use App\Http\Controllers\Personal\EmploymentController;
+use App\Http\Controllers\Personal\RosterCheckController;
+use App\Http\Controllers\Personal\RosterController;
+use App\Http\Controllers\Personal\RosterEventsController;
+use App\Http\Controllers\Personal\RosterNewsController;
+use App\Http\Controllers\Personal\TimesheetController;
+use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
+use App\Http\Controllers\PostsController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
+use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
@@ -26,6 +39,8 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanController;
+use App\Http\Controllers\VertretungsplanWeekController;
+use App\Http\Controllers\WikiController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
@@ -51,6 +66,7 @@ if (config('config.auth.auth_local')){
         return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
     });
 }
+Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 'allowAllIndex']);
 
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/api/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
@@ -74,7 +90,111 @@ Route::group([
             'middleware' => ['password_expired'],
         ],
             function () {
-                //Wochenplan
+
+                //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
+                Route::get('test/doc', [\App\Http\Controllers\DocumentsController::class, 'index']);
+                Route::post('test/doc', [\App\Http\Controllers\DocumentsController::class, 'import']);
+                /*
+                 * Routes for Wiki
+                 */
+                Route::middleware(['permission:view wiki'])->group(function () {
+                    Route::post('wiki', [WikiController::class, 'store']);
+                    Route::post('wiki/add', [WikiController::class, 'new']);
+                    Route::get('wiki/all', [WikiController::class, 'all_sites']);
+                    Route::post('wiki/search', [WikiController::class, 'search']);
+                    Route::get('wiki/create/{slug}', [WikiController::class, 'create']);
+                    Route::get('wiki/{slug?}/{version?}', [WikiController::class, 'index'])->name('wiki');
+
+                });
+
+                /*
+                 * Edit Employes
+                 */
+                Route::middleware(['permission:edit employe'])->group(function () {
+                    Route::resource('employes', EmployeController::class)->names([
+                        'show' => 'employes.show',
+                        'index' => 'employes.index',
+                    ])->except('create');
+
+                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
+                });
+
+
+                //Timesheets
+                /*
+                Route::get('timesheets/import/roster/{year?}', [TimesheetController::class, 'importRoster']);
+                Route::get('timesheets/import/employments', [TimesheetController::class, 'importEmployments']);
+                Route::get('timesheets/import/{year}', [TimesheetController::class, 'import']);
+                */
+
+                Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
+                Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
+                Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
+
+
+                Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
+                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
+                Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
+                Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
+                Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
+                Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
+                Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
+
+                //Anstellungen
+                Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
+
+                Route::post('addresses/{employe}',[AddressController::class, 'update']);
+                Route::post('contacts/{employe}',[ContactController::class, 'store']);
+                Route::delete('contacts/{contact}',[ContactController::class, 'delete']);
+
+
+                Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
+
+                Route::middleware(['permission:create roster'])->group(function () {
+                    //Roster - Dienstpläne
+                    Route::resource('roster', RosterController::class)
+                        ->except(['create'])
+                        ->names([
+                            'index' => 'roster.index',
+                            'show' => 'roster.show',
+                        ]);
+                    Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
+                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
+                    Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
+                    Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
+                    Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
+                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
+
+                    Route::get('roster/{roster}/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
+
+                    //Create Checks
+                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
+
+
+                    Route::post('working_time', [WorkingTimeController::class, 'store']);
+                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);
+                    //events
+                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store']);
+                    Route::get('tasks/{event}/remember', [RosterEventsController::class, 'remember']);
+                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update']);
+                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate']);
+                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy']);
+                });
+
+
+            //Raumplan
+                Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
+                    Route::resource('rooms', RoomController::class)->except('create');
+                    Route::post('bookings', [RoomController::class, 'storeBooking']);
+                    Route::get('booking/{booking}', [RoomController::class, 'editBooking']);
+                    Route::get('rooms/{room}/export', [RoomController::class, 'export']);
+                    Route::delete('booking/{booking}', [RoomController::class, 'deleteBooking']);
+                    Route::put('bookings/{booking}', [RoomController::class, 'updateBooking']);
+
+                });
+
+
+                    //Wochenplan
                 Route::group(['middleware' => ['permission:create Wochenplan']], function () {
                     Route::resource('{groupname}/wochenplan', WochenplanController::class);
                     Route::post('wochenplan/{wochenplan}/addfile', [WochenplanController::class, 'addFile']);
@@ -98,6 +218,7 @@ Route::group([
                 //absences
                 Route::middleware(['permission:view absences'])->group(function (){
                     Route::post('absences', [AbsenceController::class, 'store']);
+                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
                     Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
                     //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);
@@ -133,6 +254,9 @@ Route::group([
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
                     Route::get('dailyNews', [DailyNewsController::class, 'index']);
                     Route::delete('dailyNews/{dailyNews}', [DailyNewsController::class, 'destroy']);
+                    Route::get('weeks', [VertretungsplanWeekController::class, 'index']);
+                    Route::get('weeks/change/{week}', [VertretungsplanWeekController::class, 'update']);
+                    Route::delete('weeks/delete/{week}', [VertretungsplanWeekController::class, 'destroy']);
                 });
 
                 //Subscriptions
@@ -142,17 +266,36 @@ Route::group([
                 Route::get('/home', [HomeController::class, 'index'])->name('home');
                 Route::get('/', [HomeController::class, 'index']);
 
+                //Posts
+                Route::resource('posts', PostsController::class);
+                Route::get('posts/{post}/release', [PostsController::class, 'release']);
+
+                //globale Suche
+                Route::post('search/search', [SearchController::class, 'searchGlobal']);
+                Route::get('search', [SearchController::class, 'globalSearch']);
+
+
+                //recurring Themes
+                Route::middleware('permission:manage recurring themes')->group(function (){
+                    Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
+                    Route::get('{groupname}/themes/recurring/file/{media}/delete', [ImageController::class, 'removeImage']);
+                    Route::get('themes/recurring/start/{now?}', [RecurringThemeController::class, 'createNewThemes']);
+                });
+
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
+                Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
                 Route::post('{groupname}/move/themes', [ThemeController::class,'move']);
                 Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
                 Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
                 Route::get('{groupname}/archive', [ThemeController::class,'archive']);
+                Route::get('unarchiv/{theme}', [ThemeController::class, 'unArchive'])->middleware('permission:unarchive theme');
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
                 Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class,'activate']);
                 Route::post('share/{theme}', [ShareController::class, 'shareTheme']);
-
+                Route::get('theme/{theme}/assign/{user}', [ThemeController::class, 'assgin_to']);
+                Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
                 //Prioritäten
@@ -171,6 +314,7 @@ Route::group([
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
 
                 Route::get('image/{media_id}', [ImageController::class, 'getImage']);
+                Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 ;
 
                 //Roles and permissions

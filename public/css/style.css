@@ -1,0 +1,92 @@
+/* ================================================================================================
+// 	File Name: style.scss
+// 	Description: Style for customization.
+// 	----------------------------------------------------------------------------------------------
+// 	Item Name: Chameleon Admin - Modern Bootstrap 4 WebApp & Dashboard HTML Template + UI Kit
+// 	Version: 1.0
+// 	Author: ThemeSelection
+// 	Author URL: https://themeselection.com/
+// ================================================================================================
+
+NOTE:
+------
+PLACE HERE YOUR OWN SCSS CODES AND IF NEEDED, OVERRIDE THE STYLES FROM THE OTHER STYLESHEETS.
+WE WILL RELEASE FUTURE UPDATES SO IN ORDER TO NOT OVERWRITE YOUR STYLES IT'S BETTER LIKE THIS.  */
+.trigger {
+    padding: 1px 10px;
+    font-size: 12px;
+    font-weight: 400;
+    border-radius: 10px;
+    background-color: #eee;
+    color: #212121;
+    display: inline-block;
+}
+
+.hoverable, .trigger {
+    transition: box-shadow 0.55s;
+    box-shadow: 0;
+}
+
+.hoverable:hover, .trigger:hover {
+    transition: box-shadow 0.45s;
+    box-shadow: 0 8px 17px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.verticaltext {
+    position: relative;
+    padding-left: 50px;
+    margin: 1em 0;
+    min-height: 120px;
+}
+
+.verticaltext_content {
+    -webkit-transform: rotate(-90deg);
+    -moz-transform: rotate(-90deg);
+    -ms-transform: rotate(-90deg);
+    -o-transform: rotate(-90deg);
+    filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);
+    left: -40px;
+    top: 35px;
+    position: absolute;
+}
+
+.leererTermin_15, .leererTermin_45 {
+    border-bottom: dashed;
+    border-bottom-color: crimson;
+    border-bottom-width: 1px;
+    height: 20px;
+    color: white;
+}
+
+.leererTermin_30, .leererTermin_0 {
+    height: 20px;
+}
+
+ul.selectable {
+    list-style: none;
+    padding: 0;
+}
+
+
+ul.time {
+    list-style: none;
+    padding: 0;
+}
+
+.Termin {
+    background-color: #bce8f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    resize: vertical;
+    cursor: auto;
+    overflow: hidden;
+    font-size: 90%;
+    border-bottom: #0c2646 1px dashed;
+}
+
+.workingTimeBody {
+    max-height: 20px;
+}
+

@@ -42,7 +42,7 @@ class Push extends Notification
     {
         $push = new WebPushMessage;
         $push->title($this->title)
-            ->icon(asset('img/logo-small.png'))
+            ->icon(asset('img/'.config('config.logo_small')))
             ->body($this->body);
 
         return $push;

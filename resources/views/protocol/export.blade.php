@@ -4,17 +4,25 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-body">
-                <div class="row">
-                    <div class="col">
-                        Datum wählen:
-                    </div>
-                    <div class="col-md-6 col-sm-12">
-                            <input class="form-control" type="date" id="input">
-                    </div>
-                </div>
+                <h6>
+                    Datum der anzuzeigenden Protokolle wählen:
+                </h6>
+                <ul class="nav nav-tabs nav-fill">
+                    @foreach($dates as $protocol_date)
+                        <li class="nav-item ">
+                            <a class="nav-link @if(request()->segment(3) == $protocol_date) active @endif" href="{{url(request()->segment(1).'/export/'.$protocol_date)}}">
+                                {{\Carbon\Carbon::createFromFormat('Y-m-d',$protocol_date)->format('d.m.Y')}}
+                            </a>
+                        </li>
+                    @endforeach
+                    <li class="nav-item pull-right">
+                        <input class="form-control" type="date" id="input">
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
+
     @if(!is_null($themes) and $themes->count() > 0)
         <div class="container-fluid">
         <div class="card">

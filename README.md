@@ -12,7 +12,8 @@ Obwohl das MitarbeiterBoard ausschließlich für das Evangelische Schulzentrum R
 
 ## Systemvoraussetzungen
 
- * PHP 7.4
+ * PHP 8
+ * MySQL/Maria-DB
  * Composer 2
 
 ## Installation
