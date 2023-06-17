@@ -9,12 +9,10 @@ use App\Models\Room;
 use App\Models\RoomBooking;
 use Barryvdh\DomPDF\Facade as PDF;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
-use PhpOffice\PhpWord\Shared\Converter;
-use PhpOffice\PhpWord\Style\Language;
 
 class RoomController extends Controller
 {
@@ -34,9 +32,14 @@ class RoomController extends Controller
             ]);
         }
 
+        $free_rooms = Room::whereDoesntHave('bookings', function (Builder $query){
+            $query->where('weekday', Carbon::now()->subDay()->weekday())->where('start', '<=', Carbon::now()->format('H:i:s'))->where('end', '>', Carbon::now()->format('H:i:s'));
+        })->get();
+
 
         return view('rooms.rooms.index',[
-            'rooms' => Room::query()->orderBy('name')->get()
+            'rooms' => Room::query()->orderBy('name')->get(),
+            'free_rooms' => $free_rooms
         ]);
     }
 

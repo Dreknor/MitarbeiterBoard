@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+
     <div class="container-fluid">
         <div class="card">
             <div class="card-header">
@@ -14,6 +15,9 @@
                     <thead>
                         <tr>
                             <th>
+
+                            </th>
+                            <th>
                                 Name
                             </th>
                             <th>
@@ -26,7 +30,21 @@
                     </thead>
                     <tbody>
                         @foreach($rooms as $room)
-                            <tr>
+                            <tr >
+                                @if($free_rooms->contains($room))
+                                    <td>
+                                        <div class="text-success">
+                                            frei
+                                        </div>
+                                    </td>
+                                @else
+                                    <td>
+                                        <div class="text-danger">
+                                            belegt
+                                        </div>
+
+                                    </td>
+                                @endif
                                 <td>
                                     {{$room->name}}
                                 </td>
