@@ -79,7 +79,7 @@
                                                     <a href="{{url("subscription/theme/$theme->id/")}}" class="btn btn-sm btn-outline-info">
                                                         <i class="far fa-bell"></i>
                                                         <div class="d-none d-md-none d-lg-inline-block">
-                                                            Abonieren
+                                                            Abonnieren
                                                         </div>
                                                     </a>
                                                 @else
