@@ -115,7 +115,7 @@
                             @foreach($users as $user)
                                 <tr class="text-center">
                                     <td>
-                                        {{$user['user']->name}}
+                                        {{$user['user']}}
                                     </td>
                                     <td  class="text-center">
                                         {{$user['with_note']}}

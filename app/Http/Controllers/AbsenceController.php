@@ -146,17 +146,18 @@ class AbsenceController extends Controller
             }
 
             $users->add([
-                'user' => $absence->user,
+                'user' => $absence->user->name,
                 'without_note' => $without_note,
                 'with_note' => $with_note,
                 'missing_note' => $missing_note,
             ]);
+
         }
 
 
         return view('absences.sicknotes',[
            'absences' => $absences,
-            'users' => $users
+            'users' => $users->sortBy('user')
         ]);
     }
 
