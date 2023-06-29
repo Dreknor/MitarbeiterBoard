@@ -25,7 +25,13 @@ class Absence extends Model
 
     public function getDaysAttribute() : int
     {
-        return $this->start->diffInDays($this->end)+1;
+
+        $days = $this->start->diffInDaysFiltered(function (Carbon $date) {
+            return $date->isWeekday() && !is_holiday($date);
+        }, $this->end);
+
+        return  $days;
+
     }
     protected static function boot()
     {

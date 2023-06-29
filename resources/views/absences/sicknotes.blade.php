@@ -13,6 +13,7 @@
                         <table class="table table-full-width table-striped table-hover">
                             <thead>
                                 <tr>
+                                    <th>Grund</th>
                                     <th>Name</th>
                                     <th>Von</th>
                                     <th>Bis</th>
@@ -24,6 +25,9 @@
                             <tbody>
                                 @foreach($absences as $absence)
                                     <tr class="">
+                                        <td>
+                                            {{$absence->reason}}
+                                        </td>
                                         <td>
                                             {{$absence->user->name}}
                                         </td>
