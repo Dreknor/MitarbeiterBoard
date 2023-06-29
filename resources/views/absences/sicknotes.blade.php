@@ -41,12 +41,12 @@
                                             {{$absence->days}}
                                         </td>
                                         <td>
-                                            @if($absence->sick_note_required or $absence->days >= config('absences.absence_sick_note_days'))
-                                                @if(! is_null($absence->sick_note_date))
-                                                    <div class="text-success">
-                                                        Krankenschein vom {{$absence->sick_note_date->format('d.m.Y')}}
-                                                    </div>
-                                                @else
+                                            @if(! is_null($absence->sick_note_date))
+                                                <div class="text-success">
+                                                    Krankenschein vom {{$absence->sick_note_date->format('d.m.Y')}}
+                                                </div>
+                                            @else
+                                                @if($absence->sick_note_required or $absence->days >= config('absences.absence_sick_note_days'))
                                                     <div class="text-danger">
                                                         Krankenschein benötigt
                                                     </div>
@@ -55,7 +55,7 @@
                                         </td>
                                         <td>
                                             <div class="row">
-                                                @if(($absence->sick_note_required or $absence->days >= config('absences.absence_sick_note_days')) and is_null($absence->sick_note_date))
+                                                @if(is_null($absence->sick_note_date))
                                                     <div class="col-auto">
                                                         <a href="{{url('sick_notes/'.$absence->id.'/set_note_date')}}" class="border rounded-circle border-success p-1 text-success" title="Krankenschein erfassen">
                                                             <i class="fa fa-check"></i>
