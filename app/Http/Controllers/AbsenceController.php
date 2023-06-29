@@ -10,6 +10,7 @@ use App\Models\Absence;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -106,6 +107,92 @@ class AbsenceController extends Controller
 
         return Excel::download(new AbsenceExport(), 'Abwesenheiten.xlsx');
 
+    }
+
+    public function sick_notes_index() {
+        if (!auth()->user()->can('manage sick_notes')){
+            return redirect(url('/'))->with([
+                'type'  => "warning",
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absences = Absence::where('reason', 'LIKE', config('absences.absence_sick_note'))
+            ->whereDate('start', '>=', Carbon::now()->subYear())
+            ->orderByDesc('start')->with('user')->get();
+
+        $users_absences = $absences->groupBy('users_id');
+        $users = new Collection();
+
+        foreach ($users_absences as $absences_user){
+            $without_note = 0;
+            $with_note = 0;
+            $missing_note = 0;
+
+            foreach ($absences_user as $absence){
+                if ($absence->days < config('absences.absence_sick_note_days') and $absence->sick_note_required == false)
+                {
+                    $without_note+=$absence->days;
+                }
+                if (($absence->days >= config('absences.absence_sick_note_days') or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
+                {
+                    $missing_note+=$absence->days;
+                }
+                if (($absence->days >= config('absences.absence_sick_note_days') or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
+                {
+                    $with_note+=$absence->days;
+                }
+            }
+
+            $users->add([
+                'user' => $absence->user,
+                'without_note' => $without_note,
+                'with_note' => $with_note,
+                'missing_note' => $missing_note,
+            ]);
+        }
+
+
+        return view('absences.sicknotes',[
+           'absences' => $absences,
+            'users' => $users
+        ]);
+    }
+
+    public function sick_notes_update(Absence $absence) {
+        if (!auth()->user()->can('manage sick_notes')){
+            return redirect(url('/'))->with([
+                'type'  => "warning",
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absence->update([
+            'sick_note_date' => Carbon::now()
+        ]);
+
+        return redirect()->back()->with([
+            'type'  => "success",
+            'Meldung' => 'Krankenschein erfasst für '.$absence->user->name.' ('.$absence->start->format('d.m.Y').' - '.$absence->end->format('d.m.Y').')'
+        ]);
+    }
+
+    public function sick_notes_remove(Absence $absence) {
+        if (!auth()->user()->can('manage sick_notes')){
+            return redirect(url('/'))->with([
+                'type'  => "warning",
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absence->update([
+            'sick_note_date' => null
+        ]);
+
+        return redirect()->back()->with([
+            'type'  => "success",
+            'Meldung' => 'Krankenschein entfernt für '.$absence->user->name.' ('.$absence->start->format('d.m.Y').' - '.$absence->end->format('d.m.Y').')'
+        ]);
     }
 }
 

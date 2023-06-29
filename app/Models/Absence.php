@@ -2,27 +2,50 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Absence extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan'];
+    protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];
 
     protected $casts = [
         'start' =>  'date',
         'end' =>  'date',
         'showVertretungsplan' =>  'boolean',
+        'sick_note_required' =>  'boolean',
+        'sick_note_date' =>  'date',
     ];
 
+    public function getDaysAttribute() : int
+    {
+        return $this->start->diffInDays($this->end)+1;
+    }
     protected static function boot()
     {
         parent::boot();
         static::creating(function ($absence) {
             $absence->creator_id = auth()->id();
+
+            if (Str::contains($absence->reason, config('absences.absence_reason_sick'))){
+                if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
+                    $absence->sick_note_required = 1;
+                }
+            }
+        });
+
+        static::updating(function ($absence) {
+            if (Str::contains($absence->reason, config('absences.absence_reason_sick'))){
+                if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
+                    $absence->sick_note_required = 1;
+                }
+            }
         });
     }
 

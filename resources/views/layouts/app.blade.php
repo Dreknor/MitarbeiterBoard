@@ -290,7 +290,14 @@
                     @endcan
                 <!-- Verwaltung -->
             <hr>
-
+                @can('manage sick_notes')
+                    <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                        <a href="{{url('sick_notes')}}">
+                            <i class="fas fa-notes-medical"></i>
+                            <p>Krankschreibungen</p>
+                        </a>
+                    </li>
+                @endcan
                 <li class="@if(request()->segment(1)=="groups" ) active @endif">
                     <a href="{{url('/groups')}}">
                         <i class="fas fa-users"></i>

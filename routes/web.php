@@ -121,12 +121,6 @@ Route::group([
 
 
                 //Timesheets
-                /*
-                Route::get('timesheets/import/roster/{year?}', [TimesheetController::class, 'importRoster']);
-                Route::get('timesheets/import/employments', [TimesheetController::class, 'importEmployments']);
-                Route::get('timesheets/import/{year}', [TimesheetController::class, 'import']);
-                */
-
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
@@ -221,9 +215,13 @@ Route::group([
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
                     Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
-                    //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);
                 });
 
+                Route::middleware(['permission:manage sick_notes'])->group(function (){
+                    Route::get('sick_notes', [AbsenceController::class, 'sick_notes_index']);
+                    Route::get('sick_notes/{absence}/set_note_date', [AbsenceController::class, 'sick_notes_update']);
+                    Route::get('sick_notes/{absence}/sick_note_remove', [AbsenceController::class, 'sick_notes_remove']);
+                });
 
                 //Inventar
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
