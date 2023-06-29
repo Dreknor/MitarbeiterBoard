@@ -33,7 +33,8 @@ class AbsenceController extends Controller
 
         } else {
             $absence->update([
-                'end' => $request->end
+                'end' => $request->end,
+                'sick_note_required' => $request->sick_note_required,
             ]);
         }
         $users = User::where('absence_abo_now', 1)->get();

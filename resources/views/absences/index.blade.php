@@ -160,17 +160,17 @@
                 <input type="hidden" name="users_id" value="{{auth()->id()}}">
             @endif
             <div class="form-row">
-                <div class="col-md-4 col-sm-12">
+                <div class="col-md-6 col-sm-12">
                     <label>Von</label>
                     <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now())}}" required>
                 </div>
-                <div class="col-md-4 col-sm-12">
+                <div class="col-md-6 col-sm-12">
                     <label>Bis</label>
                     <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
                 </div>
             </div>
             <div class="form-row mt-1">
-                <div class=" col-md-4 col-sm-12">
+                <div class="@if(auth()->user()->can('create absences')) col-md-3 col-sm-12 @else col -12 @endif">
                     <label>
                         Anzeige Vertretungsplan
                     </label>
@@ -179,9 +179,21 @@
                             <option value="0">nicht anzeigen</option>
                     </select>
                 </div>
+                @if(auth()->user()->can('create absences'))
+                    <div class="col-md-6 col-sm-12">
+                        <label>
+                            Krankenschein benötigt?
+                        </label>
+                        <select name="sick_note_required" class="custom-select">
+                            <option value="0">nein</option>
+                            <option value="1">ja</option>
+                        </select>
+                    </div>
+                @endif
+            <div class="form-row mt-1">
                 <div class=" col-md-8 col-sm-12">
                     <label>Grund</label>
-                    <input type="text" name="reason" class="form-control" value="{{old('reason', 'krank')}}" required>
+                    <input type="text" name="reason" class="form-control" value="{{old('reason', config('absences.absence_reason_default'))}}" required>
                 </div>
             </div>
             <div class="form-row mt-1">
