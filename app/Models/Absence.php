@@ -30,7 +30,7 @@ class Absence extends Model
             return $date->isWeekday() && !is_holiday($date);
         }, $this->end);
 
-        return  $days;
+        return  $days+1;
 
     }
     protected static function boot()
