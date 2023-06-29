@@ -118,8 +118,10 @@ class AbsenceController extends Controller
             ]);
         }
 
-        $absences = Absence::where('reason', 'LIKE', config('absences.absence_sick_note'))
-            ->whereDate('start', '>=', Carbon::now()->subYear())
+        $absences = Absence::where(function ($query){
+            $query->where('reason', 'LIKE', config('absences.absence_sick_note'))
+                ->orWhere('sick_note_required', 1);
+        })->whereDate('start', '>=', Carbon::now()->subYear())
             ->orderByDesc('start')->with('user')->get();
 
         $users_absences = $absences->groupBy('users_id');
