@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Vertretung;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Writer\Exception;
 
@@ -33,7 +34,30 @@ class VertretungController extends Controller
         ]);
     }
 
+    /**
+     * @param Vertretung $vertretung
+     * @return Response
+     */
+    public function edit(Vertretung $vertretung)
+    {
+        return response()->view('vertretungsplan.edit', [
+            'vertretungen_aktuell' => Vertretung::whereDate('date', '>=', Carbon::today())->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get(),
+            'vertretungen_alt' => Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get(),
+            'klassen' => Klasse::all(),
+            'lehrer'  => User::whereNotNull('kuerzel')->get(),
+            'news'    => DailyNews::all(),
+            'vertretung' => $vertretung
+        ]);
+    }
 
+    public function update(CreateVertretungRequest $request, Vertretung $vertretung)
+    {
+        $vertretung->update($request->validated());
+
+        return redirect(url('vertretungen'))->with([
+            'type' => 'success',
+            'Meldung' => 'Änderung gespeichert']);
+    }
 
 
     /**
