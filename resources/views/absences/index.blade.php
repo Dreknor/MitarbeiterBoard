@@ -170,7 +170,7 @@
                 </div>
             </div>
             <div class="form-row mt-1">
-                <div class="@if(auth()->user()->can('create absences')) col-md-3 col-sm-12 @else col -12 @endif">
+                <div class="@if(auth()->user()->can('create absences')) col-md-6 col-sm-12 @else col -12 @endif">
                     <label>
                         Anzeige Vertretungsplan
                     </label>
@@ -190,14 +190,17 @@
                         </select>
                     </div>
                 @endif
+            </div>
             <div class="form-row mt-1">
-                <div class=" col-md-8 col-sm-12">
+                <div class=" col-12">
                     <label>Grund</label>
                     <input type="text" name="reason" class="form-control" value="{{old('reason', config('absences.absence_reason_default'))}}" required>
                 </div>
             </div>
-            <div class="form-row mt-1">
-                <button type="submit" class="btn btn-success btn-block">speichern</button>
+            <div class="form-row mt-2">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success btn-block">speichern</button>
+                </div>
             </div>
         </form>
     </div>
