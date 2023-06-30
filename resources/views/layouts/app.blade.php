@@ -268,7 +268,7 @@
                                     <li class="@if(request()->segment(1)=="vertretungen") active @endif">
                                         <a href="{{url('/vertretungen')}}">
                                             <i class="fas fa-sync"></i>
-                                            <p>Vertreungen</p>
+                                            <p>Vertretungen</p>
                                         </a>
                                     </li>
                                     <li class="@if(request()->segment(1)=="dailyNews") active @endif">
