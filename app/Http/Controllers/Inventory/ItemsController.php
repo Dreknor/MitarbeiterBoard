@@ -10,12 +10,11 @@ use App\Models\Inventory\Category;
 use App\Models\Inventory\Items;
 use App\Models\Inventory\Lieferant;
 use App\Models\Inventory\Location;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use Barryvdh\DomPDF\Facade as PDF;
 use Maatwebsite\Excel\Facades\Excel;
-use Yajra\DataTables\Facades\DataTables;
 
 class ItemsController extends Controller
 {

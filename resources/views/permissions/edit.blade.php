@@ -24,7 +24,8 @@
                                     </thead>
                                     <tbody>
                                     @foreach($permissions as $permission)
-                                        <tr>
+                                        @if($permission->name != 'edit permissions')
+                                            <tr>
                                             <td>
                                                 {{$permission->name}}
                                             </td>
@@ -36,6 +37,7 @@
                                                 @endforeach
                                             </td>
                                         </tr>
+                                        @endif
                                     @endforeach
                                     </tbody>
                                     <tfoot>
@@ -72,8 +74,8 @@
                 </div>
             </div>
         </div>
-
-        <div class="row">
+        @if(env('APP_ENV') == 'local')
+            <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header border-bottom">
@@ -91,11 +93,41 @@
                 </div>
             </div>
         </div>
+        @endif
+    </div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    Rollen entfernen
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    @foreach($roles as $role)
+                        @if($role->name != "Admin")
+                            <tr>
+                                <th>
+                                    {{$role->name}}
+                                </th>
+                                <td>
+                                    <div class="w-100">
+                                        <a href="{{url('roles/'.$role->id.'/remove/'.$role->name)}}" class="card-link text-danger pull-right">
+                                            löschen
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
+                    @endforeach
+                </table>
+            </div>
+        </div>
+
     </div>
 @endsection
 
 @push('js')
-
     <script>
         $(document).ready(function () {
             $('input[type="checkbox"]').change(function () {
@@ -103,7 +135,5 @@
             });
 
         });
-
     </script>
-
 @endpush

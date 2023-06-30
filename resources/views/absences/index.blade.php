@@ -42,6 +42,71 @@
         </h6>
 
     </div>
+    <div class="card-body mt-2">
+        <a href="#" class="btn btn-block btn-bg-gradient-x-blue-cyan" id="addAbsenceLink">
+            <i class="fa fa-plus-circle"></i> neue Abwesenheit
+        </a>
+        <form action="{{url('absences')}}" method="post" id="absenceForm" class="form-horizontal d-none">
+            @csrf
+            @if(auth()->user()->can('create absences'))
+                <div class="form-row">
+                    <label>
+                        Mitarbeiter
+                    </label>
+                    <select name="users_id" class="custom-select">
+                        @foreach(\App\Models\User::orderBy('name')->get() as $user)
+                            <option value="{{$user->id}}">{{$user->name}}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @else
+                <input type="hidden" name="users_id" value="{{auth()->id()}}">
+            @endif
+            <div class="form-row">
+                <div class="col-md-6 col-sm-12">
+                    <label>Von</label>
+                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now())}}" required>
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    <label>Bis</label>
+                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
+                </div>
+            </div>
+            <div class="form-row mt-1">
+                <div class="@if(auth()->user()->can('create absences')) col-md-6 col-sm-12 @else col -12 @endif">
+                    <label>
+                        Anzeige Vertretungsplan
+                    </label>
+                    <select name="showVertretungsplan" class="custom-select">
+                        <option value="1">anzeigen</option>
+                        <option value="0">nicht anzeigen</option>
+                    </select>
+                </div>
+                @if(auth()->user()->can('create absences'))
+                    <div class="col-md-6 col-sm-12">
+                        <label>
+                            Krankenschein benötigt?
+                        </label>
+                        <select name="sick_note_required" class="custom-select">
+                            <option value="0">nein</option>
+                            <option value="1">ja</option>
+                        </select>
+                    </div>
+                @endif
+            </div>
+            <div class="form-row mt-1">
+                <div class=" col-12">
+                    <label>Grund</label>
+                    <input type="text" name="reason" class="form-control" value="{{old('reason', config('absences.absence_reason_default'))}}" required>
+                </div>
+            </div>
+            <div class="form-row mt-2">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success btn-block">speichern</button>
+                </div>
+            </div>
+        </form>
+    </div>
     <div class="card-body">
         @if(isset($absences) and $absences->count() > 0)
             <table class="table table-striped">
@@ -139,56 +204,7 @@
             Keine Abwesenheiten vorhanden
         @endif
     </div>
-    <div class="card-footer">
-        <a href="#" class="card-link" id="addAbsenceLink">
-            <i class="fa fa-plus-circle"></i> neue Abwesenheit
-        </a>
-        <form action="{{url('absences')}}" method="post" id="absenceForm" class="form-horizontal d-none">
-            @csrf
-            @if(auth()->user()->can('create absences'))
-                <div class="form-row">
-                    <label>
-                        Mitarbeiter
-                    </label>
-                    <select name="users_id" class="custom-select">
-                        @foreach(\App\Models\User::orderBy('name')->get() as $user)
-                            <option value="{{$user->id}}">{{$user->name}}</option>
-                        @endforeach
-                    </select>
-                </div>
-            @else
-                <input type="hidden" name="users_id" value="{{auth()->id()}}">
-            @endif
-            <div class="form-row">
-                <div class="col-md-4 col-sm-12">
-                    <label>Von</label>
-                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now())}}" required>
-                </div>
-                <div class="col-md-4 col-sm-12">
-                    <label>Bis</label>
-                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
-                </div>
-            </div>
-            <div class="form-row mt-1">
-                <div class=" col-md-4 col-sm-12">
-                    <label>
-                        Anzeige Vertretungsplan
-                    </label>
-                    <select name="showVertretungsplan" class="custom-select">
-                            <option value="1">anzeigen</option>
-                            <option value="0">nicht anzeigen</option>
-                    </select>
-                </div>
-                <div class=" col-md-8 col-sm-12">
-                    <label>Grund</label>
-                    <input type="text" name="reason" class="form-control" value="{{old('reason', 'krank')}}" required>
-                </div>
-            </div>
-            <div class="form-row mt-1">
-                <button type="submit" class="btn btn-success btn-block">speichern</button>
-            </div>
-        </form>
-    </div>
+
 </div>
 
 @push('js')

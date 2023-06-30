@@ -99,7 +99,6 @@
                                         </li>
                                 @endcan
                                 </li>
-
                             </ul>
                         </div>
                     </li>
@@ -268,7 +267,7 @@
                                     <li class="@if(request()->segment(1)=="vertretungen") active @endif">
                                         <a href="{{url('/vertretungen')}}">
                                             <i class="fas fa-sync"></i>
-                                            <p>Vertreungen</p>
+                                            <p>Vertretungen</p>
                                         </a>
                                     </li>
                                     <li class="@if(request()->segment(1)=="dailyNews") active @endif">
@@ -290,7 +289,14 @@
                     @endcan
                 <!-- Verwaltung -->
             <hr>
-
+                @can('manage sick_notes')
+                    <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                        <a href="{{url('sick_notes')}}">
+                            <i class="fas fa-notes-medical"></i>
+                            <p>Krankschreibungen</p>
+                        </a>
+                    </li>
+                @endcan
                 <li class="@if(request()->segment(1)=="groups" ) active @endif">
                     <a href="{{url('/groups')}}">
                         <i class="fas fa-users"></i>

@@ -121,12 +121,6 @@ Route::group([
 
 
                 //Timesheets
-                /*
-                Route::get('timesheets/import/roster/{year?}', [TimesheetController::class, 'importRoster']);
-                Route::get('timesheets/import/employments', [TimesheetController::class, 'importEmployments']);
-                Route::get('timesheets/import/{year}', [TimesheetController::class, 'import']);
-                */
-
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
@@ -221,9 +215,13 @@ Route::group([
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
                     Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
-                    //Route::get('absences/report', [AbsenceController::class, 'dailyReport']);
                 });
 
+                Route::middleware(['permission:manage sick_notes'])->group(function (){
+                    Route::get('sick_notes', [AbsenceController::class, 'sick_notes_index']);
+                    Route::get('sick_notes/{absence}/set_note_date', [AbsenceController::class, 'sick_notes_update']);
+                    Route::get('sick_notes/{absence}/sick_note_remove', [AbsenceController::class, 'sick_notes_remove']);
+                });
 
                 //Inventar
                 Route::prefix('inventory')->middleware(['permission:edit inventar'])->group(function () {
@@ -247,9 +245,11 @@ Route::group([
 
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
-                    Route::resource('vertretungen', VertretungController::class);
+                    Route::get('vertretungen', [VertretungController::class, 'edit']);
                     Route::post('export/vertretungen', [VertretungController::class, 'export']);
                     Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
+                    Route::get('vertretungen/{vertretung}/edit', [VertretungController::class, 'edit']);
+                    Route::put('vertretungen/{vertretung}', [VertretungController::class, 'update']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
                     Route::get('dailyNews', [DailyNewsController::class, 'index']);
@@ -320,6 +320,7 @@ Route::group([
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
                     Route::get('roles', [RolesController::class, 'edit']);
+                    Route::get('roles/{role_id}/remove/{rolename}', [RolesController::class, 'delete']);
                     Route::put('roles', [RolesController::class, 'update']);
                     Route::post('roles', [RolesController::class, 'store']);
                     Route::post('roles/permission', [RolesController::class, 'storePermission']);

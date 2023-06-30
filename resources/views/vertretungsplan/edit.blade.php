@@ -2,7 +2,11 @@
 
 @section('content')
     <div class="container-fluid">
-        @include('vertretungsplan.create')
+        @if(isset($vertretung) and !is_null($vertretung->id))
+            @include('vertretungsplan.editForm')
+        @else
+            @include('vertretungsplan.create')
+        @endif
 
                     <div class="card">
                         <div class="card-body">
@@ -58,17 +62,27 @@
                                                     <td>{{optional($vertretung->lehrer)->name}}</td>
                                                     <td>{{$vertretung->comment}}</td>
                                                     <td>
-                                                        <form action="{{url('vertretungen/'.$vertretung->id)}}" method="post" class="form-inline">
-                                                            @csrf
-                                                            @method('delete')
-                                                            <button type="submit" class="btn btn-sm btn-danger">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                        <a href="{{url('vertretungen/'.$vertretung->id.'/copy')}}" class="btn btn-sm btn-primary">
-                                                            <i class="far fa-copy"></i>
-                                                        </a>
-
+                                                        <div class="row">
+                                                            <div class="col-auto">
+                                                                <a href="{{url('vertretungen/'.$vertretung->id.'/edit')}}" class="btn btn-sm btn-warning">
+                                                                    <i class="far fa-edit"></i>
+                                                                </a>
+                                                            </div>
+                                                            <div class="col-auto">
+                                                                <a href="{{url('vertretungen/'.$vertretung->id.'/copy')}}" class="btn btn-sm btn-primary">
+                                                                    <i class="far fa-copy"></i>
+                                                                </a>
+                                                            </div>
+                                                            <div class="col-auto">
+                                                                <form action="{{url('vertretungen/'.$vertretung->id)}}" method="post" class="form-inline">
+                                                                    @csrf
+                                                                    @method('delete')
+                                                                    <button type="submit" class="btn btn-sm btn-danger">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @endforeach

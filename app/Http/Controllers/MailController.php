@@ -40,7 +40,10 @@ class MailController extends Controller
             $themes = $group->themes()->whereDate('date', $date)->where('completed', 0)->get();
             $themes = $themes->filter(function ($theme) use ($date) {
                 return $theme->completed == 0 and $theme->date->startOfDay()->eq($date->startOfDay());
-            });
+            })->sortByDesc([
+                    ['priority', 'desc'],
+                    ['theme', 'asc'],
+            ]);
 
             if (isset($themes) and count($themes) > 0) {
                 $users = $group->users;
