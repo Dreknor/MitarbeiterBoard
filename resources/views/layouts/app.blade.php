@@ -99,7 +99,6 @@
                                         </li>
                                 @endcan
                                 </li>
-
                             </ul>
                         </div>
                     </li>

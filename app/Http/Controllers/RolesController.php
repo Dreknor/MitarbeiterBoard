@@ -9,8 +9,24 @@ use Spatie\Permission\Models\Role;
 
 class RolesController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:edit permissions');
+    }
+
+    public function delete($roleid, $rolename){
+        if ($rolename != 'Admin'){
+            $role = Role::whereId($roleid)->where('name', $rolename)->first();
+            $role->syncPermissions([]);
+            $role->users()->detach();
+            $role->delete();
+        }
+        return redirectBack('success', 'Rolle gelöscht');
+    }
+
     public function edit()
     {
+
         return view('permissions.edit', [
             'roles' => Role::all(),
             'permissions'    => Permission::all(),

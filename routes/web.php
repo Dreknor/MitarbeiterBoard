@@ -320,6 +320,7 @@ Route::group([
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
                     Route::get('roles', [RolesController::class, 'edit']);
+                    Route::get('roles/{role_id}/remove/{rolename}', [RolesController::class, 'delete']);
                     Route::put('roles', [RolesController::class, 'update']);
                     Route::post('roles', [RolesController::class, 'store']);
                     Route::post('roles/permission', [RolesController::class, 'storePermission']);
