@@ -5,8 +5,11 @@
             <div class="card">
                 <div class="card-header">
                     <h5>
-                        Abwesenheiten mit dem Grund {{config('absences.absence_sick_note')}} seit {{\Carbon\Carbon::now()->subYear()->format('d.m.Y')}}
+                        Abwesenheiten seit {{\Carbon\Carbon::now()->subYear()->format('d.m.Y')}}
                     </h5>
+                    <p>
+                        <b>Abwesenheitsgrund:</b> @foreach(config('absences.absence_sick_note') as $reason) {{$reason}}@if(!$loop->last),@endif @endforeach
+                    </p>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive-md table-responsive-sm">
