@@ -72,7 +72,7 @@ class VertretungsplanController extends Controller
             ->get();
 
         //Absences
-        $absences = Absence::whereDate('start', '<=', Carbon::today())
+        $absences = Absence::whereDate('start', '<=', $targetDate)
             ->whereDate('end', '>=', Carbon::today())
             ->whereHas('user', function ($query){
                 $query->whereNotNull('kuerzel');
