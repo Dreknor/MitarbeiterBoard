@@ -49,7 +49,7 @@ return [
     'url_elterninfo' => env('URL_ELTERNINFO', config('app.url')),
 
     //angezeigt Tage Vertretungsplan
-    'show_vertretungen_days' => env('Show_Days', 2),
+    'show_vertretungen_days' => env('SHOW_DAYS', 2),
     'show_background' => env('BACKGROUND_IMAGE', ''),
 
     //Schuljahresbeginn
