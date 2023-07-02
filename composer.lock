@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "71f6dc55c1a4948be1a46ba8aad45e44",
+    "content-hash": "a8e1a5b3c8785a41387c32641087c72f",
     "packages": [
         {
             "name": "aacotroneo/laravel-saml2",
@@ -5102,16 +5102,16 @@
         },
         {
             "name": "olsgreen/wkhtmltopdf-amd64",
-            "version": "0.12.6",
+            "version": "0.12.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/olsgreen/wkhtmltopdf-amd64.git",
-                "reference": "1415c67bdccd0438a7463fbf7fe1594607ae7f85"
+                "reference": "11610119c118fe27f9d699288e1e8bb4b2163d71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/olsgreen/wkhtmltopdf-amd64/zipball/1415c67bdccd0438a7463fbf7fe1594607ae7f85",
-                "reference": "1415c67bdccd0438a7463fbf7fe1594607ae7f85",
+                "url": "https://api.github.com/repos/olsgreen/wkhtmltopdf-amd64/zipball/11610119c118fe27f9d699288e1e8bb4b2163d71",
+                "reference": "11610119c118fe27f9d699288e1e8bb4b2163d71",
                 "shasum": ""
             },
             "bin": [
@@ -5148,10 +5148,9 @@
                 "wkhtmltopdf"
             ],
             "support": {
-                "issues": "https://github.com/olsgreen/wkhtmltopdf-amd64/issues",
-                "source": "https://github.com/olsgreen/wkhtmltopdf-amd64/tree/0.12.6"
+                "source": "https://github.com/olsgreen/wkhtmltopdf-amd64/tree/0.12.5"
             },
-            "time": "2020-06-30T19:35:22+00:00"
+            "time": "2020-02-03T20:50:15+00:00"
         },
         {
             "name": "onelogin/php-saml",
