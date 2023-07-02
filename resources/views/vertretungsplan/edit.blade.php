@@ -23,6 +23,7 @@
                                 </button>
                             </h6>
                         </div>
+
                         <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
                             <div class="card-body">
                                 @foreach($vertretungen_aktuell->pluck('date')->unique() as $date )
@@ -34,6 +35,11 @@
                                            <div class="pull-right ">
                                                <a href="{{url('vertretungen/'.$date->format('Y-m-d').'/generate-doc')}}" class="btn btn-sm">
                                                    <i class="fas fa-file-word"></i>
+                                               </a>
+                                           </div>
+                                           <div class="pull-right ">
+                                               <a href="{{url('vertretungen/'.$date->format('Y-m-d').'/generate-pdf')}}" class="btn btn-sm btn-bg-gradient-x-blue-purple-2">
+                                                   <i class="fas fa-file-pdf"></i>
                                                </a>
                                            </div>
                                        </div>
@@ -92,6 +98,37 @@
                                 </div>
                                 @endforeach
                             </div>
+                                <div class="card-footer">
+                                    <form action="{{url('vertretungen/createPDF')}}" method="post" class="form form-horizontal">
+                                        @csrf
+                                        <div class="form-row">
+                                            <div class="col-sm-12 col-md-6 col-lg-4">
+                                                <div class="form-group">
+                                                    <label for="startDate">
+                                                        Start - Zeitraum
+                                                    </label>
+                                                    <input type="date"  id="startDate" name="startDate" required class="form-control" value="{{old('startDate', Carbon\Carbon::now()->format('Y-m-d'))}}">
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-12 col-md-6 col-lg-4">
+                                                <div class="form-group">
+                                                    <label for="endDate">
+                                                        Ende - Zeitraum
+                                                    </label>
+                                                    <input type="date"  id="endDate" name="endDate" class="form-control" value="{{old('endDate', \Carbon\Carbon::now()->format('Y-m-d'))}}">
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-12 col-md-3 col-lg-4">
+                                                <label for="submit">
+
+                                                </label>
+                                                <button id="submit" type="submit" class="btn btn-primary btn-block">
+                                                    Export
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
                         </div>
                     </div>
                     <div class="card">

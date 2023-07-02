@@ -246,11 +246,14 @@ Route::group([
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
                     Route::get('vertretungen', [VertretungController::class, 'edit']);
+                    Route::post('vertretungen', [VertretungController::class, 'store']);
+                    Route::post('vertretungen/createPDF', [VertretungController::class, 'exportPDF']);
                     Route::post('export/vertretungen', [VertretungController::class, 'export']);
                     Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
                     Route::get('vertretungen/{vertretung}/edit', [VertretungController::class, 'edit']);
                     Route::put('vertretungen/{vertretung}', [VertretungController::class, 'update']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
+                    Route::get('vertretungen/{startDate}/generate-pdf/{endDate?}', [VertretungController::class, 'generatePDF']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
                     Route::get('dailyNews', [DailyNewsController::class, 'index']);
                     Route::delete('dailyNews/{dailyNews}', [DailyNewsController::class, 'destroy']);
