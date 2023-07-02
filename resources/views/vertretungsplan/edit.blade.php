@@ -32,13 +32,13 @@
                                            <b>
                                                {{$date->format('d.m.Y')}}
                                            </b>
-                                           <!--
+
                                            <div class="pull-right ">
                                                <a href="{{url('vertretungen/'.$date->format('Y-m-d').'/generate-doc')}}" class="btn btn-sm">
                                                    <i class="fas fa-file-word"></i>
                                                </a>
                                            </div>
-                                           -->
+
                                            <div class="pull-right ">
                                                <a href="{{url('vertretungen/'.$date->format('Y-m-d').'/generate-pdf')}}" class="btn btn-sm btn-bg-gradient-x-blue-purple-2">
                                                    <i class="fas fa-file-pdf"></i>
