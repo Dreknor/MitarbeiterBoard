@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Exports\VertretungenExport;
 use App\Http\Requests\CreateVertretungRequest;
 use App\Http\Requests\exportVertretungenRequest;
+use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\User;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanWeek;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -233,6 +236,79 @@ class VertretungController extends Controller
         $objWriter->save(storage_path('Vertretungsplan.docx'));
 
         return response()->download(storage_path('Vertretungsplan.docx'));
+    }
+
+    public function exportPDF (exportVertretungenRequest $request){
+
+        return $this->generatePDF($request->startDate, $request->endDate);
+    }
+    public function generatePDF($startDate, $targetDate = null){
+
+        $targetDate = Carbon::createFromFormat('Y-m-d', ($targetDate != null)? $targetDate : $startDate);
+        $startDate = Carbon::createFromFormat('Y-m-d', $startDate);
+
+        //Hole Vertretungen
+        $vertretungen = Vertretung::whereBetween('date', [$startDate->startOfDay(), $targetDate->endOfDay()])
+            ->orderBy('klassen_id')
+            ->orderBy('stunde')
+            ->get();
+
+        //A/B Wochen
+        $weeks = VertretungsplanWeek::where('week',  $startDate->copy()->startOfWeek()->format('Y-m-d'))
+            ->orWhere('week', $targetDate->copy()->startOfWeek()->format('Y-m-d'))
+            ->orderBy('week')
+            ->get();
+        //Absences
+        $absences = Absence::whereDate('start', '<=', $targetDate)
+            ->whereDate('end', '>=', $startDate)
+            ->whereHas('user', function ($query){
+                $query->whereNotNull('kuerzel');
+            })
+            ->where('showVertretungsplan',1)
+            ->get()->unique('users_id')->sortBy('user.name');
+
+        //News
+        $news = DailyNews::query()
+            ->where(function($query) use ($targetDate, $startDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', $startDate);
+            })
+            ->orWhere(function($query) use ($targetDate, $startDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereDate('date_end', '>=', $startDate);
+            })
+            ->orWhere(function($query) use ($targetDate){
+                $query ->whereDate('date_start', '<=', $targetDate);
+                $query->whereNull('date_end');
+            })
+            ->orderBy('date_start')
+            ->get();
+
+
+        $pdf = PDF::loadView('vertretungsplan.pdf.pdf', [
+            "startDate" => $startDate,
+            'targetDate' => $targetDate,
+            'vertretungen' => $vertretungen,
+            'weeks' => $weeks,
+            'absences' => $absences,
+            'news'  => $news
+
+        ]);
+
+        return $pdf
+            ->setPaper('a4', 'Landscape')
+            ->setOption(
+                "encoding", "utf-8"
+            )->inline();
+
+    }
+
+
+
+    public function generateDay(Carbon $date){
+        $vertretungen = Vertretung::whereDate('date', $date)->orderBy('klassen_id')->orderBy('stunde')->get();
+
     }
 
     public function export(exportVertretungenRequest $request){
