@@ -24,7 +24,6 @@
                                     </thead>
                                     <tbody>
                                     @foreach($permissions as $permission)
-                                        @if($permission->name != 'edit permissions')
                                             <tr>
                                             <td>
                                                 {{$permission->name}}
@@ -37,7 +36,6 @@
                                                 @endforeach
                                             </td>
                                         </tr>
-                                        @endif
                                     @endforeach
                                     </tbody>
                                     <tfoot>
