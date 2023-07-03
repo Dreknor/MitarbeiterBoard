@@ -36,7 +36,7 @@ return [
     'pdf' => [
         'enabled' => true,
         //'binary' => 'wkhtmltopdf',
-        'binary' => base_path('vewkhtmltopdf'),
+        'binary' => base_path('wkhtmltopdf'),
         'timeout' => false,
         'options' => [],
         'env' => [],
