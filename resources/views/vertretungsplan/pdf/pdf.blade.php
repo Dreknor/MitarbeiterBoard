@@ -11,6 +11,10 @@
     <style>
         body {
             font-size: larger;
+            margin-left: 1cm;
+            margin-right: 1cm;
+            margin-top: 1cm;
+            margin-bottom: 1cm;
         }
 
         .new-page {
