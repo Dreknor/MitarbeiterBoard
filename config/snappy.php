@@ -35,8 +35,8 @@ return [
 
     'pdf' => [
         'enabled' => true,
-        'binary' => 'wkhtmltopdf',
-        //'binary' => base_path('/vendor/olsgreen/wkhtmltopdf-amd64/bin/wkhtmltopdf-amd64'),
+        //'binary' => 'wkhtmltopdf',
+        'binary' => base_path('wkhtmltopdf'),
         'timeout' => false,
         'options' => [],
         'env' => [],
