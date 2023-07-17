@@ -13,7 +13,6 @@
             <div class="card-columns">
                 <div class="card">
                     <div class="card-header bg-gradient-directional-blue text-white">
-
                             <h5>
                                 @can('create posts')
                                     <div class="d-inline pull-right">
@@ -51,13 +50,7 @@
                                 </div>
                             </div>
                 </div>
-                @if(auth()->user()->kuerzel != "")
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            @include('vertretungsplan.UserVertretungen')
-                        </div>
-                    </div>
-                @endif
+
                 @if($rosters->count() > 0)
                     @include('personal.rosters.homeView')
                 @endif
@@ -105,7 +98,13 @@
                     </div>
                 @endif
 
-
+                @if(auth()->user()->kuerzel != "")
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            @include('vertretungsplan.UserVertretungen')
+                        </div>
+                    </div>
+                @endif
 
     </div>
 @endsection
