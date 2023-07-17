@@ -290,7 +290,7 @@ class TimesheetController extends Controller
         }
 
         return view('personal.timesheets.selectEmploye', [
-            'employes' => User::all()
+            'employes' => User::whereHas('employments')->get()
         ]);
     }
 
