@@ -30,6 +30,7 @@ use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TerminListen\ListenController;
@@ -92,8 +93,6 @@ Route::group([
             function () {
 
                 //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
-                Route::get('test/doc', [\App\Http\Controllers\DocumentsController::class, 'index']);
-                Route::post('test/doc', [\App\Http\Controllers\DocumentsController::class, 'import']);
                 /*
                  * Routes for Wiki
                  */
@@ -124,6 +123,7 @@ Route::group([
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
+                Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
 
 
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
@@ -427,6 +427,18 @@ Route::group([
                     //Categories
                     Route::post('categories', [CategoryController::class, 'store']); //Categories
                     Route::post('position', [PositionsController::class, 'store']);
+                });
+
+                /*
+                 * Edit Settings
+                 */
+                Route::middleware(['permission:edit settings'])->group(callback: function () {
+                    Route::get('settings/{modulname}', [SettingController::class, 'index']);
+
+
+                    Route::resource('settings', SettingController::class);
+
+                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
             });
     });

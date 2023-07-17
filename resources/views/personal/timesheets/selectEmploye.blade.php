@@ -46,7 +46,7 @@
                                     {{$employe->vorname}}
                                 </td>
                                 <td>
-
+                                    <a href="{{url('timesheets/overview/'.$employe->id)}}">Übersicht</a>
                                 </td>
                             </tr>
                         @endforeach

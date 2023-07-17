@@ -632,5 +632,16 @@ class TimesheetController extends Controller
 
 
     }
+
+    public function overviewTimesheetsUser (User $user){
+        if (!auth()->user()->can('edit employe') and (auth()->id() != $user->id)){
+            return redirectBack('warning', 'Recht fehlt');
+        }
+
+        return \view('personal.timesheets.overview', [
+            'user' => $user,
+            'timesheets' => $user->timesheets->sortBy(['year', 'month'])
+        ]);
+    }
 }
 
