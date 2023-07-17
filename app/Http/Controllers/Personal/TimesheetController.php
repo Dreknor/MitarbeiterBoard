@@ -416,15 +416,16 @@ class TimesheetController extends Controller
             $act_month = Carbon::createFromFormat('Y-m', $date);
         }
 
-        //keine Anstellung in diesem Monat
+        /*keine Anstellung in diesem Monat
         if ($user->employments_date($act_month)->count() <1){
             return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
         }
+
         //nur bis aktuellem Monat
         if ($act_month->copy()->endOfMonth()->greaterThan(Carbon::today()->endOfMonth())){
             return redirectBack('warning', 'Dieses Datum liegt in der Zukunft');
         }
-
+        */
         $old = $act_month->copy()->subMonth();
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
             return Timesheet::where('employe_id', $user->id)
