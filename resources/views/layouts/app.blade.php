@@ -84,11 +84,6 @@
                                                 Arbeitszeitnachweise
                                             </a>
                                         </li>
-                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) == 'import') active  @endif">
-                                            <a class="menu-item" href="{{url('timesheets/import')}}">
-                                                Import
-                                            </a>
-                                        </li>
                                     </li>
                                 @endcan
                                 @can('has timesheet')
@@ -334,6 +329,14 @@
                             <a href="{{url('/types')}}">
                                 <i class="fas fa-comments"></i>
                                 <p>Thementypen</p>
+                            </a>
+                        </li>
+                    @endcan
+                    @can('edit settings')
+                        <li class="@if(request()->segment(1)=="types") active @endif">
+                            <a href="{{url('/settings')}}">
+                                <i class="fas fa-edit"></i>
+                                <p>Einstellungen</p>
                             </a>
                         </li>
                     @endcan
