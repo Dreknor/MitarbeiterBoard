@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\InvitationMail;
 use App\Mail\ReminderMail;
 use App\Mail\remindTaskMail;
+use App\Models\Absence;
 use App\Models\Group;
 use App\Models\Task;
 use App\Models\User;
@@ -26,8 +27,16 @@ class MailController extends Controller
         $role = Role::where('name', 'Leitung')->first();
         $users = $role->users;
 
+
         foreach ($users as $user) {
-            Mail::to($user)->queue(new ReminderMail());
+            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
+                ->where('users_id', $user->id)
+                ->first();
+
+            if (is_null($absences)){
+                Mail::to($user)->queue(new ReminderMail());
+            }
         }
     }
 
@@ -77,7 +86,14 @@ class MailController extends Controller
                 $tasks = $tasks->push($group_task->task);
             }
 
-            Mail::to($user)->queue(new remindTaskMail($user->name, $tasks));
+            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
+                ->where('users_id', $user->id)
+                ->first();
+
+            if (is_null($absences)) {
+                Mail::to($user)->queue(new remindTaskMail($user->name, $tasks));
+            }
         }
     }
 }

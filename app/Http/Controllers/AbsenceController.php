@@ -76,8 +76,15 @@ class AbsenceController extends Controller
         $users = User::where('absence_abo_now', 1)->get();
 
         foreach ($users as $user){
-            Mail::to($user)
-                ->queue(new DailyAbsenceReport($absences));
+            $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
+                ->where('users_id', $user->id)
+                ->first();
+
+            if (is_null($absence_user)) {
+                Mail::to($user)
+                    ->queue(new DailyAbsenceReport($absences));
+            }
         }
 
 
