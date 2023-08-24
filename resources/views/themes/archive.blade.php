@@ -7,6 +7,13 @@
                 <h5 class="card-title">Themen</h5>
             </div>
             <div class="card-body">
+                @for($x = \Carbon\Carbon::now(); $x->greaterThanOrEqualTo($oldest); $x->subMonth())
+                    <a href="{{url(request()->segment(1)."/archive/".$x->format('Y-m'))}}" class="btn btn-sm btn-outline-info">
+                        {{$x->locale('de')->monthName}} {{$x->format('Y')}}
+                    </a>
+                @endfor
+            </div>
+            <div class="card-body">
                 {{$themes->links()}}
             </div>
         </div>

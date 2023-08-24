@@ -215,8 +215,9 @@ class ThemeController extends Controller
      *
      * @return View|RedirectResponse
      */
-    public function archive($groupname)
+    public function archive($groupname, $month = null)
     {
+
         $group = Group::where('name', $groupname)->first();
 
         if (! auth()->user()->groups()->contains($group)) {
@@ -226,7 +227,20 @@ class ThemeController extends Controller
             ]);
         }
 
-        $themes = $group->themes()->where('completed', 1)->orderByDesc('date')->get();
+        if ($month != null) {
+            $month = Carbon::createFromFormat('Y-m', $month);
+        } else {
+            $month = Carbon::now();
+        }
+
+        $oldest_theme = $group->themes()->where('completed', 1)->orderBy('date')->first();
+        $oldest_theme = $oldest_theme->date;
+
+        $themes = $group->themes()
+            ->where('completed', 1)
+            ->where('date', '>=', $month->copy()->startOfMonth())
+            ->where('date', '<=', $month->copy()->endOfMonth())
+            ->orderByDesc('date')->get();
         $themes->load('ersteller', 'type', 'priorities');
 
         $themes = $themes->groupBy(function ($item) {
@@ -237,6 +251,7 @@ class ThemeController extends Controller
 
         return view('themes.archive', [
            'themes' => $themes->paginate(5),
+            'oldest' => $oldest_theme,
         ]);
     }
 

@@ -292,7 +292,7 @@ Route::group([
                 Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
                 Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
-                Route::get('{groupname}/archive', [ThemeController::class,'archive']);
+                Route::get('{groupname}/archive/{month?}', [ThemeController::class,'archive']);
                 Route::get('unarchiv/{theme}', [ThemeController::class, 'unArchive'])->middleware('permission:unarchive theme');
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
                 Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class,'activate']);
@@ -436,7 +436,7 @@ Route::group([
                     Route::get('settings/{modulname}', [SettingController::class, 'index']);
 
 
-                    Route::resource('settings', SettingController::class);
+                    Route::resource('settings', SettingController::class)->only(['index', 'store']);
 
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
