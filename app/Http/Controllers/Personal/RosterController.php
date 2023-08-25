@@ -10,7 +10,9 @@ use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+//use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+use Barryvdh\DomPDF\Facade\Pdf AS PDF;
+
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -202,13 +204,22 @@ class RosterController extends Controller
                             break;
                     }
 
-                    if ($filtered->count() >= $check->needs) {
-                        $checks[$day->format('Y-m-d')][$passed] = 'checked';
-                    } else {
-                        $checks[$day->format('Y-m-d')][$passed] = 'failed';
-                    }
-
                     break;
+                    case RosterEvents::class:{
+                        $filtered = $events->filter(function ($event) use ($day, $field, $check) {
+                            if ($event->date == $day and $event->event == $check->value) {
+                                return $event;
+                            }
+                            return false;
+                        });
+                        break;
+                    }
+            }
+
+            if ($filtered->count() >= $check->needs) {
+                $checks[$day->format('Y-m-d')][$passed] = 'checked';
+            } else {
+                $checks[$day->format('Y-m-d')][$passed] = 'failed';
             }
         }
 
