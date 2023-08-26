@@ -10,8 +10,8 @@ use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
-//use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-use Barryvdh\DomPDF\Facade\Pdf AS PDF;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+//use Barryvdh\DomPDF\Facade\Pdf AS PDF;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -318,10 +318,12 @@ class RosterController extends Controller
         ]);
 
         return $pdf
-            ->setPaper('a3', 'Landscape')
-            ->setOption(
-                "encoding", "utf-8"
-            );
+            ->setOptions([
+                "encoding" => "utf-8",
+                'margin-top' => '10',
+                'page-size' => 'A3',
+                'orientation' => 'Landscape',
+            ]);
     }
 
     public function exportPDFEmploye(Roster $roster, User $employe)
@@ -346,7 +348,13 @@ class RosterController extends Controller
             'employe' => $employe
         ]);
 
-        return $pdf->setPaper('a4','Landscape');
+        return $pdf->setOptions([
+            "encoding" => "utf-8",
+            'margin-top' => '10',
+            'margin-bottom' => '10',
+            'page-size' => 'A4',
+            'orientation' => 'Landscape',
+        ]);
     }
 
     public function sendRosterMail(Roster $roster)
