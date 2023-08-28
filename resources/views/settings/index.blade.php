@@ -15,7 +15,8 @@
                 </div>
                 <div class="card-body">
                     <div class="container-fluid">
-                        <form method="post" action="{{url('settings')}}" class="form-horizontal" enctype='multipart/form-data'>
+                        @if(!is_null($modul))
+                            <form method="post" action="{{url('settings')}}" class="form-horizontal" enctype='multipart/form-data'>
                             @csrf
                             @foreach($module[$modul] as $setting)
                                 <div class="form-row mt-1 p-2 border">
@@ -43,6 +44,11 @@
                                 </button>
                             </div>
                         </form>
+                        @else
+                            <p>
+                                Kein Modul gefunden
+                            </p>
+                        @endif
 
                     </div>
                 </div>
