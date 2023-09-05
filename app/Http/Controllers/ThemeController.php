@@ -638,6 +638,15 @@ class ThemeController extends Controller
         $oldDate = Carbon::createFromFormat('Y-m-d', $request->oldDate);
         $date = Carbon::createFromFormat('Y-m-d', $request->date);
 
+        foreach ($group->themes()->where('date', $oldDate->format('Y-m-d'))->get() as $theme){
+            $protocol = new Protocol([
+                'creator_id' => auth()->id(),
+                'theme_id'   => null,
+                'protocol'   => 'Thema verschoben von '.$oldDate->format('d.m.Y').' auf '.$date->format('d.m.Y'),
+            ]);
+
+        }
+
         $themes = $group->themes()->where('date', $oldDate->format('Y-m-d'))->update([
             'date' => $date->format("Y-m-d")
         ]);
