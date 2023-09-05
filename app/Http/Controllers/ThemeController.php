@@ -497,11 +497,11 @@ class ThemeController extends Controller
             ]);
         }
 
-        $date = Carbon::createFromFormat('Y-m-d', $request->date);
+        $date = Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay();
 
         (!$date->eq($theme->date))? $redirectDate = $date->format('Ymd') : $redirectDate = $theme->date->format('Ymd');
 
-        if ($date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay()) and !$date->isSameDay(Carbon::today())) {
+        if ((!$date->eq($theme->date->startOfDay()) and $date->lessThan(Carbon::now()->addDays($group->InvationDays)->startOfDay()) and !$date->isSameDay(Carbon::today()))) {
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => 'Thema kann für diesen Tag nicht mehr erstellt werden',
@@ -526,6 +526,35 @@ class ThemeController extends Controller
         }
 
         $theme->update($request->validated());
+
+        if ($theme->wasChanged('information')){
+            $protocol = Protocol::create([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'Informationen geändert',
+            ]);
+            $protocol->save();
+        }
+
+        if ($theme->wasChanged('type_id')){
+            $protocol = Protocol::create([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'Typ geändert',
+            ]);
+            $protocol->save();
+        }
+
+        if ($theme->wasChanged('theme')){
+            $protocol = Protocol::create([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'Thema geändert',
+            ]);
+            $protocol->save();
+        }
+
+
         $theme->type_id = $request->type;
         $theme->save();
 
@@ -536,6 +565,13 @@ class ThemeController extends Controller
                     ->addMedia($file)
                     ->toMediaCollection();
             }
+
+            $protocol = Protocol::create([
+                'creator_id' => auth()->id(),
+                'theme_id' => $theme->id,
+                'protocol'  => 'Dateien hinzugefügt',
+            ]);
+            $protocol->save();
         }
 
         return redirect(url($groupname."/themes#$redirectDate"))->with([
