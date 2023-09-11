@@ -252,6 +252,7 @@ Route::group([
                     Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
                     Route::get('vertretungen/{vertretung}/edit', [VertretungController::class, 'edit']);
                     Route::put('vertretungen/{vertretung}', [VertretungController::class, 'update']);
+                    Route::delete('vertretungen/{vertretung}', [VertretungController::class, 'destroy']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
                     Route::get('vertretungen/{startDate}/generate-pdf/{endDate?}', [VertretungController::class, 'generatePDF']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);

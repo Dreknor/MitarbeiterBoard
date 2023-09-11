@@ -109,6 +109,13 @@ class VertretungController extends Controller
     public function destroy($vertretung)
     {
 
+        if (!auth()->user()->can('edit vertretungen')){
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=>'Keine Berechtigung.'
+            ]);
+        }
+
         $vertretung = Vertretung::findOrFail($vertretung);
 
         $vertretung->delete();
