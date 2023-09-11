@@ -24,9 +24,9 @@
                                         <label class="label-control w-100">
                                             {{$setting->setting_name}}
                                             @if($setting->type != 'image')
-                                                <input type = "{{$setting->type}}" class="form-control" name="{{$setting->setting_name}}" value="{{old('value',$setting->value)}}">
+                                                <input type = "{{$setting->type}}" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}">
                                             @else
-                                                <input type = "file" class="form-control" name="{{$setting->setting_name}}" value="{{old('value',$setting->value)}}" accept="image/*">
+                                                <input type = "file" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}" accept="image/*">
                                             @endif
                                         </label>
                                     </div>

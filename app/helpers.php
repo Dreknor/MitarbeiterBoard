@@ -144,7 +144,7 @@ function percent_to_seconds($percent, $full_hours = 40){
  * @param $key
  * @return Repository|Application|\Illuminate\Foundation\Application|mixed
  */
-function settings($key)
+function settings($key, $config_file = null)
 {
     $settings = Cache::remember('setting_'.$key, 1, function() use ($key) {
         return Setting::where('setting', $key)->first()?->value;
@@ -152,6 +152,11 @@ function settings($key)
 
 
     if (is_null($settings)){
+
+        if (!is_null($config_file)){
+            return config($config_file.'.'.$key);
+        }
+
         return config('config.'.$key);
     }
 

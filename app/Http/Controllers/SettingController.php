@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreSettingsRequest;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -33,9 +34,14 @@ class SettingController extends Controller
     /**
      * Store changed Settings
      */
-    public function store(Request $request)
+    public function store(StoreSettingsRequest $request)
     {
-        //
+        foreach ($request->setting as $key => $value) {
+            Setting::where('setting', $key)->update(['value' => $value]);
+        }
+
+        Cache::forget('settings');
+        return redirectBack('success', __('Einstellungen aktualisiert'));
     }
 
 

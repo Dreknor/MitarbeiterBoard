@@ -97,7 +97,7 @@
             <div class="form-row mt-1">
                 <div class=" col-12">
                     <label>Grund</label>
-                    <input type="text" name="reason" class="form-control" value="{{old('reason', config('absences.absence_reason_default'))}}" required>
+                    <input type="text" name="reason" class="form-control" value="{{old('reason', settings('absence_reason_default', 'absences'))}}" required>
                 </div>
             </div>
             <div class="form-row mt-2">
