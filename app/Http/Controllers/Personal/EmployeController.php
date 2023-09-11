@@ -57,7 +57,10 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
-        $employments = $employe->employments()->active()->get()->sortByDesc('start');
+        //$employments = $employe->employments()->active()->get()->sortByDesc('start');
+        $employments = $employe->employments->filter(function ($employment){
+            return $employment->end == null or $employment->end->greaterThan(Carbon::now());
+        })->sortByDesc('start');
 
         $employments_old = $employe->employments->filter(function ($employment){
             return $employment->end != null and $employment->end->lessThan(Carbon::now());
