@@ -37,6 +37,8 @@ class CreateEmployeRequest extends FormRequest
             'google_calendar_link' => ['nullable', 'string'],
             'caldav_working_time' => ['nullable', 'integer', 'min:0', 'max:1'],
             'caldav_events' => ['nullable', 'integer', 'min:0', 'max:1'],
+            'time_recording_key' => ['nullable',  'integer', 'digits: 10', 'unique:employes_data,secret_key'],
+            'secret_key' => ['nullable',  'integer', 'digits_between:6,10'],
         ];
     }
 }

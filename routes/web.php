@@ -18,6 +18,7 @@ use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
 use App\Http\Controllers\Personal\RosterEventsController;
 use App\Http\Controllers\Personal\RosterNewsController;
+use App\Http\Controllers\Personal\TimeRecordingController;
 use App\Http\Controllers\Personal\TimesheetController;
 use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
@@ -77,6 +78,18 @@ Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
 
 Route::get('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scan']);
 Route::post('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scanUpdate']);
+
+/*
+* digitale Arbeitszeiterfassung
+*/
+Route::prefix('time_recording')->group(callback: function (){
+    Route::get('start', [TimeRecordingController::class, 'start'])->name('time_recording.start');
+    Route::post('start', [TimeRecordingController::class, 'read_key'])->name('time_recording.read_key');
+    Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
+    Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
+    Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
+});
+
 
 Route::group([
     'middleware' => ['auth'],
@@ -441,5 +454,8 @@ Route::group([
 
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
+
+
+
             });
     });

@@ -22,6 +22,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
 
+/**
+ *
+ */
 class User extends Authenticatable implements HasMedia
 {
     use Notifiable;
@@ -37,9 +40,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themesphp '
-    ];protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes',
+    ];
+    protected $visible = [
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes',
     ];
 
     /**
@@ -155,6 +159,9 @@ class User extends Authenticatable implements HasMedia
         return Str::limit($this->name, 1, '.').' '.$familiename;
     }
 
+    /**
+     * @return string|null
+     */
     public function getVornameAttribute(){
 
         if ($this->employe_data != null and $this->employe_data->vorname != null){

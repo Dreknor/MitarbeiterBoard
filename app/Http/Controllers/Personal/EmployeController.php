@@ -117,14 +117,29 @@ class EmployeController extends Controller
     public function updateData(UpdateEmployeDataRequest $request, User $employe)
     {
 
-        $claim = new EmployeHolidayClaim([
-           'holiday_claim' => $request->holidayClaim,
-           'employe_id' => $employe->id,
-           'date_start' => $request->date_start,
-           'changedBy' => auth()->id()
-        ]);
+        if ($request->holidayClaim !=  $employe->getHolidayClaim()){
+            $claim = new EmployeHolidayClaim([
+                'holiday_claim' => $request->holidayClaim,
+                'employe_id' => $employe->id,
+                'date_start' => $request->date_start,
+                'changedBy' => auth()->id()
+            ]);
+            $claim->save();
+        }
 
-        $claim->save();
+        if ($request->time_recording_key != null){
+            $employe->employe_data()->update([
+                'time_recording_key' => $request->time_recording_key
+            ]);
+        }
+
+        if ($request->secret_key != null){
+            $employe->employe_data()->update([
+                'secret_key' => $request->secret_key
+            ]);
+        }
+
+
         return redirect()->back()->with([
             'type' => "success",
             'Meldung' => 'Daten aktualisiert.'
