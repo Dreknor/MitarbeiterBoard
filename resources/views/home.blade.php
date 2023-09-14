@@ -27,7 +27,7 @@
                     <div class="card-body">
                                 <div class="container-fluid">
                                     <div class="row">
-                                        @if($posts->where('released', 1)->count() > 0)
+                                        @if($posts->count() > 0)
                                             <div class="container-fluid">
                                                 @foreach($posts as $post)
                                                     @if($post->released == 1 or $post->author_id == auth()->id())

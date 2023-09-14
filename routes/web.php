@@ -332,7 +332,7 @@ Route::group([
 
                 Route::get('image/{media_id}', [ImageController::class, 'getImage']);
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
-                ;
+                Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
