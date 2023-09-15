@@ -110,6 +110,11 @@ class User extends Authenticatable implements HasMedia
         return $this->belongsToMany(Group::class)->orderBy('name');
     }
 
+    public function dashboardCards()
+    {
+        return $this->hasMany(DashBoardUser::class,  'user_id');
+    }
+
     /**
      * Get all of the tasks.
      */

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absence;
+use App\Models\DashboardCard;
 use App\Models\personal\Roster;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,19 +21,46 @@ class HomeController extends Controller
         $this->middleware('auth');
     }
 
+
+    public function index(){
+
+        $defaultCards = DashboardCard::all();
+        $cards = auth()->user()->dashboardCards;
+
+        foreach ($defaultCards as $card){
+
+            if ($cards->where('dashboard_card_id', $card->id)->count() < 1 and ($card->permission == null or auth()->user()->can($card->permission))){
+
+                if ($cards->where('row', $card->default_row)->where('col', $card->default_col)->count() == 0){
+                    $row = $card->default_row;
+                    $col = $card->default_col;
+                } else {
+                    $row = $cards->last()->row + 1;
+                    $col = $cards->last()->col + 1;
+                }
+
+                auth()->user()->dashboardCards()->insert([
+                    'dashboard_card_id' => $card->id,
+                    'user_id' => auth()->id(),
+                    'row' => $card->default_row,
+                    'col' => $card->default_col,
+                    'active' => true
+                ]);
+            }
+        }
+
+        return view('dashboard.dashboard', [
+            'cards' => auth()->user()->dashboardCards()->active()->order()->get()
+                ]);
+    }
     /**
      * Show the application dashboard.
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index()
+    /*
+     * public function index()
     {
-        $colors = ['#6495ed', 'Orange', '#ffca00', '#d9335c', '#99ff80', 'Persian Green', '#bfffff', '#bf7660', '#b3b017', '#149ab5'];
-        $rand = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-
-        for ($x = 0; $x++; $x < 10) {
-            $color[] = '#'.$rand[rand(0, 15)].$rand[rand(0, 15)].$rand[rand(0, 15)].$rand[rand(0, 15)].$rand[rand(0, 15)].$rand[rand(0, 15)];
-        }
 
         $groups = auth()->user()->groups();
         $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
@@ -87,5 +115,5 @@ class HomeController extends Controller
             'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15),
             'rosters' => $rosters
         ]);
-    }
+    }*/
 }

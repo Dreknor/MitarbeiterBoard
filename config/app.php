@@ -195,6 +195,8 @@ return [
         SimpleSoftwareIO\QrCode\QrCodeServiceProvider::class,
         Barryvdh\DomPDF\ServiceProvider::class,
 
+        App\Providers\ViewServiceProvider::class,
+
     ],
 
     /*
