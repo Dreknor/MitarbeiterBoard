@@ -106,6 +106,16 @@ Route::group([
             function () {
 
                 //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
+
+                /*
+                 * Routes for edit dashboard
+                 */
+                Route::get('dashboard/{dashBoardUser}/up', [\App\Http\Controllers\DashboardController::class, 'up']);
+                Route::get('dashboard/{dashBoardUser}/down', [\App\Http\Controllers\DashboardController::class, 'down']);
+                Route::get('dashboard/{dashBoardUser}/left', [\App\Http\Controllers\DashboardController::class, 'left']);
+                Route::get('dashboard/{dashBoardUser}/right', [\App\Http\Controllers\DashboardController::class, 'right']);
+                Route::get('dashboard/{dashBoardUser}/toggle', [\App\Http\Controllers\DashboardController::class, 'toggle']);
+
                 /*
                  * Routes for Wiki
                  */
