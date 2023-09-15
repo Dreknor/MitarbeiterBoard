@@ -72,7 +72,8 @@ class TimeRecordingController extends Controller
             $timesheet_day = $timesheet->timesheet_days()->create([
                 'date' => now()->format('Y-m-d'),
                 'start' => now(),
-                'timesheet_id' => $timesheet->id
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
             ]);
         } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
             $timesheet_day->update([
@@ -84,7 +85,8 @@ class TimeRecordingController extends Controller
             $timesheet_day = $timesheet->timesheet_days()->create([
                 'date' => now()->format('Y-m-d'),
                 'start' => now(),
-                'timesheet_id' => $timesheet->id
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
             ]);
         }
 
