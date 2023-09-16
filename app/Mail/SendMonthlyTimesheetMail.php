@@ -35,6 +35,16 @@ class SendMonthlyTimesheetMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: [
+                'address' => config('mail.from.address'),
+                'name' => config('mail.from.name'),
+            ],
+            to: [
+                [
+                    'address' => $this->user->email,
+                    'name' => $this->user->name,
+                ],
+            ],
             subject: 'Arbeitszeitnachweis '.$this->date->format('m/Y'),
         );
     }

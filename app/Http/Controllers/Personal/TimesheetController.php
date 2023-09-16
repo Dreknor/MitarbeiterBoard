@@ -595,8 +595,6 @@ class TimesheetController extends Controller
 
                         Mail::to($user->email)->queue(new SendMonthlyTimesheetMail($user, $date));
 
-                        return 'Mail versendet';
-
                     }
 
                 }
