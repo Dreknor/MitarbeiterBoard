@@ -562,7 +562,6 @@ class TimesheetController extends Controller
     public function timesheet_mail()
     {
         foreach (User::whereId(1)->get() as $user){
-            dump($user->name);
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
 
                 if ($user->employe_data->mail_timesheet){
@@ -572,7 +571,6 @@ class TimesheetController extends Controller
                         'year' => $date->year,
                         'month' => $date->month,
                     ])->first();
-                    dump($user->name);
                     if (!is_null($timesheet)){
                         $timesheet_days = $timesheet->timesheet_days;
 
@@ -595,7 +593,7 @@ class TimesheetController extends Controller
 
                         $pdf->save(storage_path(Str::camel($user->name).'_'.$date->format('Y_m').'.pdf'));
 
-                        Mail::to($user->email)->queue(new SendMonthlyTimesheetMail($user, $date, Str::camel($user->name).'_'.$date->format('Y_m').'.pdf'));
+                        Mail::to($user->email)->queue(new SendMonthlyTimesheetMail($user, $date));
                     }
 
                 }

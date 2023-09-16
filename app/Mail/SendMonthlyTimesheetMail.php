@@ -19,16 +19,14 @@ class SendMonthlyTimesheetMail extends Mailable
 
     protected $user;
     protected $date;
-    protected $path;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(User $user, Carbon $date, $path)
+    public function __construct(User $user, Carbon $date)
     {
         $this->user = $user;
         $this->date = $date;
-        $this->path = $path;
     }
 
     /**
@@ -59,7 +57,7 @@ class SendMonthlyTimesheetMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromStorage($this->path)
+            Attachment::fromStorage(Str::camel($this->user->name).'_'.$this->date->format('Y_m').'.pdf')
             ->as('Arbeitszeitnachweis_'.$this->date->format('m-Y').'_'.$this->user->name.'.pdf')
             ->withMime('application/pdf'),
         ];
