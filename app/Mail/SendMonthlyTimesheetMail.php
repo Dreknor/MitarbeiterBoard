@@ -57,7 +57,7 @@ class SendMonthlyTimesheetMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromStorage(Str::camel($this->user->name).'_'.$this->date->format('Y_m').'.pdf')
+            Attachment::fromStorage('timesheet.pdf')
             ->as('Arbeitszeitnachweis_'.$this->date->format('m-Y').'_'.$this->user->name.'.pdf')
             ->withMime('application/pdf'),
         ];
