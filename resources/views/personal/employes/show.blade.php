@@ -225,7 +225,7 @@
                     <div class="card-body">
                         <ul class="">
                             <li class="">
-                                Angestellt seit: ???
+                                Angestellt seit: {{$employe->employments->first()->start->format('d.m.Y')}}
                             </li>
                             <li class="">
                                 Key-ID: {{$employe->employe_data->time_recording_key}}
@@ -236,6 +236,9 @@
                             <li class="">
                                  Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
                                 (<a href="{{url('timesheets/update/employe/'.$employe->id)}}" class="card-link">aktualiseren</a>)
+                            </li>
+                            <li class="">
+                                 montaliche Benachrichtigung Arbeitszeit: {{($employe->employe_data->mail_timesheet == 1) ? 'ja' : 'nein' }}
                             </li>
                         </ul>
                     </div>
@@ -255,6 +258,15 @@
                                             Arbeitszeit - Pin
                                         </label>
                                         <input name="secret_key" type="password" value="{{$employe->employe_data->secret_key}}" class="form-control">
+                                    </div>
+                                    <div class="row">
+                                        <label class="label-control">
+                                            Arebitszeitbenachrichtigung
+                                        </label>
+                                        <select class="custom-select" name="mail_timesheet">
+                                            <option value="0" @if($employe->employe_data->mail_timesheet == 0) selected @endif>nein</option>
+                                            <option value="1" @if($employe->employe_data->mail_timesheet == 1) selected @endif>ja</option>
+                                        </select>
                                     </div>
                                     <div class="row">
                                         <label class="label-control">

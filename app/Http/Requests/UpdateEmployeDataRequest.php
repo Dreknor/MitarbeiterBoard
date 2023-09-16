@@ -35,6 +35,9 @@ class UpdateEmployeDataRequest extends FormRequest
             ],
             'secret_key' => [
                 'nullable', 'numeric', 'digits_between:6,10',
+            ],
+            'mail_timesheet' => [
+                'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
             ]
         ];
     }

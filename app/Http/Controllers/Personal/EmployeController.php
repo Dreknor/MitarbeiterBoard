@@ -87,6 +87,7 @@ class EmployeController extends Controller
      */
     public function update(CreateEmployeRequest $request, User $employe)
     {
+
         $settings = $employe->employe_data;
         if (is_null($settings)){
             $settings = new EmployeData($request->validated());
@@ -139,6 +140,11 @@ class EmployeController extends Controller
             ]);
         }
 
+        if ($request->mail_timesheet != null){
+            $employe->employe_data()->update([
+                'mail_timesheet' => $request->mail_timesheet
+            ]);
+        }
 
         return redirect()->back()->with([
             'type' => "success",

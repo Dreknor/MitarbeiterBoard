@@ -562,10 +562,10 @@ class TimesheetController extends Controller
 
     public function timesheet_mail()
     {
-        foreach (User::whereId(1)->get() as $user){
+        foreach (User::all() as $user){
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
 
-                if ($user->employe_data->mail_timesheet){
+                if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
                     $date = Carbon::now()->subMonth();
                     $timesheet = Timesheet::where([
                         'employe_id' => $user->id,
