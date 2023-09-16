@@ -57,6 +57,16 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
+        if (is_null($employe->employe_data)){
+            $employe->employe_data()->create([
+                'familienname' => Str::afterLast($employe->name, ' '),
+                'vorname' => Str::before($employe->name, ' '),
+                'user_id' => $employe->id,
+                'geschlecht' => 'anderes',
+                'mail_timesheet' => 0
+            ]);
+        }
+
         //$employments = $employe->employments()->active()->get()->sortByDesc('start');
         $employments = $employe->employments->filter(function ($employment){
             return $employment->end == null or $employment->end->greaterThan(Carbon::now());
