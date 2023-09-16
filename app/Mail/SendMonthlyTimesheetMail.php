@@ -62,7 +62,6 @@ class SendMonthlyTimesheetMail extends Mailable
      */
     public function attachments(): array
     {
-        dump(storage_path('timesheet.pdf'));
         return [
             Attachment::fromPath(storage_path('timesheet.pdf'))
             ->as('Arbeitszeitnachweis'.Str::slug($this->user->name).'_'.$this->date->format('m_Y').'.pdf'),
