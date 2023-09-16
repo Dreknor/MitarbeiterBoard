@@ -592,6 +592,7 @@ class TimesheetController extends Controller
                         ]);
 
                         $pdf->save(storage_path(Str::camel($user->name).'_'.$date->format('Y_m').'.pdf'), 1);
+                        $pdf->download();
 
                         Mail::to($user->email)->queue(new SendMonthlyTimesheetMail($user, $date));
                     }
