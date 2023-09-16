@@ -50,20 +50,6 @@
 @endsection
 @push('js')
     <script>
-        function addNumber(number) {
-            let secret_key = document.getElementById('secret_key');
-            secret_key.value += number;
-        }
-
-        function clearInput(){
-            let secret_key = document.getElementById('secret_key');
-            secret_key.value = '';
-        }
-
-        function submitForm() {
-            $('#pinForm').submit();
-
-        }
 
         $(document).ready(function() {
             /* Change time here to make the animation longer */

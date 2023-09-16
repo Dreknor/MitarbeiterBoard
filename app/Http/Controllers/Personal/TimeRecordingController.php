@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\checkTimeRecordingPinRequest;
 use App\Http\Requests\getTimeRecordingKeyRequest;
+use App\Http\Requests\storeSecretKeyRequest;
 use App\Models\personal\EmployeData;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -18,8 +19,35 @@ class TimeRecordingController extends Controller
         return view('personal.time_recording.start');
     }
 
+
+    public function storeSecret(storeSecretKeyRequest $request)
+    {
+        $key = Cache::get('time_recording_key');
+
+        if (is_null($key)){
+            return redirect()->route('time_recording.logout')->with(
+                [
+                    'type'=>'warning',
+                    'Meldung'=>'Ungültiger Schlüssel'
+                ]
+            );
+        }
+
+        $user = EmployeData::query()->where('time_recording_key', $key)->first();
+        $user->update([
+            'secret_key' => $request->secret_key
+        ]);
+        return redirect()->route('time_recording.start')->with(
+            [
+                'type'=>'success',
+                'Meldung'=>'Geheimcode erfolgreich gespeichert'
+            ]
+        );
+    }
+
     public function read_key(getTimeRecordingKeyRequest $request)
     {
+
         $user = EmployeData::query()->where('time_recording_key', $request->key)->first();
 
         if (!$user) {
@@ -27,6 +55,14 @@ class TimeRecordingController extends Controller
         }
 
         Cache::add('time_recording_key', $request->key, now()->addMinutes(2) );
+
+        if (is_null($user->secret_key)){
+            return view('personal.time_recording.set_secret', [
+                'user' => $user->user
+            ]);
+        }
+
+
 
         return view('personal.time_recording.get_secret', [
             'user' => $user->user

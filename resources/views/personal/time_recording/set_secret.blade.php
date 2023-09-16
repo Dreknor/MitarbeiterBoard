@@ -30,7 +30,7 @@
                             Pin:
                         </p>
                         <p class="mx-auto text-center">
-                            Bitte gib deinen Pin ein.
+                            Bitte vergib eine geheime Pin zur Absicherung deines Accounts. Sie muss mindestens 6 Zeichen lang sein.
                         </p>
                         <div class="w-50  mx-auto">
                             <div class="row">
@@ -91,7 +91,7 @@
                             </p>
                         @endif
 
-                        <form action="{{route('time_recording.login')}}" method="post" class="form-horizontal"  autocomplete="off" id="pinForm">
+                        <form action="{{route('time_recording.storeSecret')}}" method="post" class="form-horizontal"  autocomplete="off" id="pinForm">
                             @csrf
                             <input type="hidden" id="secret_key" name="secret_key"   aria-autocomplete="none">
                         </form>
@@ -117,6 +117,7 @@
             secret_key.value = '';
             let pin_show = document.getElementById('pin_show');
             pin_show.innerHTML = 'Pin: ';
+
         }
 
         function submitForm() {
