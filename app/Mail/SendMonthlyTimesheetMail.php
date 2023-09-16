@@ -37,7 +37,6 @@ class SendMonthlyTimesheetMail extends Mailable
     {
         return new Envelope(
             from: new Address(config('mail.from.address'), config('mail.from.name')),
-            to: $this->user->email,
             subject: 'Arbeitszeitnachweis '.$this->date->format('m/Y'),
         );
     }
@@ -48,7 +47,11 @@ class SendMonthlyTimesheetMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'personal.timesheet.sendMail',
+            view: 'personal.timesheets.sendMail',
+            with: [
+                'user' => $this->user,
+                'date' => $this->date,
+            ],
         );
     }
 
@@ -59,10 +62,10 @@ class SendMonthlyTimesheetMail extends Mailable
      */
     public function attachments(): array
     {
+        dump(storage_path('timesheet.pdf'));
         return [
-            Attachment::fromStorage('timesheet.pdf')
-            ->as('Arbeitszeitnachweis_'.$this->date->format('m-Y').'_'.$this->user->name.'.pdf')
-            ->withMime('application/pdf'),
+            Attachment::fromPath(storage_path('timesheet.pdf'))
+            ->as('Arbeitszeitnachweis'.Str::slug($this->user->name).'_'.$this->date->format('m_Y').'.pdf'),
         ];
     }
 }

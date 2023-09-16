@@ -19,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
@@ -571,12 +572,12 @@ class TimesheetController extends Controller
                         'year' => $date->year,
                         'month' => $date->month,
                     ])->first();
-                    if (!is_null($timesheet)){
+                    if (!is_null($timesheet)) {
                         $timesheet_days = $timesheet->timesheet_days;
 
                         $old = $date->copy()->subMonth();
 
-                        $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
+                        $timesheet_old = Cache::remember('timesheet_' . $user->id . '_' . $old->year . '_' . $old->month, 60, function () use ($user, $old) {
                             return Timesheet::where('employe_id', $user->id)
                                 ->where('year', $old->year)
                                 ->where('month', $old->month)
@@ -595,6 +596,9 @@ class TimesheetController extends Controller
 
                         Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
 
+                        if (File::exists(storage_path('timesheet.pdf'))) {
+                            File::delete(storage_path('timesheet.pdf'));
+                        }
                     }
 
                 }
