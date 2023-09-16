@@ -592,7 +592,7 @@ class TimesheetController extends Controller
                         ]);
 
                         $pdf->save(storage_path('timesheet.pdf'), 1);
-                        $pdf->download('timesheet.pdf');
+                        return $pdf->download('timesheet.pdf');
 
                         dump($user->email);
                         Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
