@@ -35,10 +35,6 @@ class SendMonthlyTimesheetMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: [
-                'address' => config('mail.from.address'),
-                'name' => config('mail.from.name'),
-            ],
             to: [
                 [
                     'address' => $this->user->email,
@@ -66,6 +62,7 @@ class SendMonthlyTimesheetMail extends Mailable
      */
     public function attachments(): array
     {
-
+        return [
+        ];
     }
 }
