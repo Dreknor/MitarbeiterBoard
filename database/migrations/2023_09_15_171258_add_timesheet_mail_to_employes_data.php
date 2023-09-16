@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employes_data', function (Blueprint $table) {
-            $table->boolean('mail_timesheet')->default(fals);
+            $table->boolean('mail_timesheet')->default(false);
         });
     }
 
