@@ -25,7 +25,8 @@ class EmployeData extends Model
         'caldav_events',
         'caldav_uuid',
         'time_recording_key',
-        'secret_key'
+        'secret_key',
+        'mail_timesheet'
         ];
 
     protected $table = 'employes_data';
@@ -37,7 +38,8 @@ class EmployeData extends Model
         'gebutstag' => 'datetime:Y-m-d',
         'caldav_events' => 'boolean',
         'caldav_working_time' => 'boolean',
-        'geburtstag' => 'date'
+        'geburtstag' => 'date',
+        'mail_timesheet' => 'boolean'
     ];
 
     public function user (){

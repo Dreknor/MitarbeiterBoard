@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createTimesheetDayRequest;
+use App\Mail\SendMonthlyTimesheetMail;
 use App\Models\Absence;
 use App\Models\Group;
 use App\Models\personal\Employment;
@@ -18,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
@@ -556,6 +558,50 @@ class TimesheetController extends Controller
         ]);
         return $pdf->download('AZN_'.$user->familienname.'_'.$timesheet->year.'_'.$timesheet->month.'.pdf');
     }
+
+    public function timesheet_mail()
+    {
+        foreach (User::whereId(1)->get() as $user){
+            if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
+                if ($user->employe_data->mail_timesheet){
+                    $date = Carbon::now()->subMonth();
+                    $timesheet = Timesheet::where([
+                        'employe_id' => $user->id,
+                        'year' => $date->year,
+                        'month' => $date->month,
+                    ])->first();
+                    dump($user->name);
+                    if (!is_null($timesheet)){
+                        $timesheet_days = $timesheet->timesheet_days;
+
+                        $old = $date->copy()->subMonth();
+
+                        $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
+                            return Timesheet::where('employe_id', $user->id)
+                                ->where('year', $old->year)
+                                ->where('month', $old->month)
+                                ->first();
+                        });
+
+                        $pdf = PDF::loadView('personal.timesheets.pdf', [
+                            'timesheet' => $timesheet,
+                            'timesheet_old' => $timesheet_old,
+                            'timesheet_days' => $timesheet_days,
+                            'employe' => $user,
+                            'month' => $date
+                        ]);
+
+                        $pdf->save(storage_path('timesheets/'.Str::camel($user->name).'/'.$date->format('Y_m').'.pdf'));
+
+                        Mail::to($user->email)->queue(new SendMonthlyTimesheetMail($user, $date));
+                    }
+
+                }
+            }
+        }
+
+    }
+
 
     /**
      * Show the form for editing the specified resource.

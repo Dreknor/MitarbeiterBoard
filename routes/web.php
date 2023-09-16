@@ -88,6 +88,8 @@ Route::prefix('time_recording')->group(callback: function (){
     Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
     Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
     Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
+
+    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->name('time_recording.storeSecret');
 });
 
 
@@ -105,7 +107,7 @@ Route::group([
         ],
             function () {
 
-                //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
+                Route::get('test/mail', [TimesheetController::class, 'timesheet_mail']);
 
                 /*
                  * Routes for edit dashboard
