@@ -61,6 +61,8 @@ class SendMonthlyTimesheetMail extends Mailable
     {
         return [
             Attachment::fromStorage('timesheet.pdf')
-            ->as('Arbeitszeitnachweis_'.$this->date->format('m-Y').'_'.$this->user->name.'.pdf')];
+            ->as('Arbeitszeitnachweis_'.$this->date->format('m-Y').'_'.$this->user->name.'.pdf')
+            ->withMime('application/pdf'),
+        ];
     }
 }
