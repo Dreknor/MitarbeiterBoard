@@ -151,10 +151,13 @@ Route::group([
                 Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
 
 
+
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
                 Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
                 Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
                 Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
+                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay']);
+                Route::put('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'updateDay']);
                 Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
                 Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
                 Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);

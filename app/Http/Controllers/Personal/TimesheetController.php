@@ -401,6 +401,29 @@ class TimesheetController extends Controller
 
     }
 
+    public function editDay(TimesheetDays $timesheetDay){
+        if (!auth()->user()->can('edit employe') and ($timesheetDay->timesheet->employe_id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back();
+        }
+
+        return view('personal.timesheets.editDay',[
+            'timesheet_day' => $timesheetDay,
+            'day' => $timesheetDay->date,
+        ]);
+    }
+
+    public function updateDay(createTimesheetDayRequest $request, TimesheetDays $timesheetDay){
+        if (!auth()->user()->can('edit employe') and ($timesheetDay->timesheet->employe_id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back();
+        }
+
+        $timesheetDay->update($request->validated());
+
+        $timesheetDay->timesheet->updateTime();
+
+        return redirect(url('timesheets/'.$timesheetDay->timesheet->employe_id.'/'.$timesheetDay->date->format('Y-m').'#'.$timesheetDay->date->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag aktualisiert');
+    }
+
     /**
      * Display the specified resource.
      *
