@@ -38,6 +38,12 @@
                                 <b>Aktueller Stand der Arbeitszeit:<br></b>
                             {{convertTime($timesheet->working_time_account)}} h
                         </p>
+                        @if($dayBefore)
+                            <p class="btn-outline-warning text-center">
+                                Austragen der Arbeitszeit von gestern vergessen? <br>
+                                Bitte noch nachtragen!
+                            </p>
+                        @endif
                     </div>
                     <div class="card-footer border-top">
                         <a href="{{route('time_recording.logout')}}" class="btn btn-danger btn-lg float-right">Abmelden</a>

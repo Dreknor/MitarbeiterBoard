@@ -9,7 +9,7 @@
 @endsection
 
 @section('content')
-    <a href="{{back()}}" class="btn btn-primary btn-link" >zurück</a>
+    <a href="{{url()->previous() }}" class="btn btn-primary btn-link" >zurück</a>
     <div class="card">
         <div class="card-header">
             <h6>
