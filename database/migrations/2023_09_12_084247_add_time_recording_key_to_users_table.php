@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employes_data', function (Blueprint $table) {
-            $table->addColumn('integer','secret_key')->nullable();
+            $table->addColumn('string','secret_key')->nullable();
             $table->addColumn('string','time_recording_key')->nullable()->unique('unique_key');
         });
     }
