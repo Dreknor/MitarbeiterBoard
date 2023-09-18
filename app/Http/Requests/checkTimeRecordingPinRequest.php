@@ -23,7 +23,7 @@ class checkTimeRecordingPinRequest extends FormRequest
     {
         return [
             'secret_key' => [
-                'required', 'integer', 'digits_between:6,10',
+                'required', 'numeric', 'digits_between:6,10',
             ]
         ];
     }
