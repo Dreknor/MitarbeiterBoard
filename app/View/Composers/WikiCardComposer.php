@@ -20,6 +20,6 @@ class WikiCardComposer
      */
     public function compose(View $view): void
     {
-        $view->with('sites', WikiSite::query()->orderByDesc('updated_at')->limit(6)->get());
+        $view->with('sites', WikiSite::query()->groupBy('title')->orderByDesc('updated_at')->limit(6)->get());
     }
 }
