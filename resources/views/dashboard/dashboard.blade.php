@@ -5,10 +5,12 @@
     <div class="">
         @foreach($cards->groupBy('row') as $row => $cards)
             <div class="row">
-                @foreach($cards->sortBy('col') as $card)
-                    <div class="col-sm-12 col-md-{{12/floor($cards->count())}} mx-auto">
-                        @include('dashboard.editLinks', ['card' => $card])
-                        @include($card->view)
+                @foreach($cards->groupBy('col') as $col => $cards_col)
+                    <div class="col-sm-12 col-md-{{12/floor($cards->groupBy('col')->count())}} mx-auto">
+                        @foreach($cards_col->sortBy('col') as $card)
+                            @include('dashboard.editLinks', ['card' => $card])
+                            @include($card->view)
+                        @endforeach
                     </div>
                 @endforeach
             </div>
