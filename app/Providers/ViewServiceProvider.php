@@ -24,6 +24,8 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.rosters.homeView', \App\View\Composers\RosterComposer::class);
         View::composer('tasks.tasksCard', \App\View\Composers\TasksComposer::class);
         View::composer('procedure.dashboardCard', \App\View\Composers\ProcedureComposer::class);
+        View::composer('wiki.dashboardCard', \App\View\Composers\WikiCardComposer::class);
+        View::composer('absences.index', \App\View\Composers\AbsenceComposer::class);
         View::composer('absences.index', \App\View\Composers\AbsenceComposer::class);
     }
 }
