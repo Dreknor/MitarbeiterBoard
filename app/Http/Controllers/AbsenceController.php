@@ -134,7 +134,7 @@ class AbsenceController extends Controller
         $users_absences = $absences->groupBy('users_id');
         $users = new Collection();
 
-
+dump($users);
         foreach ($users_absences as $absences_user){
             $without_note = 0;
             $with_note = 0;
