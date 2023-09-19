@@ -131,8 +131,11 @@ class AbsenceController extends Controller
         })->whereDate('start', '>=', Carbon::now()->subYear())
             ->orderByDesc('start')->with('user')->get();
 
+        dump($absences);
         $users_absences = $absences->groupBy('users_id');
         $users = new Collection();
+
+        dd($users_absences);
 
         foreach ($users_absences as $absences_user){
             $without_note = 0;
