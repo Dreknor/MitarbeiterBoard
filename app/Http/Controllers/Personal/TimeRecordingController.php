@@ -126,19 +126,12 @@ class TimeRecordingController extends Controller
             ]);
         }
 
-        //Tag vorher kontrollieren
-        $yesterday = $timesheet->timesheet_days()->whereDate('date', now()->subDay()->format('Y-m-d'))->orderBy('end')->first();
-        if (!is_null($yesterday) and is_null($yesterday->end)){
-           $daybefore = 1;
-        } else {
-            $daybefore = 0;
-        }
+
 
         return view('personal.time_recording.login', [
             'user'=>$user->user,
             'timesheet_day'=>$timesheet_day,
             'timesheet'=>$timesheet,
-            'daybefore'=>$daybefore
         ]);
     }
 
