@@ -33,7 +33,7 @@
                     <div class="row">
                         <label class="label w-100">
                             Endzeitzeit:
-                            <input type="time" class="form-control" name="end" required  value="{{$timesheet_day?->end->format('H:i')}}">
+                            <input type="time" class="form-control" name="end" required  value="{{$timesheet_day?->end?->format('H:i')}}">
                         </label>
                     </div>
                     <div class="row">
