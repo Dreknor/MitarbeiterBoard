@@ -131,11 +131,9 @@ class AbsenceController extends Controller
         })->whereDate('start', '>=', Carbon::now()->subYear())
             ->orderByDesc('start')->with('user')->get();
 
-        dump($absences);
         $users_absences = $absences->groupBy('users_id');
         $users = new Collection();
 
-        dd($users_absences);
 
         foreach ($users_absences as $absences_user){
             $without_note = 0;
@@ -143,7 +141,7 @@ class AbsenceController extends Controller
             $missing_note = 0;
 
             foreach ($absences_user as $absence){
-                if ($absence->days < config('absences.absence_sick_note_days') and $absence->sick_note_required == false)
+                if ($absence->days < settings('absences.absence_sick_note_days') and $absence->sick_note_required == false)
                 {
                     $without_note+=$absence->days;
                 }
@@ -157,6 +155,7 @@ class AbsenceController extends Controller
                 }
             }
 
+
             $users->add([
                 'user' => $absence->user->name,
                 'without_note' => $without_note,
@@ -166,7 +165,7 @@ class AbsenceController extends Controller
 
         }
 
-
+dd($users);
         return view('absences.sicknotes',[
            'absences' => $absences,
             'users' => $users->sortBy('user')
