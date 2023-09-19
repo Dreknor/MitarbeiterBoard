@@ -68,7 +68,7 @@
                                         @if(is_null($timesheet_day->percent_of_workingtime))
                                             <a href='{{url('timesheets/day/'.$timesheet_day->id.'/edit')}}'
                                                class="dropdown-item text-warning">
-                                                @if($timesheet_day->percent_of_workingtime != null)
+                                                @if($timesheet_day->percent_of_workingtime != null and $timesheet_day->percent_of_workingtime != 0 and $timesheet_day->percent_of_workingtime != '')
                                                     {{$timesheet_day?->comment}} bearbeiten
                                                 @else
                                                     {{$timesheet_day?->start?->format('H:i')}}
