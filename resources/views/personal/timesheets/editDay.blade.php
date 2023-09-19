@@ -33,19 +33,19 @@
                     <div class="row">
                         <label class="label w-100">
                             Endzeitzeit:
-                            <input type="time" class="form-control" name="end" required  value="{{$timesheet_day->end->format('H:i')}}">
+                            <input type="time" class="form-control" name="end" required  value="{{$timesheet_day?->end->format('H:i')}}">
                         </label>
                     </div>
                     <div class="row">
                         <label class="label w-100">
                             Pause:
-                            <input type="number" min="0" class="form-control" name="pause"  @if(!is_null($timesheet_day->pause) and $timesheet_day->pause != 0) value="{{$timesheet_day->pause}}" @endif>
+                            <input type="number" min="0" class="form-control" name="pause"  @if(!is_null($timesheet_day?->pause) and $timesheet_day?->pause != 0) value="{{$timesheet_day?->pause}}" @endif>
                         </label>
                     </div>
                     <div class="row">
                         <label class="label w-100">
                             Anmerkung:
-                            <input type="text" max="60" class="form-control" name="comment"  value="{{$timesheet_day->comment}}">
+                            <input type="text" max="60" class="form-control" name="comment"  value="{{$timesheet_day?->comment}}">
                         </label>
                     </div>
                     <div class="row">
