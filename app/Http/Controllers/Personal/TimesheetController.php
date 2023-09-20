@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createTimesheetDayRequest;
+use App\Http\Requests\updateTimesheetDayRequest;
 use App\Mail\SendMonthlyTimesheetMail;
 use App\Models\Absence;
 use App\Models\Group;
@@ -412,7 +413,7 @@ class TimesheetController extends Controller
         ]);
     }
 
-    public function updateDay(createTimesheetDayRequest $request, TimesheetDays $timesheetDay){
+    public function updateDay(updateTimesheetDayRequest $request, TimesheetDays $timesheetDay){
         if (!auth()->user()->can('edit employe') and ($timesheetDay->timesheet->employe_id != auth()->id() and auth()->user()->can('has timesheet'))){
             return redirect()->back();
         }
