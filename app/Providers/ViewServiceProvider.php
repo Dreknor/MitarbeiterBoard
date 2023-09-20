@@ -27,5 +27,6 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('wiki.dashboardCard', \App\View\Composers\WikiCardComposer::class);
         View::composer('absences.index', \App\View\Composers\AbsenceComposer::class);
         View::composer('absences.index', \App\View\Composers\AbsenceComposer::class);
+        View::composer('personal.time_recording.dashboardCard', \App\View\Composers\TimeRecordingCardComposer::class);
     }
 }
