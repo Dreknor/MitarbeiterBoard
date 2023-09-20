@@ -55,7 +55,7 @@
                     @include('personal.rosters.homeView')
                 @endif
                 @can('view absences')
-                    @include('absences.index')
+                    @include('absences.dashboardCard')
                 @endcan
 
                 @include('tasks.tasksCard')
