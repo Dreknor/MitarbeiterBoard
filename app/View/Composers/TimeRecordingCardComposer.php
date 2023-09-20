@@ -2,8 +2,7 @@
 
 namespace App\View\Composers;
 
-use App\Models\personal\WorkingTime;
-use App\Models\WikiSite;
+use App\Models\personal\TimesheetDays;
 use Carbon\Carbon;
 use Illuminate\View\View;
 
@@ -24,11 +23,11 @@ class TimeRecordingCardComposer
     {
         $users = [];
 
-        $working_times = WorkingTime::query()->whereDate('start', Carbon::now()->format('Y-m-d'))->whereNull('end')->get();
+        $timesheetDay = TimesheetDays::query()->whereDate('start', Carbon::now()->format('Y-m-d'))->whereNull('end')->get();
 
-        foreach ($working_times as $working_time) {
+        foreach ($timesheetDay as $day) {
 
-            $users[$working_time->employe->name] = $working_time->start->format('H:i');;
+            $users[$day->employe->name] = $day->start->format('H:i');;
         }
 
         $view->with('users', $users);
