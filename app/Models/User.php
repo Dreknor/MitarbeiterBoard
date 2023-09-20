@@ -8,6 +8,7 @@ use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\Employment;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\Timesheet;
+use App\Models\personal\TimesheetDays;
 use App\Models\personal\WorkingTime;
 use Carbon\Carbon;
 use DateTime;
@@ -248,6 +249,9 @@ class User extends Authenticatable implements HasMedia
 
     public function timesheets(){
         return $this->hasMany(Timesheet::class, 'employe_id');
+    }
+    public function timesheet_days(){
+        return $this->hasManyThrough(TimesheetDays::class, Timesheet::class, 'employe_id');
     }
     public function getTimesheetLatestAttribute(){
         return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();

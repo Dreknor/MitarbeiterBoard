@@ -292,6 +292,14 @@
                         </a>
                     </li>
                 @endcan
+                @can('view old absences')
+                    <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                        <a href="{{url('absences')}}">
+                            <i class="fas fa-user-clock"></i>
+                            <p>Abwesenheiten</p>
+                        </a>
+                    </li>
+                @endcan
                 <li class="@if(request()->segment(1)=="groups" ) active @endif">
                     <a href="{{url('/groups')}}">
                         <i class="fas fa-users"></i>

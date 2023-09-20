@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         $card = new \App\Models\DashboardCard([
-            'title' => 'Arbeitszeiterfassung',
+            'title' => 'Arbeitszeiterfassung (Anwesende)',
             'view' => 'personal.time_recording.dashboardCard',
             'default_row' => 3,
             'default_col' => 3,
@@ -39,7 +39,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('dashboard_cards', function (Blueprint $table) {
-            \App\Models\DashboardCard::where('title', 'Arbeitszeiterfassung')->delete();
+            \App\Models\DashboardCard::where('title', 'Arbeitszeiterfassung (Anwesende)')->delete();
         });
 
         $permission = Spatie\Permission\Models\Permission::findByName('view time recording');

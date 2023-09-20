@@ -16,6 +16,20 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AbsenceController extends Controller
 {
+    public function index() {
+        if (!auth()->user()->can('view old absences')){
+            return redirect(url('/'))->with([
+                'type'  => "warning",
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absences = Absence::query()->orderByDesc('start')->with('user')->get();
+
+        return view('absences.index',[
+            'absences' => $absences
+        ]);
+    }
     public function store(CreateAbsenceRequest $request){
 
         $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())

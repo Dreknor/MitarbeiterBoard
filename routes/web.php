@@ -239,6 +239,7 @@ Route::group([
 
                 //absences
                 Route::middleware(['permission:view absences'])->group(function (){
+                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);
                     Route::post('absences', [AbsenceController::class, 'store']);
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
