@@ -128,10 +128,12 @@ class TimeRecordingController extends Controller
 
 
 
+
         return view('personal.time_recording.login', [
             'user'=>$user->user,
             'timesheet_day'=>$timesheet_day,
             'timesheet'=>$timesheet,
+            'dayBefore' => $timesheet->timesheet_days()->whereDate('date', now()->subDay()->format('Y-m-d'))->where('end', null)->first(),
         ]);
     }
 

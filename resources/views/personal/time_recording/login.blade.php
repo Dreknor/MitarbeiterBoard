@@ -38,6 +38,12 @@
                                 <b>Aktueller Stand der Arbeitszeit:<br></b>
                             {{convertTime($timesheet->working_time_account)}} h
                         </p>
+                        @if(!is_null($dayBefore))
+                            <p class="text-center text-light">
+                                Kein Arbeitszeitende erfasst für {{$dayBefore->start->format('d.m.Y')}}.<br>
+                                Dies bitte nachtragen.
+                            </p>
+                        @endif
                     </div>
                     <div class="card-footer border-top">
                         <a href="{{route('time_recording.logout')}}" class="btn btn-danger btn-lg float-right">Abmelden</a>
