@@ -29,8 +29,21 @@ class TimeRecordingCardOwnComposer
             $days[$timesheetDay->date->format('Y-m-d')][] = $timesheetDay;
         }
 
+        $timesheet_day = $timesheetDays->filter(function ($day){
+            if (is_null($day->end) and $day->date->isToday() and $day->percent_of_workingtime == 0){
+                return $day;
+            }
+        })->first();
+
+        if (!is_null($timesheet_day)){
+            $logout = 1;
+        } else {
+            $logout = 0;
+        }
+
         $view->with([
             'days' => $days,
+            'logout' => $logout
         ]);
     }
 }

@@ -13,6 +13,65 @@ use Illuminate\Support\Facades\Cache;
 
 class TimeRecordingController extends Controller
 {
+    public function checkin_checkout()
+    {
+        if (!auth()->user() or !auth()->user()->can('has timesheet')){
+                return redirect()->route('home')->with(
+                [
+                    'type'=>'warning',
+                    'Meldung'=>'Keine Berechtigung'
+                ]
+            );
+        }
+
+        $timesheet = auth()->user()->timesheets()->where([
+            'month'=>now()->month,
+            'year'=>now()->year
+        ])->first();
+
+        if (is_null($timesheet)){
+            $latest = auth()->user()->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
+            $timesheet = auth()->user()->timesheets()->create([
+                'month'=>now()->month,
+                'year'=>now()->year,
+                'holidays_old' => $latest->holidays_old + $latest->holidays_new,
+                'working_time_account' => $latest->working_time_account,
+            ]);
+        }
+
+        $timesheet_day = $timesheet->timesheet_days()->whereDate('date', now()->format('Y-m-d'))->orderBy('end')->first();
+
+        if (is_null($timesheet_day)){
+            $timesheet_day = $timesheet->timesheet_days()->create([
+                'date' => now()->format('Y-m-d'),
+                'start' => now(),
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
+            ]);
+        } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
+            $timesheet_day->update([
+                'end' => now()
+            ]);
+
+            $timesheet->updateTime();
+        } else {
+            $timesheet_day = $timesheet->timesheet_days()->create([
+                'date' => now()->format('Y-m-d'),
+                'start' => now(),
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
+            ]);
+        }
+
+        return redirect()->route('home')->with(
+            [
+                'type'=>'success',
+                'Meldung'=>'Erfolgreich eingestempelt'
+            ]
+        );
+
+    }
+
     //
     public function start()
     {

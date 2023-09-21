@@ -32,6 +32,18 @@
         </div>
     </div>
     <div class="card-footer border-top">
-        <a href="{{url('timesheets/'.auth()->id())}}" class="btn btn-primary btn-block">zum Arbeitszeitnachweis</a>
+        <div class="row">
+            <div class="col">
+                @if($logout == 1)
+                    <a href="{{url('timesheets/'.auth()->id().'/logout')}}" class="btn btn-bg-gradient-x-blue-green">Abmelden</a>
+                @else
+                    <a href="{{url('timesheets/'.auth()->id().'/login')}}" class="btn btn-bg-gradient-x-blue-green">Anmelden</a>
+                @endif
+            </div>
+            <div class="col">
+                <div class="float-right">
+                    <a href="{{url('timesheets/'.auth()->id())}}" class="btn btn-primary">zum Arbeitszeitnachweis</a>
+                </div>
+        </div>
     </div>
 </div>

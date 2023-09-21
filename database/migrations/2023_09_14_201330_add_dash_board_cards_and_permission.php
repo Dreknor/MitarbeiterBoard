@@ -17,7 +17,7 @@ return new class extends Migration
 
         $cards[] = [
             'title' => 'Abwesenheiten',
-            'view' => 'absences.index',
+            'view' => 'absences.dashboardCard',
             'permission' => 'view absences',
             'default_row' => 3,
             'default_col' => 1,

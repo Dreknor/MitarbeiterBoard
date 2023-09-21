@@ -146,6 +146,8 @@ Route::group([
 
                 //Timesheets
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
+                Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
+                Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
                 Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
