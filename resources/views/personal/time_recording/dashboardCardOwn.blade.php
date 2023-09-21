@@ -44,6 +44,7 @@
                 <div class="float-right">
                     <a href="{{url('timesheets/'.auth()->id())}}" class="btn btn-primary">zum Arbeitszeitnachweis</a>
                 </div>
+            </div>
         </div>
     </div>
 </div>
