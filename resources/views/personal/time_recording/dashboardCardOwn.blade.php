@@ -28,7 +28,9 @@
                         </td>
                         <td>
                             @if(array_key_exists($x->format('Y-m-d'), $days))
-                                {{convertTime(collect($days[$x->format('Y-m-d')])->sum('duration'))}} Stunden
+                                @if(collect($days[$x->format('Y-m-d')])->sum('duration') > 0)
+                                    {{convertTime(collect($days[$x->format('Y-m-d')])->sum('duration'))}} Stunden
+                                @endif
                             @endif
                         </td>
                     </tr>
