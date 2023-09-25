@@ -9,7 +9,7 @@
             <table class="table table-striped">
                 @for($x = \Carbon\Carbon::now()->startOfWeek(); $x->lessThanOrEqualTo(\Carbon\Carbon::now()->endOfWeek()); $x->addDay())
                     <tr>
-                        <td class="border-right w-50">
+                        <td class="border-right">
                             {{$x->locale('de')->dayName}} {{$x->format('d.m.Y')}}
                         </td>
                         <td class="w-50">
@@ -17,13 +17,18 @@
                                     @foreach($days[$x->format('Y-m-d')] as $timesheetDay)
                                         @if(!is_null($timesheetDay->start) or !is_null($timesheetDay->start) )
                                             {{$timesheetDay?->start?->format('H:i')}} - {{$timesheetDay?->end?->format('H:i')}} Uhr<br>
+
                                         @elseif(!is_null($timesheetDay->percent_of_workingtime))
                                             {{$timesheetDay->comment}}<br>
                                        @endif
-
                                     @endforeach
                             @else
                                 -
+                            @endif
+                        </td>
+                        <td>
+                            @if(array_key_exists($x->format('Y-m-d'), $days))
+                                {{convertTime(collect($days[$x->format('Y-m-d')])->sum('duration'))}} Stunden
                             @endif
                         </td>
                     </tr>

@@ -48,8 +48,16 @@ class TimesheetDays extends Model
             $seconds = (percent_to_seconds($employment)/5)/100 * $this->percent_of_workingtime;
         }
 
+        return Cache::remember('timesheet_duration_'.$this->id, 60*60*24, function () use ($seconds){
+            return $seconds - ($this->pause*60);
+        });
+    }
 
-        return $seconds - ($this->pause*60);
+    protected static function booted(): void
+    {
+        static::updated(function ($item) {
+            Cache::forget('timesheet_duration_'.$item->id);
+        });
     }
 
 }
