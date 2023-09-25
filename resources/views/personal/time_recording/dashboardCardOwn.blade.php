@@ -17,7 +17,6 @@
                                     @foreach($days[$x->format('Y-m-d')] as $timesheetDay)
                                         @if(!is_null($timesheetDay->start) or !is_null($timesheetDay->start) )
                                             {{$timesheetDay?->start?->format('H:i')}} - {{$timesheetDay?->end?->format('H:i')}} Uhr<br>
-
                                         @elseif(!is_null($timesheetDay->percent_of_workingtime))
                                             {{$timesheetDay->comment}}<br>
                                        @endif
@@ -35,6 +34,14 @@
                         </td>
                     </tr>
                 @endfor
+                <tr>
+                    <th class="border-right" >
+                        Summe
+                    </th>
+                    <td colspan="2">
+                        {{convertTime($duration)}} Stunden
+                    </td>
+                </tr>
             </table>
         </div>
     </div>

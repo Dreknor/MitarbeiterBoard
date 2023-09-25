@@ -25,8 +25,11 @@ class TimeRecordingCardOwnComposer
 
         $timesheetDays = auth()->user()->timesheet_days()->whereBetween('date', [Carbon::now()->startOfWeek()->format('Y-m-d'), Carbon::now()->endOfWeek()->format('Y-m-d')])->get();
 
+        $duration = 0;
+
         foreach ($timesheetDays as $timesheetDay) {
             $days[$timesheetDay->date->format('Y-m-d')][] = $timesheetDay;
+            $duration += $timesheetDay->duration;
         }
 
         $timesheet_day = $timesheetDays->filter(function ($day){
@@ -43,7 +46,8 @@ class TimeRecordingCardOwnComposer
 
         $view->with([
             'days' => $days,
-            'logout' => $logout
+            'logout' => $logout,
+            'duration' => $duration
         ]);
     }
 }
