@@ -50,7 +50,8 @@ class TimeRecordingController extends Controller
             ]);
         } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
             $timesheet_day->update([
-                'end' => now()
+                'end' => now(),
+                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
             ]);
 
             $timesheet->updateTime();
@@ -99,7 +100,7 @@ class TimeRecordingController extends Controller
         return redirect()->route('time_recording.start')->with(
             [
                 'type'=>'success',
-                'Meldung'=>'Geheimcode erfolgreich gespeichert'
+                'Meldung'=>'Pin erfolgreich gespeichert'
             ]
         );
     }
@@ -172,7 +173,8 @@ class TimeRecordingController extends Controller
             ]);
         } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
             $timesheet_day->update([
-                'end' => now()
+                'end' => now(),
+                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
             ]);
 
             $timesheet->updateTime();
