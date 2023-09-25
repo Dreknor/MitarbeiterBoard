@@ -23,7 +23,7 @@
                         <div class="card-body">
                             {!! $site->text !!}
                         </div>
-                        @if($site->getMedia()->count() > 0)
+                        @if($site->getMedia()->count() > 0 or $site->getMedia('files')->count() > 0)
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6">
