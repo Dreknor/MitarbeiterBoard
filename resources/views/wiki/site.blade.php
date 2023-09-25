@@ -46,11 +46,17 @@
                                                 <h6>Dateien</h6>
                                             </div>
                                             <div class="col">
-                                                @foreach($site->getMedia('files')->sortBy('name') as $media)
-                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
-                                                        {{$media->name}}
-                                                    </a>
-                                                @endforeach
+                                                <ul class="list-group">
+                                                    @foreach($site->getMedia('files')->sortBy('name') as $media)
+                                                        <li class="list-group-item">
+                                                            <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                                <i class="fa fa-file"></i> {{$media->name}}
+                                                            </a>
+                                                        </li>
+
+                                                    @endforeach
+                                                </ul>
+
                                             </div>
                                         </div>
                                     </div>
