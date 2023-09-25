@@ -25,11 +25,36 @@
                         </div>
                         @if($site->getMedia()->count() > 0)
                             <div class="card-body">
-                                @foreach($site->getMedia()->sortBy('name') as $media)
-                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
-                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
-                                    </a>
-                                @endforeach
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col">
+                                                <h6>Bilder</h6>
+                                            </div>
+                                            <div class="col">
+                                                @foreach($site->getMedia('default')->sortBy('name') as $media)
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col">
+                                                <h6>Dateien</h6>
+                                            </div>
+                                            <div class="col">
+                                                @foreach($site->getMedia('files')->sortBy('name') as $media)
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                        {{$media->name}}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         @endif
 
