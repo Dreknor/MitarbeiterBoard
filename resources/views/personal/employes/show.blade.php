@@ -225,15 +225,49 @@
                     <div class="card-body">
                         <ul class="">
                             <li class="">
-                                Angestellt seit: ???
+                                Angestellt seit: {{$employe->employments->first()->start->format('d.m.Y')}}
+                            </li>
+                            <li class="">
+                                Key-ID: {{$employe->employe_data->time_recording_key}}
                             </li>
                             <li class="" id="Holidayclaim_list_item">
                                 Urlaubsanspruch: {{$employe->getHolidayClaim()}}
                             </li>
-                            <li class="d-none" id="editEmpolyeDataForm">
+                            <li class="">
+                                 Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
+                                (<a href="{{url('timesheets/update/employe/'.$employe->id)}}" class="card-link">aktualiseren</a>)
+                            </li>
+                            <li class="">
+                                 montaliche Benachrichtigung Arbeitszeit: {{($employe->employe_data->mail_timesheet == 1) ? 'ja' : 'nein' }}
+                            </li>
+                        </ul>
+                    </div>
+                        <div class="card-body d-none" id="editEmpolyeDataForm">
+                            <div class="container-fluid">
                                 <form method="post" action="{{route('employes.data.update', [$employe->id])}}" class="form-horizontal" id="editHolidayClaimForm">
                                     @csrf
                                     @method('put')
+                                    <div class="row">
+                                        <label class="label-control">
+                                            Arbeitszeit - Key-Nummer
+                                        </label>
+                                        <input name="time_recording_key" type="number" min="1" value="{{$employe->employe_data->time_recording_key}}" class="form-control">
+                                    </div>
+                                    <div class="row">
+                                        <label class="label-control">
+                                            Arbeitszeit - Pin
+                                        </label>
+                                        <input name="secret_key" type="password" value="{{$employe->employe_data->secret_key}}" class="form-control">
+                                    </div>
+                                    <div class="row">
+                                        <label class="label-control">
+                                            Arebitszeitbenachrichtigung
+                                        </label>
+                                        <select class="custom-select" name="mail_timesheet">
+                                            <option value="0" @if($employe->employe_data->mail_timesheet == 0) selected @endif>nein</option>
+                                            <option value="1" @if($employe->employe_data->mail_timesheet == 1) selected @endif>ja</option>
+                                        </select>
+                                    </div>
                                     <div class="row">
                                         <label class="label-control">
                                             Urlaubsanspruch
@@ -250,14 +284,8 @@
 
                                     <button type="submit" form="editHolidayClaimForm" class="btn btn-sm btn-success">speichern</button>
                                 </form>
-                            </li>
-                            <li class="">
-                                 Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
-                                (<a href="{{url('timesheets/update/employe/'.$employe->id)}}" class="card-link">aktualiseren</a>)
-                            </li>
-
-                        </ul>
-                    </div>
+                            </div>
+                        </div>
                         @if(!is_null($employe->salary))
                             <div class="card-footer d-none" id="editSalaryForm">
                             <form class="form-horizontal" method="post" action="{{url('employe/'.$employe->id.'/editSalary')}}">

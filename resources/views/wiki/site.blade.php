@@ -23,13 +23,44 @@
                         <div class="card-body">
                             {!! $site->text !!}
                         </div>
-                        @if($site->getMedia()->count() > 0)
+                        @if($site->getMedia()->count() > 0 or $site->getMedia('files')->count() > 0)
                             <div class="card-body">
-                                @foreach($site->getMedia()->sortBy('name') as $media)
-                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
-                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
-                                    </a>
-                                @endforeach
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <h6>Bilder</h6>
+                                            </div>
+                                            <div class="col">
+                                                @foreach($site->getMedia('default')->sortBy('name') as $media)
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <h6>Dateien</h6>
+                                            </div>
+                                            <div class="col">
+                                                <ul class="list-group">
+                                                    @foreach($site->getMedia('files')->sortBy('name') as $media)
+                                                        <li class="list-group-item">
+                                                            <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                                <i class="fa fa-file"></i> {{$media->name}}
+                                                            </a>
+                                                        </li>
+
+                                                    @endforeach
+                                                </ul>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         @endif
 
@@ -81,13 +112,44 @@
                         <div class="card-body">
                             {!! $akt_site->text !!}
                         </div>
-                        @if($site->getMedia()->count() > 0)
+                        @if($site->getMedia()->count() > 0 or $site->getMedia('files')->count() > 0)
                             <div class="card-body">
-                                @foreach($akt_site->getMedia()->sortBy('name') as $media)
-                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
-                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
-                                    </a>
-                                @endforeach
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <h6>Bilder</h6>
+                                            </div>
+                                            <div class="col">
+                                                @foreach($site->getMedia('default')->sortBy('name') as $media)
+                                                    <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                        <img class="mx-auto img-thumbnail" src="{{url('/image/'.$media->id)}}" style="max-height: 200px; max-width: 200px" >
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <h6>Dateien</h6>
+                                            </div>
+                                            <div class="col">
+                                                <ul class="list-group">
+                                                    @foreach($site->getMedia('files')->sortBy('name') as $media)
+                                                        <li class="list-group-item">
+                                                            <a href="{{url('/image/'.$media->id)}}" target="_blank">
+                                                                <i class="fa fa-file"></i> {{$media->name}}
+                                                            </a>
+                                                        </li>
+
+                                                    @endforeach
+                                                </ul>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         @endif
                         <div class="card-footer border-top bg-light">

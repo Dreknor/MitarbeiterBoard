@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Http\Controllers\Personal\TimesheetController;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -34,6 +35,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
         $schedule->call('App\Http\Controllers\PostsController@dailyMail')->dailyAt('20:00');
+        $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
     }
 
     /**

@@ -26,8 +26,8 @@
     @stack('css')
 
 </head>
-<body id="">
-<div class="bg-secondary" style='width: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.config('config.show_background')) !!}")'>
+<body>
+<div class="bg-secondary" style='width: 100%; height: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.settings('show_background')) !!}")'>
 <div class="content d-none d-lg-block">
         @for($x=Carbon\Carbon::today(); $x< $targetDate; $x->addDay())
             @if(!$x->isWeekend())

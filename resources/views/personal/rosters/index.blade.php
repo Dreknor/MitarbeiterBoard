@@ -62,6 +62,9 @@
                                 <option value="end">
                                     Arbeitsende
                                 </option>
+                                <option value="event">
+                                    Terminname
+                                </option>
                             </select>
                         </div>
                         <div @class(['form-row'])>
@@ -230,7 +233,14 @@
                             @foreach($department->roster_checks as $check)
                                 <tr>
                                     <td>
-                                        Arbeitszeit
+                                        @switch($check->type)
+                                            @case(\App\Models\personal\WorkingTime::class)
+                                                Arbeitszeit
+                                                @break
+                                            @case(\App\Models\personal\RosterEvents::class)
+                                                Termin
+                                                @break
+                                        @endswitch
                                     </td>
                                     <td>
                                         @switch($check->field_name)

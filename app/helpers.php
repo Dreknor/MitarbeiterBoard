@@ -1,7 +1,11 @@
 <?php
 
+use App\Models\Setting;
 use Carbon\Carbon;
 use Carbon\CarbonInterval;
+use Illuminate\Config\Repository;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -23,7 +27,13 @@ function random_color()
     return random_color_part() . random_color_part();
 }
 
-function redirectBack(string $type = null, string $meldung = null, $anchor = null)
+/**
+ * @param string|null $type
+ * @param string|null $meldung
+ * @param string|null $anchor
+ * @return RedirectResponse
+ */
+function redirectBack(string $type = null, string $meldung = null, string $anchor = null): RedirectResponse
 {
     return redirect()->to(url()->previous().$anchor)->with([
         'type' => $type,
@@ -42,6 +52,10 @@ function money($money = null, $symbol = true)
     }
 }
 
+/**
+ * @param Carbon $date
+ * @return string
+ */
 function is_holiday(Carbon $date)
 {
     $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
@@ -124,6 +138,29 @@ function percent_to_seconds($percent, $full_hours = 40){
     $seconds = $minutes*60;
 
     return ($seconds);
+}
+
+/**
+ * @param $key
+ * @return Repository|Application|\Illuminate\Foundation\Application|mixed
+ */
+function settings($key, $config_file = null)
+{
+    $settings = Cache::remember('setting_'.$key, 1, function() use ($key) {
+        return Setting::where('setting', $key)->first()?->value;
+    });
+
+
+    if (is_null($settings)){
+
+        if (!is_null($config_file)){
+            return config($config_file.'.'.$key);
+        }
+
+        return config('config.'.$key);
+    }
+
+    return $settings;
 }
 
 

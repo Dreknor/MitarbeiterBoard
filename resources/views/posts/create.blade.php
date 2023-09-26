@@ -15,7 +15,7 @@
                     @csrf
                     <div class="form-row pt-2">
                         <div class="col-sm-12 col-md-12 col-lg-9">
-                            <label for="theme">Überschrift</label>
+                            <label for="theme">Überschrift <div class="text-danger d-inline">*</div> </label>
                             <input type="text" class="form-control" id="header" name="header" required autofocus value="{{old('header')}}">
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-3">
@@ -35,7 +35,7 @@
                             </textarea>
                         </div>
                         <div class="col-sm-12 col-md-12 col-lg-3">
-                            <label for="type">Gruppen?</label>
+                            <label for="type">Gruppen? <div class="text-danger d-inline">*</div> </label>
                             <div class="container-fluid">
                                 @foreach(auth()->user()->groups_rel as $group)
                                     <div class="row">
@@ -43,7 +43,6 @@
                                             <label class="w-100 ">
                                                 <input type="checkbox" class="custom-checkbox" name="groups[]" value="{{$group->id}}">
                                                 {{$group->name}}
-
                                             </label>
                                         </div>
                                     </div>

@@ -11,12 +11,11 @@ use App\Models\Klasse;
 use App\Models\User;
 use App\Models\Vertretung;
 use App\Models\VertretungsplanWeek;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+//use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+use Barryvdh\DomPDF\Facade\Pdf AS PDF;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Writer\Exception;
 
 class VertretungController extends Controller
 {
@@ -109,6 +108,13 @@ class VertretungController extends Controller
      */
     public function destroy($vertretung)
     {
+
+        if (!auth()->user()->can('edit vertretungen')){
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=>'Keine Berechtigung.'
+            ]);
+        }
 
         $vertretung = Vertretung::findOrFail($vertretung);
 
@@ -300,7 +306,8 @@ class VertretungController extends Controller
             ->setPaper('a4', 'Landscape')
             ->setOption(
                 "encoding", "utf-8"
-            )->inline();
+            )
+            ->download();
 
     }
 

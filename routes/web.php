@@ -18,6 +18,7 @@ use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
 use App\Http\Controllers\Personal\RosterEventsController;
 use App\Http\Controllers\Personal\RosterNewsController;
+use App\Http\Controllers\Personal\TimeRecordingController;
 use App\Http\Controllers\Personal\TimesheetController;
 use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TerminListen\ListenController;
@@ -77,6 +79,20 @@ Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
 Route::get('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scan']);
 Route::post('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scanUpdate']);
 
+/*
+* digitale Arbeitszeiterfassung
+*/
+Route::prefix('time_recording')->group(callback: function (){
+    Route::get('start', [TimeRecordingController::class, 'start'])->name('time_recording.start');
+    Route::post('start', [TimeRecordingController::class, 'read_key'])->name('time_recording.read_key');
+    Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
+    Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
+    Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
+
+    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->name('time_recording.storeSecret');
+});
+
+
 Route::group([
     'middleware' => ['auth'],
 ],
@@ -91,9 +107,17 @@ Route::group([
         ],
             function () {
 
-                //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
-                Route::get('test/doc', [\App\Http\Controllers\DocumentsController::class, 'index']);
-                Route::post('test/doc', [\App\Http\Controllers\DocumentsController::class, 'import']);
+                Route::get('test/mail', [TimesheetController::class, 'timesheet_mail']);
+
+                /*
+                 * Routes for edit dashboard
+                 */
+                Route::get('dashboard/{dashBoardUser}/up', [\App\Http\Controllers\DashboardController::class, 'up']);
+                Route::get('dashboard/{dashBoardUser}/down', [\App\Http\Controllers\DashboardController::class, 'down']);
+                Route::get('dashboard/{dashBoardUser}/left', [\App\Http\Controllers\DashboardController::class, 'left']);
+                Route::get('dashboard/{dashBoardUser}/right', [\App\Http\Controllers\DashboardController::class, 'right']);
+                Route::get('dashboard/{dashBoardUser}/toggle', [\App\Http\Controllers\DashboardController::class, 'toggle']);
+
                 /*
                  * Routes for Wiki
                  */
@@ -122,14 +146,20 @@ Route::group([
 
                 //Timesheets
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
+                Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
+                Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
+                Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
+
 
 
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
                 Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
                 Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
                 Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
+                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay']);
+                Route::put('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'updateDay']);
                 Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
                 Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
                 Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
@@ -211,6 +241,7 @@ Route::group([
 
                 //absences
                 Route::middleware(['permission:view absences'])->group(function (){
+                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);
                     Route::post('absences', [AbsenceController::class, 'store']);
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
@@ -252,6 +283,7 @@ Route::group([
                     Route::get('vertretungen/{vertretung}/copy', [VertretungController::class, 'copy']);
                     Route::get('vertretungen/{vertretung}/edit', [VertretungController::class, 'edit']);
                     Route::put('vertretungen/{vertretung}', [VertretungController::class, 'update']);
+                    Route::delete('vertretungen/{vertretung}', [VertretungController::class, 'destroy']);
                     Route::get('vertretungen/{date}/generate-doc', [VertretungController::class, 'generateDoc']);
                     Route::get('vertretungen/{startDate}/generate-pdf/{endDate?}', [VertretungController::class, 'generatePDF']);
                     Route::post('dailyNews', [DailyNewsController::class, 'store']);
@@ -292,7 +324,7 @@ Route::group([
                 Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
                 Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
-                Route::get('{groupname}/archive', [ThemeController::class,'archive']);
+                Route::get('{groupname}/archive/{month?}', [ThemeController::class,'archive']);
                 Route::get('unarchiv/{theme}', [ThemeController::class, 'unArchive'])->middleware('permission:unarchive theme');
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class,'closeTheme']);
                 Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class,'activate']);
@@ -318,7 +350,7 @@ Route::group([
 
                 Route::get('image/{media_id}', [ImageController::class, 'getImage']);
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
-                ;
+                Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 
                 //Roles and permissions
                 Route::group(['middleware' => ['permission:edit permissions']], function () {
@@ -428,5 +460,20 @@ Route::group([
                     Route::post('categories', [CategoryController::class, 'store']); //Categories
                     Route::post('position', [PositionsController::class, 'store']);
                 });
+
+                /*
+                 * Edit Settings
+                 */
+                Route::middleware(['permission:edit settings'])->group(callback: function () {
+                    Route::get('settings/{modulname}', [SettingController::class, 'index']);
+
+
+                    Route::resource('settings', SettingController::class)->only(['index', 'store']);
+
+                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
+                });
+
+
+
             });
     });

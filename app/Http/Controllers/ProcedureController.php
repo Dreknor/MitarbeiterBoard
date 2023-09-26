@@ -7,6 +7,7 @@ use App\Http\Requests\CreateStepRequest;
 use App\Http\Requests\EditStepRequest;
 use App\Mail\newStepMail;
 use App\Mail\StepErinnerungMail;
+use App\Models\Absence;
 use App\Models\Positions;
 use App\Models\Procedure;
 use App\Models\Procedure_Category;
@@ -274,7 +275,14 @@ class ProcedureController extends Controller
                 ];
             }
 
-            Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
+            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
+                ->where('users_id', $user->id)
+                ->first();
+
+            if (is_null($absences)) {
+                Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
+            }
 
             return '';
         }

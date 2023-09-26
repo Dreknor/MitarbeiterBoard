@@ -2,7 +2,7 @@
 
 namespace App\Models\personal;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 class TimesheetDays extends Model
 {
     use SoftDeletes;
+    use \Znck\Eloquent\Traits\BelongsToThrough;
+
 
     protected $fillable = [
         'timesheet_id','date', 'start', 'end', 'pause', 'percent_of_workingtime', 'comment'
@@ -22,6 +24,13 @@ class TimesheetDays extends Model
     ];
     public function timesheet(){
         return $this->belongsTo(Timesheet::class);
+    }
+
+    public function employe(){
+        return $this->belongsToThrough(User::class,Timesheet::class,'timesheet_id', '',[
+            'App\Models\personal\Timesheet' => 'timesheet_id',
+            'App\Models\User' => 'employe_id',
+        ]);
     }
 
     public function getDurationAttribute()
@@ -39,8 +48,16 @@ class TimesheetDays extends Model
             $seconds = (percent_to_seconds($employment)/5)/100 * $this->percent_of_workingtime;
         }
 
+        return Cache::remember('timesheet_duration_'.$this->id, 60*60*24, function () use ($seconds){
+            return $seconds - ($this->pause*60);
+        });
+    }
 
-        return $seconds - ($this->pause*60);
+    protected static function booted(): void
+    {
+        static::updated(function ($item) {
+            Cache::forget('timesheet_duration_'.$item->id);
+        });
     }
 
 }

@@ -24,7 +24,9 @@ class Vertretung extends Model
     }
 
     public function klasse (){
-        return $this->hasOne(Klasse::class, 'id', 'klassen_id' );
+        return $this->hasOne(Klasse::class, 'id', 'klassen_id' )->withDefault([
+            'name' => 'gelöschte Klasse',
+        ]);
     }
 
     public function getStundeAttribute(){

@@ -16,6 +16,20 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AbsenceController extends Controller
 {
+    public function index() {
+        if (!auth()->user()->can('view old absences')){
+            return redirect(url('/'))->with([
+                'type'  => "warning",
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absences = Absence::query()->orderByDesc('start')->with('user')->get();
+
+        return view('absences.index',[
+            'absences' => $absences
+        ]);
+    }
     public function store(CreateAbsenceRequest $request){
 
         $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())
@@ -76,8 +90,15 @@ class AbsenceController extends Controller
         $users = User::where('absence_abo_now', 1)->get();
 
         foreach ($users as $user){
-            Mail::to($user)
-                ->queue(new DailyAbsenceReport($absences));
+            $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
+                ->where('users_id', $user->id)
+                ->first();
+
+            if (is_null($absence_user)) {
+                Mail::to($user)
+                    ->queue(new DailyAbsenceReport($absences));
+            }
         }
 
 
@@ -133,7 +154,7 @@ class AbsenceController extends Controller
             $missing_note = 0;
 
             foreach ($absences_user as $absence){
-                if ($absence->days < config('absences.absence_sick_note_days') and $absence->sick_note_required == false)
+                if ($absence->days < settings('absences.absence_sick_note_days') and $absence->sick_note_required == false)
                 {
                     $without_note+=$absence->days;
                 }
@@ -147,6 +168,7 @@ class AbsenceController extends Controller
                 }
             }
 
+
             $users->add([
                 'user' => $absence->user->name,
                 'without_note' => $without_note,
@@ -155,7 +177,6 @@ class AbsenceController extends Controller
             ]);
 
         }
-
 
         return view('absences.sicknotes',[
            'absences' => $absences,

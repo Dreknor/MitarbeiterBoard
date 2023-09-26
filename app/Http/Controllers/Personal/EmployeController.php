@@ -57,7 +57,20 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
-        $employments = $employe->employments()->active()->get()->sortByDesc('start');
+        if (is_null($employe->employe_data)){
+            $employe->employe_data()->create([
+                'familienname' => Str::afterLast($employe->name, ' '),
+                'vorname' => Str::before($employe->name, ' '),
+                'user_id' => $employe->id,
+                'geschlecht' => 'anderes',
+                'mail_timesheet' => 0
+            ]);
+        }
+
+        //$employments = $employe->employments()->active()->get()->sortByDesc('start');
+        $employments = $employe->employments->filter(function ($employment){
+            return $employment->end == null or $employment->end->greaterThan(Carbon::now());
+        })->sortByDesc('start');
 
         $employments_old = $employe->employments->filter(function ($employment){
             return $employment->end != null and $employment->end->lessThan(Carbon::now());
@@ -84,6 +97,7 @@ class EmployeController extends Controller
      */
     public function update(CreateEmployeRequest $request, User $employe)
     {
+
         $settings = $employe->employe_data;
         if (is_null($settings)){
             $settings = new EmployeData($request->validated());
@@ -114,14 +128,34 @@ class EmployeController extends Controller
     public function updateData(UpdateEmployeDataRequest $request, User $employe)
     {
 
-        $claim = new EmployeHolidayClaim([
-           'holiday_claim' => $request->holidayClaim,
-           'employe_id' => $employe->id,
-           'date_start' => $request->date_start,
-           'changedBy' => auth()->id()
-        ]);
+        if ($request->holidayClaim !=  $employe->getHolidayClaim()){
+            $claim = new EmployeHolidayClaim([
+                'holiday_claim' => $request->holidayClaim,
+                'employe_id' => $employe->id,
+                'date_start' => $request->date_start,
+                'changedBy' => auth()->id()
+            ]);
+            $claim->save();
+        }
 
-        $claim->save();
+        if ($request->time_recording_key != null){
+            $employe->employe_data()->update([
+                'time_recording_key' => $request->time_recording_key
+            ]);
+        }
+
+        if ($request->secret_key != null){
+            $employe->employe_data()->update([
+                'secret_key' => $request->secret_key
+            ]);
+        }
+
+        if ($request->mail_timesheet != null){
+            $employe->employe_data()->update([
+                'mail_timesheet' => $request->mail_timesheet
+            ]);
+        }
+
         return redirect()->back()->with([
             'type' => "success",
             'Meldung' => 'Daten aktualisiert.'

@@ -2,6 +2,7 @@
 
 namespace App\Models\personal;
 
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +23,10 @@ class EmployeData extends Model
         'google_calendar_link',
         'caldav_working_time',
         'caldav_events',
-        'caldav_uuid'
+        'caldav_uuid',
+        'time_recording_key',
+        'secret_key',
+        'mail_timesheet'
         ];
 
     protected $table = 'employes_data';
@@ -34,8 +38,12 @@ class EmployeData extends Model
         'gebutstag' => 'datetime:Y-m-d',
         'caldav_events' => 'boolean',
         'caldav_working_time' => 'boolean',
-        'geburtstag' => 'date'
+        'geburtstag' => 'date',
+        'mail_timesheet' => 'boolean'
     ];
 
+    public function user (){
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
 }

@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 
-use Illuminate\Support\Facades\Request;
+use App\Models\Post;
+use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -28,6 +29,34 @@ class ImageController extends Controller
         return redirect()->back()->with([
             'type' => 'success',
             'Meldung' => 'Datei entfernt'
+        ]);
+    }
+
+    public function removeImageFromPost(Request $request, Media $media)
+    {
+        if (auth()->user()->can('create posts')) {
+            $post = Post::find($request->input('post_id'));
+            $post_media = $post->getMedia('files')->where('id', $media->id)->first();
+            if (is_null($post_media)) {
+                $post_media = $post->getMedia('images')->where('id', $media->id)->first();
+            }
+            if (!is_null($post_media)) {
+                $media->delete();
+                return redirect()->back()->with([
+                    'type' => 'success',
+                    'Meldung' => 'Datei entfernt'
+                ]);
+            }
+
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Datei nicht gefunden oder gehört nicht zum Post'
+            ]);
+        }
+
+        return redirect()->back()->with([
+            'type' => 'warning',
+            'Meldung' => 'Berechtigung fehlt'
         ]);
     }
 }

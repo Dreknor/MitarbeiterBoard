@@ -60,6 +60,43 @@
                     </div>
                 </form>
             </div>
+            @if($post->getMedia('images')->count() > 0 or $post->getMedia('files')->count() > 0)
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-sm-12 col-md-12 col-lg-12">
+                            <ul class="list-group">
+                                @foreach($post->getMedia('files') as $file)
+                                    <li class="list-group-item">
+                                        {{$file->name}}
+                                        <form action="{{url('/image/'.$file->id)}}" method="post" class="" id="form{{$file->id}}">
+                                            @csrf
+                                            @method('delete')
+                                            <input type="hidden" name="post_id" value="{{$post->id}}">
+                                            <button type="submit" class="btn btn-link text-danger pull-right">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                @endforeach
+                                @foreach($post->getMedia('images') as $file)
+                                    <li class="list-group-item">
+                                        <img src="{{url('/image/'.$file->id)}}" alt="{{$file->name}}" class="img-fluid" style="max-height: 200px;">
+                                        <form action="{{url('/image/'.$file->id)}}" method="post" class="" id="form{{$file->id}}">
+                                            @csrf
+                                            @method('delete')
+                                            <input type="hidden" name="post_id" value="{{$post->id}}">
+                                            <button type="submit" class="btn btn-link text-danger pull-right">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+            @endif
             <div class="card-footer">
                 <button type="submit" form="createForm" class="btn bg-gradient-x-success btn-block">speichern</button>
             </div>

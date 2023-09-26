@@ -100,15 +100,15 @@
                 'searchreplace visualblocks code',
                 'insertdatetime table code wordcount',
                 'contextmenu autosave preview',
-                'paste image'
+                'paste image toc'
             ],
             link_list: [
                 @foreach($sites as $link_site)
                     {title: '{{$link_site->title}}', value: '{{route("wiki", ['slug' => $link_site->slug])}}'},
                 @endforeach
             ],
-            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | image anchor  bullist numlist outdent indent | removeformat | link | restoredraft | preview',
-            contextmenu: " link paste inserttable | cell row column deletetable",
+            toolbar: 'undo redo  | formatselect | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | toc | image anchor  bullist numlist outdent indent | removeformat | link | restoredraft | preview',
+            contextmenu: " link paste pastetext inserttable | cell row column deletetable",
             relative_urls : false,
             a11y_advanced_options: true,
             document_base_url : 'http://{{config('app.url')}}/wiki/',

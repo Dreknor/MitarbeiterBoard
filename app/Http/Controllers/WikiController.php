@@ -49,14 +49,20 @@ class WikiController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->files->all();
             foreach ($files['files'] as $file) {
+                if(substr($file->getMimeType(), 0, 5) == 'image')
+                    $collection = 'default';
+                else {
+                    $collection = 'files';
+                }
                 $site
                     ->addMedia($file)
-                    ->toMediaCollection();
+                    ->toMediaCollection($collection);
             }
         }
 
         if ($site->previous_version != $site->id and $site->previous()->first()?->getMedia()->count() > 0){
             foreach ($site->previous()->first()->getMedia() as $media){
+
                 $site
                     ->copyMedia($media->getPath())
                     ->toMediaCollection();

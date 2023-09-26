@@ -17,15 +17,15 @@
                                     </b>
                                      {{$task->task}}
                                         <div class="pull-right ml-1">
-                                            <a href="{{url($task->theme->group->name.'/themes/'.$task->theme_id)}}">
+                                            <a href="{{url($task->theme->group->name.'/themes/'.$task->theme_id)}}" class="btn btn-sm btn-bg-gradient-x-blue-purple-1">
                                                 <i class="fas fa-external-link-alt"></i> zum Thema
                                             </a>
                                         </div>
                                 </p>
                                     <div class="pull-right">
                                         <div class="ml-3 mr-3">
-                                            <a href="{{url('tasks/'.$task->id.'/complete')}}">
-                                                <i class="far fa-check-square"></i> erledigt
+                                            <a href="{{url('tasks/'.$task->id.'/complete')}}" class="btn btn-sm btn-bg-gradient-x-blue-green">
+                                                <i class="far fa-check-square"></i>Als ERLEDIGT markieren
                                             </a>
                                         </div>
 

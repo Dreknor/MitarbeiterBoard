@@ -25,7 +25,7 @@ class createPostRequest extends FormRequest
     {
         return [
             'header' => ['required', 'string'],
-            'text' => ['required', 'string'],
+            'text' => ['nullable', 'string'],
             'groups' => ['required', 'min:1', 'array'],
             'released' => ['sometimes'],
         ];

@@ -28,7 +28,7 @@ class VertretungsplanController extends Controller
 
         $klassen= $klassen->pluck('id');
 
-        $addDays=config('config.show_vertretungen_days');
+        $addDays=settings('show_vertretungen_days');
         $addWeekendDays = false;
 
         for ($days=0; $days < $addDays; $days++){

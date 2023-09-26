@@ -29,7 +29,15 @@ class UpdateEmployeDataRequest extends FormRequest
             ],
             'date_start' => [
                 'required', 'date',
-
+            ],
+            'time_recording_key' => [
+                'nullable', 'numeric', 'digits:10',
+            ],
+            'secret_key' => [
+                'nullable', 'numeric', 'digits_between:6,10',
+            ],
+            'mail_timesheet' => [
+                'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
             ]
         ];
     }

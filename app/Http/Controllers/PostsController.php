@@ -59,9 +59,14 @@ class PostsController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->files->all();
             foreach ($files['files'] as $file) {
+                if(substr($file->getMimeType(), 0, 5) == 'image')
+                    $collection = 'images';
+                else {
+                    $collection = 'files';
+                }
                 $post
                     ->addMedia($file)
-                    ->toMediaCollection('files');
+                    ->toMediaCollection($collection);
             }
         }
         return redirect(url('/'))->with([
@@ -142,9 +147,14 @@ class PostsController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->files->all();
             foreach ($files['files'] as $file) {
+                if(substr($file->getMimeType(), 0, 5) == 'image')
+                    $collection = 'images';
+                else {
+                    $collection = 'files';
+                }
                 $post
                     ->addMedia($file)
-                    ->toMediaCollection('files');
+                    ->toMediaCollection($collection);
             }
         }
 
