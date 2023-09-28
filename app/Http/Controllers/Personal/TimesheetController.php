@@ -36,8 +36,16 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        $users = User::whereHas('employments')->get();
+
+        foreach ($users as $key => $user){
+           if (!$user->can('has timesheet')){
+            $users->forget($key);
+           }
+        }
+
         return view('personal.timesheets.selectEmploye', [
-            'employes' => User::whereHas('employments')->get()
+            'employes' => $users
         ]);
     }
 
