@@ -41,14 +41,6 @@ return new class extends Migration
             'description' => 'Dürfen Benutzer den Urlaub anderer Benutzer sehen?',
         ]);
 
-        \App\Models\Setting::insert([
-            'module' => 'Urlaubsplaner',
-            'setting' => 'show_holidays',
-            'setting_name' => 'Urlaub Anderer anzeigen',
-            'type'  => 'boolean',
-            'value' => '1',
-            'description' => 'Dürfen Benutzer den Urlaub anderer Benutzer sehen?',
-        ]);
 
         \App\Models\Setting::insert([
             'module' => 'Urlaubsplaner',
