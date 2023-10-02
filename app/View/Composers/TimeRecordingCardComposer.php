@@ -26,7 +26,7 @@ class TimeRecordingCardComposer
         $timesheetDay = TimesheetDays::query()->whereDate('date', Carbon::now()->format('Y-m-d'))->whereNull('end')->get();
 
         foreach ($timesheetDay as $day) {
-            $users[$day->employe->name] = $day->start->format('H:i');;
+            $users[$day->employe->name] = (!is_null($day->start))? $day->start?->format('H:i') : $day->comment ;
         }
 
         $view->with('users', $users);
