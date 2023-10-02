@@ -93,7 +93,7 @@
                                             </a>
                                         </li>
                                 @endcan
-                                @can('has holidays')
+                                @canany(['has holidays', 'approve holidays'])
                                         <li class="@if(request()->segment(1)=="holidays") active  @endif">
                                             <a class="menu-item" href="{{route('holidays.index')}}">
                                                 Urlaub
