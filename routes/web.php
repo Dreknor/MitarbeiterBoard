@@ -14,6 +14,7 @@ use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\ContactController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
+use App\Http\Controllers\Personal\HolidayController;
 use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
 use App\Http\Controllers\Personal\RosterEventsController;
@@ -143,6 +144,12 @@ Route::group([
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
 
+                //Urlaubsverwaltung
+                Route::middleware(['permission:has holidays'])->group(function () {
+                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
+                    Route::resource('holidays', HolidayController::class);
+
+                });
 
                 //Timesheets
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);

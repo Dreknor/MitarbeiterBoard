@@ -93,6 +93,13 @@
                                             </a>
                                         </li>
                                 @endcan
+                                @can('has holidays')
+                                        <li class="@if(request()->segment(1)=="holidays") active  @endif">
+                                            <a class="menu-item" href="{{route('holidays.index')}}">
+                                                Urlaub
+                                            </a>
+                                        </li>
+                                @endcan
                                 </li>
                             </ul>
                         </div>
