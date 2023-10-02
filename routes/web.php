@@ -145,7 +145,7 @@ Route::group([
                 });
 
                 //Urlaubsverwaltung
-                Route::middleware(['permission:has holidays'])->group(function () {
+                Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
                     Route::resource('holidays', HolidayController::class);
 
