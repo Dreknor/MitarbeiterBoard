@@ -34,8 +34,8 @@ class TimeRecordingController extends Controller
             $timesheet = auth()->user()->timesheets()->create([
                 'month'=>now()->month,
                 'year'=>now()->year,
-                'holidays_old' => $latest->holidays_old + $latest->holidays_new,
-                'working_time_account' => $latest->working_time_account,
+                'holidays_old' => $latest?->holidays_old + $latest?->holidays_new,
+                'working_time_account' => (is_null($latest)) ? 0 : $latest?->working_time_account,
             ]);
         }
 

@@ -23,6 +23,7 @@
                     <thead>
                         <tr>
                             <th></th>
+                            <th></th>
                             <th>Name</th>
                             <th>E-Mail</th>
                             <th>Rollen</th>
@@ -37,6 +38,9 @@
                                     <a href="{{url('/users/').'/'.$user->id}}" class="btn-link">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                </td>
+                                <td>
+                                    <img src="{{$user->photo()}}" class="avatar-xs">
                                 </td>
                                 <td>
                                     {{$user->name}}

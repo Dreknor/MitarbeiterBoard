@@ -167,7 +167,7 @@
                                     </b>
                                 </div>
                                 <div class="col-sm-12 col-md-12 col-lg-9">
-                                    {{$theme->ersteller->name}}
+                                    <img src="{{$theme->ersteller->photo()}}" class="avatar-xs">  {{$theme->ersteller->name}}
                                 </div>
                             </div>
                             <div class="row p-2">

@@ -284,5 +284,11 @@ class User extends Authenticatable implements HasMedia
         return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
     }
 
-
+    public function photo(){
+        if ($this->getMedia('profile')->count() == 0){
+            return asset('img/avatar.png') ;
+        } else {
+            return url('image/').'/'.$this->getMedia('profile')->first()->id;
+        }
+    }
 }

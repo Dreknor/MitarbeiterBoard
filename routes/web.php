@@ -135,14 +135,19 @@ Route::group([
                 /*
                  * Edit Employes
                  */
+                Route::get('/employes/self', [EmployeController::class, 'show_self'])->name('employes.self');
+                Route::put('/employes/self', [EmployeController::class, 'update_self'])->name('employes.self.update');
+                Route::post('/employes/photo', [EmployeController::class, 'photo'])->name('employes.self.photo');
+
+
                 Route::middleware(['permission:edit employe'])->group(function () {
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
                         'index' => 'employes.index',
                     ])->except('create');
-
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
+
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
@@ -355,7 +360,7 @@ Route::group([
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
 
-                Route::get('image/{media_id}', [ImageController::class, 'getImage']);
+                Route::get('image/{media_id}', [ImageController::class, 'getImage'])->name('image.get');
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 
