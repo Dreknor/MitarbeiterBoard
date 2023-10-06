@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('employes_data', function (Blueprint $table) {
             $table->addColumn('integer','secret_key')->nullable();
-            $table->addColumn('string','time_recording_key')->nullable()->unique('unique_key');
+            $table->string('time_recording_key')->nullable()->unique('unique_key');
         });
     }
 
