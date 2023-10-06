@@ -402,7 +402,7 @@
                             @else
                                 <li class="dropdown">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                                        <img class="avatar border-white" src="{{auth()->user()->photo()}}" alt="..." >
+                                        <img class="avatar-xs border-white" src="{{auth()->user()->photo()}}" alt="..." style="">
                                         <span class="d-none d-md-inline">{{auth()->user()->name}}</span>
                                     </a>
                                     <ul class="dropdown-menu">
