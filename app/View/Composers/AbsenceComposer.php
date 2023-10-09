@@ -22,18 +22,9 @@ class AbsenceComposer
      */
     public function compose(View $view): void
     {
-        if (auth()->user()->can('view absences')){
-            $absences = Absence::whereDate('end', '>=', Carbon::now()->startOfDay())->orderBy('start')->get();
-            $oldAbsences = Absence::whereDate('end', '<', Carbon::now()->startOfDay())->orderByDesc('end')->paginate(5);
-        } else {
-            $absences = [];
-            $oldAbsences = [];
-        }
-
-
+        $absences = Absence::whereDate('end', '>=', Carbon::now()->startOfDay())->orderBy('start')->get();
         $view->with([
             'absences' => $absences,
-            'oldAbsences' => $oldAbsences
         ]);
     }
 }

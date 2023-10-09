@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\personal\CreateEmployeRequest;
+use App\Http\Requests\personal\selfUpdateProfileRequest;
 use App\Http\Requests\UpdateEmployeDataRequest;
 use App\Models\Group;
 use App\Models\personal\EmployeData;
@@ -57,6 +58,16 @@ class EmployeController extends Controller
     public function show(User $employe)
     {
 
+        if (is_null($employe->employe_data)){
+            $employe->employe_data()->create([
+                'familienname' => Str::afterLast($employe->name, ' '),
+                'vorname' => Str::before($employe->name, ' '),
+                'user_id' => $employe->id,
+                'geschlecht' => 'anderes',
+                'mail_timesheet' => 0
+            ]);
+        }
+
         //$employments = $employe->employments()->active()->get()->sortByDesc('start');
         $employments = $employe->employments->filter(function ($employment){
             return $employment->end == null or $employment->end->greaterThan(Carbon::now());
@@ -87,6 +98,7 @@ class EmployeController extends Controller
      */
     public function update(CreateEmployeRequest $request, User $employe)
     {
+
         $settings = $employe->employe_data;
         if (is_null($settings)){
             $settings = new EmployeData($request->validated());
@@ -139,6 +151,11 @@ class EmployeController extends Controller
             ]);
         }
 
+        if ($request->mail_timesheet != null){
+            $employe->employe_data()->update([
+                'mail_timesheet' => $request->mail_timesheet
+            ]);
+        }
 
         return redirect()->back()->with([
             'type' => "success",
@@ -199,5 +216,44 @@ class EmployeController extends Controller
         }
 
         abort(404);
+    }
+
+    public function show_self(){
+        return view('personal.employes.selfEdit', [
+            'employe' => auth()->user(),
+        ]);
+    }
+
+    public function update_self(selfUpdateProfileRequest $request){
+
+        $user = auth()->user();
+        $data = $user->employe_data;
+        if (is_null($data)){
+            $data = new EmployeData($request->validated());
+            $data->user_id = $user->id;
+            $data->save();
+        } else {
+            $data->update($request->validated() );
+        }
+
+        $user->update([
+            'name' => $request->vorname . ' ' . $request->familienname
+        ]);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'message' => 'Daten aktualisiert'
+        ]);
+    }
+
+    public function photo(Request $request){
+        $user = auth()->user();
+        $user->clearMediaCollection('profile');
+        $user->addMedia($request->file('file'))->toMediaCollection('profile');
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'message' => 'Foto aktualisiert'
+        ]);
     }
 }

@@ -4,277 +4,24 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createTimesheetDayRequest;
+use App\Http\Requests\updateTimesheetDayRequest;
+use App\Mail\SendMonthlyTimesheetMail;
 use App\Models\Absence;
-use App\Models\Group;
-use App\Models\personal\Employment;
-use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
-use App\Models\personal\WorkingTime;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Str;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class TimesheetController extends Controller
 {
 
-    /*
-    private function getGroup($old_group_id){
-
-        return Cache::remember($old_group_id.'_gruppe', 60, function() use ($old_group_id){
-            $groups_old = collect(DB::connection('dienstplan')->select("Select * from gruppe where id = $old_group_id"));
-            $group = Group::firstOrCreate([
-                'name'=> $groups_old->first()->gruppenname
-            ]);
-
-            return  $group->id;
-        });
-
-    }
-    private function getEmploye($old_employe_id){
-        if (is_null($old_employe_id)){
-            return null;
-        }
-
-        return Cache::remember($old_employe_id.'_employe', 60, function() use ($old_employe_id){
-            $user = DB::connection('dienstplan')->select("Select * from mitarbeiter WHERE id ='$old_employe_id' LIMIT 1");
-
-            //dump($user[0]->vorname.' '.$user[0]->nachname);
-            $users_exist = User::query()->withTrashed()->where('name', $user[0]->vorname.' '.$user[0]->nachname)->first();
-
-            if ($users_exist == null){ //dump($user);
-                }
-            return $users_exist?->id;
-        });
-
-    }
-    public function importEmployments(){
-        if (!auth()->user()->can('edit employe')){
-            return redirect()->back();
-        }
-
-
-       $users_exist = User::query()->withTrashed()->get();
-
-        $groups = Group::all();
-
-        $groups_new = [];
-
-                //Employments
-                $employments_old = collect(DB::connection('dienstplan')->select("SELECT * FROM `anstellungen` WHERE `deleted_at` IS NULL"));
-                $employments_old = $employments_old->sortBy('id');
-
-                $new_employments = [];
-
-                foreach ($employments_old as $employment){
-
-                    if ($this->getEmploye($employment->mitarbeiter_id) == null){
-                        continue;
-                    }
-
-
-
-                    $new_employments[] = [
-                        'id' => $employment->id,
-                        'employe_id' => $this->getEmploye($employment->mitarbeiter_id),
-                        'department_id' => $this->getGroup($employment->gruppen_id),
-                        'hour_type_id'  => 1,
-                        'start' => $employment->startdatum,
-                        'end' => ($employment->gueltigBis != null)? $employment->gueltigBis :$employment->enddatum,
-                        'hours' => $employment->stunden,
-                        'comment' => $employment->grund,
-                        'deleted_at' => ($employment->stunden == 0)? (($employment->gueltigBis != null)? $employment->gueltigBis :$employment->enddatum) : null,
-                    ];
-                }
-
-                Employment::insert($new_employments);
-
-                return redirect(url('timesheets/import/roster'));
-    }
-    public function getTimesheets($day, $user)
-    {
-        $day = Carbon::createFromFormat('Y-m-d', $day);
-        return Cache::remember('timesheets_'.$user.'_'.$day->format('Y-m'), 60, function () use ($user, $day){
-            return Timesheet::firstOrCreate([
-                'month' => $day->month,
-                'year' => $day->year,
-                'employe_id' => $user
-            ],[
-                'working_time_account' =>0
-            ]);
-        });
-    }
-    public function importRoster($year = 2005){
-        $rosters_old = collect(DB::connection('dienstplan')->select("SELECT * FROM `dienstplan` WHERE `startdatum` BETWEEN '".$year."-01-01' AND '".$year."-12-31' "));
-        $new_roster = [];
-
-        foreach ($rosters_old as $roster){
-
-                $new_roster[] = [
-                    'id' => $roster->id,
-                    'start_date' => $roster->startdatum,
-                    'type' => $roster->typ,
-                    'comment' => $roster->kommentar,
-                    'department_id' => $this->getGroup($roster->gruppe_id)
-                ];
-        }
-
-        Roster::insert($new_roster);
-
-        $rosters_old = null;
-
-        $events_old = collect(DB::connection('dienstplan')->select("SELECT * FROM `termine` WHERE `datum` BETWEEN '$year-01-01' AND '$year-12-31'"));
-        $new_events = [];
-        dump(count($events_old));
-        foreach ($events_old as $event){
-            if ($this->getEmploye($event->mitarbeiter) != null){
-                $new_events[]=[
-                    'event' => $event->terminname,
-                    'roster_id' => $event->dienstplan_id,
-                    'employe_id' => $this->getEmploye($event->mitarbeiter),
-                    'date' => $event->datum,
-                    'start' => $event->anfangszeit,
-                    'end' => $event->endzeit,
-                    'id' => $event->id
-                ];
-            }
-        }
-        dump(count($new_events));
-        RosterEvents::insert($new_events);
-        $new_workingtimes = null;
-
-        $workingtime_old = collect(DB::connection('dienstplan')->select("SELECT * FROM `arbeitszeit` WHERE `datum` BETWEEN '$year-01-01' AND '$year-12-31' "));
-        $new_workingtimes = [];
-        foreach ($workingtime_old as $workingtime){
-            if ($this->getEmploye($workingtime->mitarbeiter_id) != null){
-
-                $new_workingtimes[]=[
-                    'roster_id' => $workingtime->dienstplan_id,
-                    'employe_id' => $this->getEmploye($workingtime->mitarbeiter_id),
-                    'date' => $workingtime->datum,
-                    'start' => $workingtime->anfangszeit,
-                    'end' => $workingtime->endzeit,
-                    'function' => $workingtime->aufgabe,
-                ];
-            }
-        }
-        WorkingTime::insert($new_workingtimes);
-
-        dump($year);
-        if ($year != 2023){
-            $timesheets = Timesheet::query()->where('year', $year)->get();
-            foreach ($timesheets as $timesheet){
-                $timesheet->updateTime();
-            }
-            dump($year);
-            return redirect(url('http://mitarbeiter.local/timesheets/import/roster/'.$year+1));
-        } else
-        {
-            return redirect(url('timesheets/import/2015'));
-        }
-    }
-    public function import($year){
-        if (!auth()->user()->can('edit employe')){
-            return redirect()->back();
-        }
-
-
-        $users = collect(DB::connection('dienstplan')->select('Select * from mitarbeiter'));
-
-        $users_exist = User::query()->withTrashed()->get();
-        $users_new = [];
-        foreach ($users as $user){
-            $user_new = $users_exist->first(function ($item) use ($user){
-                return $item->name == $user->vorname.' '.$user->nachname;
-            });
-            if ($user_new == null){
-                continue;
-            }
-            $users_new[$user->id] = $user_new->id;
-        }
-
-        $users_exist = null;
-
-
-
-        //Arbeitszeitnachweise
-
-       $arbeitszeitnachweis = collect(DB::connection('dienstplan')->select("SELECT * FROM `arbeitszeitnachweis` WHERE `datum` BETWEEN '$year-01-01' AND '$year-12-31' ORDER BY `id` DESC"));
-
-        $new_arbeitszeitnachweis = [];
-        foreach ($arbeitszeitnachweis as $key => $nachweis){
-            set_time_limit(60);
-            if ($nachweis->deleted_at == null){
-
-                if (!array_key_exists($nachweis->mitarbeiter_id, $users_new)){
-                    continue;
-                }
-                $timesheet = $this->getTimesheets($nachweis->datum, $users_new[$nachweis->mitarbeiter_id]);
-
-                if (!is_null($nachweis->bemerkung) and array_key_exists($nachweis->bemerkung, config('config.abwesenheiten_arbeitszeit'))){
-                    $new_arbeitszeitnachweis[] = [
-                        'timesheet_id' => $timesheet->id,
-                        'date' => $nachweis->datum,
-                        'start' => null,
-                        'end' => null,
-                        'pause' => null,
-                        'percent_of_workingtime' => config('config.abwesenheiten_arbeitszeit')[$nachweis->bemerkung],
-                        'comment' => $nachweis->bemerkung,
-                    ];
-
-                } else {
-                    $new_arbeitszeitnachweis[] = [
-                        'timesheet_id' => $timesheet->id,
-                        'date' => $nachweis->datum,
-                        'start' => $nachweis->arbeitsbeginn,
-                        'end' => $nachweis->arbeitsende,
-                        'pause' => $nachweis->pause,
-                        'percent_of_workingtime' => null,
-                        'comment' => $nachweis->bemerkung,
-                    ];
-
-                }
-
-
-
-
-                if ($nachweis->zusatzstunden != null){
-                    $start = Carbon::createFromFormat('Y-m-d H:i', $nachweis->datum.' '.'00:00');
-                    $new_arbeitszeitnachweis[] = [
-                        'timesheet_id' => $timesheet->id,
-                        'date' => $nachweis->datum,
-                        'start' => $start->format('H:i'),
-                        'end' => $start->addHours(Str::before($nachweis->zusatzstunden, ':'))->addMinutes(Str::after($nachweis->zusatzstunden, ':')),
-                        'comment' => 'Übernahme Zusatzstunden Dienstplanverwaltun',
-                        'pause' => 0,
-                        'percent_of_workingtime' => null,
-                    ];
-                }
-            }
-        }
-
-        TimesheetDays::insert($new_arbeitszeitnachweis);
-
-        if ($year != 2023){
-            $timesheets = Timesheet::query()->where('year', $year)->get();
-            foreach ($timesheets as $timesheet){
-                $timesheet->updateTime();
-            }
-            dump($year);
-            return redirect(url('http://mitarbeiter.local/timesheets/import/'.$year+1));
-        } else
-        {
-            return redirect(url('http://mitarbeiter.local/'));
-        }
-    }
-    */
     /**
      * Display a listing of the resource.
      *
@@ -289,8 +36,16 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        $users = User::whereHas('employments')->get();
+
+        foreach ($users as $key => $user){
+           if (!$user->can('has timesheet')){
+            $users->forget($key);
+           }
+        }
+
         return view('personal.timesheets.selectEmploye', [
-            'employes' => User::whereHas('employments')->get()
+            'employes' => $users
         ]);
     }
 
@@ -398,6 +153,29 @@ class TimesheetController extends Controller
 
     }
 
+    public function editDay(TimesheetDays $timesheetDay){
+        if (!auth()->user()->can('edit employe') and ($timesheetDay->timesheet->employe_id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back();
+        }
+
+        return view('personal.timesheets.editDay',[
+            'timesheet_day' => $timesheetDay,
+            'day' => $timesheetDay->date,
+        ]);
+    }
+
+    public function updateDay(updateTimesheetDayRequest $request, TimesheetDays $timesheetDay){
+        if (!auth()->user()->can('edit employe') and ($timesheetDay->timesheet->employe_id != auth()->id() and auth()->user()->can('has timesheet'))){
+            return redirect()->back();
+        }
+
+        $timesheetDay->update($request->validated());
+
+        $timesheetDay->timesheet->updateTime();
+
+        return redirect(url('timesheets/'.$timesheetDay->timesheet->employe_id.'/'.$timesheetDay->date->format('Y-m').'#'.$timesheetDay->date->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag aktualisiert');
+    }
+
     /**
      * Display the specified resource.
      *
@@ -416,16 +194,6 @@ class TimesheetController extends Controller
             $act_month = Carbon::createFromFormat('Y-m', $date);
         }
 
-        /*keine Anstellung in diesem Monat
-        if ($user->employments_date($act_month)->count() <1){
-            return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
-        }
-
-        //nur bis aktuellem Monat
-        if ($act_month->copy()->endOfMonth()->greaterThan(Carbon::today()->endOfMonth())){
-            return redirectBack('warning', 'Dieses Datum liegt in der Zukunft');
-        }
-        */
         $old = $act_month->copy()->subMonth();
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
             return Timesheet::where('employe_id', $user->id)
@@ -444,7 +212,9 @@ class TimesheetController extends Controller
 
         if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
-                return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
+                if ($working_time->roster?->type != 'Vorlage'){
+                    return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
+                }
             });
 
             $newTimesheetDays = [];
@@ -556,6 +326,54 @@ class TimesheetController extends Controller
         ]);
         return $pdf->download('AZN_'.$user->familienname.'_'.$timesheet->year.'_'.$timesheet->month.'.pdf');
     }
+
+    public function timesheet_mail()
+    {
+        foreach (User::all() as $user){
+            if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
+
+                if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
+                    $date = Carbon::now()->subMonth();
+                    $timesheet = Timesheet::where([
+                        'employe_id' => $user->id,
+                        'year' => $date->year,
+                        'month' => $date->month,
+                    ])->first();
+                    if (!is_null($timesheet)) {
+                        $timesheet_days = $timesheet->timesheet_days;
+
+                        $old = $date->copy()->subMonth();
+
+                        $timesheet_old = Cache::remember('timesheet_' . $user->id . '_' . $old->year . '_' . $old->month, 60, function () use ($user, $old) {
+                            return Timesheet::where('employe_id', $user->id)
+                                ->where('year', $old->year)
+                                ->where('month', $old->month)
+                                ->first();
+                        });
+
+                        $pdf = PDF::loadView('personal.timesheets.pdf', [
+                            'timesheet' => $timesheet,
+                            'timesheet_old' => $timesheet_old,
+                            'timesheet_days' => $timesheet_days,
+                            'employe' => $user,
+                            'month' => $date
+                        ]);
+
+                        $pdf->save(storage_path('timesheet.pdf'), 1);
+
+                        Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+
+                        if (File::exists(storage_path('timesheet.pdf'))) {
+                            File::delete(storage_path('timesheet.pdf'));
+                        }
+                    }
+
+                }
+            }
+        }
+
+    }
+
 
     /**
      * Show the form for editing the specified resource.

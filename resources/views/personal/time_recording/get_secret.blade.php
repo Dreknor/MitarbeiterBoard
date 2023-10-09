@@ -26,6 +26,9 @@
                         <h4 class="mx-auto text-center" id="hinweis">
                             Hallo {{$user->name}},<br>
                         </h4>
+                        <p id="pin_show"  class="mx-auto text-center text-light">
+                            Pin:
+                        </p>
                         <p class="mx-auto text-center">
                             Bitte gib deinen Pin ein.
                         </p>
@@ -64,11 +67,14 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-6 mx-auto">
+                                <div class="col-4 mx-auto">
                                     <button class="btn btn-block btn-success" onclick="submitForm()">absenden</button>
                                 </div>
-                                <div class="col-6 mx-auto">
-                                    <button class="btn btn-block btn-danger" onclick="clearInput()">abbrechen</button>
+                                <div class="col-4 mx-auto">
+                                    <button class="btn btn-lg btn-info" onclick="addNumber(0)">0</button>
+                                </div>
+                                <div class="col-4 mx-auto">
+                                    <button class="btn btn-block btn-danger" onclick="clearInput()">Eingabe löschen</button>
                                 </div>
                             </div>
                         </div>
@@ -102,11 +108,15 @@
         function addNumber(number) {
             let secret_key = document.getElementById('secret_key');
             secret_key.value += number;
+            let pin_show = document.getElementById('pin_show');
+            pin_show.innerHTML += '*';
         }
 
         function clearInput(){
             let secret_key = document.getElementById('secret_key');
             secret_key.value = '';
+            let pin_show = document.getElementById('pin_show');
+            pin_show.innerHTML = 'Pin: ';
         }
 
         function submitForm() {

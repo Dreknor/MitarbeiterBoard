@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\checkTimeRecordingPinRequest;
 use App\Http\Requests\getTimeRecordingKeyRequest;
+use App\Http\Requests\storeSecretKeyRequest;
 use App\Models\personal\EmployeData;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,14 +13,101 @@ use Illuminate\Support\Facades\Cache;
 
 class TimeRecordingController extends Controller
 {
+    public function checkin_checkout()
+    {
+        if (!auth()->user() or !auth()->user()->can('has timesheet')){
+                return redirect()->route('home')->with(
+                [
+                    'type'=>'warning',
+                    'Meldung'=>'Keine Berechtigung'
+                ]
+            );
+        }
+
+        $timesheet = auth()->user()->timesheets()->where([
+            'month'=>now()->month,
+            'year'=>now()->year
+        ])->first();
+
+        if (is_null($timesheet)){
+            $latest = auth()->user()->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
+            $timesheet = auth()->user()->timesheets()->create([
+                'month'=>now()->month,
+                'year'=>now()->year,
+                'holidays_old' => $latest?->holidays_old + $latest?->holidays_new,
+                'working_time_account' => (is_null($latest)) ? 0 : $latest?->working_time_account,
+            ]);
+        }
+
+        $timesheet_day = $timesheet->timesheet_days()->whereDate('date', now()->format('Y-m-d'))->orderBy('end')->first();
+
+        if (is_null($timesheet_day)){
+            $timesheet_day = $timesheet->timesheet_days()->create([
+                'date' => now()->format('Y-m-d'),
+                'start' => now(),
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
+            ]);
+        } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
+            $timesheet_day->update([
+                'end' => now(),
+                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
+            ]);
+
+            $timesheet->updateTime();
+        } else {
+            $timesheet_day = $timesheet->timesheet_days()->create([
+                'date' => now()->format('Y-m-d'),
+                'start' => now(),
+                'timesheet_id' => $timesheet->id,
+                'comment' => 'digitale Zeiterfassung'
+            ]);
+        }
+
+        return redirect()->route('home')->with(
+            [
+                'type'=>'success',
+                'Meldung'=>'Erfolgreich eingestempelt'
+            ]
+        );
+
+    }
+
     //
     public function start()
     {
         return view('personal.time_recording.start');
     }
 
+
+    public function storeSecret(storeSecretKeyRequest $request)
+    {
+        $key = Cache::get('time_recording_key');
+
+        if (is_null($key)){
+            return redirect()->route('time_recording.logout')->with(
+                [
+                    'type'=>'warning',
+                    'Meldung'=>'Ungültiger Schlüssel'
+                ]
+            );
+        }
+
+        $user = EmployeData::query()->where('time_recording_key', $key)->first();
+        $user->update([
+            'secret_key' => $request->secret_key
+        ]);
+        return redirect()->route('time_recording.start')->with(
+            [
+                'type'=>'success',
+                'Meldung'=>'Pin erfolgreich gespeichert'
+            ]
+        );
+    }
+
     public function read_key(getTimeRecordingKeyRequest $request)
     {
+
         $user = EmployeData::query()->where('time_recording_key', $request->key)->first();
 
         if (!$user) {
@@ -27,6 +115,14 @@ class TimeRecordingController extends Controller
         }
 
         Cache::add('time_recording_key', $request->key, now()->addMinutes(2) );
+
+        if (is_null($user->secret_key)){
+            return view('personal.time_recording.set_secret', [
+                'user' => $user->user
+            ]);
+        }
+
+
 
         return view('personal.time_recording.get_secret', [
             'user' => $user->user
@@ -77,7 +173,8 @@ class TimeRecordingController extends Controller
             ]);
         } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
             $timesheet_day->update([
-                'end' => now()
+                'end' => now(),
+                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
             ]);
 
             $timesheet->updateTime();
@@ -90,10 +187,14 @@ class TimeRecordingController extends Controller
             ]);
         }
 
+
+
+
         return view('personal.time_recording.login', [
             'user'=>$user->user,
             'timesheet_day'=>$timesheet_day,
-            'timesheet'=>$timesheet
+            'timesheet'=>$timesheet,
+            'dayBefore' => $timesheet->timesheet_days()->whereDate('date', now()->subDay()->format('Y-m-d'))->where('end', null)->first(),
         ]);
     }
 

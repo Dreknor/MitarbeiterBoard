@@ -14,6 +14,7 @@ use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\ContactController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
+use App\Http\Controllers\Personal\HolidayController;
 use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
 use App\Http\Controllers\Personal\RosterEventsController;
@@ -88,6 +89,8 @@ Route::prefix('time_recording')->group(callback: function (){
     Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
     Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
     Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
+
+    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->name('time_recording.storeSecret');
 });
 
 
@@ -105,7 +108,7 @@ Route::group([
         ],
             function () {
 
-                //Route::get('test/mail', [\App\Http\Controllers\MailController::class, 'remindTaskMail']);
+                Route::get('test/mail', [TimesheetController::class, 'timesheet_mail']);
 
                 /*
                  * Routes for edit dashboard
@@ -132,27 +135,43 @@ Route::group([
                 /*
                  * Edit Employes
                  */
+                Route::get('/employes/self', [EmployeController::class, 'show_self'])->name('employes.self');
+                Route::put('/employes/self', [EmployeController::class, 'update_self'])->name('employes.self.update');
+                Route::post('/employes/photo', [EmployeController::class, 'photo'])->name('employes.self.photo');
+
+
                 Route::middleware(['permission:edit employe'])->group(function () {
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
                         'index' => 'employes.index',
                     ])->except('create');
-
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
 
 
+                //Urlaubsverwaltung
+                Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
+                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
+                    Route::resource('holidays', HolidayController::class);
+
+                });
+
                 //Timesheets
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
+                Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
+                Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
                 Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
+
 
 
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
                 Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
                 Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
                 Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
+                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay']);
+                Route::put('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'updateDay']);
                 Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
                 Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
                 Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
@@ -234,6 +253,7 @@ Route::group([
 
                 //absences
                 Route::middleware(['permission:view absences'])->group(function (){
+                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);
                     Route::post('absences', [AbsenceController::class, 'store']);
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
@@ -340,7 +360,7 @@ Route::group([
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
 
-                Route::get('image/{media_id}', [ImageController::class, 'getImage']);
+                Route::get('image/{media_id}', [ImageController::class, 'getImage'])->name('image.get');
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 

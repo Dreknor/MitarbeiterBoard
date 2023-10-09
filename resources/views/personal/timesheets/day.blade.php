@@ -41,7 +41,6 @@
             {{convertTime($timesheet_days->filterDay($day)->sum('duration')-percent_to_seconds($employe->employments_date($day)->sum('percent'))/5)}}
         @else
             @if($timesheet_days->filterDay($day)->sum('duration') > 0)
-                {{$balance +=  $timesheet_days->filterDay($day)->sum('duration')}}
                 {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}}
             @endif
         @endif
@@ -55,6 +54,37 @@
                            class="btn btn-sm btn-bg-gradient-x-blue-green">
                             <i class="fa fa-plus"></i>
                         </a>
+                    </div>
+                    <div class="col">
+                        @if($timesheet_days->filterDay($day)->count()>1)
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-edit dropdown-toggle" data-toggle="dropdown"
+                                        id="dropdownMenuButton_edit_{{$day->format('Y-m-d')}}">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    @foreach($timesheet_days->filterDay($day) as $timesheet_day)
+                                        @if(is_null($timesheet_day->percent_of_workingtime) or $timesheet_day->percent_of_workingtime == 0 or $timesheet_day->percent_of_workingtime == '')
+                                            <a href='{{url('timesheets/day/'.$timesheet_day->id.'/edit')}}'
+                                               class="dropdown-item text-warning">
+                                                @if($timesheet_day->percent_of_workingtime != null)
+                                                    {{$timesheet_day?->comment}} bearbeiten {{$timesheet_day->percent_of_workingtime}}%
+                                                @else
+                                                    {{$timesheet_day?->start?->format('H:i')}}
+                                                    - {{$timesheet_day?->end?->format('H:i')}} Uhr bearbeiten
+                                                @endif
+                                            </a>
+                                        @endif
+
+                                    @endforeach
+                                </div>
+                            </div>
+                        @elseif($timesheet_days->filterDay($day)->count() == 1)
+                            <a href="{{url('timesheets/day/'.$timesheet_days->filterDay($day)->first()->id.'/edit')}}"
+                               class="btn btn-sm btn-outline-warning">
+                                <i class="fa fa-edit"></i>
+                            </a>
+                        @endif
                     </div>
                     <div class="col">
                         @if($timesheet_days->filterDay($day)->count()>1)
