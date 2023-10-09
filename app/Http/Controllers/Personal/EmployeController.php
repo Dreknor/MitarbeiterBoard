@@ -251,6 +251,8 @@ class EmployeController extends Controller
         $user->clearMediaCollection('profile');
         $user->addMedia($request->file('file'))->toMediaCollection('profile');
 
+        \Cache::forget('user_photo_'.$user->id);
+
         return redirect()->back()->with([
             'type' => 'success',
             'message' => 'Foto aktualisiert'

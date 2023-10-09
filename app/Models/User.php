@@ -285,10 +285,14 @@ class User extends Authenticatable implements HasMedia
     }
 
     public function photo(){
-        if ($this->getMedia('profile')->count() == 0){
-            return asset('img/avatar.png') ;
-        } else {
-            return url('image/').'/'.$this->getMedia('profile')->first()->id;
-        }
+
+        return Cache::remember('user_photo_'.$this->id, 60*60*24, function (){
+            if ($this->getMedia('profile')->count() == 0){
+                return asset('img/avatar.png') ;
+            } else {
+                return url('image/').'/'.$this->getMedia('profile')->first()->id;
+            }
+        });
+
     }
 }

@@ -21,6 +21,8 @@ class ProcedureComposer
      */
     public function compose(View $view): void
     {
-        $view->with(['steps' =>  auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get()]);
+        $steps = auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get();
+        $steps->load('procedure');
+        $view->with(['steps' =>  $steps]);
     }
 }
