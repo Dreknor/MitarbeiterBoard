@@ -36,8 +36,16 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        $users = User::whereHas('employments')->get();
+
+        foreach ($users as $key => $user){
+           if (!$user->can('has timesheet')){
+            $users->forget($key);
+           }
+        }
+
         return view('personal.timesheets.selectEmploye', [
-            'employes' => User::whereHas('employments')->get()
+            'employes' => $users
         ]);
     }
 
@@ -204,7 +212,7 @@ class TimesheetController extends Controller
 
         if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
-                if ($working_time->roster->type != 'Vorlage'){
+                if ($working_time->roster?->type != 'Vorlage'){
                     return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
                 }
             });

@@ -46,6 +46,16 @@
 .bg-gradient-y2-chartbg .card-footer {
   background-color: transparent; }
 
+
+.bg-gradient-x-light-blue {
+    background-image: -webkit-gradient(linear, left top, right top, from(rgba(45, 142, 252, 0.15)), to(rgba(0, 75, 155, 0.36)));
+    background-image: -webkit-linear-gradient(left, rgba(45, 142, 252, 0.4), rgba(0, 75, 155, 0.36));
+    background-image: -moz-linear-gradient(left, rgba(45, 142, 252, 0.4), rgba(0, 75, 155, 0.36));
+    background-image: -o-linear-gradient(left, rgba(45, 142, 252, 0.4), rgba(0, 75, 155, 0.36));
+    background-image: linear-gradient(to right, rgba(45, 142, 252, 0.4), rgba(0, 75, 155, 0.36));
+    background-repeat: repeat-x; }
+
+
 .bg-gradient-x-primary {
   background-image: -webkit-gradient(linear, left top, right top, from(#5654c2), to(#9695dd));
   background-image: -webkit-linear-gradient(left, #5654c2 0%, #9695dd 100%);

@@ -63,6 +63,14 @@
                         </a>
                         <div class="collapse  @if(request()->segment(1)=="roster" or request()->segment(1)=="timesheets" or request()->segment(1)=="employes") show  active @endif" id="personal">
                             <ul class="nav pl-2">
+                                <li class="@if(request()->segment(1)=="employes" && request()->segment(2)=="self" ) active  @endif">
+                                    <a href="{{route('employes.self')}}">
+                                        <i class="la la-person"></i>
+                                        <span class="menu-title" data-i18n="">
+                                                Eigene Daten
+                                            </span>
+                                    </a>
+                                </li>
                                 @can('create roster')
                                     <li class="@if(request()->segment(1)=="roster" ) active  @endif">
                                         <a href="{{route('roster.index')}}">
@@ -90,6 +98,13 @@
                                         <li class="@if(request()->segment(1)=="timesheets" and request()->segment(2) == auth()->id()) active  @endif">
                                             <a class="menu-item" href="{{url('timesheets/'.auth()->id())}}">
                                                 eigene Arbeitszeitnachweise
+                                            </a>
+                                        </li>
+                                @endcan
+                                @canany(['has holidays', 'approve holidays'])
+                                        <li class="@if(request()->segment(1)=="holidays") active  @endif">
+                                            <a class="menu-item" href="{{route('holidays.index')}}">
+                                                Urlaub
                                             </a>
                                         </li>
                                 @endcan
@@ -387,10 +402,18 @@
                             @else
                                 <li class="dropdown">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                                        <i class="far fa-user"></i>
-                                        <p>{{auth()->user()->name}}</p>
+                                        <img class="avatar-xs border-white" src="{{auth()->user()->photo()}}" alt="..." style="">
+                                        <span class="d-none d-md-inline">{{auth()->user()->name}}</span>
                                     </a>
                                     <ul class="dropdown-menu">
+                                        <li>
+                                            <a href="{{route('employes.self')}}"  class="dropdown-item" >
+                                                <i class="la la-person"></i>
+                                                <span class="menu-title" data-i18n="">
+                                                    Eigene Daten
+                                                </span>
+                                            </a>
+                                        </li>
                                         <li>
                                             <a class="dropdown-item" href="#" onclick="event.preventDefault();document.getElementById('logout-form').submit();">
                                                 Logout

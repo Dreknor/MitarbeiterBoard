@@ -66,11 +66,14 @@ class Timesheet extends Model
             $timesheet_day = $timesheet_days->filterDay($x);
             $employment = $employe->employments_date($x);
 
-            if($x->isWeekday() and !is_holiday($x)){
-                $working_time += $timesheet_day->sum('duration')- percent_to_seconds($employment->sum('percent'))/5;
-            } else{
-                $working_time += $timesheet_day->sum('duration');
+            if ($x->lessThanOrEqualTo(Carbon::now())){
+                if($x->isWeekday() and !is_holiday($x)){
+                    $working_time += $timesheet_day->sum('duration')- percent_to_seconds($employment->sum('percent'))/5;
+                } else{
+                    $working_time += $timesheet_day->sum('duration');
+                }
             }
+
         }
 
         $this->working_time_account = $working_time;

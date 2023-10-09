@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\Employment;
+use App\Models\personal\Holiday;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
@@ -247,6 +248,32 @@ class User extends Authenticatable implements HasMedia
 
     }
 
+    public function holidays(){
+        return $this->hasMany(Holiday::class, 'employe_id');
+    }
+
+    public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
+
+        if (is_null($end_date)){
+            $end_date = $start_date;
+        }
+
+        return Cache::remember('holiday_'.auth()->id().'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
+            return $this->holidays()
+                ->whereBetween('start_date', [$start_date,$end_date])
+                ->orWhereBetween('end_date', [$start_date,$end_date])
+                ->orWhere(function ($query) use ($start_date, $end_date){
+                    $query->where('start_date', '<=', $start_date)
+                        ->where('end_date', '>=', $start_date);
+                })
+                ->orWhere(function ($query) use ($start_date, $end_date){
+                    $query->where('start_date', '<=', $end_date)
+                        ->where('end_date', '>=', $end_date);
+                })
+                ->first();
+        });
+    }
+
     public function timesheets(){
         return $this->hasMany(Timesheet::class, 'employe_id');
     }
@@ -257,5 +284,11 @@ class User extends Authenticatable implements HasMedia
         return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
     }
 
-
+    public function photo(){
+        if ($this->getMedia('profile')->count() == 0){
+            return asset('img/avatar.png') ;
+        } else {
+            return url('image/').'/'.$this->getMedia('profile')->first()->id;
+        }
+    }
 }

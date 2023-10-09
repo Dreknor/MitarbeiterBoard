@@ -1,0 +1,156 @@
+<?php
+
+namespace App\Http\Controllers\Personal;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\personal\createHolidayRequest;
+use App\Models\personal\Holiday;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+
+class HolidayController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index( $month = null, $year = null)
+    {
+
+        if ($month == null or $year == null){
+            $startMonth = Carbon::now()->startOfMonth();
+            $endMonth = Carbon::now()->endOfMonth();
+        } else {
+            $startMonth = Carbon::createFromFormat('m-Y', $month.'-'.$year)->startOfMonth();
+            $endMonth = Carbon::createFromFormat('m-Y', $month.'-'.$year)->endOfMonth();
+        }
+
+
+        if (settings('show_holidays') == 1 or auth()->user()->can('approve holidays'))
+        {
+            $holidays = Holiday::query()
+                ->whereBetween('start_date', [$startMonth, $endMonth])
+                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->get();
+        }else{
+            $holidays = Holiday::where('employe_id', auth()->id())
+                ->whereBetween('start_date', [$startMonth, $endMonth])
+                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->get();
+        }
+
+        if (auth()->user()->can('approve holidays') or settings('show_holidays', 'holidays') == 1){
+            $users = User::permission('has holidays')->get();
+        } else {
+            $users = collect([auth()->user()]);
+        }
+
+        return view('personal.holidays.index', [
+            'holidays' => $holidays,
+            'month' => $startMonth,
+            'users' => $users->sortBy('name'),
+            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::where('approved', false)->get() : []
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        return redirect()->back();
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(createHolidayRequest $request)
+    {
+        if(!auth()->user()->can('has holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($request->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($request->employe_id != 'all'){
+            $user = User::findOrFail($request->employe_id);
+
+            if ($user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
+                return redirectBack('danger', 'Der Mitarbeiter hat bereits Urlaub an diesem Tag.');
+            }
+
+            $user->holidays()->create([
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'approved' => auth()->user()->can('approve holidays'),
+                'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+            ]);
+
+            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+        } else {
+            $users = User::all();
+            foreach ($users as $user){
+                if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
+                    $user->holidays()->create([
+                        'start_date' => $request->start_date,
+                        'end_date' => $request->end_date,
+                        'approved' => auth()->user()->can('approve holidays'),
+                        'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                        'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                    ]);
+                }
+            }
+            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+        }
+
+
+
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Holiday $holiday)
+    {
+        return redirect()->back();
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Holiday $holiday)
+    {
+        return redirect()->back();
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Holiday $holiday)
+    {
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        $holiday->update([
+            'approved' => true,
+            'approved_by' => auth()->id(),
+            'approved_at' => Carbon::now(),
+        ]);
+
+        return redirectBack('success', 'Urlaub wurde erfolgreich genehmigt.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Holiday $holiday)
+    {
+        //
+    }
+}

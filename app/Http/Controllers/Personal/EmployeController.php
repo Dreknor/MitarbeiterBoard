@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\personal\CreateEmployeRequest;
+use App\Http\Requests\personal\selfUpdateProfileRequest;
 use App\Http\Requests\UpdateEmployeDataRequest;
 use App\Models\Group;
 use App\Models\personal\EmployeData;
@@ -215,5 +216,44 @@ class EmployeController extends Controller
         }
 
         abort(404);
+    }
+
+    public function show_self(){
+        return view('personal.employes.selfEdit', [
+            'employe' => auth()->user(),
+        ]);
+    }
+
+    public function update_self(selfUpdateProfileRequest $request){
+
+        $user = auth()->user();
+        $data = $user->employe_data;
+        if (is_null($data)){
+            $data = new EmployeData($request->validated());
+            $data->user_id = $user->id;
+            $data->save();
+        } else {
+            $data->update($request->validated() );
+        }
+
+        $user->update([
+            'name' => $request->vorname . ' ' . $request->familienname
+        ]);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'message' => 'Daten aktualisiert'
+        ]);
+    }
+
+    public function photo(Request $request){
+        $user = auth()->user();
+        $user->clearMediaCollection('profile');
+        $user->addMedia($request->file('file'))->toMediaCollection('profile');
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'message' => 'Foto aktualisiert'
+        ]);
     }
 }

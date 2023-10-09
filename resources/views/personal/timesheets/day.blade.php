@@ -41,7 +41,6 @@
             {{convertTime($timesheet_days->filterDay($day)->sum('duration')-percent_to_seconds($employe->employments_date($day)->sum('percent'))/5)}}
         @else
             @if($timesheet_days->filterDay($day)->sum('duration') > 0)
-                {{$balance +=  $timesheet_days->filterDay($day)->sum('duration')}}
                 {{convertTime($timesheet_days->filterDay($day)->sum('duration'))}}
             @endif
         @endif

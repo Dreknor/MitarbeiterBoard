@@ -5,9 +5,11 @@ namespace App\Providers;
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
 use App\Listeners\LogEmail;
 use App\Models\Group;
+use App\Models\personal\Holiday;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
+use App\Observers\HolidayObserver;
 use App\Observers\RosterEventsObserver;
 use App\Observers\WorkingTimeObserver;
 use Carbon\Carbon;
@@ -46,6 +48,8 @@ class EventServiceProvider extends ServiceProvider
     {
         RosterEvents::observe(RosterEventsObserver::class);
         WorkingTime::observe(WorkingTimeObserver::class);
+
+        Holiday::observe(HolidayObserver::class);
 
         Event::listen('Aacotroneo\Saml2\Events\Saml2LoginEvent', function (Saml2LoginEvent $event) {
             $messageId = $event->getSaml2Auth()->getLastMessageId();
