@@ -10,19 +10,21 @@
     <link rel="stylesheet" type="text/css" href="{{asset('css/colors.css')}}">
 
     <link rel="stylesheet" type="text/css" href="{{asset('fonts/line-awesome/css/line-awesome.css')}}">
+    <style>
+        .page_break { page-break-before: always; }
 
+    </style>
 </head>
 <body>
 
 @for($month = \Carbon\Carbon::now()->startOfYear(); $month->lessThanOrEqualTo(\Carbon\Carbon::now()->endOfYear()); $month->addMonth())
-    <div style="break-after: auto; break-inside:avoid">
+    <div class="page_break"></div>
+    </div>
         @include('personal.holidays.partials.export-month', [
             'month' => $month,
             'holidays' => $holidays,
             'users' => $users
             ])
-    </div>
-
 @endfor
 
 
