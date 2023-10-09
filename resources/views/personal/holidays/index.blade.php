@@ -10,7 +10,6 @@
 @endsection
 
 @section('content')
-
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -126,6 +125,11 @@
                     <h5>
                         Urlaubsübersicht ({{$month->monthName}} {{$month->year}})
                     </h5>
+                    <div class="pull-right">
+                        <a href="{{url('holidays/export/'.$month->year)}}" class="btn btn-outline-primary">
+                            <i class="fas fa-file-pdf"></i> Export {{$month->year}}
+                        </a>
+                    </div>
                     <div class="row">
                         <div class="col-auto">
                             <a href="{{url('holidays/'.$month->month.'/'.$month->copy()->subYear()->year)}}" class="btn btn-outline-primary">

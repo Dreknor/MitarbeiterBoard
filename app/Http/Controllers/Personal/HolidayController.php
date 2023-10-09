@@ -83,6 +83,8 @@ class HolidayController extends Controller
                 return redirectBack('danger', 'Der Mitarbeiter hat bereits Urlaub an diesem Tag.');
             }
 
+            $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
+
             $user->holidays()->create([
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
@@ -91,8 +93,14 @@ class HolidayController extends Controller
                 'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
             ]);
 
-            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+            return redirect(url('holidays/'.$date->month.'/'.$date->year))
+                ->with([
+                    'type' => 'success',
+                    'Meldung' => 'Urlaub wurde erfolgreich beantragt.'
+                ]);
         } else {
+            $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
+
             $users = User::all();
             foreach ($users as $user){
                 if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
@@ -105,7 +113,9 @@ class HolidayController extends Controller
                     ]);
                 }
             }
-            return redirectBack('success', 'Urlaub wurde für alle erfolgreich eingetragen.');
+            return redirect(url('holidays/'.$date->month.'/'.$date->year))->with([
+                'type' => 'success',
+                'Meldung' => 'Urlaub wurde für alle erfolgreich eingetragen.']);
         }
 
 
