@@ -53,7 +53,7 @@
                             </a>
                         </li>
                 @endcan
-                @canany(['create roster', 'edit employe', 'has timesheet'])
+                @canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays'])
                     <li>
                         <a data-toggle="collapse" href="#personal">
                             <p>

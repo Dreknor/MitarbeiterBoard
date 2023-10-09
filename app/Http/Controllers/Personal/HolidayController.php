@@ -153,4 +153,50 @@ class HolidayController extends Controller
     {
         //
     }
+
+    public function export($year = null){
+
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($year == null){
+            $startMonth = Carbon::now()->startOfYear();
+            $endMonth = Carbon::now()->endOfYear();
+        } else {
+            $startMonth = Carbon::createFromFormat('Y', $year)->startOfYear();
+            $endMonth = Carbon::createFromFormat('Y', $year)->endOfYear();
+        }
+
+            $holidays = Holiday::query()
+                ->whereBetween('start_date', [$startMonth, $endMonth])
+                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->get();
+
+
+            $users = User::permission('has holidays')->get();
+
+            $pdf = \PDF::loadView('personal.holidays.export', [
+                        'holidays' => $holidays,
+                        'month' => $startMonth,
+                        'users' => $users->sortBy('name'),
+                    ])
+                    ->setOption(
+                        'orientation',
+                        'landscape')
+                    ->setOption(
+                        'margin-bottom',
+                        10)
+                    ->setOption(
+                        'margin-top',
+                        10)
+                    ->setOption(
+                        'margin-left',
+                        10)
+                    ->setOption(
+                        'margin-right',
+                        10);
+
+        return $pdf->download('urlaub_'.$year.'.pdf');
+    }
 }
