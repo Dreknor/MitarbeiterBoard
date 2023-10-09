@@ -15,14 +15,14 @@
 <body>
 
 @for($month = \Carbon\Carbon::now()->startOfYear(); $month->lessThanOrEqualTo(\Carbon\Carbon::now()->endOfYear()); $month->addMonth())
-    <div style="break-after: auto">
-
+    <div style="break-after: auto; break-inside:avoid">
+        @include('personal.holidays.partials.export-month', [
+            'month' => $month,
+            'holidays' => $holidays,
+            'users' => $users
+            ])
     </div>
-    @include('personal.holidays.partials.export-month', [
-    'month' => $month,
-    'holidays' => $holidays,
-    'users' => $users
-    ])
+
 @endfor
 
 
