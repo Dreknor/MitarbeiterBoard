@@ -69,7 +69,7 @@
                         <ul class="list-unstyled team-members">
                             @foreach($employe->groups() as $group)
                                 <li>
-                                    <a href="{{url($group.'/themes')}}" class="text-bold-600">
+                                    <a href="{{url($group->name.'/themes')}}" class="text-bold-600">
                                         {{$group->name}}
                                     </a>
                                 </li>
