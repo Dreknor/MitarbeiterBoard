@@ -133,14 +133,14 @@
                             </a>
                         </div>
                         <div class="col-auto">
-                            <a href="{{url('holidays/'.$month->copy()->subMonth()->month.'/'.$month->year)}}"  class="btn btn-outline-primary">
-                                <i class="fas fa-chevron-left"></i> {{$month->copy()->subMonth()->monthName}} {{$month->year}}
+                            <a href="{{url('holidays/'.$month->copy()->subMonth()->month.'/'.$month->copy()->subMonth()->year)}}"  class="btn btn-outline-primary">
+                                <i class="fas fa-chevron-left"></i> {{$month->copy()->subMonth()->monthName}} {{$month->copy()->subMonth()->year}}
                             </a>
                         </div>
                         <div class="col"></div>
                         <div class="col-auto">
-                            <a href="{{url('holidays/'.$month->copy()->addMonth()->month.'/'.$month->year)}}"  class="btn btn-outline-primary">
-                                <i class="fas fa-chevron-right"></i> {{$month->copy()->addMonth()->monthName}} {{$month->year}}
+                            <a href="{{url('holidays/'.$month->copy()->addMonth()->month.'/'.$month->copy()->addMonth()->year)}}"  class="btn btn-outline-primary">
+                                <i class="fas fa-chevron-right"></i> {{$month->copy()->addMonth()->monthName}} {{$month->copy()->addMonth()->year}}
                             </a>
                         </div>
 

@@ -105,7 +105,7 @@ class HolidayController extends Controller
                     ]);
                 }
             }
-            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+            return redirectBack('success', 'Urlaub wurde für alle erfolgreich eingetragen.');
         }
 
 
