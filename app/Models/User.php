@@ -259,6 +259,14 @@ class User extends Authenticatable implements HasMedia
         }
 
         return Cache::remember('holiday_'.$this->id.'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
+            $holidays = $this->holidays;
+
+            return $holidays->filter(function ($item) use ($start_date, $end_date){
+                if ($item->start_date->between($start_date, $end_date) or $item->end_date->between($start_date, $end_date)){
+                    return $item;
+                }
+            })->first();
+/*
             return $this->holidays()
                 ->whereBetween('start_date', [$start_date,$end_date])
                 ->orWhereBetween('end_date', [$start_date,$end_date])
@@ -271,7 +279,9 @@ class User extends Authenticatable implements HasMedia
                         ->where('end_date', '>=', $end_date);
                 })
                 ->first();
+*/
         });
+
     }
 
     public function timesheets(){
