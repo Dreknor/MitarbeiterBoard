@@ -82,8 +82,8 @@
                                         <tbody class="connectedSortable" >
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
                                             <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
-                                                <td>
-                                                    {{$theme->ersteller->name}}
+                                                <td class="align-content-center">
+                                                    <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;"> {{$theme->ersteller->name}}
                                                 </td>
                                                 <td>
                                                     {{$theme->theme}}

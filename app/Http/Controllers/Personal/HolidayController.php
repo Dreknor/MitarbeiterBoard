@@ -101,18 +101,23 @@ class HolidayController extends Controller
         } else {
             $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
 
-            $users = User::all();
+            $users = User::permission('has holidays')->get();
+            $holidays = [];
             foreach ($users as $user){
                 if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
-                    $user->holidays()->create([
+                    $holidays[]=[
                         'start_date' => $request->start_date,
                         'end_date' => $request->end_date,
+                        'employe_id' => $user->id,
                         'approved' => auth()->user()->can('approve holidays'),
                         'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                         'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                    ]);
+                    ];
                 }
             }
+
+            Holiday::insert($holidays);
+
             return redirect(url('holidays/'.$date->month.'/'.$date->year))->with([
                 'type' => 'success',
                 'Meldung' => 'Urlaub wurde für alle erfolgreich eingetragen.']);
