@@ -77,7 +77,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
         $state = settings('ferien_state', 'holidays');
     }
 
-    $ferien = Cache::remember('ferien_'.$year, 50, function () use ($year, $state) {
+    $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
         return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
     });
     return $ferien->first(function ($item) use ($date) {
