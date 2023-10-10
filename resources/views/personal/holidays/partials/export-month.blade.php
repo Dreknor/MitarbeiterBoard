@@ -2,7 +2,7 @@
     <thead>
     <tr>
         <td colspan="{{$month->diffInDays($month->copy()->endOfMonth())+1}}">
-            {{$month->monthName}}
+            {{$month->monthName}} {{$month->year}}
         </td>
     </tr>
     <tr>
@@ -39,6 +39,8 @@
                         @else
                             U (?)
                         @endif
+                    @else
+                        {{$holiday}}
                     @endif
                 </td>
             @endfor
