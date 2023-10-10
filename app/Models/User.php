@@ -266,20 +266,7 @@ class User extends Authenticatable implements HasMedia
                     return $item;
                 }
             })->first();
-/*
-            return $this->holidays()
-                ->whereBetween('start_date', [$start_date,$end_date])
-                ->orWhereBetween('end_date', [$start_date,$end_date])
-                ->orWhere(function ($query) use ($start_date, $end_date){
-                    $query->where('start_date', '<=', $start_date)
-                        ->where('end_date', '>=', $start_date);
-                })
-                ->orWhere(function ($query) use ($start_date, $end_date){
-                    $query->where('start_date', '<=', $end_date)
-                        ->where('end_date', '>=', $end_date);
-                })
-                ->first();
-*/
+
         });
 
     }

@@ -104,7 +104,6 @@ class HolidayController extends Controller
             $users = User::permission('has holidays')->get();
             $holidays = [];
             foreach ($users as $user){
-                dump($user, $user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date)));
                 if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
                     $holidays[]=[
                         'start_date' => $request->start_date,
