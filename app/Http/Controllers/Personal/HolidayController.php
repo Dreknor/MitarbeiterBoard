@@ -116,7 +116,6 @@ class HolidayController extends Controller
                 }
             }
 
-            dd($holidays, $users);
             Holiday::insert($holidays);
 
             return redirect(url('holidays/'.$date->month.'/'.$date->year))->with([

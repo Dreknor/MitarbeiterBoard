@@ -258,7 +258,7 @@ class User extends Authenticatable implements HasMedia
             $end_date = $start_date;
         }
 
-        return Cache::remember('holiday_'.auth()->id().'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
+        return Cache::remember('holiday_'.$this->id().'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
             return $this->holidays()
                 ->whereBetween('start_date', [$start_date,$end_date])
                 ->orWhereBetween('end_date', [$start_date,$end_date])
