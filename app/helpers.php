@@ -83,7 +83,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
     return $ferien->first(function ($item) use ($date) {
         $start = Carbon::createFromFormat('Y-m-d', $item->start);
         $end = Carbon::createFromFormat('Y-m-d', $item->end);
-        return $date->between($start->subDay(), $end->addDay());
+        return $date->between($start->startOfDay()(), $end->endOfDay());
     });
 }
 
