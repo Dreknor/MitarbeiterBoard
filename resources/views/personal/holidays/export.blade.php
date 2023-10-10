@@ -17,7 +17,7 @@
 </head>
 <body>
 
-@for($month = \Carbon\Carbon::now()->startOfYear(); $month->lessThanOrEqualTo(\Carbon\Carbon::now()->endOfYear()); $month->addMonth())
+@for($month = $monthStart->startOfYear(); $month->lessThanOrEqualTo($monthStart->endOfYear()); $month->addMonth())
     <div class="page_break"></div>
     </div>
         @include('personal.holidays.partials.export-month', [

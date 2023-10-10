@@ -193,7 +193,7 @@ class HolidayController extends Controller
 
             $pdf = \PDF::loadView('personal.holidays.export', [
                         'holidays' => $holidays,
-                        'month' => $startMonth,
+                        'monthStart' => $startMonth,
                         'users' => $users->sortBy('name'),
                     ])
                     ->setOption(

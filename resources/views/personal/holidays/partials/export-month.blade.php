@@ -39,8 +39,6 @@
                         @else
                             U (?)
                         @endif
-                    @else
-                        {{$holiday}}
                     @endif
                 </td>
             @endfor
