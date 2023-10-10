@@ -17,7 +17,7 @@
 </head>
 <body>
 
-@for($month = $monthStart->startOfYear(); $month->lessThanOrEqualTo($monthStart->endOfYear()); $month->addMonth())
+@for($month = $monthStart->copy()->startOfYear(); $month->lessThanOrEqualTo($monthStart->copy()->endOfYear()); $month->addMonth())
     <div class="page_break"></div>
     </div>
         @include('personal.holidays.partials.export-month', [
