@@ -158,7 +158,7 @@ class User extends Authenticatable implements HasMedia
     public function getShortnameAttribute(){
 
         if ($this->employe_data != null and $this->employe_data->familienname != null){
-            $familiename = $this->employe_data->vorname;
+            $familiename = $this->employe_data->familienname;
         } else {
             $familiename= Str::afterLast($this->name, ' ');
         }
@@ -185,8 +185,8 @@ class User extends Authenticatable implements HasMedia
             return $this->employe_data->familienname;
         }
 
-        $vorname= Str::afterLast($this->name, ' ');
-        return $vorname;
+        $name= Str::afterLast($this->name, ' ');
+        return $name;
     }
 
     public function listen()
