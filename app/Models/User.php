@@ -69,6 +69,7 @@ class User extends Authenticatable implements HasMedia
         'remind_assign_themes' => 'boolean',
     ];
 
+
     public function getGeburtstagAttribute(){
         return $this->employe_data?->geburtstag;
     }

@@ -61,38 +61,38 @@
 
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive-sm table-responsive-md">
+                                <div class="table-responsive-md">
                                     <table class="table" id="{{$day}}_themes">
-                                        <thead>
+                                        <thead class="thead-light">
                                         <tr>
                                             <th>Von</th>
                                             <th>Thema</th>
-                                            <th>Typ</th>
-                                            <th style="max-width: 30%;">Ziel</th>
+                                            <th class="d-none d-md-table-cell">Typ</th>
+                                            <th style="max-width: 30%;"  class="d-none d-md-table-cell">Ziel</th>
                                             @if($group->hasAllocations)
                                                 <th>
                                                     zugewiesen
                                                 </th>
                                             @endif
-                                            <th>Dauer</th>
-                                            <th>Priorität</th>
-                                            <th colspan="2">Informationen</th>
+                                            <th class="d-none d-md-table-cell">Dauer</th>
+                                            <th class="d-none d-md-table-cell">Priorität</th>
+                                            <th >Informationen</th>
                                         </tr>
                                         </thead>
                                         <tbody class="connectedSortable" >
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
                                             <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
                                                 <td class="align-content-center">
-                                                    <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;"> {{$theme->ersteller->name}}
+                                                    @if($theme->ersteller->getMedia('profile')->count() != 0)<img src="{{$theme->ersteller->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;">@endif <div class="@if($theme->ersteller->getMedia('profile')->count() > 0) d-none @else d-inline  @endif">{{$theme->ersteller->name}}</div>
                                                 </td>
                                                 <td>
                                                     {{$theme->theme}}
                                                 </td>
 
-                                                <td>
+                                                <td  class="d-none d-md-table-cell">
                                                     {{$theme->type->type}}
                                                 </td>
-                                                <td>
+                                                <td class="d-none d-md-table-cell">
                                                     {{$theme->goal}}
                                                 </td>
                                                 @if($group->hasAllocations)
@@ -104,10 +104,10 @@
                                                         @endif
                                                     </td>
                                                 @endif
-                                                <td>
+                                                <td class="d-none d-md-table-cell">
                                                     {{$theme->duration}} Minuten
                                                 </td>
-                                                <td id="priority_{{$theme->id}}">
+                                                <td id="priority_{{$theme->id}}" class="d-none d-md-table-cell">
                                                     @if ($theme->priorities->where('creator_id', auth()->id())->first())
                                                         <div class="progress">
                                                             <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
@@ -117,14 +117,20 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">
-                                                        <i class="far fa-eye"></i> zeigen
-                                                    </a>
-                                                </td>
-                                                <td>
-                                                    <a href="{{url(request()->segment(1)."/protocols/$theme->id")}}">
-                                                        <i class="far fa-sticky-note"></i> Protokoll
-                                                    </a>
+                                                    <div class="container-fluid">
+                                                        <div class="row">
+                                                            <div class="col-auto">
+                                                                <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">
+                                                                    <i class="far fa-eye"></i> zeigen
+                                                                </a>
+                                                            </div>
+                                                            <div class="col-auto d-none d-md-inline">
+                                                                <a href="{{url(request()->segment(1)."/protocols/$theme->id")}}" >
+                                                                    <i class="far fa-sticky-note"></i> Protokoll
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endforeach
