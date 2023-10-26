@@ -8,6 +8,7 @@ use App\Models\Klasse;
 use App\Models\Vertretung;
 use App\Models\VertretungsplanWeek;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class VertretungsplanController extends Controller
 {
@@ -19,9 +20,21 @@ class VertretungsplanController extends Controller
 
     public function make($gruppen = null){
         if ($gruppen != null){
-            $gruppen = explode('/', $gruppen);
-            $klassen = Klasse::whereIn('name',$gruppen)->get();
+            $gruppen_arr = explode('/', $gruppen);
+            $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
+            if ($klassen->count() == 0){
+                $gruppen_arr = explode(',', $gruppen);
+                foreach ($gruppen_arr as $key => $gruppe){
+                    $gruppe = Str::replace('dc=','',$gruppe);
+                    $gruppe = Str::replace('ou=','',$gruppe);
+                    $gruppe = Str::replace('cn=','',$gruppe);
+                    $gruppe = Str::replace(settings('vertretungsplan_remove').'-','',$gruppe);
+                    $gruppe = settings('vertretungsplan_add_prefix').' '.$gruppe;
+                    $gruppen_arr[$key] = $gruppe;
+                }
 
+                $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
+            }
         } else {
             $klassen=Klasse::all();
         }
