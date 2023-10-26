@@ -39,7 +39,6 @@
                                         zugewiesen
                                     </th>
                                 @endif
-                                <th style="max-width: 30%;">Ziel</th>
                                 <th>Priorität</th>
                                 <th colspan="2">Informationen</th>
                             </tr>
@@ -70,9 +69,6 @@
                                             @endif
                                         </td>
                                     @endif
-                                    <td>
-                                        {{$theme->goal}}
-                                    </td>
                                     <td id="priority_{{$theme->id}}">
                                         @if ($theme->priorities->where('creator_id', auth()->id())->first())
                                             <div class="progress">
