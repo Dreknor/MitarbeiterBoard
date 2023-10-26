@@ -47,8 +47,8 @@
                             <tbody class="connectedSortable" >
                             @foreach($themes as $theme)
                                 <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif">
-                                    <td>
-                                        {{$theme->ersteller->name}}
+                                    <td class="align-content-center">
+                                        @if($theme->ersteller->getMedia('profile')->count() != 0)<img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">@endif <div class="@if($theme->ersteller->getMedia('profile')->count() > 0) d-none @else d-inline  @endif">{{$theme->ersteller->name}}</div>
                                     </td>
                                     <td>
                                         {{$theme->theme}}
