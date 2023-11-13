@@ -28,11 +28,16 @@ class VertretungController extends Controller
     public function index()
     {
 
+        $dateEnd = Carbon::today();
+        $dateStart = config('config.schuljahresbeginn');
+
         return response()->view('vertretungsplan.edit', [
            'vertretungen_aktuell' => Vertretung::whereDate('date', '>=', Carbon::today())->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get(),
             'klassen' => Klasse::all(),
             'lehrer'  => User::whereNotNull('kuerzel')->get(),
-            'news'    => DailyNews::all()
+            'news'    => DailyNews::all(),
+            'dateStart' => $dateStart->format('Y-m-d'),
+            'dateEnd' => $dateEnd->format('Y-m-d')
         ]);
     }
 
