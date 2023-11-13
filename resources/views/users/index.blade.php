@@ -40,7 +40,7 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <img src="{{$user->photo()}}" class="avatar-xs">
+                                    <img src="{{$user->photo()}}" class="avatar-xs" style="max-width: 30px; max-height: 30px;">
                                 </td>
                                 <td>
                                     {{$user->name}}

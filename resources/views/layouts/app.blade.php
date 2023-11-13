@@ -53,7 +53,7 @@
                             </a>
                         </li>
                 @endcan
-                @canany(['create roster', 'edit employe', 'has timesheet'])
+                @canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays'])
                     <li>
                         <a data-toggle="collapse" href="#personal">
                             <p>
@@ -402,7 +402,7 @@
                             @else
                                 <li class="dropdown">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                                        <img class="avatar-xs border-white" src="{{auth()->user()->photo()}}" alt="..." style="">
+                                        <img class="avatar-xs border-white" src="{{auth()->user()->photo()}}" alt="..." style="width: 30px; height: 30px;">
                                         <span class="d-none d-md-inline">{{auth()->user()->name}}</span>
                                     </a>
                                     <ul class="dropdown-menu">

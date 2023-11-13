@@ -83,6 +83,8 @@ class HolidayController extends Controller
                 return redirectBack('danger', 'Der Mitarbeiter hat bereits Urlaub an diesem Tag.');
             }
 
+            $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
+
             $user->holidays()->create([
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
@@ -91,21 +93,34 @@ class HolidayController extends Controller
                 'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
             ]);
 
-            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+            return redirect(url('holidays/'.$date->month.'/'.$date->year))
+                ->with([
+                    'type' => 'success',
+                    'Meldung' => 'Urlaub wurde erfolgreich beantragt.'
+                ]);
         } else {
-            $users = User::all();
+            $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
+
+            $users = User::permission('has holidays')->get();
+            $holidays = [];
             foreach ($users as $user){
                 if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
-                    $user->holidays()->create([
+                    $holidays[]=[
                         'start_date' => $request->start_date,
                         'end_date' => $request->end_date,
+                        'employe_id' => $user->id,
                         'approved' => auth()->user()->can('approve holidays'),
                         'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                         'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                    ]);
+                    ];
                 }
             }
-            return redirectBack('success', 'Urlaub wurde erfolgreich beantragt.');
+
+            Holiday::insert($holidays);
+
+            return redirect(url('holidays/'.$date->month.'/'.$date->year))->with([
+                'type' => 'success',
+                'Meldung' => 'Urlaub wurde für alle erfolgreich eingetragen.']);
         }
 
 
@@ -152,5 +167,51 @@ class HolidayController extends Controller
     public function destroy(Holiday $holiday)
     {
         //
+    }
+
+    public function export($year = null){
+
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($year == null){
+            $startMonth = Carbon::now()->startOfYear();
+            $endMonth = Carbon::now()->endOfYear();
+        } else {
+            $startMonth = Carbon::createFromFormat('Y', $year)->startOfYear();
+            $endMonth = Carbon::createFromFormat('Y', $year)->endOfYear();
+        }
+
+            $holidays = Holiday::query()
+                ->whereBetween('start_date', [$startMonth, $endMonth])
+                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->get();
+
+
+            $users = User::permission('has holidays')->get();
+
+            $pdf = \PDF::loadView('personal.holidays.export', [
+                        'holidays' => $holidays,
+                        'monthStart' => $startMonth,
+                        'users' => $users->sortBy('name'),
+                    ])
+                    ->setOption(
+                        'orientation',
+                        'landscape')
+                    ->setOption(
+                        'margin-bottom',
+                        10)
+                    ->setOption(
+                        'margin-top',
+                        10)
+                    ->setOption(
+                        'margin-left',
+                        10)
+                    ->setOption(
+                        'margin-right',
+                        10);
+
+        return $pdf->download('urlaub_'.$year.'.pdf');
     }
 }

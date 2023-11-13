@@ -436,7 +436,7 @@
                                                         </div>
                                                     @endif
 
-                                                    {{$protocol->created_at->format('d.m.Y H:i')}} - {{$protocol->ersteller->name}}
+                                                    {{$protocol->created_at->format('d.m.Y H:i')}} - @if($protocol->ersteller->getMedia('profile')->count() != 0)<img src="{{$protocol->ersteller->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;">@endif {{$protocol->ersteller->name}}
                                                 </p>
 
                                                 {!! $protocol->protocol !!}

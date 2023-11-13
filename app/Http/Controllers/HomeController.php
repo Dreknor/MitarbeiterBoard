@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Absence;
 use App\Models\DashboardCard;
+use App\Models\DashBoardUser;
 use App\Models\personal\Roster;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +25,10 @@ class HomeController extends Controller
 
     public function index(){
 
-        $defaultCards = DashboardCard::all();
+        $defaultCards = \Cache::remember('dashboard_cards', 60*60*24, function (){
+            return DashboardCard::all();
+        });
+
         $cards = auth()->user()->dashboardCards;
 
         foreach ($defaultCards as $card){
@@ -39,7 +43,7 @@ class HomeController extends Controller
                     $col = $cards->last()->col + 1;
                 }
 
-                auth()->user()->dashboardCards()->insert([
+                DashBoardUser::insert([
                     'dashboard_card_id' => $card->id,
                     'user_id' => auth()->id(),
                     'row' => $card->default_row,
@@ -49,8 +53,13 @@ class HomeController extends Controller
             }
         }
 
+        $cards = auth()->user()->dashboardCards->filter(function ($value, $key) {
+            return $value->active;
+        })->sortBy('col')->sortBy('row');
+        $cards->load('dashboardCard');
+
         return view('dashboard.dashboard', [
-            'cards' => auth()->user()->dashboardCards()->active()->order()->get()
+            'cards' => $cards
                 ]);
     }
     /**

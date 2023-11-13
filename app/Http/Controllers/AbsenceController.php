@@ -105,12 +105,20 @@ class AbsenceController extends Controller
     }
 
     public function delete(Absence $absence){
-        if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id) and $absence->end->greaterThan(Carbon::tomorrow()) ){
-            $absence->delete();
-            return redirect()->back()->with([
-                'type' => 'info',
-                'Meldung' => 'Abwesenheitsmitteilung gelöscht'
-            ]);
+        if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id)){
+            if ($absence->end->greaterThan(Carbon::today()->startOfDay())){
+                $absence->delete();
+                return redirect()->back()->with([
+                    'type' => 'info',
+                    'Meldung' => 'Abwesenheitsmitteilung gelöscht'
+                ]);
+            } else {
+                return redirect()->back()->with([
+                    'type' => 'danger',
+                    'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
+                ]);
+            }
+
         }
 
         return redirect()->back()->with([

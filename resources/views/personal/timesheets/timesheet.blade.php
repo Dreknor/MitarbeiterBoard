@@ -105,11 +105,18 @@
                                     </div>
                                 @else
                                 <div class="row">
-                                    <div class="col-12">
+                                    <div class="col-8">
                                         <a href="{{url('timesheets/'.$employe->id.'/export/'.$timesheet->id)}}" class=" btn btn-sm btn-block btn-bg-gradient-x-orange-yellow">
                                             EXPORT
                                         </a>
                                     </div>
+                                    @can('edit employe')
+                                        <div class="col-4">
+                                            <a href="{{url('timesheets/'.$employe->id.'/'.$timesheet->id.'/unlock')}}" class=" btn btn-sm btn-block btn-outline-danger">
+                                                entsperren
+                                            </a>
+                                        </div>
+                                    @endcan
                                 </div>
                                 @endif
 

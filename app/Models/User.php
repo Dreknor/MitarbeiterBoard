@@ -69,6 +69,7 @@ class User extends Authenticatable implements HasMedia
         'remind_assign_themes' => 'boolean',
     ];
 
+
     public function getGeburtstagAttribute(){
         return $this->employe_data?->geburtstag;
     }
@@ -158,7 +159,7 @@ class User extends Authenticatable implements HasMedia
     public function getShortnameAttribute(){
 
         if ($this->employe_data != null and $this->employe_data->familienname != null){
-            $familiename = $this->employe_data->vorname;
+            $familiename = $this->employe_data->familienname;
         } else {
             $familiename= Str::afterLast($this->name, ' ');
         }
@@ -185,8 +186,8 @@ class User extends Authenticatable implements HasMedia
             return $this->employe_data->familienname;
         }
 
-        $vorname= Str::afterLast($this->name, ' ');
-        return $vorname;
+        $name= Str::afterLast($this->name, ' ');
+        return $name;
     }
 
     public function listen()
@@ -258,20 +259,17 @@ class User extends Authenticatable implements HasMedia
             $end_date = $start_date;
         }
 
-        return Cache::remember('holiday_'.auth()->id().'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
-            return $this->holidays()
-                ->whereBetween('start_date', [$start_date,$end_date])
-                ->orWhereBetween('end_date', [$start_date,$end_date])
-                ->orWhere(function ($query) use ($start_date, $end_date){
-                    $query->where('start_date', '<=', $start_date)
-                        ->where('end_date', '>=', $start_date);
-                })
-                ->orWhere(function ($query) use ($start_date, $end_date){
-                    $query->where('start_date', '<=', $end_date)
-                        ->where('end_date', '>=', $end_date);
-                })
-                ->first();
+        return Cache::remember('holiday_'.$this->id.'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
+            $holidays = $this->holidays;
+
+            return $holidays->filter(function ($item) use ($start_date, $end_date){
+                if ($item->start_date->between($start_date, $end_date) or $item->end_date->between($start_date, $end_date)){
+                    return $item;
+                }
+            })->first();
+
         });
+
     }
 
     public function timesheets(){
@@ -285,10 +283,14 @@ class User extends Authenticatable implements HasMedia
     }
 
     public function photo(){
-        if ($this->getMedia('profile')->count() == 0){
-            return asset('img/avatar.png') ;
-        } else {
-            return url('image/').'/'.$this->getMedia('profile')->first()->id;
-        }
+
+        return Cache::remember('user_photo_'.$this->id, 60*60*24, function (){
+            if ($this->getMedia('profile')->count() == 0){
+                return asset('img/avatar.png') ;
+            } else {
+                return url('image/').'/'.$this->getMedia('profile')->first()->id;
+            }
+        });
+
     }
 }

@@ -151,6 +151,8 @@ Route::group([
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
+                    Route::get('holidays/export/{year?}', [HolidayController::class, 'export']);
+
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
                     Route::resource('holidays', HolidayController::class);
 
@@ -161,6 +163,7 @@ Route::group([
                 Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
                 Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
                 Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
+                Route::get('timesheets/{user}/{timesheet}/unlock', [TimesheetController::class, 'unlock']);
                 Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
                 Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
 

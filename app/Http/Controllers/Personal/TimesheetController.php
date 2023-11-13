@@ -451,6 +451,20 @@ class TimesheetController extends Controller
 
 
     }
+    public function unlock(User $user, Timesheet $timesheet){
+        if (!auth()->user()->can('edit employe') and (auth()->id() != $timesheet->employe_id or $user->id != $timesheet->employe_id)){
+            return redirectBack('warning', 'Recht fehlt');
+        }
+
+        $timesheet->update([
+            'locked_at' => null,
+            'locked_by' => null
+        ]);
+
+        return redirectBack('success', 'Sperre aufgehoben');
+
+
+    }
 
     public function overviewTimesheetsUser (User $user){
         if (!auth()->user()->can('edit employe') and (auth()->id() != $user->id)){
