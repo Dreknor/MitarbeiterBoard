@@ -30,6 +30,14 @@ word-wrap: break-word;
     border-radius: 50%;
 }
 
+.avatar-xs:hover {
+    vertical-align: middle;
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+}
+
+
 .border-left-10{
     border-left: 10px solid #17a2b8!important
 }
