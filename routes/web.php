@@ -292,6 +292,7 @@ Route::group([
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
                     Route::get('vertretungen', [VertretungController::class, 'edit']);
+                    Route::get('vertretungen/archiv/{dateStart?}/{dateEnd?}', [VertretungController::class, 'archiv']);
                     Route::post('vertretungen', [VertretungController::class, 'store']);
                     Route::post('vertretungen/createPDF', [VertretungController::class, 'exportPDF']);
                     Route::post('export/vertretungen', [VertretungController::class, 'export']);

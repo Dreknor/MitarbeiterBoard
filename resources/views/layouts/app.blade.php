@@ -274,7 +274,7 @@
                             </a>
                             <div class="collapse  @if(request()->segment(1)=="vertretungen" or request()->segment(1)=="dailyNews" or request()->segment(1)=="weeks") show  active @endif" id="Vertretung">
                                 <ul class="nav pl-2">
-                                    <li class="@if(request()->segment(1)=="vertretungen") active @endif">
+                                    <li class="@if(request()->segment(1)=="vertretungen" and !request()->segment(2)=="archiv") active @endif">
                                         <a href="{{url('/vertretungen')}}">
                                             <i class="fas fa-sync"></i>
                                             <p>Vertretungen</p>
@@ -290,6 +290,12 @@
                                         <a href="{{url('/weeks')}}">
                                             <i class="fas fa-calendar"></i>
                                             <p>Wochen</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(1)=="vertretungen" and request()->segment(2)=="archiv") active @endif">
+                                        <a href="{{url('/vertretungen/archiv')}}">
+                                            <i class="fa fa-archive"></i>
+                                            <p>Archiv</p>
                                         </a>
                                     </li>
                                 </ul>

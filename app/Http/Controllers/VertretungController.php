@@ -27,13 +27,53 @@ class VertretungController extends Controller
      */
     public function index()
     {
+
         return response()->view('vertretungsplan.edit', [
            'vertretungen_aktuell' => Vertretung::whereDate('date', '>=', Carbon::today())->orderBy('date')->orderBy('klassen_id')->orderBy('stunde')->get(),
-           'vertretungen_alt' => Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get(),
             'klassen' => Klasse::all(),
             'lehrer'  => User::whereNotNull('kuerzel')->get(),
             'news'    => DailyNews::all()
         ]);
+    }
+
+    public function archiv($dateStart = null, $dateEnd =null){
+
+        if (!is_null($dateStart) && !is_null($dateEnd)){
+
+            try {
+                $dateStart = Carbon::createFromFormat('Y-m-d', $dateStart);
+                $dateEnd = Carbon::createFromFormat('Y-m-d', $dateEnd);
+            } catch (\Throwable $th) {
+               return redirect()->back()->with([
+                        'type'=>'danger',
+                        'Meldung'=>'Falsches Datumsformat.'
+                    ]);
+            }
+
+            $vertretungen = Vertretung::whereBetween('date', [$dateStart->format('Y-m-d'), $dateEnd->format('Y-m-d')])
+                ->orderBy('klassen_id')
+                ->orderBy('stunde')
+                ->get();
+
+
+        } else {
+            $vertretungen = Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get();
+        }
+
+        $auswertung = [
+            'Eintragungen' => $vertretungen->count(),
+            'Anzahl fachgerechte Vertretungen' => $vertretungen->where('type', '==', 'Vertretung (fachgerecht)')->count(),
+            'UE fachgerechte Vertretungen' => $vertretungen->where('type', '==', 'Vertretung (fachgerecht)')->count() + $vertretungen->where('type', '==', 'Vertretung (fachgerecht)')->where('Doppelstunde', 1)->count(),
+            'fachfremde Vertretungen' => $vertretungen->where('type', '==', 'Vertretung (fachfremd)')->count(),
+            'UE fachfremde Vertretungen' => $vertretungen->where('type', '==', 'Vertretung (fachfremd)')->count() + $vertretungen->where('type', '==', 'Vertretung (fachfremd)')->where('Doppelstunde', 1)->count(),
+            'Ausfälle' => $vertretungen->where('type', '==', 'Ausfall')->count(),
+            'UE Ausfälle' => $vertretungen->where('type', '==', 'Ausfall')->count() + $vertretungen->where('type', '==', 'Ausfall')->where('Doppelstunde', 1)->count(),
+        ];
+
+        return response()->view('vertretungsplan.archiv', [
+             'vertretungen' => $vertretungen,
+            'auswertung' => $auswertung,
+         ]);
     }
 
     /**
