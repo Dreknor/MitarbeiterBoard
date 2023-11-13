@@ -34,9 +34,9 @@
                             <th>Typ</th>
                             <th>Stunde</th>
                             <th>Klasse</th>
-                            <th>Fächer</th>
-                            <th>Lehrer (neu)</th>
-                            <th>Lehrer (alt)</th>
+                            <th>Fache (alt)</th>
+                            <th>Fach (neu)</th>
+                            <th>Lehrer</th>
                             <th>Kommentar</th>
                         </tr>
                     </thead>
