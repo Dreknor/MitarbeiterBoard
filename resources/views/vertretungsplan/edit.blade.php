@@ -125,60 +125,12 @@
 
                                                 </label>
                                                 <button id="submit" type="submit" class="btn btn-primary btn-block">
-                                                    Export
+                                                    Export Tages PDF
                                                 </button>
                                             </div>
                                         </div>
                                     </form>
                                 </div>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-header" id="headingTwo">
-                            <h6 class="mb-0">
-                                <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                    alte Vertretungen
-                                </button>
-                            </h6>
-                        </div>
-                        <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
-                            <div class="card-body " id="exportOld">
-                                @include('vertretungsplan.export')
-                            </div>
-                            <div class="card-body">
-                                @foreach($vertretungen_alt->pluck('date')->unique() as $date )
-                                    <p class="">
-                                        <b>
-                                            {{$date->format('d.m.Y')}}
-                                        </b>
-                                    </p>
-                                    <table class="table table-bordered table-striped">
-                                        <thead>
-                                        <tr>
-                                            <th>Datum</th>
-                                            <th>Stunde</th>
-                                            <th>Klasse</th>
-                                            <th>Fächer</th>
-                                            <th>Lehrer</th>
-                                            <th>Kommentar</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @foreach($vertretungen_alt->where('date', $date) as $vertretung)
-                                            <tr>
-                                                <td>{{$vertretung->date->format('d.m.Y')}}</td>
-                                                <td>{{$vertretung->stunde}}</td>
-                                                <td>{{$vertretung->klasse->name}}</td>
-                                                <td>{{$vertretung->altFach}} @if($vertretung->neuFach) -> {{$vertretung->neuFach}}@endif</td>
-                                                <td>{{optional($vertretung->lehrer)->name}}</td>
-                                                <td>{{$vertretung->comment}}</td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                @endforeach
-
-                            </div>
                         </div>
                     </div>
                 </div>
