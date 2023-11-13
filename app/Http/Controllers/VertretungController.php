@@ -43,6 +43,12 @@ class VertretungController extends Controller
             try {
                 $dateStart = Carbon::createFromFormat('Y-m-d', $dateStart);
                 $dateEnd = Carbon::createFromFormat('Y-m-d', $dateEnd);
+
+                $vertretungen = Vertretung::whereBetween('date', [$dateStart->format('Y-m-d'), $dateEnd->format('Y-m-d')])
+                    ->orderBy('klassen_id')
+                    ->orderBy('stunde')
+                    ->get();
+
             } catch (\Throwable $th) {
                return redirect()->back()->with([
                         'type'=>'danger',
@@ -50,14 +56,13 @@ class VertretungController extends Controller
                     ]);
             }
 
-            $vertretungen = Vertretung::whereBetween('date', [$dateStart->format('Y-m-d'), $dateEnd->format('Y-m-d')])
-                ->orderBy('klassen_id')
-                ->orderBy('stunde')
-                ->get();
+
 
 
         } else {
             $vertretungen = Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get();
+            $dateEnd = Carbon::today();
+            $dateStart = config('config.schuljahresbeginn');
         }
 
         $auswertung = [
@@ -73,6 +78,8 @@ class VertretungController extends Controller
         return response()->view('vertretungsplan.archiv', [
              'vertretungen' => $vertretungen,
             'auswertung' => $auswertung,
+            'dateStart' => $dateStart->format('Y-m-d'),
+            'dateEnd' => $dateEnd->format('Y-m-d')
          ]);
     }
 

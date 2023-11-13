@@ -8,7 +8,7 @@
                         <label for="startDate">
                             Start - Zeitraum
                         </label>
-                        <input type="date"  id="startDate" name="startDate" required class="form-control" value="{{old('startDate', config('config.schuljahresbeginn')->format('Y-m-d'))}}">
+                        <input type="date"  id="startDate" name="startDate" required class="form-control" value="{{old('startDate', $dateStart)}}">
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-6">
@@ -16,7 +16,7 @@
                         <label for="endDate">
                             Ende - Zeitraum
                         </label>
-                        <input type="date"  id="endDate" name="endDate" class="form-control" value="{{old('endDate', \Carbon\Carbon::now()->format('Y-m-d'))}}">
+                        <input type="date"  id="endDate" name="endDate" class="form-control" value="{{old('endDate', $dateEnd)}}">
                     </div>
                 </div>
             </div>
