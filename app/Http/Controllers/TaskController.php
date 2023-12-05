@@ -83,6 +83,7 @@ class TaskController extends Controller
 
     public function complete(Task $task)
     {
+        $theme = $task->theme;
         if ($task->taskable->name == auth()->user()->name) {
             $task->update([
                 'completed' => 1,
@@ -94,6 +95,10 @@ class TaskController extends Controller
                 ->delete();
         }
 
-        return redirect()->back();
+        if (session()->previousUrl() and session()->previousUrl() != null){
+            return redirect()->back();
+        } else {
+            return redirect()->url('/groups/'.$theme->group->name.'/themes/'.$theme->id);
+        }
     }
 }
