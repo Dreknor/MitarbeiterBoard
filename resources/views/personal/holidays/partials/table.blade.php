@@ -20,7 +20,7 @@
                             'holiday' => $holidays->filter(function($holiday) use ($x, $user) {
                                 return $holiday->start_date->lessThanOrEqualTo($x) and $holiday->end_date->greaterThanOrEqualTo($x) and $holiday->employe_id == $user->id;
                             })->first(),
-                            'day' => $x
+                            'day' => $x->copy(),
                         ])
             @endfor
         </tr>

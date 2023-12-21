@@ -122,6 +122,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
+                    @dump($holidays)
                     <h5>
                         Urlaubsübersicht ({{$month->monthName}} {{$month->year}})
                     </h5>
