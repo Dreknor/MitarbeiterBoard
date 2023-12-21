@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -268,6 +269,8 @@ class User extends Authenticatable implements HasMedia
                     return $item;
                 }
             })->first();
+
+            Log::info($found);
 
             if ($found != null){
                 return true;
