@@ -259,17 +259,21 @@ class User extends Authenticatable implements HasMedia
             $end_date = $start_date;
         }
 
-        return Cache::remember('holiday_'.$this->id.'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
             $holidays = $this->holidays;
 
-            return $holidays->filter(function ($item) use ($start_date, $end_date){
-                if ($item->start_date->between($start_date, $end_date) or $item->end_date->between($start_date, $end_date)){
+            $found = $holidays->filter(function ($item) use ($start_date, $end_date){
+                if ($item->start_date->between($start_date, $end_date)
+                    or $item->end_date->between($start_date, $end_date))
+                {
                     return $item;
                 }
             })->first();
 
-        });
-
+            if ($found != null){
+                return true;
+            } else {
+                return false;
+            }
     }
 
     public function timesheets(){
