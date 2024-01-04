@@ -127,6 +127,7 @@ class VertretungsplanController extends Controller
         $vertretungen = [];
         foreach ($plan['vertretungen'] as $vertretung){
             $vertretungen[]=[
+                'id' => $vertretung->id,
               'date' => $vertretung->date->format('Y-m-d'),
               'klasse' => $vertretung->klasse->name,
               'stunde' => $vertretung->stunde,
