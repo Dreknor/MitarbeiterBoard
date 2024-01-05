@@ -18,7 +18,7 @@ class VertretungsplanController extends Controller
      * @return array
      */
 
-    public function make($gruppen = null){
+    public function make($gruppen = null, $ausblenden = false){
         if ($gruppen != null){
             $gruppen_arr = explode('/', $gruppen);
             $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
@@ -55,18 +55,26 @@ class VertretungsplanController extends Controller
         }
 
         $targetDate = Carbon::today()->addDays($addDays);
-        $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])
+
+        if ($ausblenden){
+            $targetDate = Carbon::today()->addDays($addDays+1);
+            $startDate = Carbon::tomorrow();
+        } else {
+            $startDate = Carbon::today();
+        }
+
+        $vertretungen = Vertretung::whereBetween('date', [$startDate->format('Y-m-d'), $targetDate->format('Y-m-d')])
             ->whereIn('klassen_id',$klassen)
             ->orderBy('date')
             ->orderBy('stunde')->get();
 
         $news = DailyNews::query()
-            ->where(function($query) use ($targetDate){
+            ->where(function($query) use ($targetDate, $startDate){
                 $query ->whereDate('date_start', '<=', $targetDate);
                 $query->whereDate('date_end', '<=', $targetDate);
-                $query->whereDate('date_end', '>=', Carbon::today());
+                $query->whereDate('date_end', '>=', $startDate);
             })
-            ->orWhere(function($query) use ($targetDate){
+            ->orWhere(function($query) use ($targetDate, $startDate){
                 $query ->whereDate('date_start', '<=', $targetDate);
                 $query->whereDate('date_end', '>=', Carbon::today());
             })
@@ -79,7 +87,7 @@ class VertretungsplanController extends Controller
 
         //Wochentyp
 
-        $weeks = VertretungsplanWeek::where('week',  Carbon::today()->copy()->startOfWeek()->format('Y-m-d'))
+        $weeks = VertretungsplanWeek::where('week',  $startDate->copy()->startOfWeek()->format('Y-m-d'))
             ->orWhere('week', $targetDate->copy()->startOfWeek()->format('Y-m-d'))
             ->orderBy('week')
             ->get();
@@ -97,6 +105,7 @@ class VertretungsplanController extends Controller
             'vertretungen' => $vertretungen,
             'news'          => $news,
             'targetDate' => $targetDate,
+            'startDate' => $startDate,
             'absences' => $absences,
             'weeks' => $weeks
         ];
@@ -115,7 +124,14 @@ class VertretungsplanController extends Controller
     public function index($gruppen = null)
     {
 
-        return response()->view('vertretungsplan.index',$this->make($gruppen))
+        if (settings('vertretungsplan_ausblenden') == 1 and Carbon::createFromFormat('H:i',settings('vertretungsplan_ausblenden_zeit'))->isBefore(Carbon::now()) ){
+           $ausblenden = true;
+
+        } else {
+            $ausblenden = false;
+        }
+
+        return response()->view('vertretungsplan.index',$this->make($gruppen, $ausblenden))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'))
             ->header("Cache-Control","no-cache, no-store, must-revalidate");

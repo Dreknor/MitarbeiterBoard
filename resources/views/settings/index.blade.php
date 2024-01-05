@@ -21,14 +21,30 @@
                             @foreach($module[$modul] as $setting)
                                 <div class="form-row mt-1 p-2 border">
                                     <div class="col-md-6 col-sm-12">
-                                        <label class="label-control w-100">
-                                            {{$setting->setting_name}}
-                                            @if($setting->type != 'image')
-                                                <input type = "{{$setting->type}}" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}">
-                                            @else
-                                                <input type = "file" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}" accept="image/*">
-                                            @endif
-                                        </label>
+
+                                            @switch($setting->type)
+                                                @case('image')
+                                                 <label class="label-control w-100 ">
+                                                    {{$setting->setting_name}}
+                                                    <input type = "file" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}" accept="image/*">
+                                                 </label>
+                                                    @break
+                                                @case('boolean')
+                                                    <div class="custom-control custom-switch">
+                                                        <input type='hidden' value='0' name='setting[{{$setting->setting}}]'>
+
+                                                        <input class="custom-control-input" type="checkbox" role="switch" id="setting[{{$setting->setting}}]" name='setting[{{$setting->setting}}]' @if($setting->value == 1) checked="checked" @endif>
+                                                        <label class="custom-control-label" for="setting[{{$setting->setting}}]">{{$setting->setting_name}}</label>
+                                                    </div>
+                                                    @break
+                                                @default
+                                                <label class="label-control w-100 ">
+
+                                                    {{$setting->setting_name}}
+                                                    <input type = "{{$setting->type}}" class="form-control" name='setting[{{$setting->setting}}]' value="{{old('value',$setting->value)}}">
+                                                </label>
+                                            @endswitch
+
                                     </div>
                                     <div class="col-md-6 col-sm-12 m-auto">
                                         <div class="small">
