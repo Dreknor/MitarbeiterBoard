@@ -21,7 +21,9 @@ class Theme extends Model implements HasMedia
 
     protected $casts = [
       'memory'  => 'boolean',
+        'change_protokoll' => 'boolean',
         'date' => 'date'
+
     ];
 
     public function ersteller(): BelongsTo

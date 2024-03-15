@@ -68,7 +68,9 @@ class ProtocolController extends Controller
             ]);
         }
 
-        $protocol->update($request->validated());
+        $changes = $request->validated();
+        $changes['creator_id']=auth()->id();
+        $protocol->update($changes);
 
         if ($request->completed == 1) {
             $protocol->theme->update([
