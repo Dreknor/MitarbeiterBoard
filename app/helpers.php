@@ -58,6 +58,18 @@ function money($money = null, $symbol = true)
  */
 function is_holiday(Carbon $date)
 {
+    try {
+        $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
+            return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
+        });
+
+        return $holidays->first(function ($item) use ($date) {
+            return $item->date == $date->format('Y-m-d');
+        });
+    } catch (Exception $e) {
+        return false;
+    }
+    /*
     $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
         return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
     });
@@ -65,6 +77,7 @@ function is_holiday(Carbon $date)
     return $holidays->first(function ($item) use ($date) {
         return $item->date == $date->format('Y-m-d');
     });
+    */
 }
 
 function is_ferien(Carbon $date, $state = null, $year = null)
