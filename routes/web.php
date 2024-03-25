@@ -209,6 +209,8 @@ Route::group([
                     //Create Checks
                     Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
 
+                    //Publish Roster
+                    Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
 
                     Route::post('working_time', [WorkingTimeController::class, 'store']);
                     Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);

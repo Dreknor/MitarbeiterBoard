@@ -24,6 +24,7 @@ class RosterComposer
         $view->with('rosters', Roster::whereIn('department_id', auth()->user()->groups()->pluck('id'))
             ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
             ->where('type', '!=', 'template')
+            ->where('published', true)
             ->get());
     }
 }

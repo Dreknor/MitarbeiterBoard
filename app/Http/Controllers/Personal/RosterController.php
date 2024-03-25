@@ -36,6 +36,22 @@ class RosterController extends Controller
         ]);
     }
 
+    public function publish(Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) {
+            return redirectBack('danger', 'Berechtigung fehlt');
+        }
+
+
+        $roster->update(
+            [
+                'published' => true
+            ]
+        );
+
+        return redirectBack('success', 'Dienstplan veröffentlicht');
+    }
+
     /**
      * Show the form for creating a new resource.
      *
