@@ -123,8 +123,11 @@ class VertretungsplanController extends Controller
         }
     }
 
-    public function index($gruppen = null)
+    public function index($key, $gruppen = null)
     {
+        if ($key != config('config.vertretungsplan_api_key') and !auth()->check()){
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
         if (settings('vertretungsplan_ausblenden') == 1 and Carbon::createFromFormat('H:i',settings('vertretungsplan_ausblenden_zeit'))->isBefore(Carbon::now()) ){
            $ausblenden = true;
@@ -139,7 +142,12 @@ class VertretungsplanController extends Controller
             ->header("Cache-Control","no-cache, no-store, must-revalidate");
     }
 
-    public function toJSON($gruppen = null){
+    public function toJSON($key, $gruppen = null){
+
+        if ($key != config('config.vertretungsplan_api_key')){
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $plan = $this->make($gruppen);
 
         $vertretungen = [];
