@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Vertretung;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class VertretungObserver
 {
@@ -14,10 +15,8 @@ class VertretungObserver
     {
         try {
             if (settings('vertretungsplan_send_elterninfoboard') ==  1 and settings('elterninfoboard_url') != null){
-                Log::info('Vertretung created');
                 $url = settings('elterninfoboard_url').'/api/vertretungen';
-                Log::info($url);
-                Log::info($vertretung->stunde);
+
 
 
                 $client = new \GuzzleHttp\Client();
@@ -27,7 +26,7 @@ class VertretungObserver
                         'id' => $vertretung->id,
                         'date' => $vertretung->date->format('Y-m-d'),
                         'klasse' => $vertretung->klasse->name,
-                        'stunde' => $vertretung->stundenstring,
+                        'stunde' => Str::before($vertretung->stunde, '..').'.',
                         'altFach' => $vertretung->altFach,
                         'neuFach' => $vertretung->neuFach,
                         'lehrer' => optional($vertretung->lehrer)->shortname,
