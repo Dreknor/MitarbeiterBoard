@@ -38,5 +38,14 @@ class Vertretung extends Model
         return $this->attributes['stunde'];
     }
 
+    public function getStundenstringAttribute(){
+        if ($this->attributes['Doppelstunde'] == true){
+            $increment = $this->attributes['stunde'];
+            $increment++;
+            return $this->attributes['stunde'].'. / '.$increment.'.';
+        }
+        return $this->attributes['stundenstring'];
+    }
+
 
 }
