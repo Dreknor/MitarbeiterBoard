@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Vertretung;
+use Illuminate\Support\Facades\Log;
 
 class VertretungObserver
 {
@@ -13,7 +14,9 @@ class VertretungObserver
     {
         try {
             if (settings('vertretungsplan_send_elterninfoboard') ==  1 and settings('elterninfoboard_url') != null){
+                Log::info('Vertretung created');
                 $url = settings('elterninfoboard_url').'/api/vertretungen';
+                Log::info($url);
 
 
                 $client = new \GuzzleHttp\Client();
@@ -32,9 +35,13 @@ class VertretungObserver
                     ]
                 ]);
 
+                Log::info($response->getBody());
+
+
+
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error($e->getMessage());
         }
 
     }
