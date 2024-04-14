@@ -193,10 +193,10 @@ function percent_to_seconds($percent, $full_hours = 40){
  */
 function settings($key, $config_file = null)
 {
-    $settings = Cache::remember('setting_'.$key, 60, function() use ($key) {
+
+   $settings = Cache::remember('setting_'.$key, 60, function() use ($key) {
         return Setting::where('setting', $key)->first()?->value;
     });
-
 
     if (is_null($settings)){
 

@@ -142,7 +142,8 @@ class VertretungsplanController extends Controller
             ->header("Cache-Control","no-cache, no-store, must-revalidate");
     }
 
-    public function toJSON($key, $gruppen = null){
+    public function toJSON($key, $gruppen = null): bool|\Illuminate\Http\JsonResponse|string
+    {
 
         if ($key != config('config.vertretungsplan_api_key')){
             return response()->json(['error' => 'Unauthorized'], 401);
