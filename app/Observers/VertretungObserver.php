@@ -27,7 +27,7 @@ class VertretungObserver
                         'id' => $vertretung->id,
                         'date' => $vertretung->date->format('Y-m-d'),
                         'klasse' => $vertretung->klasse->name,
-                        'stunde' => $vertretung->stunde,
+                        'stunde' => $vertretung->stundenstring,
                         'altFach' => $vertretung->altFach,
                         'neuFach' => $vertretung->neuFach,
                         'lehrer' => optional($vertretung->lehrer)->shortname,
