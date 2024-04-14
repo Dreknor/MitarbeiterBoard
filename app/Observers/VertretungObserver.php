@@ -17,6 +17,7 @@ class VertretungObserver
                 Log::info('Vertretung created');
                 $url = settings('elterninfoboard_url').'/api/vertretungen';
                 Log::info($url);
+                Log::info($vertretung->stunde);
 
 
                 $client = new \GuzzleHttp\Client();
