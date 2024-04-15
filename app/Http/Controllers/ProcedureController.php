@@ -27,6 +27,25 @@ class ProcedureController extends Controller
         $this->middleware('permission:view procedures');
     }
 
+
+    public function delete(Procedure $procedure)
+    {
+        if (auth()->user()->cant('delete procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung.'
+            ]);
+        }
+
+        $procedure->delete();
+        return redirect()->back()->with([
+            'type'=>'warning',
+            'Meldung'=> 'Prozess wurde gelöscht.'
+        ]);
+    }
+
+
+
     public function destroy(Procedure_Step $step){
         try {
             $step->users()->detach();

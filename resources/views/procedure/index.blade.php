@@ -170,7 +170,13 @@
                                         @foreach($proceduresTemplate->where('category_id', $category->id) as $procedure)
                                             <li class="list-group-item">
                                                 {{$procedure->name}}
-                                                <div class="pull-right">
+
+                                                <div class="pull-right mr-4">
+                                                    <a href="{{url('procedure/'.$procedure->id.'/delete')}}" title="Vorlage löschen" class="text-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                                <div class="pull-right mr-4">
                                                     <a href="{{url('procedure/'.$procedure->id.'/edit')}}" title="Vorlage bearbeiten">
                                                         <i class="fas fa-pen"></i>
                                                     </a>
@@ -265,4 +271,10 @@
             </div>
         </div>
     </div>
+
+
+@endpush
+
+@push('js')
+
 @endpush

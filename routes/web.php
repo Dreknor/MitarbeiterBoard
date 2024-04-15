@@ -463,6 +463,7 @@ Route::group([
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
                     Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
                     Route::post('step/addUser', [ProcedureController::class, 'addUser']);
+                    Route::get('{procedure}/delete', [ProcedureController::class, 'delete']);
 
 
                     //Step
