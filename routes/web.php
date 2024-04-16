@@ -3,6 +3,7 @@
 use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\DailyNewsController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
@@ -75,6 +76,7 @@ Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 
 
 
 Route::get('/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
+Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
@@ -326,6 +328,14 @@ Route::group([
                 Route::resource('posts', PostsController::class);
                 Route::get('posts/{post}/release', [PostsController::class, 'release']);
 
+                //Checklisten
+                Route::resource('{groupname}/checklists', ChecklistController::class);
+                Route::post('{groupname}/checklists/{checklist}/addSection', [\App\Http\Controllers\ChecklistItemController::class, 'addSection']);
+                Route::post('{groupname}/checklists/{checklist}/addItem', [\App\Http\Controllers\ChecklistItemController::class, 'store']);
+                 Route::delete('{groupname}/checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
+                Route::get('{groupname}/checklists/{checklist}/complete', [ChecklistController::class, 'complete'])->name('checklists.complete');
+                Route::get('{groupname}/checklists/{checklist}/uncomplete', [ChecklistController::class, 'uncomplete'])->name('checklists.uncomplete');
+
                 //globale Suche
                 Route::post('search/search', [SearchController::class, 'searchGlobal']);
                 Route::get('search', [SearchController::class, 'globalSearch']);
@@ -408,6 +418,8 @@ Route::group([
                 Route::put('{groupname}/addUser', [GroupController::class, 'addUser']);
                 Route::delete('{groupname}/removeUser', [GroupController::class, 'removeUser']);
 
+
+
                 //Tasks
                 Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
                 Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
@@ -427,8 +439,6 @@ Route::group([
 
                     return redirect(url('/'));
                 });
-
-                Route::get('kiosk', [\App\Http\Controllers\KioskController::class, 'index']);
 
                 //Terminlisten
                 Route::get('listen', [ListenController::class, 'index']);
