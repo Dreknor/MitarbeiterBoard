@@ -31,6 +31,11 @@ class Group extends Model
         return $this->belongsToMany(User::class);
     }
 
+    public function presences(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Presence::class);
+    }
+
     public function themes()
     {
         return $this->hasMany(Theme::class);
@@ -67,6 +72,14 @@ class Group extends Model
     public function posts()
     {
         return $this->hasMany(Post::class, 'group_id');
+    }
+
+    /**
+     * Get all of the checklists.
+     */
+    public function checklists()
+    {
+        return $this->hasMany(Checklist::class);
     }
 
 

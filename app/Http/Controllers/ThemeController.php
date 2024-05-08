@@ -186,7 +186,8 @@ class ThemeController extends Controller
            'themes' => $themes,
             'viewType' => $viewType,
             'subscription'  => $subscription,
-            'group' => $group
+            'group' => $group,
+            'anwesenheiten' => $group->presences()->groupBy('date')->get(),
         ]);
     }
     public function memory($groupname)

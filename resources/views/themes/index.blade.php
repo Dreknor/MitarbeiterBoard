@@ -80,6 +80,38 @@
                                         </tr>
                                         </thead>
                                         <tbody class="connectedSortable" >
+                                        <tr class="@if(isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() > 0 ) bg-gradient-directional-success @endif">
+                                            <td>
+                                                System
+                                            </td>
+                                            <td>
+                                                Anwesenheit
+                                            </td>
+                                            <td class="d-none d-md-table-cell">
+
+                                            </td>
+                                            <td class="d-none d-md-table-cell">
+
+                                            </td>
+                                            <td class="d-none d-md-table-cell">
+
+                                            </td>
+                                            <td class="d-none d-md-table-cell">
+
+                                            </td>
+                                            <td>
+                                                @if(\Carbon\Carbon::createFromFormat('d.m.Y', $day)->isSameDay(\Carbon\Carbon::now()) and isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() == null )
+                                                    <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
+                                                       <i class="far fa-edit"></i> erstellen
+                                                    </a>
+                                                @else
+                                                    <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
+                                                        <i class="far fa-eye"></i> zeigen
+                                                    </a>
+                                                @endif
+
+                                            </td>
+                                        </tr>
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
                                             <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
                                                 <td class="align-content-center">

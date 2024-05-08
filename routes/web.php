@@ -25,6 +25,7 @@ use App\Http\Controllers\Personal\TimesheetController;
 use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PostsController;
+use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
@@ -363,6 +364,12 @@ Route::group([
                 Route::get('theme/{theme}/assign/{user}', [ThemeController::class, 'assgin_to']);
                 Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
+
+                //Anwesenheit
+                Route::get('{groupname}/presence/{date?}', [PresenceController::class, 'index']);
+                Route::post('{groupname}/presences/add', [PresenceController::class, 'store']);
+                Route::post('{groupname}/presences/addGuest', [PresenceController::class, 'addGuest']);
+                Route::get('{groupname}/presences/{presence}/deleteGuest', [PresenceController::class, 'deleteGuest']);
 
                 //Prioritäten
                 Route::post('priorities', [PriorityController::class, 'store']);

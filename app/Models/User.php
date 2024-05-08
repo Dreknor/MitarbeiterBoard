@@ -270,8 +270,6 @@ class User extends Authenticatable implements HasMedia
                 }
             })->first();
 
-            Log::info($found);
-
             if ($found != null){
                 return true;
             } else {
