@@ -28,8 +28,9 @@
                                                     Verschieben
                                                 </button>
                                                 <div class="dropdown-menu" aria-labelledby="dropdownMoveButton">
+
                                                     @for($x=1; $x<10; $x++)
-                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.$theme->date->copy()->addWeeks($x)->format('Y-m-d').'/true')}}">{{$theme->date->copy()->addWeeks($x)->format('d.m.Y')}}</a>
+                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->addWeeks($x)->format('d.m.Y')}}</a>
                                                     @endfor
                                                 </div>
                                             </div>
