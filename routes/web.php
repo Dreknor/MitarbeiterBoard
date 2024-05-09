@@ -352,7 +352,8 @@ Route::group([
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
-                Route::post('{groupname}/move/themes', [ThemeController::class,'move']);
+                Route::post('{groupname}/move/themes', [ThemeController::class,'moveAllThemes']);
+                Route::get('{groupname}/move/theme/{theme}/{newDate}/{redirect}', [ThemeController::class,'move']);
                 Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
                 Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);

@@ -625,7 +625,7 @@ class ThemeController extends Controller
            ]);
     }
 
-    public function move($groupname, moveThemesRequest $request){
+    public function move($groupname, Theme $theme, $newDate, $redirect = false){
 
         $group = Group::where('name', $groupname)->first();
 
@@ -636,26 +636,52 @@ class ThemeController extends Controller
             ]);
         }
 
-        $oldDate = Carbon::createFromFormat('Y-m-d', $request->oldDate);
-        $date = Carbon::createFromFormat('Y-m-d', $request->date);
+        $oldDate = $theme->date;
+        $date = Carbon::createFromFormat('Y-m-d', $newDate);
 
-        foreach ($group->themes()->where('date', $oldDate->format('Y-m-d'))->get() as $theme){
             $protocol = new Protocol([
                 'creator_id' => auth()->id(),
-                'theme_id'   => null,
+                'theme_id'   => $theme->id,
                 'protocol'   => 'Thema verschoben von '.$oldDate->format('d.m.Y').' auf '.$date->format('d.m.Y'),
             ]);
+            $protocol->save();
 
-        }
-
-        $themes = $group->themes()->where('date', $oldDate->format('Y-m-d'))->update([
+        $theme->update([
             'date' => $date->format("Y-m-d")
         ]);
 
 
-        return redirect(url($groupname."/themes#".$oldDate->format('Ymd')))->with([
-            'type'  => 'success',
-            'Meldung'=> $themes.' Themen wurden verschoben',
+
+        if ($redirect == true) {
+            return redirect(url($groupname . "/themes#" . $oldDate->format('Ymd')))->with([
+                'type' => 'success',
+                'Meldung' => 'Thema wurde verschoben',
+            ]);
+        }
+    }
+
+    public function moveAllThemes($groupname, moveThemesRequest $request)
+    {
+        $group = Group::where('name', $groupname)->first();
+
+        if (!auth()->user()->groups()->contains($group) and $group->protected) {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $oldDate = Carbon::createFromFormat('Y-m-d', $request->oldDate);
+        $date = Carbon::createFromFormat('Y-m-d', $request->date);
+
+        foreach ($group->themes()->where('date', $oldDate->format('Y-m-d'))->get() as $theme) {
+            $this->move($groupname, $theme, $date->format('Y-m-d'), false);
+
+        }
+
+        return redirect(url($groupname . "/themes#" . $oldDate->format('Ymd')))->with([
+            'type' => 'success',
+            'Meldung' => 'Themen wurden verschoben',
         ]);
     }
 }

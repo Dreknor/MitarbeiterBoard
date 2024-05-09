@@ -23,6 +23,18 @@
                             <div class="row">
                                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
                                         <div class="col-auto">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-default dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    Verschieben
+                                                </button>
+                                                <div class="dropdown-menu" aria-labelledby="dropdownMoveButton">
+                                                    @for($x=1; $x<10; $x++)
+                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.$theme->date->copy()->addWeeks($x)->format('Y-m-d').'/true')}}">{{$theme->date->copy()->addWeeks($x)->format('d.m.Y')}}</a>
+                                                    @endfor
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
                                             <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">
                                                 <i class="fas fa-pen"></i>
                                                 <div class="d-none d-md-none d-lg-inline-block">
