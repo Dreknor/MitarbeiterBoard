@@ -20,6 +20,9 @@ return [
         'Vorbereitungszeit' => 15,
         'Ausgleichstag' => 100,
         'Klassenfahrt' => 100,
+        'Elternzeit' => 100,
+        'Sabbatical' => 100,
+
 
     ],
 
