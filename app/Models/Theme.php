@@ -92,6 +92,11 @@ class Theme extends Model implements HasMedia
         return $this->morphMany(Subscription::class, 'subscriptionable');
     }
 
+    public function surveys(): HasMany
+    {
+        return $this->hasMany(Survey::class);
+    }
+
     //Events
     protected static function booted()
     {

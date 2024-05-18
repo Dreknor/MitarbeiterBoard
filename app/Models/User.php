@@ -75,6 +75,11 @@ class User extends Authenticatable implements HasMedia
         return $this->employe_data?->geburtstag;
     }
 
+    public function survey_user_answers()
+    {
+        return $this->hasMany(SurveyUserAnswer::class, 'user_id');
+    }
+
     public function employe_data(){
         return $this->hasOne(EmployeData::class);
     }

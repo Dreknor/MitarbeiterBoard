@@ -343,6 +343,11 @@
                                 Aufgabe erstellen
                             </button>
                         </div>
+                        <div class="col">
+                            <a href="{{url($theme->group->name.'/themes/'.$theme->id.'/survey/create')}}" class="btn btn-bg-gradient-x-blue-cyan btn-block">
+                                Umfrage erstellen
+                            </a>
+                        </div>
                         @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
                             <div class="col">
                                 <div class="dropdown">
@@ -420,6 +425,9 @@
                 </form>
             </div>
             @endif
+            @foreach($theme->surveys as $survey)
+                @include('themes.element.survey')
+            @endforeach
             <div class="card-body">
                 <div class="row mt-2 border-top">
                     <div class="container-fluid">

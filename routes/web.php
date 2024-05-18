@@ -366,6 +366,18 @@ Route::group([
                 Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
+                //Surveys
+                Route::get('{groupname}/themes/{theme}/survey/create', [\App\Http\Controllers\SurveyController::class,'create']);
+                Route::post('{groupname}/themes/{theme}/survey/store', [\App\Http\Controllers\SurveyController::class,'store'])->name('survey.store');
+                Route::get('/survey/{survey}/edit', [\App\Http\Controllers\SurveyController::class,'edit'])->name('survey.edit');
+                Route::put('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'update'])->name('survey.update');
+                Route::delete('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'destroy'])->name('survey.destroy');
+                Route::get('{groupname}/themes/{theme}/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'show'])->name('survey.show');
+                Route::post('survey/{survey}/store/question', [\App\Http\Controllers\SurveyController::class,'storeQuestion'])->name('survey.question.store');
+                Route::delete('survey/{survey}/delete/question/{question}', [\App\Http\Controllers\SurveyController::class,'destroyQuestion'])->name('survey.question.destroy');
+                Route::post('survey/{survey}/question/{question}/add/answer', [\App\Http\Controllers\SurveyController::class,'storeAnswer'])->name('survey.answer.store');
+                Route::post('survey/{survey}/answer', [\App\Http\Controllers\SurveyController::class,'answer'])->name('survey.submit');
+
                 //Anwesenheit
                 Route::get('{groupname}/presence/{date?}', [PresenceController::class, 'index']);
                 Route::post('{groupname}/presences/add', [PresenceController::class, 'store']);
