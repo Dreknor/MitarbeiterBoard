@@ -6,6 +6,7 @@ use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanAbsence;
 use App\Models\VertretungsplanWeek;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -95,12 +96,8 @@ class VertretungsplanController extends Controller
             ->get();
 
         //Absences
-        $absences = Absence::whereDate('start', '<=', $targetDate)
-            ->whereDate('end', '>=', Carbon::today())
-            ->whereHas('user', function ($query){
-                $query->whereNotNull('kuerzel');
-            })
-            ->where('showVertretungsplan',1)
+        $absences = VertretungsplanAbsence::whereDate('start_date', '<=', $targetDate)
+            ->whereDate('end_date', '>=', Carbon::today())
             ->get()->unique('users_id')->sortBy('user.name');
 
         return [
@@ -177,8 +174,8 @@ class VertretungsplanController extends Controller
         $absences = [];
         foreach ($plan['absences'] as $absence){
             $absences[]=[
-              'start' => $absence->start,
-              'end' => $absence->end,
+              'start' => $absence->start_date,
+              'end' => $absence->end_date,
               'user' => $absence->user->shortname,
             ];
         }

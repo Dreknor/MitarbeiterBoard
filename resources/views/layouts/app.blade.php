@@ -225,6 +225,11 @@
                                                         <p>Protokoll</p>
                                                     </a>
                                                 </li>
+                                                <li class="@if(request()->segment(2)=="checklists"  and request()->segment(1)=="$group->name") active @endif">
+                                                    <a href="{{url($group->name.'/checklists')}}">
+                                                        <i class="fas fa-list-ul"></i>
+                                                        <p>Checklisten</p>
+                                                    </a>
                                                 <li class="@if(request()->segment(2)=="search"  and request()->segment(1)=="$group->name") active @endif">
                                                     <a href="{{url($group->name.'/search')}}">
                                                         <i class="fas fa-search"></i>
@@ -284,6 +289,12 @@
                                         <a href="{{url('/dailyNews')}}">
                                             <i class="fas fa-newspaper"></i>
                                             <p>News</p>
+                                        </a>
+                                    </li>
+                                    <li class="@if(request()->segment(1)=="abwesenheiten") active @endif">
+                                        <a href="{{url('/abwesenheiten')}}">
+                                            <i class="fas fa-users"></i>
+                                            <p>Abwesenheiten</p>
                                         </a>
                                     </li>
                                     <li class="@if(request()->segment(1)=="weeks") active @endif">

@@ -316,6 +316,11 @@ Route::group([
                     Route::get('weeks', [VertretungsplanWeekController::class, 'index']);
                     Route::get('weeks/change/{week}', [VertretungsplanWeekController::class, 'update']);
                     Route::delete('weeks/delete/{week}', [VertretungsplanWeekController::class, 'destroy']);
+
+                    //Abwesenheiten Vertretungsplan
+                    Route::get('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'index'])->name('vertretungsplan.absences.index');
+                    Route::post('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'store']);
+                    Route::delete('vertretungsplan/abwesenheit/{absence}/delete', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'destroy']);
                 });
 
                 //Subscriptions

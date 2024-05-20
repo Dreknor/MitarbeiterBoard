@@ -147,7 +147,7 @@
                                         </th>
                                     </tr>
                                 @endforeach
-                                @if(!is_null($absences))
+                                @if(!is_null($absences) and $absences->count() > 0)
                                     <tr>
                                         <th colspan="6">
                                             @if($absences->count() > 1)
@@ -156,11 +156,11 @@
                                                 Es fehlt:
                                             @endif
                                                 @foreach($absences->filter(function ($absence) use ($x) {
-                                                    if ($absence->start->lte($x) and $absence->end->gte($x)){
+                                                    if ($absence->start_date->lte($x) and $absence->end_date->gte($x)){
                                                         return $absence;
                                                     }
                                                 }) as $absence)
-                                                {{$absence->user->shortname}}@if(!$loop->last),@endif
+                                                {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
                                             @endforeach
                                         </th>
                                     </tr>
