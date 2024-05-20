@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Models\DailyNews;
 use App\Models\User;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanAbsence;
 use App\Models\VertretungsplanWeek;
 use App\Observers\UserObserver;
 use App\Observers\VertretungNewsObserver;
 use App\Observers\VertretungObserver;
+use App\Observers\VertretungsplanAbsenceObserver;
 use App\Observers\VertretungWeekObserver;
 use App\Support\Collection;
 use Carbon\Carbon;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
 
         User::observe(UserObserver::class);
         Vertretung::observe(VertretungObserver::class);
+        VertretungsplanAbsence::observe(VertretungsplanAbsenceObserver::class);
         DailyNews::observe(VertretungNewsObserver::class);
         VertretungsplanWeek::observe(VertretungWeekObserver::class);
 
