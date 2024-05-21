@@ -24,6 +24,7 @@ class VertretungsplanAbsenceObserver
                         'reason' => $vertretungsplanAbsence->reason,
                         'key' => settings('api_key_elterninfoboard')
                     ]
+                ]);
 
                 Log::log($response->getBody());
 
