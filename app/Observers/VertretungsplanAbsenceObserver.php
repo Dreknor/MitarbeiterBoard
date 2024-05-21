@@ -26,7 +26,6 @@ class VertretungsplanAbsenceObserver
                     ]
                 ]);
 
-                Log::log($response->getBody());
 
             }
         } catch (\Exception $e) {
