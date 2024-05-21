@@ -19,12 +19,13 @@ class VertretungsplanAbsenceObserver
                     'json' => [
                         'id' => $vertretungsplanAbsence->id,
                         'name' => $vertretungsplanAbsence->user->shortname,
-                        'start_date' => $vertretungsplanAbsence->start_date,
-                        'end_date' => $vertretungsplanAbsence->end_date,
+                        'start_date' => $vertretungsplanAbsence->start_date->format('Y-m-d'),
+                        'end_date' => $vertretungsplanAbsence->end_date->format('Y-m-d'),
                         'reason' => $vertretungsplanAbsence->reason,
                         'key' => settings('api_key_elterninfoboard')
                     ]
-                ]);
+
+                Log::log($response->getBody());
 
             }
         } catch (\Exception $e) {
