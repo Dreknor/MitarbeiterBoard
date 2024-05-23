@@ -72,7 +72,9 @@
                                     Die Umfrage startet am {{$survey->start_date->format('d.m.Y H:i')}}.
                                 </p>
                             </div>
-                        @elseif($survey->end_date->lessThan(\Carbon\Carbon::now()))
+                        @endif
+                    </div>
+                        @if($survey->end_date->lessThan(\Carbon\Carbon::now()) or $survey->created_by == auth()->id())
                             <div class="card-body">
                                 <ul class="list-group">
                                     @foreach($survey->questions as $question)
@@ -120,5 +122,3 @@
                 </div>
             </div>
         </div>
-    </div>
-
