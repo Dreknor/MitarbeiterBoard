@@ -18,10 +18,10 @@ class VertretungsplanImportController extends Controller
 
         $data = $request->all();
 
-        $vp_data = $data['Gesamtexport']['Vertretungsplan']['Vertretungsplan'];
+        $vp_data = $data['Gesamtexport']['Vertretungsplan']['Vertretungsplan'][0];
 
-        Log::info('VertretungsplanImportController import vp_data');
-        Log::info($vp_data);
+        //Log::info('VertretungsplanImportController import vp_data');
+        //Log::info($vp_data);
 
         $date = Carbon::createFromFormat('d.m.Y',$vp_data['Kopf']['Datum']);
 
