@@ -87,7 +87,6 @@
 
         @for($x=$startDate; $x< $targetDate; $x->addDay())
             @if(!$x->isWeekend())
-                @dump($absences)
                  <div class="card border border-dark">
                     <div class="card-header" id="heading{{$x->format('Ymd')}}">
                         <h6>
