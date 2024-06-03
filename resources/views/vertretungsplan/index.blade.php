@@ -149,9 +149,9 @@
                                 @endforeach
                                 @if(!is_null($absences) and $absences->count() > 0)
                                     <tr>
-                                        <th colspan="5">
+                                        <th colspan="4">
                                             {{$absences->filter(function ($absence) use ($x) {
-                                                    if ($absence->start_date->lte($x->copy()) and $absence->end_date->gte($x->copy())){
+                                                    if ($absence->start_date->lessThanOrEqualTo($x->copy()) and $absence->end_date->gte($x->copy())){
                                                         return $absence;
                                                     }
                                                 })->count()}} Abwesenheiten
@@ -161,7 +161,7 @@
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th colspan="6">
+                                        <th colspan="5">
                                             @if($absences->count() > 1)
                                                 Es fehlen:
                                             @else
