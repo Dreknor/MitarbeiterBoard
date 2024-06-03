@@ -20,14 +20,14 @@ class VertretungsplanImportController extends Controller
 
         $vp_data = $data['Gesamtexport']['Vertretungsplan']['Vertretungsplan'];
 
-        //Log::info('VertretungsplanImportController import vp_data');
-        //Log::info($vp_data);
+        Log::info('VertretungsplanImportController import vp_data');
+        Log::info($vp_data);
 
-        $date = Carbon::createFromFormat('d.m.Y',$vp_data['Datum']);
+        $date = Carbon::createFromFormat('d.m.Y',$vp_data['Kopf']['Datum']);
 
         Log::info('Datum: '.$date->format('Y-m-d'));
 
-        $absences_array = $vp_data['Kopfinfo']['AbwesendeLehrer'];
+        $absences_array = $vp_data['Kopf']['Kopfinfo']['AbwesendeLehrer'];
 
         $absences = User::whereIn('kuerzel',$absences_array['Kurz'])->get();
 
