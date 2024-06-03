@@ -62,7 +62,7 @@
                             @if(!is_null($absences))
                                 <tr>
                                     <th colspan="6">
-                                        @dump($absences)
+
                                         @if($absences->count() > 1)
                                             Es fehlen:
                                         @else
