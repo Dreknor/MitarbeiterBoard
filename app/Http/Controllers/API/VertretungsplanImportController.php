@@ -18,7 +18,8 @@ class VertretungsplanImportController extends Controller
 
         if (is_array($data)) {
             foreach ($data as $key => $value) {
-                Log::info($key . ' => ' . $value);
+                Log::info($key);
+                Log::info($value);
             }
         }
 
