@@ -30,6 +30,61 @@
 <div class="bg-secondary" style='width: 100%; height: 100%; background-color: #f4f3ef; background-image: url("{!! asset('img/'.settings('show_background')) !!}")'>
 <div class="content d-none d-lg-block">
 
+        @if($startDate->greaterThan(\Carbon\Carbon::now()))
+        <div class="card border border-dark">
+            <div class="card-header" id="heading{{\Carbon\Carbon::now()->format('Ymd')}}">
+                <h6>
+                    Vertretungen für <div class="text-danger d-inline">{{\Carbon\Carbon::now()->locale('de')->dayName}} </div>, den {{\Carbon\Carbon::now()->format('d.m.Y')}} @if($weeks->count() > 0 and $weeks->where('week', \Carbon\Carbon::now()->startOfWeek())->first() != null) ({{$weeks->where('week', \Carbon\Carbon::now()->startOfWeek())->first()->type}} - Woche) @endif
+                </h6>
+
+                    <div class="pull-right">
+                        abgerufen: {{\Carbon\Carbon::now()->format('d.m.Y H:i')}}
+                    </div>
+
+            </div>
+            <div id="collapse{{\Carbon\Carbon::now()->format('Ymd')}}"  aria-labelledby="heading{{\Carbon\Carbon::now()->format('Ymd')}}" >
+                <div class="card-body">
+                    <div class="">
+                        <table class="table table-bordered">
+
+                            <tbody>
+
+                            @foreach($news->filter(function ($news) {
+                                if ($news->isActive(\Carbon\Carbon::now())){
+                                     return $news;
+                                }
+                            }) as $dailyNews)
+                                <tr>
+                                    <th colspan="6" class="border-outline-info">
+                                        {{$dailyNews->news}}
+                                    </th>
+                                </tr>
+                            @endforeach
+                            @if(!is_null($absences))
+                                <tr>
+                                    <th colspan="6">
+                                        @if($absences->count() > 1)
+                                            Es fehlen:
+                                        @else
+                                            Es fehlt:
+                                        @endif
+                                        @foreach($absences->filter(function ($absence) {
+                                            if ($absence->start_date->lte(\Carbon\Carbon::now()) and $absence->end_date->gte(\Carbon\Carbon::now())){
+                                                return $absence;
+                                            }
+                                        }) as $absence)
+                                            {{$absence->user->shortname}}@if(!$loop->last),@endif
+                                        @endforeach
+                                    </th>
+                                </tr>
+                            @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         @for($x=$startDate; $x< $targetDate; $x->addDay())
             @if(!$x->isWeekend())
