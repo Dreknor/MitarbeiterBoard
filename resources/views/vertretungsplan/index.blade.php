@@ -62,11 +62,10 @@
                             @if(!is_null($absences))
                                 <tr>
                                     <th colspan="6">
-
                                         @if($absences->count() > 1)
                                             Es fehlen:
                                         @else
-                                            Es fehlt:
+                                            Es fehlt: {{$absences->count()}}
                                         @endif
                                         @foreach($absences->filter(function ($absence) {
                                             if ($absence->start_date->lte(\Carbon\Carbon::now()) and $absence->end_date->gte(\Carbon\Carbon::now())){
