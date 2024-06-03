@@ -100,7 +100,6 @@ class VertretungsplanController extends Controller
             ->whereDate('end_date', '>=', Carbon::today())
             ->get()->unique('users_id')->sortBy('user.name');
 
-        dd($absences->toArray());
 
         return [
             'vertretungen' => $vertretungen,
