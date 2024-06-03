@@ -23,7 +23,7 @@ class VertretungsplanImportController extends Controller
         //Log::info('VertretungsplanImportController import vp_data');
         //Log::info($vp_data);
 
-        $date = Carbon::createFromFormat('d.m.Y',$vp_data['Kopf']['Datum']);
+        $date = Carbon::createFromFormat('d.m.Y',$vp_data['Datum']);
 
         Log::info('Datum: '.$date->format('Y-m-d'));
 
