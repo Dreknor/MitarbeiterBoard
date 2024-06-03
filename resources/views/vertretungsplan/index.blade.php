@@ -65,7 +65,7 @@
                                         @if($absences->count() > 1)
                                             Es fehlen:
                                         @else
-                                            Es fehlt: {{$absences->count()}}
+                                            Es fehlt:
                                         @endif
                                         @foreach($absences->filter(function ($absence) {
                                             if ($absence->start_date->lte(\Carbon\Carbon::now()) and $absence->end_date->gte(\Carbon\Carbon::now())){
@@ -156,7 +156,7 @@
                                                 Es fehlt:
                                             @endif
                                                 @foreach($absences->filter(function ($absence) use ($x) {
-                                                    if ($absence->start_date->lte($x) and $absence->end_date->gte($x)){
+                                                    if ($absence->start_date->lte($x->copy()) and $absence->end_date->gte($x->copy())){
                                                         return $absence;
                                                     }
                                                 }) as $absence)
