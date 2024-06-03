@@ -149,31 +149,17 @@
                                 @endforeach
                                 @if(!is_null($absences) and $absences->count() > 0)
                                     <tr>
-                                        <th colspan="4">
-                                            {{$absences->filter(function ($absence) use ($x) {
-                                                    if ($absence->start_date->lessThanOrEqualTo($x->copy()) and $absence->end_date->gte($x->copy())){
-                                                        return $absence;
-                                                    }
-                                                })->count()}} Abwesenheiten
-                                        </th>
-                                        <th>
-                                            {{$x}}
-                                        </th>
-                                    </tr>
-                                    <tr>
                                         <th colspan="5">
                                             @if($absences->count() > 1)
                                                 Es fehlen:
                                             @else
                                                 Es fehlt:
                                             @endif
-                                                @foreach($absences->filter(function ($absence) use ($x) {
-                                                    if ($absence->start_date->lte($x->copy()) and $absence->end_date->gte($x->copy())){
-                                                        return $absence;
-                                                    }
-                                                }) as $absence)
-                                                {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
-                                            @endforeach
+                                                @foreach($absences as $absence)
+                                                    @if($absence->start_date->lessThanOrEqualTo($x->copy()->startOfDay()) and $absence->end_date->gte($x->copy()->endOfDay()))
+                                                        {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
+                                                    @endif
+                                              @endforeach
                                         </th>
                                     </tr>
                                 @endif
