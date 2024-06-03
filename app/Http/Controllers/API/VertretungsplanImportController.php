@@ -27,7 +27,7 @@ class VertretungsplanImportController extends Controller
 
         Log::info('Datum: '.$date->format('Y-m-d'));
 
-        $absences_array = $vp_data['Kopf']['Kopfinfo']['AbwesendeLehrer'];
+        $absences_array = $vp_data['Kopfinfo']['AbwesendeLehrer'];
 
         $absences = User::whereIn('kuerzel',$absences_array['Kurz'])->get();
 
