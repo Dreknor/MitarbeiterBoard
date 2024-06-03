@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\VertretungsplanImportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,5 +15,5 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::put('/vertretungen/vp', 'VertretungsplanImportController@import');
+Route::put('/vertretungen/vp', [VertretungsplanImportController::class, 'import']);
 
