@@ -63,18 +63,13 @@
                             @if(!is_null($absences))
                                 <tr>
                                     <th colspan="6">
-                                        {{$absences->count()}}
-                                    </th>
-                                </tr>
-                                <tr>
-                                    <th colspan="6">
                                         @if($absences->count() > 1)
                                             Es fehlen:
                                         @else
                                             Es fehlt:
                                         @endif
                                             @foreach($absences as $absence)
-                                                @if($absence->start_date->lessThanOrEqualTo(\Carbon\Carbon::today()->endOfDay()) and $absence->end_date->gte(\Illuminate\Support\Carbon::today()->startOfDay()))
+                                                @if($absence->start_date->lessThanOrEqualTo(\Carbon\Carbon::today()) and $absence->end_date->gte(\Illuminate\Support\Carbon::today()))
                                                     {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
                                                 @endif
                                             @endforeach
@@ -160,7 +155,7 @@
                                                 Es fehlt:
                                             @endif
                                                 @foreach($absences as $absence)
-                                                    @if($absence->start_date->lessThanOrEqualTo($x->copy()->startOfDay()) and $absence->end_date->gte($x->copy()->endOfDay()))
+                                                    @if($absence->start_date->lessThanOrEqualTo($x->copy()->endOfDay()) and $absence->end_date->gte($x->copy()->startOfDay()))
                                                         {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
                                                     @endif
                                               @endforeach
