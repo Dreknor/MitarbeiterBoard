@@ -63,6 +63,11 @@
                             @if(!is_null($absences))
                                 <tr>
                                     <th colspan="6">
+                                        {{$absences->count()}}
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th colspan="6">
                                         @if($absences->count() > 1)
                                             Es fehlen:
                                         @else
