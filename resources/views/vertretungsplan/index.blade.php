@@ -68,13 +68,11 @@
                                         @else
                                             Es fehlt:
                                         @endif
-                                        @foreach($absences->filter(function ($absence) {
-                                            if ($absence->start_date->lte(\Carbon\Carbon::today()) and $absence->end_date->gte(\Carbon\Carbon::today())){
-                                                return $absence;
-                                            }
-                                        }) as $absence)
-                                            {{$absence->user->shortname}}@if(!$loop->last),@endif
-                                        @endforeach
+                                            @foreach($absences as $absence)
+                                                @if($absence->start_date->lessThanOrEqualTo(\Carbon\Carbon::today()->endOfDay()) and $absence->end_date->gte(\Illuminate\Support\Carbon::today()->startOfDay()))
+                                                    {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
+                                                @endif
+                                            @endforeach
                                     </th>
                                 </tr>
                             @endif
