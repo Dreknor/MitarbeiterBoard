@@ -37,6 +37,9 @@ class SettingController extends Controller
     public function store(StoreSettingsRequest $request)
     {
         foreach ($request->setting as $key => $value) {
+            if ($value == 'on'){
+                $value = 1;
+            }
             Setting::where('setting', $key)->update(['value' => $value]);
         }
 

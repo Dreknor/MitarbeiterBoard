@@ -21,7 +21,9 @@ class Theme extends Model implements HasMedia
 
     protected $casts = [
       'memory'  => 'boolean',
+        'change_protokoll' => 'boolean',
         'date' => 'date'
+
     ];
 
     public function ersteller(): BelongsTo
@@ -88,6 +90,11 @@ class Theme extends Model implements HasMedia
     public function subscriptionable(): MorphMany
     {
         return $this->morphMany(Subscription::class, 'subscriptionable');
+    }
+
+    public function surveys(): HasMany
+    {
+        return $this->hasMany(Survey::class);
     }
 
     //Events

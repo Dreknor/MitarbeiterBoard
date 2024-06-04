@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -72,6 +73,11 @@ class User extends Authenticatable implements HasMedia
 
     public function getGeburtstagAttribute(){
         return $this->employe_data?->geburtstag;
+    }
+
+    public function survey_user_answers()
+    {
+        return $this->hasMany(SurveyUserAnswer::class, 'user_id');
     }
 
     public function employe_data(){
@@ -259,17 +265,21 @@ class User extends Authenticatable implements HasMedia
             $end_date = $start_date;
         }
 
-        return Cache::remember('holiday_'.$this->id.'_'.$start_date->format('Y-m-d'), 1, function () use ($start_date, $end_date){
             $holidays = $this->holidays;
 
-            return $holidays->filter(function ($item) use ($start_date, $end_date){
-                if ($item->start_date->between($start_date, $end_date) or $item->end_date->between($start_date, $end_date)){
+            $found = $holidays->filter(function ($item) use ($start_date, $end_date){
+                if ($item->start_date->between($start_date, $end_date)
+                    or $item->end_date->between($start_date, $end_date))
+                {
                     return $item;
                 }
             })->first();
 
-        });
-
+            if ($found != null){
+                return true;
+            } else {
+                return false;
+            }
     }
 
     public function timesheets(){

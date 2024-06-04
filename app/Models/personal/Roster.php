@@ -15,13 +15,14 @@ class Roster extends Model
     use CascadeSoftDeletes;
     use SoftDeletes;
 
-    protected $fillable = ['start_date', 'type', 'comment', 'department_id'];
+    protected $fillable = ['start_date', 'type', 'comment', 'department_id', 'published'];
     protected $visible = ['start_date', 'type', 'comment'];
 
     protected $cascadeDeletes = ['working_times', 'events'];
 
     protected $casts = [
-        'start_date' => 'datetime'
+        'start_date' => 'datetime',
+        'published' => 'boolean',
     ];
 
     public function department()

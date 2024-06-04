@@ -23,6 +23,19 @@
                             <div class="row">
                                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
                                         <div class="col-auto">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-default dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    Verschieben
+                                                </button>
+                                                <div class="dropdown-menu" aria-labelledby="dropdownMoveButton">
+
+                                                    @for($x=1; $x<10; $x++)
+                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->addWeeks($x)->format('d.m.Y')}}</a>
+                                                    @endfor
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
                                             <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">
                                                 <i class="fas fa-pen"></i>
                                                 <div class="d-none d-md-none d-lg-inline-block">
@@ -330,6 +343,11 @@
                                 Aufgabe erstellen
                             </button>
                         </div>
+                        <div class="col">
+                            <a href="{{url($theme->group->name.'/themes/'.$theme->id.'/survey/create')}}" class="btn btn-bg-gradient-x-blue-cyan btn-block">
+                                Umfrage erstellen
+                            </a>
+                        </div>
                         @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
                             <div class="col">
                                 <div class="dropdown">
@@ -407,6 +425,9 @@
                 </form>
             </div>
             @endif
+            @foreach($theme->surveys as $survey)
+                @include('themes.element.survey')
+            @endforeach
             <div class="card-body">
                 <div class="row mt-2 border-top">
                     <div class="container-fluid">
@@ -428,7 +449,7 @@
                                         @foreach($theme->protocols->sortDesc() as $protocol)
                                             <li class="list-group-item">
                                                 <p>
-                                                    @if($protocol->creator_id == auth()->user()->id and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime'))))
+                                                    @if(($protocol->creator_id == auth()->user()->id and $protocol->created_at->greaterThan(\Carbon\Carbon::now()->subMinutes(config('config.protocols.editableTime')))) or $theme->change_protokoll == true)
                                                         <div class="pull-right">
                                                             <a href="{{url(request()->segment(1)."/protocols/$protocol->id/edit")}}" class="btn-link btn-danger">
                                                                 bearbeiten

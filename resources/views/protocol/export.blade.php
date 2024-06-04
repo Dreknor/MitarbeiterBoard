@@ -31,6 +31,35 @@
                     Protokolle der Gruppe {{request()->segment(1)}} vom {{$date->format('d.m.Y')}}
                 </h5>
             </div>
+            <div class="card-body border-top border-bottom">
+
+                <p>
+                    <b>
+                        Anwesend:
+                    </b>
+                    @foreach($presences->where('presence', true) as $presence)
+                        {{$presence->user?->name}},
+                    @endforeach
+                </p>
+                <p>
+                    <b>
+                        Entschuldigt:
+                    </b>
+                    @foreach($presences->where('excused', true) as $presence)
+                        {{$presence->user?->name}},
+                    @endforeach
+                </p>
+                <p>
+                    <b>
+                        Gäste:
+                    </b>
+                    @foreach($presences->filter(function($presence){
+                        return $presence->user_id == null;
+                    }) as $presence)
+                        {{$presence->guest_name}},
+                    @endforeach
+                </p>
+            </div>
 
             <div class="card-body">
                 <table class="table table-bordered table-striped">

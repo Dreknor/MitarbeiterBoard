@@ -3,6 +3,7 @@
 use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\DailyNewsController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Personal\TimesheetController;
 use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PostsController;
+use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
@@ -69,10 +71,14 @@ if (config('config.auth.auth_local')){
         return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
     });
 }
+
+
 Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 'allowAllIndex']);
 
+
+Route::get('/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
-Route::get('/api/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
+Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
@@ -209,6 +215,8 @@ Route::group([
                     //Create Checks
                     Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
 
+                    //Publish Roster
+                    Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
 
                     Route::post('working_time', [WorkingTimeController::class, 'store']);
                     Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);
@@ -292,6 +300,7 @@ Route::group([
                 //Vertretungen planen
                 Route::group(['middleware' => ['permission:edit vertretungen']], function () {
                     Route::get('vertretungen', [VertretungController::class, 'edit']);
+                    Route::get('vertretungen/archiv/{dateStart?}/{dateEnd?}', [VertretungController::class, 'archiv']);
                     Route::post('vertretungen', [VertretungController::class, 'store']);
                     Route::post('vertretungen/createPDF', [VertretungController::class, 'exportPDF']);
                     Route::post('export/vertretungen', [VertretungController::class, 'export']);
@@ -307,6 +316,11 @@ Route::group([
                     Route::get('weeks', [VertretungsplanWeekController::class, 'index']);
                     Route::get('weeks/change/{week}', [VertretungsplanWeekController::class, 'update']);
                     Route::delete('weeks/delete/{week}', [VertretungsplanWeekController::class, 'destroy']);
+
+                    //Abwesenheiten Vertretungsplan
+                    Route::get('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'index'])->name('vertretungsplan.absences.index');
+                    Route::post('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'store']);
+                    Route::delete('vertretungsplan/abwesenheit/{absence}/delete', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'destroy']);
                 });
 
                 //Subscriptions
@@ -319,6 +333,14 @@ Route::group([
                 //Posts
                 Route::resource('posts', PostsController::class);
                 Route::get('posts/{post}/release', [PostsController::class, 'release']);
+
+                //Checklisten
+                Route::resource('{groupname}/checklists', ChecklistController::class);
+                Route::post('{groupname}/checklists/{checklist}/addSection', [\App\Http\Controllers\ChecklistItemController::class, 'addSection']);
+                Route::post('{groupname}/checklists/{checklist}/addItem', [\App\Http\Controllers\ChecklistItemController::class, 'store']);
+                 Route::delete('{groupname}/checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
+                Route::get('{groupname}/checklists/{checklist}/complete', [ChecklistController::class, 'complete'])->name('checklists.complete');
+                Route::get('{groupname}/checklists/{checklist}/uncomplete', [ChecklistController::class, 'uncomplete'])->name('checklists.uncomplete');
 
                 //globale Suche
                 Route::post('search/search', [SearchController::class, 'searchGlobal']);
@@ -335,7 +357,8 @@ Route::group([
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
-                Route::post('{groupname}/move/themes', [ThemeController::class,'move']);
+                Route::post('{groupname}/move/themes', [ThemeController::class,'moveAllThemes']);
+                Route::get('{groupname}/move/theme/{theme}/{newDate}/{redirect}', [ThemeController::class,'move']);
                 Route::get('{groupname}/memory/{theme}', [ThemeController::class,'memoryTheme']);
                 Route::get('{groupname}/memory', [ThemeController::class,'memory']);
                 Route::get('{groupname}/view/{viewType}', [ThemeController::class,'setView']);
@@ -347,6 +370,24 @@ Route::group([
                 Route::get('theme/{theme}/assign/{user}', [ThemeController::class, 'assgin_to']);
                 Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
+
+                //Surveys
+                Route::get('{groupname}/themes/{theme}/survey/create', [\App\Http\Controllers\SurveyController::class,'create']);
+                Route::post('{groupname}/themes/{theme}/survey/store', [\App\Http\Controllers\SurveyController::class,'store'])->name('survey.store');
+                Route::get('/survey/{survey}/edit', [\App\Http\Controllers\SurveyController::class,'edit'])->name('survey.edit');
+                Route::put('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'update'])->name('survey.update');
+                Route::delete('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'destroy'])->name('survey.destroy');
+                Route::get('{groupname}/themes/{theme}/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'show'])->name('survey.show');
+                Route::post('survey/{survey}/store/question', [\App\Http\Controllers\SurveyController::class,'storeQuestion'])->name('survey.question.store');
+                Route::delete('survey/{survey}/delete/question/{question}', [\App\Http\Controllers\SurveyController::class,'destroyQuestion'])->name('survey.question.destroy');
+                Route::post('survey/{survey}/question/{question}/add/answer', [\App\Http\Controllers\SurveyController::class,'storeAnswer'])->name('survey.answer.store');
+                Route::post('survey/{survey}/answer', [\App\Http\Controllers\SurveyController::class,'answer'])->name('survey.submit');
+
+                //Anwesenheit
+                Route::get('{groupname}/presence/{date?}', [PresenceController::class, 'index']);
+                Route::post('{groupname}/presences/add', [PresenceController::class, 'store']);
+                Route::post('{groupname}/presences/addGuest', [PresenceController::class, 'addGuest']);
+                Route::get('{groupname}/presences/{presence}/deleteGuest', [PresenceController::class, 'deleteGuest']);
 
                 //Prioritäten
                 Route::post('priorities', [PriorityController::class, 'store']);
@@ -402,6 +443,8 @@ Route::group([
                 Route::put('{groupname}/addUser', [GroupController::class, 'addUser']);
                 Route::delete('{groupname}/removeUser', [GroupController::class, 'removeUser']);
 
+
+
                 //Tasks
                 Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
                 Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
@@ -421,8 +464,6 @@ Route::group([
 
                     return redirect(url('/'));
                 });
-
-                Route::get('kiosk', [\App\Http\Controllers\KioskController::class, 'index']);
 
                 //Terminlisten
                 Route::get('listen', [ListenController::class, 'index']);
@@ -457,6 +498,7 @@ Route::group([
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
                     Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
                     Route::post('step/addUser', [ProcedureController::class, 'addUser']);
+                    Route::get('{procedure}/delete', [ProcedureController::class, 'delete']);
 
 
                     //Step

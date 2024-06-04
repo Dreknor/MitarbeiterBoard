@@ -58,6 +58,18 @@ function money($money = null, $symbol = true)
  */
 function is_holiday(Carbon $date)
 {
+    try {
+        $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
+            return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
+        });
+
+        return $holidays->first(function ($item) use ($date) {
+            return $item->date == $date->format('Y-m-d');
+        });
+    } catch (Exception $e) {
+        return false;
+    }
+    /*
     $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
         return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
     });
@@ -65,6 +77,7 @@ function is_holiday(Carbon $date)
     return $holidays->first(function ($item) use ($date) {
         return $item->date == $date->format('Y-m-d');
     });
+    */
 }
 
 function is_ferien(Carbon $date, $state = null, $year = null)
@@ -76,7 +89,20 @@ function is_ferien(Carbon $date, $state = null, $year = null)
     if (is_null($state)){
         $state = settings('ferien_state', 'holidays');
     }
+    try {
+        $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
+            return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
+        });
+        return $ferien->first(function ($item) use ($date) {
+            $start = Carbon::createFromFormat('Y-m-d', $item->start);
+            $end = Carbon::createFromFormat('Y-m-d', $item->end);
+            return $date->between($start->startOfDay(), $end->endOfDay());
+        });
+    } catch (Exception $e) {
+        return false;
+    }
 
+    /*
     $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
         return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
     });
@@ -85,6 +111,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
         $end = Carbon::createFromFormat('Y-m-d', $item->end);
         return $date->between($start->startOfDay(), $end->endOfDay());
     });
+    */
 }
 
 function calculateWorkingTime(Collection $working_times, Collection $roster_events = null)
@@ -166,10 +193,10 @@ function percent_to_seconds($percent, $full_hours = 40){
  */
 function settings($key, $config_file = null)
 {
-    $settings = Cache::remember('setting_'.$key, 60, function() use ($key) {
+
+   $settings = Cache::remember('setting_'.$key, 60, function() use ($key) {
         return Setting::where('setting', $key)->first()?->value;
     });
-
 
     if (is_null($settings)){
 

@@ -32,6 +32,7 @@ class createThemeRequest extends FormRequest
             'information' => 'nullable|string',
             'date'  => 'required|date',
             'memory'  => 'sometimes|nullable|boolean',
+            'change_protokoll'  => 'sometimes|nullable|boolean',
         ];
     }
 }

@@ -10,10 +10,12 @@ use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Protocol extends Model implements HasMedia
+class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Auditable
 {
     use InteractsWithMedia;
     use SoftDeletes;
+    use \OwenIt\Auditing\Auditable;
+
 
     protected $fillable = ['theme_id', 'creator_id', 'protocol', 'created_at', 'updated_at'];
 

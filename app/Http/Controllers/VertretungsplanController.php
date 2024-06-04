@@ -6,6 +6,7 @@ use App\Models\Absence;
 use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Vertretung;
+use App\Models\VertretungsplanAbsence;
 use App\Models\VertretungsplanWeek;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -18,7 +19,7 @@ class VertretungsplanController extends Controller
      * @return array
      */
 
-    public function make($gruppen = null){
+    public function make($gruppen = null, $ausblenden = false){
         if ($gruppen != null){
             $gruppen_arr = explode('/', $gruppen);
             $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
@@ -55,18 +56,28 @@ class VertretungsplanController extends Controller
         }
 
         $targetDate = Carbon::today()->addDays($addDays);
-        $vertretungen = Vertretung::whereBetween('date', [Carbon::today()->format('Y-m-d'), $targetDate->format('Y-m-d')])
+
+        if ($ausblenden){
+            $targetDate = Carbon::today()->addDays($addDays+1);
+            $startDate = Carbon::tomorrow();
+        } else {
+            $startDate = Carbon::today();
+        }
+
+        $vertretungen = Vertretung::whereBetween('date', [$startDate->format('Y-m-d'), $targetDate->format('Y-m-d')])
             ->whereIn('klassen_id',$klassen)
             ->orderBy('date')
             ->orderBy('stunde')->get();
 
+
+        //News immer anzeigen
         $news = DailyNews::query()
-            ->where(function($query) use ($targetDate){
+            ->where(function($query) use ($targetDate, $startDate){
                 $query ->whereDate('date_start', '<=', $targetDate);
                 $query->whereDate('date_end', '<=', $targetDate);
                 $query->whereDate('date_end', '>=', Carbon::today());
             })
-            ->orWhere(function($query) use ($targetDate){
+            ->orWhere(function($query) use ($targetDate, $startDate){
                 $query ->whereDate('date_start', '<=', $targetDate);
                 $query->whereDate('date_end', '>=', Carbon::today());
             })
@@ -79,24 +90,22 @@ class VertretungsplanController extends Controller
 
         //Wochentyp
 
-        $weeks = VertretungsplanWeek::where('week',  Carbon::today()->copy()->startOfWeek()->format('Y-m-d'))
+        $weeks = VertretungsplanWeek::where('week',  $startDate->copy()->startOfWeek()->format('Y-m-d'))
             ->orWhere('week', $targetDate->copy()->startOfWeek()->format('Y-m-d'))
             ->orderBy('week')
             ->get();
 
         //Absences
-        $absences = Absence::whereDate('start', '<=', $targetDate)
-            ->whereDate('end', '>=', Carbon::today())
-            ->whereHas('user', function ($query){
-                $query->whereNotNull('kuerzel');
-            })
-            ->where('showVertretungsplan',1)
-            ->get()->unique('users_id')->sortBy('user.name');
+        $absences = VertretungsplanAbsence::whereDate('start_date', '<=', $targetDate)
+            ->whereDate('end_date', '>=', Carbon::today())
+            ->get();
+
 
         return [
             'vertretungen' => $vertretungen,
             'news'          => $news,
             'targetDate' => $targetDate,
+            'startDate' => $startDate,
             'absences' => $absences,
             'weeks' => $weeks
         ];
@@ -112,21 +121,38 @@ class VertretungsplanController extends Controller
         }
     }
 
-    public function index($gruppen = null)
+    public function index($key, $gruppen = null)
     {
+        if ($key != config('config.vertretungsplan_api_key') and !auth()->check()){
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        return response()->view('vertretungsplan.index',$this->make($gruppen))
+        if (settings('vertretungsplan_ausblenden') == 1 and Carbon::createFromFormat('H:i',settings('vertretungsplan_ausblenden_zeit'))->isBefore(Carbon::now()) ){
+           $ausblenden = true;
+
+        } else {
+            $ausblenden = false;
+        }
+
+        return response()->view('vertretungsplan.index',$this->make($gruppen, $ausblenden))
             ->header('Content-Security-Policy', config('cors.Content-Security-Policy'))
             ->header('X-Frame-Options', config('cors.X-Frame-Options'))
             ->header("Cache-Control","no-cache, no-store, must-revalidate");
     }
 
-    public function toJSON($gruppen = null){
+    public function toJSON($key, $gruppen = null): bool|\Illuminate\Http\JsonResponse|string
+    {
+
+        if ($key != config('config.vertretungsplan_api_key')){
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $plan = $this->make($gruppen);
 
         $vertretungen = [];
         foreach ($plan['vertretungen'] as $vertretung){
             $vertretungen[]=[
+                'id' => $vertretung->id,
               'date' => $vertretung->date->format('Y-m-d'),
               'klasse' => $vertretung->klasse->name,
               'stunde' => $vertretung->stunde,
@@ -149,8 +175,8 @@ class VertretungsplanController extends Controller
         $absences = [];
         foreach ($plan['absences'] as $absence){
             $absences[]=[
-              'start' => $absence->start,
-              'end' => $absence->end,
+              'start' => $absence->start_date,
+              'end' => $absence->end_date,
               'user' => $absence->user->shortname,
             ];
         }

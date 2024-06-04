@@ -87,7 +87,7 @@ class AbsenceController extends Controller
                             ->where('end', '>=', Carbon::now()->format('Y-m-d'))
                             ->get();
 
-        $users = User::where('absence_abo_now', 1)->get();
+        $users = User::where('absence_abo_daily', 1)->get();
 
         foreach ($users as $user){
             $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))

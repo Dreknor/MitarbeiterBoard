@@ -68,7 +68,9 @@ class ProtocolController extends Controller
             ]);
         }
 
-        $protocol->update($request->validated());
+        $changes = $request->validated();
+        $changes['creator_id']=auth()->id();
+        $protocol->update($changes);
 
         if ($request->completed == 1) {
             $protocol->theme->update([
@@ -181,6 +183,8 @@ class ProtocolController extends Controller
             $date = Carbon::now();
         }
 
+
+
         $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date) {
             $query->whereDate('created_at', '=', $date);
         })->get();
@@ -199,10 +203,14 @@ class ProtocolController extends Controller
 
         $themes->load(['group', 'protocols']);
 
+        $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
+
         return view('protocol.export')->with([
             'themes'    => $themes,
             'date'  => $date,
-            'dates' => $dates
+            'dates' => $dates,
+            'group' => $group,
+            'presences' => $presences,
         ]);
     }
 
@@ -241,6 +249,9 @@ class ProtocolController extends Controller
 
         $themes->load(['group', 'protocols']);
 
+        $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
+
+
         $protocolCreator = $themes->first()->protocols->first()->ersteller;
 
 
@@ -266,7 +277,11 @@ class ProtocolController extends Controller
         $table = $header->addTable();
         $table->addRow();
         $table->addCell(8000)->addText('Protokoll', ['bold'=>true,'size'=>25]);
-        $table->addCell(1000)->addImage(asset('img/'.config('app.logo')), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
+        if (file_exists(asset('img/'.config('app.logo'))) ){
+            $table->addCell(1000)->addImage(asset('img/'.config('app.logo')), array('height' => 40, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END));
+        } else {
+            $table->addCell(1000)->addText('');
+        }
 
         // Add footer
         $footer = $section->addFooter();
@@ -310,15 +325,49 @@ class ProtocolController extends Controller
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Teilnehmer:');
-        $tableHead->addCell(Converter::cmToTwip(12));
+        //Teilnehmertabelle
+        $teilnehmer = "";
+
+        foreach ($presences as $presence){
+            if ($presence->user_id != null and $presence->presence){
+                $teilnehmer .= $presence->user->name;
+                if ($presence->online) {
+                    $teilnehmer .= ' (online)';
+                }
+                $teilnehmer .= ', ';
+            }
+        }
+        $tableHead->addCell(Converter::cmToTwip(12))->addText($teilnehmer);
         $tableHead->addRow();
-        $tableHead->addCell(Converter::cmToTwip(5))->addText('Es fehlen:');
-        $tableHead->addCell(Converter::cmToTwip(12));
+        $tableHead->addCell(Converter::cmToTwip(5))->addText('Entschuldigt:');
+
+        //Teilnehmertabelle
+        $entschuldigt = "";
+
+        foreach ($presences as $presence){
+            if ($presence->user_id != null and $presence->excused){
+                $entschuldigt .= $presence->user->name.', ';
+            }
+        }
+
+
+
+        $tableHead->addCell(Converter::cmToTwip(12))->addText($entschuldigt);
 
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Gäste:');
-        $tableHead->addCell(Converter::cmToTwip(12));
+
+        //Gästetabelle
+        $gaeste = "";
+
+        foreach ($presences as $presence){
+            if ($presence->user_id == null){
+                $gaeste .= $presence->guest_name.', ';
+            }
+        }
+
+        $tableHead->addCell(Converter::cmToTwip(12))->addText($gaeste);
 
         $tableHead->addRow();
         $tableHead->addCell(Converter::cmToTwip(5))->addText('Protokoll:');

@@ -2,9 +2,16 @@
 
 namespace App\Providers;
 
-use App\Models\Employe;
+use App\Models\DailyNews;
 use App\Models\User;
+use App\Models\Vertretung;
+use App\Models\VertretungsplanAbsence;
+use App\Models\VertretungsplanWeek;
 use App\Observers\UserObserver;
+use App\Observers\VertretungNewsObserver;
+use App\Observers\VertretungObserver;
+use App\Observers\VertretungsplanAbsenceObserver;
+use App\Observers\VertretungWeekObserver;
 use App\Support\Collection;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,6 +40,10 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrap();
 
         User::observe(UserObserver::class);
+        Vertretung::observe(VertretungObserver::class);
+        VertretungsplanAbsence::observe(VertretungsplanAbsenceObserver::class);
+        DailyNews::observe(VertretungNewsObserver::class);
+        VertretungsplanWeek::observe(VertretungWeekObserver::class);
 
         Carbon::setUTF8(true);
         Carbon::setLocale(config('app.locale'));

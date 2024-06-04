@@ -186,6 +186,11 @@
                                                         <a href="{{route('roster.export.mail',[$roster->id])}}">E-Mail</a>
                                                     </div>
                                                 @endif
+                                                @if(!$roster->published)
+                                                    <div @class(['col-auto'])>
+                                                        <a href="{{route('roster.publish',[$roster->id])}}">veröffentlichen</a>
+                                                    </div>
+                                                @endif
                                             @endif
                                         </div>
                                     </div>

@@ -44,6 +44,17 @@ class Absence extends Model
                     $absence->sick_note_required = 1;
                 }
             }
+
+            if ($absence->showVertretungsplan != null){
+                $vertretungsplanAbsence = new VertretungsplanAbsence([
+                    'user_id' => $absence->users_id,
+                    'start_date' => $absence->start,
+                    'end_date' => $absence->end,
+                    'absence_id' => $absence->id,
+                ]);
+
+                $vertretungsplanAbsence->save();
+            }
         });
 
         static::updating(function ($absence) {
@@ -51,6 +62,23 @@ class Absence extends Model
                 if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
                     $absence->sick_note_required = 1;
                 }
+            }
+
+            if ($absence->showVertretungsplan != null){
+                $vertretungsplanAbsence = VertretungsplanAbsence::where('absence_id', $absence->id)->first();
+                if ($vertretungsplanAbsence == null){
+                    $vertretungsplanAbsence = new VertretungsplanAbsence([
+                        'user_id' => $absence->users_id,
+                        'start_date' => $absence->start,
+                        'end_date' => $absence->end,
+                        'absence_id' => $absence->id,
+                    ]);
+                } else {
+                    $vertretungsplanAbsence->start_date = $absence->start;
+                    $vertretungsplanAbsence->end_date = $absence->end;
+                }
+
+                $vertretungsplanAbsence->save();
             }
         });
     }
