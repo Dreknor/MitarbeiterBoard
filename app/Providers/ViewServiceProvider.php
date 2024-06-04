@@ -29,5 +29,6 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('absences.dashboardCard', \App\View\Composers\AbsenceComposer::class);
         View::composer('personal.time_recording.dashboardCard', \App\View\Composers\TimeRecordingCardComposer::class);
         View::composer('personal.time_recording.dashboardCardOwn', \App\View\Composers\TimeRecordingCardOwnComposer::class);
+        View::composer('vertretungsplan.UserVertretungen', \App\View\Composers\VertretungenComposer::class);
     }
 }
