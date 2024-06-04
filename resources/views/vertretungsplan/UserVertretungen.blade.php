@@ -21,7 +21,7 @@
                 <tr>
                     <td>{{$vertretung->date->format('d.m.Y')}}</td>
                     @can('view vertretungen')
-                        <td>{{$vertretung->lehrer->name}}</td>
+                        <td>{{$vertretung->lehrer?->name}}</td>
                     @endcan
                     <td>{{$vertretung->stunde}}</td>
                     <td>{{$vertretung->klasse->name}}</td>
