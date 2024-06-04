@@ -69,7 +69,7 @@
                                             Es fehlt:
                                         @endif
                                         @foreach($absences->filter(function ($absence) {
-                                            if ($absence->start_date->lte(\Carbon\Carbon::now()) and $absence->end_date->gte(\Carbon\Carbon::now())){
+                                            if ($absence->start_date->lte(\Carbon\Carbon::now()->startOfDay()) and $absence->end_date->gte(\Carbon\Carbon::now()->startOfDay())){
                                                 return $absence;
                                             }
                                         }) as $absence)
