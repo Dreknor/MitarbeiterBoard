@@ -114,8 +114,6 @@ Route::group([
         ],
             function () {
 
-                Route::get('test/mail', [TimesheetController::class, 'timesheet_mail']);
-
                 /*
                  * Routes for edit dashboard
                  */
