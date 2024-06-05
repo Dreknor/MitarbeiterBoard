@@ -19,7 +19,15 @@ class UpdateController extends Controller
 
     public function update()
     {
-        Updater::update();
-        return redirect()->route('update.index');
+        exec("git pull");
+
+        \Artisan::call('migrate');
+        \Artisan::call('cache:clear');
+        \Artisan::call('config:clear');
+        \Artisan::call('route:clear');
+        \Artisan::call('view:clear');
+        \Artisan::call('optimize');
+
+        return redirect()->route('updater.index')->with('success', 'Update erfolgreich durchgeführt');
     }
 }
