@@ -380,6 +380,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('make updates')
+                        <li class="@if(request()->segment(1)=="update") active @endif">
+                            <a href="{{url('/update')}}">
+                                <i class="fas fa-code"></i>
+                                <p>Update</p>
+                            </a>
+                        </li>
+                    @endcan
                 @endcan
             @endauth
 

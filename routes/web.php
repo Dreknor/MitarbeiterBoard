@@ -114,7 +114,10 @@ Route::group([
         ],
             function () {
 
-                Route::get('test/mail', [TimesheetController::class, 'timesheet_mail']);
+                Route::middleware(['permission:make updates'])->group(function () {
+                    Route::get('update', [\App\Http\Controllers\UpdateController::class, 'index'])->name('updater.index');
+                    Route::post('update', [\App\Http\Controllers\UpdateController::class, 'update'])->name('updater.update');
+                });
 
                 /*
                  * Routes for edit dashboard
