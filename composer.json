@@ -26,7 +26,6 @@
         "owen-it/laravel-auditing": "^13.6",
         "phpoffice/phpword": "^1.0",
         "ryangjchandler/blade-cache-directive": "^0.3.1",
-        "salahhusa9/laravel-updater": "^1.2",
         "sentry/sentry-laravel": "^3.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-google-calendar": "^3.5",

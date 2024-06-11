@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bf97b12cd15d02eb467c459946b81976",
+    "content-hash": "fe1de35d430dc6e4a187ab1d8da47657",
     "packages": [
         {
             "name": "aacotroneo/laravel-saml2",
@@ -7523,89 +7523,6 @@
                 "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v8.5.1"
             },
             "time": "2024-02-15T16:41:13+00:00"
-        },
-        {
-            "name": "salahhusa9/laravel-updater",
-            "version": "v1.2.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/salahhusa9/laravel-updater.git",
-                "reference": "3c4369e68f126b66ececd1b1aff5e5452befe32c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/salahhusa9/laravel-updater/zipball/3c4369e68f126b66ececd1b1aff5e5452befe32c",
-                "reference": "3c4369e68f126b66ececd1b1aff5e5452befe32c",
-                "shasum": ""
-            },
-            "require": {
-                "guzzlehttp/guzzle": "^7.8",
-                "illuminate/contracts": "^10.0|^11.0",
-                "php": "^8.1",
-                "spatie/laravel-package-tools": "^1.14.0",
-                "symfony/process": "^6.3"
-            },
-            "require-dev": {
-                "laravel/pint": "^1.0",
-                "nunomaduro/collision": "^7.8",
-                "nunomaduro/larastan": "^2.0.1",
-                "orchestra/testbench": "^9.0",
-                "pestphp/pest": "^2.20",
-                "pestphp/pest-plugin-arch": "^2.0",
-                "pestphp/pest-plugin-laravel": "^2.0"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Salahhusa9\\Updater\\UpdaterServiceProvider"
-                    ],
-                    "aliases": {
-                        "Updater": "Salahhusa9\\Updater\\Facades\\Updater"
-                    }
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Salahhusa9\\Updater\\": "src/",
-                    "Salahhusa9\\Updater\\Database\\Factories\\": "database/factories/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "salahhusa9",
-                    "email": "salahhusa9@gmail.com",
-                    "role": "Developer"
-                }
-            ],
-            "description": "Laravel Updater is a simple yet powerful package for updater your Laravel applications. It makes it easy to upgrade your application to the latest version with just one command.",
-            "homepage": "https://github.com/salahhusa9/laravel-updater",
-            "keywords": [
-                "laravel",
-                "laravel package",
-                "laravel package self updater",
-                "laravel package update",
-                "laravel package update itself",
-                "laravel package updater",
-                "laravel self updater",
-                "laravel-updater",
-                "salahhusa9"
-            ],
-            "support": {
-                "issues": "https://github.com/salahhusa9/laravel-updater/issues",
-                "source": "https://github.com/salahhusa9/laravel-updater/tree/v1.2.0"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/salahhusa9",
-                    "type": "github"
-                }
-            ],
-            "time": "2024-04-01T08:54:50+00:00"
         },
         {
             "name": "seld/jsonlint",
