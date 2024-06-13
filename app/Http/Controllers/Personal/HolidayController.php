@@ -152,7 +152,7 @@ class HolidayController extends Controller
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
-        if ($request->action == 'reject'){
+        if ($request->action == 'rejected'){
             $holiday->update([
                 'rejected' => true,
                 'approved' => false,
