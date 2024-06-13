@@ -68,13 +68,11 @@
                                         @else
                                             Es fehlt:
                                         @endif
-                                        @foreach($absences->filter(function ($absence) {
-                                            if ($absence->start_date->lte(\Carbon\Carbon::now()) and $absence->end_date->gte(\Carbon\Carbon::now())){
-                                                return $absence;
-                                            }
-                                        }) as $absence)
-                                            {{$absence->user->shortname}}@if(!$loop->last),@endif
-                                        @endforeach
+                                            @foreach($absences as $absence)
+                                                @if($absence->start_date->lessThanOrEqualTo(\Carbon\Carbon::today()) and $absence->end_date->gte(\Illuminate\Support\Carbon::today()))
+                                                    {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
+                                                @endif
+                                            @endforeach
                                     </th>
                                 </tr>
                             @endif
@@ -157,7 +155,7 @@
                                                 Es fehlt:
                                             @endif
                                                 @foreach($absences as $absence)
-                                                    @if($absence->start_date->lessThanOrEqualTo($x->copy()->startOfDay()) and $absence->end_date->gte($x->copy()->endOfDay()))
+                                                    @if($absence->start_date->lessThanOrEqualTo($x->copy()->endOfDay()) and $absence->end_date->gte($x->copy()->startOfDay()))
                                                         {{$absence->user->shortname}} @if($absence->reason != "") ({{$absence->reason}}) @endif @if(!$loop->last),@endif
                                                     @endif
                                               @endforeach
