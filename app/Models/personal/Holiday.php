@@ -22,12 +22,14 @@ class Holiday extends Model
         'approved',
         'approved_by',
         'approved_at',
+        'rejected',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
-        'approved' => 'boolean'
+        'approved' => 'boolean',
+        'rejected' => 'boolean',
     ];
 
     public function employe()
