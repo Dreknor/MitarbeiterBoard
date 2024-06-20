@@ -30,7 +30,7 @@ class ProcedureController extends Controller
 
     public function delete(Procedure $procedure)
     {
-        if (auth()->user()->cant('delete procedures')) {
+        if (!auth()->user()->can('delete procedures')) {
             return redirect()->back()->with([
                 'type'=>'danger',
                 'Meldung'=> 'Keine Berechtigung.'
@@ -56,11 +56,23 @@ class ProcedureController extends Controller
     public function destroy(Procedure_Step $step){
         try {
             $step->users()->detach();
+
+            $step->childs()->update(['parent' => $step->parent]);
+            $procedure = $step->procedure;
             $step->delete();
-            return redirect()->back()->with([
-                'type'=>'warning',
-                'Meldung'=> 'Schritt wurde gelöscht.'
-            ]);
+
+            if ($procedure->started_at == null) {
+                return redirect(url('procedure/'.$procedure->id.'/edit'))->with([
+                    'type'=>'warning',
+                    'Meldung'=> 'Schritt wurde gelöscht.'
+                ]);
+            } else {
+                return redirect()->back()->with([
+                    'type'=>'warning',
+                    'Meldung'=> 'Schritt wurde gelöscht.'
+                ]);
+
+            }
 
         } catch (\Exception $exception){
             return redirect()->back()->with([
