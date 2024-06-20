@@ -11,6 +11,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class RecurringProcedureController extends Controller
@@ -120,13 +121,20 @@ class RecurringProcedureController extends Controller
             $users = $step->position->users;
 
             $newStep->users()->attach($users);
+
+
             foreach ($users as $user) {
-                Mail::to($user)->queue(new newStepMail(
-                    $user->name,
-                    Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
-                    $newStep->name,
-                    $newStep->procedure->name,
-                    $step->procedure->id));
+                try {
+                    Mail::to($user)->queue(new newStepMail(
+                        $user->name,
+                        Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
+                        $newStep->name,
+                        $newStep->procedure->name,
+                        $step->procedure->id));
+                } catch (\Exception $e) {
+                    Log::alert('Mail konnte nicht versendet werden: ' . $e->getMessage());
+                }
+
             }
 
             $controller = new ProcedureController();
@@ -136,10 +144,58 @@ class RecurringProcedureController extends Controller
 
 
         if ($redirect) {
-            return redirect(url('procedure/'.$startedProcedureID.'/start'))->with([
+            return redirect(url('procedure/'.$startedProcedure->id.'/start'))->with([
                 'Meldung' => 'Wiederkehrender Prozess wurde erfolgreich gestartet.',
                 'type' => 'success'
             ]);
+        }
+
+    }
+
+    public function checkStart(){
+
+        $state = settings('ferien_state', 'holidays');
+        $year = Carbon::now()->format('Y');
+
+        $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
+            return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
+        });
+
+        if (now()->month == 10){
+            $year++;
+
+            $ferien->merge(
+                Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
+                    return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
+                })
+            );
+        }
+
+        $procedures = RecurringProcedure::all();
+
+        foreach ($procedures as $procedure){
+            if ($procedure->faelligkeit_typ == 'datum'){
+                if ($procedure->month == now()->month && now()->day == 20){
+                    $this->start($procedure, false);
+                }
+
+            } elseif ($procedure->faelligkeit_typ == 'vor_ferien'){
+                $ferien = $ferien->where('name', $procedure->ferien)->first();
+                if ($ferien){
+                    $start = Carbon::createFromFormat('Y-m-d', $ferien->start);
+                    if ($start->diffInWeeks(now()) == $procedure->wochen){
+                        $this->start($procedure, false);
+                    }
+                }
+            } elseif ($procedure->faelligkeit_typ == 'nach_ferien'){
+                $ferien = $ferien->where('name', $procedure->ferien)->first();
+                if ($ferien){
+                    $start = Carbon::createFromFormat('Y-m-d', $ferien->start);
+                    if ($start->diffInWeeks(now()) == $procedure->wochen){
+                        $this->start($procedure, false);
+                    }
+                }
+            }
         }
 
     }
