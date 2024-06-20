@@ -12,6 +12,6 @@ class Procedure_Category extends Model
 
     public function procedures()
     {
-        return $this->hasMany(Procedure::class);
+        return $this->hasMany(Procedure::class, 'category_id');
     }
 }

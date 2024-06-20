@@ -127,8 +127,8 @@
 
                     @endif
                     @can('view procedures')
-                        <li>
-                            <a href="{{url('/procedure')}}">
+                        <li class="@if(request()->segment(1)=="procedure") active @endif">
+                            <a href="{{url('/procedure')}}" >
                                 <i class="fas fa-project-diagram"></i>
                                 <p>Prozesse</p>
                             </a>

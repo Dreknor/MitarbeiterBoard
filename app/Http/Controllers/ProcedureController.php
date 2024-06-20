@@ -37,7 +37,14 @@ class ProcedureController extends Controller
             ]);
         }
 
+        $category = $procedure->category;
+
         $procedure->delete();
+
+        if ($category->procedures->whereNull('started_at')->count() < 1) {
+            $category->delete();
+        }
+
         return redirect()->back()->with([
             'type'=>'warning',
             'Meldung'=> 'Prozess wurde gelöscht.'
@@ -65,6 +72,19 @@ class ProcedureController extends Controller
 
     }
 
+    public function index_templates()
+    {
+        $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
+
+        $caregories = Cache::remember('categories', 60 * 5, function () {
+            return Procedure_Category::all();
+        });
+
+        return view('procedure.template', [
+            'proceduresTemplate'=>$proceduresTemplate,
+            'categories'=>$caregories,
+        ]);
+    }
     public function index()
     {
         $steps = auth()->user()->steps;
@@ -137,7 +157,7 @@ class ProcedureController extends Controller
         ]);
     }
 
-    protected function recursiveSteps($steps, $parent)
+    public function recursiveSteps($steps, $parent)
     {
         foreach ($steps as $step) {
             $newStep = $step->replicate();

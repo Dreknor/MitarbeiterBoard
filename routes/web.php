@@ -30,6 +30,7 @@ use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\RecurringProcedureController;
 use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\RoomController;
@@ -484,6 +485,11 @@ Route::group([
                 //Prozesse
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);
+                    Route::get('/template', [ProcedureController::class, 'index_templates']);
+                    Route::get('/recurring', [RecurringProcedureController::class, 'index']);
+                    Route::post('/recurring', [RecurringProcedureController::class, 'store']);
+                    Route::delete('/recurring/{recurringProcedure}', [RecurringProcedureController::class, 'destroy']);
+                    Route::get('/recurring/{recurringProcedure}/start/{redirect?}', [RecurringProcedureController::class, 'start']);
 
                     //Procedures
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
