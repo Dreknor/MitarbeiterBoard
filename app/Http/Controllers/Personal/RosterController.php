@@ -164,7 +164,9 @@ class RosterController extends Controller
             }
 
             //Abwesenheiten eintragen
-            $employes_absences = Absence::where('users_id', $employe->id )->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)->get();
+            $employes_absences = Absence::where('users_id', $employe->id )->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)
+                ->where('reason', '!=', 'Urlaub')
+                ->get();
             foreach ($employes_absences as $absence) {
                 for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
                     if ($x->between($absence->start, $absence->end)) {
