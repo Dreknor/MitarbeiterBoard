@@ -62,7 +62,7 @@ class RosterController extends Controller
 
         return view('personal.rosters.create', [
             'department' => $department,
-            'templates' => $department->rosters()->where('type', 'template')->orderByDesc('start_date')->get()
+            'templates' => $department->rosters()->where('type', 'template')->orderByDesc('start_date')->get(5)
         ]);
 
     }
@@ -136,6 +136,56 @@ class RosterController extends Controller
             }
         }
 
+        foreach ($employes as $employe) {
+            //urlaub eintragen
+            $employes_holidays = $employe->holidays()->where('start_date', '<=', $roster->start_date->endOfWeek())->where('end_date', '>=', $roster->start_date)->get();
+            for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
+                $holiday = $employes_holidays->where('start_date', '<=', $x)->where('end_date', '>=', $x)->first();
+                if ($holiday) {
+
+                    $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update([
+                        'employe_id' => null
+                    ]);
+
+                    $roster->working_times()->where('employe_id', $employe->id)->where('date', $x)->delete();
+
+                    $event = new RosterEvents([
+                        'roster_id' => $roster->id,
+                        'employe_id' => $employe->id,
+                        'date' => $x,
+                        'start' => '08:00:00',
+                        'end' => '14:30:00',
+                        'event' => $holiday->title,
+                    ]);
+                    $event->save();
+                }
+
+            }
+
+            //Abwesenheiten eintragen
+            $employes_absences = $employe->absences()->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)->get();
+            foreach ($employes_absences as $absence) {
+                for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
+                    if ($x->between($absence->start, $absence->end)) {
+                        $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update([
+                            'employe_id' => null
+                        ]);
+
+                        $roster->working_times()->where('employe_id', $employe->id)->where('date', $x)->delete();
+
+                        $event = new RosterEvents([
+                            'roster_id' => $roster->id,
+                            'employe_id' => $employe->id,
+                            'date' => $x,
+                            'start' => '08:00:00',
+                            'end' => '14:30:00',
+                            'event' => $absence->reason,
+                        ]);
+                        $event->save();
+                    }
+                }
+            }
+        }
 
         return redirect(url('roster/' . $roster->id))->with('success', 'Dienstplan wurde erstellt');
     }
