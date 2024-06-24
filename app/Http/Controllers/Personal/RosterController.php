@@ -155,7 +155,7 @@ class RosterController extends Controller
                         'date' => $x,
                         'start' => '08:00:00',
                         'end' => '14:30:00',
-                        'event' => $holiday->title,
+                        'event' => 'Urlaub',
                     ]);
                     $event->save();
                 }
