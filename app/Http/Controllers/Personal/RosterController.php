@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createRosterRequest;
 use App\Mail\SendRosterMail;
+use App\Models\Absence;
 use App\Models\Group;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
@@ -163,7 +164,7 @@ class RosterController extends Controller
             }
 
             //Abwesenheiten eintragen
-            $employes_absences = $employe->absences()->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)->get();
+            $employes_absences = Absence::where('users_id', $employe->id )->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)->get();
             foreach ($employes_absences as $absence) {
                 for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
                     if ($x->between($absence->start, $absence->end)) {
