@@ -65,11 +65,16 @@ class VertretungController extends Controller
 
 
         } else {
-            $vertretungen = Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get();
+
             $dateEnd = Carbon::today();
             $dateStart = config('config.schuljahresbeginn');
+            $vertretungen = Vertretung::whereBetween('date', [$dateStart->format('Y-m-d'), $dateEnd->format('Y-m-d')])
+                ->orderByDesc('date')
+                ->orderBy('klassen_id')
+                ->get();
         }
 
+        $vertretungen->load('klasse', 'lehrer');
         $auswertung = [
             'Eintragungen' => $vertretungen->count(),
             'Anzahl fachgerechte Vertretungen' => $vertretungen->where('type', '==', 'Vertretung (fachgerecht)')->count(),
@@ -99,7 +104,6 @@ class VertretungController extends Controller
             'vertretungen_alt' => Vertretung::whereDate('date', '<', Carbon::today())->orderByDesc('date')->orderBy('klassen_id')->get(),
             'klassen' => Klasse::all(),
             'lehrer'  => User::whereNotNull('kuerzel')->get(),
-            'news'    => DailyNews::all(),
             'vertretung' => $vertretung
         ]);
     }
