@@ -53,7 +53,9 @@ class AbsenceController extends Controller
         }
         $users = User::where('absence_abo_now', 1)->get();
         foreach ($users as $user){
-            $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
+            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
+                $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
+            }
         }
 
         return redirect()->back()->with([
@@ -90,18 +92,18 @@ class AbsenceController extends Controller
         $users = User::where('absence_abo_daily', 1)->get();
 
         foreach ($users as $user){
-            $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
-                ->where('users_id', $user->id)
-                ->first();
+            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))) {
+                $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
+                    ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
+                    ->where('users_id', $user->id)
+                    ->first();
 
-            if (is_null($absence_user)) {
-                Mail::to($user)
-                    ->queue(new DailyAbsenceReport($absences));
+                if (is_null($absence_user)) {
+                    Mail::to($user)
+                        ->queue(new DailyAbsenceReport($absences));
+                }
             }
         }
-
-
     }
 
     public function delete(Absence $absence){

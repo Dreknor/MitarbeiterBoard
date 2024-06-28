@@ -38,7 +38,10 @@ class UpdateEmployeDataRequest extends FormRequest
             ],
             'mail_timesheet' => [
                 'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
-            ]
+            ],
+            'send_mails_if_absence' => [
+                'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
+            ],
         ];
     }
 }

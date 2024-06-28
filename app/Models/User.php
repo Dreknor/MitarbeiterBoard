@@ -43,10 +43,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence'
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence'
     ];
 
     /**
@@ -68,6 +68,7 @@ class User extends Authenticatable implements HasMedia
         'absence_abo_daily' => 'boolean',
         'absence_abo_now' => 'boolean',
         'remind_assign_themes' => 'boolean',
+        'send_mails_if_absence' => 'boolean',
     ];
 
 
@@ -303,4 +304,21 @@ class User extends Authenticatable implements HasMedia
         });
 
     }
+
+    public function hasAbsence(Carbon $start_date, Carbon $end_date = null){
+
+        if (is_null($end_date)){
+            $end_date = $start_date;
+        }
+
+        $absence = Absence::query()
+            ->where('users_id', $this->id)
+            ->where('start', '<=', $end_date)
+            ->where('end', '>=', $start_date)
+            ->first();
+
+        return $absence != null;
+    }
+
+
 }

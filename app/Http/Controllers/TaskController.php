@@ -58,8 +58,6 @@ class TaskController extends Controller
         $taskable->tasks()->save($task);
 
         foreach ($taskable_user as $user) {
-
-
             if ($group) {
                 $usersTask=new GroupTaskUser([
                     'taskable_id' => $task->id,
@@ -71,11 +69,13 @@ class TaskController extends Controller
                 $text = 'Du hast eine neue persönliche Aufgabe im MitarbeiterBoard';
             }
 
-            if ($user->id != \auth()->id()){
-                Notification::send($user, new Push('neue Aufgabe', $text));
-                Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, $group, $this->group->name));
-            }
+            if ($user->id != \auth()->id()) {
+                if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))) {
+                    Notification::send($user, new Push('neue Aufgabe', $text));
+                    Mail::to($user)->queue(new newTaskMail($user->name, $task->date->format('d.m.Y'), $task->task, $task->theme->theme, $group, $this->group->name));
 
+                }
+            }
         }
 
         return redirect()->back();
