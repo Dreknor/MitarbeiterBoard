@@ -177,7 +177,8 @@ class RecurringProcedureController extends Controller
             Log::info('Prüfe Prozess '.$procedure->name);
             Log::info('Typ: '.$procedure->faelligkeit_typ);
             if ($procedure->faelligkeit_typ == 'datum'){
-                if ($procedure->month == now()->month && now()->day == 20){
+                Log::info('Monat: '.$procedure->month);
+                if ($procedure->month == now()->month && now()->day == 1){
                     Log::info('Starte Prozess '.$procedure->name);
                     $this->start($procedure, false);
                 }
