@@ -110,8 +110,6 @@ class RecurringProcedureController extends Controller
         $startedProcedure->started_at = now();
         $startedProcedure->save();
 
-        Log::info('Starte wiederkehrenden Prozess '.$recurringProcedure->name.' - '.$recurringProcedure->id.' - '.$startedProcedure->id);
-        Log::info($recurringProcedure->procedure->steps->where('parent', null) );
         foreach ($recurringProcedure->procedure->steps->where('parent', null) as $step) {
 
             $newStep = $step->replicate();
@@ -183,7 +181,7 @@ class RecurringProcedureController extends Controller
                 }
 
             } elseif ($procedure->faelligkeit_typ == 'vor_ferien'){
-                $ferien = $ferien->where('name', $procedure->ferien)->first();
+                $ferien = $ferien?->where('name', $procedure->ferien)->first();
                 if ($ferien){
                     $start = Carbon::createFromFormat('Y-m-d', $ferien->start);
                     if ($start->diffInWeeks(now()) == $procedure->wochen){
@@ -191,7 +189,7 @@ class RecurringProcedureController extends Controller
                     }
                 }
             } elseif ($procedure->faelligkeit_typ == 'nach_ferien'){
-                $ferien = $ferien->where('name', $procedure->ferien)->first();
+                $ferien = $ferien?->where('name', $procedure->ferien)->first();
                 if ($ferien){
                     $start = Carbon::createFromFormat('Y-m-d', $ferien->start);
                     if ($start->diffInWeeks(now()) == $procedure->wochen){

@@ -336,7 +336,6 @@ class TimesheetController extends Controller
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
                 try {
                     if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
-                        Log::info('Versende Arbeitszeitnachweis an '.$user->name);
                         $date = Carbon::now()->subMonth();
                         $timesheet = Timesheet::where([
                             'employe_id' => $user->id,
@@ -344,7 +343,6 @@ class TimesheetController extends Controller
                             'month' => $date->month,
                         ])->first();
                         if (!is_null($timesheet)) {
-                            Log::info($timesheet);
                             $timesheet_days = $timesheet->timesheet_days;
 
                             $old = $date->copy()->subMonth();
@@ -368,9 +366,9 @@ class TimesheetController extends Controller
 
                             try {
                                 Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
-                                Log::info('Mail versendet an ' . $user->email);
+
                             } catch (\Exception $e) {
-                                Log::alert('Mail konnte nicht versendet werden: ' . $e->getMessage());
+                                Log::alert('Arbeitszeitnachweis-Mail konnte nicht versendet werden: ' . $e->getMessage());
                             }
 
                             if (File::exists(storage_path('timesheet.pdf'))) {
