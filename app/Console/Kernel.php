@@ -39,6 +39,7 @@ class Kernel extends ConsoleKernel
 
         //Recurring procedures
         $schedule->call('App\Http\Controllers\RecurringProcedureController@checkStart')->dailyAt('01:00');
+        $schedule->call('App\Http\Controllers\RecurringProcedureController@checkStart')->dailyAt('13:46');
     }
 
     /**
