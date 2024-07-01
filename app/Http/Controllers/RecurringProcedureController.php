@@ -105,14 +105,15 @@ class RecurringProcedureController extends Controller
     public function start(RecurringProcedure $recurringProcedure, $redirect = true)
     {
 
-
         $startedProcedure = $recurringProcedure->procedure->replicate();
         $startedProcedure->name = $recurringProcedure->name . ' - ' . now()->format('Y');
         $startedProcedure->started_at = now();
         $startedProcedure->save();
 
-
+        Log::info('Starte wiederkehrenden Prozess '.$recurringProcedure->name.' - '.$recurringProcedure->id.' - '.$startedProcedure->id);
+        Log::info($recurringProcedure->procedure->steps->where('parent', null) );
         foreach ($recurringProcedure->procedure->steps->where('parent', null) as $step) {
+
             $newStep = $step->replicate();
             $newStep->procedure_id = $startedProcedure->id;
             $newStep->endDate = $startedProcedure->started_at->addDays($startedProcedure->durationDays);
@@ -172,10 +173,12 @@ class RecurringProcedureController extends Controller
         }
 
         $procedures = RecurringProcedure::all();
+        Log::info('Check Start wiederkehrende Prozesse');
 
         foreach ($procedures as $procedure){
             if ($procedure->faelligkeit_typ == 'datum'){
                 if ($procedure->month == now()->month && now()->day == 20){
+                    Log::info('Starte Prozess '.$procedure->name);
                     $this->start($procedure, false);
                 }
 
