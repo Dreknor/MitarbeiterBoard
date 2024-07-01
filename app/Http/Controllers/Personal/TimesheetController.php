@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
@@ -335,6 +336,7 @@ class TimesheetController extends Controller
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
                 try {
                     if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
+                        Log::info('Versende Arbeitszeitnachweis an '.$user->name.' '.$user->familienname);
                         $date = Carbon::now()->subMonth();
                         $timesheet = Timesheet::where([
                             'employe_id' => $user->id,
@@ -370,6 +372,8 @@ class TimesheetController extends Controller
                             }
                         }
 
+                    } else {
+                        Log::info('Keine Benachritigung für '.$user->name.' '.$user->familienname);
                     }
                 } catch (\Exception $e) {
                     $admin = User::whereHas('roles', function ($query) {
