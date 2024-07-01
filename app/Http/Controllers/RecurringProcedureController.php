@@ -174,6 +174,8 @@ class RecurringProcedureController extends Controller
         Log::info('Check Start wiederkehrende Prozesse');
 
         foreach ($procedures as $procedure){
+            Log::info('Prüfe Prozess '.$procedure->name);
+            Log::info('Typ: '.$procedure->faelligkeit_typ);
             if ($procedure->faelligkeit_typ == 'datum'){
                 if ($procedure->month == now()->month && now()->day == 20){
                     Log::info('Starte Prozess '.$procedure->name);
