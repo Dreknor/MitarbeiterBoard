@@ -376,8 +376,6 @@ class TimesheetController extends Controller
                             }
                         }
 
-                    } else {
-                        Log::info('Keine Benachritigung für '.$user->name.' '.$user->familienname);
                     }
                 } catch (\Exception $e) {
                     $admin = User::whereHas('roles', function ($query) {
