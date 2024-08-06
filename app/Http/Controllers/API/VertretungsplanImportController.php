@@ -17,6 +17,15 @@ class VertretungsplanImportController extends Controller
     public function import(Request $request)
     {
 
+        $key = $request->route('key');
+
+        $setting = Setting::where('setting', 'indiware_import_key')->first();
+
+        if (!$setting || $setting->value != $key) {
+            Log::error('Invalid API Key');
+            return response()->json(['error' => 'Invalid API Key'], 401);
+        }
+
         Log::info('Importing Vertretungsplan');
         Log::info('Request: ' . $request->getContent());
         $data = json_decode($request->getContent(), true);

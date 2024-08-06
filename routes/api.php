@@ -15,5 +15,5 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::put('/vertretungen/vp', [VertretungsplanImportController::class, 'import']);
+Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import']);
 
