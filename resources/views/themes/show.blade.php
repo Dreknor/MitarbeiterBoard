@@ -29,8 +29,8 @@
                                                 </button>
                                                 <div class="dropdown-menu" aria-labelledby="dropdownMoveButton">
 
-                                                    @for($x=1; $x<10; $x++)
-                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->addWeeks($x)->format('d.m.Y')}}</a>
+                                                    @for($x=0; $x<10; $x++)
+                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('d.m.Y')}}</a>
                                                     @endfor
                                                 </div>
                                             </div>

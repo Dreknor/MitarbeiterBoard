@@ -38,6 +38,19 @@
                                     <option value="0">für alle sichtbar</option>
                             </select>
                         </div>
+                        <div class="form-row mt-1">
+                            <label for="meeting_weekday">Wochentag der Besprechungen</label>
+                            <select name="meeting_weekday" class="custom-select">
+                                <option  selected></option>
+                                <option value="1">Montag</option>
+                                <option value="2">Dienstag</option>
+                                <option value="3">Mittwoch</option>
+                                <option value="4">Donnerstag</option>
+                                <option value="5">Freitag</option>
+                                <option value="6">Samstag</option>
+                                <option value="7">Sonntag</option>
+                            </select>
+                        </div>
 
                         <div class="form-row mt-1">
                             <label for="viewType">Ansicht?</label>
