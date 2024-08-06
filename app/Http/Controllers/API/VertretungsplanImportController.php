@@ -19,8 +19,19 @@ class VertretungsplanImportController extends Controller
 
         Log::info('Importing Vertretungsplan');
         Log::info('Request: ' . $request->getContent());
-        //$data = json_decode(file_get_contents(storage_path('Vertretungsplan.json')), true);
         $data = json_decode($request->getContent(), true);
+
+        if (!$data) {
+            Log::error('Error while parsing JSON');
+            return response()->json(['error' => 'Error while parsing JSON'], 400);
+        }
+
+        if (array_key_exists('Vertretungsplan', $data) and array_key_exists('Vertretungsplan', $data['Vertretungsplan'])){
+            $data = $data['Vertretungsplan']['Vertretungsplan'];
+        } else {
+            Log::error('Error while parsing JSON');
+            return response()->json(['error' => 'Error while parsing JSON'], 400);
+        }
 
         foreach ($data as $day){
             $day = $day[0];
