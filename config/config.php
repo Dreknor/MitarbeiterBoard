@@ -98,5 +98,5 @@ return [
     ],
 
     //Gruppen
-    'meeting_day' => env('DEFAULT_WEEKDAY', 1),
+    'meeting_day' => env('DEFAULT_MEETINGDAY', 1),
 ];
