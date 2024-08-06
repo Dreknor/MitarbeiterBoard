@@ -14,10 +14,14 @@ use Illuminate\Support\Facades\Log;
 
 class VertretungsplanImportController extends Controller
 {
-    public function import()
+    public function import(Request $request)
     {
 
-        $data = json_decode(file_get_contents(storage_path('Vertretungsplan.json')), true);
+        Log::info('Importing Vertretungsplan');
+        Log::info('Request: ' . $request->getContent());
+        //$data = json_decode(file_get_contents(storage_path('Vertretungsplan.json')), true);
+        $data = json_decode($request->getContent(), true);
+
         foreach ($data as $day){
             $day = $day[0];
 
