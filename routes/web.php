@@ -73,6 +73,7 @@ if (config('config.auth.auth_local')){
     });
 }
 
+Route::get('image/{media_id}', [ImageController::class, 'getImage'])->name('image.get');
 
 Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 'allowAllIndex']);
 
@@ -403,7 +404,7 @@ Route::group([
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
 
-                Route::get('image/{media_id}', [ImageController::class, 'getImage'])->name('image.get');
+
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 

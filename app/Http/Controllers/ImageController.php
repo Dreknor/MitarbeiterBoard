@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 
 use App\Models\Post;
+use App\Models\Theme;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -12,15 +13,19 @@ class ImageController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+
     }
 
     public function getImage(Media $media_id)
     {
-        $response = new BinaryFileResponse($media_id->getPath());
-        $response->headers->set('Content-Disposition', 'inline; filename="'.$media_id->file_name.'"');
+        if ($media_id->model->share != null or ($media_id->model instanceof Theme and auth()->check() and auth()->user()->groups()->contains($media_id->model->group) )) {
+            $response = new BinaryFileResponse($media_id->getPath());
+            $response->headers->set('Content-Disposition', 'inline; filename="'.$media_id->file_name.'"');
 
-        return $response;
+            return $response;
+        }
+
+        abort(404);
     }
 
     public function removeImage($groupname, Media $media)
