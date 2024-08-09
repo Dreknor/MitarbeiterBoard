@@ -98,9 +98,9 @@ class VertretungsplanImportController extends Controller
                             }
                             Log::info('_________ Aktion Klassen __________');
                             if (isset($aktion?->Klassen)){
-                                Log::info('Parsing Klassen: ' . $aktion->Klassen);
                                 $klassen = Klasse::whereIn('name', $aktion->Klassen)->get();
-                                Log::info('Klassen: ' . $klassen);
+                                Log::info('gefundene Klassen: ' . count($klassen));
+                                Log::info($klassen);
                             }
 
                             $type = '';
