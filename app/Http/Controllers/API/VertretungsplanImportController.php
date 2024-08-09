@@ -39,7 +39,7 @@ class VertretungsplanImportController extends Controller
         if (array_key_exists('Vertretungsplan', $data) and array_key_exists('Vertretungsplan', $data['Vertretungsplan'])){
             $data = $data->Vertretungsplan->Vertretungsplan;
         } else {
-            Log::error('Error while parsing JSON');
+            Log::error('Error while parsing JSON. No Vertretungsplan found.');
             return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
