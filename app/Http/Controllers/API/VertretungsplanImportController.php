@@ -81,7 +81,7 @@ class VertretungsplanImportController extends Controller
                 if ($day->Aktionen){
                     try {
                         foreach ($day->Aktionen as $aktion){
-                            Log::info('Parsing Aktion: ' . $aktion);
+
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
                             }
