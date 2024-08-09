@@ -85,6 +85,17 @@ class VertretungsplanImportController extends Controller
                             Log::info('_________ Aktion __________');
                             $aktion= (object) $aktion;
                             Log::info($aktion->Ak_Id);
+                            Log::info($aktion->Ak_StundeVon);
+                            Log::info($aktion->Ak_StundeBis);
+                            Log::info($aktion->Ak_Fach);
+                            Log::info($aktion->Ak_VFach);
+                            Log::info($aktion?->Ak_Doppelstunde);
+                            Log::info($aktion->Ak_Art);
+                            Log::info($aktion->Raeume);
+                            Log::info($aktion->VRaeume);
+                            Log::info($aktion->VLehrer);
+                            Log::info($aktion->VKlassen);
+
 
 
                             if (isset($day->Ak_DatumVon)){
@@ -96,7 +107,6 @@ class VertretungsplanImportController extends Controller
                                 Log::info('Parsing Lehrer: ' . $aktion->VLehrer[0]);
                                 $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
                                 Log::info('Lehrer: ' . $lehrer);
-
                             }
                             Log::info('_________ Aktion VKlassen __________');
                             if (isset($aktion->VKlassen)){
