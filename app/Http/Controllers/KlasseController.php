@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateKlasseRequest;
+use App\Http\Requests\EditKlasseRequest;
 use App\Models\Klasse;
 use Illuminate\Http\Request;
 
@@ -53,6 +54,29 @@ class KlasseController extends Controller
         return redirect()->back()->with([
             'type' => 'warning',
             'Meldung' => $name.' wurde gelöscht.'
+        ]);
+    }
+
+    public function edit($klasse)
+    {
+        return response()->view('klassen.edit',[
+            'klasse' => Klasse::find($klasse)
+        ]);
+    }
+
+    public function update(Request $request, Klasse $klassen)
+    {
+
+        $validatedData = $request->validate([
+            'name' => ['required', 'unique:klassen,name,'.$klassen->id, 'max:255'],
+            'kuerzel' => ['required', 'unique:klassen,kuerzel,'.$klassen->id, 'max:255'],
+        ]);
+
+        $klassen->update($validatedData);
+
+        return redirect(url('klassen'))->with([
+            'type' => 'success',
+            'Meldung' => 'Klasse wurde aktualisiert.'
         ]);
     }
 }

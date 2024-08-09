@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class CreateKlasseRequest extends FormRequest
+class EditKlasseRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,11 +26,11 @@ class CreateKlasseRequest extends FormRequest
         return [
             'name' =>[
                 'required',
-                'unique:klassen',
+                'unique:klassen,name,'.$this->klasse->id
             ],
             'kuerzel' => [
                 'nullable',
-                'unique:klassen',
+                'unique:klassen,kuerzel',
             ]
         ];
     }
