@@ -79,8 +79,21 @@ class VertretungsplanImportController extends Controller
 
                 //Vertretungen
                 if ($day->Aktionen){
+                    Log::info(count($day->Aktionen) . ' Aktionen found');
                     try {
                         foreach ($day->Aktionen as $aktion){
+                            Log::info('_________ Aktion __________');
+                            Log::info($aktion->VKlassen);
+                            Log::info($aktion->Ak_StundeVon);
+                            Log::info($aktion->Ak_Fach);
+                            Log::info($aktion->Ak_VFach);
+                            Log::info($aktion->Ak_Art);
+                            Log::info($aktion?->Ak_Doppelstunde);
+                            Log::info($aktion?->Raeume);
+                            Log::info($aktion?->VRaeume);
+                            Log::info($aktion?->Ak_Id);
+                            Log::info($aktion?->VLehrer);
+
 
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
