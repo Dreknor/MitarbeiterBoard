@@ -83,7 +83,7 @@ class VertretungsplanImportController extends Controller
                     try {
                         foreach ($day->Aktionen as $aktion){
                             Log::info('_________ Aktion __________');
-                            Log::info($aktion);
+                            Log::info(json_encode($aktion));
 
 
                             if (isset($day->Ak_DatumVon)){
