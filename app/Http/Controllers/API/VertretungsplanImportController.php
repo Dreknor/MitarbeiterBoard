@@ -36,7 +36,7 @@ class VertretungsplanImportController extends Controller
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
-        if (isset($data->Vertretungsplan->Vertretungsplan)){
+        if (isset($data->Gesamtexport->Vertretungsplan->Vertretungsplan)){
             $data = $data->Vertretungsplan->Vertretungsplan;
         } else {
             Log::error('Error while parsing JSON. No Vertretungsplan found.');
