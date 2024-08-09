@@ -86,17 +86,24 @@ class VertretungsplanImportController extends Controller
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
                             }
 
-
+                            Log::info('_________ Aktion VLehrer__________');
                             if (isset($aktion->VLehrer)){
+                                Log::info('Parsing Lehrer: ' . $aktion->VLehrer[0]);
                                 $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
+                                Log::info('Lehrer: ' . $lehrer);
 
                             }
+                            Log::info('_________ Aktion VKlassen __________');
                             if (isset($aktion->VKlassen)){
+                                Log::info('Parsing Klassen: ' . $aktion->VKlassen);
                                 $klassen = Klasse::whereIn('name', $aktion->VKlassen)->get();
+                                Log::info('Klassen: ' . $klassen);
                             }
 
                             $type = '';
 
+
+                            Log::info('_________ Aktion Ak_Art__________');
                             switch ($aktion->Ak_Art){
                                 case 'Änd.':
                                     if (isset($aktion->Ak_Fach) && isset($aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
@@ -111,39 +118,44 @@ class VertretungsplanImportController extends Controller
                                     break;
                             }
 
-                            foreach ($klassen as $klasse) {
+                            if (!is_null($klassen)){
+                                foreach ($klassen as $klasse) {
 
-                                $vertretung = Vertretung::query()
-                                    ->where('klassen_id', $klasse->id)
-                                    ->where('date', $date->format('Y-m-d'))
-                                    ->where('stunde', $aktion->Ak_StundeVon)
-                                    ->first();
-                                if ($vertretung) {
-                                    $vertretung->update([
-                                        'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
-                                        'altFach' => $aktion->Ak_Fach,
-                                        'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach != "") ? $aktion->Ak_VFach : 'Ausfall',
-                                        'type' => $type,
-                                        'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
-                                    ]);
-                                } else {
-                                    $vertretung = new Vertretung([
-                                        'klassen_id' => $klasse->id,
-                                        'date' => $date,
-                                        'stunde' => $aktion->Ak_StundeVon,
-                                        'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
-                                        'altFach' => $aktion['Ak_Fach'],
-                                        'neuFach' => (isset($aktion->Ak_VFach)) ? $aktion->Ak_VFach : 'Ausfall',
-                                        'created_at' => Carbon::now(),
-                                        'akt_id' => $aktion->Ak_Id,
-                                        'type' => $type,
-                                        'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
-                                    ]);
-                                    $vertretung->save();
+                                    $vertretung = Vertretung::query()
+                                        ->where('klassen_id', $klasse->id)
+                                        ->where('date', $date->format('Y-m-d'))
+                                        ->where('stunde', $aktion->Ak_StundeVon)
+                                        ->first();
+                                    if ($vertretung) {
+                                        $vertretung->update([
+                                            'users_id' => $lehrer?->id,
+                                            'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
+                                            'altFach' => $aktion->Ak_Fach,
+                                            'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach != "") ? $aktion->Ak_VFach : 'Ausfall',
+                                            'type' => $type,
+                                            'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
+                                        ]);
+                                    } else {
+                                        $vertretung = new Vertretung([
+                                            'klassen_id' => $klasse->id,
+                                            'date' => $date,
+                                            'stunde' => $aktion->Ak_StundeVon,
+                                            'users_id' => $lehrer?->id,
+                                            'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
+                                            'altFach' => $aktion['Ak_Fach'],
+                                            'neuFach' => (isset($aktion->Ak_VFach)) ? $aktion->Ak_VFach : 'Ausfall',
+                                            'created_at' => Carbon::now(),
+                                            'akt_id' => $aktion->Ak_Id,
+                                            'type' => $type,
+                                            'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
+                                        ]);
+                                        $vertretung->save();
+                                    }
                                 }
+                            } else {
+                                Log::info('Klassen nicht gefunden ' );
                             }
+
                         }
                     } catch (\Exception $e) {
                         Log::error('Error while parsing Aktionen: ');
