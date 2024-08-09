@@ -36,7 +36,7 @@ class VertretungsplanImportController extends Controller
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
-        if (isset($data->Vertretungsplan->Vertretungsplan){
+        if (isset($data->Vertretungsplan->Vertretungsplan)){
             $data = $data->Vertretungsplan->Vertretungsplan;
         } else {
             Log::error('Error while parsing JSON. No Vertretungsplan found.');
@@ -82,23 +82,24 @@ class VertretungsplanImportController extends Controller
                     try {
                         foreach ($day->Aktionen as $aktion){
                             Log::info('Parsing Aktion: ' . $aktion);
-                            if (array_key_exists('Ak_DatumVon', $day)){
-                                $date = Carbon::createFromFormat('d.m.Y', $day['Ak_DatumVon']);
+                            if (isset($day->Ak_DatumVon)){
+                                $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
                             }
 
-                            if (array_key_exists('VLehrer', $aktion)){
-                                $lehrer = User::where('kuerzel', $aktion['VLehrer'][0])->first();
+
+                            if (isset($aktion->VLehrer)){
+                                $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
 
                             }
-                            if (array_key_exists('VKlassen', $aktion)){
-                                $klassen = Klasse::whereIn('name', $aktion['VKlassen'])->get();
+                            if (isset($aktion->VKlassen)){
+                                $klassen = Klasse::whereIn('name', $aktion->VKlassen)->get();
                             }
 
                             $type = '';
 
-                            switch ($aktion['Ak_Art']){
+                            switch ($aktion->Ak_Art){
                                 case 'Änd.':
-                                    if (array_key_exists('Ak_Fach', $aktion) && array_key_exists('Ak_VFach', $aktion) && $aktion['Ak_Fach'] != $aktion['Ak_VFach']){
+                                    if (isset($aktion->Ak_Fach) && isset($aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
                                         $type = 'Vertretung (fachfremd)';
                                     } else {
                                         $type = 'Vertretung (fachgerecht)';
@@ -115,30 +116,30 @@ class VertretungsplanImportController extends Controller
                                 $vertretung = Vertretung::query()
                                     ->where('klassen_id', $klasse->id)
                                     ->where('date', $date->format('Y-m-d'))
-                                    ->where('stunde', $aktion['Ak_StundeVon'])
+                                    ->where('stunde', $aktion->Ak_StundeVon)
                                     ->first();
                                 if ($vertretung) {
                                     $vertretung->update([
                                         'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => array_key_exists('Ak_Doppelstunde', $aktion) ? true : false,
-                                        'altFach' => $aktion['Ak_Fach'],
-                                        'neuFach' => (array_key_exists('Ak_VFach', $aktion) && $aktion['Ak_VFach'] != "") ? $aktion['Ak_VFach'] : 'Ausfall',
+                                        'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
+                                        'altFach' => $aktion->Ak_Fach,
+                                        'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach != "") ? $aktion->Ak_VFach : 'Ausfall',
                                         'type' => $type,
-                                        'comment' => (array_key_exists('Raeume', $aktion) && array_key_exists('VRaeume', $aktion) && $aktion['Raeume'][0] != $aktion['VRaeume'][0]) ? 'Raum: '.$aktion['VRaeume'][0]  : null,
+                                        'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
                                     ]);
                                 } else {
                                     $vertretung = new Vertretung([
                                         'klassen_id' => $klasse->id,
                                         'date' => $date,
-                                        'stunde' => $aktion['Ak_StundeVon'],
+                                        'stunde' => $aktion->Ak_StundeVon,
                                         'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => array_key_exists('Ak_Doppelstunde', $aktion) ? true : false,
+                                        'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
                                         'altFach' => $aktion['Ak_Fach'],
-                                        'neuFach' => (array_key_exists('Ak_VFach', $aktion)) ? $aktion['Ak_VFach'] : 'Ausfall',
+                                        'neuFach' => (isset($aktion->Ak_VFach)) ? $aktion->Ak_VFach : 'Ausfall',
                                         'created_at' => Carbon::now(),
-                                        'akt_id' => $aktion['Ak_Id'],
+                                        'akt_id' => $aktion->Ak_Id,
                                         'type' => $type,
-                                        'comment' => (array_key_exists('Raeume', $aktion) && array_key_exists('VRaeume', $aktion) && $aktion['Raeume'][0] != $aktion['VRaeume'][0]) ? 'Raum: '.$aktion['VRaeume'][0]  : null,
+                                        'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
                                     ]);
                                     $vertretung->save();
                                 }
