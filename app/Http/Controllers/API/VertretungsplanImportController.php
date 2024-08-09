@@ -36,7 +36,7 @@ class VertretungsplanImportController extends Controller
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
-        if (array_key_exists('Vertretungsplan', $data) and array_key_exists('Vertretungsplan', $data['Vertretungsplan'])){
+        if (isset($data->Vertretungsplan->Vertretungsplan){
             $data = $data->Vertretungsplan->Vertretungsplan;
         } else {
             Log::error('Error while parsing JSON. No Vertretungsplan found.');
@@ -50,9 +50,9 @@ class VertretungsplanImportController extends Controller
                 $date = Carbon::createFromFormat('d.m.Y', $day['Kopf']['Datum']);
                 Log::info('Parsing date: ' . $date);
                 //Abwesenheiten
-                if (array_key_exists('Kopf', $day) && array_key_exists('Kopfinfo', $day['Kopf']) && array_key_exists('AbwesendeLehrer', $day['Kopf']['Kopfinfo'])) {
+                if (isset($day->Kopf) && isset($day->Kopf->Kopfinfo) && isset($day->Kopf->Kopfinfo->AbwesendeLehrer)) {
                     try {
-                        foreach ($day['Kopf']['Kopfinfo']['AbwesendeLehrer'] as $abwesender) {
+                        foreach ($day->Kopf->Kopfinfo->AbwesendeLehrer as $abwesender) {
                             $user = User::where('kuerzel', $abwesender['Kurz'])->first();
                             if ($user) {
                                 $absence = VertretungsplanAbsence::where('user_id', $user->id)
@@ -78,9 +78,10 @@ class VertretungsplanImportController extends Controller
                 }
 
                 //Vertretungen
-                if (array_key_exists('Aktionen', $day)){
+                if ($day->Aktionen){
                     try {
-                        foreach ($day['Aktionen'] as $aktion){
+                        foreach ($day->Aktionen as $aktion){
+                            Log::info('Parsing Aktion: ' . $aktion);
                             if (array_key_exists('Ak_DatumVon', $day)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day['Ak_DatumVon']);
                             }
