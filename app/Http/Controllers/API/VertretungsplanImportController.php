@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Klasse;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vertretung;
 use App\Models\VertretungsplanAbsence;
