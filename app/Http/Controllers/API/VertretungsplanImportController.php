@@ -132,7 +132,7 @@ class VertretungsplanImportController extends Controller
                                     if ($vertretung) {
                                         $vertretung->update([
                                             'users_id' => $lehrer?->id,
-                                            'Doppelstunde' => isset($aktion->Ak_Doppelstunde) ? true : false,
+                                            'Doppelstunde' =>  (isset($aktion?->Ak_Doppelstunde) || $aktion?->StundenAnz == 2) ? true : false,
                                             'altFach' => $aktion->Ak_Fach,
                                             'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach != "") ? $aktion->Ak_VFach : 'Ausfall',
                                             'type' => $type,
@@ -144,7 +144,7 @@ class VertretungsplanImportController extends Controller
                                             'date' => $date,
                                             'stunde' => $aktion->Ak_StundeVon,
                                             'users_id' => $lehrer?->id,
-                                            'Doppelstunde' => isset($aktion?->Ak_Doppelstunde) ? true : false,
+                                            'Doppelstunde' => (isset($aktion?->Ak_Doppelstunde) || $aktion?->StundenAnz == 2) ? true : false,
                                             'altFach' => $aktion->Ak_Fach,
                                             'neuFach' => (isset($aktion->Ak_VFach)) ? $aktion->Ak_VFach : 'Ausfall',
                                             'created_at' => Carbon::now(),
