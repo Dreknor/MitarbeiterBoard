@@ -28,7 +28,6 @@ class VertretungsplanImportController extends Controller
         }
 
         Log::info('Importing Vertretungsplan');
-        Log::info('Request: ' . $request->getContent());
         $data = json_decode($request->getContent());
 
         if (!$data) {
