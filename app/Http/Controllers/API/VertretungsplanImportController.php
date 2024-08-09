@@ -43,7 +43,8 @@ class VertretungsplanImportController extends Controller
             return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
-        Log::info('Parsing data: ' . count($data) . ' days');
+        Log::info($data);
+        return response()->json(['success' => count($data) . ' days imported.']);
         foreach ($data as $day){
             Log::info($day);
             try {
