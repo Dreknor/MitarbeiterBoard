@@ -45,13 +45,16 @@ class VertretungsplanImportController extends Controller
 
         foreach ($data as $day){
             try {
-                $date = Carbon::createFromFormat('d.m.Y', $day['Kopf']['Datum']);
+                Log::info($day);
+                $date = Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum);
                 Log::info('Parsing date: ' . $date);
                 //Abwesenheiten
                 if (isset($day->Kopf) && isset($day->Kopf->Kopfinfo) && isset($day->Kopf->Kopfinfo->AbwesendeLehrer)) {
                     try {
                         foreach ($day->Kopf->Kopfinfo->AbwesendeLehrer as $abwesender) {
-                            $user = User::where('kuerzel', $abwesender['Kurz'])->first();
+                            $user = User::where('kuerzel', $abwesender->Kurz)->first();
+                            Log::info('Parsing Abwesender: ' . $abwesender->Kurz);
+                            Log::info('User: ' . $user);
                             if ($user) {
                                 $absence = VertretungsplanAbsence::where('user_id', $user->id)
                                     ->whereDate('start_date', '<=',$date)
@@ -66,7 +69,7 @@ class VertretungsplanImportController extends Controller
                                     $absence->save();
                                 }
                             } else {
-                                Log::info('Lehrer nicht gefunden: ' . $abwesender['Kurz']);
+                                Log::info('Lehrer nicht gefunden: ' . $abwesender->Kurz);
                             }
                         }
                     } catch (\Exception $e) {
