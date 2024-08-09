@@ -99,16 +99,17 @@ class VertretungsplanImportController extends Controller
 
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
+                                Log::info('Parsing date: ' . $date);
                             }
 
                             Log::info('_________ Aktion VLehrer__________');
-                            if (isset($aktion->VLehrer)){
+                            if (isset($aktion?->VLehrer)){
                                 Log::info('Parsing Lehrer: ' . $aktion->VLehrer[0]);
                                 $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
                                 Log::info('Lehrer: ' . $lehrer);
                             }
-                            Log::info('_________ Aktion VKlassen __________');
-                            if (isset($aktion->VKlassen)){
+                            Log::info('_________ Aktion Klassen __________');
+                            if (isset($aktion?->Klassen)){
                                 Log::info('Parsing Klassen: ' . $aktion->VKlassen);
                                 $klassen = Klasse::whereIn('name', $aktion->VKlassen)->get();
                                 Log::info('Klassen: ' . $klassen);
