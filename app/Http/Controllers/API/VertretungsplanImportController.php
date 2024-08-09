@@ -43,7 +43,7 @@ class VertretungsplanImportController extends Controller
             return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
-        foreach ($data as $day){
+        foreach ($data->Vertretungsplan as $day){
             try {
                 Log::info($day);
                 $date = Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum);
