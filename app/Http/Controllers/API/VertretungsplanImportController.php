@@ -45,7 +45,6 @@ class VertretungsplanImportController extends Controller
 
         foreach ($data->Vertretungsplan as $day){
             try {
-                Log::info($day);
                 $date = Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum);
                 Log::info('Parsing date: ' . $date);
                 //Abwesenheiten
