@@ -84,18 +84,6 @@ class VertretungsplanImportController extends Controller
                         foreach ($day->Aktionen as $aktion){
                             Log::info('_________ Aktion __________');
                             $aktion= (object) $aktion;
-                            Log::info($aktion->Ak_Id);
-                            Log::info($aktion->Ak_StundeVon);
-                            Log::info($aktion?->Ak_Fach);
-                            Log::info($aktion?->Ak_VFach);
-                            Log::info($aktion?->Ak_Doppelstunde);
-                            Log::info($aktion?->Ak_Art);
-                            Log::info($aktion?->Raeume);
-                            Log::info($aktion?->VRaeume);
-                            Log::info($aktion?->VLehrer);
-                            Log::info($aktion?->VKlassen);
-
-
 
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
@@ -110,8 +98,8 @@ class VertretungsplanImportController extends Controller
                             }
                             Log::info('_________ Aktion Klassen __________');
                             if (isset($aktion?->Klassen)){
-                                Log::info('Parsing Klassen: ' . $aktion->VKlassen);
-                                $klassen = Klasse::whereIn('name', $aktion->VKlassen)->get();
+                                Log::info('Parsing Klassen: ' . $aktion->Klassen);
+                                $klassen = Klasse::whereIn('name', $aktion->Klassen)->get();
                                 Log::info('Klassen: ' . $klassen);
                             }
 
