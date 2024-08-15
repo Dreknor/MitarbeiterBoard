@@ -18,7 +18,9 @@ class Post extends Model implements HasMedia
     ];
 
     public function author(){
-        return $this->belongsTo(User::class, 'author_id', 'id');
+        return $this->belongsTo(User::class, 'author_id', 'id')->withDefault([
+            'name' => 'System / gelöschter Benutzer',
+        ]);
     }
 
     public function groups(){
