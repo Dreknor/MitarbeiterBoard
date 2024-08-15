@@ -127,8 +127,8 @@
 
                     @endif
                     @can('view procedures')
-                        <li>
-                            <a href="{{url('/procedure')}}">
+                        <li class="@if(request()->segment(1)=="procedure") active @endif">
+                            <a href="{{url('/procedure')}}" >
                                 <i class="fas fa-project-diagram"></i>
                                 <p>Prozesse</p>
                             </a>
@@ -377,6 +377,14 @@
                             <a href="{{url('/settings')}}">
                                 <i class="fas fa-edit"></i>
                                 <p>Einstellungen</p>
+                            </a>
+                        </li>
+                    @endcan
+                    @can('make updates')
+                        <li class="@if(request()->segment(1)=="update") active @endif">
+                            <a href="{{url('/update')}}">
+                                <i class="fas fa-code"></i>
+                                <p>Update</p>
                             </a>
                         </li>
                     @endcan

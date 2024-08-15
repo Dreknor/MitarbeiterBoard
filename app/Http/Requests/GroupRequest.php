@@ -40,7 +40,8 @@ class GroupRequest extends FormRequest
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
                 'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
-                'information_template' => ['nullable', 'string']
+                'information_template' => ['nullable', 'string'],
+                'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
 
             ];
         } else {
@@ -51,9 +52,8 @@ class GroupRequest extends FormRequest
                 'hasWochenplan' => ['required', 'boolean'],
                 'hasAllocations'=> ['required', 'boolean'],
                 'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
-                'information_template' => ['nullable', 'string']
-
-
+                'information_template' => ['nullable', 'string'],
+                'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
             ];
         }
     }

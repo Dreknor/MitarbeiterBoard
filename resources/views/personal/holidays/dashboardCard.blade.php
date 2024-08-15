@@ -26,8 +26,12 @@
                                                     <form action="{{url('holidays/'.$holiday->id)}}" method="post">
                                                         @csrf
                                                         @method('put')
+                                                        <select class="custom-select" name="action">
+                                                            <option value="approved">genehmigen</option>
+                                                            <option value="rejected">ablehnen</option>
+                                                        </select>
                                                         <button type="submit" class="btn-link">
-                                                            <i class="fas fa-check"></i> genehmigen
+                                                            <i class="fas fa-check"></i> speichern
                                                         </button>
                                                     </form>
                                             </div>

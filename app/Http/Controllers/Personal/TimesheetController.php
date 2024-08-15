@@ -11,10 +11,12 @@ use App\Models\personal\RosterEvents;
 use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
+use App\Notifications\Push;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
@@ -330,45 +332,61 @@ class TimesheetController extends Controller
     public function timesheet_mail()
     {
         foreach (User::all() as $user){
+            set_time_limit(60);
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
+                try {
+                    if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
+                        $date = Carbon::now()->subMonth();
+                        $timesheet = Timesheet::where([
+                            'employe_id' => $user->id,
+                            'year' => $date->year,
+                            'month' => $date->month,
+                        ])->first();
+                        if (!is_null($timesheet)) {
+                            $timesheet_days = $timesheet->timesheet_days;
 
-                if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
-                    $date = Carbon::now()->subMonth();
-                    $timesheet = Timesheet::where([
-                        'employe_id' => $user->id,
-                        'year' => $date->year,
-                        'month' => $date->month,
-                    ])->first();
-                    if (!is_null($timesheet)) {
-                        $timesheet_days = $timesheet->timesheet_days;
+                            $old = $date->copy()->subMonth();
 
-                        $old = $date->copy()->subMonth();
+                            $timesheet_old = Cache::remember('timesheet_' . $user->id . '_' . $old->year . '_' . $old->month, 60, function () use ($user, $old) {
+                                return Timesheet::where('employe_id', $user->id)
+                                    ->where('year', $old->year)
+                                    ->where('month', $old->month)
+                                    ->first();
+                            });
 
-                        $timesheet_old = Cache::remember('timesheet_' . $user->id . '_' . $old->year . '_' . $old->month, 60, function () use ($user, $old) {
-                            return Timesheet::where('employe_id', $user->id)
-                                ->where('year', $old->year)
-                                ->where('month', $old->month)
-                                ->first();
-                        });
+                            $pdf = PDF::loadView('personal.timesheets.pdf', [
+                                'timesheet' => $timesheet,
+                                'timesheet_old' => $timesheet_old,
+                                'timesheet_days' => $timesheet_days,
+                                'employe' => $user,
+                                'month' => $date
+                            ]);
 
-                        $pdf = PDF::loadView('personal.timesheets.pdf', [
-                            'timesheet' => $timesheet,
-                            'timesheet_old' => $timesheet_old,
-                            'timesheet_days' => $timesheet_days,
-                            'employe' => $user,
-                            'month' => $date
-                        ]);
+                            $pdf->save(storage_path('timesheet.pdf'), 1);
 
-                        $pdf->save(storage_path('timesheet.pdf'), 1);
+                            try {
+                                Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
 
-                        Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                            } catch (\Exception $e) {
+                                Log::alert('Arbeitszeitnachweis-Mail konnte nicht versendet werden: ' . $e->getMessage());
+                            }
 
-                        if (File::exists(storage_path('timesheet.pdf'))) {
-                            File::delete(storage_path('timesheet.pdf'));
+                            if (File::exists(storage_path('timesheet.pdf'))) {
+                                File::delete(storage_path('timesheet.pdf'));
+                            }
                         }
-                    }
 
+                    }
+                } catch (\Exception $e) {
+                    $admin = User::whereHas('roles', function ($query) {
+                        $query->where('name', 'admin');
+                    })->first();
+
+                    $admin->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Fehler beim Versenden des Arbeitszeitnachweises für ' . $user->name . ' ' . $user->familienname . ' ' . $date->format('Y-m')));
+
+                    continue;
                 }
+
             }
         }
 

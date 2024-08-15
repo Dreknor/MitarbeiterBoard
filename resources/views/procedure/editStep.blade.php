@@ -56,7 +56,7 @@
                         <select name="parent" class="custom-select" >
                             <option value=""> </option>
                             @foreach($procedure->steps as $position)
-                                @if($position->id != $step->id and $position->id != $step->parent)
+                                @if($position->id != $step->id)
                                     <option value="{{$position->id}}" @if($step->position_id == $position->id) selected @endif>
                                         {{$position->name}}
                                     </option>
@@ -72,6 +72,15 @@
                 </div>
             </form>
 
+        </div>
+        <div class="card-footer bg-danger">
+            <form action="{{url('procedure/step/'.$step->id.'/delete')}}" method="post" class="form-horizontal">
+                @csrf
+                @method('delete')
+                <button type="submit" class="btn btn-block btn-danger">
+                    Schritt löschen
+                </button>
+            </form>
         </div>
     </div>
 @endsection

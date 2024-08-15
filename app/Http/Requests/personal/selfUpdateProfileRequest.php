@@ -34,6 +34,7 @@ class selfUpdateProfileRequest extends FormRequest
             'caldav_working_time' => 'nullable|boolean',
             'caldav_events' => 'nullable|boolean',
             'sozialversicherungsnummer' => 'nullable|string|max:255',
+            'send_mails_if_absence' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
         ];
     }
 }

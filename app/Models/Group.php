@@ -15,8 +15,8 @@ class Group extends Model
 {
     use HasRelationships;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday'];
 
     protected $casts = [
         'protected' => 'boolean',
@@ -28,12 +28,19 @@ class Group extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class);
+        return $this->belongsToMany(User::class)->withDefault([
+            'name' => 'System / gelöschter Benutzer',
+        ]);
     }
 
     public function presences(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Presence::class);
+    }
+
+    public function weekday_name()
+    {
+        return config('config.english_days')[$this->meeting_weekday ?? config('config.meeting_day')];
     }
 
     public function themes()
@@ -152,4 +159,6 @@ class Group extends Model
 
         return $employes->unique('id');
     }
+
+
 }

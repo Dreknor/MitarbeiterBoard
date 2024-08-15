@@ -87,4 +87,16 @@ return [
         4 => 'Donnerstag',
         5 => 'Freitag',
     ],
+    'english_days' => [
+        1 => 'monday',
+        2 => 'tuesday',
+        3 => 'wednesday',
+        4 => 'thursday',
+        5 => 'friday',
+        6 => 'saturday',
+        7 => 'sunday',
+    ],
+
+    //Gruppen
+    'meeting_day' => env('DEFAULT_MEETINGDAY', 1),
 ];

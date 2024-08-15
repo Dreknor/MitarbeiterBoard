@@ -11,7 +11,7 @@ class Vertretung extends Model
 
     protected $table = 'vertretungen';
 
-    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach', 'Doppelstunde', 'type'];
+    protected $fillable = ['date', 'klassen_id', 'users_id', 'stunde', 'comment', 'altFach', 'neuFach', 'Doppelstunde', 'type', 'akt_id'];
     protected $visible = ['id','date', 'stunde', 'Doppelstunde', 'comment', 'altFach', 'neuFach', 'type'];
 
     protected $casts =[
@@ -20,7 +20,9 @@ class Vertretung extends Model
     ];
 
     public function lehrer (){
-        return $this->hasOne(User::class, 'id', 'users_id');
+        return $this->hasOne(User::class, 'id', 'users_id')->withDefault([
+            'name' => 'System / gelöschter Benutzer',
+        ]);
     }
 
     public function klasse (){

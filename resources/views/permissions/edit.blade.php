@@ -72,26 +72,6 @@
                 </div>
             </div>
         </div>
-        @if(env('APP_ENV') == 'local')
-            <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header border-bottom">
-                        <h5 class="card-title">
-                            neues Recht anlegen
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form action="{{url('roles/permission')}}" class="form-horizontal" method="post">
-                            @csrf
-                            <input type="text" name="name" placeholder="Names des Rechtes" class="form-control">
-                            <button type="submit" class="btn btn-success btn-block">Berechtigung anlegen</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endif
     </div>
     <div class="container-fluid">
         <div class="card">

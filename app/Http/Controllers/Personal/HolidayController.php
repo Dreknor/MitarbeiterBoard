@@ -51,7 +51,7 @@ class HolidayController extends Controller
             'holidays' => $holidays,
             'month' => $startMonth,
             'users' => $users->sortBy('name'),
-            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::where('approved', false)->get() : []
+            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::where('approved', false)->where('rejected', false)->get() : []
         ]);
     }
 
@@ -146,10 +146,21 @@ class HolidayController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Holiday $holiday)
+    public function update(Request $request, Holiday $holiday)
     {
         if (!auth()->user()->can('approve holidays')){
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($request->action == 'rejected'){
+            $holiday->update([
+                'rejected' => true,
+                'approved' => false,
+                'approved_by' => auth()->id(),
+                'approved_at' => Carbon::now(),
+            ]);
+
+            return redirectBack('success', 'Urlaub wurde abgelehnt.');
         }
 
         $holiday->update([

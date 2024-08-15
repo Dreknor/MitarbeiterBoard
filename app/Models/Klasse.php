@@ -11,8 +11,8 @@ class Klasse extends Model
 
     protected $table = 'klassen';
 
-    protected $visible = ['name'];
-    protected $fillable = ['name'];
+    protected $visible = ['name', 'kuerzel'];
+    protected $fillable = ['name', 'kuerzel'];
 
     public function wochenplaene(){
         return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);

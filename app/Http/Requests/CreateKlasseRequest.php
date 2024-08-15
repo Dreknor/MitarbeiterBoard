@@ -26,7 +26,11 @@ class CreateKlasseRequest extends FormRequest
         return [
             'name' =>[
                 'required',
-                'unique:klassen'
+                'unique:klassen',
+            ],
+            'kuerzel' => [
+                'nullable',
+                'unique:klassen',
             ]
         ];
     }

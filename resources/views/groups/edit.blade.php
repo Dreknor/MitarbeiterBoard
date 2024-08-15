@@ -16,9 +16,18 @@
                         <input type="text" class="form-control" name="name" id="name" required autofocus value="{{old('name', $gruppe->name)}}">
                     </div>
                     <div class="form-row mt-1">
-                        <div class="col-6">
-                            <label for="enddate">aktiv bis</label>
-                            <input type="date" class="form-control" name="enddate" id="enddate" value="{{old('enddate', optional($gruppe->enddate)->format('Y-m-d'))}}" @if(!auth()->user()->can('edit groups')) max="{{\Carbon\Carbon::now()->addYear()->format('Y-m-d')}}" required @endif>
+                        <div class="col-md-6">
+                            <label for="meeting_day">Besprechungen an Wochentag</label>
+                            <select name="meeting_weekday" class="custom-select" >
+                                <option  @if(!$gruppe->meeting_weekday) selected @endif></option>
+                                <option value="1" @if($gruppe->meeting_weekday == 1) selected @endif>Montag</option>
+                                <option value="2" @if($gruppe->meeting_weekday == 2) selected @endif>Dienstag</option>
+                                <option value="3" @if($gruppe->meeting_weekday == 3) selected @endif>Mittwoch</option>
+                                <option value="4" @if($gruppe->meeting_weekday == 4) selected @endif>Donnerstag</option>
+                                <option value="5" @if($gruppe->meeting_weekday == 5) selected @endif>Freitag</option>
+                                <option value="6" @if($gruppe->meeting_weekday == 6) selected @endif>Samstag</option>
+                                <option value="7" @if($gruppe->meeting_weekday == 7) selected @endif>Sonntag</option>
+                            </select>
                         </div>
                         <div class="col-6">
                             <label for="InvationDays">Tage, die ein Thema vorher angelegt sein muss</label>
@@ -26,13 +35,20 @@
                         </div>
                     </div>
                     <div class="form-row mt-1">
-                        <label for="homegroup">überführen in</label>
-                        <select name="homegroup" class="custom-select">
-                            <option disabled></option>
-                            @foreach($groups->where('enddate', '') as $newgroup)
-                                <option value="{{$newgroup->id}}" @if($gruppe->homegroup == $newgroup->id) selected @endif>{{$newgroup->name}}</option>
-                            @endforeach
-                        </select>
+                        <div class="col-6">
+                            <label for="enddate">aktiv bis</label>
+                            <input type="date" class="form-control" name="enddate" id="enddate" value="{{old('enddate', optional($gruppe->enddate)->format('Y-m-d'))}}" @if(!auth()->user()->can('edit groups')) max="{{\Carbon\Carbon::now()->addYear()->format('Y-m-d')}}" required @endif>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="homegroup">überführen in</label>
+                            <select name="homegroup" class="custom-select">
+                                <option disabled></option>
+                                @foreach($groups->where('enddate', '') as $newgroup)
+                                    <option value="{{$newgroup->id}}" @if($gruppe->homegroup == $newgroup->id) selected @endif>{{$newgroup->name}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                     </div>
                     <div class="form-row mt-1">
                         <label for="name">Geschützt?</label>

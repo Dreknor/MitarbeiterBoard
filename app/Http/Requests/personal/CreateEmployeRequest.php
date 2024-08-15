@@ -40,6 +40,7 @@ class CreateEmployeRequest extends FormRequest
             'time_recording_key' => ['nullable',  'integer', 'digits: 10', 'unique:employes_data,secret_key'],
             'secret_key' => ['nullable',  'integer', 'digits_between:6,10'],
             'mail_timesheet' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
+            'send_mails_if_absence' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
         ];
     }
 }

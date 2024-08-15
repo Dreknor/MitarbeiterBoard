@@ -29,12 +29,7 @@ class MailController extends Controller
 
 
         foreach ($users as $user) {
-            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
-                ->where('users_id', $user->id)
-                ->first();
-
-            if (is_null($absences)){
+            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
                 Mail::to($user)->queue(new ReminderMail());
             }
         }
@@ -75,23 +70,21 @@ class MailController extends Controller
             ->get();
 
         foreach ($users as $user){
-            $tasks = $user->tasks()->where('date', '<=',Carbon::now()->addDays(config('config.tasks.remind'))->format('Y-m-d'))->get();
-            $group_tasks = $user->group_tasks->load('task')->filter(function ($task) {
-                if ($task->task?->date->lessThan(Carbon::now()->addDays(config('config.tasks.remind')))){
-                    return $task;
+            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
+
+                $tasks = $user->tasks()->where('date', '<=',Carbon::now()->addDays(config('config.tasks.remind'))->format('Y-m-d'))->get();
+                    $group_tasks = $user->group_tasks->load('task')->filter(function ($task) {
+                        if ($task->task?->date->lessThan(Carbon::now()->addDays(config('config.tasks.remind')))){
+                            return $task;
+                        }
+                    });
+
+                foreach ($group_tasks as $group_task){
+                    $tasks = $tasks->push($group_task->task);
                 }
-            });
 
-            foreach ($group_tasks as $group_task){
-                $tasks = $tasks->push($group_task->task);
-            }
 
-            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
-                ->where('users_id', $user->id)
-                ->first();
 
-            if (is_null($absences)) {
                 Mail::to($user)->queue(new remindTaskMail($user->name, $tasks));
             }
         }

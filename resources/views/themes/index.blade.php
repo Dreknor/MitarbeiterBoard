@@ -48,7 +48,7 @@
                                                 <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
                                                     <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
                                                         @csrf
-                                                        <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->addWeek()->format('Y-m-d')}}">
+                                                        <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')}}">
                                                         <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
                                                         <button type="submit" class="btn btn-sm btn-success">verschieben</button>
                                                     </form>

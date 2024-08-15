@@ -176,6 +176,19 @@
                                 <input type="text" class="form-control border-input" value="deutsch" name="staatsangehoerigkeit" required autocomplete="off" value="{{old('staatsangehoerigkeit', $employe?->employe_data?->staatsangehoerigkeit)}}">
                             </div>
                         </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <h6 class="col-12">Einstellungen</h6>
+                            <div class="col-sm-12 col-md-4">
+                                <div class="form-group ">
+                                    <label class="text-danger">E-Mail-Benachrichtigung bei Abwesenheit oder Urlaub?</label>
+                                    <select name="send_mail_if_absence" class="custom-select" required>
+                                        <option value="0" @if($employe->send_mails_if_absence == false) selected @endif>nein</option>
+                                        <option value="1" @if($employe->send_mails_if_absence == true) selected @endif>ja</option>
+                                    </select>
+                                </div>
+                            </div>
                         <div class="col-md-2 col-sm-6">
                             <div class="form-group">
                                 <label class="text-danger">ICal - Arbeitszeiten?</label>

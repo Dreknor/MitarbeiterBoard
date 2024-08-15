@@ -27,7 +27,9 @@ class WikiSite extends Model implements HasMedia
 
     public function author()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withDefault([
+            'name' => 'System / gelöschter Benutzer',
+        ]);
     }
 
     public function original(){

@@ -120,6 +120,10 @@ class EmployeController extends Controller
             ]);
         }
 
+        $employe->update([
+            'send_mails_if_absence' => $request->send_mail_if_absence
+        ]);
+
 
         return redirect()->back()->with([
             'type' => "success",
@@ -129,6 +133,7 @@ class EmployeController extends Controller
     public function updateData(UpdateEmployeDataRequest $request, User $employe)
     {
 
+        dd($request->all());
         if ($request->holidayClaim !=  $employe->getHolidayClaim()){
             $claim = new EmployeHolidayClaim([
                 'holiday_claim' => $request->holidayClaim,
@@ -154,6 +159,30 @@ class EmployeController extends Controller
         if ($request->mail_timesheet != null){
             $employe->employe_data()->update([
                 'mail_timesheet' => $request->mail_timesheet
+            ]);
+        }
+
+        if ($request->google_calendar_link != null){
+            $employe->employe_data()->update([
+                'google_calendar_link' => $request->google_calendar_link
+            ]);
+        }
+
+        if ($request->caldav_working_time != null){
+            $employe->employe_data()->update([
+                'caldav_working_time' => $request->caldav_working_time
+            ]);
+        }
+
+        if ($request->caldav_events != null){
+            $employe->employe_data()->update([
+                'caldav_events' => $request->caldav_events
+            ]);
+        }
+
+        if ($request->send_mails_if_absence != null){
+            $employe->update([
+                'send_mails_if_absence' => $request->send_mails_if_absence
             ]);
         }
 
@@ -237,7 +266,8 @@ class EmployeController extends Controller
         }
 
         $user->update([
-            'name' => $request->vorname . ' ' . $request->familienname
+            'name' => $request->vorname . ' ' . $request->familienname,
+            'send_mails_if_absence' => $request->send_mail_if_absence
         ]);
 
         return redirect()->back()->with([

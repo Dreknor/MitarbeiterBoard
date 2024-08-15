@@ -30,14 +30,21 @@ class ProcedureController extends Controller
 
     public function delete(Procedure $procedure)
     {
-        if (auth()->user()->cant('delete procedures')) {
+        if (!auth()->user()->can('delete procedures')) {
             return redirect()->back()->with([
                 'type'=>'danger',
                 'Meldung'=> 'Keine Berechtigung.'
             ]);
         }
 
+        $category = $procedure->category;
+
         $procedure->delete();
+
+        if ($category->procedures->whereNull('started_at')->count() < 1) {
+            $category->delete();
+        }
+
         return redirect()->back()->with([
             'type'=>'warning',
             'Meldung'=> 'Prozess wurde gelöscht.'
@@ -49,11 +56,23 @@ class ProcedureController extends Controller
     public function destroy(Procedure_Step $step){
         try {
             $step->users()->detach();
+
+            $step->childs()->update(['parent' => $step->parent]);
+            $procedure = $step->procedure;
             $step->delete();
-            return redirect()->back()->with([
-                'type'=>'warning',
-                'Meldung'=> 'Schritt wurde gelöscht.'
-            ]);
+
+            if ($procedure->started_at == null) {
+                return redirect(url('procedure/'.$procedure->id.'/edit'))->with([
+                    'type'=>'warning',
+                    'Meldung'=> 'Schritt wurde gelöscht.'
+                ]);
+            } else {
+                return redirect()->back()->with([
+                    'type'=>'warning',
+                    'Meldung'=> 'Schritt wurde gelöscht.'
+                ]);
+
+            }
 
         } catch (\Exception $exception){
             return redirect()->back()->with([
@@ -65,6 +84,19 @@ class ProcedureController extends Controller
 
     }
 
+    public function index_templates()
+    {
+        $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
+
+        $caregories = Cache::remember('categories', 60 * 5, function () {
+            return Procedure_Category::all();
+        });
+
+        return view('procedure.template', [
+            'proceduresTemplate'=>$proceduresTemplate,
+            'categories'=>$caregories,
+        ]);
+    }
     public function index()
     {
         $steps = auth()->user()->steps;
@@ -137,7 +169,7 @@ class ProcedureController extends Controller
         ]);
     }
 
-    protected function recursiveSteps($steps, $parent)
+    public function recursiveSteps($steps, $parent)
     {
         foreach ($steps as $step) {
             $newStep = $step->replicate();

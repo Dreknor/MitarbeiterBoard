@@ -158,6 +158,19 @@
                                 </div>
                             </div>
                            <hr>
+                            <h6>Einstellungen</h6>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="form-group ">
+                                        <label class="text-danger">E-Mail-Benachrichtigung bei Abwesenheit oder Urlaub?</label>
+                                        <select name="send_mail_if_absence" class="custom-select" required>
+                                            <option value="0" @if($employe->send_mails_if_absence == false) selected @endif>nein</option>
+                                            <option value="1" @if($employe->send_mails_if_absence == true) selected @endif>ja</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
                             @can('has timesheet')
                                 <div class="row">
                                 <div class="col-12">

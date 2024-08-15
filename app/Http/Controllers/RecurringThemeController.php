@@ -195,13 +195,13 @@ class RecurringThemeController extends Controller
 
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
 
-        if ($month->day == 3 or $now == "now"){
+        if ($month->day == 1 or $now == "now"){
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
 
            foreach ($themes as $theme){
 
                $newTheme = new Theme($theme->toArray());
-               $newTheme->date = $month;
+               $newTheme->date = $month->next($theme->group->weekday_name());
                $newTheme->duration = 10;
                $newTheme->theme = $newTheme->theme.' '.$month->year;
                $newTheme->save();

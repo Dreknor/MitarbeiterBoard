@@ -366,7 +366,7 @@ class ThemeController extends Controller
      * Display the specified resource.
      *
      * @param  \App\Models\Theme  $theme
-     * @return \Illuminate\Http\RedirectResponse
+     * @return Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|RedirectResponse
      */
     public function show($groupname, Theme $theme)
     {
@@ -398,6 +398,7 @@ class ThemeController extends Controller
         return view('themes.show', [
             'theme' => $theme->load(['protocols', 'tasks', 'type', 'priorities', 'tasks.taskable']),
             'subscription' => $subscription,
+            'group' => $group,
         ]);
     }
 

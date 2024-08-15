@@ -25,7 +25,7 @@ class UrlaubCardComposer
         $unapproved = [];
 
         if (auth()->user()->can('approve holidays')) {
-            $unapproved = Holiday::where('approved', false)->get();
+            $unapproved = Holiday::where('approved', false)->where('rejected', false)->get();
         }
 
         $view->with([
