@@ -28,9 +28,7 @@ class Group extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class)->withDefault([
-            'name' => 'System / gelöschter Benutzer',
-        ]);
+        return $this->belongsToMany(User::class);
     }
 
     public function presences(): \Illuminate\Database\Eloquent\Relations\HasMany
