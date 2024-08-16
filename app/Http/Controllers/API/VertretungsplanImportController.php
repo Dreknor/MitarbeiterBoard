@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\DailyNews;
 use App\Models\Klasse;
 use App\Models\Setting;
 use App\Models\User;
@@ -84,6 +85,20 @@ class VertretungsplanImportController extends Controller
                         foreach ($day->Aktionen as $aktion){
                             Log::info('_________ Aktion __________');
                             $aktion= (object) $aktion;
+
+                            Log::info('_________ Aktion InfoKlassen __________');
+                            if (isset($aktion->InfoK)){
+                                $nachricht = new DailyNews([
+                                    'date_start' => $date,
+                                    'date_end' => $date,
+                                    'news' => $aktion->InfoK,
+                                ]);
+
+                                $nachricht->save();
+
+                                Log::info('Nachricht Klasse: ' . $nachricht);
+                            }
+
 
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
