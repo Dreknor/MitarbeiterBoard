@@ -42,11 +42,11 @@ class HolidayController extends Controller
         }
 
         if (auth()->user()->can('approve holidays') or settings('show_holidays', 'holidays') == 1){
-            $users = User::permission('has holidays')->get();
-            foreach ($users as $user){
-                if (!$user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
-                    $users->forget($user->id);
-                    break;
+            $usersAll = User::permission('has holidays')->get();
+            $users = collect([]);
+            foreach ($usersAll as $user){
+                if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
+                    $users->push($user);
                 }
             }
         } else {
