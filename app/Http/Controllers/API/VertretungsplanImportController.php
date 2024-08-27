@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\DailyNews;
 use App\Models\Klasse;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vertretung;
 use App\Models\VertretungsplanAbsence;
@@ -28,31 +30,31 @@ class VertretungsplanImportController extends Controller
 
         Log::info('Importing Vertretungsplan');
         Log::info('Request: ' . $request->getContent());
-        $data = json_decode($request->getContent(), true);
+        $data = json_decode($request->getContent());
 
         if (!$data) {
-            Log::error('Error while parsing JSON');
+            Log::error('Error while parsing JSON. No data found.');
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
-        if (array_key_exists('Vertretungsplan', $data) and array_key_exists('Vertretungsplan', $data['Vertretungsplan'])){
-            $data = $data['Vertretungsplan']['Vertretungsplan'];
+        if (isset($data->Gesamtexport->Vertretungsplan->Vertretungsplan)){
+            $data = $data->Gesamtexport->Vertretungsplan;
         } else {
-            Log::error('Error while parsing JSON');
-            return response()->json(['error' => 'Error while parsing JSON'], 400);
+            Log::error('Error while parsing JSON. No Vertretungsplan found.');
+            return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
-        foreach ($data as $day){
-            $day = $day[0];
-
+        foreach ($data->Vertretungsplan as $day){
             try {
-                $date = Carbon::createFromFormat('d.m.Y', $day['Kopf']['Datum']);
+                $date = Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum);
                 Log::info('Parsing date: ' . $date);
                 //Abwesenheiten
-                if (array_key_exists('Kopf', $day) && array_key_exists('Kopfinfo', $day['Kopf']) && array_key_exists('AbwesendeLehrer', $day['Kopf']['Kopfinfo'])) {
+                if (isset($day->Kopf) && isset($day->Kopf->Kopfinfo) && isset($day->Kopf->Kopfinfo->AbwesendeLehrer)) {
                     try {
-                        foreach ($day['Kopf']['Kopfinfo']['AbwesendeLehrer'] as $abwesender) {
-                            $user = User::where('kuerzel', $abwesender['Kurz'])->first();
+                        foreach ($day->Kopf->Kopfinfo->AbwesendeLehrer as $abwesender) {
+                            $user = User::where('kuerzel', $abwesender->Kurz)->first();
+                            Log::info('Parsing Abwesender: ' . $abwesender->Kurz);
+                            Log::info('User: ' . $user);
                             if ($user) {
                                 $absence = VertretungsplanAbsence::where('user_id', $user->id)
                                     ->whereDate('start_date', '<=',$date)
@@ -67,7 +69,7 @@ class VertretungsplanImportController extends Controller
                                     $absence->save();
                                 }
                             } else {
-                                Log::info('Lehrer nicht gefunden: ' . $abwesender['Kurz']);
+                                Log::info('Lehrer nicht gefunden: ' . $abwesender->Kurz);
                             }
                         }
                     } catch (\Exception $e) {
@@ -77,26 +79,52 @@ class VertretungsplanImportController extends Controller
                 }
 
                 //Vertretungen
-                if (array_key_exists('Aktionen', $day)){
+                if ($day->Aktionen){
+                    Log::info(count($day->Aktionen) . ' Aktionen found');
                     try {
-                        foreach ($day['Aktionen'] as $aktion){
-                            if (array_key_exists('Ak_DatumVon', $day)){
-                                $date = Carbon::createFromFormat('d.m.Y', $day['Ak_DatumVon']);
+                        foreach ($day->Aktionen as $aktion){
+                            Log::info('_________ Aktion __________');
+                            $aktion= (object) $aktion;
+
+                            Log::info('_________ Aktion InfoKlassen __________');
+                            if (isset($aktion->InfoK)){
+                                $nachricht = new DailyNews([
+                                    'date_start' => $date,
+                                    'date_end' => $date,
+                                    'news' => $aktion->InfoK,
+                                ]);
+
+                                $nachricht->save();
+
+                                Log::info('Nachricht Klasse: ' . $nachricht);
                             }
 
-                            if (array_key_exists('VLehrer', $aktion)){
-                                $lehrer = User::where('kuerzel', $aktion['VLehrer'][0])->first();
 
+                            if (isset($day->Ak_DatumVon)){
+                                $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
+                                Log::info('Parsing date: ' . $date);
                             }
-                            if (array_key_exists('VKlassen', $aktion)){
-                                $klassen = Klasse::whereIn('name', $aktion['VKlassen'])->get();
+
+                            Log::info('_________ Aktion VLehrer__________');
+                            if (isset($aktion?->VLehrer)){
+                                Log::info('Parsing Lehrer: ' . $aktion->VLehrer[0]);
+                                $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
+                                Log::info('Lehrer: ' . $lehrer);
+                            }
+                            Log::info('_________ Aktion Klassen __________');
+                            if (isset($aktion?->Klassen)){
+                                $klassen = Klasse::whereIn('name', $aktion->Klassen)->get();
+                                Log::info('gefundene Klassen: ' . count($klassen));
+                                Log::info($klassen);
                             }
 
                             $type = '';
 
-                            switch ($aktion['Ak_Art']){
+
+                            Log::info('_________ Aktion Ak_Art__________');
+                            switch ($aktion->Ak_Art){
                                 case 'Änd.':
-                                    if (array_key_exists('Ak_Fach', $aktion) && array_key_exists('Ak_VFach', $aktion) && $aktion['Ak_Fach'] != $aktion['Ak_VFach']){
+                                    if (isset($aktion->Ak_Fach) && isset($aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
                                         $type = 'Vertretung (fachfremd)';
                                     } else {
                                         $type = 'Vertretung (fachgerecht)';
@@ -108,39 +136,44 @@ class VertretungsplanImportController extends Controller
                                     break;
                             }
 
-                            foreach ($klassen as $klasse) {
+                            if (!is_null($klassen)){
+                                foreach ($klassen as $klasse) {
 
-                                $vertretung = Vertretung::query()
-                                    ->where('klassen_id', $klasse->id)
-                                    ->where('date', $date->format('Y-m-d'))
-                                    ->where('stunde', $aktion['Ak_StundeVon'])
-                                    ->first();
-                                if ($vertretung) {
-                                    $vertretung->update([
-                                        'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => array_key_exists('Ak_Doppelstunde', $aktion) ? true : false,
-                                        'altFach' => $aktion['Ak_Fach'],
-                                        'neuFach' => (array_key_exists('Ak_VFach', $aktion) && $aktion['Ak_VFach'] != "") ? $aktion['Ak_VFach'] : 'Ausfall',
-                                        'type' => $type,
-                                        'comment' => (array_key_exists('Raeume', $aktion) && array_key_exists('VRaeume', $aktion) && $aktion['Raeume'][0] != $aktion['VRaeume'][0]) ? 'Raum: '.$aktion['VRaeume'][0]  : null,
-                                    ]);
-                                } else {
-                                    $vertretung = new Vertretung([
-                                        'klassen_id' => $klasse->id,
-                                        'date' => $date,
-                                        'stunde' => $aktion['Ak_StundeVon'],
-                                        'users_id' => $lehrer?->id,
-                                        'Doppelstunde' => array_key_exists('Ak_Doppelstunde', $aktion) ? true : false,
-                                        'altFach' => $aktion['Ak_Fach'],
-                                        'neuFach' => (array_key_exists('Ak_VFach', $aktion)) ? $aktion['Ak_VFach'] : 'Ausfall',
-                                        'created_at' => Carbon::now(),
-                                        'akt_id' => $aktion['Ak_Id'],
-                                        'type' => $type,
-                                        'comment' => (array_key_exists('Raeume', $aktion) && array_key_exists('VRaeume', $aktion) && $aktion['Raeume'][0] != $aktion['VRaeume'][0]) ? 'Raum: '.$aktion['VRaeume'][0]  : null,
-                                    ]);
-                                    $vertretung->save();
+                                    $vertretung = Vertretung::query()
+                                        ->where('klassen_id', $klasse->id)
+                                        ->where('date', $date->format('Y-m-d'))
+                                        ->where('stunde', $aktion->Ak_StundeVon)
+                                        ->first();
+                                    if ($vertretung) {
+                                        $vertretung->update([
+                                            'users_id' => $lehrer?->id,
+                                            'Doppelstunde' =>  (isset($aktion?->Ak_Doppelstunde) || $aktion?->StundenAnz == 2) ? true : false,
+                                            'altFach' => $aktion->Ak_Fach,
+                                            'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach != "") ? $aktion->Ak_VFach : 'Ausfall',
+                                            'type' => $type,
+                                            'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
+                                        ]);
+                                    } else {
+                                        $vertretung = new Vertretung([
+                                            'klassen_id' => $klasse->id,
+                                            'date' => $date,
+                                            'stunde' => $aktion->Ak_StundeVon,
+                                            'users_id' => $lehrer?->id,
+                                            'Doppelstunde' => (isset($aktion?->Ak_Doppelstunde) || $aktion?->StundenAnz == 2) ? true : false,
+                                            'altFach' => $aktion->Ak_Fach,
+                                            'neuFach' => (isset($aktion->Ak_VFach)) ? $aktion->Ak_VFach : 'Ausfall',
+                                            'created_at' => Carbon::now(),
+                                            'akt_id' => $aktion->Ak_Id,
+                                            'type' => $type,
+                                            'comment' => (isset($aktion->Raeume) && isset($aktion->VRaeume) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
+                                        ]);
+                                        $vertretung->save();
+                                    }
                                 }
+                            } else {
+                                Log::info('Klassen nicht gefunden ' );
                             }
+
                         }
                     } catch (\Exception $e) {
                         Log::error('Error while parsing Aktionen: ');

@@ -28,7 +28,9 @@ class SurveyUserAnswer extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withDefault([
+            'name' => 'System / gelöschter Benutzer',
+        ]);
     }
 
     public function scopeForUser($query, $user)
