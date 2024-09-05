@@ -80,8 +80,8 @@ Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 
 
 Route::get('/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
-Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
 Route::get('/api/absences/vertretungsplan/{key}/', [VertretungsplanController::class, 'absencesToJSON']);
+Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
