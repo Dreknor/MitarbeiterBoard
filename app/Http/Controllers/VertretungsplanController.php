@@ -204,7 +204,7 @@ class VertretungsplanController extends Controller
     {
 
         if ($key != config('config.vertretungsplan_api_key')){
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Unauthorized key'], 401);
         }
 
         $addDays=settings('show_vertretungen_days');
