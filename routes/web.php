@@ -4,9 +4,11 @@ use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DailyNewsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Inventory\ItemsController;
 use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TerminListen\ListenController;
 use App\Http\Controllers\TerminListen\ListenTerminController;
@@ -42,6 +45,7 @@ use App\Http\Controllers\TerminListen\ListenTerminController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VertretungController;
+use App\Http\Controllers\VertretungsplanAbsenceController;
 use App\Http\Controllers\VertretungsplanController;
 use App\Http\Controllers\VertretungsplanWeekController;
 use App\Http\Controllers\WikiController;
@@ -84,8 +88,8 @@ Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
 
-Route::get('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scan']);
-Route::post('inventory/item/{uuid}', [\App\Http\Controllers\Inventory\ItemsController::class,'scanUpdate']);
+Route::get('inventory/item/{uuid}', [ItemsController::class,'scan']);
+Route::post('inventory/item/{uuid}', [ItemsController::class,'scanUpdate']);
 
 /*
 * digitale Arbeitszeiterfassung
@@ -118,11 +122,11 @@ Route::group([
                 /*
                  * Routes for edit dashboard
                  */
-                Route::get('dashboard/{dashBoardUser}/up', [\App\Http\Controllers\DashboardController::class, 'up']);
-                Route::get('dashboard/{dashBoardUser}/down', [\App\Http\Controllers\DashboardController::class, 'down']);
-                Route::get('dashboard/{dashBoardUser}/left', [\App\Http\Controllers\DashboardController::class, 'left']);
-                Route::get('dashboard/{dashBoardUser}/right', [\App\Http\Controllers\DashboardController::class, 'right']);
-                Route::get('dashboard/{dashBoardUser}/toggle', [\App\Http\Controllers\DashboardController::class, 'toggle']);
+                Route::get('dashboard/{dashBoardUser}/up', [DashboardController::class, 'up']);
+                Route::get('dashboard/{dashBoardUser}/down', [DashboardController::class, 'down']);
+                Route::get('dashboard/{dashBoardUser}/left', [DashboardController::class, 'left']);
+                Route::get('dashboard/{dashBoardUser}/right', [DashboardController::class, 'right']);
+                Route::get('dashboard/{dashBoardUser}/toggle', [DashboardController::class, 'toggle']);
 
                 /*
                  * Routes for Wiki
@@ -280,15 +284,15 @@ Route::group([
                     Route::post('locations/import', [LocationController::class, 'import']);
                     Route::post('locations/print', [LocationController::class, 'print']);
 
-                    Route::post('items/search', [\App\Http\Controllers\Inventory\ItemsController::class, 'index']);
-                    Route::post('items/print', [\App\Http\Controllers\Inventory\ItemsController::class, 'print']);
-                    Route::post('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'import']);
+                    Route::post('items/search', [ItemsController::class, 'index']);
+                    Route::post('items/print', [ItemsController::class, 'print']);
+                    Route::post('items/import', [ItemsController::class, 'import']);
 
-                    Route::get('items/import', [\App\Http\Controllers\Inventory\ItemsController::class, 'showImport']);
+                    Route::get('items/import', [ItemsController::class, 'showImport']);
 
                     Route::resource('locations', LocationController::class);
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
-                    Route::resource('items', \App\Http\Controllers\Inventory\ItemsController::class);
+                    Route::resource('items', ItemsController::class);
                     Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
                     Route::resource('locationtype', LocationTypeController::class);
 
@@ -315,9 +319,9 @@ Route::group([
                     Route::delete('weeks/delete/{week}', [VertretungsplanWeekController::class, 'destroy']);
 
                     //Abwesenheiten Vertretungsplan
-                    Route::get('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'index'])->name('vertretungsplan.absences.index');
-                    Route::post('abwesenheiten', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'store']);
-                    Route::delete('vertretungsplan/abwesenheit/{absence}/delete', [\App\Http\Controllers\VertretungsplanAbsenceController::class, 'destroy']);
+                    Route::get('abwesenheiten', [VertretungsplanAbsenceController::class, 'index'])->name('vertretungsplan.absences.index');
+                    Route::post('abwesenheiten', [VertretungsplanAbsenceController::class, 'store']);
+                    Route::delete('vertretungsplan/abwesenheit/{absence}/delete', [VertretungsplanAbsenceController::class, 'destroy']);
                 });
 
                 //Subscriptions
@@ -364,16 +368,16 @@ Route::group([
                 Route::delete('share/{theme}', [ShareController::class,'removeShare']);
 
                 //Surveys
-                Route::get('{groupname}/themes/{theme}/survey/create', [\App\Http\Controllers\SurveyController::class,'create']);
-                Route::post('{groupname}/themes/{theme}/survey/store', [\App\Http\Controllers\SurveyController::class,'store'])->name('survey.store');
-                Route::get('/survey/{survey}/edit', [\App\Http\Controllers\SurveyController::class,'edit'])->name('survey.edit');
-                Route::put('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'update'])->name('survey.update');
-                Route::delete('/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'destroy'])->name('survey.destroy');
-                Route::get('{groupname}/themes/{theme}/survey/{survey}', [\App\Http\Controllers\SurveyController::class,'show'])->name('survey.show');
-                Route::post('survey/{survey}/store/question', [\App\Http\Controllers\SurveyController::class,'storeQuestion'])->name('survey.question.store');
-                Route::delete('survey/{survey}/delete/question/{question}', [\App\Http\Controllers\SurveyController::class,'destroyQuestion'])->name('survey.question.destroy');
-                Route::post('survey/{survey}/question/{question}/add/answer', [\App\Http\Controllers\SurveyController::class,'storeAnswer'])->name('survey.answer.store');
-                Route::post('survey/{survey}/answer', [\App\Http\Controllers\SurveyController::class,'answer'])->name('survey.submit');
+                Route::get('{groupname}/themes/{theme}/survey/create', [SurveyController::class,'create']);
+                Route::post('{groupname}/themes/{theme}/survey/store', [SurveyController::class,'store'])->name('survey.store');
+                Route::get('/survey/{survey}/edit', [SurveyController::class,'edit'])->name('survey.edit');
+                Route::put('/survey/{survey}', [SurveyController::class,'update'])->name('survey.update');
+                Route::delete('/survey/{survey}', [SurveyController::class,'destroy'])->name('survey.destroy');
+                Route::get('{groupname}/themes/{theme}/survey/{survey}', [SurveyController::class,'show'])->name('survey.show');
+                Route::post('survey/{survey}/store/question', [SurveyController::class,'storeQuestion'])->name('survey.question.store');
+                Route::delete('survey/{survey}/delete/question/{question}', [SurveyController::class,'destroyQuestion'])->name('survey.question.destroy');
+                Route::post('survey/{survey}/question/{question}/add/answer', [SurveyController::class,'storeAnswer'])->name('survey.answer.store');
+                Route::post('survey/{survey}/answer', [SurveyController::class,'answer'])->name('survey.submit');
 
                 //Anwesenheit
                 Route::get('{groupname}/presence/{date?}', [PresenceController::class, 'index']);
