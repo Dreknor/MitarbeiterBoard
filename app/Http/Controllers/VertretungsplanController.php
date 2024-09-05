@@ -224,7 +224,11 @@ class VertretungsplanController extends Controller
 
         $absences = VertretungsplanAbsence::whereDate('start_date', '<=', $targetDate)
             ->whereDate('end_date', '>=', Carbon::today())
-            ->get();
+            ->with('user.shortname')
+            ->get([
+                'start_date',
+                'end_date',
+            ]);
 
         return response()->json(
             $absences,
