@@ -12,7 +12,6 @@ use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\Personal\AddressController;
-//use App\Http\Controllers\Personal\ContactController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
 use App\Http\Controllers\Personal\HolidayController;
