@@ -236,8 +236,14 @@ class VertretungsplanController extends Controller
             ]);
         }
 
+        $json = json_encode([
+            'absences' => $absences_filtered,
+            'targetDate' => $targetDate,
+            'count' => $absences_filtered->count()
+        ]);
+
         return response()->json(
-            $absences_filtered,
+            $json,
             200,
             ['Content-Type' => 'application/json']
 
