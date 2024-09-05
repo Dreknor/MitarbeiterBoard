@@ -203,7 +203,6 @@ class VertretungsplanController extends Controller
     public function absencesToJSON($key): bool|\Illuminate\Http\JsonResponse|string
     {
 
-        dd($key);
         if ($key != config('config.vertretungsplan_api_key')){
             return response()->json(['error' => 'Unauthorized key'], 401);
         }
