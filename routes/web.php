@@ -81,6 +81,7 @@ Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 
 Route::get('/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/api/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'toJSON'])->where('gruppen','.+');
+Route::get('/api/absences/vertretungsplan/{key}/', [VertretungsplanController::class, 'absencesToJSON']);
 
 Route::get('share/{uuid}', [\App\Http\Controllers\ShareController::class,'getShare']);
 Route::post('share/{share}/protocol', [ShareController::class,'protocol']);
@@ -338,9 +339,15 @@ Route::group([
                 Route::resource('{groupname}/checklists', ChecklistController::class);
                 Route::post('{groupname}/checklists/{checklist}/addSection', [\App\Http\Controllers\ChecklistItemController::class, 'addSection']);
                 Route::post('{groupname}/checklists/{checklist}/addItem', [\App\Http\Controllers\ChecklistItemController::class, 'store']);
+                Route::get('{groupname}/checklists/{checklist}/deleteItem/{checklistItem}', [\App\Http\Controllers\ChecklistItemController::class, 'destroy']);
                  Route::delete('{groupname}/checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
                 Route::get('{groupname}/checklists/{checklist}/complete', [ChecklistController::class, 'complete'])->name('checklists.complete');
                 Route::get('{groupname}/checklists/{checklist}/uncomplete', [ChecklistController::class, 'uncomplete'])->name('checklists.uncomplete');
+                Route::get('{groupname}/checklists/{checklist}/archive', [ChecklistController::class, 'archive'])->name('checklists.archive');
+                Route::get('{groupname}/checklists/{checklist}/unarchive', [ChecklistController::class, 'unarchive'])->name('checklists.unarchive');
+                Route::get('{groupname}/checklists/{checklist}/start', [ChecklistController::class, 'publish'])->name('checklists.start');
+
+
 
                 //globale Suche
                 Route::post('search/search', [SearchController::class, 'searchGlobal']);
