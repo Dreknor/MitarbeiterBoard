@@ -194,7 +194,7 @@ class VertretungsplanController extends Controller
             'weeks' => $weeks
         ];
         return response()->json(
-            json_encode($array),
+            $array,
             200,
             ['Content-Type' => 'application/json']
 
