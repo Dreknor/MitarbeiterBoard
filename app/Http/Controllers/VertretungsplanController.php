@@ -193,7 +193,12 @@ class VertretungsplanController extends Controller
             'targetDate' => $plan['targetDate'],
             'weeks' => $weeks
         ];
-        return json_encode($array);
+        return response()->json(
+            json_encode($array),
+            200,
+            ['Content-Type' => 'application/json']
+
+        );
     }
 
 }
