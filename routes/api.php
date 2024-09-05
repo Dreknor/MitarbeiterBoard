@@ -18,4 +18,4 @@ use Illuminate\Support\Facades\Route;
 
 Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import']);
 
-Route::get('/api/vertretungsplan/absences/{key}/', [VertretungsplanController::class, 'absencesToJSON'])->where('gruppen','.+');
+Route::get('/api/vertretungsplan/absences/{key}/', [VertretungsplanController::class, 'absencesToJSON']);
