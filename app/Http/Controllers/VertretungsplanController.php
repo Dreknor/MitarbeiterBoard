@@ -237,7 +237,7 @@ class VertretungsplanController extends Controller
         }
 
         return response()->json(
-            $absences,
+            $absences_filtered,
             200,
             ['Content-Type' => 'application/json']
 
