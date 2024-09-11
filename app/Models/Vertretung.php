@@ -20,9 +20,7 @@ class Vertretung extends Model
     ];
 
     public function lehrer (){
-        return $this->hasOne(User::class, 'id', 'users_id')->withDefault([
-            'name' => 'System / gelöschter Benutzer',
-        ]);
+        return $this->hasOne(User::class, 'id', 'users_id');
     }
 
     public function klasse (){

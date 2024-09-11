@@ -193,7 +193,61 @@ class VertretungsplanController extends Controller
             'targetDate' => $plan['targetDate'],
             'weeks' => $weeks
         ];
-        return json_encode($array);
+        return response()->json(
+            $array,
+            200,
+            ['Content-Type' => 'application/json']
+
+        );
+    }
+    public function absencesToJSON($key): bool|\Illuminate\Http\JsonResponse|string
+    {
+
+        if ($key != config('config.vertretungsplan_api_key')){
+            return response()->json(['error' => 'Unauthorized key'], 401);
+        }
+
+        $addDays=settings('show_vertretungen_days');
+        $addWeekendDays = false;
+
+        for ($days=0; $days < $addDays; $days++){
+            if (Carbon::today()->addDays($days)->isWeekend()){
+                $addWeekendDays = true;
+            }
+        }
+
+        if ($addWeekendDays){
+            $addDays+=2;
+        }
+
+        $targetDate = Carbon::today()->addDays($addDays);
+
+        $absences = VertretungsplanAbsence::whereDate('start_date', '<=', $targetDate)
+            ->whereDate('end_date', '>=', Carbon::today())
+            ->with('user')
+            ->get();
+
+        $absences_filtered = collect();
+        foreach ($absences as $absence){
+            $absences_filtered->add([
+                'start' => $absence->start_date,
+                'end' => $absence->end_date,
+                'name' => $absence->user->shortname,
+            ]);
+        }
+
+        $json = [
+            'absences' => $absences_filtered,
+            'targetDate' => $targetDate,
+            'count' => $absences_filtered->count()
+        ];
+
+        return response()->json(
+            $json,
+            200,
+            ['Content-Type' => 'application/json']
+
+        );
     }
 
 }

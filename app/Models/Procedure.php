@@ -24,9 +24,7 @@ class Procedure extends Model
 
     public function author()
     {
-        return $this->belongsTo(User::class)->withDefault([
-            'name' => 'System / gelöschter Benutzer',
-        ]);
+        return $this->belongsTo(User::class);
     }
 
     public function steps()
