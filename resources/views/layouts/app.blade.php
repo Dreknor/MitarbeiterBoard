@@ -317,7 +317,7 @@
                 <!-- Verwaltung -->
             <hr>
                 @can('manage sick_notes')
-                    <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                    <li class="@if(request()->segment(1)=="sick_notes" ) active @endif">
                         <a href="{{url('sick_notes')}}">
                             <i class="fas fa-notes-medical"></i>
                             <p>Krankschreibungen</p>
@@ -325,7 +325,7 @@
                     </li>
                 @endcan
                 @can('view old absences')
-                    <li class="@if(request()->segment(1)=="groups" ) active @endif">
+                    <li class="@if(request()->segment(1)=="absences" ) active @endif">
                         <a href="{{url('absences')}}">
                             <i class="fas fa-user-clock"></i>
                             <p>Abwesenheiten</p>
