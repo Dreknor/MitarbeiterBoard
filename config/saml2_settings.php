@@ -25,7 +25,7 @@ return $settings = array(
     /**
      * Optional, leave empty if you want the defined routes to be top level, i.e. "/{idpName}/*"
      */
-    'routesPrefix' => '/saml2',
+    'routesPrefix' => '', // /saml2
 
     /**
      * which middleware group to use for the saml routes
