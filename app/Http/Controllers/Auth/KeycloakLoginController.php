@@ -26,7 +26,7 @@ class KeycloakLoginController extends Controller
     {
         $user = Socialite::driver('keycloak')->user();
 
-        $laravelUser = User::where('username', $user->preferred_username)
+        $laravelUser = User::where('username', $user->nickname)
             ->orWhere('email', $user->email)
             ->first();
 
