@@ -32,7 +32,8 @@ class KeycloakLoginController extends Controller
         $laravelUser = User::where('username', $user->nickname)
             ->orWhere('email', $user->email)
             ->first();
-       // dd($user->user);
+
+        dd($user->user);
         foreach ($user->user->memberof as $memberOf){
             $cn = explode('-',$memberOf);
             dd($cn);
