@@ -74,7 +74,7 @@ Route::get('/auth/redirect', function () {
         'profile',
         'email',
         'roles',
-        'groups'
+        'groups',
     ])->redirect();
 });
 
