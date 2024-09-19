@@ -69,7 +69,7 @@ class KeycloakLoginController extends Controller
         }
 
 
-
+        dd($laravelUser);
 
         Auth::loginUsingId($laravelUser->id);
 
