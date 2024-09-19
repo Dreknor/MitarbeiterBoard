@@ -73,7 +73,8 @@ Route::get('/auth/redirect', function () {
         'openid',
         'profile',
         'email',
-        'roles'
+        'roles',
+        'memberof'
     ])->redirect();
 });
 
