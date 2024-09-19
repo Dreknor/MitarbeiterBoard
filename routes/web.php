@@ -71,10 +71,7 @@ use Laravel\Socialite\Facades\Socialite;
 Route::get('/auth/redirect', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'login']);
 
 
-Route::get('/auth/callback', function () {
-    $user = Socialite::driver('keycloak')->user();
-    dd($user);
-});
+Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'auth']);
 
 if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
