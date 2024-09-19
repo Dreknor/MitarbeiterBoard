@@ -35,13 +35,15 @@ class KeycloakLoginController extends Controller
 
         foreach ($user->user['memberof'] as $memberOf){
             $cn = explode('-',$memberOf);
-            dd($cn);
+            dump($cn);
             if (!is_null($cn) and count($cn) > 1){
                 $groups_cn = Group::whereIn('name', config('config.auth.set_groups'))->get();
-                $laravelUser->groups_rel()->attach($groups_cn);
+                dump($groups_cn);
+                //$laravelUser->groups_rel()->attach($groups_cn);
             }
 
         }
+
         if (!$laravelUser) {
             $laravelUser = User::create([
                 'username' => $user->nickname,
