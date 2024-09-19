@@ -69,7 +69,12 @@ use Laravel\Socialite\Facades\Socialite;
 */
 
 Route::get('/auth/redirect', function () {
-    return Socialite::driver('keycloak')->scopes([])->redirect();
+    return Socialite::driver('keycloak')->scopes([
+        0 => "openid",
+        //1 => "profile",
+        2 => "email",
+        3 => "memberOf",
+    ])->redirect();
 });
 
 
