@@ -33,7 +33,7 @@ class KeycloakLoginController extends Controller
             ->orWhere('email', $user->email)
             ->first();
 
-        $groups = explode('|', config('config.auth.set_groups'));
+        $groups = config('config.auth.set_groups') ?? [];
         foreach ($user->user['memberof'] as $memberOf){
             $cn = explode('-',$memberOf);
             array_push($groups, $cn);
