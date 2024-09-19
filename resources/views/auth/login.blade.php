@@ -5,10 +5,28 @@
     <div class="row justify-content-center">
         @if(config('config.auth.saml2'))
             <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
+                            {{config('config.auth.saml2_btn')}}
+                        </a>
+                    </div>
+                    @if(session()->has('saml2_error_detail'))
+                        <div class="card-body">
+                            @foreach(session('saml2_error_detail') as $error)
+                                <p class="text-danger">
+                                    {{$error}}
+                                </p>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+                <div class="col-md-6">
             <div class="card">
                 <div class="card-body">
-                    <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
-                        {{config('config.auth.saml2_btn')}}
+                    <a href="{{url('/auth/redirect')}}" class="btn btn-block">
+                        KeyCloak
                     </a>
                 </div>
                 @if(session()->has('saml2_error_detail'))
