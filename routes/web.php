@@ -55,6 +55,7 @@ use App\Http\Controllers\WpTaskController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShareController;
+use Laravel\Socialite\Facades\Socialite;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +67,17 @@ use App\Http\Controllers\ShareController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+Route::get('/auth/redirect', function () {
+    return Socialite::driver('keycloak')->scopes([])->redirect();
+});
+
+
+Route::get('/auth/callback', function () {
+    $user = Socialite::driver('keycloak')->user();
+    dd($user);
+});
+
 if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
 } else {
