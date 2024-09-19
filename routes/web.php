@@ -75,7 +75,8 @@ Route::get('/auth/redirect', function () {
 
 Route::get('/auth/callback', function () {
     $user = Socialite::driver('keycloak')->user();
-    dd($user);
+    dump($user);
+    dd(Socialite::driver('keycloak'));
 });
 
 if (config('config.auth.auth_local')){
