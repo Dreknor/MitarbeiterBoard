@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Laravel\Socialite\Facades\Socialite;
@@ -24,7 +25,13 @@ class KeycloakLoginController extends Controller
     public function auth()
     {
         $user = Socialite::driver('keycloak')->user();
-        dd($user);
+
+        $laravelUser = User::where('username', $user->preferred_username)
+            ->orWhere('email', $user->email)
+            ->first();
+
+        dump($user);
+        dd($laravelUser);
     }
 
 }
