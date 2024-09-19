@@ -36,7 +36,13 @@ class KeycloakLoginController extends Controller
         $groups = config('config.auth.set_groups') ?? [];
         foreach ($user->user['memberof'] as $memberOf){
             $cn = explode('-',$memberOf);
-            array_push($groups, $cn);
+            if (!is_null($cn) and count($cn) > 1){
+                foreach ($cn as $c){
+                    if (!in_array($c, $groups)){
+                        array_push($groups, $c);
+                    }
+                }
+            }
 
         }
 
