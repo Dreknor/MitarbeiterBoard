@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
@@ -33,54 +34,40 @@ class KeycloakLoginController extends Controller
             ->orWhere('email', $user->email)
             ->first();
 
-        $groups = config('config.auth.set_groups') ?? [];
-        foreach ($user->user['memberof'] as $memberOf){
-            $cn = explode('-',$memberOf);
-            if (!is_null($cn) and count($cn) > 1){
-                foreach ($cn as $c){
-                    if (!in_array($c, $groups)){
-                        array_push($groups, $c);
-                    }
-                }
-            }
-
-        }
-
-        dd($groups);
 
         if (!$laravelUser) {
             $laravelUser = User::create([
                 'username' => $user->nickname,
                 'email' => $user->email,
-                'password' => bcrypt($user->sub),
+                'password' => bcrypt(Carbon::now()->timestamp),
             ]);
 
+            $groups = config('config.auth.set_groups') ?? [];
+            $roles = config('config.auth.set_roles') ?? [];
 
-
-
-                if (config('config.auth.set_groups') != "" and is_array(config('config.auth.set_groups') )){
-                    $groups_env = Group::whereIn('name', config('config.auth.set_groups'))->get();
-                    $laravelUser->groups_rel()->attach($groups_env);
+            foreach ($user->user['memberof'] as $memberOf){
+                $cn = explode('-',$memberOf);
+                if (!is_null($cn) and count($cn) > 1){
+                    foreach ($cn as $c){
+                        if (!in_array($c, $groups)){
+                            array_push($groups, $c);
+                        }
+                        if (!in_array($c, $roles)){
+                            array_push($roles, $c);
+                        }
+                    }
                 }
-
-
-            if (config('config.auth.set_roles') != "" and is_array(config('config.auth.set_roles') )){
-                $roles = Role::whereIn('name', config('config.auth.set_roles'))->get();
-                $laravelUser->roles()->attach($roles);
-
             }
 
+            $laravelUser->groups_rel()->attach($groups);
+            $laravelUser->roles()->attach($roles);
         }
 
 
-        dd($laravelUser);
-
         Auth::loginUsingId($laravelUser->id);
-
         session()->regenerate();
 
         return redirect(url('/'));
-        //dd($laravelUser);
     }
 
 }
