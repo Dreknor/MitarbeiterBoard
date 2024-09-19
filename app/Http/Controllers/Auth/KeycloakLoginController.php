@@ -33,7 +33,7 @@ class KeycloakLoginController extends Controller
             ->orWhere('email', $user->email)
             ->first();
        // dd($user->user);
-        foreach ($user->memberOf as $memberOf){
+        foreach ($user->memberof as $memberOf){
             $cn = explode('-',$memberOf);
             dd($cn);
             if (!is_null($cn) and count($cn) > 1){
