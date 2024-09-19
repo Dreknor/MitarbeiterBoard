@@ -70,7 +70,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 Route::get('/auth/redirect', function () {
     return Socialite::driver('keycloak')->scopes([
-        "openid","profile","email","memberOf",
+        "openid","profile","email"
     ])->redirect();
 });
 
