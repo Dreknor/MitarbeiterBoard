@@ -30,8 +30,8 @@ class KeycloakLoginController extends Controller
             ->orWhere('email', $user->email)
             ->first();
 
-        dump($user);
-        dd($laravelUser);
+        dd($user);
+        //dd($laravelUser);
     }
 
 }
