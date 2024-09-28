@@ -5,24 +5,35 @@
     <div class="row justify-content-center">
         @if(config('config.auth.saml2'))
             <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
-                        {{config('config.auth.saml2_btn')}}
-                    </a>
-                </div>
-                @if(session()->has('saml2_error_detail'))
+                <div class="card">
                     <div class="card-body">
-                        @foreach(session('saml2_error_detail') as $error)
-                            <p class="text-danger">
-                                {{$error}}
-                            </p>
-                        @endforeach
+                        <a href="{{route('saml2_login', 'idp1')}}" class="btn btn-block">
+                            {{config('config.auth.saml2_btn')}}
+                        </a>
                     </div>
-                @endif
+                    @if(session()->has('saml2_error_detail'))
+                        <div class="card-body">
+                            @foreach(session('saml2_error_detail') as $error)
+                                <p class="text-danger">
+                                    {{$error}}
+                                </p>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             </div>
-        </div>
         @endif
+            @if(config('config.auth.keycloak'))
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <a href="{{url('/auth/redirect')}}" class="btn btn-block btn-bg-gradient-x-blue-cyan">
+                                {{config('config.auth.keycloak_btn')}}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
         @if(config('config.auth.auth_local'))
             <div class="col-md-8">
                 <div class="card">

@@ -37,6 +37,10 @@ class EventServiceProvider extends ServiceProvider
         MessageSending::class => [
            //LogEmail::class,
         ],
+
+        \SocialiteProviders\Manager\SocialiteWasCalled::class => [
+            \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class.'@handle',
+        ],
     ];
 
     /**

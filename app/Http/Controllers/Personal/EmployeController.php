@@ -133,7 +133,6 @@ class EmployeController extends Controller
     public function updateData(UpdateEmployeDataRequest $request, User $employe)
     {
 
-        dd($request->all());
         if ($request->holidayClaim !=  $employe->getHolidayClaim()){
             $claim = new EmployeHolidayClaim([
                 'holiday_claim' => $request->holidayClaim,
