@@ -74,6 +74,7 @@ class AppServiceProvider extends ServiceProvider
             } catch (\Exception $e) {
                 Log::error('sortByDate failed: ');
                 Log::error($e->getMessage());
+                Log::error($this);
                 return $this;
             }
 
