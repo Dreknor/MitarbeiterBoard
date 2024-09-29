@@ -4,6 +4,7 @@ namespace App\View\Composers;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class TasksComposer
@@ -21,24 +22,18 @@ class TasksComposer
      */
     public function compose(View $view): void
     {
-        $tasks = auth()->user()->tasks;
-        $group_tasks =  auth()->user()->group_tasks;
-        //$groups = auth()->user()->groups();
+        $tasks = Cache::remember('tasks_'.auth()->id(), Carbon::now()->addMinutes(5), function () {
+            return auth()->user()->tasks;
+        });
+
+        $group_tasks = Cache::remember('group_tasks_'.auth()->id(), Carbon::now()->addMinutes(5), function () {
+            return auth()->user()->group_tasks;
+        });
 
         foreach ($group_tasks as $group_task){
             $tasks = $tasks->push($group_task->task);
         }
-/*
-        foreach ($groups as $group) {
-            if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)) {
-                $group_tasks=$group->tasks()->whereDate('date', '>=', Carbon::now())->whereHas('taskUsers', function (Builder $query) {
-                    $query->where('users_id', auth()->id());
-                })->get();
 
-                $tasks = $tasks->concat($group_tasks);
-            }
-        }
-*/
         $view->with(['tasks' => $tasks]);
     }
 }
