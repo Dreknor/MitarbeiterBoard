@@ -9,6 +9,7 @@ use App\Providers\RouteServiceProvider;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Role;
 
@@ -17,18 +18,42 @@ class KeycloakLoginController extends Controller
 
     public function login()
     {
-        return Socialite::driver('keycloak')->scopes([
-        'openid',
-        'profile',
-        'email',
-        'roles',
-        'memberof'
-    ])->redirect();
+        try {
+            return Socialite::driver('keycloak')->scopes([
+                'openid',
+                'profile',
+                'email',
+                'roles',
+                'memberof'
+            ])->redirect();
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+            return redirect()->route('login')->with([
+                'type' => 'danger',
+                'Meldung' => 'Login failed']);
+        }
+
 
     }
     public function auth()
     {
-        $user = Socialite::driver('keycloak')->user();
+        try {
+            $user = Socialite::driver('keycloak')->user();
+
+        } catch (\Exception $e) {
+            Log::error('OIDC Login failed:');
+            Log::error($e->getMessage());
+
+            Log::error('Answer from Keycloak:');
+            Log::error($e->getResponse()->getStatusCode());
+            Log::error($e->getResponse()->getBody()->getContents());
+
+
+            return redirect()->route('login')->with([
+                'type' => 'danger',
+                'Meldung' => 'Login failed']);
+        }
+
 
         $laravelUser = User::where('username', $user->nickname)
             ->orWhere('email', $user->email)
@@ -41,6 +66,9 @@ class KeycloakLoginController extends Controller
                 'email' => $user->email,
                 'password' => bcrypt(Carbon::now()->timestamp),
             ]);
+
+            Log::info('User created: ' . $laravelUser->username);
+
 
             $groups = config('config.auth.set_groups') ?? [];
             $roles = config('config.auth.set_roles') ?? [];
@@ -63,6 +91,8 @@ class KeycloakLoginController extends Controller
             $laravelUser->roles()->attach($roles);
         }
 
+
+        Log::info('User logged in by KeyCloak: ' . $laravelUser->username);
 
         Auth::loginUsingId($laravelUser->id);
         session()->regenerate();
