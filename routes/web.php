@@ -76,7 +76,7 @@ Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController
 if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
 } else {
-    Auth::routes(['register' => false]);
+
 
     if (!session()->has('Meldung') and config('config.auth.keycloak')){
         \Illuminate\Support\Facades\Log::info('Redirect to keycloak');
@@ -85,6 +85,7 @@ if (config('config.auth.auth_local')){
         });
     }
 
+    Auth::routes(['register' => false]);
 
 
     Route::post('login', function(){
