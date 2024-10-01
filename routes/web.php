@@ -77,6 +77,16 @@ if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
 } else {
     Auth::routes(['register' => false]);
+
+    if (!session()->has('Meldung') and config('config.auth.keycloak')){
+        \Illuminate\Support\Facades\Log::info('Redirect to keycloak');
+        Route::get('login', function(){
+            return redirect()->route('auth.redirect');
+        });
+    }
+
+
+
     Route::post('login', function(){
         return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
     });
