@@ -27,6 +27,7 @@ class KeycloakLoginController extends Controller
                 'memberof'
             ])->redirect();
         } catch (\Exception $e) {
+            Log::error('OIDC Login failed:');
             Log::error($e->getMessage());
             return redirect()->route('login')->with([
                 'type' => 'danger',
@@ -41,13 +42,8 @@ class KeycloakLoginController extends Controller
             $user = Socialite::driver('keycloak')->user();
 
         } catch (\Exception $e) {
-            Log::error('OIDC Login failed:');
+            Log::error('OIDC Answer Login failed:');
             Log::error($e->getMessage());
-
-            Log::error('Answer from Keycloak:');
-            Log::error($e->getResponse()->getStatusCode());
-            Log::error($e->getResponse()->getBody()->getContents());
-
 
             return redirect()->route('login')->with([
                 'type' => 'danger',
