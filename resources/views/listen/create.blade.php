@@ -28,9 +28,7 @@
                                         <option value="termin" selected>
                                             Terminliste
                                         </option>
-                                        <option value="eintrag" disabled>
-                                            Eintrageliste
-                                        </option>
+
                                     </select>
                                 </div>
                                 <div class="col-md-4 col-sm-4">
