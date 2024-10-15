@@ -40,10 +40,10 @@ class HolidayController extends Controller
                 ->orWhereBetween('end_date', [$startMonth, $endMonth])
                 ->get();
         }
-
+        $users = collect([]);
         if (auth()->user()->can('approve holidays')){
             $usersAll = User::permission('has holidays')->get();
-            $users = collect([]);
+
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
                     $users->push($user);
@@ -53,11 +53,12 @@ class HolidayController extends Controller
             }
         } elseif( settings('show_holidays', 'holidays') == 1) {
 
-            $users = User::permission('has holidays')
-                ->where('groups', function ($query) {
-                    $query->whereIn('id', auth()->user()->groups()->pluck('id'));
-                })
-                ->get();
+            $usersAll = User::permission('has holidays')->get();
+            foreach ($usersAll as $user){
+               if ($user->groups->contains(auth()->user->groups)) {
+                    $users->push($user);
+               }
+            }
 
         } else {
             $users = collect([auth()->user()]);
