@@ -133,7 +133,7 @@
                         Urlaubsübersicht ({{$month->monthName}} {{$month->year}})
                     </h5>
                     <div class="pull-right">
-                        <a href="{{url('holidays/export/'.$month->year)}}" class="btn btn-outline-primary">
+                        <a href="{{url('holidays/export/'.$month->year)}}" class="btn btn-outline-primary" id="exportLink">
                             <i class="fas fa-file-pdf"></i> Export {{$month->year}}
                         </a>
                     </div>
@@ -202,14 +202,21 @@
     <script>
         $('#group_filter').change(function() {
             document.cookie = "group="+$(this).val();
-            console.log(document.cookie);
             var group = $(this).val();
             if(group == 'all') {
                 $('table tbody tr').show();
+
+                $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}');
+
+
             } else {
                 $('table tbody tr').hide();
                 $('table tbody tr.'+group).show();
+
+                $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}'+'/'+group);
             }
+
+            console.log($('#exportLink').attr('href'));
         });
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -217,10 +224,15 @@
             if(group == 'all') {
                 $('#group_filter').val('all');
                 $('table tbody tr').show();
+
+                $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}');
             } else {
                 $('#group_filter').val(group);
                 $('table tbody tr').hide();
                 $('table tbody tr.'+group).show();
+
+                $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}'+'/'+group);
+
             }
         });
     </script>
