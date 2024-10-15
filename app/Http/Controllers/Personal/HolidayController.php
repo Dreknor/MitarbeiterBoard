@@ -55,11 +55,16 @@ class HolidayController extends Controller
 
             $usersAll = User::query()
                 ->permission('has holidays')
-                ->whereHas('groups_rel', function ($query){
-                    $query->whereIn('group_id', auth()->user()->groups_rel->pluck('group_id'));
-                })
-
                 ->get();
+
+            foreach ($usersAll as $user){
+                $groups = auth()->user()->groups;
+
+                if ($user->groups->intersect($groups)->count() > 0){
+                    $users->push($user);
+                }
+
+            }
         } else {
             $users = collect([auth()->user()]);
         }
