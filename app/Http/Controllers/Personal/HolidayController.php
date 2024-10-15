@@ -60,7 +60,7 @@ class HolidayController extends Controller
             foreach ($usersAll as $user){
                 $groups = auth()->user()->groups_rel;
 
-                if ($user->groups->intersect($groups)->count() > 0){
+                if ($user->groups_rel->intersect($groups)->count() > 0){
                     $users->push($user);
                 }
 
