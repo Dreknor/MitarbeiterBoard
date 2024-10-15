@@ -58,15 +58,7 @@ class HolidayController extends Controller
                 ->whereHas('groups_rel', function ($query){
                     $query->whereIn('group_id', auth()->user()->groups_rel->pluck('group_id'));
                 })
-                ->whereHas('employments', function ($query) use ($startMonth, $endMonth){
-                    $query->where(function ($query) use ($startMonth, $endMonth){
-                        $query->where('start', '<=', $startMonth->endOfMonth())
-                            ->where(function ($query) use ($endMonth){
-                                $query->whereNull('end')
-                                    ->orWhere('end', '>=', $endMonth->startOfMonth());
-                            });
-                    });
-                })
+
                 ->get();
         } else {
             $users = collect([auth()->user()]);
