@@ -55,7 +55,7 @@ class HolidayController extends Controller
 
             $usersAll = User::permission('has holidays')->get();
             foreach ($usersAll as $user){
-               if ($user->groups->contains(auth()->user->groups)) {
+               if ($user->groups_rel->contains(auth()->user->groups)) {
                     $users->push($user);
                }
             }
