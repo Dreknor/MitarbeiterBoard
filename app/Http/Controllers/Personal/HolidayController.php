@@ -42,7 +42,7 @@ class HolidayController extends Controller
         }
         $users = collect([]);
         if (auth()->user()->can('approve holidays')){
-            $usersAll = User::permission('has holidays')->get();
+            $usersAll = User::permission('has holidays')->with('groups_rel')->get();
 
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
@@ -55,6 +55,7 @@ class HolidayController extends Controller
 
             $usersAll = User::query()
                 ->permission('has holidays')
+                ->with('groups_rel')
                 ->get();
 
             foreach ($usersAll as $user){
@@ -202,7 +203,7 @@ class HolidayController extends Controller
         //
     }
 
-    public function export($year = null){
+    public function export($year = null, $group = null){
 
         if (!auth()->user()->can('approve holidays')){
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
@@ -222,7 +223,14 @@ class HolidayController extends Controller
                 ->get();
 
 
-            $users = User::permission('has holidays')->get();
+            if ($group != null){
+                $users = User::permission('has holidays')->whereHas('groups_rel', function ($query) use ($group){
+                    $query->where('name', $group);
+                })->get();
+
+            } else {
+                $users = User::permission('has holidays')->get();
+            }
 
             $pdf = \PDF::loadView('personal.holidays.export', [
                         'holidays' => $holidays,

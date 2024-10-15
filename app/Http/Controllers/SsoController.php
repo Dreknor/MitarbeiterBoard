@@ -17,6 +17,5 @@ class SsoController extends Controller
     {
         $user = Socialite::driver('keycloak')->user();
 
-        dd($user);
     }
 }

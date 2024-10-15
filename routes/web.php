@@ -170,7 +170,7 @@ Route::group([
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
-                    Route::get('holidays/export/{year?}', [HolidayController::class, 'export']);
+                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
 
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
                     Route::resource('holidays', HolidayController::class);
