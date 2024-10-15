@@ -47,6 +47,8 @@ class HolidayController extends Controller
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
                     $users->push($user);
+                } elseif ($user->employments->count() == 0){
+                    $users->push($user);
                 }
             }
         } else {
