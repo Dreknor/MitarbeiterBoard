@@ -148,7 +148,9 @@
                                 <i class="fas fa-chevron-left"></i> {{$month->copy()->subMonth()->monthName}} {{$month->copy()->subMonth()->year}}
                             </a>
                         </div>
-                        <div class="col"></div>
+                        <div class="col">
+
+                        </div>
                         <div class="col-auto">
                             <a href="{{url('holidays/'.$month->copy()->addMonth()->month.'/'.$month->copy()->addMonth()->year)}}"  class="btn btn-outline-primary">
                                 <i class="fas fa-chevron-right"></i> {{$month->copy()->addMonth()->monthName}} {{$month->copy()->addMonth()->year}}
@@ -159,6 +161,17 @@
                             <a href="{{url('holidays/'.$month->month.'/'.$month->copy()->addYear()->year)}}" class="btn btn-outline-primary">
                                 <i class="fas fa-chevron-right"></i><i class="fas fa-chevron-right"></i> {{$month->copy()->addYear()->monthName}} {{$month->copy()->addYear()->year}}
                             </a>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <label for="group">Gruppe</label>
+                            <select name="group" id="group_filter" class="form-control">
+                                <option value="all">Alle</option>
+                                @foreach(auth()->user()->groups_rel as $group)
+                                    <option value="{{$group->name}}">{{$group->name}}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -184,3 +197,31 @@
 
     </div>
 @endsection
+
+@push('js')
+    <script>
+        $('#group_filter').change(function() {
+            document.cookie = "group="+$(this).val();
+            console.log(document.cookie);
+            var group = $(this).val();
+            if(group == 'all') {
+                $('table tbody tr').show();
+            } else {
+                $('table tbody tr').hide();
+                $('table tbody tr.'+group).show();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var group = document.cookie.replace(/(?:(?:^|.*;\s*)group\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+            if(group == 'all') {
+                $('#group_filter').val('all');
+                $('table tbody tr').show();
+            } else {
+                $('#group_filter').val(group);
+                $('table tbody tr').hide();
+                $('table tbody tr.'+group).show();
+            }
+        });
+    </script>
+@endpush
