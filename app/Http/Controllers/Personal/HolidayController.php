@@ -53,13 +53,21 @@ class HolidayController extends Controller
             }
         } elseif( settings('show_holidays', 'holidays') == 1) {
 
-            $usersAll = User::permission('has holidays')->get();
-            foreach ($usersAll as $user){
-               if ($user->groups_rel->contains(auth()->user->groups)) {
-                    $users->push($user);
-               }
-            }
-
+            $usersAll = User::query()
+                ->permission('has holidays')
+                ->whereHas('groups_rel', function ($query){
+                    $query->whereIn('group_id', auth()->user()->groups_rel->pluck('group_id'));
+                })
+                ->whereHas('employments', function ($query) use ($startMonth, $endMonth){
+                    $query->where(function ($query) use ($startMonth, $endMonth){
+                        $query->where('start', '<=', $startMonth->endOfMonth())
+                            ->where(function ($query) use ($endMonth){
+                                $query->whereNull('end')
+                                    ->orWhere('end', '>=', $endMonth->startOfMonth());
+                            });
+                    });
+                })
+                ->get();
         } else {
             $users = collect([auth()->user()]);
         }
