@@ -41,7 +41,7 @@ class HolidayController extends Controller
                 ->get();
         }
 
-        if (auth()->user()->can('approve holidays') or settings('show_holidays', 'holidays') == 1){
+        if (auth()->user()->can('approve holidays')){
             $usersAll = User::permission('has holidays')->get();
             $users = collect([]);
             foreach ($usersAll as $user){
@@ -51,6 +51,14 @@ class HolidayController extends Controller
                     $users->push($user);
                 }
             }
+        } elseif( settings('show_holidays', 'holidays') == 1) {
+
+            $users = User::permission('has holidays')
+                ->whereHas('groups', function ($query) {
+                    $query->whereIn('id', auth()->user()->groups->pluck('id'));
+                })
+                ->get();
+
         } else {
             $users = collect([auth()->user()]);
         }
