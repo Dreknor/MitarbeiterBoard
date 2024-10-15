@@ -54,7 +54,7 @@ class HolidayController extends Controller
         } elseif( settings('show_holidays', 'holidays') == 1) {
 
             $users = User::permission('has holidays')
-                ->whereHas('groups', function ($query) {
+                ->where('groups', function ($query) {
                     $query->whereIn('id', auth()->user()->groups->pluck('id'));
                 })
                 ->get();
