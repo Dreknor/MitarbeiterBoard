@@ -58,7 +58,7 @@ class HolidayController extends Controller
                 ->get();
 
             foreach ($usersAll as $user){
-                $groups = auth()->user()->groups;
+                $groups = auth()->user()->groups_rel;
 
                 if ($user->groups->intersect($groups)->count() > 0){
                     $users->push($user);
