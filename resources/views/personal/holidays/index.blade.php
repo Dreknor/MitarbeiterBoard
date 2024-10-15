@@ -27,10 +27,13 @@
                                 <select name="employe_id" id="employe_id" class="form-control">
                                     @can('approve holidays')
                                         <option value="all">Alle</option>
+                                        @foreach($users as $user)
+                                            <option value="{{$user->id}}">{{$user->name}}</option>
+                                        @endforeach
+                                    @else
+                                        <option value="{{auth()->user()->id}}">{{auth()->user()->name}}</option>
                                     @endcan
-                                    @foreach($users as $user)
-                                        <option value="{{$user->id}}">{{$user->name}}</option>
-                                    @endforeach
+
                                 </select>
                             </div>
                         </div>
