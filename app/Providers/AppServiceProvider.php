@@ -69,11 +69,17 @@ class AppServiceProvider extends ServiceProvider
             /* @var $this Collection */
             try {
                 return $this->sortBy(function ($datum) use ($column) {
-                    return strtotime($datum->$column);
+                    if (!is_null($datum) and !is_null($datum->$column)){
+                        return strtotime($datum->$column);
+                    } else {
+                        return 0;
+                    }
+
                 }, SORT_REGULAR, $order == SORT_DESC);
             } catch (\Exception $e) {
                 Log::error('sortByDate failed: ');
                 Log::error($e->getMessage());
+                Log::error($this);
                 return $this;
             }
 

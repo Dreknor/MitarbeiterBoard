@@ -11,7 +11,7 @@
     </thead>
     <tbody>
     @foreach($users as $user)
-        <tr>
+        <tr  class="@foreach($user->groups_rel as $group) {{$group->name}} @endforeach">
             <td class="border-right w-25">
                 {{$user->name}}
             </td>

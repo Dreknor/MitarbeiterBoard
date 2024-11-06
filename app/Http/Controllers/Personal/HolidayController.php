@@ -40,14 +40,31 @@ class HolidayController extends Controller
                 ->orWhereBetween('end_date', [$startMonth, $endMonth])
                 ->get();
         }
+        $users = collect([]);
+        if (auth()->user()->can('approve holidays')){
+            $usersAll = User::permission('has holidays')->with('groups_rel')->get();
 
-        if (auth()->user()->can('approve holidays') or settings('show_holidays', 'holidays') == 1){
-            $usersAll = User::permission('has holidays')->get();
-            $users = collect([]);
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
                     $users->push($user);
+                } elseif ($user->employments->count() == 0){
+                    $users->push($user);
                 }
+            }
+        } elseif( settings('show_holidays', 'holidays') == 1) {
+
+            $usersAll = User::query()
+                ->permission('has holidays')
+                ->with('groups_rel')
+                ->get();
+
+            foreach ($usersAll as $user){
+                $groups = auth()->user()->groups_rel;
+
+                if ($user->groups_rel->intersect($groups)->count() > 0){
+                    $users->push($user);
+                }
+
             }
         } else {
             $users = collect([auth()->user()]);
@@ -186,7 +203,7 @@ class HolidayController extends Controller
         //
     }
 
-    public function export($year = null){
+    public function export($year = null, $group = null){
 
         if (!auth()->user()->can('approve holidays')){
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
@@ -206,7 +223,14 @@ class HolidayController extends Controller
                 ->get();
 
 
-            $users = User::permission('has holidays')->get();
+            if ($group != null){
+                $users = User::permission('has holidays')->whereHas('groups_rel', function ($query) use ($group){
+                    $query->where('name', $group);
+                })->get();
+
+            } else {
+                $users = User::permission('has holidays')->get();
+            }
 
             $pdf = \PDF::loadView('personal.holidays.export', [
                         'holidays' => $holidays,

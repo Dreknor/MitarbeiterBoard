@@ -76,7 +76,10 @@ Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController
 if (config('config.auth.auth_local')){
     Auth::routes(['register' => false]);
 } else {
+
     Auth::routes(['register' => false]);
+
+
     Route::post('login', function(){
         return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Login nicht gestattet']);
     });
@@ -167,7 +170,7 @@ Route::group([
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
-                    Route::get('holidays/export/{year?}', [HolidayController::class, 'export']);
+                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
 
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
                     Route::resource('holidays', HolidayController::class);
