@@ -33,6 +33,9 @@ return [
         'set_groups' => explode('|',env('DEFAULT_GROUPS', '')),
         'saml_member_of_prefix' => env('SAML_PREFIX',''),
         'set_roles' => explode('|',env('DEFAULT_ROLES', '')),
+
+        'keycloak' => env("KEYCLOAK_ENABLE",false),
+        'keycloak_btn' => env("KEYCLOAK_BUTTON_TEXT",'SSO - Login'),
     ],
 
     'themes'    => [

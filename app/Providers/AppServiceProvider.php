@@ -16,6 +16,7 @@ use App\Support\Collection;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -66,9 +67,22 @@ class AppServiceProvider extends ServiceProvider
 
         Collection::macro('sortByDate', function ($column = 'created_at', $order = SORT_DESC) {
             /* @var $this Collection */
-            return $this->sortBy(function ($datum) use ($column) {
-                return strtotime($datum->$column);
-            }, SORT_REGULAR, $order == SORT_DESC);
+            try {
+                return $this->sortBy(function ($datum) use ($column) {
+                    if (!is_null($datum) and !is_null($datum->$column)){
+                        return strtotime($datum->$column);
+                    } else {
+                        return 0;
+                    }
+
+                }, SORT_REGULAR, $order == SORT_DESC);
+            } catch (\Exception $e) {
+                Log::error('sortByDate failed: ');
+                Log::error($e->getMessage());
+                Log::error($this);
+                return $this;
+            }
+
         });
 
         /**

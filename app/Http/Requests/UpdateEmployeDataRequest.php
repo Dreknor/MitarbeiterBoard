@@ -31,7 +31,7 @@ class UpdateEmployeDataRequest extends FormRequest
                 'required', 'date',
             ],
             'time_recording_key' => [
-                'nullable', 'numeric', 'digits:10',
+                'nullable', 'numeric', 'digits_between:6,12',
             ],
             'secret_key' => [
                 'nullable', 'numeric', 'digits_between:6,10',

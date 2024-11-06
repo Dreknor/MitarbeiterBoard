@@ -8,9 +8,11 @@ use App\Models\Group;
 use App\Models\personal\Holiday;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
+use App\Models\Task;
 use App\Models\User;
 use App\Observers\HolidayObserver;
 use App\Observers\RosterEventsObserver;
+use App\Observers\TaskObserver;
 use App\Observers\WorkingTimeObserver;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
@@ -37,6 +39,10 @@ class EventServiceProvider extends ServiceProvider
         MessageSending::class => [
            //LogEmail::class,
         ],
+
+        \SocialiteProviders\Manager\SocialiteWasCalled::class => [
+            \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class.'@handle',
+        ],
     ];
 
     /**
@@ -48,6 +54,7 @@ class EventServiceProvider extends ServiceProvider
     {
         RosterEvents::observe(RosterEventsObserver::class);
         WorkingTime::observe(WorkingTimeObserver::class);
+        Task::observe(TaskObserver::class);
 
         Holiday::observe(HolidayObserver::class);
 

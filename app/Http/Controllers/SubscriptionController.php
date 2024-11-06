@@ -62,8 +62,14 @@ class SubscriptionController extends Controller
     {
         if ($type == 'theme') {
             $type = Theme::class;
+            $subscription = auth()->user()->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $id)->first();
         } elseif ($type == 'group') {
+
             $type = Group::class;
+            $group = Group::where('name', $id)->first();
+            $subscription = auth()->user()->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $group->id)->first();
+
+
         } else {
             return redirect()->back()->with([
                'type'=>'warning',
@@ -71,15 +77,20 @@ class SubscriptionController extends Controller
             ]);
         }
 
-        $subscription = auth()->user()->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $id)->first();
 
         if ($subscription != null) {
             $subscription->delete();
+            return redirect()->back()->with([
+                'type'=>'success',
+                'Meldung' => 'Abo entfernt',
+            ]);
+        } else {
+            return redirect()->back()->with([
+                'type'=>'warning',
+                'Meldung' => 'Kein Abo gefunden',
+            ]);
         }
 
-        return redirect()->back()->with([
-            'type'=>'success',
-            'Meldung' => 'Abo entfernt',
-        ]);
+
     }
 }
