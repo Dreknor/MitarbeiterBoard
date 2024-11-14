@@ -61,53 +61,79 @@
             </div>
             <div class="card-body">
                 <h6>Buchungen</h6>
-                <table class="table table-striped">
-                    <thead>
-                    <tr>
-                        <th></th>
-                        <th class="border-right">
-                            Montag
-                        </th>
-                        <th class="border-right">
-                            Dienstag
-                        </th>
-                        <th class="border-right">
-                            Mittwoch
-                        </th>
-                        <th class="border-right">
-                            Donnerstag
-                        </th>
-                        <th class="border-right">
-                            Freitag
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                        @for($time = \Carbon\Carbon::createFromTimeString(config('rooms.start_booking')); $time->lessThanOrEqualTo(\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))); $time->addMinutes(15))
+                <div class="table-responsive-sm">
+                    <table class="table table-striped table-sm ">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <th class="border-right">
+                                Montag
+                            </th>
+                            <th class="border-right">
+                                Dienstag
+                            </th>
+                            <th class="border-right">
+                                Mittwoch
+                            </th>
+                            <th class="border-right">
+                                Donnerstag
+                            </th>
+                            <th class="border-right">
+                                Freitag
+                            </th>
+                            <th class="border-right">
+                                Samstag
+                            </th>
+                            <th class="border-right">
+                                Sonntag
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @for($time = \Carbon\Carbon::createFromTimeString(config('rooms.start_booking')); $time->lessThanOrEqualTo(\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))); $time->addMinutes(5))
                             <tr>
-                                <td class="border-right border-bottom">
-                                    <small>
-                                        {{$time->format('H:i')}}
-                                    </small>
+                                <td class="border-right border-bottom pt-0 pb-0" >
+                                        <small>
+                                            {{$time->format('H:i')}}
+                                        </small>
                                 </td>
-                                @for($x = 1; $x<6; $x++)
-                                    @if($room->hasBooking($x, $time->format('H:i')) and $room->hasBooking($x, $time->format('H:i'))->start == $time->format('H:i:00'))
-                                            <td class="border-right border-bottom text-white text-center bg-gradient-directional-info"
-                                                rowspan="{{ceil($room->hasBooking($x, $time->format('H:i'))->duration/15)+1}}"
-                                                onclick="location.href='{{url('rooms/booking/'.$room->hasBooking($x, $time->format('H:i'))->id)}}'">
-                                                {{$room->hasBooking($x, $time->format('H:i'))->name}}
-                                            </td>
-                                    @elseif($room->hasBooking($x, $time->format('H:i')) == null)
-                                        <td class="border-right border-bottom">
+                                @for($day = Carbon\Carbon::now()->startOfWeek(); $day->lessThanOrEqualTo(Carbon\Carbon::now()->endOfWeek()); $day->addDay())
+                                    @if($room->bookings->where('weekday', $day->dayOfWeek)->where('start', $time->format('H:i:00'))->count() > 0)
+                                        <td class="border-right border-bottom bg-gradient-x-blue-green text-white  text-center"
+                                            @if( \Carbon\Carbon::now()->gt(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' '.$time->format('H:i')))) style="opacity: 0.4" @else @endif
+                                            rowspan="{{ceil($room->bookings->where('weekday', $day->dayOfWeek)->where('start', $time->format('H:i:00'))->first()->duration/5)}}"
+                                            onclick="location.href='{{url('rooms/booking/'.$room->hasBooking($day->dayOfWeek, $time->format('H:i'))->id)}}'"
+                                        >
+                                            {{$room->bookings->where('weekday', $day->dayOfWeek)->where('start', $time->format('H:i:00'))->first()->name}}
+                                        </td>
+                                    @elseif($room->bookings->where('weekday', $day->dayOfWeek)->where('end', $time->format('H:i:00'))->count() > 0)
+                                        <td class="border-right border-bottom pt-0 pb-0"
+                                            @if( \Carbon\Carbon::now()->gt(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' '.$time->format('H:i')))) style="background-color: rgba(197,191,191,0.34)" @else @endif
+                                        >
+
+                                        </td>
+
+                                    @elseif($room->hasBooking($day->dayOfWeek, $time->format('H:i:00')))
+
+
+
+                                    @else
+                                        <td class="border-right border-bottom pt-0 pb-0"  @if( \Carbon\Carbon::now()->gt(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' '.$time->format('H:i')))) style="background-color: rgba(197,191,191,0.34)" @else @endif
+
+                                        >
 
                                         </td>
                                     @endif
+
                                 @endfor
                             </tr>
                         @endfor
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
         </div>
     </div>
 @endsection
+

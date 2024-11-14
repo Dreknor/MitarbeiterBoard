@@ -248,6 +248,7 @@ Route::group([
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);
                     Route::delete('booking/{booking}', [RoomController::class, 'deleteBooking']);
                     Route::put('bookings/{booking}', [RoomController::class, 'updateBooking']);
+                    Route::post('import', [RoomController::class, 'import'])->middleware('permission:manage rooms');
 
                 });
 

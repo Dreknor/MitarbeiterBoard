@@ -30,21 +30,21 @@
                         </div>
                         <div class="col-sm-3 col-md-4 col-lg-2">
                             <label>Start</label>
-                            <select name="start" id="start" class="custom-select" required>
-                                <option disabled selected></option>
-                                @for($time = \Carbon\Carbon::createFromTimeString(config('rooms.start_booking')); $time->lessThanOrEqualTo(\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))); $time->addMinutes(15))
-                                    <option value="{{$time->format('H:i')}}"  @if (old('start', $booking->start) == $time->format('H:i:00')) selected @endif>{{$time->format('H:i')}} Uhr</option>
-                                @endfor
-                            </select>
+                            <input type="time"
+                                   name="start" id="start" class="form-control" required
+                                      value="{{old('start', $booking->start)}}"
+                                   min="{{\Carbon\Carbon::createFromTimeString(config('rooms.start_booking'))}}" max="{{\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))->subMinutes(15)}}"
+                            >
+
                         </div>
                         <div class="col-sm-3 col-md-4 col-lg-2">
                             <label>Ende</label>
-                            <select name="end" id="end" class="custom-select" required>
-                                <option disabled selected></option>
-                                @for($time = \Carbon\Carbon::createFromTimeString(config('rooms.start_booking')); $time->lessThanOrEqualTo(\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))); $time->addMinutes(15))
-                                    <option value="{{$time->format('H:i')}}"  @if (old('end', $booking->end) == $time->format('H:i:00')) selected @endif>{{$time->format('H:i')}} Uhr</option>
-                                @endfor
-                            </select>
+                            <input type="time"
+                                   name="end" id="end" class="form-control" required
+                                   value="{{old('end', $booking->end)}}"
+                                   min="{{\Carbon\Carbon::createFromTimeString(config('rooms.start_booking'))->addMinutes(15)}}" max="{{\Carbon\Carbon::createFromTimeString(config('rooms.end_booking'))}}"
+                            >
+
                         </div>
                         <div class="col-sm-12 col-md-9 col-lg-4">
                             <label>Bezeichnung</label>
