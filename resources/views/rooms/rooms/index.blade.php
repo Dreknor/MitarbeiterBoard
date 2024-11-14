@@ -69,9 +69,11 @@
                                             <i class="fa fa-edit"></i>
                                         </a>
                                     @endcan
+                                    <!--
                                     <a href="{{url('rooms/rooms/'.$room->id.'/export')}}" class="btn btn-bg-gradient-x-blue-green btn-sm">
                                         <i class="fa fa-file-export"></i>
                                     </a>
+                                    -->
 
                                     @if($room->bookings->count() == 0)
                                         <button class="btn btn-sm btn-bg-gradient-x-red-pink" type="submit" title="Raum löschen" form="deleteForm_{{$room->id}}">
