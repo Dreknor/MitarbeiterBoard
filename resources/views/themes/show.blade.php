@@ -278,22 +278,25 @@
                                         </b>
                                         <ul class="list-group">
                                             @foreach($theme->tasks->sortByDate('date', 'desc') as $task)
-                                                <li class="list-group-item">
-                                                    @if($task->completed or (get_class($task->taskable) == 'App\Models\Group' and $task->taskUsers->count() == "0"))
-                                                        <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
-                                                    @endif
-
-                                                    {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
-                                                    <p>
-                                                        {{$task->task}}
-                                                        @if($task->taskUsers->count() >0)
-                                                            <small>
-                                                                (noch offen: {{$task->taskUsers->count()}} )
-                                                            </small>
+                                                @if(!is_null($task->taskable))
+                                                    <li class="list-group-item">
+                                                        @if($task->completed or (get_class($task->taskable) == 'App\Models\Group' and $task->taskUsers->count() == "0"))
+                                                            <i class="far fa-check-square text-success " style="font-size: 25px;"></i>
                                                         @endif
-                                                    </p>
 
-                                                </li>
+                                                        {{$task->date->format('d.m.Y')}} - {{optional($task->taskable)->name}}
+                                                        <p>
+                                                            {{$task->task}}
+                                                            @if($task->taskUsers->count() >0)
+                                                                <small>
+                                                                    (noch offen: {{$task->taskUsers->count()}} )
+                                                                </small>
+                                                            @endif
+                                                        </p>
+
+                                                    </li>
+                                                @endif
+
                                             @endforeach
                                         </ul>
                                     </div>
