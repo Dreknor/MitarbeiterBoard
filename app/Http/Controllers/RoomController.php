@@ -333,7 +333,9 @@ class RoomController extends Controller
                 continue;
             }
 
-            $room = $rooms->where('room_number', $pl['raum'])->orWhere('indiware_shortname', $pl['raum'])->first();
+            $room = $rooms->filter(function ($room) use ($pl){
+                return $room->room_number == $pl['raum'] or $room->indiware_shortname == $pl['raum'];
+            })->first();
 
             if ($room == null){
                 continue;
