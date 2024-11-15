@@ -294,24 +294,34 @@ class RoomController extends Controller
          *
          */
 
-        $zeitraster = $xml->parse([
-            'woche' => ['uses' => 'grunddaten.g_schulzeitraster.gszr_zeiten.gszr_zeit[::gszr_woche>woche,::gszr_stunde>stunde]'],
-            'zeit' => ['uses' => 'grunddaten.g_schulzeitraster.gszr_zeiten.gszr_zeit'],
-        ]);
-
-        unset($zeitraster['zeit']['@attributes']);
+        try {
 
 
-        $zeiten = [];
+            $zeitraster = $xml->parse([
+                'woche' => ['uses' => 'grunddaten.g_schulzeitraster.gszr_zeiten.gszr_zeit[::gszr_woche>woche,::gszr_stunde>stunde]'],
+                'zeit' => ['uses' => 'grunddaten.g_schulzeitraster.gszr_zeiten.gszr_zeit'],
+            ]);
 
-        foreach ($zeitraster['zeit'] as $key => $zeit) {
-            $zeiten[] = [
-                'zeit' => $zeit,
-                'woche' => $zeitraster['woche'][$key]['woche'],
-                'stunde' => $zeitraster['woche'][$key]['stunde']
-            ];
+            unset($zeitraster['zeit']['@attributes']);
+
+
+            $zeiten = [];
+
+            foreach ($zeitraster['zeit'] as $key => $zeit) {
+                $zeiten[] = [
+                    'zeit' => $zeit,
+                    'woche' => $zeitraster['woche'][$key]['woche'],
+                    'stunde' => $zeitraster['woche'][$key]['stunde']
+                ];
+            }
+            unset($zeitraster);
+
+        } catch (\Exception $e){
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Fehler beim Importieren - keine Zeitraster gefunden'
+            ]);
         }
-        unset($zeitraster);
 
         /*
          * Vorbereitung der Unterrichtseinheiten
