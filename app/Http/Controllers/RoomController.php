@@ -316,6 +316,7 @@ class RoomController extends Controller
             }
             unset($zeitraster);
 
+
         } catch (\Exception $e){
             return redirect()->back()->with([
                 'type' => 'warning',
@@ -351,7 +352,20 @@ class RoomController extends Controller
                 continue;
             }
 
-            $start = Carbon::parse($zeiten[$pl['stunde']]['zeit']);
+            if (isset($zeiten[$pl['stunde']]['woche'])){
+                $woche = $zeiten[$pl['stunde']]['woche'];
+            } else {
+                $woche = 1;
+            }
+
+            foreach ($zeiten as $zeit){
+                if ($zeit['stunde'] == $pl['stunde']-1 and $zeit['woche'] == $woche){
+                    $start = Carbon::parse($zeit['zeit']);
+                }
+            }
+
+            unset($woche);
+
             $end = $start->copy()->addMinutes(45);
 
             $unterricht_key = array_search($pl['id'], array_column($plan['unterricht'], 'id'));
