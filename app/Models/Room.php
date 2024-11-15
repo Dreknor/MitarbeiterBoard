@@ -20,22 +20,24 @@ class Room extends Model
         return $this->hasMany(RoomBooking::class, 'room_id');
     }
 
-    public function hasBooking($weekday, $time){
+    public function hasBooking($weekday, $time, $week = null, $date = null){
+
         $bookings = Cache::remember('bookings_'.$this->name, 6, function (){
            return $this->bookings;
         });
 
 
-            $booking = $bookings->filter(function ($booking) use ($weekday, $time){
+            $booking = $bookings->filter(function ($booking) use ($weekday, $time, $week, $date){
                 if ($booking->weekday == $weekday){
 
                     $start = Carbon::parse($booking->start);
                     $end =  Carbon::parse($booking->end);
-                    if (Carbon::parse($time)->betweenIncluded($start, $end)){
+                    if (Carbon::parse($time)->betweenIncluded($start, $end) and Carbon::parse($time) != $end and ($booking->week == null or $week == $booking->week)){
                         return $booking;
                     }
                 }
             });
+
 
         return $booking->first();
     }

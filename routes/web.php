@@ -243,6 +243,7 @@ Route::group([
             //Raumplan
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
                     Route::resource('rooms', RoomController::class)->except('create');
+                    Route::get('rooms/{room}/{week?}', [RoomController::class, 'show']);
                     Route::post('bookings', [RoomController::class, 'storeBooking']);
                     Route::get('booking/{booking}', [RoomController::class, 'editBooking']);
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);

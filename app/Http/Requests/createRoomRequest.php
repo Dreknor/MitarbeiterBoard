@@ -37,7 +37,21 @@ class createRoomRequest extends FormRequest
                 'string',
                 'max:10',
                 Rule::unique('rooms')->whereNull('deleted_at')
-            ]
+            ],
+            'week' => [
+                'nullable',
+                Rule::in(['A', 'B'])
+            ],
+            'start' => [
+                'required',
+                'date_format:H:i',
+                'before:end'
+            ],
+            'end' => [
+                'required',
+                'date_format:H:i',
+                'after:start'
+            ],
         ];
     }
 }

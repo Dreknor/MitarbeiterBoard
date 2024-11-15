@@ -9,6 +9,7 @@ use App\Http\Requests\ImportRoomsRequest;
 use App\Models\Room;
 use App\Models\RoomBooking;
 //use Barryvdh\DomPDF\Facade as PDF;
+use App\Models\VertretungsplanWeek;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 use Carbon\Carbon;
@@ -82,7 +83,7 @@ class RoomController extends Controller
      * @param  \App\Models\Room  $room
      * @return View
      */
-    public function show(Room $room, $date = null)
+    public function show(Room $room, $week = null,  $date = null)
     {
 
         if ($date == null){
@@ -91,17 +92,26 @@ class RoomController extends Controller
             $date = Carbon::parse($date);
         }
 
+        if ($week == null){
+            $week = VertretungsplanWeek::query()->where('week', \Carbon\Carbon::now()->startOfWeek())->first()->type;
+        }
+
         $bookings = RoomBooking::query()
             ->where('room_id', $room->id)
             ->where(function ($query) use ($date){
                 $query->whereNull('date');
                 $query->orWhereDate('date', ">=", $date->format('Y-m-d'));
             })
+            ->where(function ($query) use ($week){
+                $query->whereNull('week');
+                $query->orWhere('week', $week);
+            })
             ->get();
 
         return view('rooms.rooms.show', [
             'room' => $room,
-            'bookings' => $bookings
+            'bookings' => $bookings,
+            'week' => $week,
         ]);
     }
 
@@ -335,13 +345,17 @@ class RoomController extends Controller
                 ->where(function ($query) use ($start, $end){
                     $query->whereBetween('start', [$start->format('H:i'), $end->format('H:i')]);
                     $query->orWhereBetween('end', [$start->format('H:i'), $end->format('H:i')]);
-
                 })
+                ->where('week', $pl['woche'])
                 ->count();
 
             if ($vergeben > 0){
                 $fehler[] = 'Raum '.$room->name.' ist bereits belegt: '.$start->format('H:i').' - '.$end->format('H:i').' am Tag '.$pl['tag'];
             } else {
+
+                if ($pl['woche'] != null){
+                    $woche = $pl['woche'] == 1 ? 'A' : 'B';
+                }
 
                 $booking[] = [
                     'weekday' => $pl['tag'],
@@ -350,6 +364,7 @@ class RoomController extends Controller
                     'users_id' => auth()->id(),
                     'room_id' => $room->id,
                     'name' => $plan['unterricht'][$unterricht_key]['fach'] . ' ' . $plan['unterricht'][$unterricht_key]['klasse'],
+                    'week' => isset($woche) ? $woche : null
                 ];
             }
         }
