@@ -52,6 +52,12 @@ class createRoomRequest extends FormRequest
                 'date_format:H:i',
                 'after:start'
             ],
+            'indiware_shortname' => [
+                'nullable',
+                'string',
+                'max:10',
+                Rule::unique('rooms')->whereNull('deleted_at')
+            ]
         ];
     }
 }

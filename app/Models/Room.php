@@ -14,7 +14,7 @@ class Room extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'room_number'];
+    protected $fillable = ['name', 'room_number', 'indiware_shortname'];
 
     public function bookings(){
         return $this->hasMany(RoomBooking::class, 'room_id');

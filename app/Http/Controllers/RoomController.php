@@ -137,7 +137,11 @@ class RoomController extends Controller
      */
     public function update(editRoomRequest $request, Room $room)
     {
-        //
+        $room->update($request->validated());
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Raum wurde aktualisiert'
+        ]);
     }
 
     /**
@@ -267,7 +271,8 @@ class RoomController extends Controller
                 Room::updateOrCreate(
                     [
                         'room_number' => $raum['ra_kurzform'],
-                        'name' => $raum['ra_langform']
+                        'name' => $raum['ra_langform'],
+                        'indiware_shortname' => $raum['ra_kurzform']
                     ],
                     ['deleted_at' => null]
                 );
@@ -275,7 +280,7 @@ class RoomController extends Controller
 
         }
 
-        $rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->get();
+        $rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
 
         if ($request->deletePlan == true){
             foreach ($rooms as $room){
@@ -328,7 +333,7 @@ class RoomController extends Controller
                 continue;
             }
 
-            $room = $rooms->where('room_number', $pl['raum'])->first();
+            $room = $rooms->where('room_number', $pl['raum'])->orWhere('indiware_shortname', $pl['raum'])->first();
 
             if ($room == null){
                 continue;
