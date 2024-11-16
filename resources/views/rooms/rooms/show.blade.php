@@ -21,7 +21,7 @@
                     <div class="form-row">
                         <div class="col-sm-3 col-md-3 col-lg-2">
                             <label>Wochentag</label>
-                            <select name="weekday" id="weekday" class="custom-select" required>
+                            <select name="weekdays[]" id="weekday" class="custom-select" required multiple>
                                 <option disabled selected></option>
                                 @foreach(config('config.days') as $key => $day)
                                     <option value="{{$key}}"  @if (old('weekday') == $key) selected @endif>{{$day}}</option>
@@ -38,8 +38,8 @@
                         </div>
                         <div class="col-sm-3 col-md-2 col-lg-2">
                             <label>Woche</label>
-                            <select name="week" id="week" class="custom-select" required>
-                                <option selected> Jede </option>
+                            <select name="week" id="week" class="custom-select">
+                                <option  selected> Jede </option>
                                 <option value="A" @if (old('week') == 'A') selected @endif>A-Woche</option>
                                 <option value="B" @if (old('week') == 'B') selected @endif>B-Woche</option>
                             </select>

@@ -212,20 +212,38 @@ class RoomController extends Controller
         $start = Carbon::parse($request->start);
         $end = Carbon::parse($request->end);
 
-        for ($x = $start->copy(); $x->lessThanOrEqualTo($end); $x->addMinutes(15)){
-            if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'))){
-                return redirect()->back()->with([
-                   'type' => 'warning',
-                   'Meldung'=> 'Raum ist bereits belegt'
-                ]);
-            }
+        if ($request->week != "A" and $request->week != 'B'){
+            $week = null;
+        } else {
+            $week = $request->week;
         }
 
-        $booking = new RoomBooking($request->validated());
-        $booking->users_id = auth()->id();
-        $booking->save();
+        foreach ($request->weekdays as $weekday){
+            for ($x = $start->copy(); $x->lessThanOrEqualTo($end); $x->addMinutes(15)){
+                if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'), $week)){
+                    return redirect()->back()->with([
+                        'type' => 'warning',
+                        'Meldung'=> 'Raum ist bereits belegt'
+                    ]);
+                }
+            }
+
+            $booking = new RoomBooking([
+                'room_id' => $request->room_id,
+                'weekday' => $weekday,
+                'start' => $start->format('H:i'),
+                'end' => $end->format('H:i'),
+                'week' => $week ?? null,
+                'name' => $request->name,
+                'users_id' => auth()->id(),
+            ]);
+            $booking->save();
+
+        }
+
 
         Cache::forget('bookings_'.$room->name);
+
 
         return redirect()->back()->with([
             'type' => 'success',

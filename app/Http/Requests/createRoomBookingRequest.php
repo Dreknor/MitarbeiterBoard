@@ -28,7 +28,7 @@ class createRoomBookingRequest extends FormRequest
                 'exists:rooms,id',
                 'required'
             ],
-            'weekday' => ['integer', 'min:1', 'max:5', 'required'],
+            'weekdays' => ['array', 'min:1', 'max:5', 'required'],
             'start'  => ['required', 'date_format:H:i', 'before:end'],
             'end'  => ['required', 'date_format:H:i', 'after:start'],
             'name' => ['required', 'string']
