@@ -1,5 +1,10 @@
 <div class="card">
     <div class="card-header bg-gradient-directional-blue text-white">
+        <div class="pull-right ">
+            <a href="#" class="text-white btn btn-link" onclick="disableCard({{$card->id}})">
+                X
+            </a>
+        </div>
         <h5>
             {{$card->title}} (zuletzt bearbeitet)
         </h5>

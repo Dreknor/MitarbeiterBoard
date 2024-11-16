@@ -30,5 +30,6 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.time_recording.dashboardCard', \App\View\Composers\TimeRecordingCardComposer::class);
         View::composer('personal.time_recording.dashboardCardOwn', \App\View\Composers\TimeRecordingCardOwnComposer::class);
         View::composer('vertretungsplan.UserVertretungen', \App\View\Composers\VertretungenComposer::class);
+        View::composer('rooms.rooms.freeRoomsCard', \App\View\Composers\RoomsComposer::class);
     }
 }

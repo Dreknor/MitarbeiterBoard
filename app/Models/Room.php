@@ -54,5 +54,28 @@ class Room extends Model
         );
     }
 
+    public function nextBooking()
+    {
+        $bookings = Cache::remember('bookings_'.$this->name, 6, function (){
+            return $this->bookings->sortBy('start');
+        });
+
+        $week = Cache::remember('vp_week', Carbon::now()->endOfWeek()->diffInSeconds(), function (){
+            return VertretungsplanWeek::where('week', Carbon::now()->startOfWeek())->first();
+        });
+
+        $booking = $bookings->filter(function ($booking) use ($week){
+            if ($booking->weekday == Carbon::now()->dayOfWeek){
+                $start = Carbon::parse($booking->start);
+                $end =  Carbon::parse($booking->end);
+                if ($start->gt(Carbon::now()) and ($booking->week == null or $week->week == $booking->week)) {
+                    return $booking;
+                }
+            }
+        });
+
+        return $booking->first();
+    }
+
 
 }

@@ -342,6 +342,7 @@ Route::group([
 
                 Route::get('/home', [HomeController::class, 'index'])->name('home');
                 Route::get('/', [HomeController::class, 'index']);
+                Route::post('cards/disable', [DashboardController::class, 'disableCard']);
 
                 //Posts
                 Route::resource('posts', PostsController::class);

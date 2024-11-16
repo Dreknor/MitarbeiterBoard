@@ -50,5 +50,19 @@
             });
         });
     </script>
+    <script type="text/javascript">
+        function disableCard (id) {
+            $('#card_' + id).hide();
+            console.log(id);
 
+            $.ajax({
+                url: '{{url('cards/disable')}}',
+                method: 'post',
+                data: {
+                    id: id,
+                    _token: '{{csrf_token()}}'
+                }
+            });
+        }
+    </script>
 @endpush
