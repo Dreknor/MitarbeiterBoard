@@ -65,11 +65,11 @@
             <div class="form-row">
                 <div class="col-md-6 col-sm-12">
                     <label>Von</label>
-                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now())}}" required>
+                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now()->format('Y-m-d'))}}" required>
                 </div>
                 <div class="col-md-6 col-sm-12">
                     <label>Bis</label>
-                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
+                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now()->format('Y-m-d'))}}" required>
                 </div>
             </div>
             <div class="form-row mt-1">
