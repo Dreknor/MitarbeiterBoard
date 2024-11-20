@@ -109,7 +109,7 @@
     </div>
     <div class="card-body">
         @if(isset($absences) and $absences->count() > 0)
-            <table class="table table-striped">
+            <table class="table table-striped" id="absenceTable">
                 <thead>
                     <tr>
                         <th>
@@ -165,4 +165,17 @@
             ev.target.classList.add('d-none')
         })
     </script>
+
+    <script src="//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready( function () {
+            $('#absenceTable').DataTable();
+        } );
+    </script>
+
 @endpush
+
+@section('css')
+    <link href="//cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet" />
+
+@endsection
