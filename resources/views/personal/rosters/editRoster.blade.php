@@ -80,7 +80,10 @@
                             @foreach($employes as $employe)
                                 <div class="card border @if(!$loop->first) border-left-0 @endif">
                                     <div class="card-header border-bottom" style="height: 45px;">
-                                        {{$employe->vorname}}
+                                        @if($employe->geburtstag?->isBirthday($day)) <i class="fa-solid fa-cake-candles"></i> @endif
+                                            {{$employe->vorname}}
+                                        @if($employe->geburtstag?->isBirthday($day)) <i class="fa-solid fa-cake-candles"></i> @endif
+
                                         @if($working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events))
                                             <div @class(['description', 'd-inline', 'pull-right', 'text-danger'])>
                                                 <small>Pause fehlt</small>
