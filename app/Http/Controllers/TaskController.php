@@ -11,6 +11,7 @@ use App\Models\Theme;
 use App\Models\User;
 use App\Notifications\Push;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 
@@ -108,6 +109,8 @@ class TaskController extends Controller
                 ]
             );
         }
+
+        Cache::delete('tasks_'.auth()->id());
 
         if (session()->previousUrl() and session()->previousUrl() != null){
             return redirect()->back();
