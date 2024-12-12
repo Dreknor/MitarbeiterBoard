@@ -23,6 +23,10 @@
                                             {{$room->name}}
                                     </div>
                                     <div class="card-footer bg-light">
+
+                                        <a href="{{url('rooms/rooms/'.$room->id)}}">
+                                            Details
+                                        </a>
                                         @if($room->nextBooking())
                                             <div class="text-warning">
                                                 {{Carbon\Carbon::parse($room->nextBooking()->start)->diffForHumans()}}
@@ -39,6 +43,11 @@
                         Es stehen keine freien Räume zur Verfügung
                     </p>
                 @endif
+            </div>
+            <div class="card-footer border-top">
+                <a href="{{url('rooms/rooms')}}" class="btn btn-block btn-bg-gradient-x-blue-green">
+                    Alle Räume
+                </a>
             </div>
         </div>
     </div>
