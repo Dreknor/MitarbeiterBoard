@@ -3,7 +3,7 @@
 @section('content')
     <div class="container-fluid">
         <div class="row">
-            <div class="col-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title">
@@ -54,12 +54,22 @@
                             </div>
 
                             <div class="form-row mt-1">
-                                <label for="viewType">Ansicht?</label>
-                                <select name="viewType" id="viewType" class="custom-select">
-                                    <option value="date"  selected >nach Datum</option>
-                                    <option value="priority" >Priorität</option>
-                                    <option value="type" >Themen-Typ</option>
-                                </select>
+                                <div class="col-sm-12 col-md-6">
+                                    <label for="viewType">Ansicht?</label>
+                                    <select name="viewType" id="viewType" class="custom-select">
+                                        <option value="date"  selected >nach Datum</option>
+                                        <option value="priority" >Priorität</option>
+                                        <option value="type" >Themen-Typ</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-12 col-md-6">
+                                    <label for="stack_themes">alte Themen stapeln</label>
+                                    <select name="stack_themes" id="stack_themes" class="custom-select">
+                                        <option value="1" >Ja</option>
+                                        <option value="0" selected>Nein</option>
+                                    </select>
+                                </div>
+
                             </div>
                             <div class="form-row mt-1">
                                 <label for="hasWochenplan">Wochenplan?</label>

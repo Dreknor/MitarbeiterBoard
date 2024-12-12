@@ -160,9 +160,18 @@ class ThemeController extends Controller
 
         switch ($viewType) {
             case 'date':
+                if ($group->stack_themes == true) {
+
+                    $themes = $themes->sortBy('date')->groupBy(function ($item) {
+                        return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('d.m.Y');
+                    });
+
+
+                } else {
                     $themes = $themes->sortBy('date')->groupBy(function ($item) {
                         return  $item->date->format('d.m.Y');
                     });
+                }
                 break;
             case 'type':
                 $themes = $themes->sortBy('date')->groupBy(function ($item) {

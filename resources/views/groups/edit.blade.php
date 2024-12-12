@@ -59,12 +59,21 @@
                     </div>
 
                     <div class="form-row mt-1">
-                        <label for="viewType">Ansicht?</label>
-                        <select name="viewType" id="viewType" class="custom-select">
-                            <option value="date" @if($gruppe->viewType == 'date') selected @endif>nach Datum</option>
-                            <option value="priority" @if(!$gruppe->viewType == 'priority') selected @endif>Priorität</option>
-                            <option value="type" @if(!$gruppe->viewType == 'type') selected @endif>Themen-Typ</option>
-                        </select>
+                        <div class="col-sm-12 col-md-6">
+                            <label for="viewType">Ansicht?</label>
+                            <select name="viewType" id="viewType" class="custom-select">
+                                <option value="date" @if($gruppe->viewType == 'date') selected @endif>nach Datum</option>
+                                <option value="priority" @if(!$gruppe->viewType == 'priority') selected @endif>Priorität</option>
+                                <option value="type" @if(!$gruppe->viewType == 'type') selected @endif>Themen-Typ</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-12 col-md-6">
+                            <label for="stack_themes">alte Themen stapeln</label>
+                            <select name="stack_themes" id="stack_themes" class="custom-select">
+                                <option value="1" @if($gruppe->stack_themes) selected @endif>Ja</option>
+                                <option value="0" @if(!$gruppe->stack_themes) selected @endif>Nein</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-row mt-1">
                         <label for="hasWochenplan">Wochenplan?</label>

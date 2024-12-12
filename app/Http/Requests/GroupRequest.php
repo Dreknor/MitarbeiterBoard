@@ -42,6 +42,7 @@ class GroupRequest extends FormRequest
                 'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
                 'information_template' => ['nullable', 'string'],
                 'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
+                'stack_themes' => ['nullable', 'boolean'],
 
             ];
         } else {
@@ -54,6 +55,7 @@ class GroupRequest extends FormRequest
                 'viewType'  => ['nullable', Rule::in(['date', 'type', 'priority'])],
                 'information_template' => ['nullable', 'string'],
                 'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
+                'stack_themes' => ['nullable', 'boolean'],
             ];
         }
     }

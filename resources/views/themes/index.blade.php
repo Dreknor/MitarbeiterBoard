@@ -27,7 +27,7 @@
             </div>
         @else
             @foreach($themes as $day => $dayThemes)
-                        <div class="card" id="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" >
+                        <div class="card" id="@if($day != 'offen') {{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}} @else 'offeneThemen @endif" >
                             <div class="card-header bg-gradient-directional-blue-grey text-white">
                                 <div class="row">
                                     <div class="col-sm-12 col-md-8">
@@ -35,25 +35,30 @@
                                             {{$day}}
                                         </h5>
 
-                                        <p class="small">
-                                            Dauer: {{$dayThemes->sum('duration')}} Minuten
-                                        </p>
+                                        @if($day != 'offen')
+                                            <p class="small">
+                                                Dauer: {{$dayThemes->sum('duration')}} Minuten
+                                            </p>
+                                        @endif
+
                                     </div>
                                     <div class="col-sm-12 col-md-4 pull-right">
                                         @can('move themes')
-                                            <div class="pull-right">
-                                                <a href="#" title="Alle Themen verschieben" class="changeDateLink" id="link_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
-                                                    <i class="fa fa-calendar-day"></i>
-                                                </a>
-                                                <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
-                                                    <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
-                                                        @csrf
-                                                        <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')}}">
-                                                        <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
-                                                        <button type="submit" class="btn btn-sm btn-success">verschieben</button>
-                                                    </form>
+                                            @if($day != 'offen')
+                                                <div class="pull-right">
+                                                    <a href="#" title="Alle Themen verschieben" class="changeDateLink" id="link_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                                                        <i class="fa fa-calendar-day"></i>
+                                                    </a>
+                                                    <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                                                        <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
+                                                            @csrf
+                                                            <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')}}">
+                                                            <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
+                                                            <button type="submit" class="btn btn-sm btn-success">verschieben</button>
+                                                        </form>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            @endif
                                         @endcan
                                     </div>
                                 </div>
@@ -80,7 +85,8 @@
                                         </tr>
                                         </thead>
                                         <tbody class="connectedSortable" >
-                                        <tr class="@if(isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() > 0 ) bg-gradient-directional-success @endif">
+                                        @if($day != 'offen')
+                                            <tr class="@if(isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() > 0 ) bg-gradient-directional-success @endif">
                                             <td>
                                                 System
                                             </td>
@@ -102,7 +108,7 @@
                                             <td>
                                                 @if(\Carbon\Carbon::createFromFormat('d.m.Y', $day)->isSameDay(\Carbon\Carbon::now()) and isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() == null )
                                                     <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
-                                                       <i class="far fa-edit"></i> erstellen
+                                                        <i class="far fa-edit"></i> erstellen
                                                     </a>
                                                 @else
                                                     <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
@@ -112,6 +118,7 @@
 
                                             </td>
                                         </tr>
+                                        @endif
                                         @foreach($dayThemes->sortByDesc('priority') as $theme)
                                             <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
                                                 <td class="align-content-center">
@@ -145,7 +152,7 @@
                                                             <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
                                                         </div>
                                                     @else
-                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="@if($day != 'offen'){{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}} @endif">
                                                     @endif
                                                 </td>
                                                 <td>

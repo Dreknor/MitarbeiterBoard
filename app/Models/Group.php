@@ -15,15 +15,16 @@ class Group extends Model
 {
     use HasRelationships;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
 
     protected $casts = [
         'protected' => 'boolean',
         'hasWochenplan' => 'boolean',
         'needsRoster' => 'boolean',
         'hasAllocations' => 'boolean',
-        'enddate'  => 'date'
+        'enddate'  => 'date',
+        'stack_themes' => 'boolean',
     ];
 
     public function users()
