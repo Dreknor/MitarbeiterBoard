@@ -65,7 +65,7 @@
                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
                         <div class="dropdown">
                                 <a class="dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    Verschieben
+                                    Verschieben zum
                                 </a>
                                 <div class="dropdown-menu text-center" aria-labelledby="dropdownMoveButton">
                                     <span class="dropdown-item bg-gradient-radial-blue-grey text-white">Verschieben zum</span>
