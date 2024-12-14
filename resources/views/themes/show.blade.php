@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+    <div class="floating-timer" id="timer">
+       <span id="duration"></span>
+    </div>
     <div class="container-fluid" id="top">
         <div class="floating-button-menu menu-off">
             <div class="floating-button-menu-links">
@@ -60,14 +63,17 @@
                     </a>
                 @endif
                     @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
+                        <div class="dropdown">
                                 <a class="dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     Verschieben
                                 </a>
                                 <div class="dropdown-menu text-center" aria-labelledby="dropdownMoveButton">
-                                    @for($x=0; $x<4; $x++)
-                                        <a class="dropdown-item bg-info" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('d.m.Y')}}</a>
+                                    <span class="dropdown-item bg-gradient-radial-blue-grey text-white">Verschieben zum</span>
+                                    @for($x=0; $x<8; $x++)
+                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('d.m.Y')}}</a>
                                     @endfor
                                 </div>
+                        </div>
                     @endif
                     @if (!$theme->completed)
                         <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}">
@@ -81,14 +87,15 @@
                         </a>
                         @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
                                 <div class="dropdown">
-                                    <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <a class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         @if($theme->zugewiesen_an != null)
                                             zugewiesen: {{$theme->zugewiesen_an->name}}
                                         @else
                                             Zuweisen an
                                         @endif
-                                    </button>
+                                    </a>
                                     <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                        <span class="dropdown-item bg-gradient-directional-amber text-white">Zuweisen an</span>
                                         @foreach($theme->group->users as $user)
                                             @if($theme->zugewiesen_an == null or $theme->zugewiesen_an->id != $user->id )
                                                 <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/assign/'.$user->id)}}">{{$user->name}}</a>
@@ -102,7 +109,8 @@
                                     <a class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         In andere Gruppe verschieben
                                     </a>
-                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                    <div class="dropdown-menu  text-center" aria-labelledby="dropdownMenuButton">
+                                        <span class="dropdown-item bg-gradient-radial-blue-grey text-white">Verschieben nach</span>
                                         @foreach(auth()->user()->groups() as $group)
                                             @if($theme->group_id !=  $group->id )
                                                 <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/change/group/'.$group->id)}}">{{$group->name}}</a>
@@ -119,10 +127,6 @@
                             </form>
                         @endif
                     @endif
-
-
-                <a href="#four">link four</a>
-
             </div>
             <div class="floating-button-menu-label"><i class="fa fa-bars"></i></div>
         </div>
@@ -133,11 +137,10 @@
 
             </p>
 
-        <div class="sticky-top">
             <div class="card">
                 <div class="card-header">
                 <div class="row">
-                    <div class="col-lg-auto col-md-12 col-sm-12">
+                    <div class="col-lg-auto col-md-8 col-sm-12">
                         @if($theme->zugewiesen_an != null) <div class="badge bg-gradient-directional-amber p-2">{{$theme->zugewiesen_an->name}}</div> @endif
                             <h5 class="card-title">
                                 {{$theme->theme}}
@@ -146,7 +149,6 @@
                 </div>
             </div>
             </div>
-        </div>
         <div class="card">
             <div class="card-body border-top collapse hide" id="shareForm">
                 <form method="post" action="{{url('share/'.$theme->id)}}" class="form-horizontal">
@@ -510,6 +512,49 @@
 @push('js')
 
     <script>
+        function makeTimer() {
+
+            let outline =''
+            var endTime = new Date("{{\Carbon\Carbon::now()->addMinutes($theme->duration)->format('Y-m-d H:i:s')}}");
+            endTime = (Date.parse(endTime) / 1000);
+
+            var now = new Date();
+            now = (Date.parse(now) / 1000);
+
+            var timeLeft = endTime - now;
+            var out = "";
+
+            if (timeLeft > 0){
+                var hours = Math.floor((timeLeft) / 3600);
+                var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
+                var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
+
+
+            } else {
+                timeLeft = now - endTime;
+                var hours = Math.floor((timeLeft) / 3600);
+                var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
+                var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
+
+                out = "-";
+
+                if(!$("#timer").hasClass("btn-outline-danger")){
+                    $("#timer").addClass("btn-outline-danger");
+                    $("#timer").addClass("floating-timer-sub");
+                }
+            }
+
+
+            if (hours < "10") { hours = "0" + hours; }
+            if (minutes < "10") { minutes = "0" + minutes; }
+            if (seconds < "10") { seconds = "0" + seconds; }
+            $('#duration').html(out + hours + ":" + minutes + ":" + seconds);
+        }
+
+        setInterval(function() { makeTimer(); }, 1000);
+    </script>
+
+    <script>
         $('#shareBtn').on("click", function() {
             $('#shareForm').toggle();
         });
@@ -584,4 +629,6 @@
 
 @push('css')
     <link href="{{asset('css/floating_menu.css')}}" rel="stylesheet">
+    <link href="{{asset('css/timer.css')}}" media="all" rel="stylesheet" type="text/css" />
+
 @endpush
