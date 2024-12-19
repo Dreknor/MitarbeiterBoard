@@ -80,10 +80,10 @@ bg-sub-dropdown {
     height: 100%;
     opacity: 1;
     transition: all ease-in-out 0.2s;
+    overflow: visible;
 }
 .floating-button-menu.menu-on .floating-button-menu-label {
     height: 0px;
-    overflow: hidden;
 }
 
 .floating-button-menu-close {
@@ -97,11 +97,24 @@ bg-sub-dropdown {
     height: 100%;
     background: rgba(0, 0, 0, 0.1);
 }
-.dropdown-menu{
-    width: 100px;
-    display: none;
-    padding: 50px;
-    background-color: black;
-    z-index: 2000;
-    position: absolute;
+.floating-button-menu-links > .dropdown {
+    width: 100%;
+    padding: 0;
+    overflow: visible;
+}
+
+.floating-button-menu-links > .dropdown > .dropdown-menu {
+    display: block;
+    color: #fff;
+    right: 0;
+    overflow: visible;
+}
+
+.floating-button-menu-links > .dropdown > .dropdown-menu > .dropdown-item {
+    display: block;
+    padding: 10px 20px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+    overflow: visible;
+
 }
