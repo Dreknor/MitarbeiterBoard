@@ -65,11 +65,11 @@
             <div class="form-row">
                 <div class="col-md-6 col-sm-12">
                     <label>Von</label>
-                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now())}}" required>
+                    <input type="date" name="start" class="form-control" value="{{old('start', \Carbon\Carbon::now()->format('Y-m-d'))}}" required>
                 </div>
                 <div class="col-md-6 col-sm-12">
                     <label>Bis</label>
-                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now())}}" required>
+                    <input type="date" name="end" class="form-control" value="{{old('end', \Carbon\Carbon::now()->format('Y-m-d'))}}" required>
                 </div>
             </div>
             <div class="form-row mt-1">
@@ -109,7 +109,7 @@
     </div>
     <div class="card-body">
         @if(isset($absences) and $absences->count() > 0)
-            <table class="table table-striped">
+            <table class="table table-striped" id="absenceTable">
                 <thead>
                     <tr>
                         <th>
@@ -165,4 +165,20 @@
             ev.target.classList.add('d-none')
         })
     </script>
+
+    <script src="//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready( function () {
+            $('#absenceTable').DataTable({
+                ordering: false
+            });
+        } );
+    </script>
+
+@endpush
+
+@push('css')
+    <link href="//cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap4.css" />
+
 @endpush

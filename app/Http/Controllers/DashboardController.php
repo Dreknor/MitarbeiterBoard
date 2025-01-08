@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DashboardCard;
 use App\Models\DashBoardUser;
 use Illuminate\Http\Request;
 
@@ -50,5 +51,15 @@ class DashboardController extends Controller
         $dashBoardUser->save();
 
         return redirect()->back();
+    }
+
+    public function disableCard(Request $request){
+        $card = DashBoardUser::where('id', $request->id)->first();
+        if ($card and $card->user_id == auth()->id()){
+            $card->active = false;
+            $card->save();
+        }
+
+        return response()->json(['success' => true]);
     }
 }

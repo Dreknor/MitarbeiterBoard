@@ -13,7 +13,7 @@ class RoomBooking extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'weekday', 'date', 'start', 'end', 'room_id', 'users_id', 'name'
+        'weekday', 'date', 'start', 'end', 'room_id', 'users_id', 'name', 'week'
     ];
 
     public function room(){
@@ -22,5 +22,9 @@ class RoomBooking extends Model
 
     public function getDurationAttribute(){
         return Carbon::parse($this->start)->diffInMinutes(Carbon::parse($this->end));
+    }
+
+    public function getDateAttribute($value){
+        return Carbon::parse($value)->format('Y-m-d');
     }
 }

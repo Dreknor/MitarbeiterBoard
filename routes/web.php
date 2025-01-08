@@ -243,11 +243,13 @@ Route::group([
             //Raumplan
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
                     Route::resource('rooms', RoomController::class)->except('create');
+                    Route::get('rooms/{room}/{week?}', [RoomController::class, 'show']);
                     Route::post('bookings', [RoomController::class, 'storeBooking']);
                     Route::get('booking/{booking}', [RoomController::class, 'editBooking']);
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);
                     Route::delete('booking/{booking}', [RoomController::class, 'deleteBooking']);
                     Route::put('bookings/{booking}', [RoomController::class, 'updateBooking']);
+                    Route::post('import', [RoomController::class, 'import'])->middleware('permission:manage rooms');
 
                 });
 
@@ -340,6 +342,7 @@ Route::group([
 
                 Route::get('/home', [HomeController::class, 'index'])->name('home');
                 Route::get('/', [HomeController::class, 'index']);
+                Route::post('cards/disable', [DashboardController::class, 'disableCard']);
 
                 //Posts
                 Route::resource('posts', PostsController::class);

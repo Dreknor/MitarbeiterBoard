@@ -1,154 +1,118 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="floating-timer" id="timer">
-       <span id="duration"></span>
-    </div>
-    <div class="container-fluid" id="top">
-        <div class="floating-button-menu menu-off">
-            <div class="floating-button-menu-links">
-                @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme') or (!$theme->group->proteced and auth()->user()->groups()->contains($theme->group))) and !$theme->completed)
-                    <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="bg-danger text-light">
-                        <i class="fas fa-lock"></i>
-                        <span>
-                            Abschließen
-                        </span>
-                    </a>
-                @endif
-                @can('share theme')
-                    @if($theme->share == null)
-                        <a  href="#top" id="shareBtn" class="">
-                            <i class="fas fa-share-alt"></i>
-                            <span>
-                                    freigeben
-                                </span>
-                        </a>
-                    @else
-                        <form method="post" action="{{url('share/'.$theme->id)}}" class="border p-1 bg-warning">
-                            @csrf
-                            @method('delete')
-                            <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
-                            <button type="submit" class="btn-link" href="{{url('/share/')}}">
-                                <i class="fas fa-share-alt"></i>
-                                Freigabe entfernen
-                            </button>
-                        </form>
-                    @endif
-                @endcan
-                <a href="{{url(request()->segment(1)."/memory/$theme->id")}}">
-                    <i class="fas fa-memory"></i>
-                    <span>
-                        in Speicher
-                    </span>
-                </a>
-                <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}">
-                    <i class="fas fa-pen"></i>
-                    <span>
-                        Bearbeiten
-                    </span>
-                </a>
-                @if($subscription == null)
-                    <a href="{{url("subscription/theme/$theme->id/")}}" >
-                        <i class="far fa-bell"></i>
-                        <span>
-                            Abonnieren
-                        </span>
-                    </a>
-                @else
-                    <a href="{{url("subscription/theme/$theme->id/remove")}}">
-                        <i class="fas fa-bell"></i>
-                        <span>
-                            Abo beenden
-                        </span>
-                    </a>
-                @endif
-                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
-                        <div class="dropdown">
-                                <a class="dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    Verschieben zum
-                                </a>
-                                <div class="dropdown-menu text-center" aria-labelledby="dropdownMoveButton">
-                                    <span class="dropdown-item bg-gradient-radial-blue-grey text-white">Verschieben zum</span>
-                                    @for($x=0; $x<8; $x++)
-                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('d.m.Y')}}</a>
-                                    @endfor
-                                </div>
-                        </div>
-                    @endif
-                    @if (!$theme->completed)
-                        <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}">
-                            ausführliches Protokoll anlegen
-                        </a>
-                        <a type="button" data-toggle="modal" data-target="#taskModal">
-                            Aufgabe erstellen
-                        </a>
-                        <a href="{{url($theme->group->name.'/themes/'.$theme->id.'/survey/create')}}">
-                                Umfrage erstellen
-                        </a>
-                        @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
-                                <div class="dropdown">
-                                    <a class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        @if($theme->zugewiesen_an != null)
-                                            zugewiesen: {{$theme->zugewiesen_an->name}}
-                                        @else
-                                            Zuweisen an
-                                        @endif
-                                    </a>
-                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                        <span class="dropdown-item bg-gradient-directional-amber text-white">Zuweisen an</span>
-                                        @foreach($theme->group->users as $user)
-                                            @if($theme->zugewiesen_an == null or $theme->zugewiesen_an->id != $user->id )
-                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/assign/'.$user->id)}}">{{$user->name}}</a>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                </div>
-                        @endif
-                        @can('move themes')
-                                <div class="dropdown">
-                                    <a class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        In andere Gruppe verschieben
-                                    </a>
-                                    <div class="dropdown-menu  text-center" aria-labelledby="dropdownMenuButton">
-                                        <span class="dropdown-item bg-gradient-radial-blue-grey text-white">Verschieben nach</span>
-                                        @foreach(auth()->user()->groups() as $group)
-                                            @if($theme->group_id !=  $group->id )
-                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/change/group/'.$group->id)}}">{{$group->name}}</a>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                </div>
-                        @endcan
-                        @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
-                            <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger">LÖSCHEN</button>
-                            </form>
-                        @endif
-                    @endif
-            </div>
-            <div class="floating-button-menu-label"><i class="fa fa-bars"></i></div>
-        </div>
-        <div class="floating-button-menu-close"></div>
-
+    <div class="container-fluid">
             <p>
                 <a href="{{url(request()->segment(1).'/themes#'.$theme->id)}}" class="btn btn-primary btn-link">zurück</a>
 
             </p>
 
+        <div class="sticky-top">
             <div class="card">
                 <div class="card-header">
                 <div class="row">
-                    <div class="col-lg-auto col-md-8 col-sm-12">
+                    <div class="col-lg-auto col-md-12 col-sm-12">
                         @if($theme->zugewiesen_an != null) <div class="badge bg-gradient-directional-amber p-2">{{$theme->zugewiesen_an->name}}</div> @endif
                             <h5 class="card-title">
                                 {{$theme->theme}}
                             </h5>
                     </div>
+                    <div class="col"></div>
+                    <div class="col-lg-auto col-md-12 col-sm-12">
+                        <div class="pull-right">
+                            <div class="row">
+                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('create themes')) and !$theme->completed)
+                                        <div class="col-auto">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-default dropdown-toggle" type="button" id="dropdownMoveButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    Verschieben
+                                                </button>
+                                                <div class="dropdown-menu" aria-labelledby="dropdownMoveButton">
+
+                                                    @for($x=0; $x<10; $x++)
+                                                        <a class="dropdown-item" href="{{url(request()->segment(1).'/move/theme/'.$theme->id.'/'.\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('Y-m-d').'/true')}}">{{\Carbon\Carbon::now()->next($group->weekday_name())->addWeeks($x)->format('d.m.Y')}}</a>
+                                                    @endfor
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <a href="{{url(request()->segment(1)."/themes/$theme->id/edit")}}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-pen"></i>
+                                                <div class="d-none d-md-none d-lg-inline-block">
+                                                    Bearbeiten
+                                                </div>
+                                            </a>
+                                        </div>
+                                        <div class="col-auto">
+                                            <a href="{{url(request()->segment(1)."/memory/$theme->id")}}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-memory"></i>
+                                                <div class="d-none d-md-none d-lg-inline-block">
+                                                    in Speicher
+                                                </div>
+                                            </a>
+                                        </div>
+                                    @endif
+                                    @if (($theme->creator_id == auth()->id() or auth()->user()->can('complete theme') or (!$theme->group->proteced and auth()->user()->groups()->contains($theme->group))) and !$theme->completed)
+                                        <div class="col-auto">
+                                            <a href="{{url(request()->segment(1)."/themes/$theme->id/close")}}" class="btn btn-sm btn-outline-danger pull-right">
+                                                <i class="fas fa-lock"></i>
+                                                <div class="d-none d-md-none d-lg-inline-block">
+                                                    Abschließen
+                                                </div>
+                                            </a>
+                                        </div>
+
+                                            @can('share theme')
+                                                @if($theme->share == null)
+                                                    <div class="col-auto">
+                                                        <a class="btn btn-sm btn-outline-warning pull-right" href="#" id="shareBtn">
+                                                            <i class="fas fa-share-alt"></i>
+                                                            <div class="d-none d-md-none d-lg-inline-block">
+                                                                freigeben
+                                                            </div>
+                                                        </a>
+                                                    </div>
+                                                @else
+                                                    <div class="col-auto">
+                                                        <form method="post" action="{{url('share/'.$theme->id)}}" >
+                                                            @csrf
+                                                            @method('delete')
+                                                            <input type="hidden" name="theme" value="{{base64_encode($theme->id)}}">
+                                                            <button type="submit" class="btn btn-sm btn-warning p-2 pull-right" href="{{url('/share/')}}">
+                                                                <i class="fas fa-share-alt"></i>
+                                                                Freigabe entfernen
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                @endif
+                                            @endcan
+
+                                            <div class="col-auto">
+                                                @if($subscription == null)
+                                                    <a href="{{url("subscription/theme/$theme->id/")}}" class="btn btn-sm btn-outline-info">
+                                                        <i class="far fa-bell"></i>
+                                                        <div class="d-none d-md-none d-lg-inline-block">
+                                                            Abonnieren
+                                                        </div>
+                                                    </a>
+                                                @else
+                                                    <a href="{{url("subscription/theme/$theme->id/remove")}}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-bell"></i>
+                                                        <div class="d-none d-md-none d-lg-inline-block">
+                                                            Abo beenden
+                                                        </div>
+                                                    </a>
+                                                @endif
+                                            </div>
+                                    @endif
+
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             </div>
+        </div>
         <div class="card">
             <div class="card-body border-top collapse hide" id="shareForm">
                 <form method="post" action="{{url('share/'.$theme->id)}}" class="form-horizontal">
@@ -373,7 +337,64 @@
 
             <div class="card-body border-top">
                 <div class="row p-2">
-
+                    @if (!$theme->completed)
+                        <div class="col">
+                            <a href="{{url(request()->segment(1).'/protocols/'.$theme->id)}}" class="btn btn-primary btn-block">ausführliches Protokoll anlegen</a>
+                        </div>
+                        <div class="col">
+                            <button type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#taskModal">
+                                Aufgabe erstellen
+                            </button>
+                        </div>
+                        <div class="col">
+                            <a href="{{url($theme->group->name.'/themes/'.$theme->id.'/survey/create')}}" class="btn btn-bg-gradient-x-blue-cyan btn-block">
+                                Umfrage erstellen
+                            </a>
+                        </div>
+                        @if($theme->group->hasAllocations and auth()->user()->groups_rel->contains($theme->group))
+                            <div class="col">
+                                <div class="dropdown">
+                                    <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        @if($theme->zugewiesen_an != null)
+                                            zugewiesen: {{$theme->zugewiesen_an->name}}
+                                        @else
+                                            Zuweisen an
+                                        @endif
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                        @foreach($theme->group->users as $user)
+                                            @if($theme->zugewiesen_an == null or $theme->zugewiesen_an->id != $user->id )
+                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/assign/'.$user->id)}}">{{$user->name}}</a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                        @can('move themes')
+                            <div class="col">
+                                <div class="dropdown">
+                                    <button class="btn btn-bg-gradient-x-orange-yellow pull-right dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        In andere Gruppe verschieben
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                        @foreach(auth()->user()->groups() as $group)
+                                            @if($theme->group_id !=  $group->id )
+                                                <a class="dropdown-item" href="{{url('theme/'.$theme->id.'/change/group/'.$group->id)}}">{{$group->name}}</a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endcan
+                        @if($theme->creator_id == auth()->user()->id and $theme->protocols->count() == 0 and $theme->priority == null and $theme->date->startOfDay()->greaterThan(\Carbon\Carbon::now()->startOfDay()))
+                            <form action="{{url(request()->segment(1).'/themes/'.$theme->id)}}" method="post">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger">LÖSCHEN</button>
+                            </form>
+                        @endif
+                    @endif
                 </div>
             </div>
             @if (!$theme->completed)
@@ -512,49 +533,6 @@
 @push('js')
 
     <script>
-        function makeTimer() {
-
-            let outline =''
-            var endTime = new Date("{{\Carbon\Carbon::now()->addMinutes($theme->duration)->format('Y-m-d H:i:s')}}");
-            endTime = (Date.parse(endTime) / 1000);
-
-            var now = new Date();
-            now = (Date.parse(now) / 1000);
-
-            var timeLeft = endTime - now;
-            var out = "";
-
-            if (timeLeft > 0){
-                var hours = Math.floor((timeLeft) / 3600);
-                var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
-                var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
-
-
-            } else {
-                timeLeft = now - endTime;
-                var hours = Math.floor((timeLeft) / 3600);
-                var minutes = Math.floor((timeLeft - (hours * 3600 )) / 60);
-                var seconds = Math.floor((timeLeft  - (hours * 3600) - (minutes * 60)));
-
-                out = "-";
-
-                if(!$("#timer").hasClass("btn-outline-danger")){
-                    $("#timer").addClass("btn-outline-danger");
-                    $("#timer").addClass("floating-timer-sub");
-                }
-            }
-
-
-            if (hours < "10") { hours = "0" + hours; }
-            if (minutes < "10") { minutes = "0" + minutes; }
-            if (seconds < "10") { seconds = "0" + seconds; }
-            $('#duration').html(out + hours + ":" + minutes + ":" + seconds);
-        }
-
-        setInterval(function() { makeTimer(); }, 1000);
-    </script>
-
-    <script>
         $('#shareBtn').on("click", function() {
             $('#shareForm').toggle();
         });
@@ -605,30 +583,5 @@
             }
         });
     </script>
-
-
-
-    <script>
-        $( ".menu-off" ).click(function() {
-            $( this ).removeClass( "menu-off" );
-            $( this ).addClass( "menu-on" );
-            $('.floating-button-menu-close').addClass('menu-on');
-        });
-        $('.floating-button-menu-close').click(function(){
-            $( this ).addClass( "menu-off" );
-            $( this ).removeClass( "menu-on" );
-            $('.floating-button-menu').toggleClass('menu-on');
-        });
-
-
-
-    </script>
-
-
 @endpush
 
-@push('css')
-    <link href="{{asset('css/floating_menu.css')}}" rel="stylesheet">
-    <link href="{{asset('css/timer.css')}}" media="all" rel="stylesheet" type="text/css" />
-
-@endpush

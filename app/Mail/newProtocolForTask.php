@@ -7,7 +7,10 @@ use App\Models\Theme;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Mail\Mailables\Address;
+use Illuminate\Mail\Mailables\Envelope;
 
 class newProtocolForTask extends Mailable
 {
@@ -33,19 +36,28 @@ class newProtocolForTask extends Mailable
         $this->protocol = $protocol->protocol;
     }
 
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
-    public function build()
+    public function envelope(): Envelope
     {
-        return $this->subject('neues Protokoll')->view('mails.newProtocolForTask', [
-            'name' =>$this->name,
-            'theme' =>$this,
-            'theme_id' =>$this->theme_id,
-            'groupname' => $this->groupname,
-            'protocol' => $this->protocol
-        ]);
+        return new Envelope(
+            replyTo: new Address($this->protocol->user->email,$this->protocol->user->name),
+            subject: 'Neues Protokoll für Thema: ' . $this->theme,
+        );
     }
+
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'mails.newProtocolForTask',
+            with: [
+                'name' =>$this->name,
+                'theme' =>$this,
+                'theme_id' =>$this->theme_id,
+                'groupname' => $this->groupname,
+                'protocol' => $this->protocol
+            ]
+        );
+    }
+
+
 }

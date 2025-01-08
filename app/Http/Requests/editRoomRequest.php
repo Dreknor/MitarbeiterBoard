@@ -37,7 +37,13 @@ class editRoomRequest extends FormRequest
                 'string',
                 'max:10',
                 Rule::unique('rooms')->whereNull('deleted_at')->ignore($this->room)
-            ]
+            ],
+            'indiware_shortname' => [
+                'nullable',
+                'string',
+                'max:10',
+                Rule::unique('rooms')->whereNull('deleted_at')->ignore($this->room)
+            ],
         ];
     }
 }

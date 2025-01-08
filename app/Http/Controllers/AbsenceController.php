@@ -8,14 +8,25 @@ use App\Mail\DailyAbsenceReport;
 use App\Mail\NewAbsenceMail;
 use App\Models\Absence;
 use App\Models\User;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Redirector;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 
+/**
+ *
+ */
 class AbsenceController extends Controller
 {
+    /**
+     * @return Application|Factory|View|\Illuminate\Foundation\Application|RedirectResponse|Redirector
+     */
     public function index() {
         if (!auth()->user()->can('view old absences')){
             return redirect(url('/'))->with([
@@ -30,6 +41,11 @@ class AbsenceController extends Controller
             'absences' => $absences
         ]);
     }
+
+    /**
+     * @param CreateAbsenceRequest $request
+     * @return RedirectResponse
+     */
     public function store(CreateAbsenceRequest $request){
 
         $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())
@@ -64,6 +80,10 @@ class AbsenceController extends Controller
         ]);
     }
 
+    /**
+     * @param $type
+     * @return RedirectResponse
+     */
     public function abo($type){
         $user = auth()->user();
         if ($type == 'daily'){
@@ -83,6 +103,9 @@ class AbsenceController extends Controller
         return redirect()->back();
     }
 
+    /**
+     * @return void
+     */
     public function dailyReport(){
 
         $absences = Absence::where('start', '<=', Carbon::now()->format('Y-m-d'))
@@ -106,6 +129,10 @@ class AbsenceController extends Controller
         }
     }
 
+    /**
+     * @param Absence $absence
+     * @return RedirectResponse
+     */
     public function delete(Absence $absence){
         if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id)){
             if ($absence->end->greaterThan(Carbon::today()->startOfDay())){
@@ -129,6 +156,9 @@ class AbsenceController extends Controller
         ]);
     }
 
+    /**
+     * @return RedirectResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+     */
     public function export (){
         if (!auth()->user()->can('export absence')){
             return redirect()->back()->with([
@@ -141,6 +171,9 @@ class AbsenceController extends Controller
 
     }
 
+    /**
+     * @return Application|Factory|View|\Illuminate\Foundation\Application|RedirectResponse|Redirector
+     */
     public function sick_notes_index() {
         if (!auth()->user()->can('manage sick_notes')){
             return redirect(url('/'))->with([
@@ -194,6 +227,10 @@ class AbsenceController extends Controller
         ]);
     }
 
+    /**
+     * @param Absence $absence
+     * @return Application|\Illuminate\Foundation\Application|RedirectResponse|Redirector
+     */
     public function sick_notes_update(Absence $absence) {
         if (!auth()->user()->can('manage sick_notes')){
             return redirect(url('/'))->with([
@@ -212,6 +249,10 @@ class AbsenceController extends Controller
         ]);
     }
 
+    /**
+     * @param Absence $absence
+     * @return Application|\Illuminate\Foundation\Application|RedirectResponse|Redirector
+     */
     public function sick_notes_remove(Absence $absence) {
         if (!auth()->user()->can('manage sick_notes')){
             return redirect(url('/'))->with([

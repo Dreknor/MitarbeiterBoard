@@ -212,9 +212,10 @@ class TimesheetController extends Controller
             'working_time_account' => 0
         ]);
 
+
         if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
-                if ($working_time->roster?->type != 'Vorlage'){
+                if ($working_time->roster?->type != 'template'){
                     return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
                 }
             });
@@ -223,7 +224,7 @@ class TimesheetController extends Controller
 
             //Pausen holen
             $pausen = RosterEvents::where('employe_id', $user->id)
-                ->where('event', 'LIKE', 'pause%')
+                ->where('event', 'LIKE', 'pause')
                 ->whereBetween('date', [$act_month->copy()->startOfMonth()->format('Y-m-d'),$act_month->copy()->endOfMonth()->format('Y-m-d')])
                 ->get();
 
@@ -237,7 +238,8 @@ class TimesheetController extends Controller
                         'date'  => $working_time->date,
                         'start' => $working_time->start,
                         'end' => $working_time->end,
-                        'pause' => $pause?->sum('duration')
+                        'pause' => $pause?->sum('duration'),
+                        'comment' => 'aus Dienstplan erstellt'
                     ];
                 }
             }
@@ -268,6 +270,8 @@ class TimesheetController extends Controller
 
 
         }
+
+
 
         $timesheet_days = $timesheet?->timesheet_days;
 

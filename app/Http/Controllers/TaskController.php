@@ -11,6 +11,7 @@ use App\Models\Theme;
 use App\Models\User;
 use App\Notifications\Push;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 
@@ -88,12 +89,28 @@ class TaskController extends Controller
             $task->update([
                 'completed' => 1,
             ]);
+
+            return redirect()->back()->with(
+                [
+                    'type'    => 'success',
+                    'Meldung' => 'Aufgabe erledigt',
+                ]
+            );
         } elseif ($task->taskable_type == "App\Models\Group"){
             $task->taskUsers()
                 ->where('users_id', auth()->id())
                 ->where('taskable_id', $task->id)
                 ->delete();
+
+            return redirect()->back()->with(
+                [
+                    'type'    => 'success',
+                    'Meldung' => 'Aufgabe erledigt',
+                ]
+            );
         }
+
+        Cache::delete('tasks_'.auth()->id());
 
         if (session()->previousUrl() and session()->previousUrl() != null){
             return redirect()->back();

@@ -18,6 +18,12 @@
                         <input class="form-control" type="text" name="room_number" value="{{$room->room_number}}">
                     </label>
                 </div>
+                <div class="form-row mb-2">
+                    <label class="label w-100">
+                        Indiware Kürzel
+                        <input class="form-control" type="text" name="indiware_shortname" value="{{$room->indiware_shortname}}" maxlength="10">
+                    </label>
+                </div>
                 <div class="form-row">
                     <button class="btn btn-success btn-bg-gradient-x-blue-green btn-block" type="submit">
                         Raum speichern
