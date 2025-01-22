@@ -219,7 +219,13 @@ class User extends Authenticatable implements HasMedia
 
         $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
 
-        return ($claim == null)? 26 : $claim->holiday_claim;
+        if ($claim == null){
+            $claim = Setting::query()->where('setting', 'holiday_claim')->first()->value;
+        } else {
+            $claim = $claim->holiday_claim;
+        }
+
+        return $claim;
     }
 
     public function working_times()
@@ -258,6 +264,25 @@ class User extends Authenticatable implements HasMedia
 
     public function holidays(){
         return $this->hasMany(Holiday::class, 'employe_id');
+    }
+
+    public function holidays_date(DateTime $date = null, DateTime $end = null)
+    {
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
+        if (is_null($end)) {
+            $end = $date;
+        }
+
+        $holidays = Cache::remember('user_holidays_'.$this->id, 1, function (){
+            return $this->holidays;
+        });
+
+        return $holidays->filter(function ($item) use ($date, $end){
+            return $item->start_date->startOfDay()->lessThanOrEqualTo($date) and $item->end_date->addDay()->startOfDay()->greaterThan($end->endOfDay());
+        });
+
     }
 
     public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
