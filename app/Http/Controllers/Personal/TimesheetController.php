@@ -190,12 +190,15 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        Log::alert('Timesheet: '.$user->id.' '.$date);
         if ($date == null){
            $act_month = Carbon::today();
         } else {
             $act_month = Carbon::createFromFormat('Y-m', $date);
         }
 
+
+        Log::alert('Timesheet: '.$act_month);
         $old = $act_month->copy()->subMonth();
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
             return Timesheet::where('employe_id', $user->id)
@@ -212,8 +215,10 @@ class TimesheetController extends Controller
             'working_time_account' => 0
         ]);
 
+        Log::alert('Timesheet: '.$timesheet);
 
         if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
+            Log::alert('Timesheet wurde erstellt');
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
                 if ($working_time->roster?->type != 'template'){
                     return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
@@ -276,6 +281,8 @@ class TimesheetController extends Controller
         $timesheet_days = $timesheet?->timesheet_days;
 
         $timesheet->updateTime();
+
+        Log::alert('timesheet: '.$timesheet);
 
         return view('personal.timesheets.timesheet', [
             'timesheet_old' => $timesheet_old,
