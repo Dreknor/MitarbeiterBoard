@@ -51,6 +51,14 @@ class Timesheet extends Model
             return false;
         }
 
+        \Log::alert('Update Time');
+        \Log::alert('Month: '.$this->month);
+        \Log::alert('Year: '.$this->year);
+        \Log::alert('Employe: '.$this->employe->id);
+
+        \Log::alert('Holidays: '.$this->holidays_old.' '.$this->holidays_new.' '.$this->holidays_rest);
+        \Log::alert('Working Time: '.$this->working_time_account);
+
         $timesheet_days = $this->timesheet_days;
         $start_of_month = Carbon::createFromFormat('m-Y', $this->month.'-'.$this->year)->startOfMonth();
         $monthBefore = $start_of_month->copy()->subMonth();
@@ -91,6 +99,7 @@ class Timesheet extends Model
             //$this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $timesheet_old?->holidays_rest - $this->holidays_new;
             $this->holidays_rest = $timesheet_old?->holidays_rest - $this->holidays_new ;
         }
+
 
         $this->save();
     }
