@@ -195,9 +195,10 @@ class TimesheetController extends Controller
            $act_month = Carbon::today();
            Log::alert('Timesheet date null: '.$act_month);
         } else {
-            $year = substr($date, 0, 4);
-            $month = substr($date, 5, 2);
-            $act_month = Carbon::createFromFormat('Y-m-d', $year.'-'.$month.'-01');
+            //$year = substr($date, 0, 4);
+            //$month = substr($date, 5, 2);
+            //$act_month = Carbon::createFromFormat('Y-m-d', $year.'-'.$month.'-01');
+            $act_month = Carbon::createFromFormat('Y-m', $date);
             Log::alert('Timesheet act_month: '.$act_month. ' date:'.$date);
 
         }
