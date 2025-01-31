@@ -196,7 +196,7 @@ class TimesheetController extends Controller
            Log::alert('Timesheet date null: '.$act_month);
         } else {
             $act_month = Carbon::createFromFormat('Y-m', $date);
-            Log::alert('Timesheet date: '.$act_month). ' '.$date;
+            Log::alert('Timesheet act_month: '.$act_month. ' date:'.$date);
 
         }
 
