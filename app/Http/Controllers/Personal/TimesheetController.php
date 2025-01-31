@@ -193,12 +193,17 @@ class TimesheetController extends Controller
         Log::alert('Timesheet: '.$user->id.' '.$date);
         if ($date == null){
            $act_month = Carbon::today();
+           Log::alert('Timesheet date null: '.$act_month);
         } else {
             $act_month = Carbon::createFromFormat('Y-m', $date);
+            Log::alert('Timesheet date: '.$act_month). ' '.$date;
+
         }
 
 
         Log::alert('Timesheet: '.$act_month);
+
+
         $old = $act_month->copy()->subMonth();
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
             return Timesheet::where('employe_id', $user->id)
