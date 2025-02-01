@@ -11,97 +11,13 @@
 
 @section('content')
         <div class="row">
-            <div class="col-md-6">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>
-                                    Urlaubsantrag
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <form method="post" action="{{url('holidays')}}" class="">
-                                    @csrf
-                                    <div class="form-row">
-                                        <div class="col-12">
-                                            <label for="employe_id">Mitarbeiter</label>
-                                            <select name="employe_id" id="employe_id" class="form-control">
-                                                @can('approve holidays')
-                                                    <option value="all">Alle</option>
-                                                    @foreach($users as $user)
-                                                        <option value="{{$user->id}}">{{$user->name}}</option>
-                                                    @endforeach
-                                                @else
-                                                    <option value="{{auth()->user()->id}}">{{auth()->user()->name}}</option>
-                                                @endcan
 
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="form-row mt-2">
-                                        <div class="col-6">
-                                            <label for="start_date">Von</label>
-                                            <input type="date" name="start_date" id="start_date" class="form-control" value="" required>
-                                        </div>
-                                        <div class="col-6">
-                                            <label for="end_date">Bis</label>
-                                            <input type="date" name="end_date" id="end_date" class="form-control" value="" required>
-                                        </div>
-                                    </div>
-                                    <div class="form-row mt-2">
-                                        <div class="col-12">
-                                            <button type="submit" class="btn btn-success">
-                                                <i class="fas fa-plus"></i> Urlaub beantragen
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-md-6">
+                @include('personal.holidays.partials.group_filter')
+                @include('personal.holidays.partials.holidays_request')
             </div>
             <div class="col-md-6">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>
-                                    Urlaubstage
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <table class="table table-hover border table-responsive-sm">
-                                    <thead>
-                                    <tr>
-                                        <th class="border-right">Mitarbeiter</th>
-                                        <th class="border-right">Urlaub bisher/beantragt</th>
-                                        <th class="border-right">Rest</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    @foreach($users as $user)
-                                        <tr>
-                                            <td class="border-right w-25">
-                                                {{$user->name}}
-                                            </td>
-                                            <td class="border-right">
-                                                {{$user->holidays_date($month->copy()->startOfYear(), $month->copy()->endOfYear())->sum('days')}}
-
-                                            </td>
-                                            <td class="border-right">
-
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
+                @include('personal.holidays.partials.holidays_overview')
             </div>
         </div>
         @can('approve holidays')
@@ -208,17 +124,7 @@
                             </a>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <label for="group">Gruppe</label>
-                            <select name="group" id="group_filter" class="form-control">
-                                <option value="all" selected>Alle</option>
-                                @foreach(auth()->user()->groups_rel as $group)
-                                    <option value="{{$group->name}}">{{$group->name}}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
+
                 </div>
                 <div class="card-body">
                     <div class="container-fluid">
@@ -260,8 +166,6 @@
 
                 $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}'+'/'+group);
             }
-
-            console.log($('#exportLink').attr('href'));
         });
 
         document.addEventListener('DOMContentLoaded', function() {
