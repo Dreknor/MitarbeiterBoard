@@ -171,7 +171,7 @@ Route::group([
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
                     Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
-
+                    Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
                     Route::resource('holidays', HolidayController::class);
 

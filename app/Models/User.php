@@ -294,8 +294,8 @@ class User extends Authenticatable implements HasMedia
             $holidays = $this->holidays;
 
             $found = $holidays->filter(function ($item) use ($start_date, $end_date){
-                if ($item->start_date->between($start_date, $end_date)
-                    or $item->end_date->between($start_date, $end_date))
+                if (($item->start_date->between($start_date, $end_date)
+                    or $item->end_date->between($start_date, $end_date)) and !$item->rejected )
                 {
                     return $item;
                 }

@@ -21,70 +21,80 @@
             </div>
         </div>
         @can('approve holidays')
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>
-                                ungeprüfte Urlaubsanträge
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-hover border table-responsive-sm">
-                                <thead>
+            <div class="container mt-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5>Ungeprüfte Urlaubsanträge</h5>
+                        <span class="badge badge-warning"> {{ $unapproved->count() }} offen</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <table class="table table-hover table-bordered table-responsive-md">
+                            <thead class="thead-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Von</th>
+                                <th>Bis</th>
+                                <th>Tage</th>
+                                <th>Status</th>
+                                <th>Aktion</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @forelse($unapproved as $holiday)
                                 <tr>
-                                    <th class="border-right">Name</th>
-                                    <th class="border-right">Von</th>
-                                    <th class="border-right">Bis</th>
-                                    <th class="border-right">Tage</th>
-                                    <th class="border-right">Status</th>
-                                    <th class="border-right">Aktion</th>
+                                    <td>{{ $holiday->employe->name }}</td>
+                                    <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
+                                    <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
+                                    <td>{{ $holiday->days }}</td>
+                                    <td>
+                                <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
+                                    {{ $holiday->approved ? 'genehmigt' : 'offen' }}
+                                </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#approveModal-{{ $holiday->id }}">
+                                            Bearbeiten
+                                        </button>
+                                        <!-- Modal -->
+                                        <div class="modal fade" id="approveModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Urlaubsantrag bearbeiten</h5>
+                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                            <span aria-hidden="true">&times;</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <form action="{{ url('holidays/' . $holiday->id) }}" method="post">
+                                                            @csrf
+                                                            @method('put')
+                                                            <div class="form-group">
+                                                                <label>Aktion wählen</label>
+                                                                <select class="form-control" name="action" required>
+                                                                    <option value="approved">Genehmigen</option>
+                                                                    <option value="rejected">Ablehnen</option>
+                                                                </select>
+                                                            </div>
+                                                            <button type="submit" class="btn btn-primary">Speichern</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                @foreach($unapproved as $holiday)
-                                    <tr>
-                                        <td class="border-right w-25">
-                                            {{$holiday->employe->name}}
-                                        </td>
-                                        <td class="border-right">
-                                            {{$holiday->start_date->format('d.m.Y')}}
-                                        </td>
-                                        <td class="border-right">
-                                            {{$holiday->end_date->format('d.m.Y')}}
-                                        </td>
-                                        <td class="border-right">
-                                            {{$holiday->days}}
-                                        </td>
-                                        <td class="border-right">
-                                            @if($holiday->approved)
-                                                <span class="badge badge-success">genehmigt</span>
-                                            @else
-                                                <span class="badge badge-warning">offen</span>
-                                            @endif
-                                        </td>
-                                        <td class="border-right">
-                                            <form action="{{url('holidays/'.$holiday->id)}}" method="post" class="form form-inline">
-                                                @csrf
-                                                @method('put')
-                                                <select class="custom-select" name="action">
-                                                    <option value="approved">genehmigen</option>
-                                                    <option value="rejected">ablehnen</option>
-                                                </select>
-                                                <button type="submit" class="ml-1 btn btn-outline-warning">
-                                                    <i class="fas fa-check"></i> speichern
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
+                                </tr>
+                            @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+
         @endcan
     <div class="row">
         <div class="col-12">

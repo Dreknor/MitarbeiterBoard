@@ -8,6 +8,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 enum units
 {
@@ -52,33 +53,126 @@ function money($money = null, $symbol = true)
     }
 }
 
+
+/**
+ * @param $start_date
+ * @parm $end_date
+ * @return int
+ *
+ * @throws Exception
+ *
+ * Berechnet die Anzahl der Arbeitstage zwischen zwei Daten (inklusive Start- und Enddatum). Feiertage werden berücksichtigt.
+ *
+ */
+function workdays($start_date, $end_date): int
+{
+    $start_date = Carbon::parse($start_date);
+    $end_date = Carbon::parse($end_date);
+
+    $workdays = 0;
+    $current_date = $start_date->copy();
+
+    while ($current_date->lte($end_date)) {
+        if ($current_date->isWeekday() && !is_holiday($current_date)) {
+            $workdays++;
+        }
+
+        $current_date->addDay();
+    }
+
+    return $workdays;
+}
+
+// In app/Helpers/YourHelper.php
+function getHolidayCellData($holiday, $day)
+{
+    $isWeekendOrHoliday = is_holiday($day) || $day->isWeekend();
+    $data = [
+        'class' => '',
+        'icon' => '',
+    ];
+    if ($isWeekendOrHoliday) {
+        $data['class'] = 'bg-info';
+    } elseif (is_ferien($day)) {
+        $data['class'] = 'bg-gradient-x-light-blue';
+    }
+    if (!is_null($holiday)) {
+        if ($holiday->approved && !$isWeekendOrHoliday) {
+            $data['class'] = 'bg-gradient-directional-success';
+            $data['icon'] = '<i class="fa fa-check"></i>';
+        } elseif (!$holiday->approved && !$holiday->rejected && !$isWeekendOrHoliday) {
+            $data['class'] = 'bg-gradient-directional-amber';
+            $data['icon'] = '<i class="fa fa-question"></i>';
+        } elseif ($holiday->rejected && !$isWeekendOrHoliday) {
+            $data['class'] = 'bg-gradient-directional-danger';
+            $data['icon'] = '<i class="fas fa-times"></i>';
+        }
+    }
+
+
+
+    return $data;
+}
+
 /**
  * @param Carbon $date
  * @return string
  */
-function is_holiday(Carbon $date)
+function is_holiday(Carbon $date): bool
 {
     try {
-        $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
-            return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
-        });
+        // Feiertage für das Jahr zwischenspeichern und abrufen
+        $holidays = Cache::remember(
+            'holidays_' . $date->year,
+            now()->addDays(5), // Cache für 5 Tage speichern
+            fn() => fetch_holidays_by_year($date->year) // Hilfsfunktion für API-Aufruf
+        );
 
-        return $holidays->first(function ($item) use ($date) {
-            return $item->date == $date->format('Y-m-d');
-        });
-    } catch (Exception $e) {
+        // Datum auf Feiertag prüfen
+        return $holidays->contains('date', $date->toDateString());
+    } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
+        Log::error('Fehler beim Überprüfen von Feiertagen: ' . $e->getMessage(), [
+            'date' => $date->toDateString(),
+            'year' => $date->year
+        ]);
         return false;
     }
-    /*
-    $holidays = Cache::remember('holidays_'.$date->format('Y'), 5000, function () use ($date) {
-        return collect(json_decode(file_get_contents("https://ipty.de/feiertag/api.php?do=getFeiertage&jahr=" . $date->format('Y') . "&outformat=Y-m-d&loc=SN")));
-    });
-
-    return $holidays->first(function ($item) use ($date) {
-        return $item->date == $date->format('Y-m-d');
-    });
-    */
 }
+
+/**
+ * Ruft Feiertage für ein bestimmtes Jahr von der API ab.
+ *
+ * @param int $year
+ * @return Collection
+ */
+function fetch_holidays_by_year(int $year): Collection
+{
+    $apiUrl = "https://ipty.de/feiertag/api.php?do=getFeiertage&jahr={$year}&outformat=Y-m-d&loc=SN";
+
+    try {
+        $response = Http::timeout(5)->get($apiUrl);
+
+        // Verarbeiten der API-Antwort (zur Sicherheit immer JSON prüfen)
+        if ($response->successful()) {
+            return collect($response->json());
+        }
+
+        Log::warning("Feiertage konnten nicht von der API geladen werden für Jahr $year", [
+            'url' => $apiUrl,
+            'status' => $response->status()
+        ]);
+    } catch (Throwable $e) {
+        Log::error('Fehler beim Abrufen der Feiertage von der API: ' . $e->getMessage(), [
+            'url' => $apiUrl
+        ]);
+    }
+
+    // Bei Fehlern: Leere Sammlung zurückgeben
+    return collect([]);
+}
+
+
+
 
 function is_ferien(Carbon $date, $state = null, $year = null)
 {
@@ -102,16 +196,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
         return false;
     }
 
-    /*
-    $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
-        return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
-    });
-    return $ferien->first(function ($item) use ($date) {
-        $start = Carbon::createFromFormat('Y-m-d', $item->start);
-        $end = Carbon::createFromFormat('Y-m-d', $item->end);
-        return $date->between($start->startOfDay(), $end->endOfDay());
-    });
-    */
+
 }
 
 function calculateWorkingTime(Collection $working_times, Collection $roster_events = null)
