@@ -80,7 +80,11 @@
                                     })->sum('days')}}
                                 </td>
                                 <td class="border-right">
-
+                                    @if($user->holiday_claim->last())
+                                        {{$user->holiday_claim->last()->holiday_claim - $user->holidays_date($month->copy()->startOfYear(), \Carbon\Carbon::now())->sum('days')}}
+                                    @else
+                                       {{settings('holiday_claim') - $user->holidays_date($month->copy()->startOfYear(), \Carbon\Carbon::now())->sum('days')}}
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
