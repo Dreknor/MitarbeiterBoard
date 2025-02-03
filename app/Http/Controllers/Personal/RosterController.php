@@ -391,7 +391,7 @@ class RosterController extends Controller
         return $pdf
             ->setOptions([
                 "encoding" => "utf-8",
-                'margin-top' => '10',
+                'margin-top' => '8',
                 'page-size' => 'A3',
                 'orientation' => 'Landscape',
             ]);

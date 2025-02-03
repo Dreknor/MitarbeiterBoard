@@ -2,8 +2,6 @@
 <html lang="de">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-
-
     <!-- Bootstrap core CSS -->
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet">
     <!-- Your custom styles (optional) -->
@@ -17,7 +15,6 @@
 <div @class(['container-fluid'])>
     <table class="w-100 border">
         @for($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay())
-
             @if($day->dayOfWeek== 6)
                 <tr class="new-page" style="min-height:20mm">
                     <th colspan="{{$employes->count() + 2}}">
@@ -105,8 +102,7 @@
                                                     @endif
                                                 >
                                                     <div class="innerText">
-                                                        {{$events->searchRosterEvent($employe, $time)->first()->event}}
-
+                                                        {{\Illuminate\Support\Str::limit($events->searchRosterEvent($employe, $time)->first()->event, 15, ' (...)')}}
                                                         @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > '14:30')
                                                             (bis {{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}
                                                             Uhr)
