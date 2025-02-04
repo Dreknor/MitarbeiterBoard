@@ -118,7 +118,7 @@ function getHolidayCellData($holiday, $day)
  * @param Carbon $date
  * @return string
  */
-function is_holiday(Carbon $date): bool
+function is_holiday(Carbon $date)
 {
     try {
         // Feiertage für das Jahr zwischenspeichern und abrufen
