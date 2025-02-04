@@ -129,7 +129,7 @@ function is_holiday(Carbon $date): bool
         );
 
         // Datum auf Feiertag prüfen
-        return $holidays->contains('date', $date->toDateString());
+        return $holidays->where('date', $date->toDateString())->first();
     } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
         Log::error('Fehler beim Überprüfen von Feiertagen: ' . $e->getMessage(), [
             'date' => $date->toDateString(),
