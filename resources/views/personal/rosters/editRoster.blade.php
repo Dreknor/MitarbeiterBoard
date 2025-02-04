@@ -70,7 +70,7 @@
                             </div>
                         </div>
                         <p class='description'>
-                            {{is_holiday($day)?->title}}
+                            {{is_holiday($day)? 'Feiertag' : ''}}
                         </p>
                     </div>
                     <div
