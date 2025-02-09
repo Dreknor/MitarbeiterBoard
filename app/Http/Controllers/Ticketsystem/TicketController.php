@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Ticketsystem;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketRequest;
+use App\Mail\newTicketMail;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Permission;
 
 class TicketController extends Controller
@@ -18,6 +21,7 @@ class TicketController extends Controller
         $this->middleware('can:view tickets');
     }
 
+    //ToDo: Close Ticket when waiting_until is reached
 
     /**
      * Display a listing of the resource.
@@ -84,6 +88,31 @@ class TicketController extends Controller
         $ticket->user_id = auth()->id();
         $ticket->save();
 
+
+        try {
+            $ticket->addMediaFromRequest('file')->toMediaCollection('ticket_files');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Datei konnte nicht hochgeladen werden');
+        }
+
+        try {
+            $permission = Permission::where('name', 'edit tickets')->first();
+            $users = User::whereHas('permissions', function ($query) use ($permission) {
+                $query->where('id', $permission->id);
+            })->orWhereHas('roles', function ($query) use ($permission) {
+                $query->whereHas('permissions', function ($query) use ($permission) {
+                    $query->where('id', $permission->id);
+                });
+            })->get();
+
+            foreach ($users as $user) {
+                Mail::to($user->email)->queue(new newTicketMail($ticket));
+            }
+        } catch (\Exception $e) {
+           Log::alert('Ticket-Mail konnte nicht versendet werden: ' . $e->getMessage());
+        }
+
+
         return redirect()->route('tickets.index');
     }
 
@@ -114,6 +143,15 @@ class TicketController extends Controller
             'user_id' => auth()->id(),
             'comment' => 'Ticket zugewiesen an ' . $user->name
         ]);
+
+
+        if (auth()->user()->id != $user->id) {
+            try {
+                Mail::to($user->email)->queue(new newTicketMail($ticket));
+            } catch (\Exception $e) {
+                Log::alert('Ticket-Mail konnte nicht versendet werden: ' . $e->getMessage());
+            }
+        }
 
         return redirect()->back();
     }

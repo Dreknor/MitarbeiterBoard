@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Ticketsystem;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketCommentRequest;
+use App\Mail\NewTicketCommentMail;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class TicketCommentController extends Controller
 {
@@ -51,6 +53,7 @@ class TicketCommentController extends Controller
 
             } elseif ($ticket->status == 'waiting' and auth()->id() == $ticket->user_id) {
                 $ticket->status = 'open';
+                $ticket->waiting_until = null;
                 $ticket->save();
                 $comment = new TicketComment([
                     'comment' => 'Ticket ist wieder offen',
@@ -67,7 +70,20 @@ class TicketCommentController extends Controller
         }
 
 
-        //Todo: send email to user
+        try {
+            // Notify the ticket creator if a public comment is added
+            if ($comment->user_id !== $ticket->user_id) {
+                Mail::to($ticket->user->email)->queue(new NewTicketCommentMail($comment, $ticket));
+            }
+
+            // Notify the assigned user if the ticket creator responds
+            if ($comment->user_id === $ticket->user_id && $ticket->assigned_to) {
+                $assignedUser = User::find($ticket->assigned_to);
+                Mail::to($assignedUser->email)->queue(new NewTicketCommentMail($comment, $ticket));
+            }
+        } catch (\Exception $e) {
+            Log::alert('Comment-Mail could not be sent: ' . $e->getMessage());
+        }
 
         return redirect()->route('tickets.show', $ticket->id);
 
