@@ -28,7 +28,7 @@
                             </span>
                     </td>
                     <td>
-                        @if(!$holiday->approved or (auth()->user()->can('approve holidays') and $holiday->start_date->isFuture()))
+                        @if(!$holiday->approved or $holiday->start_date->isFuture())
                             <a href="{{ url('holidays/' . $holiday->id . '/delete') }}"
                                class="btn btn-sm btn-outline-danger">
                                 <i class="fas fa-trash"></i> Antrag löschen
