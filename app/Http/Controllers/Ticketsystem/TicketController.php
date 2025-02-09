@@ -5,8 +5,12 @@ namespace App\Http\Controllers\Ticketsystem;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketRequest;
 use App\Mail\newTicketMail;
+use App\Models\Group;
+use App\Models\Protocol;
+use App\Models\Theme;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
+use App\Models\TicketComment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +20,66 @@ use Spatie\Permission\Models\Permission;
 
 class TicketController extends Controller
 {
+
+
+    public function createTicketsFromThemes($group)
+    {
+        // Fetch themes from the selected group
+        $group = Group::where('name', $group)->first();
+
+        dump($group);
+        $themes = $group->themes()->get();
+
+        dump($themes);
+
+
+        foreach ($themes as $theme) {
+            try {
+                // Determine priority based on theme priority
+                $priority = 'low';
+                if ($theme->priority > 75) {
+                    $priority = 'high';
+                } elseif ($theme->priority >= 40) {
+                    $priority = 'medium';
+                }
+
+                // Create a new ticket
+                $ticket = new Ticket([
+                    'title' => $theme->theme,
+                    'description' => $theme->information,
+                    'priority' => $priority,
+                    'user_id' => $theme->creator_id, // Set theme creator as ticket creator
+                    'created_at' => $theme->created_at,
+                    'updated_at' => $theme->updated_at,
+                    'assigned_to' => $theme->assigned_to,
+                    'status' => ($theme->completed) ? 'closed' : 'open',
+                ]);
+                $ticket->save();
+
+                // Fetch protocols and create comments
+                $protocols = $theme->protocols;
+                foreach ($protocols as $protocol) {
+                    $comment = new TicketComment([
+                        'comment' => $protocol->protocol,
+                        'ticket_id' => $ticket->id,
+                        'user_id' => $protocol->creator_id, // Set protocol creator as comment creator
+                        'created_at' => $protocol->created_at,
+                        'updated_at' => $protocol->updated_at,
+                    ]);
+                    $comment->save();
+                }
+            } catch (\Exception $e) {
+                Log::alert('Ticket konnte nicht erstellt werden: ' . $e->getMessage());
+            }
+
+
+
+
+        }
+
+        return redirect()->route('tickets.index');
+    }
+
     public function __construct()
     {
         $this->middleware('can:view tickets');
