@@ -345,5 +345,23 @@ class User extends Authenticatable implements HasMedia
         return $absence != null;
     }
 
+    /*
+     * Tickets
+     */
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'user_id');
+    }
+
+    public function assigned_tickets()
+    {
+        return $this->hasMany(Ticket::class, 'assigned_to');
+    }
+
+    public function pinned_tickets()
+    {
+        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id');
+    }
 
 }

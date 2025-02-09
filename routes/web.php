@@ -152,6 +152,26 @@ Route::group([
                 });
 
                 /*
+                 * Routes for Ticketsystem
+                 */
+                Route::middleware(['permission:view tickets'])->group(function () {
+
+                    Route::prefix('tickets')->group(function () {
+                        Route::resource('categories', \App\Http\Controllers\Ticketsystem\TicketCategoryController::class)->middleware('permission:edit tickets')->only(['index', 'store', 'destroy']);
+                        Route::post('comments/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketCommentController::class, 'store'])->name('tickets.comments.store');
+                    });
+
+                    Route::get('tickets/archiv', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'archived'])->name('tickets.archive');
+                    Route::get('tickets/archiv/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'showClosedTicket'])->name('tickets.archiveTicket');
+                    Route::resource('tickets', \App\Http\Controllers\Ticketsystem\TicketController::class)->except('create','edit');
+                    Route::get('tickets/{ticket}/close', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'close'])->name('tickets.close');
+                    Route::get('tickets/{ticket}/assign/{user}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'assign'])->name('tickets.assign');
+                    /*Pin a Ticket*/
+                    Route::get('tickets/{ticket}/pin', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'pin'])->name('tickets.pin');
+                });
+
+
+                /*
                  * Edit Employes
                  */
                 Route::get('/employes/self', [EmployeController::class, 'show_self'])->name('employes.self');
@@ -173,9 +193,10 @@ Route::group([
                     Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
                     Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
-                    Route::resource('holidays', HolidayController::class);
 
+                    Route::resource('holidays', HolidayController::class);
                 });
+
 
                 //Timesheets
                 Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);

@@ -182,6 +182,39 @@
                             </div>
                         </li>
                     @endcan
+                    @can('view tickets')
+                        <li class="@if(request()->segment(1)=="tickets" ) active @endif">
+                            <a href="#Tickets" data-toggle="collapse">
+                                <p>
+                                    <i class="fas fa-ticket-alt"></i>
+                                    Ticketsystem <b class="caret"></b>
+                                </p>
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=="tickets" ) show  @endif" id="Tickets">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="tickets" ) active @endif">
+                                        <a href="{{url('tickets/')}}">
+                                            <i class="fas fa-ticket-alt"></i>
+                                            <p>Tickets</p>
+                                        </a>
+                                    </li>
+                                    @can('edit tickets')
+                                        <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="categories" ) active @endif">
+                                            <a href="{{url('tickets/categories')}}">
+                                                <i class="fas fa-folder-open"></i>
+                                                <p>Kategorien</p>
+                                            </a>
+                                        </li>
+                                        <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="archiv" ) active @endif">
+                                            <a href="{{url('tickets/archiv')}}">
+                                                <i class="fas fa-archive"></i>
+                                                <p>Archiv</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                </ul>
+                        </li>
+                    @endcan
                     <li>
                         <a data-toggle="collapse" href="#Beratungen" >
                             <p>
