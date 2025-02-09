@@ -7,6 +7,7 @@ use App\Http\Requests\createTicketCommentRequest;
 use App\Mail\NewTicketCommentMail;
 use App\Models\Ticket;
 use App\Models\TicketComment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -77,7 +78,7 @@ class TicketCommentController extends Controller
             }
 
             // Notify the assigned user if the ticket creator responds
-            if ($comment->user_id === $ticket->user_id && $ticket->assigned_to) {
+            if ($comment->user_id === $ticket->user_id && $ticket->assigned_to !== null) {
                 $assignedUser = User::find($ticket->assigned_to);
                 Mail::to($assignedUser->email)->queue(new NewTicketCommentMail($comment, $ticket));
             }
