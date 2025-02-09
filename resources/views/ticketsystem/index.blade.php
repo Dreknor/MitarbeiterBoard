@@ -18,7 +18,9 @@
                                     list-group-item-info
                                 @endif
                                 ">
-                                    <a href="{{ route('tickets.show', $ticket->id) }}">{{ $ticket->title }}</a>
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{{ route('tickets.show', $ticket->id) }}">{{ $ticket->title }}</a>
+                                    </div>
 
                                     @if($ticket->status == "open")
                                         <span class="badge pull-right p-1 m-1 badge-primary">{{ $ticket->category?->name }}</span>

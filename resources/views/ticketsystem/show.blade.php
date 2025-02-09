@@ -95,17 +95,22 @@
         </form>
     </div>
     @endif
+    <div class="card-footer bg-gradient-directional-grey-blue text-white">
+        <h6>Kommentare</h6>
     @forelse($show_ticket->comments->sortByDesc('created_at') as $comment)
-        <div class="card-footer  @if($comment->internal) bg-light border border-secondary @endif">
-            @if($comment->internal)
-                <span class="badge badge-warning">Intern</span>
-            @endif
-            <p>
-                <strong>{{ $comment->user->name }}</strong> schrieb am {{ $comment->created_at->format('d.m.Y H:i') }}:
-            </p>
-            <p>
+        <div class="card  @if($comment->internal) bg-light border border-secondary @endif">
+            <div class="card-header">
+                @if($comment->internal)
+                    <span class="badge badge-warning">Intern</span>
+                @endif
+                    <p>
+                        @if($comment->user?->getMedia('profile')->count() != 0)<img src="{{$comment->user?->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;"> @else <strong>{{ $comment->user?->name }}</strong> @endif schrieb am {{ $comment->created_at->format('d.m.Y H:i') }}:
+                    </p>
+            </div>
+            <div class="card-body">
                 {!! $comment->comment !!}
-            </p>
+            </div>
+
         </div>
     @empty
         <div class="card-footer bg-gradient-directional-grey-blue text-white">
@@ -114,6 +119,7 @@
             </p>
         </div>
     @endforelse
+    </div>
 </div>
 
 @push('js')
