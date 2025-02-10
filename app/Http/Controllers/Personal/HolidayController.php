@@ -349,4 +349,19 @@ class HolidayController extends Controller
             'days' => workdays($holiday->start_date, $holiday->end_date)
         ]);
     }
+
+    public function destroy(Holiday $holiday)
+    {
+        if ($holiday->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($holiday->start_date->isPast()){
+            return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
+        }
+
+        $holiday->delete();
+
+        return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
+    }
 }

@@ -22,77 +22,144 @@
         </div>
         @can('approve holidays')
             <div class="container mt-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5>Ungeprüfte Urlaubsanträge</h5>
-                        <span class="badge badge-warning"> {{ $unapproved->count() }} offen</span>
-                    </div>
-                    <div class="card-body p-2">
-                        <table class="table table-hover table-bordered table-responsive-md">
-                            <thead class="thead-light">
-                            <tr>
-                                <th>Name</th>
-                                <th>Von</th>
-                                <th>Bis</th>
-                                <th>Tage</th>
-                                <th>Status</th>
-                                <th>Aktion</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($unapproved as $holiday)
-                                <tr>
-                                    <td>{{ $holiday->employe->name }}</td>
-                                    <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
-                                    <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
-                                    <td>{{ $holiday->days }}</td>
-                                    <td>
+                <div class="row">
+                    <div class="col-sm-12 col-md-6">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <h5>Ungeprüfte Urlaubsanträge</h5>
+                                <span class="badge badge-warning"> {{ $unapproved->count() }} offen</span>
+                            </div>
+                            <div class="card-body p-2">
+                                <table class="table table-hover table-bordered table-responsive-md">
+                                    <thead class="thead-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Von</th>
+                                        <th>Bis</th>
+                                        <th>Tage</th>
+                                        <th>Status</th>
+                                        <th>Aktion</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @forelse($unapproved as $holiday)
+                                        <tr>
+                                            <td>{{ $holiday->employe->name }}</td>
+                                            <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
+                                            <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
+                                            <td>{{ $holiday->days }}</td>
+                                            <td>
                                 <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
                                     {{ $holiday->approved ? 'genehmigt' : 'offen' }}
                                 </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#approveModal-{{ $holiday->id }}">
-                                            Bearbeiten
-                                        </button>
-                                        <!-- Modal -->
-                                        <div class="modal fade" id="approveModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Urlaubsantrag bearbeiten</h5>
-                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                            <span aria-hidden="true">&times;</span>
-                                                        </button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <form action="{{ url('holidays/' . $holiday->id) }}" method="post">
-                                                            @csrf
-                                                            @method('put')
-                                                            <div class="form-group">
-                                                                <label>Aktion wählen</label>
-                                                                <select class="form-control" name="action" required>
-                                                                    <option value="approved">Genehmigen</option>
-                                                                    <option value="rejected">Ablehnen</option>
-                                                                </select>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#approveModal-{{ $holiday->id }}">
+                                                    Bearbeiten
+                                                </button>
+                                                <!-- Modal -->
+                                                <div class="modal fade" id="approveModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Urlaubsantrag bearbeiten</h5>
+                                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                    <span aria-hidden="true">&times;</span>
+                                                                </button>
                                                             </div>
-                                                            <button type="submit" class="btn btn-primary">Speichern</button>
-                                                        </form>
+                                                            <div class="modal-body">
+                                                                <form action="{{ url('holidays/' . $holiday->id) }}" method="post">
+                                                                    @csrf
+                                                                    @method('put')
+                                                                    <div class="form-group">
+                                                                        <label>Aktion wählen</label>
+                                                                        <select class="form-control" name="action" required>
+                                                                            <option value="approved">Genehmigen</option>
+                                                                            <option value="rejected">Ablehnen</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <button type="submit" class="btn btn-primary">Speichern</button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
-                                </tr>
-                            @endforelse
-                            </tbody>
-                        </table>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
+                                        </tr>
+                                    @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <h5>Genehmigte Urlaubsanträge</h5>
+                            </div>
+                            <div class="card-body p-2">
+                                <table class="table table-hover table-bordered table-responsive-md">
+                                    <thead class="thead-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Von</th>
+                                        <th>Bis</th>
+                                        <th>Tage</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @forelse($holidays->where('approved', true) as $holiday)
+                                        <tr class="@foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach">
+                                            <td>{{ $holiday->employe->name }}</td>
+                                            <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
+                                            <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
+                                            <td>{{ $holiday->days }}</td>
+                                            <td>
+                                                @if($holiday->start_date->isFuture())
+                                                <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteModal-{{ $holiday->id }}">
+                                                    Löschen
+                                                </button>
+                                                <!-- Modal -->
+                                                <div class="modal fade text-left" id="deleteModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Urlaubsantrag löschen</h5>
+                                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                    <span aria-hidden="true">&times;</span>
+                                                                </button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <form action="{{ url('holidays/' . $holiday->id) }}" method="post">
+                                                                    @csrf
+                                                                    @method('delete')
+                                                                    <p>Möchten Sie den Urlaubsantrag von {{ $holiday->employe->name }} wirklich löschen?</p>
+                                                                    <button type="submit" class="btn btn-danger">Löschen</button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center">Keine genehmigten Anträge gefunden.</td>
+                                        </tr>
+                                    @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
         @endcan

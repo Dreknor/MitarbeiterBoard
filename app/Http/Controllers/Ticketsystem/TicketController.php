@@ -282,7 +282,39 @@ class TicketController extends Controller
         return $this->archived($ticket->load('comments'));
     }
 
+    public function closeTicketAfterTime()
+    {
 
+        if (settings('ticket_closed_automatic')) {
+
+            $days = settings('ticket_closed_automatic_days') ?? 7;
+
+            $tickets = Ticket::query()
+                ->where('status', 'waiting')
+                ->where('waiting_until', '<', now()->subDays($days))
+                ->get();
+
+            foreach ($tickets as $ticket) {
+                $ticket->status = 'closed';
+                $ticket->save();
+
+                $comment = new TicketComment([
+                    'comment' => 'Das Ticket wurde automatisch geschlossen, da keine Rückmeldung erfolgte',
+                    'ticket_id' => $ticket->id,
+                    'user_id' => null,
+                    'internal' => false
+                ]);
+                $comment->save();
+            }
+
+
+        }
+
+
+
+
+
+    }
 
 
 }
