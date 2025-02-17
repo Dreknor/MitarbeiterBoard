@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Ticketsystem;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketCommentRequest;
-use App\Mail\NewTicketCommentMail;
+use App\Mail\newTicketCommentMail;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
@@ -74,13 +74,13 @@ class TicketCommentController extends Controller
         try {
             // Notify the ticket creator if a public comment is added
             if ($comment->user_id !== $ticket->user_id) {
-                Mail::to($ticket->user->email)->queue(new NewTicketCommentMail($comment, $ticket));
+                Mail::to($ticket->user->email)->queue(mailable: new newTicketCommentMail($comment, $ticket));
             }
 
             // Notify the assigned user if the ticket creator responds
             if ($comment->user_id === $ticket->user_id && $ticket->assigned_to !== null) {
                 $assignedUser = User::find($ticket->assigned_to);
-                Mail::to($assignedUser->email)->queue(new NewTicketCommentMail($comment, $ticket));
+                Mail::to($assignedUser->email)->queue(new newTicketCommentMail($comment, $ticket));
             }
         } catch (\Exception $e) {
             Log::alert('Comment-Mail could not be sent: ' . $e->getMessage());
