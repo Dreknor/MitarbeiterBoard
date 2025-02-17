@@ -190,6 +190,15 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        if ($user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() < 1){
+            return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
+        }
+
+        if ($user->employments->count() < 1){
+            return redirectBack('warning', 'Keine Anstellung eingetragen');
+        }
+
+
         Log::alert('Timesheet: '.$user->id.' '.$date);
         if ($date == null){
            $act_month = Carbon::today();
