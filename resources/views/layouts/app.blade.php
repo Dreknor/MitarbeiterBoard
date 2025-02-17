@@ -198,17 +198,17 @@
                                             <p>Tickets</p>
                                         </a>
                                     </li>
+                                    <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="archiv" ) active @endif">
+                                        <a href="{{url('tickets/archiv')}}">
+                                            <i class="fas fa-archive"></i>
+                                            <p>Archiv</p>
+                                        </a>
+                                    </li>
                                     @can('edit tickets')
                                         <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="categories" ) active @endif">
                                             <a href="{{url('tickets/categories')}}">
                                                 <i class="fas fa-folder-open"></i>
                                                 <p>Kategorien</p>
-                                            </a>
-                                        </li>
-                                        <li class="@if(request()->segment(1)=="tickets" and request()->segment(2)=="archiv" ) active @endif">
-                                            <a href="{{url('tickets/archiv')}}">
-                                                <i class="fas fa-archive"></i>
-                                                <p>Archiv</p>
                                             </a>
                                         </li>
                                     @endcan
