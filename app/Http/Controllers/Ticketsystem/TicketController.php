@@ -100,7 +100,10 @@ class TicketController extends Controller
 
 
         } else {
-            $tickets = auth()->user()->tickets->load('category', 'assigned')->sortByDesc('comments.created_at');
+            $tickets = auth()->user()->tickets;
+            $tickets = $tickets->filter(function ($ticket) {
+                return $ticket->status != 'closed';
+            })->load('category', 'assigned')->sortByDesc('comments.created_at');
 
         }
 
