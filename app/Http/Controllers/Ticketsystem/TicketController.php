@@ -27,11 +27,7 @@ class TicketController extends Controller
         // Fetch themes from the selected group
         $group = Group::where('name', $group)->first();
 
-        dump($group);
         $themes = $group->themes()->get();
-
-        dump($themes);
-
 
         foreach ($themes as $theme) {
             try {
