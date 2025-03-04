@@ -21,6 +21,13 @@ class RecurringTheme extends Model implements HasMedia
         ]);
     }
 
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'group_id');
+    }
+
+
+
     public function type()
     {
         return $this->belongsTo(Type::class, 'type_id');
