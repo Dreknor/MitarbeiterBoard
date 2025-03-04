@@ -201,13 +201,14 @@ class RecurringThemeController extends Controller
             Log::info('createNewThemes -> '.$month->format('Y-m-d'));
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
 
+           Log::info($themes->count() . ' Themen gefunden');
+
            foreach ($themes as $theme){
-               Log::info('createNewThemes -> '.$theme->name);
+              Log::info ("thema:" .$theme);
                Log::info("Gruppe" .$theme->group?->name);
 
                if (is_null($theme->group)){
                    Log::info('createNewThemes -> '.$theme->name.' -> keine Gruppe');
-                   $theme->delete();
                    continue;
                }
 
