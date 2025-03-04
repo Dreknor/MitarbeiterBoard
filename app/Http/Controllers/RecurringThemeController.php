@@ -203,6 +203,14 @@ class RecurringThemeController extends Controller
 
            foreach ($themes as $theme){
                Log::info('createNewThemes -> '.$theme->name);
+               Log::info("Gruppe" .$theme->group?->name);
+
+               if (is_null($theme->group)){
+                   Log::info('createNewThemes -> '.$theme->name.' -> keine Gruppe');
+                   $theme->delete();
+                   continue;
+               }
+
 
                $newTheme = new Theme($theme->toArray());
                $newTheme->date = $month->next($theme->group->weekday_name());
