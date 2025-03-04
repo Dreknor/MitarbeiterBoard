@@ -12,6 +12,7 @@ use App\Models\Type;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -193,12 +194,15 @@ class RecurringThemeController extends Controller
 
     public function createNewThemes($now = null){
 
+        Log::info('createNewThemes -> '.$now);
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
 
         if ($month->day == 1 or $now == "now"){
+            Log::info('createNewThemes -> '.$month->format('Y-m-d'));
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
 
            foreach ($themes as $theme){
+               Log::info('createNewThemes -> '.$theme->name);
 
                $newTheme = new Theme($theme->toArray());
                $newTheme->date = $month->next($theme->group->weekday_name());
@@ -219,8 +223,8 @@ class RecurringThemeController extends Controller
                $protocol->save();
            }
 
+        } else {
+            Log::info('createNewThemes -> '.$month->format('Y-m-d').' -> nicht der 1. des Monats');
         }
-
-
     }
 }
