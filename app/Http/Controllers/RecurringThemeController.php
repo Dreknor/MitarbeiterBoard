@@ -194,29 +194,20 @@ class RecurringThemeController extends Controller
 
     public function createNewThemes($now = null){
 
-        Log::info('createNewThemes -> '.$now);
         $month = Carbon::today()->addWeeks(config('config.startRecurringThemeWeeksBefore'));
 
         if ($month->day == 1 or $now == "now"){
-            Log::info('createNewThemes -> '.$month->format('Y-m-d'));
            $themes = RecurringTheme::query()->where('month', $month->month)->get();
-
-           Log::info($themes->count() . ' Themen gefunden');
-
            foreach ($themes as $theme){
-              Log::info ("thema:" .$theme);
-               Log::info("Gruppe" .$theme->group?->name);
-
                if (is_null($theme->group)){
-                   Log::info('createNewThemes -> '.$theme->name.' -> keine Gruppe');
                    continue;
                }
 
 
                $newTheme = new Theme($theme->toArray());
-               $newTheme->date = $month->next($theme->group->weekday_name());
+               $newTheme->date = $month->copy()->next($theme->group->weekday_name());
                $newTheme->duration = 10;
-               $newTheme->theme = $newTheme->theme.' '.$month->year;
+               $newTheme->theme = $newTheme->theme.' '.$month->copy()->year;
                $newTheme->save();
 
                if ($theme->hasMedia()){
