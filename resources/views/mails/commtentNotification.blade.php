@@ -4,7 +4,6 @@
     <title>neuer Kommentar für Ticket</title>
 </head>
 <body>
-
 <p>
     {Für das Ticket {{$ticket->title}} wurde ein neuer Kommentar hinzugefügt.
 </p>
