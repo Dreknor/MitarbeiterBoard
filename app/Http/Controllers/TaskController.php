@@ -101,11 +101,6 @@ class TaskController extends Controller
             );
         } elseif ($task->taskable_type == "App\Models\Group"){
 
-            Log::info('Group Task');
-            Log::info($task);
-
-            Log::info(auth()->id());
-
             GroupTaskUser::query()
                 ->where('users_id', auth()->id())
                 ->where('taskable_id', $task->id)
