@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Role;
 
@@ -56,9 +57,25 @@ class KeycloakLoginController extends Controller
             ->first();
 
 
+
         if (!$laravelUser) {
+
+            Log::info('User not found: ' . $user->nickname);
+            Log::info($user);
+
+
+            if (!$user->nickname) {
+                $name = explode('@', $user->email);
+                $name = explode('.', $name[0]);
+                $name = implode(' ', $name);
+                $name = Str::title($name);
+
+            } else {
+                $name = $user->nickname;
+            }
+
             $laravelUser = User::create([
-                'username' => $user->nickname,
+                'username' => $name,
                 'email' => $user->email,
                 'password' => bcrypt(Carbon::now()->timestamp),
             ]);
