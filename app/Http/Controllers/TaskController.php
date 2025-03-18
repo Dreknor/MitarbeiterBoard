@@ -93,7 +93,6 @@ class TaskController extends Controller
 
             Cache::delete('tasks_'.auth()->id());
 
-
             return redirect()->back()->with(
                 [
                     'type'    => 'success',
@@ -111,8 +110,14 @@ class TaskController extends Controller
                 ->where('users_id', auth()->id())
                 ->where('taskable_id', $task->id)
                 ->delete();
+
             Cache::delete('tasks_'.auth()->id());
 
+            if (GroupTaskUser::query()->where('taskable_id', $task->id)->count() == 0) {
+                $task->update([
+                    'completed' => 1,
+                ]);
+            }
 
             return redirect()->back()->with(
                 [
