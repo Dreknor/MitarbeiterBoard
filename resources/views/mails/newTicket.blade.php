@@ -10,7 +10,7 @@
     <li><strong>Titel:</strong> {{ $ticket->title }}</li>
     <li><strong>Beschreibung:</strong> {!! $ticket->description !!} </li>
     <li><strong>Erstellt von:</strong> {{ $ticket->user->name }}</li>
-    <li><strong>Kategorie:</strong> {{ $ticket->category->name }}</li>
+    <li><strong>Kategorie:</strong> @if($ticket->category) {{$ticket->category}} @else {{$ticket?->category_id}} @endif</li>
     <li><strong>Priorität:</strong> {{ $ticket->priority }}</li>
 </ul>
 </body>
