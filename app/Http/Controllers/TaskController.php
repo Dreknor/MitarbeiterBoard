@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\Push;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 
@@ -90,6 +91,9 @@ class TaskController extends Controller
                 'completed' => 1,
             ]);
 
+            Cache::delete('tasks_'.auth()->id());
+
+
             return redirect()->back()->with(
                 [
                     'type'    => 'success',
@@ -97,10 +101,18 @@ class TaskController extends Controller
                 ]
             );
         } elseif ($task->taskable_type == "App\Models\Group"){
-            $task->taskUsers()
+
+            Log::info('Group Task');
+            Log::info($task);
+
+            Log::info(auth()->id());
+
+            GroupTaskUser::query()
                 ->where('users_id', auth()->id())
                 ->where('taskable_id', $task->id)
                 ->delete();
+            Cache::delete('tasks_'.auth()->id());
+
 
             return redirect()->back()->with(
                 [
