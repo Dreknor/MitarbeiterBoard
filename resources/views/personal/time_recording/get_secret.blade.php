@@ -7,19 +7,22 @@
                 <div class="card bg-gradient-directional-teal">
                     <div class="card-header m-auto text-white border-bottom">
                         <h2>
-                            digitale Zeiterfassung
+                            digitale Zeiterfassung - {{$user->name}}
                         </h2>
                     </div>
                     <div class="card-body text-white" style="min-height: 15vH">
-                        <h4 class="mx-auto text-center" id="hinweis">
-                            Hallo {{$user->name}},<br>
-                        </h4>
-                        <p class="mx-auto text-center">
-                            Bitte gib deinen Pin ein.
-                        </p>
-                        <p id="pin_show"  class="mx-auto text-center text-light">
-                            Pin:
-                        </p>
+                        <div class="row">
+                            <div class="col-6 text-center">
+                                Bitte gib deinen Pin ein.
+                            </div>
+                            <div class="col-6 text-center">
+                                <div id="pin_show"  class="mx-auto text-center text-light">
+                                    Pin:
+                                </div>
+                            </div>
+                        </div>
+
+
                         <div class="w-100 mx-auto">
                             <div class="row">
                                 <div class="col-2 mx-auto">
@@ -51,7 +54,7 @@
                                 <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(9)">9</button>
                                 </div>
-                                <div class="col-4 mx-auto">
+                                <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(0)">0</button>
                                 </div>
                             </div>
