@@ -39,31 +39,28 @@
                                 </div>
                             </div>
                             <div class="row">
-
-
-                                <div class="col-4 mx-auto">
+                                <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(6)">6</button>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-4 mx-auto">
+                                <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(7)">7</button>
                                 </div>
-                                <div class="col-4 mx-auto">
+                                <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(8)">8</button>
                                 </div>
-                                <div class="col-4 mx-auto">
+                                <div class="col-2 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(9)">9</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-4 mx-auto">
-                                    <button class="btn btn-block btn-success" onclick="submitForm()">absenden</button>
                                 </div>
                                 <div class="col-4 mx-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(0)">0</button>
                                 </div>
-                                <div class="col-4 mx-auto">
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mx-auto">
+                                    <button class="btn btn-block btn-success" onclick="submitForm()">absenden</button>
+                                </div>
+
+                                <div class="col-6 mx-auto">
                                     <button class="btn btn-block btn-danger" onclick="clearInput()">Eingabe löschen</button>
                                 </div>
                             </div>
