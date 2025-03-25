@@ -21,7 +21,7 @@
                             Pin:
                         </p>
                         <div class="w-100 mx-auto">
-                            <div class="row">
+                            <div class="row mx-auto">
                                 <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(1)">1</button>
                                 </div>
@@ -37,6 +37,8 @@
                                 <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(5)">5</button>
                                 </div>
+                            </div>
+                            <div class="row mx-auto">
                                 <div class="col-auto ">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(6)">6</button>
                                 </div>
