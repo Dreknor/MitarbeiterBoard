@@ -20,7 +20,6 @@
                         <p id="pin_show"  class="mx-auto text-center text-light">
                             Pin:
                         </p>
-                        <div class="w-100 m-auto">
                             <div class="row mx-auto">
                                 <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(1)">1</button>
