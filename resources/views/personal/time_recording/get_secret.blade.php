@@ -20,7 +20,8 @@
                         <p id="pin_show"  class="mx-auto text-center text-light">
                             Pin:
                         </p>
-                            <div class="row mx-auto">
+                        <div class="container-fluid">
+                            <div class="row">
                                 <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(1)">1</button>
                                 </div>
@@ -63,6 +64,7 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
                         <div class="card-body">
                             <div class="w-25 mx-auto">
                                 <div class="text-center text-light">
