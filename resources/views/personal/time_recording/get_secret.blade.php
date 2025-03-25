@@ -22,42 +22,42 @@
                         </p>
                         <div class="w-100 mx-auto">
                             <div class="row">
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(1)">1</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(2)">2</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(3)">3</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(4)">4</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(5)">5</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto ">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(6)">6</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto ">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(7)">7</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(8)">8</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(9)">9</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-lg btn-info" onclick="addNumber(0)">0</button>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto">
                                     <button class="btn btn-block btn-success" onclick="submitForm()">absenden</button>
                                 </div>
-                                <div class="col-auto mx-auto">
+                                <div class="col-auto ">
                                     <button class="btn btn-block btn-danger" onclick="clearInput()">Eingabe löschen</button>
                                 </div>
                             </div>
