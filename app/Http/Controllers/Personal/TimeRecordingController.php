@@ -76,7 +76,9 @@ class TimeRecordingController extends Controller
     //
     public function start()
     {
-        return view('personal.time_recording.start');
+        return view('personal.time_recording.start',[
+            'initial_scale' => 0.75,
+        ]);
     }
 
 
@@ -118,14 +120,16 @@ class TimeRecordingController extends Controller
 
         if (is_null($user->secret_key)){
             return view('personal.time_recording.set_secret', [
-                'user' => $user->user
+                'user' => $user->user,
+                'initial_scale' => 0.75,
             ]);
         }
 
 
 
         return view('personal.time_recording.get_secret', [
-            'user' => $user->user
+            'user' => $user->user,
+            'initial_scale' => 0.75,
         ]);
     }
 
@@ -195,6 +199,7 @@ class TimeRecordingController extends Controller
             'timesheet_day'=>$timesheet_day,
             'timesheet'=>$timesheet,
             'dayBefore' => $timesheet->timesheet_days()->whereDate('date', now()->subDay()->format('Y-m-d'))->where('end', null)->first(),
+            'initial_scale' => 0.75,
         ]);
     }
 
