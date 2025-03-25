@@ -22,10 +22,10 @@
                         </p>
                         <div class="container-fluid">
                             <div class="row">
-                                <div class="col">
+                                <div class="col-auto">
                                     <button class="btn btn-sm btn-info" onclick="addNumber(1)">1</button>
                                 </div>
-                                <div class="col">
+                                <div class="col-auto">
                                     <button class="btn btn-sm btn-info" onclick="addNumber(2)">2</button>
                                 </div>
                                 <div class="col">
