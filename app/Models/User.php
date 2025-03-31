@@ -43,10 +43,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id',
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id'
     ];
 
     /**
@@ -362,6 +362,11 @@ class User extends Authenticatable implements HasMedia
     public function pinned_tickets()
     {
         return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id');
+    }
+
+    public function superior()
+    {
+        return $this->belongsTo(User::class, 'superior_id');
     }
 
 }

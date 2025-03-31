@@ -93,6 +93,22 @@
 
                                     <div class="row">
                                         <div class="col-12">
+                                            <div class="form-group">
+                                                <label>
+                                                    Vorgesetzter
+                                                </label>
+                                                <select class="custom-select" name="superior_id">
+                                                    <option value="">--</option>
+                                                    @foreach($users as $user)
+                                                        <option value="{{$user->id}}" @if($user->superior_id == $user->id) selected @endif>{{$user->name}}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-12">
                                             <button type="submit" class="btn btn-success btn-block collapse" id="btn-save">speichern</button>
                                         </div>
                                     </div>
