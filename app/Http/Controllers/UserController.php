@@ -63,7 +63,8 @@ class UserController extends Controller
             'permissions' => Permission::all(),
             'roles'     => Role::all(),
             'groups'    => Group::all(),
-            'positions' => Positions::all()
+            'positions' => Positions::all(),
+            'users' => User::all(),
         ]);
     }
 
