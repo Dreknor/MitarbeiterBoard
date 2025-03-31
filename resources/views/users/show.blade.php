@@ -99,8 +99,8 @@
                                                 </label>
                                                 <select class="custom-select" name="superior_id">
                                                     <option value="">--</option>
-                                                    @foreach($users as $user)
-                                                        <option value="{{$user->id}}" @if($user->superior_id == $user->id) selected @endif>{{$user->name}}</option>
+                                                    @foreach($users as $superior)
+                                                        <option value="{{$user->id}}" @if($user->superior_id == $superior->id) selected @endif>{{$superior->name}}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
