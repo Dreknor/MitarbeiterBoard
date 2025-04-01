@@ -106,7 +106,7 @@ class TaskController extends Controller
                 ->where('taskable_id', $task->id)
                 ->delete();
 
-            Cache::delete('tasks_'.auth()->id());
+            Cache::delete('group_tasks_'.auth()->id());
 
             if (GroupTaskUser::query()->where('taskable_id', $task->id)->count() == 0) {
                 $task->update([
@@ -123,6 +123,7 @@ class TaskController extends Controller
         }
 
         Cache::delete('tasks_'.auth()->id());
+        Cache::delete('group_tasks_'.auth()->id());
 
         if (session()->previousUrl() and session()->previousUrl() != null){
             return redirect()->back();
