@@ -293,13 +293,9 @@ class TimesheetController extends Controller
 
         }
 
-
-
         $timesheet_days = $timesheet?->timesheet_days;
 
         $timesheet->updateTime();
-
-        Log::alert('timesheet: '.$timesheet);
 
         return view('personal.timesheets.timesheet', [
             'timesheet_old' => $timesheet_old,
@@ -393,7 +389,14 @@ class TimesheetController extends Controller
                             $pdf->save(storage_path('timesheet.pdf'), 1);
 
                             try {
-                                Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                if ($user->superior_id != null){
+                                    $superior = User::find($user->superior_id);
+                                    if ($superior != null and $superior->email != null){
+                                        Mail::to($user->email)->cc($superior->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                    }
+                                } else {
+                                    Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                }
 
                             } catch (\Exception $e) {
                                 Log::alert('Arbeitszeitnachweis-Mail konnte nicht versendet werden: ' . $e->getMessage());

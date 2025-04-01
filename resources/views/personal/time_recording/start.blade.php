@@ -10,7 +10,7 @@
                             digitale Zeiterfassung
                         </h1>
                     </div>
-                    <div class="card-body text-white" style="min-height: 75vH">
+                    <div class="card-body text-white" style="min-height: 60vH">
                         <h4 class="mx-auto text-center" id="hinweis">
                             Bitte Chip scannen und anschließend persönliche Pin eingeben
                         </h4>

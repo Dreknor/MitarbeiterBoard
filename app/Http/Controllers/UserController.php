@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createUserRequest;
+use App\Http\Requests\UserRequest;
 use App\Imports\UsersImport;
 use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
@@ -62,7 +63,8 @@ class UserController extends Controller
             'permissions' => Permission::all(),
             'roles'     => Role::all(),
             'groups'    => Group::all(),
-            'positions' => Positions::all()
+            'positions' => Positions::all(),
+            'users' => User::all(),
         ]);
     }
 
@@ -73,9 +75,9 @@ class UserController extends Controller
      * @param  int  $id
      * @return RedirectResponse
      */
-    public function update(Request $request, User $user)
+    public function update(UserRequest $request, User $user)
     {
-        $user->fill($request->all());
+        $user->fill($request->validated());
         $user->remind_assign_themes = $request->remind_assign_themes;
 
 
