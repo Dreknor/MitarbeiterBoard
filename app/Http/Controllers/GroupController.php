@@ -164,9 +164,12 @@ class GroupController extends Controller
      */
     public function destroy(Group $group)
     {
+        $group->users()->sync([]);
+
         if ($group->homegroup != '') {
             $themes = $group->themes;
             foreach ($themes as $theme) {
+
                 $protocol = new Protocol([
                         'creator_id' => 1,
                         'theme_id'   => $theme->id,
@@ -179,13 +182,13 @@ class GroupController extends Controller
             }
         }
 
-        $group->users()->sync([]);
+
         $group->delete();
     }
 
     public function deleteOldGroups()
     {
-        $groups = Group::where('enddate', '!=', '')->whereDate('enddate', '<=', Carbon::yesterday())->get();
+        $groups = Group::where('enddate', '!=', '')->whereDate('enddate', '=', Carbon::today())->get();
 
         foreach ($groups as $group) {
             $this->destroy($group);
