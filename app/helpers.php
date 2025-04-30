@@ -136,6 +136,7 @@ function is_holiday(Carbon $date)
                 $object->date = $date->format('Y-m-d');
                 $object->title = $item['title'];
 
+                Log::info($object);
                 return $object;
             }
 
