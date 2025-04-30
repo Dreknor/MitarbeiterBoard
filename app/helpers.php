@@ -124,12 +124,13 @@ function is_holiday(Carbon $date)
         // Feiertage für das Jahr zwischenspeichern und abrufen
         $holidays = Cache::remember(
             'holidays_' . $date->year,
-            now()->addDays(31), // Cache für 5 Tage speichern
+            now()->addDays(31), // Cache für 31 Tage speichern
             fn() => fetch_holidays_by_year($date->year) // Hilfsfunktion für API-Aufruf
         );
 
         // Datum auf Feiertag prüfen
         return $holidays->first(function ($item) use ($date) {
+            Log::info($item);
             return $item->date == $date->format('Y-m-d');
         });
 
