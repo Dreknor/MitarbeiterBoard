@@ -165,10 +165,14 @@ class GroupController extends Controller
     public function destroy(Group $group)
     {
         $group->users()->sync([]);
+        $group->subscriptionable()->delete();
 
         if ($group->homegroup != '') {
             $themes = $group->themes;
             foreach ($themes as $theme) {
+
+                $theme->subscriptionable()->delete();
+
 
                 $protocol = new Protocol([
                         'creator_id' => 1,
