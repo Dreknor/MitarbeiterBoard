@@ -131,7 +131,7 @@ function is_holiday(Carbon $date)
         // Datum auf Feiertag prüfen
         return $holidays->first(function ($item) use ($date) {
             Log::info($item);
-            return $item->date == $date->format('Y-m-d');
+            return $item['date'] == $date->format('Y-m-d');
         });
 
     } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
