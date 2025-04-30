@@ -131,7 +131,7 @@ function is_holiday(Carbon $date)
         // Datum auf Feiertag prüfen
         return $holidays->first(function ($item) use ($date) {
             if ($item['date'] == $date->format('Y-m-d')){
-                return $item;
+                return (object) $item;
             }
         });
 
