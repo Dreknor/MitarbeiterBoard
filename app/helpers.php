@@ -131,8 +131,15 @@ function is_holiday(Carbon $date)
         // Datum auf Feiertag prüfen
         return $holidays->first(function ($item) use ($date) {
             if ($item['date'] == $date->format('Y-m-d')){
-                return json_decode (json_encode ($item), FALSE);
+                $object =  new stdClass();
+                $object->year = $date->year;
+                $object->date = $date->format('Y-m-d');
+                $object->title = $item['title'];
+
+                return $object;
             }
+
+            return false;
         });
 
     } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
