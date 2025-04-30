@@ -70,25 +70,20 @@ class TicketCommentController extends Controller
             return redirect()->route('tickets.show', $ticket->id)->with('error', 'Comment could not be saved');
         }
 
-
-        try {
-            // Notify the ticket creator if a public comment is added
-            if ($comment->user_id !== $ticket->user_id) {
-                Mail::to($ticket->user->email)->queue(mailable: new newTicketCommentMail($comment, $ticket));
-                Log::info('Mail sent to ' . $ticket->user->email);
-                Log::info($ticket);
-            }
-
-            // Notify the assigned user if the ticket creator responds
-            if ($comment->user_id === $ticket->user_id && $ticket->assigned_to !== null) {
-                $assignedUser = User::find($ticket->assigned_to);
-                Mail::to($assignedUser->email)->queue(new newTicketCommentMail($comment, $ticket));
-                Log::info('Mail sent to assigned user ' . $assignedUser->email);
-                Log::info($ticket);
-            }
-        } catch (\Exception $e) {
-            Log::alert('Comment-Mail could not be sent: ' . $e->getMessage());
+        if ($comment->user_id !== $ticket->user_id) {
+            Mail::to($ticket->user->email)->send(mailable: new newTicketCommentMail($comment, $ticket));
+            Log::info('Mail sent to ' . $ticket->user->email);
+            Log::info($ticket);
         }
+
+        // Notify the assigned user if the ticket creator responds
+        if ($comment->user_id === $ticket->user_id && $ticket->assigned_to !== null) {
+            $assignedUser = User::find($ticket->assigned_to);
+            Mail::to($assignedUser->email)->send(new newTicketCommentMail($comment, $ticket));
+            Log::info('Mail sent to assigned user ' . $assignedUser->email);
+            Log::info($ticket);
+        }
+
 
         return redirect()->route('tickets.show', $ticket->id);
 
