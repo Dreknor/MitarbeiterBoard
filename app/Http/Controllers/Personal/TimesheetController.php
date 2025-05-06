@@ -199,21 +199,17 @@ class TimesheetController extends Controller
         }
 
 
-        Log::alert('Timesheet: '.$user->id.' '.$date);
         if ($date == null){
            $act_month = Carbon::today();
-           Log::alert('Timesheet date null: '.$act_month);
         } else {
             //$year = substr($date, 0, 4);
             //$month = substr($date, 5, 2);
             //$act_month = Carbon::createFromFormat('Y-m-d', $year.'-'.$month.'-01');
             $act_month = Carbon::createFromFormat('Y-m', $date);
-            Log::alert('Timesheet act_month: '.$act_month. ' date:'.$date);
 
         }
 
 
-        Log::alert('Timesheet: '.$act_month);
 
 
         $old = $act_month->copy()->subMonth();
@@ -232,10 +228,8 @@ class TimesheetController extends Controller
             'working_time_account' => 0
         ]);
 
-        Log::alert('Timesheet: '.$timesheet);
 
         if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
-            Log::alert('Timesheet wurde erstellt');
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
                 if ($working_time->roster?->type != 'template'){
                     return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
@@ -399,7 +393,12 @@ class TimesheetController extends Controller
                                 }
 
                             } catch (\Exception $e) {
-                                Log::alert('Arbeitszeitnachweis-Mail konnte nicht versendet werden: ' . $e->getMessage());
+                                Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
+                                    'user' => $user->id,
+                                    'email' => $user->email,
+                                    'exception' => $e->getMessage()
+                                ]);
+
                             }
 
                             if (File::exists(storage_path('timesheet.pdf'))) {
