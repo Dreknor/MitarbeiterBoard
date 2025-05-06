@@ -94,9 +94,11 @@ class AppServiceProvider extends ServiceProvider
 
                 }, SORT_REGULAR, $order == SORT_DESC);
             } catch (\Exception $e) {
-                Log::error('sortByDate failed: ');
-                Log::error($e->getMessage());
-                Log::error($this);
+                Log::error('sortByDate failed: ', [
+                    'column' => $column,
+                    'order' => $order,
+                    'exception' => $e->getMessage(),
+                ]);
                 return $this;
             }
 

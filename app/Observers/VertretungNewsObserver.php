@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\DailyNews;
+use Illuminate\Support\Facades\Log;
 
 class VertretungNewsObserver
 {
@@ -32,7 +33,8 @@ class VertretungNewsObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanEventObserver: Senden an API fehlgeschlagen',[
+                'exception' => $e->getMessage()]);
         }
     }
 
@@ -64,7 +66,8 @@ class VertretungNewsObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanEventObserver: Senden an API fehlgeschlagen',[
+                'exception' => $e->getMessage()]);
         }
 
 

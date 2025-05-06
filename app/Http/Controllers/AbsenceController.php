@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -29,6 +30,15 @@ class AbsenceController extends Controller
      */
     public function index() {
         if (!auth()->user()->can('view old absences')){
+
+            Log::debug(
+                'Abwesenheit: Berechtigung fehlt',
+                [
+                    'user' => auth()->user(),
+                    'route' => 'absences.index'
+                ]
+            );
+
             return redirect(url('/'))->with([
                 'type'  => "warning",
                 'Meldung' => 'Berechtigung fehlt'
@@ -60,12 +70,30 @@ class AbsenceController extends Controller
             }
             $absence->save();
 
+            Log::debug(
+                'Abwesenheit: Abwesenheit gespeichert',
+                [
+                    'user' => auth()->user(),
+                    'absence' => $absence,
+                    'route' => 'absences.store'
+                ]
+            );
+
 
         } else {
             $absence->update([
                 'end' => $request->end,
                 'sick_note_required' => $request->sick_note_required,
             ]);
+
+            Log::debug(
+                'Abwesenheit: Abwesenheit aktualisiert',
+                [
+                    'user' => auth()->user(),
+                    'absence' => $absence,
+                    'route' => 'absences.store'
+                ]
+            );
         }
         $users = User::where('absence_abo_now', 1)->get();
         foreach ($users as $user){
@@ -108,11 +136,26 @@ class AbsenceController extends Controller
      */
     public function dailyReport(){
 
+        Log::debug(
+            'Abwesenheit: täglicher Report',
+            [
+
+            ]
+        );
+
         $absences = Absence::where('start', '<=', Carbon::now()->format('Y-m-d'))
                             ->where('end', '>=', Carbon::now()->format('Y-m-d'))
                             ->get();
 
         $users = User::where('absence_abo_daily', 1)->get();
+
+        Log::debug(
+            'Abwesenheit: täglicher Report',
+            [
+                'absences' => $absences,
+                'users' => $users,
+            ]
+        );
 
         foreach ($users as $user){
             if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))) {
@@ -136,12 +179,31 @@ class AbsenceController extends Controller
     public function delete(Absence $absence){
         if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id)){
             if ($absence->end->greaterThan(Carbon::today()->startOfDay())){
+                Log::debug(
+                    'Abwesenheit: Abwesenheit gelöscht',
+                    [
+                        'user' => auth()->user(),
+                        'absence' => $absence,
+                        'route' => 'absences.delete'
+                    ]
+                );
                 $absence->delete();
+
                 return redirect()->back()->with([
                     'type' => 'info',
                     'Meldung' => 'Abwesenheitsmitteilung gelöscht'
                 ]);
+
+
             } else {
+                Log::debug(
+                    'Abwesenheit: Abwesenheit löschen fehlgeschlagen',
+                    [
+                        'user' => auth()->user(),
+                        'absence' => $absence,
+                        'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
+                    ]
+                );
                 return redirect()->back()->with([
                     'type' => 'danger',
                     'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
@@ -239,9 +301,19 @@ class AbsenceController extends Controller
             ]);
         }
 
+
+
         $absence->update([
             'sick_note_date' => Carbon::now()
         ]);
+
+        Log::info(
+            'Abwesenheit: Krankenschein aktualisiert',
+            [
+                'user' => auth()->user(),
+                'absence' => $absence,
+            ]
+        );
 
         return redirect()->back()->with([
             'type'  => "success",
@@ -261,9 +333,19 @@ class AbsenceController extends Controller
             ]);
         }
 
+
+
         $absence->update([
             'sick_note_date' => null
         ]);
+
+        Log::info(
+            'Abwesenheit: Krankenschein entfernt',
+            [
+                'user' => auth()->user(),
+                'absence' => $absence,
+            ]
+        );
 
         return redirect()->back()->with([
             'type'  => "success",

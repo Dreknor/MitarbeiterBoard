@@ -6,6 +6,7 @@ use App\Http\Requests\StoreSettingsRequest;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class SettingController extends Controller
 {
@@ -41,6 +42,10 @@ class SettingController extends Controller
                 $value = 1;
             }
             Setting::where('setting', $key)->update(['value' => $value]);
+            Log::info('Setting updated', [
+                'setting' => $key,
+                'value' => $value
+            ]);
         }
 
         Cache::forget('settings');

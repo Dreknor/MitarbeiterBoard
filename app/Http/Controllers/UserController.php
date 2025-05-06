@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -43,6 +44,15 @@ class UserController extends Controller
      */
     public function restore(Request $request, $user_id){
         User::withTrashed()->find($user_id)->restore();
+
+        Log::info(
+            'Benutzer: Benutzer reaktiviert',
+            [
+                'wiederhergestellt' => $user_id,
+                'user' => auth()->user()->id,
+                'ip' => $request->ip(),
+            ]
+        );
 
         return redirect(url('users/'.$user_id))->with([
             'type' => 'success',
@@ -107,6 +117,15 @@ class UserController extends Controller
             $user->password = Hash::make($request->input('new-password'));
         }
 
+        Log::debug(
+            'Benutzer: Benutzer aktualisiert',
+            [
+                'user' => $user->id,
+                'ip' => $request->ip(),
+                'changed' => $request->all(),
+            ]
+        );
+
         if ($user->save()) {
             return redirect()->back()->with([
                'type'   => 'success',
@@ -129,6 +148,16 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::find($id);
+
+        Log::info(
+            'Benutzer: Benutzer '.$user->name.' deaktiviert',
+            [
+                'user' => $user,
+                'ip' => request()->ip(),
+                'verantwortlich' => auth()->user(),
+            ]
+        );
+
         $user->tasks()->delete();
         $user->delete();
 
@@ -193,6 +222,14 @@ class UserController extends Controller
         if ($request->hasFile('file')) {
         Excel::import(new UsersImport(), request()->file('file'));
 
+        Log::info(
+            'Benutzer: Benutzer importiert',
+            [
+                'user' => auth()->user()->id,
+                'ip' => $request->ip(),
+            ]
+        );
+
         return redirect(url('users'))->with([
             'type'  => 'success',
             'Meldung'   => 'Erfolgreicher Import',
@@ -236,6 +273,15 @@ class UserController extends Controller
             $OldUser->changePassword = true;
             $OldUser->save();
 
+            Log::info(
+                'Benutzer: Benutzer reaktiviert',
+                [
+                    'user' => $OldUser,
+                    'ip' => $request->ip(),
+                    'verantwortlich' => auth()->user(),
+                ]
+            );
+
             return redirect(url("users/$OldUser->id"))->with([
                 'type'  => 'warning',
                 'Meldung'   => 'Der Benutzer bestand bereits und wurde daher reaktiviert.',
@@ -246,6 +292,15 @@ class UserController extends Controller
         $user->password = Hash::make($request->input('password'));
         $user->changePassword = true;
         $user->save();
+
+        Log::info(
+            'Benutzer: Benutzer angelegt',
+            [
+                'user' => $user,
+                'ip' => $request->ip(),
+                'verantwortlich' => auth()->user(),
+            ]
+        );
 
         return redirect(url("users/$user->id"))->with([
             'type'  => 'success',

@@ -29,7 +29,11 @@ class VertretungsplanAbsenceObserver
 
             }
         } catch (\Exception $e) {
-            Log::error($e->getMessage());
+            Log::error('VertretungsplanAbsenceObserver: Senden an API fehlgeschlagen',
+                [
+                'exception' => $e->getMessage()
+                ]);
+
         }
     }
 
@@ -59,7 +63,10 @@ class VertretungsplanAbsenceObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanAbsenceObserver: Senden an API fehlgeschlagen',
+                [
+                'exception' => $e->getMessage()
+                ]);
         }
 
     }
@@ -84,7 +91,12 @@ class VertretungsplanAbsenceObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+           Log::error(
+                'VertretungsplanAbsenceObserver: Senden an API fehlgeschlagen',
+                [
+                'exception' => $e->getMessage()
+                ]
+           );
         }
 
 
