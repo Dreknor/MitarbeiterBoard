@@ -14,9 +14,11 @@ use App\Observers\VertretungsplanAbsenceObserver;
 use App\Observers\VertretungWeekObserver;
 use App\Support\Collection;
 use Carbon\Carbon;
+use danielme85\LaravelLogToDB\LogToDB;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,6 +51,16 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setUTF8(true);
         Carbon::setLocale(config('app.locale'));
         setlocale(LC_TIME, config('app.locale'));
+
+
+        Queue::failing(function ($connection, $job, $data) {
+            Log::error('Queue failed: ' . $job->getName(), [
+                'connection' => $connection,
+                'job' => $job,
+                'data' => $data,
+            ]);
+
+        });
 
         Collection::macro('paginate', function ($perPage, $total = null, $page = null, $pageName = 'page') {
             $page = $page ?: LengthAwarePaginator::resolveCurrentPage($pageName);
