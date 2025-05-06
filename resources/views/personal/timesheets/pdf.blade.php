@@ -156,7 +156,7 @@
                             </div>
                         @endforeach
                         @if(is_holiday($day))
-                            {{is_holiday($day)->title}}
+                            {{is_holiday($day)['title']}}
                         @endif
                     </td>
                     <td @if(!$day->isWeekday() or is_holiday($day)) style="background-color: rgb(166,201,246) !important;"
