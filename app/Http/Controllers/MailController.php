@@ -41,7 +41,11 @@ class MailController extends Controller
 
         foreach ($groups as $group) {
             $date = Carbon::today()->addDays(max(1,$group->InvationDays));
-            $themes = $group->themes()->whereDate('date', $date)->where('completed', 0)->get();
+            $themes = $group->themes()
+                ->whereDate('date', $date)
+                ->where('completed', 0)
+                ->where('memory', 0)
+                ->get();
             $themes = $themes->filter(function ($theme) use ($date) {
                 return $theme->completed == 0 and $theme->date->startOfDay()->eq($date->startOfDay());
             })->sortByDesc([
