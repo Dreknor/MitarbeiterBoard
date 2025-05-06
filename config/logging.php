@@ -58,6 +58,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
+
         ],
 
         'slack' => [
@@ -116,6 +117,7 @@ return [
             'queue_connection' => '',
             'max_records' => false,
             'max_hours' => false,
+
         ],
     ],
 

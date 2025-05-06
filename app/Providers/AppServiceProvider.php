@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use danielme85\LaravelLogToDB\LogToDB;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
@@ -53,12 +54,16 @@ class AppServiceProvider extends ServiceProvider
         setlocale(LC_TIME, config('app.locale'));
 
 
-        Queue::failing(function ($connection, $job, $data) {
-            Log::error('Queue failed: ' . $job->getName(), [
-                'connection' => $connection,
+        Queue::failing(function (JobFailed $event) {
+            $job = $event->job;
+            $exception = $event->exception;
+
+            Log::error('Job failed: ' . $job->resolveName(), [
                 'job' => $job,
-                'data' => $data,
+                'exception' => $exception,
+                'payload' => $job->payload(),
             ]);
+
 
         });
 

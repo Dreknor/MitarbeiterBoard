@@ -6,6 +6,7 @@ use App\Exports\LogExport;
 use App\Models\User;
 use danielme85\LaravelLogToDB\LogToDB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class LogController extends Controller
@@ -17,8 +18,21 @@ class LogController extends Controller
 
     public function index(Request $request)
     {
+
+        $colors = [
+            'DEBUG' => 'light',
+            'INFO' => 'light',
+            'NOTICE' => 'info',
+            'WARNING' => 'warning',
+            'ERROR' => 'warning',
+            'CRITICAL' => 'danger',
+            'ALERT' => 'danger',
+            'EMERGENCY' => 'danger',
+        ];
+
+
         $logs = LogToDB::model()->orderBy('created_at', 'desc', )->paginate(30);
-        return view('logs.index', compact('logs'));
+        return view('logs.index', compact('logs' , 'colors'));
 
     }
 

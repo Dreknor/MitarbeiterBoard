@@ -22,14 +22,14 @@
                                 </thead>
                                 <tbody>
                                 @forelse($logs as $log)
-                                    <tr class="log-header {{ $log->level === 'error' ? 'table-danger' : ($log->level === 'warning' ? 'table-warning' : '') }}"
+                                    <tr class="log-header table-{{$colors[$log->level_name]}} "
                                         data-log-id="{{ $log->id }}">
                                         <td>
                                             <i class="fas fa-chevron-down toggle-icon"></i>
                                         </td>
                                         <td>{{ $log->created_at->format('d.m.Y H:i:s') }}</td>
                                         <td>
-                                            <span class="badge {{ $log->level === 'error' ? 'badge-danger' : ($log->level === 'warning' ? 'badge-warning' : 'badge-info') }}">
+                                            <span class="badge badge-{{ $colors[$log->level_name] }} text-uppercase">
                                                 {{ ucfirst($log->level) }}
                                             </span>
                                         </td>
@@ -81,6 +81,7 @@
                                 <label for="level">Level</label>
                                 <select class="custom-select form-control-sm" id="level" name="level">
                                     <option value="">Alle</option>
+                                    <option value="emergency">Emergency</option>
                                     <option value="error">Error</option>
                                     <option value="warning">Warning</option>
                                     <option value="info">Info</option>
