@@ -413,6 +413,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('view logs')
+                        <li class="@if(request()->segment(1)=="logs") active @endif">
+                            <a href="{{url('/logs')}}">
+                                <i class="fas fa-history"></i>
+                                <p>Logs</p>
+                            </a>
+                        </li>
+                   @endcan
 
                 @endcan
             @endauth

@@ -12,6 +12,7 @@ use App\Http\Controllers\Inventory\ItemsController;
 use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
@@ -567,6 +568,12 @@ Route::group([
                 });
 
 
-
+                /*
+                 * Routes for Logs
+                 */
+                Route::middleware(['permission:view logs'])->group(function () {
+                    Route::get('logs', [LogController::class, 'index']);
+                    Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
+                });
             });
     });
