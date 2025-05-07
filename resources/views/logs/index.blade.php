@@ -7,7 +7,26 @@
                 <div class="card">
                     <div class="card-header">
                         <h4>Systemlogs</h4>
+                    </div>
+                    <div class="card-body">
 
+                        <div class="row">
+                            <div class="col">
+                                <h6>Filter:</h6>
+                            </div>
+                            <div class="col-auto">
+                                <a href="{{ route('logs.set_filter', ['filter' => "all"]) }}" class="badge badge-primary  text-uppercase p-2">Alle</a>
+                            </div>
+                            @foreach($colors as $level => $color)
+                                <div class="col-auto">
+                                    <a href="{{route('logs.set_filter', ['filter' => $level])}}">
+                                        <span class="badge badge-{{ $color }} text-uppercase p-2">
+                                            {{ ucfirst($level) }}
+                                        </span>
+                                    </a>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table">
