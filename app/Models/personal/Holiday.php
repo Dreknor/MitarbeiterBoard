@@ -23,6 +23,7 @@ class Holiday extends Model
         'approved_by',
         'approved_at',
         'rejected',
+        'days',
     ];
 
     protected $casts = [
@@ -37,21 +38,8 @@ class Holiday extends Model
         return $this->belongsTo(User::class);
     }
 
-       public function approved_by()
-        {
-            return $this->belongsTo(User::class, 'approved_by');
-        }
-
-    protected function days(): Attribute
+   public function approved_by()
     {
-        return Attribute::make(
-            get: function () {
-                $days = $this->start_date->diffInDaysFiltered(function (Carbon $date) {
-                    return $date->isWeekday() && !is_holiday($date);
-                }, $this->end_date);
-
-                return  $days+1;
-            },
-        );
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

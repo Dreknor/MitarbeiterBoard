@@ -39,7 +39,6 @@ class newProtocolForTask extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            replyTo: new Address($this->protocol->user->email,$this->protocol->user->name),
             subject: 'Neues Protokoll für Thema: ' . $this->theme,
         );
     }

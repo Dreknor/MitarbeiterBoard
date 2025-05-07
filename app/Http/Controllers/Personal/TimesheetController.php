@@ -190,11 +190,27 @@ class TimesheetController extends Controller
             return redirect()->back();
         }
 
+        if ($user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() < 1){
+            return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
+        }
+
+        if ($user->employments->count() < 1){
+            return redirectBack('warning', 'Keine Anstellung eingetragen');
+        }
+
+
         if ($date == null){
            $act_month = Carbon::today();
         } else {
+            //$year = substr($date, 0, 4);
+            //$month = substr($date, 5, 2);
+            //$act_month = Carbon::createFromFormat('Y-m-d', $year.'-'.$month.'-01');
             $act_month = Carbon::createFromFormat('Y-m', $date);
+
         }
+
+
+
 
         $old = $act_month->copy()->subMonth();
         $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
@@ -270,8 +286,6 @@ class TimesheetController extends Controller
 
 
         }
-
-
 
         $timesheet_days = $timesheet?->timesheet_days;
 
@@ -369,10 +383,22 @@ class TimesheetController extends Controller
                             $pdf->save(storage_path('timesheet.pdf'), 1);
 
                             try {
-                                Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                if ($user->superior_id != null){
+                                    $superior = User::find($user->superior_id);
+                                    if ($superior != null and $superior->email != null){
+                                        Mail::to($user->email)->cc($superior->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                    }
+                                } else {
+                                    Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
+                                }
 
                             } catch (\Exception $e) {
-                                Log::alert('Arbeitszeitnachweis-Mail konnte nicht versendet werden: ' . $e->getMessage());
+                                Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
+                                    'user' => $user->id,
+                                    'email' => $user->email,
+                                    'exception' => $e->getMessage()
+                                ]);
+
                             }
 
                             if (File::exists(storage_path('timesheet.pdf'))) {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createHolidayRequest;
+use App\Models\Group;
 use App\Models\personal\Holiday;
 use App\Models\User;
 use Carbon\Carbon;
@@ -13,11 +14,16 @@ use Spatie\Permission\Models\Permission;
 
 class HolidayController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      */
     public function index( $month = null, $year = null)
     {
+        if (!auth()->user()->can('has holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
 
         if ($month == null or $year == null){
             $startMonth = Carbon::now()->startOfMonth();
@@ -70,6 +76,14 @@ class HolidayController extends Controller
             $users = collect([auth()->user()]);
         }
 
+        foreach ($holidays as $holiday){
+            if ($holiday->days == null) {
+                $holiday->update([
+                    'days' => workdays($holiday->start_date, $holiday->end_date)
+                ]);
+            }
+        }
+
         return view('personal.holidays.index', [
             'holidays' => $holidays,
             'month' => $startMonth,
@@ -91,12 +105,17 @@ class HolidayController extends Controller
      */
     public function store(createHolidayRequest $request)
     {
+
         if(!auth()->user()->can('has holidays')){
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
         if ($request->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($request->end_date < $request->start_date){
+            return redirectBack('danger', 'Enddatum kann nicht vor dem Startdatum liegen.');
         }
 
         if ($request->employe_id != 'all'){
@@ -108,14 +127,37 @@ class HolidayController extends Controller
 
             $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
 
-            $user->holidays()->create([
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date,
-                'approved' => auth()->user()->can('approve holidays'),
-                'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-            ]);
+            $start = Carbon::createFromFormat('Y-m-d',$request->start_date);
+            $end = Carbon::createFromFormat('Y-m-d',$request->end_date);
 
+            if ($start->year != $end->year){
+
+                $user->holidays()->create([
+                    'start_date' => $start,
+                    'end_date' => $start->copy()->endOfYear(),
+                    'approved' => auth()->user()->can('approve holidays'),
+                    'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                    'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                    'days' => workdays(Carbon::createFromFormat('Y-m-d',$start), Carbon::createFromFormat('Y-m-d',$start->copy()->endOfYear()))
+                ],
+                [
+                    'start_date' => $end->copy()->startOfYear(),
+                    'end_date' => $end,
+                    'approved' => auth()->user()->can('approve holidays'),
+                    'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                    'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                    'days' => workdays(Carbon::createFromFormat('Y-m-d',$end->copy()->startOfYear()), Carbon::createFromFormat('Y-m-d',$end))
+                ]);
+            } else {
+                $user->holidays()->create([
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'approved' => auth()->user()->can('approve holidays'),
+                    'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                    'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                    'days' => workdays(Carbon::createFromFormat('Y-m-d', $request->start_date), Carbon::createFromFormat('Y-m-d', $request->end_date))
+                ]);
+            }
             return redirect(url('holidays/'.$date->month.'/'.$date->year))
                 ->with([
                     'type' => 'success',
@@ -124,19 +166,54 @@ class HolidayController extends Controller
         } else {
             $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
 
-            $users = User::permission('has holidays')->get();
+            $cookie = $request->cookie('group');
+            $group = Group::query()->where('name', $cookie)->first();
+            if ($group != null and $cookie != null){
+                $users = User::permission('has holidays')->whereHas('groups_rel', function ($query) use ($group){
+                    $query->where('name', $group);
+                })->get();
+
+            } else {
+                $users = User::permission('has holidays')->get();
+            }
+
             $holidays = [];
             foreach ($users as $user){
-                if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
-                    $holidays[]=[
-                        'start_date' => $request->start_date,
-                        'end_date' => $request->end_date,
-                        'employe_id' => $user->id,
-                        'approved' => auth()->user()->can('approve holidays'),
-                        'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                        'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                    ];
+
+                $start = Carbon::createFromFormat('Y-m-d',$request->start_date);
+                $end = Carbon::createFromFormat('Y-m-d',$request->end_date);
+
+                if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))) {
+                    if ($start->year != $end->year) {
+
+                        $user->holidays()->create([
+                            'start_date' => $start,
+                            'end_date' => $start->copy()->endOfYear(),
+                            'approved' => auth()->user()->can('approve holidays'),
+                            'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                            'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                            'days' => workdays(Carbon::createFromFormat('Y-m-d', $start), Carbon::createFromFormat('Y-m-d', $start->copy()->endOfYear()))
+                        ],
+                            [
+                                'start_date' => $end->copy()->startOfYear(),
+                                'end_date' => $end,
+                                'approved' => auth()->user()->can('approve holidays'),
+                                'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                                'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                                'days' => workdays(Carbon::createFromFormat('Y-m-d', $end->copy()->startOfYear()), Carbon::createFromFormat('Y-m-d', $end))
+                            ]);
+                    } else {
+                        $user->holidays()->create([
+                            'start_date' => $request->start_date,
+                            'end_date' => $request->end_date,
+                            'approved' => auth()->user()->can('approve holidays'),
+                            'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
+                            'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
+                            'days' => workdays(Carbon::createFromFormat('Y-m-d', $request->start_date), Carbon::createFromFormat('Y-m-d', $request->end_date))
+                        ]);
+                    }
                 }
+
             }
 
             Holiday::insert($holidays);
@@ -198,9 +275,20 @@ class HolidayController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Holiday $holiday)
+    public function delete(Holiday $holiday)
     {
-        //
+        if ($holiday->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($holiday->start_date->isPast()){
+            return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
+        }
+
+        $holiday->delete();
+
+
+        return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
     }
 
     public function export($year = null, $group = null){
@@ -254,5 +342,26 @@ class HolidayController extends Controller
                         10);
 
         return $pdf->download('urlaub_'.$year.'.pdf');
+    }
+
+    public function updateDays(Holiday $holiday){
+        $holiday->update([
+            'days' => workdays($holiday->start_date, $holiday->end_date)
+        ]);
+    }
+
+    public function destroy(Holiday $holiday)
+    {
+        if ($holiday->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        if ($holiday->start_date->isPast()){
+            return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
+        }
+
+        $holiday->delete();
+
+        return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
     }
 }

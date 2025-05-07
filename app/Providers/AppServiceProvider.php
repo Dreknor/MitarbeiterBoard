@@ -14,9 +14,12 @@ use App\Observers\VertretungsplanAbsenceObserver;
 use App\Observers\VertretungWeekObserver;
 use App\Support\Collection;
 use Carbon\Carbon;
+use danielme85\LaravelLogToDB\LogToDB;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -50,6 +53,20 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale(config('app.locale'));
         setlocale(LC_TIME, config('app.locale'));
 
+
+        Queue::failing(function (JobFailed $event) {
+            $job = $event->job;
+            $exception = $event->exception;
+
+            Log::error('Job failed: ' . $job->resolveName(), [
+                'job' => $job,
+                'exception' => $exception,
+                'payload' => $job->payload(),
+            ]);
+
+
+        });
+
         Collection::macro('paginate', function ($perPage, $total = null, $page = null, $pageName = 'page') {
             $page = $page ?: LengthAwarePaginator::resolveCurrentPage($pageName);
 
@@ -77,9 +94,11 @@ class AppServiceProvider extends ServiceProvider
 
                 }, SORT_REGULAR, $order == SORT_DESC);
             } catch (\Exception $e) {
-                Log::error('sortByDate failed: ');
-                Log::error($e->getMessage());
-                Log::error($this);
+                Log::error('sortByDate failed: ', [
+                    'column' => $column,
+                    'order' => $order,
+                    'exception' => $e->getMessage(),
+                ]);
                 return $this;
             }
 

@@ -33,7 +33,7 @@
             </div>
         @endforeach
         @if(is_holiday($day))
-            {{is_holiday($day)->title}}
+            {{is_holiday($day)['title']}}
         @endif
     </td>
     <td class="@if($timesheet_days->filterDay($day)->sum('duration')-percent_to_seconds($employe->employments_date($day)->sum('percent'))/5 > 0) text-success @else text-danger @endif">

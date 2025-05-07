@@ -13,6 +13,7 @@
         "barryvdh/laravel-dompdf": "^2.0",
         "barryvdh/laravel-snappy": "^1.0",
         "composer/composer": "^2.2",
+        "danielme85/laravel-log-to-db": "^4.1",
         "doctrine/dbal": "^3.5",
         "dyrynda/laravel-cascade-soft-deletes": "^4.2",
         "guzzlehttp/guzzle": "^7.0.1",

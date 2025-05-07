@@ -37,7 +37,7 @@ class EventServiceProvider extends ServiceProvider
             SendEmailVerificationNotification::class,
         ],
         MessageSending::class => [
-           //LogEmail::class,
+           LogEmail::class,
         ],
 
         \SocialiteProviders\Manager\SocialiteWasCalled::class => [
@@ -60,8 +60,6 @@ class EventServiceProvider extends ServiceProvider
 
         Event::listen('Aacotroneo\Saml2\Events\Saml2LoginEvent', function (Saml2LoginEvent $event) {
             $messageId = $event->getSaml2Auth()->getLastMessageId();
-            // Add your own code preventing reuse of a $messageId to stop replay attacks
-
             $user = $event->getSaml2User();
             $userData = [
                 'id' => $user->getUserId(),

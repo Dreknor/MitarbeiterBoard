@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class GroupController extends Controller
 {
@@ -48,6 +49,14 @@ class GroupController extends Controller
         $group->creator_id = auth()->id();
         $group->save();
 
+        Log::info(
+            'Gruppen: Gruppe '.$group->name. ' erstellt',
+            [
+                'user' => auth()->user()->name,
+                'group' => $group,
+            ]
+        );
+
         $group->users()->attach(auth()->user());
 
         Cache::forget('groups_'.auth()->id());
@@ -76,6 +85,15 @@ class GroupController extends Controller
      */
     public function update(GroupRequest $request, Group $group){
         $group->update($request->validated());
+
+        Log::info(
+            'Gruppen: Gruppe '.$group->name. ' bearbeitet',
+            [
+                'user' => auth()->user()->name,
+                'group' => $group,
+            ]
+        );
+
         return redirect(url('groups'))->with([
             'type'   => 'success',
             'Meldung'    => 'Gruppe '.$group->name.' wurde bearbeitet.',
@@ -87,6 +105,8 @@ class GroupController extends Controller
     public function addUser(Request $request, $groupname)
     {
         $group = Group::where('name', $groupname)->first();
+
+
 
         if (! $group) {
             return redirect()->back()->with([
@@ -106,6 +126,14 @@ class GroupController extends Controller
 
         if ($user->count() == 1) {
             $group->users()->attach($user);
+
+            Log::info(
+                'Gruppen: Benutzer '.$user[0]->name. ' zur Gruppe '.$group->name. ' hinzugefügt',
+                [
+                    'user' => auth()->user()->name,
+                    'group' => $group,
+                ]
+            );
 
             return  redirect()->back()->with([
                 'type'   => 'success',
@@ -144,6 +172,14 @@ class GroupController extends Controller
         if (isset($user)) {
             $group->users()->detach($user);
 
+            Log::info(
+                'Gruppen: Benutzer '.$user->name. ' aus Gruppe '.$group->name. ' entfernt',
+                [
+                    'user' => auth()->user()->name,
+                    'group' => $group,
+                ]
+            );
+
             return  redirect()->back()->with([
                 'type'   => 'success',
                 'Meldung' => 'Benutzer entfernt',
@@ -164,9 +200,18 @@ class GroupController extends Controller
      */
     public function destroy(Group $group)
     {
+        $group->users()->sync([]);
+        $group->subscriptionable()->delete();
+
+
+
         if ($group->homegroup != '') {
             $themes = $group->themes;
             foreach ($themes as $theme) {
+
+                $theme->subscriptionable()->delete();
+
+
                 $protocol = new Protocol([
                         'creator_id' => 1,
                         'theme_id'   => $theme->id,
@@ -176,18 +221,36 @@ class GroupController extends Controller
 
                 $theme->group_id = $group->homegroup;
                 $theme->save();
+
+
             }
+
+            Log::info(
+                'Gruppen: Gruppe '.$group->name. ' gelöscht und Themen der Hauptgruppe hinzugefügt',
+                [
+                    'user' => (auth()->check() ? auth()->user()->name : 'System'),
+                    'group' => $group,
+                ]
+            );
         }
 
-        $group->users()->sync([]);
         $group->delete();
     }
 
     public function deleteOldGroups()
     {
-        $groups = Group::where('enddate', '!=', '')->whereDate('enddate', '<=', Carbon::yesterday())->get();
+        $groups = Group::where('enddate', '!=', '')->whereDate('enddate', '=', Carbon::today())->get();
 
         foreach ($groups as $group) {
+
+            Log::info(
+                'Gruppen: Gruppe '.$group->name. ' gelöscht',
+                [
+                    'user' => (auth()->check() ? auth()->user()->name : 'System'),
+                    'group' => $group,
+                ]
+            );
+
             $this->destroy($group);
         }
     }

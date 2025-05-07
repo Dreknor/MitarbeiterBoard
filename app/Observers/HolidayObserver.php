@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Absence;
 use App\Models\personal\Holiday;
+use Carbon\Carbon;
 
 class HolidayObserver
 {
@@ -12,6 +13,7 @@ class HolidayObserver
      */
     public function created(Holiday $holiday): void
     {
+
         if (settings('absence_auto_create', 'holidays') == true){
             if ($holiday->approved){
                 Absence::firstOrCreate([
@@ -30,6 +32,7 @@ class HolidayObserver
      */
     public function updated(Holiday $holiday): void
     {
+
         if (settings('absence_auto_create', 'holidays') == true){
             if ($holiday->approved){
                 Absence::firstOrCreate([

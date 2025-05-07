@@ -43,10 +43,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id',
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id'
     ];
 
     /**
@@ -219,7 +219,13 @@ class User extends Authenticatable implements HasMedia
 
         $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
 
-        return ($claim == null)? 26 : $claim->holiday_claim;
+        if ($claim == null){
+            $claim = Setting::query()->where('setting', 'holiday_claim')->first()->value;
+        } else {
+            $claim = $claim->holiday_claim;
+        }
+
+        return $claim;
     }
 
     public function working_times()
@@ -260,6 +266,25 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(Holiday::class, 'employe_id');
     }
 
+    public function holidays_date(DateTime $date = null, DateTime $end = null)
+    {
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
+        if (is_null($end)) {
+            $end = $date;
+        }
+
+        $holidays = Cache::remember('user_holidays_'.$this->id, 1, function (){
+            return $this->holidays;
+        });
+
+        return $holidays->filter(function ($item) use ($date, $end){
+            return $item->start_date->startOfDay()->lessThanOrEqualTo($date) and $item->end_date->addDay()->startOfDay()->greaterThan($end->endOfDay());
+        });
+
+    }
+
     public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
 
         if (is_null($end_date)){
@@ -269,8 +294,8 @@ class User extends Authenticatable implements HasMedia
             $holidays = $this->holidays;
 
             $found = $holidays->filter(function ($item) use ($start_date, $end_date){
-                if ($item->start_date->between($start_date, $end_date)
-                    or $item->end_date->between($start_date, $end_date))
+                if (($item->start_date->between($start_date, $end_date)
+                    or $item->end_date->between($start_date, $end_date)) and !$item->rejected )
                 {
                     return $item;
                 }
@@ -320,5 +345,28 @@ class User extends Authenticatable implements HasMedia
         return $absence != null;
     }
 
+    /*
+     * Tickets
+     */
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'user_id');
+    }
+
+    public function assigned_tickets()
+    {
+        return $this->hasMany(Ticket::class, 'assigned_to');
+    }
+
+    public function pinned_tickets()
+    {
+        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id');
+    }
+
+    public function superior()
+    {
+        return $this->belongsTo(User::class, 'superior_id');
+    }
 
 }

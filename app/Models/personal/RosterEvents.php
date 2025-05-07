@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class RosterEvents extends Model
 {
@@ -42,6 +43,8 @@ class RosterEvents extends Model
     {
         if (!is_null($this->attributes['start'])) {
             return Carbon::createFromFormat('Y-m-d H:i:s', $this->date->format('Y-m-d') . " " . $this->attributes['start']);
+        } else {
+            return null;
         }
     }
 

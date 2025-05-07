@@ -46,6 +46,9 @@
 .bg-gradient-y2-chartbg .card-footer {
   background-color: transparent; }
 
+.bg-light-gray{
+    background-color: rgba(164, 164, 164, 0.52);
+}
 
 .bg-gradient-x-light-blue {
     background-image: -webkit-gradient(linear, left top, right top, from(rgba(45, 142, 252, 0.15)), to(rgba(0, 75, 155, 0.36)));
@@ -1537,6 +1540,15 @@ body.horizontal-layout[data-color=bg-gradient-x-blue-purple-3] .content-wrapper-
   background-image: -o-linear-gradient(left, #bccdff, #ecd2f8);
   background-image: linear-gradient(to right, #bccdff, #ecd2f8);
   background-repeat: repeat-x; }
+
+.badge-gradient-x-blue-green {
+  background-image: -webkit-gradient(linear, left top, right top, from(#00cef9), to(#00e6af));
+  background-image: -webkit-linear-gradient(left, #00cef9, #00e6af);
+  background-image: -moz-linear-gradient(left, #00cef9, #00e6af);
+  background-image: -o-linear-gradient(left, #00cef9, #00e6af);
+  background-image: linear-gradient(to right, #00cef9, #00e6af);
+  background-repeat: repeat-x; }
+
 
 @media (max-width: 767.98px) {
   body.horizontal-layout .main-menu-content {
