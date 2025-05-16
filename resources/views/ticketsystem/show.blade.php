@@ -48,7 +48,7 @@
     <div class="card-body">
         <p>{!! $show_ticket->description  !!} </p>
     </div>
-    @if($show_ticket->getMedia()->count() > 0)
+    @if($show_ticket->getMedia('ticket_files')->count() > 0)
         <div class="card-footer">
             {{-- Dateien anzeigen --}}
 
