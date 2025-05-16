@@ -56,7 +56,7 @@
                 <ul class="list-group">
                     @foreach($show_ticket->getMedia('ticket_files') as $file)
                         <li class="list-group-item">
-                            <a href="{{ route('tickets.download', $file->id) }}">{{ $file->name }}</a>
+                            <a href="{{url('/image/'.$file->id)}}">{{ $file->name }}</a>
                         </li>
                     @endforeach
                 </ul>
