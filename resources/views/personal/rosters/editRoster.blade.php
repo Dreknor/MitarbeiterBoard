@@ -89,6 +89,11 @@
                                                 <small>Pause fehlt</small>
                                             </div>
                                         @endif
+                                        @if($working_times->searchWorkingTime($employe, $day)->first()?->diff_start_first_event($events->where('employe_id', $employe->id)))
+                                            <div @class(['description', 'd-inline', 'pull-right', 'text-danger'])>
+                                                <small>Arbeitszeit falsch</small>
+                                            </div>
+                                        @endif
                                     </div>
                                     <div
                                         @class(['card-body','border-bottom', 'pt-0', 'pb-0', 'info' => $working_times->searchWorkingTime($employe, $day)->first()?->needs_break($events)]) style="max-height: 50px; min-height: 50px;">
