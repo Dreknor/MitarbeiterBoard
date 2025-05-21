@@ -8,6 +8,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 enum units
@@ -124,19 +125,20 @@ function is_holiday(Carbon $date)
         // Feiertage für das Jahr zwischenspeichern und abrufen
         $holidays = Cache::remember(
             'holidays_' . $date->year,
-            now()->addDays(31), // Cache für 5 Tage speichern
+            now()->addDays(31), // Cache für 31 Tage speichern
             fn() => fetch_holidays_by_year($date->year) // Hilfsfunktion für API-Aufruf
         );
 
         // Datum auf Feiertag prüfen
         return $holidays->first(function ($item) use ($date) {
-            return $item->date == $date->format('Y-m-d');
+            return $item['date'] == $date->format('Y-m-d');
         });
 
     } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
-        Log::error('Fehler beim Überprüfen von Feiertagen: ' . $e->getMessage(), [
+        Log::error('Feiertags-Helfer: Fehler beim Überprüfen von Feiertagen: ', [
             'date' => $date->toDateString(),
-            'year' => $date->year
+            'year' => $date->year,
+            'error' => $e->getMessage(),
         ]);
         return false;
     }
@@ -165,8 +167,10 @@ function fetch_holidays_by_year(int $year): Collection
             'status' => $response->status()
         ]);
     } catch (Throwable $e) {
-        Log::error('Fehler beim Abrufen der Feiertage von der API: ' . $e->getMessage(), [
-            'url' => $apiUrl
+        Log::error('Feiertags-API: Fehler beim Abrufen der Feiertage von der API: ', [
+            'url' => $apiUrl,
+            'year' => $year,
+            'error' => $e->getMessage(),
         ]);
     }
 
@@ -196,6 +200,12 @@ function is_ferien(Carbon $date, $state = null, $year = null)
             return $date->between($start->startOfDay(), $end->endOfDay());
         });
     } catch (Exception $e) {
+        Log::error('Ferien-API: Fehler beim Abrufen der Ferien von der API: ', [
+            'url' => "https://ferien-api.de/api/v1/holidays/".$state."/".$year,
+            'year' => $year,
+            'state' => $state,
+            'error' => $e->getMessage(),
+        ]);
         return false;
     }
 

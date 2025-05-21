@@ -196,6 +196,7 @@ return [
         Barryvdh\DomPDF\ServiceProvider::class,
 
         App\Providers\ViewServiceProvider::class,
+        App\Providers\LogLevelServiceProvider::class,
 
     ],
 

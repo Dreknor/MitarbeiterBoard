@@ -131,7 +131,11 @@ class RecurringProcedureController extends Controller
                         $newStep->procedure->name,
                         $step->procedure->id));
                 } catch (\Exception $e) {
-                    Log::alert('Mail konnte nicht versendet werden: ' . $e->getMessage());
+                    Log::error('Mail konnte nicht versendet werden: ', [
+                        'user' => $user->name,
+                        'email' => $user->email,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
 
             }

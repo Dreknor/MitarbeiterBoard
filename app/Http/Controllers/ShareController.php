@@ -7,7 +7,9 @@ use App\Models\Protocol;
 use App\Models\Share;
 use App\Models\Theme;
 use Carbon\Carbon;
+use danielme85\LaravelLogToDB\LogToDB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ShareController extends Controller
@@ -33,6 +35,12 @@ class ShareController extends Controller
             $share->save();
         }
 
+        Log::info('Themes: Freigabe erstellt', [
+            'user'  => auth()->user()->name,
+            'theme' => $theme->name,
+            'uuid'  => $share->uuid,
+        ]);
+
         return redirect()->back()->with([
            'type' => 'warning',
            'Meldung' => 'Freigabelink wurde erstellt.',
@@ -49,6 +57,11 @@ class ShareController extends Controller
         }
 
         $theme->share()->delete();
+
+        Log::info('Themes: Freigabe entfernt', [
+            'user'  => auth()->user()->name,
+            'theme' => $theme->name,
+        ]);
 
         return redirect()->back()->with([
            'type' => 'success',
@@ -70,6 +83,12 @@ class ShareController extends Controller
 
         //Share abgelaufen
         if ($share->activ_until != null and $share->activ_until->lessThan(Carbon::now())) {
+
+            Log::info('Themes: Freigabe abgelaufen und entfernt', [
+                'user'  => (auth()->check()) ? auth()->user()->name : 'Gast: ' .request()->ip(),
+                'theme' => $share->theme->name,
+            ]);
+
             $share->delete();
 
             return redirect('/')->with([
@@ -77,6 +96,13 @@ class ShareController extends Controller
                 'Meldung'    => 'Freigabe abgelaufen',
             ]);
         }
+
+        Log::info('Themes: Freigabe abgerufen', [
+            'user'  => (auth()->check()) ? auth()->user()->name : 'Gast: ' .request()->ip(),
+            'theme' => $share->theme->name,
+        ]);
+
+
 
         //Umleitung zu eigener Gruppe
         if (auth()->check() and (auth()->user()->groups()->contains($share->theme->group) or ! $share->theme->group->protected)) {
@@ -104,6 +130,12 @@ class ShareController extends Controller
 
         //Share abgelaufen
         if ($share->activ_until != null and $share->activ_until->lessThan(Carbon::now())) {
+
+            Log::info('Themes: Freigabe abgelaufen und entfernt', [
+                'user'  => (auth()->check()) ? auth()->user()->name : 'Gast: ' .request()->ip(),
+                'theme' => $share->theme->name,
+            ]);
+
             $share->delete();
 
             return redirect('/')->with([
@@ -111,6 +143,11 @@ class ShareController extends Controller
                 'Meldung'    => 'Freigabe abgelaufen',
             ]);
         }
+
+        Log::info('Themes: Freigabe abgerufen', [
+            'user'  => (auth()->check()) ? auth()->user()->name : 'Gast: ' .request()->ip(),
+            'theme' => $share->theme->name,
+        ]);
 
         $protocol = new Protocol([
             'theme_id'   => $share->theme_id,

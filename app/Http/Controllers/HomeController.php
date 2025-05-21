@@ -8,6 +8,7 @@ use App\Models\DashBoardUser;
 use App\Models\personal\Roster;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 
 class HomeController extends Controller
@@ -43,6 +44,13 @@ class HomeController extends Controller
                     $col = $cards->last()->col + 1;
                 }
 
+                Log::debug('DashboardCard: neue Karte hinzugefügt', [
+                    'card' => $card,
+                    'user' => auth()->user(),
+                    'row' => $row,
+                    'col' => $col
+                ]);
+
                 DashBoardUser::insert([
                     'dashboard_card_id' => $card->id,
                     'user_id' => auth()->id(),
@@ -62,67 +70,5 @@ class HomeController extends Controller
             'cards' => $cards
                 ]);
     }
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Contracts\Support\Renderable
-     */
-    /*
-     * public function index()
-    {
 
-        $groups = auth()->user()->groups();
-        $groups->load('themes', 'themes.group', 'tasks', 'tasks.taskUsers');
-
-
-        $tasks = auth()->user()->tasks;
-        $group_tasks =  auth()->user()->group_tasks;
-
-        foreach ($group_tasks as $group_task){
-            $tasks = $tasks->push($group_task->task);
-        }
-
-        foreach ($groups as $group) {
-            if ($group->proteced or auth()->user()->groups_rel->contains('id', $group->id)) {
-                $group_tasks=$group->tasks()->whereDate('date', '>=', Carbon::now())->whereHas('taskUsers', function (Builder $query) {
-                    $query->where('users_id', auth()->id());
-                })->get();;
-
-                $tasks = $tasks->concat($group_tasks);
-            }
-        }
-
-        $procedures = [];
-
-        $steps = auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get();
-
-        //absences
-        if (auth()->user()->can('view absences')){
-            $absences = Absence::whereDate('end', '>=', Carbon::now()->startOfDay())->orderBy('start')->get();
-            $oldAbsences = Absence::whereDate('end', '<', Carbon::now()->startOfDay())->orderByDesc('end')->paginate(5);
-        } else {
-            $absences = [];
-            $oldAbsences = [];
-        }
-
-        //Roster
-        $groups_arr = [];
-        foreach ($groups as $group){
-            $groups_arr[] = $group->id;
-        }
-
-        $rosters = Roster::whereIn('department_id', $groups_arr)
-            ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
-            ->where('type', '!=', 'template')
-            ->get();
-
-        return view('home', [
-            'tasks'     => $tasks,
-            'steps' => $steps,
-            'absences' => $absences,
-            'oldAbsences' => $oldAbsences,
-            'posts' => auth()->user()->posts()->orderByDesc('created_at')->paginate(15),
-            'rosters' => $rosters
-        ]);
-    }*/
 }

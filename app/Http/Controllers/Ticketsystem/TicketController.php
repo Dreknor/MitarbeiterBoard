@@ -65,7 +65,13 @@ class TicketController extends Controller
                     $comment->save();
                 }
             } catch (\Exception $e) {
-                Log::alert('Ticket konnte nicht erstellt werden: ' . $e->getMessage());
+                Log::error('Ticketsystem: Ticket konnte nicht erstellt werden: ',
+                    [
+                        'group' => $group->name,
+                        'theme' => $theme->theme,
+                        'error' => $e->getMessage(),
+                    ]
+                );
             }
 
 
@@ -153,8 +159,19 @@ class TicketController extends Controller
 
 
         try {
-            $ticket->addMediaFromRequest('file')->toMediaCollection('ticket_files');
+            $ticket->addAllMediaFromRequest()
+                ->each(fn($fileAdder) => $fileAdder->toMediaCollection('ticket_files'));
+
         } catch (\Exception $e) {
+            Log::error('Ticketsystem: Datei nicht hochgeladen: ',
+                [
+                    'ticket' => $ticket->id,
+                    'user' => auth()->user()->id,
+                    'email' => auth()->user()->email,
+                    'error' => $e->getMessage(),
+                    'files' => $request->file('ticket_files'),
+                ]
+            );
             return redirect()->back()->with('error', 'Datei konnte nicht hochgeladen werden');
         }
 
@@ -168,11 +185,32 @@ class TicketController extends Controller
                 });
             })->get();
 
+            Log::debug('Ticketsystem: Ticket-Mail wird versendet: ',
+                [
+                    'ticket' => $ticket->title,
+                    'user' => auth()->user()->id,
+                    'email' => auth()->user()->email,
+                ]
+
+            );
+
             foreach ($users as $user) {
+                $user->notify(new \App\Notifications\Push(
+                    'Neues Ticket',
+                    'Ein neues Ticket wurde erstellt: ' . $ticket->title
+                ));
                 Mail::to($user->email)->queue(new newTicketMail($ticket));
             }
         } catch (\Exception $e) {
-           Log::alert('Ticket-Mail konnte nicht versendet werden: ' . $e->getMessage());
+           Log::error('Ticketsystem: Ticket-Mail konnte nicht versendet werden: ',
+           [
+
+                    'ticket' => $ticket->title,
+                    'user' => $user->id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]
+            );
         }
 
 
@@ -212,7 +250,15 @@ class TicketController extends Controller
             try {
                 Mail::to($user->email)->queue(new newTicketMail($ticket));
             } catch (\Exception $e) {
-                Log::alert('Ticket-Mail konnte nicht versendet werden: ' . $e->getMessage());
+                Log::error(
+                    'Ticketsystem: Ticket-Mail konnte nicht versendet werden: ',
+                    [
+                        'ticket' => $ticket->title,
+                        'user' => $user->id,
+                        'email' => $user->email,
+                        'error' => $e->getMessage(),
+                    ]
+                );
             }
         }
 
@@ -296,6 +342,14 @@ class TicketController extends Controller
             foreach ($tickets as $ticket) {
                 $ticket->status = 'closed';
                 $ticket->save();
+
+                Log::info('Ticketsystem: Ticket wurde automatisch geschlossen: ',
+                    [
+                        'ticket' => $ticket->title,
+                        'user' => auth()->user()->id,
+                        'email' => auth()->user()->email,
+                    ]
+                );
 
                 $comment = new TicketComment([
                     'comment' => 'Das Ticket wurde automatisch geschlossen, da keine Rückmeldung erfolgte',

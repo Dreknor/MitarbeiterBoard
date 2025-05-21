@@ -6,11 +6,19 @@ use App\Models\Group;
 use App\Models\Subscription;
 use App\Models\Theme;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionController extends Controller
 {
     public function add($type, $id)
     {
+
+        Log::debug('Abo: Angelegt', [
+            'type' => $type,
+            'id' => $id,
+            'user' => auth()->user()->name,
+        ]);
+
         if ($type == 'theme') {
             $type = Theme::class;
 
@@ -60,6 +68,12 @@ class SubscriptionController extends Controller
 
     public function remove($type, $id)
     {
+        Log::debug('Abo: Entfernt', [
+            'type' => $type,
+            'id' => $id,
+            'user' => auth()->user()->name,
+        ]);
+
         if ($type == 'theme') {
             $type = Theme::class;
             $subscription = auth()->user()->subscriptions()->where('subscriptionable_type', $type)->where('subscriptionable_id', $id)->first();
@@ -85,6 +99,13 @@ class SubscriptionController extends Controller
                 'Meldung' => 'Abo entfernt',
             ]);
         } else {
+
+            Log::debug('Abo: Kein Abo gefunden', [
+                'type' => $type,
+                'id' => $id,
+                'user' => auth()->user()->name,
+            ]);
+
             return redirect()->back()->with([
                 'type'=>'warning',
                 'Meldung' => 'Kein Abo gefunden',

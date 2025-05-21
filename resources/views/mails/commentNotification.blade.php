@@ -5,10 +5,10 @@
 </head>
 <body>
 <p>
-    {Für das Ticket {{$ticket->title}} wurde ein neuer Kommentar hinzugefügt.
+    Für das Ticket {{$ticket->title}} wurde ein neuer Kommentar hinzugefügt.
 </p>
 <p>
-    {{$comment->comment}}
+    {!! $comment->comment !!}
 </p>
 <p>
     <br>

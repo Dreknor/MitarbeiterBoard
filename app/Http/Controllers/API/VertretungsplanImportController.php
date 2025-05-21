@@ -24,30 +24,38 @@ class VertretungsplanImportController extends Controller
         $setting = Setting::where('setting', 'indiware_import_key')->first();
 
         if (!$setting || $setting->value != $key) {
-            Log::error('Invalid API Key');
+            Log::error('Vertretungsplan: Invalid API Key', [
+                'key' => $key,
+                'setting' => $setting,
+            ]);
             return response()->json(['error' => 'Invalid API Key'], 401);
         }
 
-        Log::info('Importing Vertretungsplan');
-        Log::info('Request: ' . $request->getContent());
+
+        if (!$request->has('data')) {
+            Log::error('Vertretungsplan: Keine Daten empfangen', [
+                'request' => $request->all(),
+            ]);
+            return response()->json(['error' => 'Error while parsing JSON'], 400);
+        }
+
         $data = json_decode($request->getContent());
 
         if (!$data) {
-            Log::error('Error while parsing JSON. No data found.');
+            Log::error('Vertretungsplan: Error while parsing JSON. No data found.');
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
         if (isset($data->Gesamtexport->Vertretungsplan->Vertretungsplan)){
             $data = $data->Gesamtexport->Vertretungsplan;
         } else {
-            Log::error('Error while parsing JSON. No Vertretungsplan found.');
+            Log::error('Vertretungsplan: Error while parsing JSON. No Vertretungsplan found.');
             return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
         foreach ($data->Vertretungsplan as $day){
             try {
                 $date = Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum);
-                Log::info('Parsing date: ' . $date);
                 //Abwesenheiten
                 if (isset($day->Kopf) && isset($day->Kopf->Kopfinfo) && isset($day->Kopf->Kopfinfo->AbwesendeLehrer)) {
                     try {
@@ -69,24 +77,29 @@ class VertretungsplanImportController extends Controller
                                     $absence->save();
                                 }
                             } else {
-                                Log::info('Lehrer nicht gefunden: ' . $abwesender->Kurz);
+                                Log::info('Vertretungsplan: Lehrer nicht gefunden: ' . $abwesender->Kurz,
+                                    [
+                                        'date' => $date,
+                                        'abwesender' => $abwesender,
+                                    ]);
                             }
                         }
                     } catch (\Exception $e) {
-                        Log::error('Error while parsing Abwesenheiten: ');
-                        Log::error($e->getMessage());
+                        Log::error('Vertretungsplan: Error while parsing Abwesenheiten: ',
+                            [
+                                'date' => $date,
+                                'exception' => $e->getMessage(),
+                            ]);
                     }
                 }
 
                 //Vertretungen
                 if ($day->Aktionen){
-                    Log::info(count($day->Aktionen) . ' Aktionen found');
                     try {
                         foreach ($day->Aktionen as $aktion){
-                            Log::info('_________ Aktion __________');
+
                             $aktion= (object) $aktion;
 
-                            Log::info('_________ Aktion InfoKlassen __________');
                             if (isset($aktion->InfoK)){
                                 $nachricht = new DailyNews([
                                     'date_start' => $date,
@@ -96,22 +109,16 @@ class VertretungsplanImportController extends Controller
 
                                 $nachricht->save();
 
-                                Log::info('Nachricht Klasse: ' . $nachricht);
                             }
 
 
                             if (isset($day->Ak_DatumVon)){
                                 $date = Carbon::createFromFormat('d.m.Y', $day->Ak_DatumVon);
-                                Log::info('Parsing date: ' . $date);
                             }
 
-                            Log::info('_________ Aktion VLehrer__________');
                             if (isset($aktion?->VLehrer)){
-                                Log::info('Parsing Lehrer: ' . $aktion->VLehrer[0]);
                                 $lehrer = User::where('kuerzel', $aktion->VLehrer[0])->first();
-                                Log::info('Lehrer: ' . $lehrer);
                             }
-                            Log::info('_________ Aktion Klassen __________');
                             if (isset($aktion?->Klassen)){
                                 $klassen = Klasse::whereIn('name', $aktion->Klassen)->get();
                                 Log::info('gefundene Klassen: ' . count($klassen));
@@ -120,8 +127,6 @@ class VertretungsplanImportController extends Controller
 
                             $type = '';
 
-
-                            Log::info('_________ Aktion Ak_Art__________');
                             switch ($aktion->Ak_Art){
                                 case 'Änd.':
                                     if (isset($aktion->Ak_Fach) && isset($aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
@@ -171,13 +176,15 @@ class VertretungsplanImportController extends Controller
                                     }
                                 }
                             } else {
-                                Log::info('Klassen nicht gefunden ' );
+                                Log::info('Vertretungsplan: Klassen nicht gefunden ' );
                             }
 
                         }
                     } catch (\Exception $e) {
-                        Log::error('Error while parsing Aktionen: ');
-                        Log::error($e->getMessage());
+                        Log::error('Vertretungsplan: Error while parsing Aktionen: ',[
+                            'date' => $date,
+                            'exception' => $e->getMessage(),
+                        ]);
                     }
 
 
@@ -185,8 +192,10 @@ class VertretungsplanImportController extends Controller
 
                 }
             } catch (\Exception $e) {
-                Log::error('Error while parsing: ');
-                Log::error($e->getMessage());
+                Log::error('Vertretungsplan: Error while parsing: ', [
+                    'date' => $date,
+                    'exception' => $e->getMessage(),
+                ]);
                 continue;
             }
         }

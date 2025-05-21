@@ -35,13 +35,26 @@ class VertretungObserver
                     ]
                 ]);
 
-                Log::info($response->getBody());
+                Log::info('VertretungsplanObserver: ', [
+                    'id' => $vertretung->id,
+                    'date' => $vertretung->date->format('Y-m-d'),
+                    'klasse' => $vertretung->klasse->name,
+                    'stunde' => Str::before($vertretung->stunde, '..').'.',
+                    'altFach' => $vertretung->altFach,
+                    'neuFach' => $vertretung->neuFach,
+                    'lehrer' => optional($vertretung->lehrer)->shortname,
+                    'comment' => $vertretung->comment,
+                    'url' => $url,
+                    'Antwort' => $response->getBody(),
+                ]);
 
 
 
             }
         } catch (\Exception $e) {
-            Log::error($e->getMessage());
+            Log::error('VertretungsplanObserver: Senden an API nicht möglich', [
+                'Meldung' => $e->getMessage()
+            ]);
         }
 
     }
@@ -75,7 +88,9 @@ class VertretungObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanObserver: Senden an API nicht möglich', [
+                'Meldung' => $e->getMessage()
+            ]);
         }
 
     }
@@ -100,7 +115,9 @@ class VertretungObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanObserver: Senden an API nicht möglich', [
+                'Meldung' => $e->getMessage()
+            ]);
         }
 
 

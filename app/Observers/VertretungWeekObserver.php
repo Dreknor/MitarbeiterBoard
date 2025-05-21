@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\VertretungsplanWeek;
+use Illuminate\Support\Facades\Log;
 
 class VertretungWeekObserver
 {
@@ -31,7 +32,8 @@ class VertretungWeekObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('Vertretungsplan create-Event fehlgeschlagen',[
+                'exception' => $e->getMessage()]);
         }
     }
 
@@ -57,7 +59,8 @@ class VertretungWeekObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanWeekObserver: Senden an API fehlgeschlagen',[
+                'exception' => $e->getMessage()]);
         }
     }
 
@@ -83,7 +86,8 @@ class VertretungWeekObserver
 
             }
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error('VertretungsplanWeekObserver: Senden an API fehlgeschlagen',[
+                'exception' => $e->getMessage()]);
         }
 
 
