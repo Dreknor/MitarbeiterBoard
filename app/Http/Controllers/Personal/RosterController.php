@@ -89,7 +89,7 @@ class RosterController extends Controller
                         'date' => $day,
                         'start' => '08:00:00',
                         'end' => '14:30:00',
-                        'event' => is_holiday($day)?->title,
+                        'event' => is_holiday($day)['title'],
                     ]);
                     $event->save();
                 }
