@@ -42,7 +42,8 @@ class RosterEvents extends Model
     public function getStartAttribute()
     {
         if (!is_null($this->attributes['start'])) {
-            return Carbon::createFromFormat('Y-m-d H:i:s', $this->date->format('Y-m-d') . " " . $this->attributes['start']);
+            Log::debug('Dienstplan-Eintrag: Start: ' . $this->attributes['start']);
+            return Carbon::createFromFormat('Y-m-d H:i:s', $this->attributes['start']);
         } else {
             return null;
         }
