@@ -229,7 +229,7 @@ class TimesheetController extends Controller
         ]);
 
 
-        if ($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null){
+        if (($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null) and $act_month->copy()->endOfMonth()->lessThanOrEqualTo(Carbon::today()->endOfMonth())){
             $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
                 if ($working_time->roster?->type != 'template'){
                     return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
