@@ -9,7 +9,9 @@
                         <h5 class="card-title">
                             neue Gruppe anlegen
                         </h5>
-                        <p class="small">neue Gruppen sind auf maximal 1 Jahr befristet und werden dann in eine der Hauptgruppen überführt</p>
+                        @if(!auth()->user()->can('edit groups'))
+                            <p class="small">neue Gruppen sind auf maximal 1 Jahr befristet und werden dann in eine der Hauptgruppen überführt</p>
+                        @endif
                     </div>
                     <div class="card-body">
                         <form action="{{url('groups')}}" method="post" class="form-horizontal">
@@ -17,19 +19,6 @@
                             <div class="form-row">
                                 <label for="name">Name der neuen Gruppe</label>
                                 <input type="text" class="form-control" name="name" id="name" required autofocus>
-                            </div>
-                            <div class="form-row mt-1">
-                                <label for="enddate">aktiv bis</label>
-                                <input type="date" class="form-control" name="enddate" id="enddate" @if(!auth()->user()->can('edit groups')) max="{{\Carbon\Carbon::now()->addYear()->format('Y-m-d')}}" required @endif>
-                            </div>
-                            <div class="form-row mt-1">
-                                <label for="name">überführen in</label>
-                                <select name="homegroup" class="custom-select">
-                                    <option disabled selected></option>
-                                    @foreach($groups->where('enddate', '') as $newgroup)
-                                        <option value="{{$newgroup->id}}">{{$newgroup->name}}</option>
-                                    @endforeach
-                                </select>
                             </div>
                             <div class="form-row mt-1">
                                 <label for="name">Geschützt?</label>
@@ -40,17 +29,50 @@
                                 </select>
                             </div>
                             <div class="form-row mt-1">
-                                <label for="meeting_weekday">Wochentag der Besprechungen</label>
-                                <select name="meeting_weekday" class="custom-select">
-                                    <option  selected></option>
-                                    <option value="1">Montag</option>
-                                    <option value="2">Dienstag</option>
-                                    <option value="3">Mittwoch</option>
-                                    <option value="4">Donnerstag</option>
-                                    <option value="5">Freitag</option>
-                                    <option value="6">Samstag</option>
-                                    <option value="7">Sonntag</option>
-                                </select>
+                                <div class="col-md-6">
+                                    <label for="enddate">aktiv bis</label>
+                                    <input type="date" class="form-control" name="enddate" id="enddate" @if(!auth()->user()->can('edit groups')) max="{{\Carbon\Carbon::now()->addYear()->format('Y-m-d')}}" required @endif>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="name">überführen in</label>
+                                    <select name="homegroup" class="custom-select">
+                                        <option disabled selected></option>
+                                        @foreach($groups->where('enddate', '') as $newgroup)
+                                            <option value="{{$newgroup->id}}">{{$newgroup->name}}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                </div>
+                            <div class="form-row mt-1">
+                                <div class="col-md-4">
+                                    <label for="use_meetings">Nutzt feste Treffen</label>
+                                    <select name="use_meetings" class="custom-select">
+                                        <option disabled selected></option>
+                                        <option value="1">ja</option>
+                                        <option value="0">nein</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="meeting_url">WebConf-Url</label>
+                                    <input type="text" class="form-control p-2" name="meeting_url" id="meeting_url" placeholder="https://webconf.example.com/meeting123">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="meeting_weekday">Wochentag der Besprechungen</label>
+                                    <select name="meeting_weekday" class="custom-select">
+                                        <option  selected></option>
+                                        <option value="1">Montag</option>
+                                        <option value="2">Dienstag</option>
+                                        <option value="3">Mittwoch</option>
+                                        <option value="4">Donnerstag</option>
+                                        <option value="5">Freitag</option>
+                                        <option value="6">Samstag</option>
+                                        <option value="7">Sonntag</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row mt-1">
+
                             </div>
 
                             <div class="form-row mt-1">

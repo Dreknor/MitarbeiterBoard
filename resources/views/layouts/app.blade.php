@@ -243,7 +243,14 @@
                                                 <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
                                                     <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                         <i class="far fa-comments"></i>
-                                                        <p>Themen</p>
+                                                        @if($group->use_meetings)
+                                                            <p>
+                                                                Meetings
+                                                            </p>
+                                                        @else
+                                                            <p>Themen</p>
+                                                        @endif
+
                                                     </a>
                                                 </li>
                                                 <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">

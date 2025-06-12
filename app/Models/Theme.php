@@ -28,9 +28,7 @@ class Theme extends Model implements HasMedia
 
     public function ersteller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'creator_id')->withDefault([
-           'name' => 'System / gelöschter Benutzer',
-       ]);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function zugewiesen_an(): BelongsTo
