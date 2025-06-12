@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('groups', function (Blueprint $table) {
-            $table->boolean('use_meetings')->default(false)->after('is_public');
+            $table->boolean('use_meetings')->default(false)->after('protected');
             $table->string('meeting_url')->nullable()->after('use_meetings');
         });
 
@@ -28,7 +28,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema:create('meeting_themes', function (Blueprint $table) {
+        Schema::create('meeting_themes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('meeting_id')->constrained()->onDelete('cascade');
             $table->foreignId('theme_id')->constrained()->onDelete('cascade');
