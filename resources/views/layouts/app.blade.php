@@ -241,17 +241,19 @@
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
                                                 <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
-                                                    <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
-                                                        <i class="far fa-comments"></i>
-                                                        @if($group->use_meetings)
-                                                            <p>
-                                                                Meetings
-                                                            </p>
-                                                        @else
+                                                    @if($group->use_meetings)
+                                                        <a href="{{url($group->name.'/meetings')}}">
+                                                            <i class="fas fa-users"></i>
+                                                            <p>Meetings</p>
+                                                        </a>
+                                                    @else
+                                                        <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
+                                                            <i class="far fa-comments"></i>
                                                             <p>Themen</p>
-                                                        @endif
+                                                        </a>
+                                                    @endif
 
-                                                    </a>
+
                                                 </li>
                                                 <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
                                                     <a href="{{url($group->name.'/archive')}}">

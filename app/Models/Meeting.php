@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,8 +21,6 @@ class Meeting extends Model
 
     protected $casts = [
         'date' => 'date',
-        'start_time' => 'time',
-        'end_time' => 'time',
     ];
 
     public function group()
@@ -36,7 +35,7 @@ class Meeting extends Model
 
     public function scopeUpcoming($query)
     {
-        return $query->where('date', '>=', now()->toDateString())
+        return $query->where('date', '>', now()->toDateString())
                      ->orderBy('date')
                      ->orderBy('start_time');
     }
@@ -52,6 +51,14 @@ class Meeting extends Model
     {
         return $query->where('date', now()->toDateString())
                      ->orderBy('start_time');
+    }
+
+    public function startTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => \Carbon\Carbon::parse($this->date->format('Y-m-d').' '.$value)->format('H:i'),
+            set: fn ($value) => \Carbon\Carbon::createFromFormat('H:i', $value)->toTimeString()
+        );
     }
 
 
