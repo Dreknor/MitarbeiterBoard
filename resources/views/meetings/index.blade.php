@@ -79,7 +79,7 @@
             @endforeach
         @endif
 
-        <div class="card">
+        <div class="card bg-light">
             <div class="card-header">
                 <h5 class="card-title">
                     Nächste Meetings
@@ -93,22 +93,91 @@
                                 <h5 class="card-title">{{ $meeting->title }}</h5>
                                 <p class="card-text">
                                     <strong>Zeitraum:</strong> {{ $meeting->date->format('d.m.Y') }} <br>
-                                    <strong>URL:</strong> <a href="{{ $meeting->url ?? '#' }}" target="_blank">{{ $meeting->url ?? 'Keine URL' }}</a>
+                                    <strong>Uhrzeit:</strong> {{ $meeting->start_time }} - {{ $meeting->end_time }}<br>
+                                    @if($group->meeting_url)
+                                        <strong>URL:</strong> <a href="{{ $group->meeting_url }}" target="_blank">{{ $group->meeting_url }}</a>
+                                    @endif
                                 </p>
-                                <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#themes-{{ $meeting->id }}" aria-expanded="false" aria-controls="themes-{{ $meeting->id }}">
-                                    Themen anzeigen
+                                @if($meeting->themes->count() > 0)
+                                    <button class="btn btn-sm btn-info mt-2" type="button" data-toggle="collapse" data-target="#themes-{{ $meeting->id }}" aria-expanded="false" aria-controls="themes-{{ $meeting->id }}">
+                                        {{$meeting->themes->count()}} Themen anzeigen
+                                    </button>
+                                    <div class="collapse" id="themes-{{ $meeting->id }}">
+                                        <strong>Themenübersicht:</strong>
+                                        <ul class="list-group">
+                                            @foreach($meeting->themes as $theme)
+                                                @include('meetings.elements.theme', ['theme' => $theme])
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @else
+                                    <p class="text-muted">Keine Themen für dieses Meeting festgelegt.</p>
+                                @endif
+                                <!-- Button zum Öffnen des Modals für Themen -->
+                                <button class="btn btn-sm btn-success mt-2" data-toggle="modal" data-target="#addThemeModal-{{ $meeting->id }}">
+                                    Thema hinzufügen/zuweisen
                                 </button>
-                                <div class="collapse" id="themes-{{ $meeting->id }}">
-                                    <strong>Themenübersicht:</strong>
-                                    <ul>
-                                        @foreach($meeting->themes as $theme)
-                                            <li>{{ $theme->title }}</li>
-                                        @endforeach
-                                    </ul>
+                                <!-- Modal für Themen anlegen/zuweisen -->
+                                <div class="modal fade" id="addThemeModal-{{ $meeting->id }}" tabindex="-1" role="dialog" aria-labelledby="addThemeModalLabel-{{ $meeting->id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="addThemeModalLabel-{{ $meeting->id }}">Thema anlegen oder zuweisen</h5>
+                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form action="{{ route('meetings.themes.store', [
+                                                        'group' => $group->name,
+                                                        'meeting' => $meeting->id,
+                                                    ]) }}" method="POST">
+                                                    @csrf
+                                                    <h6>
+                                                        Neues Thema anlegen
+                                                    </h6>
+                                                    <div class="form-group">
+                                                        <div class="form-row">
+                                                            <label for="theme_title_{{ $meeting->id }}">Neues Thema anlegen</label><div class="text-danger">*</div>
+                                                            <input type="text" class="form-control" name="theme" id="theme_title_{{ $meeting->id }}" placeholder="Titel des Themas">
+                                                        </div>
+                                                        <div class="form-row">
+                                                            <label for="theme_duration_{{ $meeting->id }}">Dauer</label><div class="text-danger">*</div>
+                                                            <input type="number" class="form-control" name="duration" id="theme_duration_{{ $meeting->id }}" min="5" max="120" step="5" placeholder="Dauer in Minuten">
+                                                        </div>
+                                                        <div class="form-row">
+                                                            <label for="type">Typ</label><div class="text-danger">*</div>
+                                                            <select name="type" id="type" class="custom-select" required>
+                                                                <option disabled></option>
+                                                                @foreach($types as $type)
+                                                                    <option value="{{$type->id}}" @if (old('type') == $type->id) selected @endif>{{$type->type}}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-row">
+                                                            <label for="theme_goal_{{ $meeting->id }}">Ziel</label><div class="text-danger">*</div>
+                                                            <input type="text" class="form-control" name="goal" id="theme_goal_{{ $meeting->id }}" placeholder="Ziel">
+                                                        </div>
+                                                   </div>
+                                                    <hr>
+                                                    <h6>
+                                                        Vorhandenes Thema zuweisen
+                                                    </h6>
+                                                    <div class="form-group">
+                                                        <label for="existing_theme_{{ $meeting->id }}">Vorhandenes, offenes Thema zuweisen</label>
+                                                        <select class="form-control" name="existing_theme_id" id="existing_theme_{{ $meeting->id }}">
+                                                            <option value="">-- Bitte wählen --</option>
+                                                            @foreach($openThemes as $openTheme)
+                                                                <option value="{{ $openTheme->id }}">{{ $openTheme->theme }}
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">Speichern</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-
-
-
                             </div>
                         </div>
             </div>
@@ -119,3 +188,7 @@
         </div>
 </div>
 @endsection
+
+@push('js')
+    <script src="/js/priority-range.js"></script>
+@endpush

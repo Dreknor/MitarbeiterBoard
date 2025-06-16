@@ -95,6 +95,13 @@ class Theme extends Model implements HasMedia
         return $this->hasMany(Survey::class);
     }
 
+    public function meetings()
+    {
+        return $this->belongsToMany(Meeting::class, 'meeting_themes', 'theme_id', 'meeting_id')
+            ->withPivot('id', 'created_at', 'updated_at')
+            ->withTimestamps();
+    }
+
     //Events
     protected static function booted()
     {

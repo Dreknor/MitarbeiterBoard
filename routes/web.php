@@ -391,6 +391,9 @@ Route::group([
                 Route::get('{group}/meetings', [MeetingController::class, 'index'])->name('meetings.index');
                 Route::post('{group}/meetings/store', [MeetingController::class, 'store'])->name('meetings.store');
 
+                //Meeting-Themen anlegen/zuweisen
+                Route::post('{group}/meetings/{meeting}/themes', [App\Http\Controllers\MeetingController::class, 'storeTheme'])->name('meetings.themes.store');
+
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
