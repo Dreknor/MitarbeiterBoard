@@ -105,7 +105,7 @@
                                     <div class="collapse" id="themes-{{ $meeting->id }}">
                                         <strong>Themenübersicht:</strong>
                                         <ul class="list-group">
-                                            @foreach($meeting->themes as $theme)
+                                            @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
                                                 @include('meetings.elements.theme', ['theme' => $theme])
                                             @endforeach
                                         </ul>
@@ -168,7 +168,7 @@
                                                         <select class="form-control" name="existing_theme_id" id="existing_theme_{{ $meeting->id }}">
                                                             <option value="">-- Bitte wählen --</option>
                                                             @foreach($openThemes as $openTheme)
-                                                                <option value="{{ $openTheme->id }}">{{ $openTheme->theme }}
+                                                                <option value="{{ $openTheme->id }}">{{ $openTheme->theme }} @if($openTheme->memory) (Themenspeicher) @endif
                                                             @endforeach
                                                         </select>
                                                     </div>
@@ -189,6 +189,37 @@
 </div>
 @endsection
 
+
 @push('js')
-    <script src="/js/priority-range.js"></script>
+    <script>
+        $('input[type=range]').on("change", function() {
+            let theme = $(this).data('theme');
+
+            let url = "{{url(request()->segment(1).'/themes/' )}}"
+            $.ajax({
+                type: "POST",
+                url: '{{url('priorities')}}',
+                data: {
+                    "priority": $(this).val(),
+                    'theme': theme,
+                    "_token": "{{ csrf_token() }}",
+                },
+                success: function(responseText){
+                    let percent = 100 -responseText['priority']
+                    let element = document.getElementById('priority_'+theme)
+
+                    element.innerHTML = '<div class="progress">'+
+                        '<div class="progress-bar amount" role="progressbar" id="progress_'+theme+'" style="width: '+percent+'%;" ></div>'+
+                        '</div>'
+
+                    document.getElementById(theme).dataset.priority = responseText['priority']
+                    sortTable(responseText['day']+"_themes")
+                    document.getElementById(theme).scrollTo()
+                }
+            });
+        });
+
+
+
+    </script>
 @endpush

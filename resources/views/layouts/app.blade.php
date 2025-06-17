@@ -246,12 +246,12 @@
                                                             <i class="fas fa-users"></i>
                                                             <p>Meetings</p>
                                                         </a>
-                                                    @else
+                                                    @endif
                                                         <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                             <i class="far fa-comments"></i>
                                                             <p>Themen</p>
                                                         </a>
-                                                    @endif
+
 
 
                                                 </li>
