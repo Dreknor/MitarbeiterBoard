@@ -390,9 +390,15 @@ Route::group([
                 //Meetings
                 Route::get('{group}/meetings', [MeetingController::class, 'index'])->name('meetings.index');
                 Route::post('{group}/meetings/store', [MeetingController::class, 'store'])->name('meetings.store');
+                Route::get('{group}/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
+                Route::put('{group}/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
+                Route::post('{group}/meetings/{meeting}/cancel', [MeetingController::class, 'cancelMeeting'])->name('meetings.cancel');
 
                 //Meeting-Themen anlegen/zuweisen
                 Route::post('{group}/meetings/{meeting}/themes', [App\Http\Controllers\MeetingController::class, 'storeTheme'])->name('meetings.themes.store');
+                // Thema von Meeting entfernen
+                Route::delete('{group}/meetings/{meeting}/themes/{theme}', [App\Http\Controllers\MeetingController::class, 'removeTheme'])->name('meetings.themes.remove');
+                Route::post('{group}/meetings/{meeting}/invite', [App\Http\Controllers\MeetingController::class, 'sendInvitation'])->name('meetings.invite');
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
