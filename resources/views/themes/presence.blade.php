@@ -5,9 +5,16 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <a href="{{url($group->name.'/themes#'.$date->format('Ymd'))}}" class="btn btn-prev">
-                    zurück zu den Themen
-                </a>
+                @if($group->use_meetings)
+                    <a href="{{url($group->name.'/meetings')}}" class="btn btn-prev">
+                        zurück
+                    </a>
+                @else
+                    <a href="{{url($group->name.'/themes#'.$date->format('Ymd'))}}" class="btn btn-prev">
+                        zurück zu den Themen
+                    </a>
+                @endif
+
             </div>
         </div>
         <div class="sticky-top">

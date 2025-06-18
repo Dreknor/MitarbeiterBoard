@@ -242,4 +242,27 @@ class MeetingController extends Controller
             'Meldung' => 'Einladungen wurden an alle Gruppenmitglieder versendet.'
         ]);
     }
+
+    /**
+     * Übersicht vergangener Meetings
+     */
+    public function past($groupname)
+    {
+        $group = Group::where('name', $groupname)->first();
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $pastMeetings = Meeting::where('group_id', $group->id)
+            ->where('date', '<', now()->toDateString())
+            ->orderBy('date', 'desc')
+            ->with('themes')
+            ->get();
+        return view('meetings.past', [
+            'pastMeetings' => $pastMeetings,
+            'group' => $group,
+        ]);
+    }
 }

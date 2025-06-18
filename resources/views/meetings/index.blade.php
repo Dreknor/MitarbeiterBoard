@@ -72,6 +72,12 @@
                 @endif
         </div>
 </div>
+    <div class="mb-3">
+        <a href="{{ route('meetings.past', ['groupname' => $group->name]) }}" class="btn btn-outline-secondary">
+            Vergangene Meetings anzeigen
+        </a>
+    </div>
+</div>
 @endsection
 
 
