@@ -13,6 +13,7 @@ use App\Http\Controllers\Inventory\LocationController;
 use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
@@ -385,6 +386,13 @@ Route::group([
                     Route::get('{groupname}/themes/recurring/file/{media}/delete', [ImageController::class, 'removeImage']);
                     Route::get('themes/recurring/start/{now?}', [RecurringThemeController::class, 'createNewThemes']);
                 });
+
+                //Meetings
+                Route::get('{group}/meetings', [MeetingController::class, 'index'])->name('meetings.index');
+                Route::post('{group}/meetings/store', [MeetingController::class, 'store'])->name('meetings.store');
+
+                //Meeting-Themen anlegen/zuweisen
+                Route::post('{group}/meetings/{meeting}/themes', [App\Http\Controllers\MeetingController::class, 'storeTheme'])->name('meetings.themes.store');
 
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);

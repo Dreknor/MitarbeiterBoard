@@ -133,7 +133,14 @@
         <div class="floating-button-menu-close"></div>
 
             <p>
-                <a href="{{url(request()->segment(1).'/themes#'.$theme->id)}}" class="btn btn-primary btn-link">zurück</a>
+                @if(url()->previous() != url()->current())
+                    <a href="{{url()->previous()}}" class="btn btn-primary btn-sm">zurück</a>
+                @else
+                    @if($theme->group->use_meetings)
+                        <a href="{{url(request()->segment(1).'/meetings')}}" class="btn btn-primary btn-sm">zurück zur Meetingübersicht </a>
+                    @endif
+                    <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-sm ml-3">zurück zur Themenübersicht</a>
+                @endif
 
             </p>
 
@@ -186,7 +193,7 @@
             <div class="card-body border-top">
                 <div class="container-fluid">
                     <div class="row">
-                        <div class="col-sm-12 col-md-12 col-lg-8">
+                        <div class="col-sm-12 col-md-12 col-lg-6">
                             <div class="row p-2">
                                 <div class="col-sm-12 col-md-12 col-lg-3">
                                     <b>
@@ -289,7 +296,7 @@
                                         Dateien
                                     </b>
                                 </div>
-                                <div class="col-sm-12 col-md-12 col-lg-9">
+                                <div class="col-sm-12 col-md-6 col-lg-9">
                                     <ul class="list-group">
                                         @foreach($theme->getMedia()->sortBy('name') as $media)
                                             <li class="list-group-item  list-group-item-action ">
@@ -305,6 +312,18 @@
                                 </div>
                             </div>
                         </div>
+                        @if($theme->group->use_meetings)
+                            <div class="col-sm-12 col-md-6 col-lg-2 border-left p-sm-2 p-md-2">
+                                <h6>besprochen in Meetings:</h6>
+                                <ul class="list-group">
+                                    @foreach($theme->meetings as $meeting)
+                                        <li class="list-group-item">
+                                                <i class="fas fa-calendar-alt"></i>
+                                                {{$meeting->date->format('d.m.Y')}}
+                                        </li>
+                                    @endforeach
+                            </div>
+                        @endif
                         <div class="col-sm-12 col-md-12 col-lg-4 border-left p-sm-2 p-md-2">
                             <div class="container-fluid">
                                 <div class="row">

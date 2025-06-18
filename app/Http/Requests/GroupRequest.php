@@ -43,6 +43,8 @@ class GroupRequest extends FormRequest
                 'information_template' => ['nullable', 'string'],
                 'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
                 'stack_themes' => ['nullable', 'boolean'],
+                'use_meetings' => ['nullable', 'boolean'],
+                'meeting_url' => ['nullable', 'string', 'url', 'max:255'],
 
             ];
         } else {
@@ -56,6 +58,8 @@ class GroupRequest extends FormRequest
                 'information_template' => ['nullable', 'string'],
                 'meeting_weekday' => ['nullable', 'min:1', 'max:7', 'integer'],
                 'stack_themes' => ['nullable', 'boolean'],
+                'use_meetings' => ['nullable', 'boolean'],
+                'meeting_url' => ['nullable', 'string', 'url', 'max:255'],
             ];
         }
     }

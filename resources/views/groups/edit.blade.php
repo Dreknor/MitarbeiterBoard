@@ -35,6 +35,19 @@
                         </div>
                     </div>
                     <div class="form-row mt-1">
+                        <div class="col-md-6">
+                            <label for="use_meetings">Nutzt feste Treffen</label>
+                            <select name="use_meetings" class="custom-select">
+                                <option value="1" @if($gruppe->use_meetings) selected @endif>ja</option>
+                                <option value="0" @if(!$gruppe->use_meetings) selected @endif>nein</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="meeting_url">WebConf-Url</label>
+                            <input type="text" class="form-control p-2" name="meeting_url" id="meeting_url" value="{{old('meeting_url', $gruppe->meeting_url)}}" placeholder="https://webconf.example.com/raumname">
+                        </div>
+                    </div>
+                    <div class="form-row mt-1">
                         <div class="col-6">
                             <label for="enddate">aktiv bis</label>
                             <input type="date" class="form-control" name="enddate" id="enddate" value="{{old('enddate', optional($gruppe->enddate)->format('Y-m-d'))}}" @if(!auth()->user()->can('edit groups')) max="{{\Carbon\Carbon::now()->addYear()->format('Y-m-d')}}" required @endif>

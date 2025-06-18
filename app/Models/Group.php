@@ -17,8 +17,8 @@ class Group extends Model
     use HasRelationships;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
 
     protected $casts = [
         'protected' => 'boolean',
@@ -27,6 +27,7 @@ class Group extends Model
         'hasAllocations' => 'boolean',
         'enddate'  => 'date',
         'stack_themes' => 'boolean',
+        'use_meetings' => 'boolean',
     ];
 
     public function users()
@@ -71,6 +72,12 @@ class Group extends Model
     {
         return $this->morphMany(\App\Models\Task::class, 'taskable');
     }
+
+    public function meetings()
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
 
 
 
