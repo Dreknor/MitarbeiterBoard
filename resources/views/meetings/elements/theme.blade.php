@@ -10,10 +10,10 @@
         </div>
         <div class="col-10">
             <div class="row">
-                <div class="col-md-5 col-sm-10">
+                <div class="col-md-4 col-sm-8">
                     <b>{{ $theme->theme }}</b>
                 </div>
-                <div id="priority_{{$theme->id}}" class="col-md-5 col-sm-10">
+                <div id="priority_{{$theme->id}}" class="col-md-4 col-sm-10">
                     @if ($theme->priorities->where('creator_id', auth()->id())->first())
                         <div class="progress">
                             <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
@@ -26,7 +26,16 @@
                     <a href="{{url(request()->segment(1)."/themes/$theme->id")}}" class="btn btn-primary btn-sm float-right">
                         <i class="far fa-eye"></i> zeigen
                     </a>
-            </div>
+                </div>
+                <div class="col-md-2">
+                    <form action="{{ route('meetings.themes.remove', ['group' => $group->name, 'meeting' => $meeting->id, 'theme' => $theme->id]) }}" method="POST" style="display:inline-block">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Thema wirklich entfernen?')">
+                            <i class="fas fa-trash"></i> entfernen
+                        </button>
+                    </form>
+                </div>
         </div>
 
     </div>

@@ -17,9 +17,15 @@ class Meeting extends Model
         'end_time',
         'title',
         'description',
+        'cancelled',
+        'cancelled_at',
+        'cancelled_by',
     ];
 
     protected $casts = [
+        'cancelled' => 'boolean',
+        'cancelled_at' => 'datetime',
+        'invitation_sent_at' => 'datetime',
         'date' => 'date',
     ];
 
@@ -59,6 +65,18 @@ class Meeting extends Model
             get: fn ($value) => \Carbon\Carbon::parse($this->date->format('Y-m-d').' '.$value)->format('H:i'),
             set: fn ($value) => \Carbon\Carbon::createFromFormat('H:i', $value)->toTimeString()
         );
+    }
+    public function endTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => \Carbon\Carbon::parse($this->date->format('Y-m-d').' '.$value)->format('H:i'),
+            set: fn ($value) => \Carbon\Carbon::createFromFormat('H:i', $value)->toTimeString()
+        );
+    }
+
+    public function invitationSender()
+    {
+        return $this->belongsTo(User::class, 'invitation_sent_by');
     }
 
 
