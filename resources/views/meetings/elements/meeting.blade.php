@@ -34,11 +34,16 @@
                 <strong>URL:</strong> <a href="{{ $group->meeting_url }}" target="_blank">{{ $group->meeting_url }}</a>
             @endif
         </p>
+        @if($meeting->date->isSameDay(\Carbon\Carbon::now()))
+            <a href="{{url(request()->segment(1).'/presence/'.$meeting->date->format('Ymd'))}}" class="btn btn-sm btn-primary mt-2">
+                <i class="far fa-edit"></i> Anwesenheit
+            </a>
+        @endif
         @if($meeting->themes->count() > 0)
             <button class="btn btn-sm btn-info mt-2" type="button" data-toggle="collapse" data-target="#themes-{{ $meeting->id }}" aria-expanded="false" aria-controls="themes-{{ $meeting->id }}">
                 {{$meeting->themes->count()}} Themen anzeigen
             </button>
-            <div class="collapse" id="themes-{{ $meeting->id }}">
+            <div @if(!$meeting->date->isSameDay(\Carbon\Carbon::now())) class="collapse" @endif id="themes-{{ $meeting->id }}">
                 <strong>Themenübersicht:</strong>
                 <ul class="list-group">
                     @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
@@ -49,6 +54,7 @@
         @else
             <p class="text-muted">Keine Themen für dieses Meeting festgelegt.</p>
         @endif
+
         <!-- Button zum Öffnen des Modals für Themen -->
         <button class="btn btn-sm btn-success mt-2" data-toggle="modal" data-target="#addThemeModal-{{ $meeting->id }}">
             Thema hinzufügen/zuweisen

@@ -393,6 +393,7 @@ Route::group([
                 Route::get('{group}/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
                 Route::put('{group}/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
                 Route::post('{group}/meetings/{meeting}/cancel', [MeetingController::class, 'cancelMeeting'])->name('meetings.cancel');
+                Route::get('{groupname}/meetings/past', [\App\Http\Controllers\MeetingController::class, 'past'])->name('meetings.past');
 
                 //Meeting-Themen anlegen/zuweisen
                 Route::post('{group}/meetings/{meeting}/themes', [App\Http\Controllers\MeetingController::class, 'storeTheme'])->name('meetings.themes.store');
