@@ -33,6 +33,10 @@
             @if($group->meeting_url)
                 <strong>URL:</strong> <a href="{{ $group->meeting_url }}" target="_blank">{{ $group->meeting_url }}</a>
             @endif
+            @foreach($meeting->meetingTasks as $task)
+                <br>
+                <strong>{{ $task->role }} :</strong> {{ $task->user?->name }} @if($task->notes) ({{ $task->notes }}) @endif
+            @endforeach
         </p>
         @if($meeting->date->isSameDay(\Carbon\Carbon::now()))
             <a href="{{url(request()->segment(1).'/presence/'.$meeting->date->format('Ymd'))}}" class="btn btn-sm btn-primary mt-2">

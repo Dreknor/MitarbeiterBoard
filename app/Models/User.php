@@ -369,4 +369,9 @@ class User extends Authenticatable implements HasMedia
         return $this->belongsTo(User::class, 'superior_id');
     }
 
+    public function meetingTasks()
+    {
+        return $this->hasMany(\App\Models\MeetingTask::class);
+    }
+
 }
