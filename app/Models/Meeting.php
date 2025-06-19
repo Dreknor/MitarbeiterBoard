@@ -79,5 +79,10 @@ class Meeting extends Model
         return $this->belongsTo(User::class, 'invitation_sent_by');
     }
 
+    public function meetingTasks()
+    {
+        return $this->hasMany(MeetingTask::class);
+    }
+
 
 }

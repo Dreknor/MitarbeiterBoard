@@ -33,8 +33,13 @@
                 <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="btn btn-secondary">Abbrechen</a>
             </form>
 
+            <div class="mt-4">
+                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#meetingTasksModal">
+                    Aufgaben für dieses Meeting verwalten
+                </button>
+            </div>
+            @include('meetings.partials.tasks_modal', ['meeting' => $meeting, 'group' => $group])
         </div>
     </div>
 </div>
 @endsection
-

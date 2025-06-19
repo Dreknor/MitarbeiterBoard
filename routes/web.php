@@ -401,6 +401,13 @@ Route::group([
                 Route::delete('{group}/meetings/{meeting}/themes/{theme}', [App\Http\Controllers\MeetingController::class, 'removeTheme'])->name('meetings.themes.remove');
                 Route::post('{group}/meetings/{meeting}/invite', [App\Http\Controllers\MeetingController::class, 'sendInvitation'])->name('meetings.invite');
 
+                // Aufgaben-Management für Meetings
+                Route::get('{group}/meetings/{meeting}/tasks', [MeetingController::class, 'tasks'])->name('meetings.tasks');
+                Route::post('{group}/meetings/{meeting}/tasks', [MeetingController::class, 'addTask'])->name('meetings.tasks.add');
+                Route::put('{group}/meetings/{meeting}/tasks/{task}', [MeetingController::class, 'updateTask'])->name('meetings.tasks.update');
+                Route::delete('{group}/meetings/{meeting}/tasks/{task}', [MeetingController::class, 'deleteTask'])->name('meetings.tasks.delete');
+
+
                 //Themes
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
