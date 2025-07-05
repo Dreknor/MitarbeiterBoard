@@ -29,8 +29,8 @@ class MeetingController extends Controller
         }
 
         $today = now()->toDateString();
-        $meetingsToday = Meeting::where('date', $today)->with('themes')->get();
-        $otherMeetings = Meeting::query()->upcoming()->get();
+        $meetingsToday = Meeting::where('date', $today)->where('group_id', $group->id)->with('themes')->get();
+        $otherMeetings = Meeting::query()->where('group_id', $group->id)->upcoming()->get();
         // Offene Themen aus älteren Meetings, die noch nicht abgeschlossen sind und nicht im aktuellen Meeting sind
         $openThemes = \App\Models\Theme::where('completed', false)
             ->where('group_id', $group->id)
