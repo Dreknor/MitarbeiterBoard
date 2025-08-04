@@ -53,7 +53,7 @@
         @if($meetingsToday->count())
             @foreach($meetingsToday as $meeting)
                 <div class="card mb-3 border-primary ">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header text-white bg-gradient-directional-amber">
                         <h5 class="card-title">{{ $meeting->title }}</h5>
                     </div>
                     <div class="card-body">
@@ -104,11 +104,13 @@
                                     </button>
                                     <div class="collapse" id="themes-{{ $meeting->id }}">
                                         <strong>Themenübersicht:</strong>
-                                        <ul class="list-group">
-                                            @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
-                                                @include('meetings.elements.theme', ['theme' => $theme])
-                                            @endforeach
-                                        </ul>
+                                        <div class="table-responsive-sm">
+                                            <table class="table table-striped mt-2">
+                                                @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
+                                                    @include('meetings.elements.theme', ['theme' => $theme])
+                                                @endforeach
+                                            </table>
+                                        </div>
                                     </div>
                                 @else
                                     <p class="text-muted">Keine Themen für dieses Meeting festgelegt.</p>
