@@ -222,7 +222,7 @@
                                 Beratungen <b class="caret"></b>
                             </p>
                         </a>
-                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
+                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="meetings" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
                                 <li class="@if(request()->segment(1)=="search") active @endif">
                                     <a href="{{url('/search')}}">
@@ -240,21 +240,21 @@
                                         </a>
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
-                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
-                                                    @if($group->use_meetings)
-                                                        <a href="{{url($group->name.'/meetings')}}">
-                                                            <i class="fas fa-users"></i>
-                                                            <p>Meetings</p>
-                                                        </a>
-                                                    @endif
+                                                @if($group->use_meetings)
+                                                    <li class="@if(request()->segment(2)=="meetings" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
+
+                                                            <a href="{{url($group->name.'/meetings')}}">
+                                                                <i class="fas fa-users"></i>
+                                                                <p>Meetings</p>
+                                                            </a>
+                                                    </li>
+                                                @endif
+                                                    <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
                                                         <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
                                                             <i class="far fa-comments"></i>
                                                             <p>Themen</p>
                                                         </a>
-
-
-
-                                                </li>
+                                                    </li>
                                                 <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
                                                     <a href="{{url($group->name.'/archive')}}">
                                                         <i class="fas fa-archive"></i>

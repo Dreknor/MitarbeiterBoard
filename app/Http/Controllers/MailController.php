@@ -37,7 +37,9 @@ class MailController extends Controller
 
     public function invitation()
     {
-        $groups = Group::where('protected', 1)->with(['users'])->get();
+        $groups = Group::where('protected', 1)
+            ->where('use_meetings', 0)
+            ->with(['users'])->get();
 
         foreach ($groups as $group) {
             $date = Carbon::today()->addDays(max(1,$group->InvationDays));

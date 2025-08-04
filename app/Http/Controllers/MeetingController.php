@@ -6,7 +6,10 @@ use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\MeetingRequest;
 use App\Models\Group;
 use App\Models\Meeting;
+use App\Models\MeetingTask;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class MeetingController extends Controller
 {
@@ -26,8 +29,8 @@ class MeetingController extends Controller
         }
 
         $today = now()->toDateString();
-        $meetingsToday = Meeting::where('date', $today)->with('themes')->get();
-        $otherMeetings = Meeting::query()->upcoming()->get();
+        $meetingsToday = Meeting::where('date', $today)->where('group_id', $group->id)->with('themes')->get();
+        $otherMeetings = Meeting::query()->where('group_id', $group->id)->upcoming()->get();
         // Offene Themen aus älteren Meetings, die noch nicht abgeschlossen sind und nicht im aktuellen Meeting sind
         $openThemes = \App\Models\Theme::where('completed', false)
             ->where('group_id', $group->id)
@@ -72,17 +75,44 @@ class MeetingController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Meeting $meeting)
+    public function edit($group, Meeting $meeting)
     {
-        //
+        $group = Group::where('name', $group)->first();
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        return view('meetings.edit', [
+            'meeting' => $meeting,
+            'group' => $group,
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Meeting $meeting)
+    public function update(Request $request, $group, Meeting $meeting)
     {
-        //
+        $group = Group::where('name', $group)->first();
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'date' => 'required|date',
+            'start_time' => 'required',
+            'end_time' => 'required',
+        ]);
+        $meeting->update($validated);
+        return redirect()->route('meetings.index', ['group' => $group->name])->with([
+            'type'    => 'success',
+            'Meldung' => 'Meeting erfolgreich bearbeitet',
+        ]);
     }
 
     /**
@@ -144,5 +174,177 @@ class MeetingController extends Controller
             }
         }
         return redirect()->back()->with('success', 'Thema wurde dem Meeting zugewiesen.');
+    }
+
+    public function cancelMeeting($groupname, Meeting $meeting)
+    {
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        $meeting->update([
+            'cancelled' => true,
+            'cancelled_by' => auth()->id(),
+            'cancelled_at' => now(),
+        ]);
+
+        return redirect()->route('meetings.index', ['group' => $groupname])->with([
+            'type'    => 'success',
+            'Meldung' => 'Meeting erfolgreich abgesagt',
+        ]);
+
+    }
+
+    /**
+     * Entfernt ein Thema von einem Meeting.
+     */
+    public function removeTheme($group, Meeting $meeting, $themeId)
+    {
+        $group = Group::where('name', $group)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $meeting->themes()->detach($themeId);
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema wurde vom Meeting entfernt',
+        ]);
+    }
+
+    /**
+     * Versendet Einladungen an alle User der Gruppe für ein Meeting
+     */
+    public function sendInvitation(Request $request, $groupname, $meetingId)
+    {
+        $group = \App\Models\Group::where('name', $groupname)->firstOrFail();
+        $meeting = \App\Models\Meeting::with('themes')->findOrFail($meetingId);
+        $message = $request->input('message');
+        $users = $group->users;
+
+        foreach ($users as $user) {
+            Mail::to($user->email)->queue(new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name));
+        }
+
+        // Historie speichern
+        $meeting->update([
+            'invitation_sent_at' => now(),
+            'invitation_sent_by' => auth()->id(),
+        ]);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Einladungen wurden an alle Gruppenmitglieder versendet.'
+        ]);
+    }
+
+    /**
+     * Übersicht vergangener Meetings
+     */
+    public function past($groupname)
+    {
+        $group = Group::where('name', $groupname)->first();
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $pastMeetings = Meeting::where('group_id', $group->id)
+            ->where('date', '<', now()->toDateString())
+            ->orderBy('date', 'desc')
+            ->with('themes')
+            ->get();
+        return view('meetings.past', [
+            'pastMeetings' => $pastMeetings,
+            'group' => $group,
+        ]);
+    }
+
+    /**
+     * Aufgaben für ein Meeting anzeigen und verwalten
+     */
+    public function tasks($group, Meeting $meeting)
+    {
+        $group = Group::where('name', $group)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $users = $group->users;
+        $tasks = $meeting->meetingTasks()->with('user')->get();
+        return view('meetings.tasks', [
+            'meeting' => $meeting,
+            'group' => $group,
+            'users' => $users,
+            'tasks' => $tasks,
+        ]);
+    }
+
+    /**
+     * Aufgabe zu einem Meeting hinzufügen
+     */
+    public function addTask(Request $request, $group, Meeting $meeting)
+    {
+        $group = Group::where('name', $group)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role' => 'required|string|max:255',
+            'notes' => 'nullable|string|max:255',
+        ]);
+        $meeting->meetingTasks()->create($validated);
+        return redirect()->back()->with('success', 'Aufgabe hinzugefügt.');
+    }
+
+    /**
+     * Aufgabe bearbeiten
+     */
+    public function updateTask(Request $request, $group, Meeting $meeting, MeetingTask $task)
+    {
+        $group = Group::where('name', $group)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role' => 'required|string|max:255',
+            'notes' => 'nullable|string|max:255',
+        ]);
+        $task->update($validated);
+        return redirect()->back()->with('success', 'Aufgabe aktualisiert.');
+    }
+
+    /**
+     * Aufgabe löschen
+     */
+    public function deleteTask($group, Meeting $meeting, MeetingTask $task)
+    {
+        $group = Group::where('name', $group)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        $task->delete();
+        return redirect()->back()->with('success', 'Aufgabe gelöscht.');
     }
 }
