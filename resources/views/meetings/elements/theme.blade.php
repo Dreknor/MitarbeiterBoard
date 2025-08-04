@@ -10,7 +10,7 @@
     <th class="w-50">
         {{ $theme->theme }}
     </th>
-    <td class="w-25">
+    <td class="w-25" id="priority_{{$theme->id}}">
         @if ($theme->priorities->where('creator_id', auth()->id())->first())
             <div class="progress">
                 <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
