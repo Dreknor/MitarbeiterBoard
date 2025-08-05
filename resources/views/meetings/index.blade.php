@@ -81,7 +81,6 @@
                         @if($meeting->themes->count() > 0)
 
                             <div class="" id="themes-{{ $meeting->id }}">
-                                <strong>Themenübersicht:</strong>
                                 <div class="table-responsive-sm">
                                     <table class="table table-striped mt-2">
                                         @foreach($meeting->themes->sortByDesc('priority', ) as $theme)

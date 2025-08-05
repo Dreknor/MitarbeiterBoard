@@ -152,7 +152,7 @@
                                                             <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
                                                         </div>
                                                     @else
-                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="@if($day != 'offen'){{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}} @endif">
+                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="@if($day != 'offen'){{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}} @endif" data-url="{{url('priorities')}}" data-token="{{ csrf_token() }}">
                                                     @endif
                                                 </td>
                                                 <td>
@@ -190,7 +190,6 @@
             let theme = $(this).data('theme');
 
             let url = "{{url(request()->segment(1).'/themes/' )}}"
-            console.log(url)
             $.ajax({
                     type: "POST",
                     url: '{{url('priorities')}}',

@@ -1,4 +1,4 @@
-<tr @if($theme) @endif>
+<tr class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-directional-teal text-white @endif">
     <td>
         @if($theme->ersteller->getMedia('profile')->count() != 0)
             <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">
@@ -20,7 +20,7 @@
         @endif
     </td>
     <td>
-        <a href="{{url(request()->segment(1)."/themes/$theme->id")}}" class="btn btn-primary btn-sm float-right">
+        <a href="{{url(request()->segment(1)."/themes/$theme->id")}}" class="btn btn-light btn-sm float-right">
             <i class="far fa-eye"></i> zeigen
         </a>
     </td>
