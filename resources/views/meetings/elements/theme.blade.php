@@ -1,4 +1,4 @@
-<tr>
+<tr @if($theme) @endif>
     <td>
         @if($theme->ersteller->getMedia('profile')->count() != 0)
             <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">
