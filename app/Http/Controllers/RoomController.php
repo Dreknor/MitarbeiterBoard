@@ -93,7 +93,7 @@ class RoomController extends Controller
         }
 
         if ($week == null){
-            $week = VertretungsplanWeek::query()->where('week', \Carbon\Carbon::now()->startOfWeek())->first()->type;
+            $week = VertretungsplanWeek::query()->where('week', \Carbon\Carbon::now()->startOfWeek())->first()?->type;
         }
 
         $bookings = RoomBooking::query()
