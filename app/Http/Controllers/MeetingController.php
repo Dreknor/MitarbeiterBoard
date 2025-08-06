@@ -363,7 +363,7 @@ class MeetingController extends Controller
         // Alle offenen Themen der Gruppe mit gleichem Datum wie das Meeting
         $themes = \App\Models\Theme::where('completed', false)
             ->where('group_id', $group->id)
-            ->whereDate('created_at', $meeting->date)
+            ->whereDate('date', $meeting->date)
             ->get();
         $count = 0;
         foreach ($themes as $theme) {
