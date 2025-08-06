@@ -347,4 +347,34 @@ class MeetingController extends Controller
         $task->delete();
         return redirect()->back()->with('success', 'Aufgabe gelöscht.');
     }
+
+    /**
+     * Weist alle offenen Themen des Tages dem Meeting zu.
+     */
+    public function assignAllThemesForDate($groupname, Meeting $meeting)
+    {
+        $group = Group::where('name', $groupname)->first();
+        if (!auth()->user()->groups()->contains($group)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+        // Alle offenen Themen der Gruppe mit gleichem Datum wie das Meeting
+        $themes = \App\Models\Theme::where('completed', false)
+            ->where('group_id', $group->id)
+            ->whereDate('created_at', $meeting->date)
+            ->get();
+        $count = 0;
+        foreach ($themes as $theme) {
+            if (!$meeting->themes()->where('theme_id', $theme->id)->exists()) {
+                $meeting->themes()->attach($theme->id);
+                $count++;
+            }
+        }
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => $count . ' Themen wurden dem Meeting zugewiesen.'
+        ]);
+    }
 }
