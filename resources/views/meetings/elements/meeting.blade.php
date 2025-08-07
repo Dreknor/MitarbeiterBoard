@@ -49,15 +49,27 @@
             </button>
             <div @if(!$meeting->date->isSameDay(\Carbon\Carbon::now())) class="collapse" @endif id="themes-{{ $meeting->id }}">
                 <strong>Themenübersicht:</strong>
-                <ul class="list-group">
-                    @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
-                        @include('meetings.elements.theme', ['theme' => $theme])
-                    @endforeach
-                </ul>
+                <div class="" id="themes-{{ $meeting->id }}">
+                    <div class="table-responsive-sm">
+                        <table class="table table-striped mt-2">
+                            @foreach($meeting->themes->sortByDesc('priority', ) as $theme)
+                                @include('meetings.elements.theme', ['theme' => $theme])
+                            @endforeach
+                        </table>
+                    </div>
+                </div>
             </div>
         @else
             <p class="text-muted">Keine Themen für dieses Meeting festgelegt.</p>
         @endif
+
+        <!-- Button zum automatischen Zuweisen aller Tages-Themen -->
+        <form action="{{ route('meetings.assignThemes', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST" style="display:inline-block">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-warning mt-2">
+                Alle Tages-Themen zuweisen
+            </button>
+        </form>
 
         <!-- Button zum Öffnen des Modals für Themen -->
         <button class="btn btn-sm btn-success mt-2" data-toggle="modal" data-target="#addThemeModal-{{ $meeting->id }}">
