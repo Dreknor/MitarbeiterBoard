@@ -189,13 +189,13 @@ class TimesheetController extends Controller
         if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
             return redirect()->back();
         }
-
+/*
         if ($user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() < 1){
             $user->timesheets()->latest()->first();
             return redirect(url('timesheets/'.$user->id.'/'.$date))->with([]);
             //return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
         }
-
+   */
         if ($user->employments->count() < 1){
             return redirectBack('warning', 'Keine Anstellung eingetragen');
         }
