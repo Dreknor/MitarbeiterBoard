@@ -173,6 +173,12 @@ class MeetingController extends Controller
                 $meeting->themes()->attach($themeId);
             }
         }
+
+        if ($meeting->date == today()->toDateString() and $meeting->start_time <= now()->format('H:i') and $meeting->end_time >= now()){
+
+            return redirect(url($group->name.'/themes/'.$theme->id))->with('success', 'Thema wurde dem Meeting zugewiesen.');
+
+        }
         return redirect()->back()->with('success', 'Thema wurde dem Meeting zugewiesen.');
     }
 
