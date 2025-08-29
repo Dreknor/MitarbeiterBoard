@@ -142,6 +142,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('view paed diary')
+                        <li class="@if(request()->segment(1)=="paed-diary") active @endif">
+                            <a href="{{url('/paed-diary')}}">
+                                <i class="fas fa-book"></i>
+                                <p>Päd. Tagebuch</p>
+                            </a>
+                        </li>
+                    @endcan
                     @can('edit inventar')
                         <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
                             <a data-toggle="collapse" href="#inventory">
@@ -390,6 +398,7 @@
                             </a>
                         </li>
                     @endcan
+
                     @can('edit permissions')
                         <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                             <a href="{{url('/roles')}}">

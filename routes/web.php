@@ -54,6 +54,7 @@ use App\Http\Controllers\WikiController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
+use App\Http\Controllers\SchuelerController; // hinzugefügt
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShareController;
@@ -297,6 +298,13 @@ Route::group([
                 //Klassen
                 Route::group(['middleware' => ['permission:edit klassen']], function () {
                     Route::resource('klassen', KlasseController::class);
+                    // Schüler Verwaltung
+                    Route::get('schueler/import', [SchuelerController::class, 'importForm'])->name('schueler.import.form');
+                    Route::post('schueler/import', [SchuelerController::class, 'import'])->name('schueler.import');
+                    Route::post('klassen/{klasse}/schueler', [SchuelerController::class, 'store'])->name('schueler.store');
+                    Route::get('schueler/{schueler}/edit', [SchuelerController::class, 'edit'])->name('schueler.edit');
+                    Route::put('schueler/{schueler}', [SchuelerController::class, 'update'])->name('schueler.update');
+                    Route::delete('schueler/{schueler}', [SchuelerController::class, 'destroy'])->name('schueler.destroy');
                 });
 
                 //absences
@@ -599,5 +607,27 @@ Route::group([
                     Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
                     Route::get('logs/set_filter/{filter}', [LogController::class, 'set_filter'])->name('logs.set_filter');
                 });
+
+                // Pädagogisches Tagebuch
+                Route::middleware(['permission:view paed diary'])->group(function(){
+                    Route::get('paed-diary', [\App\Http\Controllers\PaedDiaryController::class,'index'])->name('paedDiary.index');
+                    Route::get('paed-diary/week', [\App\Http\Controllers\PaedDiaryController::class,'weekData'])->name('paedDiary.week');
+                    Route::get('paed-diary/cell-entries', [\App\Http\Controllers\PaedDiaryController::class,'cellEntries'])->name('paedDiary.cell');
+                    Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class,'schuelerView'])->name('paedDiary.schueler.view');
+                    Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class,'schuelerData'])->name('paedDiary.schueler.data');
+                    Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class,'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
+                    Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class,'storeEntry'])->name('paedDiary.entry.store');
+                    Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'updateEntry'])->name('paedDiary.entry.update');
+                    Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'destroyEntry'])->name('paedDiary.entry.destroy');
+                    Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryController::class,'storeColumn'])->name('paedDiary.column.store');
+                    Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryController::class,'destroyColumn'])->name('paedDiary.column.destroy');
+                    Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryController::class,'storeColumnValue'])->name('paedDiary.column.value');
+                    Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryController::class,'storeTask'])->name('paedDiary.task.store');
+                    Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryController::class,'closeTask'])->name('paedDiary.task.close');
+                    Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class,'columnsAll'])->name('paedDiary.columns.all');
+                    Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class,'restoreColumn'])->name('paedDiary.column.restore');
+                    Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class,'exportExcel'])->name('paedDiary.export.excel');
+                });
+
             });
     });

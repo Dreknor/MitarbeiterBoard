@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateKlasseRequest;
 use App\Http\Requests\EditKlasseRequest;
 use App\Models\Klasse;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Permission;
 
 class KlasseController extends Controller
 {
@@ -59,8 +61,11 @@ class KlasseController extends Controller
 
     public function edit($klasse)
     {
+        $klasse = Klasse::with(['schueler','paed_users'])->find($klasse);
+        $paedUsers = User::permission('view paed diary')->orderBy('name')->get();
         return response()->view('klassen.edit',[
-            'klasse' => Klasse::find($klasse)
+            'klasse' => $klasse,
+            'paedUsers' => $paedUsers
         ]);
     }
 
@@ -70,11 +75,19 @@ class KlasseController extends Controller
         $validatedData = $request->validate([
             'name' => ['required', 'unique:klassen,name,'.$klassen->id, 'max:255'],
             'kuerzel' => ['required', 'unique:klassen,kuerzel,'.$klassen->id, 'max:255'],
+            'paed_user_ids' => ['nullable','array'],
+            'paed_user_ids.*' => ['integer','exists:users,id']
         ]);
 
         $klassen->update($validatedData);
 
-        return redirect(url('klassen'))->with([
+        if ($request->has('paed_user_ids')){
+            $klassen->paed_users()->sync($request->get('paed_user_ids'));
+        } else {
+            $klassen->paed_users()->sync([]);
+        }
+
+        return redirect(url('klassen/'.$klassen->id.'/edit'))->with([
             'type' => 'success',
             'Meldung' => 'Klasse wurde aktualisiert.'
         ]);

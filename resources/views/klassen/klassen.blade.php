@@ -4,7 +4,11 @@
     <div>
         @include('klassen.create')
 
-    <table class="table table-bordered mt-5">
+        <div class="mt-3 mb-3">
+            <a href="{{route('schueler.import.form')}}" class="btn btn-outline-primary btn-sm">Schüler Import</a>
+        </div>
+
+    <table class="table table-bordered mt-2">
         <thead>
         <tr>
             <th class="w-50">Klasse</th>

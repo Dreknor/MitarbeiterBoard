@@ -374,4 +374,9 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(\App\Models\MeetingTask::class);
     }
 
+    public function paed_klassen()
+    {
+        return $this->belongsToMany(Klasse::class,'klasse_user','user_id','klasse_id');
+    }
+
 }
