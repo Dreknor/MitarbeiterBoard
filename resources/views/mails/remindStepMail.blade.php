@@ -12,7 +12,7 @@
 </p>
 @foreach($steps as $step)
     <p>
-        Prozess: <a href="{{config('app.url')}}/procedure/{{$step['stepId']}}/start">{{$step['procedureName']}}</a><br>
+        Prozess: <a href="{{config('app.url')}}/procedure/{{$step['procedureId']}}/start">{{$step['procedureName']}}</a><br>
         Aufgabe: {{$step['stepName']}}<br>
         Datum: {{$step['endDate']}}<br>
         bereits erledigt?: <a href="{{config('app.url')}}/procedure/step/{{$step['stepId']}}/done/mail">JA</a>

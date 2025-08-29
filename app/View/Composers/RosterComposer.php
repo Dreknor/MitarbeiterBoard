@@ -21,10 +21,20 @@ class RosterComposer
      */
     public function compose(View $view): void
     {
-        $view->with('rosters', Roster::whereIn('department_id', auth()->user()->groups()->pluck('id'))
-            ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
-            ->where('type', '!=', 'template')
-            ->where('published', true)
-            ->get());
+
+        if (auth()->user()->can('create roster')) {
+            $view->with('rosters', Roster::whereIn('department_id', auth()->user()->groups()->pluck('id'))
+                ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
+                ->where('type', '!=', 'template')
+
+                ->get());
+        } else {
+            $view->with('rosters', Roster::whereIn('department_id', auth()->user()->groups()->pluck('id'))
+                ->whereDate('start_date', '>=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
+                ->where('type', '!=', 'template')
+                ->where('published', true)
+                ->get());
+        }
+
     }
 }
