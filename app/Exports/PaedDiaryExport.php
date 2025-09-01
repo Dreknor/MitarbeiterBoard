@@ -34,7 +34,8 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
             'Datum',
             'Schüler',
             'Autor',
-            'Notiz'
+            'Notiz',
+            'Stufe'
         ];
     }
 
@@ -50,13 +51,14 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
             'B' => 20, // Schüler
             'C' => 15, // Autor
             'D' => 50, // Notiz
+            'E' => 12, // Stufe
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
         // Header-Styling
-        $sheet->getStyle('A1:D1')->applyFromArray([
+        $sheet->getStyle('A1:E1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -80,7 +82,7 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
         // Daten-Styling
         $lastRow = count($this->data) + 1;
         if ($lastRow > 1) {
-            $sheet->getStyle("A2:D{$lastRow}")->applyFromArray([
+            $sheet->getStyle("A2:E{$lastRow}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,

@@ -212,7 +212,8 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
         // Titel-Zeile hinzufügen
         $sheet->insertNewRowBefore(1, 3);
         $sheet->setCellValue('A1', 'Pädagogisches Tagebuch');
-        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ')');
+        $stageName = $this->schueler->grading_stage?->name ?? '-';
+        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ') - Stufe: ' . $stageName);
         $sheet->setCellValue('A3', 'Zeitraum: ' . $this->dateFrom->format('d.m.Y') . ' - ' . $this->dateTo->format('d.m.Y'));
 
         // Titel-Styling
@@ -336,8 +337,9 @@ class SchuelerTasksSheet implements FromArray, WithHeadings, WithStyles, WithCol
     {
         // Titel-Zeile hinzufügen
         $sheet->insertNewRowBefore(1, 3);
+        $stageName = $this->schueler->grading_stage?->name ?? '-';
         $sheet->setCellValue('A1', 'Aufgaben');
-        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ')');
+        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ') - Stufe: ' . $stageName);
         $sheet->setCellValue('A3', 'Zeitraum: ' . $this->dateFrom->format('d.m.Y') . ' - ' . $this->dateTo->format('d.m.Y'));
 
         // Titel-Styling

@@ -195,7 +195,7 @@ class PaedDiaryController extends Controller
         $weekStart = $request->filled('week_start') ? Carbon::parse($request->week_start)->startOfWeek() : Carbon::now()->startOfWeek();
         $weekEnd = $weekStart->copy()->addDays(4);
 
-        $entries = PaedDiaryEntry::with(['user:id,name','schueler:id,vorname,nachname'])
+        $entries = PaedDiaryEntry::with(['user:id,name','schueler.grading_stage'])
             ->where('klasse_id',$klasse->id)
             ->whereBetween('datum', [$weekStart->toDateString(), $weekEnd->toDateString()])
             ->orderBy('datum')
@@ -208,7 +208,8 @@ class PaedDiaryController extends Controller
                     'Datum'=>$entry->datum->format('Y-m-d'),
                     'Schüler'=>$s->vorname.' '.$s->nachname,
                     'Autor'=>$entry->user?->name,
-                    'Notiz'=>preg_replace('/\s+/',' ', trim($entry->content))
+                    'Notiz'=>preg_replace('/\s+/',' ', trim($entry->content)),
+                    'Stufe' => $s->grading_stage?->name ?? ''
                 ];
             }
         }
