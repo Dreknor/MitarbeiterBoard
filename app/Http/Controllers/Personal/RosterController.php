@@ -11,12 +11,10 @@ use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
+use App\Services\AutoRosterPlanner; // Import ergänzt
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-//use Barryvdh\DomPDF\Facade\Pdf AS PDF;
-
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -398,11 +396,101 @@ class RosterController extends Controller
 
     public function exportPdfEmploye(Roster $roster, User $employe)
     {
-        // Route erwartet diese Methode (roster.export.employe.pdf)
         return $this->createPDFEmploye($roster, $employe)->stream(
             $roster->start_date->copy()->format('Y_m_d').'_dienstplan_'.$employe->vorname.'.pdf'
         );
     }
 
+    // Auto-Plan Methoden
+    public function autoPlan(Request $request, Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) {
+            return redirectBack('danger', 'Berechtigung fehlt');
+        }
+        $simulate = array_map('intval', (array)$request->get('simulate_absent', []));
+        $planner = new AutoRosterPlanner();
+        $result = $planner->suggest($roster, $simulate);
+        $suggestions = $result['suggestions'];
+        $summary = $result['summary'];
+        Cache::put('roster_auto_plan_suggestions_'.$roster->id, $suggestions, 600);
+        Cache::put('roster_auto_plan_simulate_'.$roster->id, $simulate, 600);
+        $employes = $roster->department->activeEmployes($roster->start_date->copy(), $roster->start_date->copy()->endOfWeek());
+        $hasUndo = Cache::has('roster_auto_plan_last_apply_'.$roster->id);
+        return view('personal.rosters.auto_plan', compact('roster','suggestions','summary','employes','simulate','hasUndo'));
+    }
 
+    public function applyAutoPlan(Request $request, Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) {
+            return redirectBack('danger', 'Berechtigung fehlt');
+        }
+        $cacheKey = 'roster_auto_plan_suggestions_'.$roster->id;
+        $suggestions = Cache::get($cacheKey);
+        if (!$suggestions) {
+            return redirectBack('warning', 'Keine Vorschläge vorhanden oder abgelaufen');
+        }
+        $selected = array_map('intval', (array)$request->get('selected'));
+        $breakSelected = array_map('intval', (array)$request->get('break_selected'));
+        $changes = [ 'events' => [], 'working_times' => [], 'break_events' => [] ];
+        $daysToFlush = [];
+        foreach ($suggestions as $s) {
+            if (!in_array($s['index'], $selected)) { continue; }
+            if (($s['action'] ?? null) === 'reassign' && !empty($s['to']['id'])) {
+                $event = RosterEvents::find($s['event_id']);
+                if ($event) {
+                    $changes['events'][] = [ 'event_id' => $event->id, 'old_employe_id' => $event->employe_id ];
+                    $event->employe_id = $s['to']['id'];
+                    $event->save();
+                    $daysToFlush[$event->date->format('Ymd')] = true;
+                }
+                if (!empty($s['adjust_working_time'])) {
+                    $wt = WorkingTime::find($s['adjust_working_time']['working_time_id']);
+                    if ($wt) {
+                        $update = [];
+                        $old = [ 'working_time_id' => $wt->id, 'old_start' => $wt->start?->format('H:i'), 'old_end' => $wt->end?->format('H:i') ];
+                        if (!empty($s['adjust_working_time']['new_start']) && $s['adjust_working_time']['new_start'] !== $wt->start->format('H:i')) { $update['start'] = $s['adjust_working_time']['new_start'].':00'; }
+                        if (!empty($s['adjust_working_time']['new_end']) && $s['adjust_working_time']['new_end'] !== $wt->end->format('H:i')) { $update['end'] = $s['adjust_working_time']['new_end'].':00'; }
+                        if ($update) { $wt->update($update); $changes['working_times'][] = $old; }
+                    }
+                }
+                if (!empty($s['add_break']) && in_array($s['index'], $breakSelected)) {
+                    $bd = $s['add_break'];
+                    $breakEvent = new RosterEvents([
+                        'roster_id' => $roster->id,
+                        'employe_id' => $bd['employe_id'],
+                        'date' => $bd['date'],
+                        'start' => $bd['start'].':00',
+                        'end' => $bd['end'].':00',
+                        'event' => $bd['event'],
+                    ]);
+                    $breakEvent->save();
+                    $changes['break_events'][] = $breakEvent->id;
+                    $daysToFlush[Carbon::createFromFormat('Y-m-d',$bd['date'])->format('Ymd')] = true;
+                }
+            } elseif (($s['action'] ?? null) === 'unassign') {
+                $event = RosterEvents::find($s['event_id']);
+                if ($event) {
+                    $changes['events'][] = [ 'event_id' => $event->id, 'old_employe_id' => $event->employe_id ];
+                    $event->employe_id = null;
+                    $event->save();
+                    $daysToFlush[$event->date->format('Ymd')] = true;
+                }
+            }
+        }
+        foreach ($daysToFlush as $d => $_) { Cache::forget('roster_'.$roster->id.'_'.$d); }
+        Cache::forget($cacheKey);
+        Cache::put('roster_auto_plan_last_apply_'.$roster->id, $changes, 3600);
+        return redirect(route('roster.autoPlan', [$roster->id]))->with('success','Änderungen angewendet. Du kannst sie rückgängig machen.');
+    }
+
+    public function undoAutoPlan(Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) { return redirectBack('danger','Berechtigung fehlt'); }
+        $changes = Cache::pull('roster_auto_plan_last_apply_'.$roster->id);
+        if (!$changes) { return redirectBack('warning','Nichts zum Rückgängig machen gefunden'); }
+        foreach ($changes['events'] as $c) { if ($ev = RosterEvents::find($c['event_id'])) { $ev->employe_id = $c['old_employe_id']; $ev->save(); } }
+        foreach ($changes['working_times'] as $c) { if ($wt = WorkingTime::find($c['working_time_id'])) { $upd=[]; if ($c['old_start']) $upd['start']=$c['old_start'].':00'; if ($c['old_end']) $upd['end']=$c['old_end'].':00'; if ($upd) $wt->update($upd); } }
+        foreach ($changes['break_events'] as $id) { if ($be = RosterEvents::find($id)) { $be->delete(); } }
+        return redirect(route('roster.autoPlan', [$roster->id]))->with('success','Auto-Umplanung rückgängig gemacht');
+    }
 }

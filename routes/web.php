@@ -248,9 +248,15 @@ Route::group([
 
                     Route::get('roster/{roster}/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
 
+                    // Auto-Umplanung
+                    Route::get('roster/{roster}/auto-plan', [RosterController::class,'autoPlan'])->name('roster.autoPlan');
+                    Route::post('roster/{roster}/auto-plan/apply', [RosterController::class,'applyAutoPlan'])->name('roster.autoPlan.apply');
+                    Route::get('roster/{roster}/auto-plan/undo', [RosterController::class,'undoAutoPlan'])->name('roster.autoPlan.undo');
+
                     //Create Checks
                     Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
 
+                    Route::get('roster/{roster}/auto-plan/undo', [RosterController::class,'undoAutoPlan'])->name('roster.autoPlan.undo');
                     //Publish Roster
                     Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
 

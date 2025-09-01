@@ -1,6 +1,13 @@
 <div @class(['card'])>
     <div @class(['card-header'])>
-
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            @can('create roster')
+                <a href="{{route('roster.autoPlan',$roster->id)}}" class="btn btn-sm btn-outline-primary">
+                    <i class="la la-magic"></i> Auto-Umplanung Vorschlag
+                </a>
+            @endcan
+        </div>
     </div>
     <div @class(['card-body'])>
         <div @class(['row'])>
