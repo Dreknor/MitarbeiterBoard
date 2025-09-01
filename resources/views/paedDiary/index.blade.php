@@ -183,6 +183,15 @@
 #diaryTable td.note-cell .col-inputs input[type=number]{width:48px;padding:0 3px;font-size:0.6rem;line-height:1.1;}
 #diaryTable td.note-cell .col-inputs .bool-btn{padding:2px 6px;font-size:0.70rem;line-height:1;border-radius:3px;}
 #diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary{background: #525055;}
+#diaryTable th.today-header {
+    background: #1976d2;
+    color: #fff;
+    border: 2px solid #115293;
+}
+#diaryTable td.today-cell {
+    background: #e3f2fd;
+    border: 2px solid #90caf9;
+}
 </style>
 @endpush
 
@@ -232,7 +241,12 @@
 
     // --- Utils ---
     function startOfWeek(d){const dt=new Date(d);const wd=dt.getDay();const diff=(wd===0?-6:1-wd);dt.setDate(dt.getDate()+diff);dt.setHours(0,0,0,0);return dt;}
-    function formatDate(d){return d.toISOString().substring(0,10);}
+    function formatDate(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
     function addDays(d,x){const n=new Date(d);n.setDate(n.getDate()+x);return n;}
     function escapeHtml(str){return String(str).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));}
     function trimText(str,len){return str.length<=len?str:str.slice(0,len-1)+'…';}
@@ -265,7 +279,11 @@
     function buildEntryMap(){const m={};cache.entries.forEach(e=>e.schueler_ids.forEach(s=>{(m[s]||(m[s]={}))[e.date]=(m[s][e.date]||[]);m[s][e.date].push(e);}));return m;}
     function render(){
         diaryHead.innerHTML='';
-        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:160px;">Schüler</th>' + cache.days.map(d=>`<th class="text-center" data-date="${d.date}">${d.label}</th>`).join('') + '</tr>');
+        const todayStr = formatDate(new Date());
+        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:160px;">Schüler</th>' + cache.days.map(d=>{
+            const isToday = d.date === todayStr;
+            return `<th class="text-center${isToday ? ' today-header' : ''}" data-date="${d.date}">${d.label}</th>`;
+        }).join('') + '</tr>');
         const entryMap=buildEntryMap();
         diaryBody.innerHTML='';
         const taskStudentIds=new Set(cache.tasks.map(t=>t.schueler_id));
@@ -278,7 +296,8 @@
             cache.days.forEach(d=>{
                 const entries=(entryMap[stu.id]?.[d.date])||[];
                 const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">`+(e.user?`<span class=\"author\">${escapeHtml(e.user)}</span>`:'')+`<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
-                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\"><div class=\"entry-list\">${entriesHtml}</div><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></td>`;
+                const isToday = d.date === todayStr;
+                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday ? ' today-cell' : ''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\"><div class=\"entry-list\">${entriesHtml}</div><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></td>`;
             });
             const tr=document.createElement('tr');
             if(taskStudentIds.has(stu.id)) tr.classList.add('stu-has-task');
