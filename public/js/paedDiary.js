@@ -113,7 +113,8 @@
         weekLabel.textContent=`${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
         renderStudentCheckboxes();
         taskSchuelerSelect.innerHTML='<option value="">-- Schüler --</option>'+cache.schueler.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-        exportCsvBtn.href=`/paedDiary.export.excel?klasse_id=${encodeURIComponent(klasseSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
+        // Korrigierter Export-Pfad (entsprechend routes/web.php: export/paed-diary/excel)
+        exportCsvBtn.href = `/export/paed-diary/excel?klasse_id=${encodeURIComponent(klasseSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
 
         // Aufgaben anzeigen wenn vorhanden
         renderTasks();
