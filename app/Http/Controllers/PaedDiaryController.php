@@ -637,14 +637,8 @@ class PaedDiaryController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            // write to a file so we can see the exact error even if DB logging is used
-            try {
-                $logpath = storage_path('logs/schueler_data_error.log');
-                file_put_contents($logpath, "[".date('c')."] " . $e->getMessage() . PHP_EOL . $e->getTraceAsString() . PHP_EOL . PHP_EOL, FILE_APPEND);
-            } catch (\Throwable $_) {
-                // ignore
-            }
-            Log::error('schuelerData exception: '.$e->getMessage());
+            // Log the error via the normal logger (no custom debug file)
+            Log::error('schuelerData exception: '.$e->getMessage(), ['exception' => $e]);
             return response()->json(['message'=>'Interner Serverfehler'],500);
         }
     }
