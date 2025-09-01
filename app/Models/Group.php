@@ -6,6 +6,7 @@ use App\Models\Liste;
 use App\Models\personal\Employment;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterCheck;
+use App\Models\personal\RosterTaskRequirement;
 use App\Models\Subscription;
 use DateTime;
 use Illuminate\Database\Eloquent\Model;
@@ -139,6 +140,11 @@ class Group extends Model
     public function roster_checks()
     {
         return $this->hasMany(RosterCheck::class, 'department_id');
+    }
+
+    public function roster_task_requirements()
+    {
+        return $this->hasMany(RosterTaskRequirement::class, 'department_id');
     }
 
     public function employes()

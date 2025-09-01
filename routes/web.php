@@ -253,10 +253,13 @@ Route::group([
                     Route::post('roster/{roster}/auto-plan/apply', [RosterController::class,'applyAutoPlan'])->name('roster.autoPlan.apply');
                     Route::get('roster/{roster}/auto-plan/undo', [RosterController::class,'undoAutoPlan'])->name('roster.autoPlan.undo');
 
+                    // Task Requirements
+                    Route::post('roster/{roster}/task-requirements', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class,'store'])->name('roster.taskRequirements.store');
+                    Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class,'update'])->name('roster.taskRequirements.update');
+                    Route::delete('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class,'destroy'])->name('roster.taskRequirements.destroy');
+
                     //Create Checks
                     Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
-
-                    Route::get('roster/{roster}/auto-plan/undo', [RosterController::class,'undoAutoPlan'])->name('roster.autoPlan.undo');
                     //Publish Roster
                     Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
 

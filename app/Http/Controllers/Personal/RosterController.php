@@ -408,15 +408,78 @@ class RosterController extends Controller
             return redirectBack('danger', 'Berechtigung fehlt');
         }
         $simulate = array_map('intval', (array)$request->get('simulate_absent', []));
+        $simulatePerDayRaw = (array)$request->get('simulate_absent_day', []);
+        $simulatePerDay = [];
+        foreach ($simulatePerDayRaw as $day => $ids){
+            $simulatePerDay[$day] = array_map('intval', (array)$ids);
+        }
+        $days = [];
+        for ($d = $roster->start_date->copy(); $d->lessThanOrEqualTo($roster->start_date->copy()->endOfWeek()); $d->addDay()) { $days[] = $d->copy(); }
+
+        // Vorherige Vorschläge für Diff-Erkennung laden (noch vor neuer Berechnung)
+        $previousSuggestions = Cache::get('roster_auto_plan_suggestions_'.$roster->id, []);
+        $previousByEvent = [];
+        foreach ($previousSuggestions as $ps) { if(isset($ps['event_id'])) { $previousByEvent[$ps['event_id']] = $ps; } }
+
         $planner = new AutoRosterPlanner();
-        $result = $planner->suggest($roster, $simulate);
+        $result = $planner->suggest($roster, $simulate, $simulatePerDay);
         $suggestions = $result['suggestions'];
+
+        // Diff anwenden: Markiere neue oder geänderte Vorschläge (geänderte Aufgabe)
+        foreach ($suggestions as &$s) {
+            $prev = $previousByEvent[$s['event_id']] ?? null;
+            if(!$prev){
+                $s['is_new'] = true;
+            } else {
+                $changed = false;
+                $fieldsSimple = ['action'];
+                foreach ($fieldsSimple as $f) { if(($prev[$f] ?? null) !== ($s[$f] ?? null)) { $changed = true; break; } }
+                if(!$changed) {
+                    // Vergleich Ziel-MA
+                    if(($prev['to']['id'] ?? null) !== ($s['to']['id'] ?? null)) { $changed = true; }
+                }
+                if(!$changed) {
+                    // Arbeitszeit-Anpassung Unterschiede
+                    $pa = $prev['adjust_working_time'] ?? null; $ca = $s['adjust_working_time'] ?? null;
+                    if( (bool)$pa !== (bool)$ca ) { $changed = true; }
+                    elseif($pa && $ca) {
+                        $cmpFields = ['working_time_id','new_start','new_end','added_minutes'];
+                        foreach ($cmpFields as $cf) { if(($pa[$cf] ?? null) !== ($ca[$cf] ?? null)) { $changed = true; break; } }
+                    }
+                }
+                if(!$changed) {
+                    // Break Vorschlag
+                    $pb = $prev['add_break'] ?? null; $cb = $s['add_break'] ?? null;
+                    if( (bool)$pb !== (bool)$cb ) { $changed = true; }
+                    elseif($pb && $cb) {
+                        $cmpB = ['start','end','employe_id'];
+                        foreach ($cmpB as $cf) { if(($pb[$cf] ?? null) !== ($cb[$cf] ?? null)) { $changed = true; break; } }
+                    }
+                }
+                if(!$changed) {
+                    // Requirement-Aspekt (z.B. jetzt Anforderung vorhanden oder nicht / adjusted Flag / Funktionswechsel)
+                    $pr = $prev['requirement'] ?? null; $cr = $s['requirement'] ?? null;
+                    if( (bool)$pr !== (bool)$cr ) { $changed = true; }
+                    elseif($pr && $cr) {
+                        $cmpR = ['function','start','end','adjust','adjusted'];
+                        foreach ($cmpR as $cf) { if(($pr[$cf] ?? null) !== ($cr[$cf] ?? null)) { $changed = true; break; } }
+                    }
+                }
+                if($changed) { $s['is_changed'] = true; }
+            }
+        }
+        unset($s);
+
         $summary = $result['summary'];
+        // Neue Vorschläge (inkl. Diff-Flags) cachen
         Cache::put('roster_auto_plan_suggestions_'.$roster->id, $suggestions, 600);
         Cache::put('roster_auto_plan_simulate_'.$roster->id, $simulate, 600);
         $employes = $roster->department->activeEmployes($roster->start_date->copy(), $roster->start_date->copy()->endOfWeek());
         $hasUndo = Cache::has('roster_auto_plan_last_apply_'.$roster->id);
-        return view('personal.rosters.auto_plan', compact('roster','suggestions','summary','employes','simulate','hasUndo'));
+        $simulate_per_day = $simulatePerDay;
+        $requirements = $roster->department->roster_task_requirements()->orderBy('event_name')->get();
+        $hasDiff = !empty($previousSuggestions);
+        return view('personal.rosters.auto_plan', compact('roster','suggestions','summary','employes','simulate','simulate_per_day','hasUndo','days','requirements','hasDiff'));
     }
 
     public function applyAutoPlan(Request $request, Roster $roster)
