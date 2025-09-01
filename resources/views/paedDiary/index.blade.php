@@ -160,7 +160,12 @@
 @push('css')
 <style>
 #diaryTable td.note-cell{cursor:pointer;min-width:160px;vertical-align:top;font-size:0.7rem;}
-#diaryTable td.note-cell .entry-list{max-height:110px;overflow:auto;margin-bottom:2px;}
+#diaryTable td.note-cell .entry-list {
+    overflow: auto;
+    margin-bottom: 2px;
+    min-height: 1.8em;
+    /* sorgt für mindestens eine Zeile Höhe */
+}
 #diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
 #diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
 #diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em;}
@@ -191,6 +196,16 @@
 #diaryTable td.today-cell {
     background: #e3f2fd;
     border: 2px solid #90caf9;
+}
+#diaryTable td .col-inputs-row {
+    display: block;
+    margin-top: 6px;
+}
+#diaryTable td .col-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    width: 100%;
 }
 </style>
 @endpush
@@ -297,7 +312,10 @@
                 const entries=(entryMap[stu.id]?.[d.date])||[];
                 const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">`+(e.user?`<span class=\"author\">${escapeHtml(e.user)}</span>`:'')+`<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
                 const isToday = d.date === todayStr;
-                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday ? ' today-cell' : ''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\"><div class=\"entry-list\">${entriesHtml}</div><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></td>`;
+                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday ? ' today-cell' : ''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\">`+
+                    `<div class=\"entry-list\">${entriesHtml}</div>`+
+                    `<div class=\"col-inputs-row\"><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></div>`+
+                    `</td>`;
             });
             const tr=document.createElement('tr');
             if(taskStudentIds.has(stu.id)) tr.classList.add('stu-has-task');
