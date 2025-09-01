@@ -64,7 +64,7 @@ class PaedDiaryController extends Controller
         $period = CarbonPeriod::create($weekStart, $periodEnd);
         $days = collect();
         foreach ($period as $date){ $days->push(['date'=>$date->toDateString(),'label'=>$date->format('D d.m.')]); }
-        $schueler = $klasse->schueler()->orderBy('nachname')->orderBy('vorname')->get(['id','vorname','nachname']);
+        $schueler = $klasse->schueler()->orderBy('vorname')->orderBy('nachname')->get(['id','vorname','nachname']);
 
         $columnsQuery = PaedDiaryColumn::where('klasse_id',$klasse->id)->orderBy('sort_order');
         if (Schema::hasColumn('paed_diary_columns','deactivated_from')){
