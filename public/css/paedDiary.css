@@ -1,0 +1,51 @@
+/* paedDiary.css - ausgelagerte Styles für das pädagogische Tagebuch */
+
+#diaryTable td.note-cell{cursor:pointer;min-width:160px;vertical-align:top;font-size:0.7rem;}
+#diaryTable td.note-cell .entry-list {
+    overflow: auto;
+    margin-bottom: 2px;
+    min-height: 1.8em;
+    /* sorgt für mindestens eine Zeile Höhe */
+}
+#diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
+#diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
+#diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em;}
+#diaryTable td.note-cell .entry-item:hover{background:#e2e6ea;}
+#noteEditorCard{border-left:4px solid #17a2b8;}
+#noteEditorCard.editing{border-left-color:#ffc107;}
+#noteEditorCard .card-header{background:#f8f9fa;}
+#noteStudents .form-check-inline{margin-right:6px;}
+#noteStudents .form-check-input{margin-right:3px;}
+#noteEditorWrapper .card{animation:fadeSlide .18s ease-in;}
+/* Columns Management */
+.column-chip{display:inline-flex;align-items:center;background:#e9ecef;border-radius:16px;padding:2px 8px;font-size:0.65rem;margin:2px;line-height:1;position:relative;}
+.column-chip.deactivated{background:#f8d7da;color:#721c24;text-decoration:line-through;}
+.column-chip button{border:none;background:transparent;color:#c00;margin-left:6px;padding:0;font-size:0.8rem;}
+.column-chip button.restore{color:#155724;}
+.column-chip button:hover{opacity:.8;}
+/* Column inputs */
+#diaryTable td.note-cell .col-inputs{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;}
+#diaryTable td.note-cell .col-inputs input[type=text],
+#diaryTable td.note-cell .col-inputs input[type=number]{width:48px;padding:0 3px;font-size:0.6rem;line-height:1.1;}
+#diaryTable td.note-cell .col-inputs .bool-btn{padding:2px 6px;font-size:0.70rem;line-height:1;border-radius:3px;}
+#diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary{background: #525055;}
+#diaryTable th.today-header {
+    background: #1976d2;
+    color: #fff;
+    border: 2px solid #115293;
+}
+#diaryTable td.today-cell {
+    background: #e3f2fd;
+    border: 2px solid #90caf9;
+}
+#diaryTable td .col-inputs-row {
+    display: block;
+    margin-top: 6px;
+}
+#diaryTable td .col-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    width: 100%;
+}
+
