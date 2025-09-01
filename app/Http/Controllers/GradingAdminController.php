@@ -6,6 +6,7 @@ use App\Models\GradingSystem;
 use App\Models\GradingStage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class GradingAdminController extends Controller
 {
@@ -42,7 +43,13 @@ class GradingAdminController extends Controller
         ]);
         $path = null;
         if ($request->hasFile('image')){
-            $path = $request->file('image')->store('grading_stages','public');
+            $file = $request->file('image');
+            $ext = $file->getClientOriginalExtension();
+            $basename = time() . '_' . Str::random(8) . '.' . $ext;
+            $dstDir = public_path('img/stages');
+            if (!is_dir($dstDir)) { mkdir($dstDir, 0755, true); }
+            $file->move($dstDir, $basename);
+            $path = 'img/stages/' . $basename;
         }
 
         // Wenn is_default gesetzt, alle anderen Stufen dieses Systems zurücksetzen
@@ -77,9 +84,19 @@ class GradingAdminController extends Controller
             'image'=>['nullable','file','image','max:10240']
         ]);
         if ($request->hasFile('image')){
-            // delete old
-            if ($stage->image){ Storage::disk('public')->delete($stage->image); }
-            $stage->image = $request->file('image')->store('grading_stages','public');
+            // delete old (public path) if exists, otherwise try storage public
+            if ($stage->image) {
+                $oldPublic = public_path($stage->image);
+                if (file_exists($oldPublic)) { @unlink($oldPublic); }
+                else { try { Storage::disk('public')->delete($stage->image); } catch (\Throwable $_) { /* ignore */ } }
+            }
+            $file = $request->file('image');
+            $ext = $file->getClientOriginalExtension();
+            $basename = time() . '_' . Str::random(8) . '.' . $ext;
+            $dstDir = public_path('img/stages');
+            if (!is_dir($dstDir)) { mkdir($dstDir, 0755, true); }
+            $file->move($dstDir, $basename);
+            $stage->image = 'img/stages/' . $basename;
         }
 
         // Read boolean value reliably (works with hidden input value 0 / checkbox value 1)
@@ -99,7 +116,11 @@ class GradingAdminController extends Controller
 
     public function destroyStage(GradingStage $stage)
     {
-        if ($stage->image){ Storage::disk('public')->delete($stage->image); }
+        if ($stage->image) {
+            $oldPublic = public_path($stage->image);
+            if (file_exists($oldPublic)) { @unlink($oldPublic); }
+            else { try { Storage::disk('public')->delete($stage->image); } catch (\Throwable $_) { /* ignore */ } }
+        }
         $stage->delete();
         return redirect()->route('admin.grading.index')->with('success','Stufe gelöscht');
     }
