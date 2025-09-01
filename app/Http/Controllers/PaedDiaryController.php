@@ -599,13 +599,22 @@ class PaedDiaryController extends Controller
                     'type' => $c->type
                 ]);
 
-            // Spaltenwerte für den Schüler laden
+            // Spaltenwerte für den Schüler laden und nach YYYY-MM-DD gruppieren
             $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
                 ->where('schueler_id', $schueler->id)
                 ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
                 ->get()
-                ->groupBy('datum')
-                ->map(fn($dayValues) => $dayValues->keyBy('paed_diary_column_id'));
+                ->groupBy(function($v){
+                    try {
+                        return Carbon::parse($v->datum)->toDateString();
+                    } catch (\Throwable $_) {
+                        return (string)$v->datum;
+                    }
+                })
+                ->map(function($dayValues){
+                    // key by column id so frontend can access by column id
+                    return $dayValues->keyBy('paed_diary_column_id');
+                });
 
             // Aufgaben für den Schüler laden
             $tasks = PaedDiaryTask::where('klasse_id', $klasse->id)
@@ -688,13 +697,21 @@ class PaedDiaryController extends Controller
                 'type' => $c->type
             ]);
 
-        // Spaltenwerte für den Schüler laden
+        // Spaltenwerte für den Schüler laden (transformiert) und nach YYYY-MM-DD gruppiert
         $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
             ->where('schueler_id', $schueler->id)
             ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->get()
-            ->groupBy('datum')
-            ->map(fn($dayValues) => $dayValues->keyBy('paed_diary_column_id'));
+            ->groupBy(function($v){
+                try {
+                    return Carbon::parse($v->datum)->toDateString();
+                } catch (\Throwable $_) {
+                    return (string)$v->datum;
+                }
+            })
+            ->map(function($dayValues){
+                return $dayValues->keyBy('paed_diary_column_id');
+            });
 
         // Aufgaben für den Schüler laden (transformiert)
         $tasks = PaedDiaryTask::where('klasse_id', $klasse->id)
