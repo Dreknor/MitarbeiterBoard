@@ -120,30 +120,61 @@ class RosterEventsController extends Controller
 
     public function dropUpdate(Request $request)
     {
-        $task = RosterEvents::where('id', Str::after($request->task, 'task_'))->first();
+        if (!auth()->check() || !auth()->user()->can('create roster')) {
+            return response(['error' => 'forbidden'], 403);
+        }
+        $request->validate([
+            'task' => 'required|string',
+            'employe_id' => 'required|integer|exists:users,id',
+            'date' => 'required|date',
+            'start' => 'required|date_format:H:i',
+            'end' => 'nullable|date_format:H:i'
+        ]);
 
-        $events = $task->roster->events;
+        $task = RosterEvents::where('id', \Illuminate\Support\Str::after($request->task, 'task_'))->first();
+        if(!$task){ return response(['error'=>'not_found'],404); }
+
+        $events = $task->roster->events; // bereits geladen (Collection)
         $employes = $task->roster->department->employes;
 
-        $duration = $task->duration;
         $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->start);
-        $newEnd = $newStart->copy()->addMinutes($duration);
+        if($newStart->format('H:i') < '08:00') { $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 08:00'); }
+        if($newStart->format('H:i') > '14:30') { $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 14:15'); }
 
+        if($request->filled('end')) {
+            $newEnd = Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end);
+            if($newEnd->lessThanOrEqualTo($newStart)) { $newEnd = $newStart->copy()->addMinutes(15); }
+        } else {
+            $newEnd = $newStart->copy()->addMinutes($task->duration);
+        }
+        if($newEnd->format('H:i') > '14:30') {
+            $newEnd = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 14:30');
+        }
 
-        if (!$events->searchRosterEvent($employes->where('id', $request->employe_id)->first(), $newStart->copy()->addMinute())->count() > 0
-            and !$events->searchRosterEvent($employes->where('id', $request->employe_id)->first(), $newEnd->copy()->subMinute())->count() > 0) {
+        $employe = $employes->where('id', $request->employe_id)->first();
+        $conflictStart = $events->searchRosterEvent($employe, $newStart->copy()->addMinute())->where('id','!=',$task->id)->count() > 0;
+        $conflictEnd = $events->searchRosterEvent($employe, $newEnd->copy()->subMinute())->where('id','!=',$task->id)->count() > 0;
+        $conflict = $conflictStart || $conflictEnd;
+
+        if(!$conflict){
             $task->update([
                 'employe_id' => $request->employe_id,
                 'date' => $request->date,
                 'start' => $newStart,
                 'end' => $newEnd,
-
             ]);
         }
 
-
-        return \response($task);
-
+        $fresh = $task->fresh();
+        return response([
+            'id' => $fresh->id,
+            'employe_id' => $fresh->employe_id,
+            'date' => $fresh->date->format('Y-m-d'),
+            'event' => $fresh->event,
+            'start' => $fresh->start->format('H:i'),
+            'end' => $fresh->end->format('H:i'),
+            'conflict' => $conflict
+        ]);
     }
 
     /**

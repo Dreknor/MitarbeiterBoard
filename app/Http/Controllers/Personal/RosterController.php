@@ -78,15 +78,17 @@ class RosterController extends Controller
     {
         $roster = new Roster($request->validated());
         $roster->save();
-        $employes = $roster->department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $employes = $roster->department->activeEmployes($weekStart, $weekEnd);
 
-        for ($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay()) {
+        for ($day = $weekStart->copy(); $day->lessThanOrEqualTo($weekEnd); $day->addDay()) {
             if (is_holiday($day)) {
                 foreach ($employes as $employe) {
                     $event = new RosterEvents([
                         'roster_id' => $roster->id,
                         'employe_id' => $employe->id,
-                        'date' => $day,
+                        'date' => $day->copy(),
                         'start' => '08:00:00',
                         'end' => '14:30:00',
                         'event' => is_holiday($day)['title'],
@@ -100,87 +102,69 @@ class RosterController extends Controller
             $template = Roster::findOrFail($request->used_template);
             $templateEvents = $template->events;
             $templateWorkingTimes = $template->working_times;
-
+            $templateStart = $template->start_date->copy();
+            $newRosterStart = $weekStart->copy();
 
             foreach ($templateEvents as $event) {
-                $days = $template->start_date->diffInDays($event->date);
-
-
-                /* Check holiday */
-                if (is_holiday($roster->start_date->addDays($days))) {
+                $days = $templateStart->diffInDays($event->date);
+                $targetDay = $newRosterStart->copy()->addDays($days);
+                if (is_holiday($targetDay)) {
                     continue;
                 }
-
                 $newEvent = $event->replicate();
                 $newEvent->roster_id = $roster->id;
-
-                $newEvent->date = $roster->start_date->addDays($days);
-
+                $newEvent->date = $targetDay;
                 if (is_null($employes->firstWhere('id', $event->employe_id))) {
                     $newEvent->employe_id = null;
                 }
-
                 $newEvent->save();
-
             }
 
             foreach ($templateWorkingTimes as $workingTime) {
-
                 if (!is_null($employes->firstWhere('id', $workingTime->employe_id))) {
                     $newWorkingTime = $workingTime->replicate();
                     $newWorkingTime->roster_id = $roster->id;
                     $newWorkingTime->googleCalendarId = null;
-                    $days = $template->start_date->diffInDays($workingTime->date);
-                    $newWorkingTime->date = $roster->start_date->addDays($days);
+                    $days = $templateStart->diffInDays($workingTime->date);
+                    $newWorkingTime->date = $newRosterStart->copy()->addDays($days);
                     $newWorkingTime->save();
                 }
             }
         }
 
         foreach ($employes as $employe) {
-            //urlaub eintragen
             if ($roster->type == 'normal') {
-                $employes_holidays = $employe->holidays()->where('start_date', '<=', $roster->start_date->endOfWeek())->where('end_date', '>=', $roster->start_date)->get();
-                for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
+                $employes_holidays = $employe->holidays()->where('start_date', '<=', $weekEnd)->where('end_date', '>=', $weekStart)->get();
+                for ($x = $weekStart->copy(); $x <= $weekEnd; $x->addDay()) {
                     $holiday = $employes_holidays->where('start_date', '<=', $x)->where('end_date', '>=', $x)->first();
                     if ($holiday) {
-
-                        $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update([
-                            'employe_id' => null
-                        ]);
-
+                        $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update(['employe_id' => null]);
                         $roster->working_times()->where('employe_id', $employe->id)->where('date', $x)->delete();
-
                         $event = new RosterEvents([
                             'roster_id' => $roster->id,
                             'employe_id' => $employe->id,
-                            'date' => $x,
+                            'date' => $x->copy(),
                             'start' => '08:00:00',
                             'end' => '14:30:00',
                             'event' => 'Urlaub',
                         ]);
                         $event->save();
                     }
-
                 }
-
-                //Abwesenheiten eintragen
-                $employes_absences = Absence::where('users_id', $employe->id)->where('start', '<=', $roster->start_date->endOfWeek())->where('end', '>=', $roster->start_date)
+                $employes_absences = Absence::where('users_id', $employe->id)
+                    ->where('start', '<=', $weekEnd)
+                    ->where('end', '>=', $weekStart)
                     ->where('reason', '!=', 'Urlaub')
                     ->get();
                 foreach ($employes_absences as $absence) {
-                    for ($x = $roster->start_date->copy(); $x <= $roster->start_date->endOfWeek(); $x->addDay()) {
+                    for ($x = $weekStart->copy(); $x <= $weekEnd; $x->addDay()) {
                         if ($x->between($absence->start, $absence->end)) {
-                            $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update([
-                                'employe_id' => null
-                            ]);
-
+                            $roster->events()->where('employe_id', $employe->id)->where('date', $x)->update(['employe_id' => null]);
                             $roster->working_times()->where('employe_id', $employe->id)->where('date', $x)->delete();
-
                             $event = new RosterEvents([
                                 'roster_id' => $roster->id,
                                 'employe_id' => $employe->id,
-                                'date' => $x,
+                                'date' => $x->copy(),
                                 'start' => '08:00:00',
                                 'end' => '14:30:00',
                                 'event' => $absence->reason,
@@ -191,7 +175,6 @@ class RosterController extends Controller
                 }
             }
         }
-
         return redirect(url('roster/' . $roster->id))->with('success', 'Dienstplan wurde erstellt');
     }
 
@@ -203,108 +186,84 @@ class RosterController extends Controller
      */
     public function show(Roster $roster)
     {
-
+        $roster->load(['department.roster_checks','department','working_times','events']);
         $department = $roster->department;
-        $employes = Cache::remember($roster->id.'roster_employes', 1200, function () use ($department, $roster){
-            return $department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $days = [];
+        for ($i=0;$i<7;$i++) { $days[] = $weekStart->copy()->addDays($i); }
+        $employes = Cache::remember($roster->id.'roster_employes', 1200, function () use ($department, $weekStart, $weekEnd){
+            return $department->activeEmployes($weekStart, $weekEnd);
         });
+        $working_times = $roster->working_times; // eager loaded
+        $events = $roster->events; // eager loaded
 
-        $working_times = $roster->working_times;
-        $events = $roster->events;
-
-        $checks = [];
-
-        for ($day = $roster->start_date->copy(); $day->lessThanOrEqualTo($roster->start_date->endOfWeek()); $day->addDay()) {
-            $checks[$day->format('Y-m-d')] = [];
+        // Index WorkingTimes: [employe_id][Y-m-d] => WorkingTime
+        $wtIndex = [];
+        foreach ($working_times as $wt) {
+            $wtIndex[$wt->employe_id][$wt->date->format('Y-m-d')] = $wt;
+        }
+        // Index Events pro Slot (15 Min) & Start: [employe_id][Y-m-d][HH:ii]
+        $eventSlotIndex = [];
+        $eventStartIndex = [];
+        foreach ($events as $ev) {
+            if (is_null($ev->employe_id)) { // bleibt für Bookmarks separat
+                continue;
+            }
+            $dayKey = $ev->date->format('Y-m-d');
+            $emp = $ev->employe_id;
+            $startTimeStr = $ev->start->format('H:i');
+            $eventStartIndex[$emp][$dayKey][$startTimeStr] = $ev;
+            // Slots füllen (nur 8:00-14:30 Bereich relevant)
+            for ($t = $ev->start->copy(); $t->lt($ev->end); $t->addMinutes(15)) {
+                $slotStr = $t->format('H:i');
+                if ($slotStr < '08:00' || $slotStr >= '14:30') { continue; }
+                $eventSlotIndex[$emp][$dayKey][$slotStr] = $ev;
+            }
         }
 
-        //Checks
-
+        $checks = [];
+        foreach ($days as $d) { $checks[$d->format('Y-m-d')] = []; }
         foreach ($department->roster_checks()->orderBy('weekday')->get() as $check) {
-            $day = $roster->start_date->addDays($check->weekday);
+            $day = $weekStart->copy()->addDays($check->weekday);
             $field = $check->field_name;
-            $operator = $check->operator;
             $passed = $check->check_name;
             switch ($check->type) {
                 case WorkingTime::class:
                     switch ($field) {
                         case 'function':
-                            $filtered = $working_times->filter(function ($working_time) use ($day, $field, $check) {
-                                if ($working_time->date == $day and $working_time->function == $check->value) {
-                                    return $working_time;
-                                }
-                                return false;
+                            $filtered = $working_times->filter(function ($working_time) use ($day, $check) {
+                                return $working_time->date->equalTo($day) && $working_time->function == $check->value;
                             });
                             break;
-
                         default:
-                            $dateTime = Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d') . ' ' . $check->value);
-
-                            $filtered = $working_times->filter(function ($working_time) use ($day, $field, $check, $dateTime) {
-                                switch ($check->operator) {
-                                    case '<=':
-                                        if ($working_time->date == $day and $working_time->$field?->lessThanOrEqualTo(Carbon::createFromFormat('Y-m-d H:i', $working_time->date->format('Y-m-d') . " " . $check->value))) {
-                                            return $working_time;
-                                        }
-                                        break;
-                                    case '<':
-                                        if ($working_time->date->format('Y-m-d') == $day->format('Y-m-d') and $working_time->{$field} != null and $working_time->{$field}?->lessThanEqualTo(Carbon::createFromFormat('Y-m-d H:i', $working_time->date->format('Y-m-d') . " " . $check->value))) {
-                                            return $working_time;
-                                        }
-                                        break;
-                                    case '=':
-                                        if ($working_time->date->format('Y-m-d') == $day->format('Y-m-d') and $working_time->{$field} != null and $working_time->{$field}?->EqualTo(Carbon::createFromFormat('Y-m-d H:i', $working_time->date->format('Y-m-d') . " " . $check->value))) {
-                                            return $working_time;
-                                        }
-                                        break;
-                                    case '>=':
-                                        if ($working_time->date->format('Y-m-d') == $day->format('Y-m-d') and $working_time->{$field} != null and $working_time->{$field}?->greaterThanOrEqualTo(Carbon::createFromFormat('Y-m-d H:i', $working_time->date->format('Y-m-d') . " " . $check->value))) {
-
-                                            return $working_time;
-                                        }
-                                        break;
-                                    case '>':
-                                        if ($working_time->date->format('Y-m-d') == $day->format('Y-m-d') and $working_time->{$field} != null and $working_time->{$field}?->greaterThan(Carbon::createFromFormat('Y-m-d H:i', $working_time->date->format('Y-m-d') . " " . $check->value))) {
-                                            return $working_time;
-                                        }
-                                        break;
-                                }
-
-                                return false;
+                            $target = Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d') . ' ' . $check->value);
+                            $filtered = $working_times->filter(function ($working_time) use ($day, $field, $check, $target) {
+                                if (!$working_time->date->isSameDay($day) || is_null($working_time->{$field})) { return false; }
+                                $wtVal = $working_time->{$field};
+                                return match($check->operator) {
+                                    '<=' => $wtVal->lessThanOrEqualTo($target),
+                                    '<'  => $wtVal->lessThan($target),
+                                    '='  => $wtVal->equalTo($target),
+                                    '>=' => $wtVal->greaterThanOrEqualTo($target),
+                                    '>'  => $wtVal->greaterThan($target),
+                                    default => false
+                                };
                             });
                             break;
                     }
-
                     break;
-                    case RosterEvents::class:{
-                        $filtered = $events->filter(function ($event) use ($day, $field, $check) {
-                            if ($event->date == $day and $event->event == $check->value) {
-                                return $event;
-                            }
-                            return false;
-                        });
-                        break;
-                    }
+                case RosterEvents::class:
+                    $filtered = $events->filter(function ($event) use ($day, $check) {
+                        return $event->date->equalTo($day) && $event->event == $check->value;
+                    });
+                    break;
+                default:
+                    $filtered = collect();
             }
-
-            if ($filtered->count() >= $check->needs) {
-                $checks[$day->format('Y-m-d')][$passed] = 'checked';
-            } else {
-                $checks[$day->format('Y-m-d')][$passed] = 'failed';
-            }
+            $checks[$day->format('Y-m-d')][$passed] = ($filtered->count() >= $check->needs) ? 'checked' : 'failed';
         }
-
-
-        return view('personal.rosters.editRoster', [
-            'department' => $department,
-            'employes' => $employes,
-            'roster' => $roster,
-            'working_times' => $working_times,
-            'events' => $events,
-            'checks' => $checks
-
-        ]);
-
+        return view('personal.rosters.editRoster', compact('department','employes','roster','working_times','events','checks','days','wtIndex','eventSlotIndex','eventStartIndex'));
     }
 
     public function toogleDayView($roster, $day)
@@ -366,7 +325,7 @@ class RosterController extends Controller
     public function exportPDF(Roster $roster)
     {
         if (auth()->user()->can('create roster') or auth()->user()->groups_rel->contains($roster->department)){
-            return $this->createPDF($roster)->stream($roster->start_date->format('Y_m_d') . '_dienstplan.pdf');
+            return $this->createPDF($roster)->stream($roster->start_date->copy()->format('Y_m_d') . '_dienstplan.pdf');
         }
         return redirectBack('danger', 'Berechtigung fehlt');
 
@@ -374,12 +333,11 @@ class RosterController extends Controller
 
     public function createPDF(Roster $roster)
     {
-
-        $employes = $roster->department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
-        $working_times = $roster->working_times;
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $employes = $roster->department->activeEmployes($weekStart, $weekEnd);
+        $working_times = $roster->working_times; // might eager load earlier
         $events = $roster->events;
-
-
         $pdf = PDF::loadView('personal.rosters.pdf.pdf', [
             'roster' => $roster,
             'employes' => $employes,
@@ -387,40 +345,26 @@ class RosterController extends Controller
             'events' => $events,
             'department' => $roster->department
         ]);
-
-        return $pdf
-            ->setOptions([
-                "encoding" => "utf-8",
-                'margin-top' => '8',
-                'page-size' => 'A3',
-                'orientation' => 'Landscape',
-            ]);
-    }
-
-    public function exportPDFEmploye(Roster $roster, User $employe)
-    {
-
-        return $this->createPDFEmploye($roster, $employe)
-            ->setPaper('A4','Landscape')
-            ->inline($roster->start_date->format('Y_m_d') . '_dienstplan.pdf');
+        return $pdf->setOptions([
+            'encoding' => 'utf-8',
+            'margin-top' => '8',
+            'page-size' => 'A3',
+            'orientation' => 'Landscape',
+        ]);
     }
 
     public function createPDFEmploye(Roster $roster, User $employe)
     {
-
         $working_times = $roster->working_times()->where('employe_id', $employe->id)->get();
         $events = $roster->events()->where('employe_id', $employe->id)->get();
-
-
         $pdf = PDF::loadView('personal.rosters.pdf.pdfEmploye', [
             'roster' => $roster,
             'working_times' => $working_times,
             'events' => $events,
             'employe' => $employe
         ]);
-
         return $pdf->setOptions([
-            "encoding" => "utf-8",
+            'encoding' => 'utf-8',
             'margin-top' => '10',
             'margin-bottom' => '10',
             'page-size' => 'A4',
@@ -430,12 +374,11 @@ class RosterController extends Controller
 
     public function sendRosterMail(Roster $roster)
     {
-        $employes = $roster->department->activeEmployes($roster->start_date, $roster->start_date->endOfWeek());
-
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $employes = $roster->department->activeEmployes($weekStart, $weekEnd);
         $rosterPDF = $this->createPDF($roster)->save(storage_path('dienstplan.pdf'), 1);
-
         $name = auth()->user()->name;
-
         foreach ($employes as $employe) {
 
             if ($employe->email) {
@@ -451,6 +394,14 @@ class RosterController extends Controller
         Storage::delete('dienstplan.pdf');
 
         return redirectBack('success', 'E-Mails versandt');
+    }
+
+    public function exportPdfEmploye(Roster $roster, User $employe)
+    {
+        // Route erwartet diese Methode (roster.export.employe.pdf)
+        return $this->createPDFEmploye($roster, $employe)->stream(
+            $roster->start_date->copy()->format('Y_m_d').'_dienstplan_'.$employe->vorname.'.pdf'
+        );
     }
 
 
