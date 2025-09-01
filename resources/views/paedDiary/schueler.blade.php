@@ -159,6 +159,33 @@
                         </div>
                     </div>
 
+                    <!-- Stage & History (sichtbar in Schüleransicht) -->
+                    <div class="row mb-3" id="stageHistoryRow" style="display:none">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Aktuelle Stufe</h6>
+                                    <div id="stageCard" class="mt-2">
+                                        <div class="text-muted">—</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Stufen-Historie</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped" id="historyTable">
+                                            <thead class="thead-light"><tr><th style="width:120px">Datum</th><th>Neu</th><th>Vorher</th><th style="width:120px">Geändert von</th></tr></thead>
+                                            <tbody id="historyTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Keine Daten Nachricht -->
                     <div id="noDataMessage" class="text-center py-5 d-none">
                         <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
@@ -327,6 +354,10 @@
         renderTasks(data.tasks);
         renderColumns(data.columns, data.column_values);
 
+        // Render current stage and history
+        renderStage(data.current_stage);
+        renderHistory(data.stage_history);
+
         // Show Sections
         summarySection.classList.remove('d-none');
         dataSection.classList.remove('d-none');
@@ -452,6 +483,72 @@
         });
 
         window.location.href = `/paed-diary/schueler/${schuelerID}/export/word?${params}`;
+    }
+
+    // Render current stage
+    function renderStage(stage){
+        const container = document.getElementById('stageCard');
+        const row = document.getElementById('stageHistoryRow');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!stage){
+            container.innerHTML = '<div class="text-muted">Keine Stufe zugewiesen</div>';
+            row.style.display = 'none';
+            return;
+        }
+        row.style.display = '';
+        const box = document.createElement('div');
+        box.className = 'd-flex align-items-center justify-content-center';
+        // image or symbol
+        if (stage.image_url){
+            const img = document.createElement('img');
+            img.src = stage.image_url;
+            img.alt = stage.name;
+            img.style.width = '56px'; img.style.height = '56px'; img.style.objectFit = 'cover'; img.style.borderRadius = '6px'; img.className = 'mr-2';
+            box.appendChild(img);
+        } else if (stage.symbol){
+            const i = document.createElement('i');
+            i.className = stage.symbol + ' fa-2x mr-2';
+            i.setAttribute('aria-hidden','true');
+            box.appendChild(i);
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.style.width='56px'; placeholder.style.height='56px'; placeholder.style.background='#f0f0f0'; placeholder.style.borderRadius='6px'; placeholder.className='mr-2';
+            box.appendChild(placeholder);
+        }
+        const txt = document.createElement('div');
+        txt.innerHTML = `<div><strong>${escapeHtml(stage.name)}</strong></div>`;
+        box.appendChild(txt);
+        container.appendChild(box);
+    }
+
+    // Render grading history
+    function renderHistory(history){
+        const tbody = document.getElementById('historyTableBody');
+        const row = document.getElementById('stageHistoryRow');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (!history || history.length === 0){
+            // hide row if no history and no current stage
+            // keep stage card visible if stage exists; handled elsewhere
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="4" class="text-center text-muted">Keine Historie vorhanden</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+        // history items assumed to be in chronological order — show newest first
+        const sorted = history.slice().sort((a,b)=> new Date(b.at) - new Date(a.at));
+        sorted.forEach(h => {
+            const tr = document.createElement('tr');
+            const changer = h.changed_by_name || h.changed_by || '';
+            tr.innerHTML = `
+                <td class="text-center">${formatDisplayDate(h.at)}</td>
+                <td>${escapeHtml(h.stage_name || '-')}</td>
+                <td>${escapeHtml(h.previous_stage_name || '-')}</td>
+                <td class="text-center">${escapeHtml(changer)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     // Event Listeners

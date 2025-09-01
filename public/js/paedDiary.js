@@ -431,6 +431,116 @@
         loadWeek();
     });
 
-    // --- Initial ---
+    // --- Stage Cards (inline, keine Modal) ---
+    // cache for available stages per class
+    let gradingStagesCache = null;
+
+    function renderStudentStage(stu) {
+        const stage = stu.stage;
+        if (!stage) return `<div class="stage-badge text-muted small">-</div>`;
+        const img = stage.image_url ? `<img src="${stage.image_url}" alt="${escapeHtml(stage.name)}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;margin-right:6px;">` : '';
+        const symbol = (!stage.image_url && stage.symbol) ? `<i class="${escapeHtml(stage.symbol)} mr-1" aria-hidden="true"></i>` : '';
+        return `<div class="stage-badge d-flex align-items-center" data-stage-id="${stage.id}">${img}${symbol}<span class="small">${escapeHtml(stage.name)}</span></div>`;
+    }
+
+    // Inserts an extra row after the student's row with cards to select stages
+    function toggleStageCardRow(studentRow, stuId) {
+        const next = studentRow.nextElementSibling;
+        // if already open for this student, remove
+        if (next && next.classList.contains('stage-card-row') && next.dataset.stu == stuId) {
+            next.remove();
+            return;
+        }
+        // otherwise remove any existing and open new
+        document.querySelectorAll('.stage-card-row').forEach(r=>r.remove());
+        const tr = document.createElement('tr');
+        tr.classList.add('stage-card-row');
+        tr.dataset.stu = stuId;
+        const td = document.createElement('td');
+        td.colSpan = diaryHead.querySelector('tr').children.length;
+        td.innerHTML = '<div class="d-flex flex-wrap stage-cards-wrapper p-2"></div>';
+        tr.appendChild(td);
+        studentRow.parentNode.insertBefore(tr, studentRow.nextSibling);
+        const wrapper = td.querySelector('.stage-cards-wrapper');
+        // ensure stages loaded
+        const load = gradingStagesCache ? Promise.resolve(gradingStagesCache) : fetchStagesForClass();
+        load.then(stages => {
+            gradingStagesCache = stages;
+            if (!stages || !stages.length) {
+                wrapper.innerHTML = '<div class="text-muted small">Keine Stufen konfiguriert</div>';
+                return;
+            }
+            wrapper.innerHTML = stages.map(s=>{
+                const img = s.image_url ? `<img src="${s.image_url}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px;">` : '';
+                const symbol = (!s.image_url && s.symbol) ? `<i class="${escapeHtml(s.symbol)} fa-2x mb-1" aria-hidden="true"></i>` : '';
+                return `<div class="grading-card border rounded mr-2 mb-2 p-2 text-center" data-stage-id="${s.id}" style="width:120px;cursor:pointer;">${img}${symbol}<div class="small mt-1">${escapeHtml(s.name)}</div></div>`;
+            }).join('');
+            // attach click handlers
+            wrapper.querySelectorAll('.grading-card').forEach(card=>{
+                card.addEventListener('click', ()=>{
+                    const stageId = card.dataset.stageId;
+                    changeStudentStage(stuId, stageId, studentRow);
+                });
+            });
+        }).catch(err=>{ wrapper.innerHTML = '<div class="text-danger small">Fehler beim Laden der Stufen</div>'; });
+    }
+
+    function fetchStagesForClass(){
+        return fetch(`paed-diary/klasse/${encodeURIComponent(klasseSelect.value)}/stages`,{headers:{'Accept':'application/json'}})
+            .then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); })
+            .then(j=> j.stages || []);
+    }
+
+    function changeStudentStage(schuelerId, gradingStageId, studentRow){
+        const body = { schueler_id: schuelerId, grading_stage_id: gradingStageId };
+        fetch('paed-diary/change-stage',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
+            body:JSON.stringify(body)
+        }).then(r=>r.json()).then(j=>{
+            if (j.success) {
+                // reload week to reflect changes
+                loadWeek();
+            } else {
+                alert(j.message || 'Fehler beim Ändern der Stufe');
+            }
+        }).catch(()=> alert('Fehler beim Ändern der Stufe'));
+    }
+
+    // Enhance render() to include stage badge in student header
+    const oldRender = render;
+    render = function(){
+        oldRender();
+        // After table rendered, inject stage badges into first TH of each student row
+        document.querySelectorAll('#diaryBody tr').forEach(tr=>{
+            const th = tr.querySelector('th');
+            if (!th) return;
+            const stuLink = th.querySelector('a');
+            const href = stuLink?.getAttribute('href') || '';
+            const match = href.match(/paed-diary\/schueler\/(\d+)/);
+            if (!match) return;
+            const stuId = parseInt(match[1]);
+            const student = cache.schueler.find(s=>s.id==stuId);
+            if (!student) return;
+            // remove existing stage container
+            let existing = th.querySelector('.stage-badge-container');
+            if (existing) existing.remove();
+            const container = document.createElement('div');
+            container.className = 'stage-badge-container d-inline-block ml-2';
+            container.innerHTML = renderStudentStage(student);
+            th.appendChild(container);
+            // If user can manage grading, make clickable to open cards
+            if (cache.can_manage_grading) {
+                container.style.cursor = 'pointer';
+                container.addEventListener('click', (ev)=>{
+                    ev.stopPropagation();
+                    toggleStageCardRow(tr, stuId);
+                });
+            }
+        });
+    };
+
+    // initial load
     loadWeek();
+
 })();

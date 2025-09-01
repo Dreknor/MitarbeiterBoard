@@ -32,12 +32,25 @@
                                     </select>
                                     <small class="text-muted">Nur ausgewählte Nutzer sehen/bearbeiten dieses Klassentagebuch.</small>
                                 </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="col-md-4 col-sm-12">
-                                    <button type="submit" class="btn btn-primary mt-3">Speichern</button>
+                                <div class="col-md-4 col-sm-12 mb-3">
+                                    <label for="grading_system_id">Graduierungssystem</label>
+                                    <select name="grading_system_id" id="grading_system_id" class="form-control @error('grading_system_id') is-invalid @enderror">
+                                        <option value="">-- kein System --</option>
+                                        @foreach($systems as $s)
+                                            <option value="{{ $s->id }}" @if(old('grading_system_id', $klasse->grading_system_id) == $s->id) selected @endif>{{ $s->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('grading_system_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    <small class="text-muted">Wenn ein System gewählt wird, können Klassenstufen verwendet werden.</small>
                                 </div>
                             </div>
+                            <div class="form-row">
+                                 <div class="col-md-4 col-sm-12">
+                                     <button type="submit" class="btn btn-primary mt-3">Speichern</button>
+                                 </div>
+                             </div>
                         </form>
                     </div>
                 </div>

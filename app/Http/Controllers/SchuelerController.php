@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Klasse;
 use App\Models\Schueler;
+use App\Models\GradingStage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,11 @@ class SchuelerController extends Controller
         ]);
 
         $validated['klasse_id'] = $klasse->id;
+        // Default-Stage der Klasse zuweisen, falls vorhanden
+        if ($klasse->grading_system_id) {
+            $default = GradingStage::where('grading_system_id', $klasse->grading_system_id)->where('is_default', true)->first();
+            if ($default) $validated['grading_stage_id'] = $default->id;
+        }
         Schueler::create($validated);
 
         return redirect()->back()->with([
@@ -111,6 +117,12 @@ class SchuelerController extends Controller
                         'klasse_id' => $klasse?->id
                     ];
 
+                    // Default-Stage finden und zuweisen, falls Klasse ein System hat
+                    if ($klasse && $klasse->grading_system_id) {
+                        $default = GradingStage::where('grading_system_id', $klasse->grading_system_id)->where('is_default', true)->first();
+                        if ($default) $data['grading_stage_id'] = $default->id;
+                    }
+
                     $schueler = Schueler::withTrashed()->where('import_key', $row['import_key'])->first();
 
                     if ($schueler){
@@ -124,6 +136,10 @@ class SchuelerController extends Controller
                             if (!is_null($schueler->deleted_at)){
                                 $schueler->restore();
                             }
+                        }
+                        // Falls keine Stufe gesetzt, aber Default existiert -> zuweisen
+                        if (empty($schueler->grading_stage_id) && !empty($data['grading_stage_id'])) {
+                            $schueler->grading_stage_id = $data['grading_stage_id'];
                         }
                         $schueler->save();
                         Log::debug("Schüler aktualisiert", ['import_key' => $row['import_key'], 'name' => $data['vorname'].' '.$data['nachname']]);
@@ -181,21 +197,50 @@ class SchuelerController extends Controller
 
     public function edit(Schueler $schueler)
     {
+        $klasse = $schueler->klasse;
+        $stages = collect();
+        if ($klasse && $klasse->grading_system_id) {
+            $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
+        }
         return view('schueler.edit', [
             'schueler' => $schueler,
-            'klasse' => $schueler->klasse
+            'klasse' => $klasse,
+            'stages' => $stages
         ]);
     }
 
     public function update(Request $request, Schueler $schueler)
     {
-        $validated = $request->validate([
+        $rules = [
             'vorname' => ['required','string','max:255'],
             'nachname' => ['required','string','max:255'],
             'geburtsdatum' => ['nullable','date']
-        ]);
+        ];
 
-        $schueler->update($validated);
+        // Only validate grading_stage_id if user has permission to manage grading systems
+        if ($request->user() && $request->user()->can('manage grading systems')) {
+            $rules['grading_stage_id'] = ['nullable','integer','exists:grading_stages,id'];
+        }
+
+        $validated = $request->validate($rules);
+
+        // Update core fields
+        $schueler->update(
+            array_intersect_key($validated, array_flip(['vorname','nachname','geburtsdatum']))
+        );
+
+        // If permitted, update grading stage (ensure stage belongs to the klasse's system)
+        if (isset($validated['grading_stage_id']) && $request->user()->can('manage grading systems')) {
+            $stage = GradingStage::find($validated['grading_stage_id']);
+            $klasse = $schueler->klasse;
+            if ($stage && $klasse && $klasse->grading_system_id && $stage->grading_system_id == $klasse->grading_system_id) {
+                $schueler->grading_stage_id = $stage->id;
+                $schueler->save();
+            } else {
+                // invalid stage for this class - ignore or optionally add an error
+                return back()->withErrors(['grading_stage_id' => 'Ausgewählte Stufe passt nicht zur Klasse.'])->withInput();
+            }
+        }
 
         return redirect(url('klassen/'.$schueler->klasse_id.'/edit'))->with([
             'type' => 'success',

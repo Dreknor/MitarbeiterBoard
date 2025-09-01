@@ -12,7 +12,7 @@ class Klasse extends Model
     protected $table = 'klassen';
 
     protected $visible = ['name', 'kuerzel'];
-    protected $fillable = ['name', 'kuerzel'];
+    protected $fillable = ['name', 'kuerzel', 'grading_system_id'];
 
     public function wochenplaene(){
         return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);
@@ -39,5 +39,11 @@ class Klasse extends Model
     public function paed_diary_tasks()
     {
         return $this->hasMany(PaedDiaryTask::class, 'klasse_id');
+    }
+
+    // Relation: Welches Graduierungssystem gilt für die Klasse
+    public function grading_system()
+    {
+        return $this->belongsTo(GradingSystem::class, 'grading_system_id');
     }
 }

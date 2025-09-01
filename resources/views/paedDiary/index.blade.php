@@ -159,6 +159,14 @@
 
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/paedDiary.css') }}">
+<style>
+.stage-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.12rem .4rem; border-radius:.35rem; background:#fff; border:1px solid #e9ecef; }
+.stage-badge img { box-shadow:0 0 0 1px rgba(0,0,0,0.03) inset; }
+.stage-card-row .grading-card { transition:transform .08s ease, box-shadow .08s ease; }
+.stage-cards-wrapper .grading-card:hover { transform:translateY(-4px); box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+.stage-cards-wrapper { background: #f8f9fa; border-radius:6px; }
+.stage-badge-container { vertical-align: middle; }
+</style>
 @endpush
 
 @push('js')

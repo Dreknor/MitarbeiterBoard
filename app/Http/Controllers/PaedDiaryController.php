@@ -1,6 +1,9 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\GradingStage;
+use App\Models\GradingSystem;
+use App\Models\SchuelerGradingHistory;
 use App\Models\Klasse;
 use App\Models\PaedDiaryColumn;
 use App\Models\PaedDiaryColumnValue;
@@ -97,7 +100,9 @@ class PaedDiaryController extends Controller
         $period = CarbonPeriod::create($weekStart, $periodEnd);
         $days = collect();
         foreach ($period as $date){ $days->push(['date'=>$date->toDateString(),'label'=>$date->format('D d.m.')]); }
-        $schueler = $klasse->schueler()->orderBy('vorname')->orderBy('nachname')->get(['id','vorname','nachname']);
+
+        // Schüler inkl. aktueller Stage laden
+        $schueler = $klasse->schueler()->with('grading_stage')->orderBy('vorname')->orderBy('nachname')->get(['id','vorname','nachname','grading_stage_id']);
 
         $columnsQuery = PaedDiaryColumn::where('klasse_id',$klasse->id)->orderBy('sort_order');
         if (Schema::hasColumn('paed_diary_columns','deactivated_from')){
@@ -135,7 +140,11 @@ class PaedDiaryController extends Controller
 
         return response()->json([
             'days'=>$days,
-            'schueler'=>$schueler->map(fn($s)=>['id'=>$s->id,'name'=>$s->vorname.' '.$s->nachname]),
+            'schueler'=>$schueler->map(fn($s)=>[
+                'id'=>$s->id,'name'=>$s->vorname.' '.$s->nachname,
+                'stage'=> $s->grading_stage ? ['id'=>$s->grading_stage->id,'name'=>$s->grading_stage->name,'symbol'=>$s->grading_stage->symbol,'sort_order'=>$s->grading_stage->sort_order,'image_url'=>$s->grading_stage->image_url] : null
+            ]),
+            'can_manage_grading' => Auth::user()->can('manage grading systems'),
             'entries'=>$entryData,
             'columns'=>$columns->map(fn($c)=>['id'=>$c->id,'name'=>$c->name,'slug'=>$c->slug,'type'=>$c->type,'deactivated_from'=>Schema::hasColumn('paed_diary_columns','deactivated_from') ? $c->deactivated_from?->toDateString():null]),
             'column_values'=>$valuesGrouped,
@@ -528,71 +537,116 @@ class PaedDiaryController extends Controller
             'date_to' => ['required', 'date', 'after_or_equal:date_from']
         ]);
 
-        $user = Auth::user();
-        $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
+        try {
 
-        $dateFrom = Carbon::parse($request->date_from);
-        $dateTo = Carbon::parse($request->date_to);
+            $user = Auth::user();
+            $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
 
-        // Einträge für den Schüler laden
-        $entries = PaedDiaryEntry::with(['user:id,name'])
-            ->where('klasse_id', $klasse->id)
-            ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
-            ->whereHas('schueler', fn($q) => $q->where('schueler.id', $schueler->id))
-            ->orderBy('datum')
-            ->get()
-            ->map(fn($e) => [
-                'id' => $e->id,
-                'date' => $e->datum->toDateString(),
-                'content' => $e->content,
-                'user' => $e->user?->name,
-                'formatted_date' => $e->datum->format('d.m.Y')
+            $dateFrom = Carbon::parse($request->date_from);
+            $dateTo = Carbon::parse($request->date_to);
+
+            // Einträge für den Schüler laden
+            $entries = PaedDiaryEntry::with(['user:id,name'])
+                ->where('klasse_id', $klasse->id)
+                ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->whereHas('schueler', fn($q) => $q->where('schueler.id', $schueler->id))
+                ->orderBy('datum')
+                ->get()
+                ->map(fn($e) => [
+                    'id' => $e->id,
+                    'date' => $e->datum->toDateString(),
+                    'content' => $e->content,
+                    'user' => $e->user?->name,
+                    'formatted_date' => $e->datum->format('d.m.Y')
+                ]);
+
+            // Aktuelle Stage und Historie (mit Bild/Sort-Order und menschlichem Namen des Änderers)
+            $schueler->load('grading_stage','grading_history.stage','grading_history.previous_stage','grading_history.changed_by_user');
+            $currentStage = $schueler->grading_stage ? [
+                'id'=>$schueler->grading_stage->id,
+                'name'=>$schueler->grading_stage->name,
+                'symbol'=>$schueler->grading_stage->symbol,
+                'sort_order'=>$schueler->grading_stage->sort_order,
+                'image_url'=>$schueler->grading_stage->image_url ?? null
+            ] : null;
+            $history = $schueler->grading_history->map(function($h){
+                $at = null;
+                try {
+                    if ($h->created_at) {
+                        $at = Carbon::parse($h->created_at)->toDateTimeString();
+                    }
+                } catch (\Throwable $_) {
+                    $at = (string)$h->created_at;
+                }
+                return [
+                    'at'=>$at,
+                    'stage_id'=>$h->grading_stage_id,
+                    'stage_name'=>$h->stage?->name,
+                    'previous_stage_id'=>$h->previous_grading_stage_id,
+                    'previous_stage_name'=>$h->previous_stage?->name,
+                    'changed_by'=>$h->changed_by,
+                    'changed_by_name'=>$h->changed_by_user?->name ?? null
+                ];
+            });
+
+            // Spalten für die Klasse laden
+            $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(fn($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'type' => $c->type
+                ]);
+
+            // Spaltenwerte für den Schüler laden
+            $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
+                ->where('schueler_id', $schueler->id)
+                ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->get()
+                ->groupBy('datum')
+                ->map(fn($dayValues) => $dayValues->keyBy('paed_diary_column_id'));
+
+            // Aufgaben für den Schüler laden
+            $tasks = PaedDiaryTask::where('klasse_id', $klasse->id)
+                ->where('schueler_id', $schueler->id)
+                ->whereBetween('created_at', [$dateFrom, $dateTo->addDay()])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title,
+                    'description' => $t->description,
+                    'due_date' => $t->due_date?->format('d.m.Y'),
+                    'status' => $t->status,
+                    'highlighted' => $t->highlighted,
+                    'created_at' => $t->created_at->format('d.m.Y H:i')
+                ]);
+
+            return response()->json([
+                'entries' => $entries,
+                'current_stage' => $currentStage,
+                'stage_history' => $history,
+                'columns' => $columns,
+                'column_values' => $columnValues,
+                'tasks' => $tasks,
+                'period' => [
+                    'from' => $dateFrom->format('d.m.Y'),
+                    'to' => $dateTo->format('d.m.Y')
+                ]
             ]);
 
-        // Spalten für die Klasse laden
-        $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn($c) => [
-                'id' => $c->id,
-                'name' => $c->name,
-                'type' => $c->type
-            ]);
-
-        // Spaltenwerte für den Schüler laden
-        $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
-            ->where('schueler_id', $schueler->id)
-            ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
-            ->get()
-            ->groupBy('datum')
-            ->map(fn($dayValues) => $dayValues->keyBy('paed_diary_column_id'));
-
-        // Aufgaben für den Schüler laden
-        $tasks = PaedDiaryTask::where('klasse_id', $klasse->id)
-            ->where('schueler_id', $schueler->id)
-            ->whereBetween('created_at', [$dateFrom, $dateTo->addDay()])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(fn($t) => [
-                'id' => $t->id,
-                'title' => $t->title,
-                'description' => $t->description,
-                'due_date' => $t->due_date?->format('d.m.Y'),
-                'status' => $t->status,
-                'highlighted' => $t->highlighted,
-                'created_at' => $t->created_at->format('d.m.Y H:i')
-            ]);
-
-        return response()->json([
-            'entries' => $entries,
-            'columns' => $columns,
-            'column_values' => $columnValues,
-            'tasks' => $tasks,
-            'period' => [
-                'from' => $dateFrom->format('d.m.Y'),
-                'to' => $dateTo->format('d.m.Y')
-            ]
-        ]);
+        } catch (\Throwable $e) {
+            // write to a file so we can see the exact error even if DB logging is used
+            try {
+                $logpath = storage_path('logs/schueler_data_error.log');
+                file_put_contents($logpath, "[".date('c')."] " . $e->getMessage() . PHP_EOL . $e->getTraceAsString() . PHP_EOL . PHP_EOL, FILE_APPEND);
+            } catch (\Throwable $_) {
+                // ignore
+            }
+            Log::error('schuelerData exception: '.$e->getMessage());
+            return response()->json(['message'=>'Interner Serverfehler'],500);
+        }
     }
 
     /**
@@ -668,5 +722,108 @@ class PaedDiaryController extends Controller
             new PaedDiarySchuelerExport($schueler, $entries, $columns, $columnValues, $tasks, $dateFrom, $dateTo),
             'paed_tagebuch_' . $schueler->vorname . '_' . $schueler->nachname . '_' . $dateFrom->format('Ymd') . '_' . $dateTo->format('Ymd') . '.xlsx'
         );
+    }
+
+    /**
+     * Ändert die Stage eines Schülers, legt einen History-Eintrag an und verknüpft optional einen Tagebucheintrag.
+     * Erwartet: schueler_id, grading_stage_id, optional paed_diary_entry_id
+     */
+    public function changeSchuelerStage(Request $request)
+    {
+        $data = $request->validate([
+            'schueler_id'=>['required','integer','exists:schueler,id'],
+            'grading_stage_id'=>['nullable','integer','exists:grading_stages,id'],
+            'paed_diary_entry_id'=>['nullable','integer','exists:paed_diary_entries,id']
+        ]);
+        $user = Auth::user();
+        $schueler = Schueler::findOrFail($data['schueler_id']);
+        $klasse = $user->paed_klassen()->where('klassen.id',$schueler->klasse_id)->firstOrFail();
+
+        $previous = $schueler->grading_stage_id;
+        $newStage = null;
+        if (!empty($data['grading_stage_id'])){
+            $newStage = GradingStage::findOrFail($data['grading_stage_id']);
+            // Validieren: Stage gehört zum System der Klasse (falls gesetzt)
+            if ($klasse->grading_system_id && $newStage->grading_system_id != $klasse->grading_system_id){
+                return response()->json(['message'=>'Stage gehört nicht zum System der Klasse'],422);
+            }
+        }
+
+        // Update Schüler and create history + optional diary entry in a transaction
+        $paedEntryId = $data['paed_diary_entry_id'] ?? null;
+        DB::beginTransaction();
+        try {
+            // Update student
+            $schueler->grading_stage_id = $data['grading_stage_id'] ?? null;
+            $schueler->save();
+
+            // If no paed_diary_entry_id provided, create an automatic diary entry describing the change
+            if (empty($paedEntryId)) {
+                $prevStageName = null;
+                if (!empty($previous)) {
+                    $prev = GradingStage::find($previous);
+                    $prevStageName = $prev?->name;
+                }
+                $newStageName = $newStage?->name ?? null;
+                $userId = $user->id ?? null;
+                $studentName = $schueler->vorname . ' ' . $schueler->nachname;
+                $parts = [];
+                if ($prevStageName) $parts[] = 'von "' . $prevStageName . '"';
+                if ($newStageName) $parts[] = 'auf "' . $newStageName . '"';
+                $changeText = 'Stufe geändert ' . ($parts ? implode(' ', $parts) : '') . ' für ' . $studentName . '.';
+
+                $entry = PaedDiaryEntry::create([
+                    'klasse_id' => $klasse->id,
+                    'user_id' => $userId,
+                    'datum' => now(),
+                    'content' => $changeText
+                ]);
+                // attach the student
+                $entry->schueler()->sync([$schueler->id]);
+                $paedEntryId = $entry->id;
+            }
+
+            // History anlegen und mit dem Tagebucheintrag verknüpfen
+            SchuelerGradingHistory::create([
+                'schueler_id'=>$schueler->id,
+                'grading_system_id'=>$klasse->grading_system_id,
+                'grading_stage_id'=>$data['grading_stage_id'] ?? null,
+                'previous_grading_stage_id'=>$previous,
+                'changed_by'=>$user->id,
+                'paed_diary_entry_id'=>$paedEntryId,
+                'created_at'=>now()
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('changeSchuelerStage failed: ' . $e->getMessage());
+            return response()->json(['message'=>'Fehler beim Anlegen des Tagebucheintrags'],500);
+        }
+
+        // Cache invalideren
+        $this->forgetWeekCache($klasse->id, Carbon::now());
+
+        return response()->json(['success'=>true,'new_stage'=> $newStage ? ['id'=>$newStage->id,'name'=>$newStage->name,'symbol'=>$newStage->symbol] : null]);
+    }
+
+    /**
+     * Liefert die verfügbaren Stufen für eine Klasse (für Frontend-Auswahl)
+     *
+     * @param Klasse $klasse
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getClassStages(Klasse $klasse)
+    {
+        $user = Auth::user();
+        // Prüfen, ob Nutzer Zugriff auf die Klasse hat
+        $user->paed_klassen()->where('klassen.id', $klasse->id)->firstOrFail();
+
+        if (!$klasse->grading_system_id) {
+            return response()->json(['stages' => []]);
+        }
+        $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
+        $data = $stages->map(fn($s)=>['id'=>$s->id,'name'=>$s->name,'symbol'=>$s->symbol,'sort_order'=>$s->sort_order]);
+        return response()->json(['stages'=>$data]);
     }
 }

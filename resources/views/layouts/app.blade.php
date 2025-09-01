@@ -399,6 +399,15 @@
                         </li>
                     @endcan
 
+                    @can('manage grading systems')
+                        <li class="@if(request()->segment(1)=="admin" && request()->segment(2)=="grading") active @endif">
+                            <a href="{{ route('admin.grading.index') }}">
+                                <i class="fas fa-layer-group"></i>
+                                <p>Graduierungssysteme</p>
+                            </a>
+                        </li>
+                    @endcan
+
                     @can('edit permissions')
                         <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                             <a href="{{url('/roles')}}">
