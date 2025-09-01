@@ -21,8 +21,19 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * PaedDiaryController handles operations related to pedagogical diaries, including viewing,
+ * managing week data, exporting, and manipulating diary entries.
+ */
 class PaedDiaryController extends Controller
 {
+    /**
+     * Zeigt die Hauptansicht des Pädagogischen Tagebuchs für eine Klasse des angemeldeten Benutzers.
+     * Wählt entweder die angeforderte Klasse oder die erste verfügbare Klasse.
+     *
+     * @param Request $request
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     */
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -43,14 +54,36 @@ class PaedDiaryController extends Controller
         ]);
     }
 
+    /**
+     * Erzeugt einen Cache-Key für eine Klassen-Woche.
+     *
+     * @param int $klasseId
+     * @param \Carbon\Carbon $weekStart Wochenbeginn (Montag)
+     * @return string
+     */
     private function weekCacheKey($klasseId, Carbon $weekStart){
         return 'paed_week_'.$klasseId.'_'.$weekStart->format('Ymd');
     }
+
+    /**
+     * Löscht den Wochen-Cache für das Datum (wird auf Wochenbeginn normalisiert).
+     *
+     * @param int $klasseId
+     * @param \Carbon\Carbon $date Beliebiges Datum innerhalb der Woche
+     * @return void
+     */
     private function forgetWeekCache($klasseId, Carbon $date){
         $start = $date->copy()->startOfWeek();
         Cache::forget($this->weekCacheKey($klasseId, $start));
     }
 
+    /**
+     * Liefert alle relevanten Wochen-Daten (Tage, Schüler, Einträge, Spalten, Spaltenwerte, offene Aufgaben).
+     * Wird via AJAX vom Frontend abgefragt.
+     *
+     * @param Request $request {klasse_id:int, week_start?:date}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function weekData(Request $request)
     {
         $request->validate([
@@ -75,10 +108,7 @@ class PaedDiaryController extends Controller
         try {
             $columns = $columnsQuery->get();
 
-            // Boolean-Spalten bleiben als 'boolean' - keine Umwandlung nötig
-            // Das Frontend erwartet 'boolean' als Typ für Button-Rendering
         } catch (\Throwable $e) {
-            // Fallback ohne Filter falls Spalte fehlt oder Migration nicht gelaufen
             $columns = PaedDiaryColumn::where('klasse_id',$klasse->id)->orderBy('sort_order')->get();
         }
 
@@ -113,6 +143,12 @@ class PaedDiaryController extends Controller
         ]);
     }
 
+    /**
+     * Liefert alle Einträge einer Zelle (Schüler + Datum) zur Anzeige im Detail.
+     *
+     * @param Request $request {klasse_id, schueler_id, date}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function cellEntries(Request $request){
         $data = $request->validate([
             'klasse_id'=>['required','integer','exists:klassen,id'],
@@ -134,6 +170,12 @@ class PaedDiaryController extends Controller
         return response()->json(['entries'=>$entries]);
     }
 
+    /**
+     * Exportiert die Wochen-Daten einer Klasse als Excel-Datei.
+     *
+     * @param Request $request {klasse_id, week_start?}
+     * @return StreamedResponse
+     */
     public function exportExcel(Request $request){
         $request->validate([
             'klasse_id'=>['required','integer','exists:klassen,id'],
@@ -166,6 +208,12 @@ class PaedDiaryController extends Controller
         return Excel::download(new PaedDiaryExport($rows), $filename);
     }
 
+    /**
+     * Speichert einen neuen Tagebuch-Eintrag (Notiz) für ausgewählte Schüler.
+     *
+     * @param Request $request {klasse_id, date, content, schueler_ids[]}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storeEntry(Request $request)
     {
         $validated = $request->validate([
@@ -193,7 +241,13 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true,'entry_id'=>$entry->id]);
     }
 
-    // Neue Methode: Update eines bestehenden Eintrags (Notiz bearbeiten)
+    /**
+     * Aktualisiert einen bestehenden Tagebuch-Eintrag.
+     *
+     * @param PaedDiaryEntry $entry Route-Model-Binding
+     * @param Request $request {klasse_id, date, content, schueler_ids[]}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateEntry(PaedDiaryEntry $entry, Request $request)
     {
         $validated = $request->validate([
@@ -228,7 +282,13 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true]);
     }
 
-    // Neue Methode: Löschen eines Eintrags
+    /**
+     * Löscht einen Tagebuch-Eintrag (inkl. Pivot-Einträge) und invalidiert den Cache.
+     *
+     * @param PaedDiaryEntry $entry
+     * @param Request $request {klasse_id}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroyEntry(PaedDiaryEntry $entry, Request $request)
     {
         $data = $request->validate([
@@ -246,6 +306,12 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true]);
     }
 
+    /**
+     * Legt eine neue Zusatz-Spalte (Column) für die Klasse an.
+     *
+     * @param Request $request {klasse_id, name, type?}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storeColumn(Request $request)
     {
         $data = $request->validate([
@@ -272,6 +338,12 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true,'column'=>['id'=>$column->id,'name'=>$column->name]]);
     }
 
+    /**
+     * Speichert oder aktualisiert den Wert einer Zusatz-Spalte für einen Schüler an einem Datum.
+     *
+     * @param Request $request {column_id, schueler_id, date, value?}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storeColumnValue(Request $request)
     {
         $data = $request->validate([
@@ -294,6 +366,12 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true]);
     }
 
+    /**
+     * Erzeugt eine neue Aufgabe (Task) für einen Schüler.
+     *
+     * @param Request $request {klasse_id, schueler_id, title, description?, due_date?, highlighted?}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storeTask(Request $request)
     {
         $data = $request->validate([
@@ -327,6 +405,12 @@ class PaedDiaryController extends Controller
         ]]);
     }
 
+    /**
+     * Schließt (finalisiert) eine bestehende Aufgabe.
+     *
+     * @param PaedDiaryTask $task
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function closeTask(PaedDiaryTask $task)
     {
         $user = Auth::user();
@@ -335,6 +419,15 @@ class PaedDiaryController extends Controller
         $this->forgetWeekCache($klasse->id, Carbon::now());
         return response()->json(['success'=>true]);
     }
+
+    /**
+     * Deaktiviert (soft delete) eine Spalte ab einer angegebenen Woche.
+     * Setzt das Feld deactivated_from und invalidiert den Cache.
+     *
+     * @param PaedDiaryColumn $column
+     * @param Request $request {week_start?}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroyColumn(PaedDiaryColumn $column, Request $request)
     {
         try {
@@ -363,6 +456,12 @@ class PaedDiaryController extends Controller
         }
     }
 
+    /**
+     * Liefert alle (auch deaktivierte) Spalten einer Klasse zur Verwaltung.
+     *
+     * @param Request $request {klasse_id}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function columnsAll(Request $request){
         $data = $request->validate([
             'klasse_id'=>['required','integer','exists:klassen,id']
@@ -379,6 +478,13 @@ class PaedDiaryController extends Controller
         return response()->json(['columns'=>$cols]);
     }
 
+    /**
+     * Reaktiviert eine zuvor deaktivierte Spalte.
+     *
+     * @param PaedDiaryColumn $column
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function restoreColumn(PaedDiaryColumn $column, Request $request){
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id',$column->klasse_id)->firstOrFail();
@@ -390,6 +496,13 @@ class PaedDiaryController extends Controller
         return response()->json(['success'=>true]);
     }
 
+    /**
+     * Zeigt die Einzelansicht eines Schülers im Pädagogischen Tagebuch.
+     *
+     * @param Schueler $schueler
+     * @param Request $request
+     * @return \Illuminate\View\View
+     */
     public function schuelerView(Schueler $schueler, Request $request)
     {
         $user = Auth::user();
@@ -401,6 +514,13 @@ class PaedDiaryController extends Controller
         ]);
     }
 
+    /**
+     * Liefert Daten (Einträge, Spalten, Werte, Aufgaben) für einen Schüler in einem Datumsbereich.
+     *
+     * @param Schueler $schueler
+     * @param Request $request {date_from, date_to}
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function schuelerData(Schueler $schueler, Request $request)
     {
         $request->validate([
@@ -475,6 +595,13 @@ class PaedDiaryController extends Controller
         ]);
     }
 
+    /**
+     * Exportiert die Schüler-Daten (Einträge, Spalten, Aufgaben) als Excel-Datei für einen Zeitraum.
+     *
+     * @param Schueler $schueler
+     * @param Request $request {date_from, date_to}
+     * @return StreamedResponse
+     */
     public function exportSchuelerWord(Schueler $schueler, Request $request)
     {
         $request->validate([
