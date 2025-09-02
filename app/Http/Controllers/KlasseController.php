@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use App\Models\Group; // hinzugefügt
 
 class KlasseController extends Controller
 {
@@ -70,10 +71,12 @@ class KlasseController extends Controller
         $klasse = Klasse::with(['schueler','paed_users'])->find($klasse);
         $paedUsers = User::permission('view paed diary')->orderBy('name')->get();
         $systems = \App\Models\GradingSystem::orderBy('name')->get();
+        $groups = Group::orderBy('name')->get(); // Gruppen für Zuweisung laden
         return response()->view('klassen.edit',[
             'klasse' => $klasse,
             'paedUsers' => $paedUsers
             , 'systems' => $systems
+            , 'groups' => $groups // an View übergeben
         ]);
     }
 
@@ -84,8 +87,10 @@ class KlasseController extends Controller
             'name' => ['required', 'unique:klassen,name,'.$klassen->id, 'max:255'],
             'kuerzel' => ['required', 'unique:klassen,kuerzel,'.$klassen->id, 'max:255'],
             'paed_user_ids' => ['nullable','array'],
-            'paed_user_ids.*' => ['integer','exists:users,id']
-            , 'grading_system_id' => ['nullable','integer','exists:grading_systems,id']
+            'paed_user_ids.*' => ['integer','exists:users,id'],
+            'paed_group_ids' => ['nullable','array'], // neu: Gruppen IDs
+            'paed_group_ids.*' => ['integer','exists:groups,id'],
+            'grading_system_id' => ['nullable','integer','exists:grading_systems,id']
         ]);
 
         // Remember previous grading_system to detect changes
@@ -93,13 +98,30 @@ class KlasseController extends Controller
 
         DB::beginTransaction();
         try {
-            $klassen->update($validatedData);
+            // Klasse updaten (nur erlaubte Felder)
+            $klassen->update([
+                'name' => $validatedData['name'],
+                'kuerzel' => $validatedData['kuerzel'],
+                'grading_system_id' => $validatedData['grading_system_id'] ?? null,
+            ]);
 
-            if ($request->has('paed_user_ids')){
-                $klassen->paed_users()->sync($request->get('paed_user_ids'));
-            } else {
-                $klassen->paed_users()->sync([]);
+            // Nutzer IDs aus Formular
+            $explicitUserIds = $validatedData['paed_user_ids'] ?? [];
+
+            // Nutzer aus Gruppen sammeln
+            $groupUserIds = [];
+            if (!empty($validatedData['paed_group_ids'])) {
+                $groups = Group::with(['users' => function($q){
+                    // Nur Nutzer mit Berechtigung 'view paed diary'
+                    $q->permission('view paed diary');
+                }])->whereIn('id', $validatedData['paed_group_ids'])->get();
+                foreach ($groups as $g) {
+                    foreach ($g->users as $u) { $groupUserIds[] = $u->id; }
+                }
             }
+            $allUserIds = collect($explicitUserIds)->merge($groupUserIds)->unique()->values()->all();
+
+            $klassen->paed_users()->sync($allUserIds);
 
             // If grading system was set or changed to a non-null value, assign default (lowest) stage
             $newSystem = $validatedData['grading_system_id'] ?? null;

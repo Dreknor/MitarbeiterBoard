@@ -30,7 +30,20 @@
                                             <option value="{{$u->id}}" @if($klasse->paed_users->contains($u->id)) selected @endif>{{$u->name}}</option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted">Nur ausgewählte Nutzer sehen/bearbeiten dieses Klassentagebuch.</small>
+                                    <small class="text-muted d-block">Nur ausgewählte Nutzer (und Nutzer aus gewählten Gruppen) sehen/bearbeiten dieses Klassentagebuch.</small>
+                                </div>
+                                <div class="col-md-4 col-sm-12 mb-3">
+                                    <label for="paed_group_ids">Gruppen (fügen deren Mitglieder hinzu)</label>
+                                    <select name="paed_group_ids[]" id="paed_group_ids" class="form-control" multiple size="5">
+                                        @isset($groups)
+                                            @foreach($groups as $g)
+                                                <option value="{{$g->id}}" @php
+                                                    // preselect wenn ALLE Benutzer der Gruppe bereits explizit zugewiesen sind? -> nicht eindeutig rekonstruierbar
+                                                @endphp>{{ $g->name }}</option>
+                                            @endforeach
+                                        @endisset
+                                    </select>
+                                    <small class="text-muted">Mitglieder der ausgewählten Gruppen (mit Berechtigung "view paed diary") werden automatisch ergänzt. Bereits vorhandene Einzelzuweisungen bleiben bestehen.</small>
                                 </div>
                                 <div class="col-md-4 col-sm-12 mb-3">
                                     <label for="grading_system_id">Graduierungssystem</label>
