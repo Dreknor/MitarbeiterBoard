@@ -125,13 +125,22 @@ class VertretungsplanImportController extends Controller
                             }
                             $klassen = null;
                             if (isset($aktion->Klassen) && is_array($aktion->Klassen)){
-                                $klassen = Klasse::whereIn('name', $aktion->Klassen)->get();
-                                Log::info('gefundene Klassen: ' . count($klassen));
-                                Log::info($klassen);
+                                $requested = array_values(array_unique(array_map(static fn($v)=> trim((string)$v), $aktion->Klassen)));
+                                $klassen = Klasse::where(function($q) use ($requested){
+                                    $q->whereIn('name', $requested)->orWhereIn('kuerzel', $requested);
+                                })->get();
+                                $gefundenKeys = $klassen->pluck('name')->merge($klassen->pluck('kuerzel'))->filter()->unique()->values()->toArray();
+                                $missing = array_values(array_diff($requested, $gefundenKeys));
+                                Log::info('Vertretungsplan: Klassen gesucht', ['requested'=>$requested, 'gefunden'=>$gefundenKeys, 'missing'=>$missing]);
+                                if (count($missing)>0){
+                                    Log::warning('Vertretungsplan: Nicht gefundene Klassen', ['missing'=>$missing]);
+                                }
                             }
                             $type = '';
                             switch ($aktion->Ak_Art){
                                 case 'Änd.':
+                                case 'Änd.': // Fallback falls Encoding Unterschiede
+                                case 'Ã„nd.': // mögliches falsches Encoding
                                     if (isset($aktion->Ak_Fach) && isset($aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
                                         $type = 'Vertretung (fachfremd)';
                                     } else {
@@ -142,7 +151,7 @@ class VertretungsplanImportController extends Controller
                                     $type = 'Ausfall';
                                     break;
                             }
-                            if (!is_null($klassen)){
+                            if (!is_null($klassen) && $klassen->count()>0){
                                 foreach ($klassen as $klasse) {
                                     $vertretung = Vertretung::query()
                                         ->where('klassen_id', $klasse->id)
@@ -176,7 +185,7 @@ class VertretungsplanImportController extends Controller
                                     }
                                 }
                             } else {
-                                Log::info('Vertretungsplan: Klassen nicht gefunden ' );
+                                Log::info('Vertretungsplan: Keine passenden Klasse-Datensätze gefunden nach Lookup name/kuerzel');
                             }
                         }
                     } catch (\Exception $e) {
