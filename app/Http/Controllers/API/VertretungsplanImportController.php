@@ -32,7 +32,7 @@ class VertretungsplanImportController extends Controller
         }
 
 
-        if (!$request->has('data')) {
+        if (!$request->has('data') && !$request->has('request')) {
             Log::error('Vertretungsplan: Keine Daten empfangen', [
                 'request' => $request->all(),
             ]);
@@ -42,14 +42,18 @@ class VertretungsplanImportController extends Controller
         $data = json_decode($request->getContent());
 
         if (!$data) {
-            Log::error('Vertretungsplan: Error while parsing JSON. No data found.');
+            Log::error('Vertretungsplan: Error while parsing JSON. No data found.', [
+                'request' => $request->all(),
+            ]);
             return response()->json(['error' => 'Error while parsing JSON'], 400);
         }
 
         if (isset($data->Gesamtexport->Vertretungsplan->Vertretungsplan)){
             $data = $data->Gesamtexport->Vertretungsplan;
         } else {
-            Log::error('Vertretungsplan: Error while parsing JSON. No Vertretungsplan found.');
+            Log::error('Vertretungsplan: Error while parsing JSON. No Vertretungsplan found.', [
+                'data' => $data,
+            ]);
             return response()->json(['error' => 'Error while parsing JSON. No Vertretungsplan found.'], 400);
         }
 
