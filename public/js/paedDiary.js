@@ -30,11 +30,28 @@
     const noteStudentsDiv = document.getElementById('noteStudents');
     const noteStatus = document.getElementById('noteStatus');
 
-    const taskModal = $('#taskModal');
     const taskForm = document.getElementById('taskForm');
     const taskSchuelerSelect = document.getElementById('taskSchueler');
     const openTaskModalBtn = document.getElementById('openTaskModal');
     const exportCsvBtn = document.getElementById('exportCsvBtn');
+    // Neue Card-Elemente für Aufgaben (ersetzt Modal)
+    const taskEditorCard = document.getElementById('taskEditorCard');
+    const taskEditorCancel = document.getElementById('taskEditorCancel');
+    const taskClearBtn = document.getElementById('taskClearBtn');
+    const taskStatus = document.getElementById('taskStatus');
+    const taskStudentsDiv = document.getElementById('taskStudents');
+
+    const toggleSearchCardBtn = document.getElementById('toggleSearchCard');
+    const searchCardWrapper = document.getElementById('searchCardWrapper');
+    const searchCardClose = document.getElementById('searchCardClose');
+    const searchForm = document.getElementById('searchForm');
+    const searchResults = document.getElementById('searchResults');
+    const searchQ = document.getElementById('searchQ');
+    const searchDateFrom = document.getElementById('searchDateFrom');
+    const searchDateTo = document.getElementById('searchDateTo');
+    const searchSetSchoolYear = document.getElementById('searchSetSchoolYear');
+    const searchResetBtn = document.getElementById('searchResetBtn');
+    const searchStage = document.getElementById('searchStage'); // neu
 
     // --- State ---
     let currentWeekStart = startOfWeek(new Date());
@@ -91,11 +108,7 @@
         diaryBody.innerHTML='';
         const taskStudentIds=new Set(cache.tasks.map(t=>t.schueler_id));
         cache.schueler.forEach(stu=>{
-            let row = `<th class=\"align-top\" style=\"font-size:.72rem;\">
-                <a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">
-                    ${stu.name} <i class="fas fa-external-link-alt small ml-1"></i>
-                </a>
-            </th>`;
+            let row = `<th class=\"align-top\" style=\"font-size:.72rem;\">\n                <a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">\n                    ${stu.name} <i class="fas fa-external-link-alt small ml-1"></i>\n                </a>\n            </th>`;
             cache.days.forEach(d=>{
                 const entries=(entryMap[stu.id]?.[d.date])||[];
                 const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">`+(e.user?`<span class=\"author\">${escapeHtml(e.user)}</span>`:'')+`<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
@@ -112,7 +125,7 @@
         const endWeek=addDays(currentWeekStart,4);
         weekLabel.textContent=`${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
         renderStudentCheckboxes();
-        taskSchuelerSelect.innerHTML='<option value="">-- Schüler --</option>'+cache.schueler.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+        renderTaskStudentCheckboxes();
         // Korrigierter Export-Pfad (entsprechend routes/web.php: export/paed-diary/excel)
         exportCsvBtn.href = `/export/paed-diary/excel?klasse_id=${encodeURIComponent(klasseSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
 
@@ -168,6 +181,18 @@
         const noneBtn = document.getElementById('studentsSelectNone');
         if(allBtn) allBtn.addEventListener('click',()=> noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=true));
         if(noneBtn) noneBtn.addEventListener('click',()=> noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false));
+    }
+    function renderTaskStudentCheckboxes(){
+        if(!taskStudentsDiv) return;
+        taskStudentsDiv.innerHTML = '<div class="mb-1">'
+            + '<button type="button" class="btn btn-xs btn-outline-primary mr-1" id="taskStudentsSelectAll">Alle</button>'
+            + '<button type="button" class="btn btn-xs btn-outline-secondary" id="taskStudentsSelectNone">Keine</button>'
+            + '</div>'
+            + cache.schueler.map(s=>`<div class=\"form-check-inline mb-1\">\n <input class=\"form-check-input\" type=\"checkbox\" name=\"schueler_ids[]\" id=\"task_stu_${s.id}\" value=\"${s.id}\">\n <label class=\"form-check-label small\" for=\"task_stu_${s.id}\">${escapeHtml(s.name)}</label>\n</div>`).join('');
+        const allBtn=document.getElementById('taskStudentsSelectAll');
+        const noneBtn=document.getElementById('taskStudentsSelectNone');
+        if(allBtn) allBtn.addEventListener('click',()=> taskStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=true));
+        if(noneBtn) noneBtn.addEventListener('click',()=> taskStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false));
     }
 
     // --- Tasks Rendering ---
@@ -231,43 +256,50 @@
     function showEditor(){ noteEditorCard.classList.remove('d-none'); }
     function hideEditor(){ noteEditorCard.classList.add('d-none'); clearEditor(); }
     function clearEditor(){ noteEntryIdInput.value=''; noteContentInput.value=''; noteDeleteBtn.classList.add('d-none'); noteEditorCard.classList.remove('editing'); noteEditorTitle.textContent='Notiz erfassen'; noteStatus.textContent=''; }
+    // Reimplementierte Notiz-Editor Hilfsfunktionen
     function populateForNew(cell){
         clearEditor();
         const date = cell? cell.dataset.date : formatDate(new Date());
-        noteDateInput.value = date;
-        [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb=> cb.checked=false);
-        if(cell){ const cb=document.getElementById('stu_chk_'+cell.dataset.stu); if(cb) cb.checked=true; }
-        showEditor(); noteContentInput.focus(); scrollIntoViewEditor();
+        if(noteDateInput) noteDateInput.value = date;
+        if(noteStudentsDiv){
+            [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb=> cb.checked=false);
+            if(cell){ const cb=document.getElementById('stu_chk_'+cell.dataset.stu); if(cb) cb.checked=true; }
+        }
+        showEditor();
+        if(noteContentInput) noteContentInput.focus();
+        scrollIntoViewEditor();
     }
     function populateForEdit(entryDiv){
         clearEditor();
         const id = entryDiv.dataset.entry;
         const raw = entryDiv.dataset.content ? decodeURIComponent(entryDiv.dataset.content) : '';
-        const entry = cache.entries.find(e => e.id === id); // Updated here
+        const entry = cache.entries.find(e => e.id == id);
         noteEntryIdInput.value = id;
         noteEditorTitle.textContent = 'Notiz bearbeiten';
         noteEditorCard.classList.add('editing');
         noteDeleteBtn.classList.remove('d-none');
         const cell = entryDiv.closest('.note-cell');
-        if (cell) {
-            noteDateInput.value = cell.dataset.date;
-            const sid = parseInt(cell.dataset.stu);
-            [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb => cb.checked = false);
-            if (entry?.schueler_ids) {
-                noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = entry.schueler_ids.includes(parseInt(cb.value)));
-            } else {
-                const cb = document.getElementById('stu_chk_' + sid);
-                if (cb) cb.checked = true;
+        if(cell && noteDateInput) noteDateInput.value = cell.dataset.date;
+        if(noteStudentsDiv){
+            [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb=> cb.checked=false);
+            if(entry?.schueler_ids){
+                noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked = entry.schueler_ids.includes(parseInt(cb.value)));
+            } else if(cell){
+                const cb=document.getElementById('stu_chk_'+cell.dataset.stu); if(cb) cb.checked=true;
             }
         }
-        noteContentInput.value = entry?.content || raw;
+        if(noteContentInput) noteContentInput.value = entry?.content || raw;
         showEditor();
-        noteContentInput.focus();
+        if(noteContentInput) noteContentInput.focus();
         scrollIntoViewEditor();
     }
-    function scrollIntoViewEditor(){ noteEditorCard.scrollIntoView({behavior:'smooth',block:'start'}); }
+    function scrollIntoViewEditor(){ if(noteEditorCard) noteEditorCard.scrollIntoView({behavior:'smooth',block:'start'}); }
+    // Task Editor Funktionen (neu)
+    function showTaskEditor(){ if(taskEditorCard){ taskEditorCard.classList.remove('d-none'); taskEditorCard.scrollIntoView({behavior:'smooth',block:'start'}); const first=taskEditorCard.querySelector('select, input[type=text]'); if(first) first.focus(); } }
+    function hideTaskEditor(){ if(taskEditorCard){ taskEditorCard.classList.add('d-none'); clearTaskEditor(); } }
+    function clearTaskEditor(){ if(taskForm){ taskForm.reset(); const kid=document.getElementById('taskKlasseId'); if(kid) kid.value=klasseSelect.value; if(taskStatus) taskStatus.textContent=''; if(taskStudentsDiv){ taskStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); } } }
 
-    // --- Spaltenwerte speichern ---
+    // Wiederhergestellte Funktion zum Speichern von Spaltenwerten
     function saveColumnValue(colId, stuId, date, value){
         return fetch('paed-diary/column/value', {
             method:'POST',
@@ -276,8 +308,26 @@
         }).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(()=>{
             if(!cache.column_values[colId]) cache.column_values[colId]={};
             if(!cache.column_values[colId][stuId]) cache.column_values[colId][stuId]={};
-            if(value==='') delete cache.column_values[colId][stuId][date]; else cache.column_values[colId][stuId][date]=value;
+            if(value===''||value===null){ delete cache.column_values[colId][stuId][date]; }
+            else { cache.column_values[colId][stuId][date]=value; }
         });
+    }
+
+    // --- Daten speichern ---
+    function saveNote(){
+        noteStatus.textContent='Speichere...';
+        const fd=new FormData(noteForm); fd.set('klasse_id',klasseSelect.value);
+        const id=noteEntryIdInput.value; const url=id?`paed-diary/entry/${id}`:'paed-diary/entry';
+        fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd})
+            .then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gespeichert'; loadWeek(); if(!id){ clearEditor(); } } else { noteStatus.textContent=j.message||'Fehler'; } })
+            .catch(()=> noteStatus.textContent='Fehler beim Speichern');
+    }
+    function deleteNote(){
+        const id=noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return;
+        noteStatus.textContent='Lösche...';
+        fetch(`paed-diary/entry/${id}?klasse_id=${encodeURIComponent(klasseSelect.value)}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}})
+            .then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); clearEditor(); } else { noteStatus.textContent='Löschen fehlgeschlagen'; } })
+            .catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
     }
 
     // --- Events Diary ---
@@ -381,13 +431,29 @@
     });
 
     // --- Aufgaben ---
-    openTaskModalBtn.addEventListener('click', ()=>{ taskForm.reset(); document.getElementById('taskKlasseId').value=klasseSelect.value; taskModal.modal('show'); });
-    taskForm.addEventListener('submit', e=>{
+    if(openTaskModalBtn){ openTaskModalBtn.addEventListener('click', ()=>{ clearTaskEditor(); showTaskEditor(); }); }
+    if(taskForm){ taskForm.addEventListener('submit', e=>{
         e.preventDefault();
+        // Sammle ausgewählte Schüler
+        const selected = taskStudentsDiv ? [...taskStudentsDiv.querySelectorAll('input[name="schueler_ids[]"]:checked')].map(cb=>cb.value) : [];
+        if(!selected.length){ taskStatus && (taskStatus.textContent='Bitte Schüler wählen'); return; }
         const fd=new FormData(taskForm); fd.set('klasse_id',klasseSelect.value); if(!fd.get('highlighted')) fd.set('highlighted','0');
+        // Entferne evtl. leeres schueler_id Feld (Legacy)
+        fd.delete('schueler_id');
+        // Füge Mehrfach-IDs hinzu
+        selected.forEach(id=> fd.append('schueler_ids[]', id));
+        taskStatus && (taskStatus.textContent='Speichere...');
         fetch('paed-diary/task',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd})
-            .then(r=>r.json()).then(j=>{ if(j.success){ taskModal.modal('hide'); cache.tasks.push(j.task); render(); } });
-    });
+            .then(r=>r.json()).then(j=>{ if(j.success){
+                if(Array.isArray(j.tasks)){ j.tasks.forEach(t=> cache.tasks.push(t)); }
+                else if(j.task){ cache.tasks.push(j.task); }
+                renderTasks(); clearTaskEditor(); taskStatus && (taskStatus.textContent='Gespeichert'); render();
+            } else { taskStatus && (taskStatus.textContent=j.message||'Fehler'); } })
+            .catch(()=>{ taskStatus && (taskStatus.textContent='Fehler beim Speichern'); });
+    }); }
+
+    if(taskEditorCancel){ taskEditorCancel.addEventListener('click', hideTaskEditor); }
+    if(taskClearBtn){ taskClearBtn.addEventListener('click', ()=>{ clearTaskEditor(); }); }
 
     // --- Tasks Events ---
     const tasksPanel = document.getElementById('tasksPanel');
@@ -541,7 +607,83 @@
         });
     };
 
+    // --- Such-/Filter-Funktionen ---
+    function computeSchoolYearStart(){
+        const today=new Date();
+        const year = today.getMonth()>=7 ? today.getFullYear() : today.getFullYear()-1;
+        return `${year}-08-01`;
+    }
+    function ensureSearchDatesDefaults(){
+        if(!searchDateFrom.value) searchDateFrom.value = computeSchoolYearStart();
+        if(!searchDateTo.value){
+            const t=new Date();
+            const m=String(t.getMonth()+1).padStart(2,'0');
+            const d=String(t.getDate()).padStart(2,'0');
+            searchDateTo.value = `${t.getFullYear()}-${m}-${d}`;
+        }
+    }
+    function toggleSearchCard(show){
+        if(!searchCardWrapper) return;
+        const s = typeof show === 'boolean' ? show : searchCardWrapper.classList.contains('d-none');
+        if(s){
+            searchCardWrapper.classList.remove('d-none');
+            ensureSearchDatesDefaults();
+            // Stufen laden
+            if(searchStage){
+                searchStage.innerHTML = '<option value="">(Alle / keine Auswahl)</option>';
+                fetchStagesForClass().then(stages=>{
+                    stages.forEach(st=>{
+                        const opt=document.createElement('option');
+                        opt.value=st.id; opt.textContent=st.name; searchStage.appendChild(opt);
+                    });
+                }).catch(()=>{});
+            }
+        } else {
+            searchCardWrapper.classList.add('d-none');
+        }
+    }
+    function renderSearchResults(data){
+        if(!searchResults) return;
+        let html='';
+        if(data.entries && data.entries.length){
+            html += `<div class="mb-2"><strong class="small">Treffer (${data.entries.length})</strong></div>`;
+            html += '<ul class="list-unstyled mb-3>'+data.entries.map(e=>`<li class="mb-1 border rounded p-1 bg-white">
+                <div class="d-flex justify-content-between"><span class="font-weight-bold">${escapeHtml(e.date)}</span><span class="text-muted">${escapeHtml(e.author||'')}</span></div>
+                <div class="small mb-1">${escapeHtml(e.content)}</div>
+                <div class="text-muted small">${escapeHtml(e.schueler?.name||'')}</div>
+            </li>`).join('')+'</ul>';
+        } else {
+            html += '<div class="text-muted small mb-3">Keine passenden Einträge</div>';
+        }
+        searchResults.innerHTML = html;
+    }
+    function runSearch(){
+        if(!searchForm) return;
+        searchStatus.textContent='Suche...';
+        const params = new URLSearchParams();
+        params.set('klasse_id', klasseSelect.value);
+        const q=searchQ.value.trim(); if(q) params.set('q', q);
+        const stageVal = searchStage && searchStage.value ? searchStage.value : '';
+        if(stageVal) params.set('stage_id', stageVal);
+        if(searchDateFrom.value) params.set('date_from', searchDateFrom.value);
+        if(searchDateTo.value) params.set('date_to', searchDateTo.value);
+        if(!q && !stageVal){ searchStatus.textContent='Bitte Suchbegriff oder Stufe wählen'; return; }
+        fetch('search/paed-diary/?'+params.toString(), {headers:{'Accept':'application/json'}})
+            .then(r=>{ const status=r.status; return r.json().then(j=>({status,json:j})); })
+            .then(({status,json})=>{ if(!json.success){ searchStatus.textContent=json.message || 'Fehler bei Suche'; return; } searchStatus.textContent=`${json.entries.length} Einträge`; renderSearchResults(json); if(!searchDateFrom.value) searchDateFrom.value=json.range.default_from; })
+            .catch(()=>{ searchStatus.textContent='Fehler bei Suche'; });
+    }
+
     // initial load
     loadWeek();
+
+    // --- Event Bindings ---
+    if(toggleSearchCardBtn){ toggleSearchCardBtn.addEventListener('click', ()=> toggleSearchCard()); }
+    if(searchCardClose){ searchCardClose.addEventListener('click', ()=> toggleSearchCard(false)); }
+    if(searchForm){ searchForm.addEventListener('submit', e=>{ e.preventDefault(); runSearch(); }); }
+    if(searchSetSchoolYear){ searchSetSchoolYear.addEventListener('click', ()=>{ searchDateFrom.value=computeSchoolYearStart(); const t=new Date(); searchDateTo.value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }); }
+    if(searchResetBtn){ searchResetBtn.addEventListener('click', ()=>{ searchForm.reset(); searchResults.innerHTML=''; searchStatus.textContent=''; ensureSearchDatesDefaults(); }); }
+    // Klasse Wechsel -> nur Status leeren
+    klasseSelect.addEventListener('change', ()=>{ if(!searchCardWrapper.classList.contains('d-none')){ searchResults.innerHTML=''; searchStatus.textContent=''; } });
 
 })();

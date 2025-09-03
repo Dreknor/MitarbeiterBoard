@@ -384,9 +384,44 @@ class PaedDiaryController extends Controller
      */
     public function storeTask(Request $request)
     {
+        $isMulti = $request->has('schueler_ids');
+        if(!$isMulti){
+            // Einzeln (Abwärtskompatibilität)
+            $data = $request->validate([
+                'klasse_id'=>['required','integer','exists:klassen,id'],
+                'schueler_id'=>['required','integer','exists:schueler,id'],
+                'title'=>['required','string','max:100'],
+                'description'=>['nullable','string'],
+                'due_date'=>['nullable','date'],
+                'highlighted'=>['nullable','boolean']
+            ]);
+            $user = Auth::user();
+            $klasse = $user->paed_klassen()->where('klassen.id',$data['klasse_id'])->firstOrFail();
+            $schueler = Schueler::where('id',$data['schueler_id'])->where('klasse_id',$klasse->id)->firstOrFail();
+            $task = PaedDiaryTask::create([
+                'klasse_id'=>$klasse->id,
+                'schueler_id'=>$schueler->id,
+                'title'=>$data['title'],
+                'description'=>$data['description'] ?? null,
+                'due_date'=>$data['due_date'] ?? null,
+                'status'=>'open',
+                'highlighted'=>$data['highlighted'] ?? true,
+                'created_by'=>$user->id
+            ]);
+            $this->forgetWeekCache($klasse->id, Carbon::now());
+            return response()->json(['success'=>true,'task'=>[
+                'id'=>$task->id,
+                'schueler_id'=>$task->schueler_id,
+                'title'=>$task->title,
+                'due_date'=>$task->due_date?->toDateString(),
+                'highlighted'=>$task->highlighted
+            ]]);
+        }
+        // Mehrfach-Zuweisung
         $data = $request->validate([
             'klasse_id'=>['required','integer','exists:klassen,id'],
-            'schueler_id'=>['required','integer','exists:schueler,id'],
+            'schueler_ids'=>['required','array','min:1'],
+            'schueler_ids.*'=>['integer','exists:schueler,id'],
             'title'=>['required','string','max:100'],
             'description'=>['nullable','string'],
             'due_date'=>['nullable','date'],
@@ -394,25 +429,33 @@ class PaedDiaryController extends Controller
         ]);
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id',$data['klasse_id'])->firstOrFail();
-        $schueler = Schueler::where('id',$data['schueler_id'])->where('klasse_id',$klasse->id)->firstOrFail();
-        $task = PaedDiaryTask::create([
-            'klasse_id'=>$klasse->id,
-            'schueler_id'=>$schueler->id,
-            'title'=>$data['title'],
-            'description'=>$data['description'] ?? null,
-            'due_date'=>$data['due_date'] ?? null,
-            'status'=>'open',
-            'highlighted'=>$data['highlighted'] ?? true,
-            'created_by'=>$user->id
-        ]);
+        // Filter Schüler wirklich der Klasse zugehörig
+        $schuelerIds = Schueler::whereIn('id',$data['schueler_ids'])->where('klasse_id',$klasse->id)->pluck('id');
+        if($schuelerIds->isEmpty()){
+            return response()->json(['success'=>false,'message'=>'Keine gültigen Schüler ausgewählt'],422);
+        }
+        $created = [];
+        foreach($schuelerIds as $sid){
+            $t = PaedDiaryTask::create([
+                'klasse_id'=>$klasse->id,
+                'schueler_id'=>$sid,
+                'title'=>$data['title'],
+                'description'=>$data['description'] ?? null,
+                'due_date'=>$data['due_date'] ?? null,
+                'status'=>'open',
+                'highlighted'=>$data['highlighted'] ?? true,
+                'created_by'=>$user->id
+            ]);
+            $created[] = [
+                'id'=>$t->id,
+                'schueler_id'=>$t->schueler_id,
+                'title'=>$t->title,
+                'due_date'=>$t->due_date?->toDateString(),
+                'highlighted'=>$t->highlighted
+            ];
+        }
         $this->forgetWeekCache($klasse->id, Carbon::now());
-        return response()->json(['success'=>true,'task'=>[
-            'id'=>$task->id,
-            'schueler_id'=>$task->schueler_id,
-            'title'=>$task->title,
-            'due_date'=>$task->due_date?->toDateString(),
-            'highlighted'=>$task->highlighted
-        ]]);
+        return response()->json(['success'=>true,'tasks'=>$created]);
     }
 
     /**
@@ -837,5 +880,98 @@ class PaedDiaryController extends Controller
         $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
         $data = $stages->map(fn($s)=>['id'=>$s->id,'name'=>$s->name,'symbol'=>$s->symbol,'sort_order'=>$s->sort_order]);
         return response()->json(['stages'=>$data]);
+    }
+
+    /**
+     * Suchmethode für das Pädagogische Tagebuch.
+     * Erwartet: klasse_id, optional q (Suchbegriff), date_from, date_to, columns (Array von Spalten-IDs)
+     */
+    public function search(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'klasse_id'=>['required','integer','exists:klassen,id'],
+                'q'=>['nullable','string','max:200'],
+                'stage_id'=>['nullable','integer','exists:grading_stages,id'],
+                'date_from'=>['nullable','date'],
+                'date_to'=>['nullable','date','after_or_equal:date_from']
+            ]);
+            if (empty($data['q']) && empty($data['stage_id'])) {
+                return response()->json([
+                    'success'=>false,
+                    'message'=>'Bitte Suchbegriff oder Stufe wählen'
+                ],422);
+            }
+            $user = Auth::user();
+            $klasse = $user->paed_klassen()->where('klassen.id',$data['klasse_id'])->firstOrFail();
+
+            $today = Carbon::today();
+            $schoolYearStart = Carbon::create($today->month >= 8 ? $today->year : $today->year-1, 8, 1)->startOfDay();
+            $from = isset($data['date_from']) ? Carbon::parse($data['date_from'])->startOfDay() : $schoolYearStart;
+            $to = isset($data['date_to']) ? Carbon::parse($data['date_to'])->endOfDay() : $today->endOfDay();
+
+            $entriesQuery = PaedDiaryEntry::with(['schueler:id,vorname,nachname,grading_stage_id','user:id,name'])
+                ->where('klasse_id',$klasse->id)
+                ->whereBetween('datum', [$from->toDateString(), $to->toDateString()]);
+            if(!empty($data['stage_id'])){
+                $stageId = $data['stage_id'];
+                $entriesQuery->whereHas('schueler', fn($q2)=> $q2->where('grading_stage_id',$stageId));
+            }
+            // Alle relevanten Einträge laden (Limit großzügig, danach client-seitig reduziert)
+            $rawEntries = $entriesQuery->orderBy('datum','desc')->limit(1000)->get();
+
+            $filtered = [];
+            $needle = !empty($data['q']) ? mb_strtolower($data['q']) : null;
+            foreach($rawEntries as $entry){
+                $content = (string)$entry->content; // Accessor entschlüsselt
+                if($needle && mb_strpos(mb_strtolower($content), $needle) === false){
+                    continue; // nicht passend
+                }
+                // Ein Eintrag kann mehrere Schüler haben -> aufsplitten
+                foreach($entry->schueler as $s){
+                    // Falls stage_id Filter: sicherstellen der einzelne Schüler passt (bei whereHas könnte anderer Schüler matchen)
+                    if(!empty($data['stage_id']) && $s->grading_stage_id != $data['stage_id']){
+                        continue;
+                    }
+                    $filtered[] = [
+                        'id'=>$entry->id,
+                        'date'=>$entry->datum->toDateString(),
+                        'content'=>$content,
+                        'author'=>$entry->user?->name,
+                        'schueler'=>[
+                            'id'=>$s->id,
+                            'name'=>$s->vorname.' '.$s->nachname
+                        ]
+                    ];
+                }
+            }
+
+            // Ergebnis begrenzen (Sicherheitslimit)
+            if(count($filtered) > 500){
+                $filtered = array_slice($filtered,0,500);
+            }
+
+            return response()->json([
+                'success'=>true,
+                'range'=>[
+                    'from'=>$from->toDateString(),
+                    'to'=>$to->toDateString(),
+                    'default_from'=>$schoolYearStart->toDateString()
+                ],
+                'entries'=>$filtered
+            ]);
+        } catch(\Illuminate\Validation\ValidationException $ve){
+            return response()->json([
+                'success'=>false,
+                'message'=>'Validierung fehlgeschlagen',
+                'errors'=>$ve->errors()
+            ],422);
+        } catch(\Throwable $e){
+            Log::error('PaedDiary search error: '.$e->getMessage(), ['trace'=>$e->getTraceAsString()]);
+            return response()->json([
+                'success'=>false,
+                'message'=>'Interner Fehler bei der Suche'
+            ],500);
+        }
     }
 }
