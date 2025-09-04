@@ -379,4 +379,9 @@ class User extends Authenticatable implements HasMedia
         return $this->belongsToMany(Klasse::class,'klasse_user','user_id','klasse_id');
     }
 
+    public function paed_diary_class_groups()
+    {
+        return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
+    }
+
 }

@@ -16,11 +16,13 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
 {
     protected $data;
     protected $title;
+    protected $includeClass;
 
-    public function __construct(array $data, string $title = 'Pädagogisches Tagebuch')
+    public function __construct(array $data, string $title = 'Pädagogisches Tagebuch', bool $includeClass = false)
     {
         $this->data = $data;
         $this->title = $title;
+        $this->includeClass = $includeClass;
     }
 
     public function array(): array
@@ -30,6 +32,16 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
 
     public function headings(): array
     {
+        if ($this->includeClass) {
+            return [
+                'Datum',
+                'Klasse',
+                'Schüler',
+                'Autor',
+                'Notiz',
+                'Stufe'
+            ];
+        }
         return [
             'Datum',
             'Schüler',
@@ -46,6 +58,16 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
 
     public function columnWidths(): array
     {
+        if ($this->includeClass) {
+            return [
+                'A' => 12, // Datum
+                'B' => 16, // Klasse
+                'C' => 20, // Schüler
+                'D' => 15, // Autor
+                'E' => 50, // Notiz
+                'F' => 12, // Stufe
+            ];
+        }
         return [
             'A' => 12, // Datum
             'B' => 20, // Schüler
@@ -57,8 +79,9 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
 
     public function styles(Worksheet $sheet)
     {
-        // Header-Styling
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        $lastCol = $this->includeClass ? 'F' : 'E';
+        // Header
+        $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -79,10 +102,9 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
             ],
         ]);
 
-        // Daten-Styling
         $lastRow = count($this->data) + 1;
         if ($lastRow > 1) {
-            $sheet->getStyle("A2:E{$lastRow}")->applyFromArray([
+            $sheet->getStyle("A2:{$lastCol}{$lastRow}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
@@ -94,11 +116,11 @@ class PaedDiaryExport implements FromArray, WithHeadings, WithStyles, WithColumn
                     'wrapText' => true,
                 ],
             ]);
-
-            // Datum-Spalte zentrieren
             $sheet->getStyle("A2:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            if ($this->includeClass) {
+                $sheet->getStyle("B2:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            }
         }
-
         return [];
     }
 }

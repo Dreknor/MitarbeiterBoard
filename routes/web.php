@@ -632,16 +632,18 @@ Route::group([
                     Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryController::class,'storeColumn'])->name('paedDiary.column.store');
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryController::class,'destroyColumn'])->name('paedDiary.column.destroy');
                     Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryController::class,'storeColumnValue'])->name('paedDiary.column.value');
-                    // Änderung der Schüler-Stufe erfordert explizit das Recht 'manage grading systems'
                     Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class,'changeSchuelerStage'])->middleware('permission:manage grading systems')->name('paedDiary.changeStage');
-                    // Liefert die verfügbaren Stufen für die Klasse (für Anzeige im Frontend)
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class,'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryController::class,'storeTask'])->name('paedDiary.task.store');
                     Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryController::class,'closeTask'])->name('paedDiary.task.close');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class,'columnsAll'])->name('paedDiary.columns.all');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class,'restoreColumn'])->name('paedDiary.column.restore');
                     Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class,'exportExcel'])->name('paedDiary.export.excel');
-                    Route::get('/search/paed-diary', [\App\Http\Controllers\PaedDiaryController::class,'search'])->name('paedDiary.search');
+                    // Neue Gruppen-Routen
+                    Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class,'classGroups'])->name('paedDiary.classGroups.index');
+                    Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class,'storeClassGroup'])->name('paedDiary.classGroups.store');
+                    Route::put('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class,'updateClassGroup'])->name('paedDiary.classGroups.update');
+                    Route::delete('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class,'destroyClassGroup'])->name('paedDiary.classGroups.destroy');
                 });
 
                 // Admin: Verwaltung der Graduierungssysteme und Stufen

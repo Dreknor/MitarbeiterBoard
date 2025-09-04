@@ -48,4 +48,24 @@
     gap: 2px;
     width: 100%;
 }
-
+/* Eigene Checkbox-Darstellung */
+.custom-checkbox-wrapper {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+}
+.custom-checkbox-input {
+    width: 18px;
+    height: 18px;
+    margin-right: 0.5em;
+    accent-color: #1976d2;
+    border: 1px solid #1976d2;
+    background: #fff;
+    appearance: auto;
+}
+.custom-checkbox-label {
+    font-size: 1em;
+    color: #212529;
+    cursor: pointer;
+}

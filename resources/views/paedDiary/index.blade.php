@@ -3,6 +3,52 @@
 @section('content')
 <div class="container-fluid" id="paed-diary-app">
     <div class="row">
+        <!-- Gruppen Management Modal -->
+        <div class="modal fade" id="groupModal" tabindex="-1" role="dialog">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header py-2">
+                <h6 class="modal-title">Klassenkopplungen verwalten</h6>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              </div>
+              <div class="modal-body p-2">
+                <div id="groupFeedback" class="small mb-2"></div>
+                <form id="groupForm" class="border rounded p-2 mb-3">
+                    <input type="hidden" name="group_id" id="groupId" value="">
+                    <div class="form-row">
+                        <div class="col-md-4 mb-2">
+                            <label class="small mb-1">Name</label>
+                            <input type="text" name="name" id="groupName" class="form-control form-control-sm" maxlength="80" required>
+                        </div>
+                        <div class="col-md-8 mb-2">
+                            <label class="small mb-1">Klassen wählen (mind. 2)</label>
+                            <!-- Scroll entfernt: max-height/overflow entfernt -->
+                            <div class="border rounded p-2 bg-light" style="font-size:0.75rem;" id="groupKlassenBox">
+                                @foreach($klassen as $k)
+                                    <div class="form-check-inline mb-1">
+                                        <input class="form-check-input" type="checkbox" id="grp_cls_{{$k->id}}" value="{{$k->id}}" name="klasse_ids[]">
+                                        <label class="form-check-label" for="grp_cls_{{$k->id}}">{{$k->name}}</label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center">
+                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn">Speichern</button>
+                        <button class="btn btn-secondary btn-sm mr-2 d-none" id="groupCancelEdit" type="button">Abbrechen</button>
+                        <span id="groupStatus" class="small text-muted"></span>
+                    </div>
+                </form>
+                <h6 class="small font-weight-bold">Bestehende Kopplungen</h6>
+                <div id="groupsList" class="small"></div>
+              </div>
+              <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Schließen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Ende Gruppen Management Modal -->
         <div class="col-12 mb-2" id="noteEditorWrapper">
             <div class="card shadow-sm d-none" id="noteEditorCard">
                 <div class="card-header py-2 d-flex align-items-center justify-content-between">
@@ -22,7 +68,8 @@
                             </div>
                             <div class="col-md-10 mb-2">
                                 <label class="small mb-1">Schüler</label>
-                                <div id="noteStudents" class="border rounded p-2 bg-light" style="max-height:112px; overflow:auto; font-size:0.75rem;"></div>
+                                <!-- Scroll entfernt: max-height/overflow entfernt -->
+                                <div id="noteStudents" class="border rounded p-2 bg-light" style="font-size:0.75rem;"></div>
                             </div>
                         </div>
                         <div class="form-group mb-2">
@@ -79,12 +126,23 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="form-inline mr-3">
+                            <label class="mr-2 mb-0">Kopplung</label>
+                            <select id="groupSelect" class="form-control form-control-sm">
+                                <option value="">-- Gruppe --</option>
+                                @foreach($groups as $g)
+                                    <option value="{{$g->id}}">{{$g->name}}</option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-outline-secondary btn-sm ml-2" id="manageGroupsBtn" type="button" title="Kopplungen verwalten"><i class="fas fa-object-group"></i></button>
+                        </div>
                         <div class="btn-group btn-group-sm mr-2" role="group">
                             <button class="btn btn-outline-secondary" id="prevWeek" title="Vorherige Woche">&laquo;</button>
                             <button class="btn btn-outline-secondary" id="todayWeek" title="Aktuelle Woche">Heute</button>
                             <button class="btn btn-outline-secondary" id="nextWeek" title="Nächste Woche">&raquo;</button>
                         </div>
                         <span id="weekLabel" class="font-weight-bold small"></span>
+                        <span id="modeBadge" class="badge badge-info ml-2 d-none">Gruppenmodus</span>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
                         <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="manageColumnsBtn" title="Spalten verwalten"><i class="fas fa-columns"></i> Spalten</button>
@@ -94,7 +152,8 @@
                     </div>
                 </div>
                 <div class="card-body p-2">
-                    <div class="table-responsive" style="max-height:70vh;">
+                    <!-- Scroll-Container entfernt: max-height entfernt, Standard-Seitenscroll verwenden -->
+                    <div class="table-responsive">
                         <table class="table table-sm table-bordered mb-0" id="diaryTable">
                             <thead class="thead-light" id="diaryHead"></thead>
                             <tbody id="diaryBody"></tbody>
@@ -109,7 +168,8 @@
                     <span class="font-weight-bold small">Offene Aufgaben</span>
                     <button class="btn btn-link btn-sm p-0" id="refreshTasks" title="Aktualisieren"><i class="fas fa-sync"></i></button>
                 </div>
-                <div class="card-body p-2" id="tasksList" style="max-height:50vh; overflow:auto;"></div>
+                <!-- Scrollbegrenzung entfernt -->
+                <div class="card-body p-2" id="tasksList"></div>
             </div>
         </div>
     </div>
@@ -164,15 +224,11 @@
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/paedDiary.css') }}">
 <style>
-.stage-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.12rem .4rem; border-radius:.35rem; background:#fff; border:1px solid #e9ecef; }
-.stage-badge img { box-shadow:0 0 0 1px rgba(0,0,0,0.03) inset; }
-.stage-card-row .grading-card { transition:transform .08s ease, box-shadow .08s ease; }
-.stage-cards-wrapper .grading-card:hover { transform:translateY(-4px); box-shadow:0 6px 18px rgba(0,0,0,0.06); }
-.stage-cards-wrapper { background: #f8f9fa; border-radius:6px; }
-.stage-badge-container { vertical-align: middle; }
+.class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
+.group-disabled { opacity:.5; pointer-events:none; }
 </style>
 @endpush
 
 @push('js')
-<script src="{{ asset('js/paedDiary.js') }}"></script>
+<script src="{{ asset('js/paedDiary.js') }}?v=grp2"></script>
 @endpush
