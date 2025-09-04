@@ -30,6 +30,8 @@ class HomeController extends Controller
             return DashboardCard::all();
         });
 
+
+
         $cards = auth()->user()->dashboardCards;
 
         foreach ($defaultCards as $card){
@@ -44,7 +46,7 @@ class HomeController extends Controller
                     $col = $cards->last()->col + 1;
                 }
 
-                Log::debug('DashboardCard: neue Karte hinzugefügt', [
+                Log::info('DashboardCard: neue Karte hinzugefügt', [
                     'card' => $card,
                     'user' => auth()->user(),
                     'row' => $row,

@@ -641,6 +641,7 @@ Route::group([
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class,'columnsAll'])->name('paedDiary.columns.all');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class,'restoreColumn'])->name('paedDiary.column.restore');
                     Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class,'exportExcel'])->name('paedDiary.export.excel');
+                    Route::get('/search/paed-diary', [\App\Http\Controllers\PaedDiaryController::class,'search'])->name('paedDiary.search');
                 });
 
                 // Admin: Verwaltung der Graduierungssysteme und Stufen

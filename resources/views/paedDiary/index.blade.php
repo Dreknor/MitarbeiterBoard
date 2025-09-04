@@ -39,26 +39,52 @@
                 </div>
             </div>
         </div>
-        <!-- Columns Management Card (neu) -->
-        <div class="col-12 mb-3 d-none" id="columnsCardWrapper">
-            <div class="card shadow-sm" id="columnsCard">
-                <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                    <strong class="small mb-0">Spalten verwalten</strong>
+        <!-- Neue Aufgaben Card (ersetzt das ehemalige Modal) -->
+        <div class="col-12 mb-2" id="taskEditorWrapper">
+            <div class="card shadow-sm d-none" id="taskEditorCard">
+                <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                    <strong class="small mb-0" id="taskEditorTitle">Aufgabe erfassen</strong>
                     <div>
-                        <button class="btn btn-sm btn-outline-secondary" id="columnsCloseBtn" title="Schließen">✕</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="taskEditorCancel" title="Schließen">✕</button>
                     </div>
                 </div>
                 <div class="card-body py-2">
-                    <div id="columnsFeedback" class="mb-2 small"></div>
-                    <div id="columnsList" class="mb-2 d-flex flex-wrap align-items-start"></div>
-                    <form id="addColumnForm" class="form-inline small mb-2">
-                        <input type="text" name="name" class="form-control form-control-sm mr-1 mb-1" placeholder="Name" required maxlength="50">
-                        <select name="type" class="form-control form-control-sm mr-1 mb-1">
-                            <option value="boolean">Ja/Nein</option>
-                        </select>
-                        <button class="btn btn-sm btn-primary mb-1">Hinzufügen</button>
+                    <form id="taskForm" class="mb-0">
+                        <input type="hidden" name="klasse_id" id="taskKlasseId" value="{{$klasse->id}}">
+                        <div class="form-row">
+                            <div class="col-md-12 mb-2">
+                                <label class="small mb-1">Schüler</label>
+                                <div id="taskStudents" class="border rounded p-2 bg-light" style="max-height:112px; overflow:auto; font-size:0.75rem;"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Titel</label>
+                                <input type="text" name="title" class="form-control form-control-sm" required maxlength="100">
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Fällig</label>
+                                <input type="date" name="due_date" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4 mb-2 d-flex align-items-end">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="highlighted" id="taskHighlighted" checked value="1">
+                                    <label class="form-check-label small" for="taskHighlighted">Hervorheben</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-12 mb-2">
+                                <label class="small mb-1">Beschreibung</label>
+                                <textarea name="description" class="form-control form-control-sm" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center flex-wrap">
+                            <button type="submit" class="btn btn-primary btn-sm mr-2" id="taskSaveBtn">Speichern</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="taskClearBtn">Neu</button>
+                            <span class="text-muted small ml-3" id="taskStatus"></span>
+                        </div>
                     </form>
-                    <div class="text-muted small">Löschen deaktiviert die Spalte ab der aktuellen Woche (Werte ab dieser Woche werden entfernt). Historische Wochen bleiben erhalten.</div>
                 </div>
             </div>
         </div>
@@ -87,6 +113,7 @@
                         <a id="exportCsvBtn" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="CSV Export"><i class="fas fa-file-csv"></i></a>
                         <button class="btn btn-sm btn-success mb-1 mr-2" id="openTaskModal">Aufgabe</button>
                         <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neue Notiz</button>
+                        <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="toggleSearchCard" title="Suche & Filter"><i class="fas fa-search"></i> Suche</button>
                     </div>
                 </div>
                 <div class="card-body p-2">
@@ -108,53 +135,77 @@
                 <div class="card-body p-2" id="tasksList" style="max-height:50vh; overflow:auto;"></div>
             </div>
         </div>
+        <!-- Columns Management Card (wieder eingefügt) -->
+        <div class="col-12 mb-3 d-none" id="columnsCardWrapper">
+            <div class="card shadow-sm" id="columnsCard">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <strong class="small mb-0">Spalten verwalten</strong>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" id="columnsCloseBtn" title="Schließen">✕</button>
+                    </div>
+                </div>
+                <div class="card-body py-2">
+                    <div id="columnsFeedback" class="mb-2 small"></div>
+                    <div id="columnsList" class="mb-2 d-flex flex-wrap align-items-start"></div>
+                    <form id="addColumnForm" class="form-inline small mb-2">
+                        <input type="text" name="name" class="form-control form-control-sm mr-1 mb-1" placeholder="Name" required maxlength="50">
+                        <select name="type" class="form-control form-control-sm mr-1 mb-1">
+                            <option value="boolean">Ja/Nein</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary mb-1">Hinzufügen</button>
+                    </form>
+                    <div class="text-muted small">Löschen deaktiviert die Spalte ab der aktuellen Woche (Werte ab dieser Woche werden entfernt). Historische Wochen bleiben erhalten.</div>
+                </div>
+            </div>
+        </div>
+        <!-- Such- / Filter Card -->
+        <div class="col-12 mb-2 d-none" id="searchCardWrapper">
+            <div class="card shadow-sm" id="searchCard">
+                <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                    <strong class="small mb-0">Suche & Filter</strong>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" id="searchCardClose" title="Schließen">✕</button>
+                    </div>
+                </div>
+                <div class="card-body py-2">
+                    <form id="searchForm" class="small mb-2">
+                        <div class="form-row">
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Suchbegriff</label>
+                                <input type="text" name="q" id="searchQ" class="form-control form-control-sm" placeholder="Text in Notizen...">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="small mb-1">Stufe</label>
+                                <select id="searchStage" class="form-control form-control-sm">
+                                    <option value="">(Alle / keine Auswahl)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="small mb-1">Von</label>
+                                <input type="date" name="date_from" id="searchDateFrom" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="small mb-1">Bis</label>
+                                <input type="date" name="date_to" id="searchDateTo" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-1 mb-2 d-flex align-items-end">
+                                <div class="btn-group btn-group-sm flex-wrap" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" id="searchSetSchoolYear">Schuljahr</button>
+                                    <button type="submit" class="btn btn-primary" id="searchRunBtn">Suchen</button>
+                                    <button type="button" class="btn btn-outline-secondary" id="searchResetBtn">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchStatus" class="text-muted small mb-1"></div>
+                    <div id="searchResults" class="small" style="max-height:45vh; overflow:auto;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Aufgabe Modal (unverändert) -->
-<div class="modal fade" id="taskModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header py-2">
-        <h6 class="modal-title">Aufgabe erfassen</h6>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-      </div>
-      <form id="taskForm">
-        <div class="modal-body p-2">
-            <input type="hidden" name="klasse_id" id="taskKlasseId" value="{{$klasse->id}}">
-            <div class="form-group mb-2">
-                <label class="small mb-1">Schüler</label>
-                <select name="schueler_id" id="taskSchueler" class="form-control form-control-sm" required></select>
-            </div>
-            <div class="form-group mb-2">
-                <label class="small mb-1">Titel</label>
-                <input type="text" name="title" class="form-control form-control-sm" required maxlength="100">
-            </div>
-            <div class="form-group mb-2">
-                <label class="small mb-1">Beschreibung</label>
-                <textarea name="description" class="form-control form-control-sm" rows="3"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="col-md-6 mb-2">
-                    <label class="small mb-1">Fällig</label>
-                    <input type="date" name="due_date" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-6 mb-2 d-flex align-items-end">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="highlighted" id="taskHighlighted" checked value="1">
-                        <label class="form-check-label small" for="taskHighlighted">Hervorheben</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer py-2">
-            <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Schließen</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+<!-- Entferntes Modal: Aufgabe Modal wurde durch Card ersetzt -->
 @endsection
 
 @push('css')
