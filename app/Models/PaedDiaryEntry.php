@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Log;
 class PaedDiaryEntry extends Model
 {
     /** @var array<int,string> */
-    protected $fillable = [ 'klasse_id','user_id','datum','content' ];
+    protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at' ]; // completed_at ergänzt
 
     /** @var array<string,string> */
-    protected $casts = [ 'datum' => 'date' ];
+    protected $casts = [ 'datum' => 'date','completed_at'=>'datetime' ]; // Cast ergänzt
 
     // Beziehungen
     public function klasse(){ return $this->belongsTo(Klasse::class); }

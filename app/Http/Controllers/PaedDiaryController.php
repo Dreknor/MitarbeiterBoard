@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Exception; // hinzugefügt
 
 /**
  * PaedDiaryController handles operations related to pedagogical diaries, including viewing,
@@ -123,8 +124,18 @@ class PaedDiaryController extends Controller
             ->get();
         $entryData = $entries->map(fn($e)=>[
             'id'=>$e->id,'date'=>$e->datum->toDateString(),'content'=>$e->content,
-            'schueler_ids'=>$e->schueler->pluck('id'),'user'=>$e->user?->name
+            'schueler_ids'=>$e->schueler->pluck('id'),'user'=>$e->user?->name,
+            'completed_at'=>$e->completed_at
         ]);
+
+        // Offene Einträge für Aufgabenpanel
+        $openEntries = $entries->filter(fn($e)=>!$e->completed_at)->map(fn($e)=>[
+            'id'=>$e->id,
+            'schueler_ids'=>$e->schueler->pluck('id'),
+            'date'=>$e->datum->toDateString(),
+            'content'=>$e->content,
+            'user'=>$e->user?->name
+        ])->values();
 
         $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
@@ -146,6 +157,7 @@ class PaedDiaryController extends Controller
             ]),
             'can_manage_grading' => Auth::user()->can('manage grading systems'),
             'entries'=>$entryData,
+            'open_entries'=>$openEntries,
             'columns'=>$columns->map(fn($c)=>['id'=>$c->id,'name'=>$c->name,'slug'=>$c->slug,'type'=>$c->type,'deactivated_from'=>Schema::hasColumn('paed_diary_columns','deactivated_from') ? $c->deactivated_from?->toDateString():null]),
             'column_values'=>$valuesGrouped,
             'tasks'=>$tasks,
@@ -231,7 +243,8 @@ class PaedDiaryController extends Controller
             'date'=>['required','date'],
             'content'=>['required','string'],
             'schueler_ids'=>['required','array','min:1'],
-            'schueler_ids.*'=>['integer','exists:schueler,id']
+            'schueler_ids.*'=>['integer','exists:schueler,id'],
+            'completed' => ['nullable']
         ]);
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id',$validated['klasse_id'])->firstOrFail();
@@ -240,11 +253,16 @@ class PaedDiaryController extends Controller
         if (empty($validSchueler)){
             return response()->json(['message'=>'Keine gültigen Schüler'],422);
         }
+        $completedAt = null;
+        if ($request->has('completed')) {
+            $completedAt = Carbon::now();
+        }
         $entry = PaedDiaryEntry::create([
             'klasse_id'=>$klasse->id,
             'user_id'=>$user->id,
             'datum'=>$dateObj->toDateString(),
-            'content'=>trim($validated['content'])
+            'content'=>trim($validated['content']),
+            'completed_at'=>$completedAt
         ]);
         $entry->schueler()->sync($validSchueler);
         $this->forgetWeekCache($klasse->id, $dateObj);
@@ -260,31 +278,55 @@ class PaedDiaryController extends Controller
      */
     public function updateEntry(PaedDiaryEntry $entry, Request $request)
     {
+        // ...existing code before $entry->update([...]) remains...
+        // (Wir fügen nur Transaktions-/Finalize-Logik hinzu.)
         $validated = $request->validate([
             'klasse_id'=>['required','integer','exists:klassen,id'],
             'date'=>['required','date'],
             'content'=>['required','string'],
             'schueler_ids'=>['required','array','min:1'],
-            'schueler_ids.*'=>['integer','exists:schueler,id']
+            'schueler_ids.*'=>['integer','exists:schueler,id'],
+            'completed' => ['nullable']
         ]);
         $user = Auth::user();
-        // Sicherstellen, dass der Eintrag zur gewünschten Klasse gehört und Nutzer Zugriff hat
         if ($entry->klasse_id != $validated['klasse_id']){
             abort(403);
         }
         $klasse = $user->paed_klassen()->where('klassen.id',$validated['klasse_id'])->firstOrFail();
         $oldDate = $entry->datum->copy();
-        $newDate = Carbon::parse($validated['date']);
-        $validSchueler = Schueler::whereIn('id',$validated['schueler_ids'])->where('klasse_id',$klasse->id)->pluck('id')->all();
+        $newDate = \Carbon\Carbon::parse($validated['date']);
+        $validSchueler = \App\Models\Schueler::whereIn('id',$validated['schueler_ids'])->where('klasse_id',$klasse->id)->pluck('id')->all();
         if (empty($validSchueler)){
             return response()->json(['message'=>'Keine gültigen Schüler'],422);
         }
-        $entry->update([
-            'datum'=>$newDate->toDateString(),
-            'content'=>trim($validated['content'])
-        ]);
-        $entry->schueler()->sync($validSchueler);
-        // Week Cache für alte und neue Woche invalidieren (falls Wechsel)
+        $wasCompleted = (bool)$entry->completed_at;
+        $completedAt = $entry->completed_at;
+        if ($request->has('completed')) {
+            if (!$entry->completed_at) {
+                $completedAt = \Carbon\Carbon::now();
+            }
+        } else {
+            $completedAt = null; // Re-Open
+        }
+        \DB::beginTransaction();
+        try {
+            $entry->update([
+                'datum'=>$newDate->toDateString(),
+                'content'=>trim($validated['content']),
+                'completed_at'=>$completedAt
+            ]);
+            $entry->schueler()->sync($validSchueler);
+            // Falls gerade von offen -> abgeschlossen gewechselt: Klon-Logik anwenden
+            if (!$wasCompleted && $completedAt) {
+                // frisch laden (Relationen aktualisieren)
+                $entry->load('schueler');
+                $this->finalizeEntry($entry);
+            }
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            return response()->json(['message'=>'Fehler beim Aktualisieren'],500);
+        }
         $this->forgetWeekCache($klasse->id, $oldDate);
         if (!$oldDate->isSameWeek($newDate)){
             $this->forgetWeekCache($klasse->id, $newDate);
@@ -837,5 +879,77 @@ class PaedDiaryController extends Controller
         $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
         $data = $stages->map(fn($s)=>['id'=>$s->id,'name'=>$s->name,'symbol'=>$s->symbol,'sort_order'=>$s->sort_order]);
         return response()->json(['stages'=>$data]);
+    }
+
+    /**
+     * Setzt einen Eintrag auf abgeschlossen und kopiert den Inhalt auf alle Tage zwischen Erstellung und Abschluss.
+     * @param PaedDiaryEntry $entry
+     * @param Request $request {klasse_id, completed_at}
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function completeEntry(PaedDiaryEntry $entry, Request $request)
+    {
+        // ...existing code replaced durch Nutzung finalizeEntry...
+        $data = $request->validate([
+            'klasse_id'=>['required','integer','exists:klassen,id'],
+        ]);
+        $user = Auth::user();
+        if ($entry->klasse_id != $data['klasse_id']){
+            abort(403);
+        }
+        $user->paed_klassen()->where('klassen.id',$entry->klasse_id)->firstOrFail();
+        if ($entry->completed_at) {
+            return response()->json(['success'=>true]); // Bereits abgeschlossen – nichts tun
+        }
+        \DB::beginTransaction();
+        try {
+            $entry->completed_at = \Carbon\Carbon::now();
+            $entry->save();
+            $entry->load('schueler');
+            $this->finalizeEntry($entry);
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            \Log::error('completeEntry failed: '.$e->getMessage());
+            return response()->json(['message'=>'Fehler beim Abschließen des Eintrags'],500);
+        }
+        return response()->json(['success'=>true]);
+    }
+
+    /**
+     * Interne Hilfsfunktion: Klont einen frisch abgeschlossenen Eintrag (bereits completed_at gesetzt)
+     * auf alle fehlenden Tage zwischen Eintragsdatum und heutigem Datum (inkl.).
+     * Vermeidet Duplikate für dieselben Schüler am jeweiligen Tag.
+     *
+     * @param PaedDiaryEntry $entry
+     * @return void
+     */
+    private function finalizeEntry(PaedDiaryEntry $entry): void
+    {
+        $klasseId = $entry->klasse_id;
+        $start = \Carbon\Carbon::parse($entry->datum)->startOfDay();
+        $endDate = \Carbon\Carbon::now()->startOfDay();
+        if ($endDate->lt($start)) {
+            $endDate = $start->copy();
+        }
+        $schuelerIds = $entry->schueler->pluck('id')->all();
+        for ($d = $start->copy()->addDay(); $d->lte($endDate); $d->addDay()) {
+            $exists = \App\Models\PaedDiaryEntry::where('klasse_id',$klasseId)
+                ->whereDate('datum',$d->toDateString())
+                ->whereHas('schueler',function($q) use ($schuelerIds){ $q->whereIn('schueler.id',$schuelerIds); })
+                ->exists();
+            if (!$exists) {
+                $newEntry = \App\Models\PaedDiaryEntry::create([
+                    'klasse_id'=>$klasseId,
+                    'user_id'=>$entry->user_id,
+                    'datum'=>$d->toDateString(),
+                    'content'=>$entry->content,
+                    'completed_at'=>$entry->completed_at
+                ]);
+                $newEntry->schueler()->sync($schuelerIds);
+            }
+        }
+        $this->forgetWeekCache($klasseId, $start);
+        $this->forgetWeekCache($klasseId, $endDate);
     }
 }

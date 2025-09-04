@@ -627,6 +627,7 @@ Route::group([
                     Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class,'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class,'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'updateEntry'])->name('paedDiary.entry.update');
+                    Route::post('paed-diary/entry/{entry}/complete', [\App\Http\Controllers\PaedDiaryController::class,'completeEntry'])->name('paedDiary.entry.complete');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'destroyEntry'])->name('paedDiary.entry.destroy');
                     Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryController::class,'storeColumn'])->name('paedDiary.column.store');
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryController::class,'destroyColumn'])->name('paedDiary.column.destroy');

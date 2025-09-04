@@ -35,6 +35,9 @@
     const taskSchuelerSelect = document.getElementById('taskSchueler');
     const openTaskModalBtn = document.getElementById('openTaskModal');
     const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const tasksPanel = document.getElementById('tasksPanel');
+    const tasksList = document.getElementById('tasksList');
+    const refreshTasksBtn = document.getElementById('refreshTasks');
 
     // --- State ---
     let currentWeekStart = startOfWeek(new Date());
@@ -175,32 +178,125 @@
         const tasksPanel = document.getElementById('tasksPanel');
         const tasksList = document.getElementById('tasksList');
 
-        if(!cache.tasks || cache.tasks.length === 0) {
+        // Aufgaben und offene Einträge kombinieren
+        const hasTasks = cache.tasks && cache.tasks.length > 0;
+        // Offene Notizen als Aufgaben anzeigen
+        const openNotes = cache.entries.filter(e => !e.completed_at);
+        const hasOpenNotes = openNotes.length > 0;
+        const hasOpenEntries = cache.open_entries && cache.open_entries.length > 0;
+        if(!hasTasks && !hasOpenEntries && !hasOpenNotes) {
             tasksPanel.style.display = 'none';
             return;
         }
-
         tasksPanel.style.display = 'block';
 
-        tasksList.innerHTML = cache.tasks.map(task => {
-            const student = cache.schueler.find(s => s.id === task.schueler_id);
-            const studentName = student ? student.name : 'Unbekannt';
-            const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleDateString() : '';
-
-            return `<div class="task-item mb-2 p-2 border rounded ${task.highlighted ? 'border-warning bg-light' : 'border-secondary'}" data-task-id="${task.id}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="font-weight-bold small">${escapeHtml(task.title)}</div>
-                        <div class="text-muted small">Schüler: ${escapeHtml(studentName)}</div>
-                        ${dueDateStr ? `<div class="text-muted small">Fällig: ${dueDateStr}</div>` : ''}
+        let html = '';
+        // Aufgaben
+        if(hasTasks) {
+            html += cache.tasks.map(task => {
+                const student = cache.schueler.find(s => s.id === task.schueler_id);
+                const studentName = student ? student.name : 'Unbekannt';
+                const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleDateString() : '';
+                return `<div class="task-item mb-2 p-2 border rounded ${task.highlighted ? 'border-warning bg-light' : 'border-secondary'}" data-task-id="${task.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="font-weight-bold small">${escapeHtml(task.title)}</div>
+                            <div class="text-muted small">Schüler: ${escapeHtml(studentName)}</div>
+                            ${dueDateStr ? `<div class="text-muted small">Fällig: ${dueDateStr}</div>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-success close-task-btn" data-task-id="${task.id}" title="Als erledigt markieren">
+                            <i class="fas fa-check"></i>
+                        </button>
                     </div>
-                    <button class="btn btn-sm btn-success close-task-btn" data-task-id="${task.id}" title="Als erledigt markieren">
-                        <i class="fas fa-check"></i>
-                    </button>
-                </div>
-            </div>`;
-        }).join('');
+                </div>`;
+            }).join('');
+        }
+        // Offene Notizen
+        if(hasOpenNotes) {
+            html += '<div class="mt-3"><span class="font-weight-bold small">Offene Notizen</span></div>';
+            html += openNotes.map(entry => {
+                const schuelerNamen = entry.schueler_ids.map(id => {
+                    const s = cache.schueler.find(stu => stu.id === id);
+                    return s ? escapeHtml(s.name) : 'Unbekannt';
+                }).join(', ');
+                return `<div class="task-item mb-2 p-2 border rounded border-danger bg-light" data-entry-id="${entry.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="font-weight-bold small">${escapeHtml(entry.content)}</div>
+                            <div class="text-muted small">Schüler: ${schuelerNamen}</div>
+                            <div class="text-muted small">Datum: ${escapeHtml(entry.date)}</div>
+                        </div>
+                         <button class="btn btn-sm btn-success  complete-entry-btn" data-entry-id="${entry.id}" title="Notiz abschließen">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        tasksList.innerHTML = html;
     }
+
+    // Event-Handler für das Schließen von Aufgaben und Abschließen von Einträgen
+    tasksPanel.addEventListener('click', e => {
+        const closeBtn = e.target.closest('.close-task-btn');
+        if (closeBtn) {
+            const taskId = closeBtn.dataset.taskId;
+            if (!taskId) return;
+            closeBtn.disabled = true;
+            fetch(`paed-diary/task/${taskId}/close`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(j => {
+                if (j.success) {
+                    cache.tasks = cache.tasks.filter(t => String(t.id) !== String(taskId));
+                    renderTasks();
+                    render();
+                } else {
+                    closeBtn.disabled = false;
+                }
+            })
+            .catch(() => {
+                closeBtn.disabled = false;
+            });
+            return;
+        }
+        // Abschließen einer offenen Notiz
+        const completeBtn = e.target.closest('.complete-entry-btn');
+        if (completeBtn) {
+            const entryId = completeBtn.dataset.entryId;
+            if (!entryId) return;
+            completeBtn.disabled = true;
+            // Kein completed_at mehr senden – Server nutzt aktuelles Datum
+            fetch(`paed-diary/entry/${entryId}/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ klasse_id: klasseSelect.value })
+            })
+            .then(r => r.json())
+            .then(j => {
+                if (j.success) {
+                    loadWeek();
+                } else {
+                    alert(j.message || 'Fehler beim Abschließen der Notiz');
+                    completeBtn.disabled = false;
+                }
+            })
+            .catch(() => {
+                alert('Fehler beim Abschließen der Notiz');
+                completeBtn.disabled = false;
+            });
+        }
+    });
 
     // --- Columns Management Rendering ---
     function renderColumnsList(){
@@ -261,6 +357,11 @@
             }
         }
         noteContentInput.value = entry?.content || raw;
+        // Checkbox für abgeschlossen setzen
+        const completedCheckbox = document.getElementById('noteCompleted');
+        if (completedCheckbox) {
+            completedCheckbox.checked = !!entry?.completed_at;
+        }
         showEditor();
         noteContentInput.focus();
         scrollIntoViewEditor();
@@ -365,6 +466,13 @@
         ev.preventDefault();
         noteStatus.textContent='Speichere...';
         const fd=new FormData(noteForm); fd.set('klasse_id',klasseSelect.value);
+        // completed_at nur setzen, wenn Checkbox aktiviert
+        const completedCheckbox = document.getElementById('noteCompleted');
+        if (completedCheckbox && !completedCheckbox.checked) {
+            fd.delete('completed');
+        } else {
+            fd.set('completed', '1');
+        }
         const id=noteEntryIdInput.value; const url=id?`paed-diary/entry/${id}`:'paed-diary/entry';
         fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd})
             .then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gespeichert'; loadWeek(); if(!id){ clearEditor(); } } else { noteStatus.textContent=j.message||'Fehler'; } })
@@ -390,8 +498,9 @@
     });
 
     // --- Tasks Events ---
-    const tasksPanel = document.getElementById('tasksPanel');
-    const refreshTasksBtn = document.getElementById('refreshTasks');
+    // Entfernte doppelte Deklarationen (bereits oben definiert)
+    // const tasksPanel = document.getElementById('tasksPanel');
+    // const refreshTasksBtn = document.getElementById('refreshTasks');
 
     // Event-Handler für das Schließen von Aufgaben
     tasksPanel.addEventListener('click', e => {
@@ -414,7 +523,7 @@
         .then(j => {
             if (j.success) {
                 // Aufgabe aus dem Cache entfernen
-                cache.tasks = cache.tasks.filter(t => t.id != taskId);
+                cache.tasks = cache.tasks.filter(t => String(t.id) !== String(taskId));
                 renderTasks();
                 // Tabelle neu rendern um Hervorhebungen zu aktualisieren
                 render();
@@ -448,7 +557,7 @@
     function toggleStageCardRow(studentRow, stuId) {
         const next = studentRow.nextElementSibling;
         // if already open for this student, remove
-        if (next && next.classList.contains('stage-card-row') && next.dataset.stu == stuId) {
+        if (next && next.classList.contains('stage-card-row') && Number(next.dataset.stu) === Number(stuId)) {
             next.remove();
             return;
         }
@@ -472,7 +581,7 @@
                 return;
             }
             wrapper.innerHTML = stages.map(s=>{
-                const img = s.image_url ? `<img src="${s.image_url}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px;">` : '';
+                const img = s.image_url ? `<img src="${s.image_url}" alt="${escapeHtml(s.name)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px;">` : '';
                 const symbol = (!s.image_url && s.symbol) ? `<i class="${escapeHtml(s.symbol)} fa-2x mb-1" aria-hidden="true"></i>` : '';
                 return `<div class="grading-card border rounded mr-2 mb-2 p-2 text-center" data-stage-id="${s.id}" style="width:120px;cursor:pointer;">${img}${symbol}<div class="small mt-1">${escapeHtml(s.name)}</div></div>`;
             }).join('');
@@ -483,7 +592,7 @@
                     changeStudentStage(stuId, stageId, studentRow);
                 });
             });
-        }).catch(err=>{ wrapper.innerHTML = '<div class="text-danger small">Fehler beim Laden der Stufen</div>'; });
+        }).catch(()=>{ wrapper.innerHTML = '<div class="text-danger small">Fehler beim Laden der Stufen</div>'; });
     }
 
     function fetchStagesForClass(){
@@ -492,7 +601,7 @@
             .then(j=> j.stages || []);
     }
 
-    function changeStudentStage(schuelerId, gradingStageId, studentRow){
+    function changeStudentStage(schuelerId, gradingStageId){
         const body = { schueler_id: schuelerId, grading_stage_id: gradingStageId };
         fetch('paed-diary/change-stage',{
             method:'POST',
@@ -521,7 +630,7 @@
             const match = href.match(/paed-diary\/schueler\/(\d+)/);
             if (!match) return;
             const stuId = parseInt(match[1]);
-            const student = cache.schueler.find(s=>s.id==stuId);
+            const student = cache.schueler.find(s=>Number(s.id) === Number(stuId));
             if (!student) return;
             // remove existing stage container
             let existing = th.querySelector('.stage-badge-container');
