@@ -143,7 +143,6 @@
         <div class="actions">
             <button class="btn" onclick="window.location.reload()" aria-label="Seite neu laden">Neu laden</button>
             <a class="btn secondary" href="/" aria-label="Zur Startseite">Zur Startseite</a>
-            <a class="btn secondary" href="mailto:support@{{ request()->getHost() }}" aria-label="Support kontaktieren">Support</a>
         </div>
         <div class="reload-info" id="reload-info" aria-live="polite"></div>
 
@@ -151,7 +150,6 @@
             <div class="tip"><strong>Status prüfen</strong>Wenn das Problem länger anhält, frage dein internes IT-Team oder prüfe interne Statuskanäle.</div>
             <div class="tip"><strong>Cache leeren</strong>Lösche Browser-Cache oder nutze ein privates Fenster, falls du kürzlich Änderungen deployt hast.</div>
             <div class="tip"><strong>Geplante Wartung</strong>Möglicherweise führen wir ein Update oder Sicherheitspatch durch. Kurz warten hilft oft.</div>
-            <div class="tip"><strong>Notfallzugang</strong>Falls du dringenden Zugriff brauchst, kontaktiere den Support mit einer kurzen Problembeschreibung.</div>
         </div>
 
         <footer>
