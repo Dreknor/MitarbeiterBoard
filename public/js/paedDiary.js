@@ -217,8 +217,11 @@
         appointmentTitleInput.value = appointment.title;
         appointmentDescriptionInput.value = appointment.description || '';
         appointmentStartDateInput.value = appointment.date;
-        appointmentStartTimeInput.value = appointment.start_time || '';
-        appointmentEndTimeInput.value = appointment.end_time || '';
+
+        // Zeiten richtig formatieren - von ISO DateTime oder Time zu HH:MM
+        appointmentStartTimeInput.value = formatTime(appointment.start_time) || '';
+        appointmentEndTimeInput.value = formatTime(appointment.end_time) || '';
+
         appointmentIsRecurringInput.checked = appointment.is_recurring || false;
 
         if(appointment.is_recurring){
@@ -228,6 +231,33 @@
             appointmentRecurringEndDateInput.value = appointment.recurring_end_date || '';
         } else {
             recurringOptions.classList.add('d-none');
+        }
+
+        // Klassenzuweisungen übernehmen
+        if(appointmentStudentsBox){
+            // Alle Checkboxen zurücksetzen
+            appointmentStudentsBox.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+
+            // Zugewiesene Klassen/Gruppen ankreuzen
+            if(appointment.klassen && appointment.klassen.length > 0){
+                appointment.klassen.forEach(klasse => {
+                    const checkbox = appointmentStudentsBox.querySelector(`input[name="klasse_ids[]"][value="${klasse.id}"]`);
+                    if(checkbox){
+                        checkbox.checked = true;
+                    }
+                });
+            }
+
+            if(appointment.groups && appointment.groups.length > 0){
+                appointment.groups.forEach(group => {
+                    const checkbox = appointmentStudentsBox.querySelector(`input[name="group_ids[]"][value="${group.id}"]`);
+                    if(checkbox){
+                        checkbox.checked = true;
+                    }
+                });
+            }
         }
 
         appointmentModalTitle.textContent = 'Termin bearbeiten';
