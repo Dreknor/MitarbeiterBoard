@@ -308,9 +308,11 @@
                             </div>
                         @endforeach
                     </div>
-                    <div id="appointmentSchuelerBox" class="mb-2" style="display:none;">
+                    <div id="appointmentSchuelerBox" class="mb-2">
                         <strong>Schüler:</strong>
-                        <!-- Wird dynamisch gefüllt -->
+                        <div class="mt-1" id="appointmentSchuelerList">
+                            <!-- Wird dynamisch befüllt basierend auf ausgewählter Klasse/Gruppe -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -337,5 +339,5 @@
 @endpush
 
 @push('js')
-<script src="{{ asset('js/paedDiary.js') }}?v=grp2"></script>
+<script src="{{ asset('js/paedDiary.js') }}?v=schuelerterminen"></script>
 @endpush

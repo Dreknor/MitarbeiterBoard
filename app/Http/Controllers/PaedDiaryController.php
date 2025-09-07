@@ -1146,8 +1146,37 @@ class PaedDiaryController extends Controller
         $startDate = Carbon::parse($request->start_date);
         $endDate = Carbon::parse($request->end_date);
 
-        // Alle Termine des Benutzers laden
+        // IDs der Klassen ermitteln, die für die aktuelle Ansicht relevant sind
+        $relevantKlassenIds = collect();
+        if ($request->filled('klasse_id')) {
+            $relevantKlassenIds->push((int)$request->klasse_id);
+        } elseif ($request->filled('group_id')) {
+            $group = $user->paed_diary_class_groups()->with('klassen:id')->find($request->group_id);
+            if ($group) {
+                $relevantKlassenIds = $group->klassen->pluck('id');
+            }
+        }
+
+        if ($relevantKlassenIds->isEmpty()) {
+             return response()->json(['appointments' => []]);
+        }
+
+        // Alle Termine des Benutzers laden, die für die relevanten Klassen oder deren Schüler gelten
         $appointments = PaedDiaryAppointment::forUser($user->id)
+            ->where(function ($query) use ($relevantKlassenIds) {
+                // Termin ist direkt einer der relevanten Klassen zugewiesen
+                $query->whereHas('klassen', function ($q) use ($relevantKlassenIds) {
+                    $q->whereIn('klassen.id', $relevantKlassenIds);
+                })
+                // ODER Termin ist einer Gruppe zugewiesen, die eine der relevanten Klassen enthält
+                ->orWhereHas('groups.klassen', function ($q) use ($relevantKlassenIds) {
+                    $q->whereIn('klassen.id', $relevantKlassenIds);
+                })
+                // ODER Termin ist Schülern zugewiesen, die in einer der relevanten Klassen sind
+                ->orWhereHas('schueler', function ($q) use ($relevantKlassenIds) {
+                    $q->whereIn('klasse_id', $relevantKlassenIds);
+                });
+            })
             ->with(['klassen:id,name', 'groups:id,name', 'schueler:id,vorname,nachname'])
             ->active()
             ->get();
@@ -1155,29 +1184,16 @@ class PaedDiaryController extends Controller
         $filteredAppointments = [];
 
         foreach ($appointments as $appointment) {
-            // Prüfen ob der Termin für die gewählte Klasse/Gruppe relevant ist
-            $isRelevant = false;
-
-            if ($request->filled('klasse_id')) {
-                $isRelevant = $appointment->klassen->contains('id', $request->klasse_id);
-            } elseif ($request->filled('group_id')) {
-                $isRelevant = $appointment->groups->contains('id', $request->group_id);
-            } else {
-                $isRelevant = true; // Alle Termine wenn keine spezifische Auswahl
-            }
-
-            if ($isRelevant) {
-                $occurrences = $appointment->getOccurrencesInRange($startDate, $endDate);
-                foreach ($occurrences as $occurrence) {
-                    $filteredAppointments[] = array_merge($occurrence, [
-                        'klassen' => $appointment->klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name]),
-                        'groups' => $appointment->groups->map(fn($g) => ['id' => $g->id, 'name' => $g->name]),
-                        'schueler' => $appointment->schueler->map(fn($s) => ['id' => $s->id, 'name' => $s->vorname . ' ' . $s->nachname]),
-                        'recurring_type' => $appointment->recurring_type,
-                        'recurring_interval' => $appointment->recurring_interval,
-                        'recurring_end_date' => $appointment->recurring_end_date?->toDateString(),
-                    ]);
-                }
+            $occurrences = $appointment->getOccurrencesInRange($startDate, $endDate);
+            foreach ($occurrences as $occurrence) {
+                $filteredAppointments[] = array_merge($occurrence, [
+                    'klassen' => $appointment->klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name]),
+                    'groups' => $appointment->groups->map(fn($g) => ['id' => $g->id, 'name' => $g->name]),
+                    'schueler' => $appointment->schueler->map(fn($s) => ['id' => $s->id, 'name' => $s->vorname . ' ' . $s->nachname]),
+                    'recurring_type' => $appointment->recurring_type,
+                    'recurring_interval' => $appointment->recurring_interval,
+                    'recurring_end_date' => $appointment->recurring_end_date?->toDateString(),
+                ]);
             }
         }
 
