@@ -339,5 +339,5 @@
 @endpush
 
 @push('js')
-<script src="{{ asset('js/paedDiary.js') }}?v={{now()->timestamp }}"></script>
+<script src="{{ asset('/js/paedDiary.js')}}"></script>
 @endpush
