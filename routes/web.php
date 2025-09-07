@@ -644,18 +644,27 @@ Route::group([
                     Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class,'storeClassGroup'])->name('paedDiary.classGroups.store');
                     Route::put('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class,'updateClassGroup'])->name('paedDiary.classGroups.update');
                     Route::delete('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class,'destroyClassGroup'])->name('paedDiary.classGroups.destroy');
-                });
 
-                // Admin: Verwaltung der Graduierungssysteme und Stufen
-                Route::middleware(['permission:manage grading systems'])->prefix('admin/grading')->group(function(){
-                    Route::get('/', [\App\Http\Controllers\GradingAdminController::class,'index'])->name('admin.grading.index');
-                    Route::post('/system', [\App\Http\Controllers\GradingAdminController::class,'storeSystem'])->name('admin.grading.system.store');
-                    Route::post('/system/{system}/delete', [\App\Http\Controllers\GradingAdminController::class,'destroySystem'])->name('admin.grading.system.delete');
-                    Route::post('/system/{system}/stage', [\App\Http\Controllers\GradingAdminController::class,'storeStage'])->name('admin.grading.stage.store');
-                    Route::post('/stage/{stage}/update', [\App\Http\Controllers\GradingAdminController::class,'updateStage'])->name('admin.grading.stage.update');
-                    Route::post('/stage/{stage}/delete', [\App\Http\Controllers\GradingAdminController::class,'destroyStage'])->name('admin.grading.stage.delete');
-                    // Reorder stages via AJAX
-                    Route::post('/system/{system}/stages/order', [\App\Http\Controllers\GradingAdminController::class,'reorderStages'])->name('admin.grading.stage.reorder');
+                    // Termine-Routen
+                    Route::get('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryController::class,'appointments'])->name('paedDiary.appointments.index');
+                    Route::post('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryController::class,'storeAppointment'])->name('paedDiary.appointments.store');
+                    Route::put('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryController::class,'updateAppointment'])->name('paedDiary.appointments.update');
+                    Route::post('paed-diary/appointments/{appointment}/toggle-pause', [\App\Http\Controllers\PaedDiaryController::class,'toggleAppointmentPause'])->name('paedDiary.appointments.togglePause');
+                    Route::delete('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryController::class,'destroyAppointment'])->name('paedDiary.appointments.destroy');
+
+
+                    // Admin: Verwaltung der Graduierungssysteme und Stufen
+                    Route::middleware(['permission:manage grading systems'])->prefix('admin/grading')->group(function(){
+                        Route::get('/', [\App\Http\Controllers\GradingAdminController::class,'index'])->name('admin.grading.index');
+                        Route::post('/system', [\App\Http\Controllers\GradingAdminController::class,'storeSystem'])->name('admin.grading.system.store');
+                        Route::post('/system/{system}/delete', [\App\Http\Controllers\GradingAdminController::class,'destroySystem'])->name('admin.grading.system.delete');
+                        Route::post('/system/{system}/stage', [\App\Http\Controllers\GradingAdminController::class,'storeStage'])->name('admin.grading.stage.store');
+                        Route::post('/stage/{stage}/update', [\App\Http\Controllers\GradingAdminController::class,'updateStage'])->name('admin.grading.stage.update');
+                        Route::post('/stage/{stage}/delete', [\App\Http\Controllers\GradingAdminController::class,'destroyStage'])->name('admin.grading.stage.delete');
+                        // Reorder stages via AJAX
+                        Route::post('/system/{system}/stages/order', [\App\Http\Controllers\GradingAdminController::class,'reorderStages'])->name('admin.grading.stage.reorder');
+                    });
+
                 });
 
             });

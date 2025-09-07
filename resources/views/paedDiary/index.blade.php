@@ -147,6 +147,7 @@
                     <div class="d-flex flex-wrap align-items-center">
                         <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="manageColumnsBtn" title="Spalten verwalten"><i class="fas fa-columns"></i> Spalten</button>
                         <a id="exportCsvBtn" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="CSV Export"><i class="fas fa-file-csv"></i></a>
+                        <button class="btn btn-sm btn-warning mb-1 mr-2" id="openAppointmentModal"><i class="fas fa-calendar-alt"></i> Termin</button>
                         <button class="btn btn-sm btn-success mb-1 mr-2" id="openTaskModal">Aufgabe</button>
                         <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neue Notiz</button>
                     </div>
@@ -214,6 +215,112 @@
         <div class="modal-footer py-2">
             <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
             <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Schließen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Termin Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title" id="appointmentModalTitle">Termin erstellen</h6>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="appointmentForm">
+        <div class="modal-body p-2">
+            <div id="appointmentFeedback" class="small mb-2"></div>
+            <input type="hidden" name="appointment_id" id="appointmentId" value="">
+
+            <div class="form-row">
+                <div class="col-md-6 mb-2">
+                    <label class="small mb-1">Titel *</label>
+                    <input type="text" name="title" id="appointmentTitle" class="form-control form-control-sm" required maxlength="255">
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="small mb-1">Startdatum *</label>
+                    <input type="date" name="start_date" id="appointmentStartDate" class="form-control form-control-sm" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-6 mb-2">
+                    <label class="small mb-1">Startzeit</label>
+                    <input type="time" name="start_time" id="appointmentStartTime" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="small mb-1">Endzeit</label>
+                    <input type="time" name="end_time" id="appointmentEndTime" class="form-control form-control-sm">
+                </div>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="small mb-1">Beschreibung</label>
+                <textarea name="description" id="appointmentDescription" rows="3" class="form-control form-control-sm"></textarea>
+            </div>
+
+            <div class="form-group mb-2">
+                <input type="checkbox" name="is_recurring" id="appointmentIsRecurring" value="1" class="align-middle">
+                <label for="appointmentIsRecurring" class="small mb-0 align-middle">Wiederkehrender Termin</label>
+            </div>
+
+            <div id="recurringOptions" class="d-none">
+                <div class="form-row">
+                    <div class="col-md-4 mb-2">
+                        <label class="small mb-1">Wiederholung</label>
+                        <select name="recurring_type" id="appointmentRecurringType" class="form-control form-control-sm">
+                            <option value="daily">Täglich</option>
+                            <option value="weekly">Wöchentlich</option>
+                            <option value="monthly">Monatlich</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small mb-1">Intervall</label>
+                        <input type="number" name="recurring_interval" id="appointmentRecurringInterval" class="form-control form-control-sm" min="1" value="1">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small mb-1">Ende der Wiederholung</label>
+                        <input type="date" name="recurring_end_date" id="appointmentRecurringEndDate" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="small mb-1">Zuweisen an</label>
+                <div class="border rounded p-2 bg-light" style="font-size:0.75rem;" id="appointmentStudentsBox">
+                    <div class="mb-2">
+                        <strong>Klassen:</strong>
+                        @foreach($klassen as $k)
+                            <div class="form-check-inline mb-1">
+                                <input class="form-check-input" type="checkbox" id="app_cls_{{$k->id}}" value="{{$k->id}}" name="klasse_ids[]">
+                                <label class="form-check-label" for="app_cls_{{$k->id}}">{{$k->name}}</label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="mb-2">
+                        <strong>Gruppen:</strong>
+                        @foreach($groups as $g)
+                            <div class="form-check-inline mb-1">
+                                <input class="form-check-input" type="checkbox" id="app_grp_{{$g->id}}" value="{{$g->id}}" name="group_ids[]">
+                                <label class="form-check-label" for="app_grp_{{$g->id}}">{{$g->name}}</label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div id="appointmentSchuelerBox" class="mb-2" style="display:none;">
+                        <strong>Schüler:</strong>
+                        <!-- Wird dynamisch gefüllt -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer py-2">
+            <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
+            <button type="button" class="btn btn-danger btn-sm d-none" id="appointmentDeleteBtn">Löschen</button>
+            <button type="button" class="btn btn-warning btn-sm d-none" id="appointmentPauseBtn">Pausieren</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Schließen</button>
+            <span class="text-muted small ml-3" id="appointmentStatus"></span>
         </div>
       </form>
     </div>

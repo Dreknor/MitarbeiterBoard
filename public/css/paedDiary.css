@@ -69,3 +69,42 @@
     color: #212529;
     cursor: pointer;
 }
+/* Termine Anzeige */
+.day-appointments {
+    font-size: 0.7rem !important;
+}
+
+.appointment-item {
+    background: #ffc107 !important;
+    color: #212529 !important;
+    padding: 2px 4px !important;
+    margin-bottom: 2px !important;
+    border-radius: 3px !important;
+    cursor: pointer !important;
+    font-size: 0.65rem !important;
+    line-height: 1.2 !important;
+    word-break: break-word;
+    transition: all 0.2s ease;
+}
+
+.appointment-item:hover {
+    background: #e0a800 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.appointment-item:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Heute-Spalte Termine hervorheben */
+.today-header .appointment-item {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeaa7;
+}
+
+.today-header .appointment-item:hover {
+    background: #fff !important;
+    color: #856404 !important;
+}

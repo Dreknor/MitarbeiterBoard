@@ -51,9 +51,31 @@
     const tasksList = document.getElementById('tasksList');
     const refreshTasksBtn = document.getElementById('refreshTasks');
 
+    // Termine-Elemente
+    const appointmentModal = $('#appointmentModal');
+    const appointmentForm = document.getElementById('appointmentForm');
+    const appointmentIdInput = document.getElementById('appointmentId');
+    const appointmentTitleInput = document.getElementById('appointmentTitle');
+    const appointmentDescriptionInput = document.getElementById('appointmentDescription');
+    const appointmentStartDateInput = document.getElementById('appointmentStartDate');
+    const appointmentStartTimeInput = document.getElementById('appointmentStartTime');
+    const appointmentEndTimeInput = document.getElementById('appointmentEndTime');
+    const appointmentIsRecurringInput = document.getElementById('appointmentIsRecurring');
+    const appointmentRecurringTypeSelect = document.getElementById('appointmentRecurringType');
+    const appointmentRecurringIntervalInput = document.getElementById('appointmentRecurringInterval');
+    const appointmentRecurringEndDateInput = document.getElementById('appointmentRecurringEndDate');
+    const appointmentDeleteBtn = document.getElementById('appointmentDeleteBtn');
+    const appointmentPauseBtn = document.getElementById('appointmentPauseBtn');
+    const appointmentStatus = document.getElementById('appointmentStatus');
+    const appointmentFeedback = document.getElementById('appointmentFeedback');
+    const appointmentModalTitle = document.getElementById('appointmentModalTitle');
+    const openAppointmentModalBtn = document.getElementById('openAppointmentModal');
+    const recurringOptions = document.getElementById('recurringOptions');
+    const appointmentStudentsBox = document.getElementById('appointmentStudentsBox');
+
     // --- State ---
     let currentWeekStart = startOfWeek(new Date());
-    let cache = { days:[], schueler:[], entries:[], columns:[], column_values:{}, tasks:[], klassen:[], is_group:false };
+    let cache = { days:[], schueler:[], entries:[], columns:[], column_values:{}, tasks:[], klassen:[], is_group:false, appointments:[] };
     let columnsAllCache = []; // inkl. deaktivierte
     let debounceTimers = {}; // für Spaltenwerte
     let groupsCache = [];
@@ -66,6 +88,42 @@
     function trimText(str,len){return str.length<=len?str:str.slice(0,len-1)+'…';}
     function setModeBadge(){ if(cache.is_group){ modeBadge.classList.remove('d-none'); } else { modeBadge.classList.add('d-none'); } }
 
+    // Formatiert Zeit von "HH:MM:SS" zu "HH:MM" oder von ISO 8601 DateTime zu "HH:MM" (lokale Zeitzone)
+    function formatTime(timeStr) {
+        if (!timeStr) return '';
+
+        // Falls es ein ISO 8601 DateTime-String ist (YYYY-MM-DDTHH:MM:SS)
+        if (timeStr.includes('T')) {
+            try {
+                // Konvertiere zu Date-Objekt und formatiere in lokaler Zeitzone
+                const date = new Date(timeStr);
+                if (!isNaN(date.getTime())) {
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    return `${hours}:${minutes}`;
+                }
+            } catch (e) {
+                // Fallback: einfache String-Extraktion
+                const timePart = timeStr.split('T')[1];
+                if (timePart && timePart.includes(':')) {
+                    const parts = timePart.split(':');
+                    if (parts.length >= 2) {
+                        return `${parts[0]}:${parts[1]}`;
+                    }
+                }
+            }
+        }
+
+        // Einfache String-Manipulation für HH:MM:SS -> HH:MM
+        if (timeStr.includes(':')) {
+            const parts = timeStr.split(':');
+            if (parts.length >= 2) {
+                return `${parts[0]}:${parts[1]}`;
+            }
+        }
+        return timeStr;
+    }
+
     // --- Daten laden ---
     function loadWeek(){
         const params = new URLSearchParams({week_start:formatDate(currentWeekStart)});
@@ -76,9 +134,131 @@
         }
         fetch('paed-diary/week?'+params.toString(),{headers:{'Accept':'application/json'}})
             .then(r=>r.json())
-            .then(data=>{cache=data; setModeBadge(); render(); if(!cache.schueler.length){hideEditor();} if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns();})
+            .then(data=>{cache=data; setModeBadge(); render(); if(!cache.schueler.length){hideEditor();} if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns(); loadAppointments();})
             .catch(()=>{});
     }
+
+    function loadAppointments(){
+        const params = new URLSearchParams({
+            start_date: formatDate(currentWeekStart),
+            end_date: formatDate(addDays(currentWeekStart, 6))
+        });
+
+        if(groupSelect && groupSelect.value){
+            params.append('group_id', groupSelect.value);
+        } else {
+            params.append('klasse_id', klasseSelect.value);
+        }
+
+        fetch('paed-diary/appointments?' + params.toString(), {
+            headers: {'Accept': 'application/json'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            cache.appointments = data.appointments || [];
+            renderAppointments();
+        })
+        .catch(() => {
+            cache.appointments = [];
+        });
+    }
+
+    function renderAppointments(){
+        // Termine zu den entsprechenden Tagen hinzufügen
+        cache.days.forEach(day => {
+            const dayAppointments = cache.appointments.filter(app => app.date === day.date);
+
+            // Termine in der Tagesheader anzeigen
+            const dayHeader = document.querySelector(`th[data-date="${day.date}"]`);
+            if(dayHeader && dayAppointments.length > 0){
+                // Entferne vorherige Termine-Anzeige
+                const existingAppointments = dayHeader.querySelector('.day-appointments');
+                if(existingAppointments){
+                    existingAppointments.remove();
+                }
+
+                const appointmentsDiv = document.createElement('div');
+                appointmentsDiv.className = 'day-appointments mt-1';
+                appointmentsDiv.style.fontSize = '0.7rem';
+
+                dayAppointments.forEach(appointment => {
+                    const appointmentSpan = document.createElement('div');
+                    appointmentSpan.className = 'appointment-item bg-warning text-dark px-1 mb-1 rounded';
+                    appointmentSpan.style.cursor = 'pointer';
+                    appointmentSpan.title = appointment.description || appointment.title;
+
+                    let timeText = '';
+                    if(appointment.start_time){
+                        timeText = formatTime(appointment.start_time);
+                        if(appointment.end_time){
+                            timeText += ` - ${formatTime(appointment.end_time)}`;
+                        }
+                        timeText += ' ';
+                    }
+
+                    appointmentSpan.innerHTML = `${timeText}${escapeHtml(trimText(appointment.title, 20))}`;
+
+                    // Click-Event zum Bearbeiten
+                    appointmentSpan.addEventListener('click', () => {
+                        editAppointment(appointment);
+                    });
+
+                    appointmentsDiv.appendChild(appointmentSpan);
+                });
+
+                dayHeader.appendChild(appointmentsDiv);
+            }
+        });
+    }
+
+    function editAppointment(appointment){
+        appointmentForm.reset();
+        appointmentIdInput.value = appointment.id;
+        appointmentTitleInput.value = appointment.title;
+        appointmentDescriptionInput.value = appointment.description || '';
+        appointmentStartDateInput.value = appointment.date;
+        appointmentStartTimeInput.value = appointment.start_time || '';
+        appointmentEndTimeInput.value = appointment.end_time || '';
+        appointmentIsRecurringInput.checked = appointment.is_recurring || false;
+
+        if(appointment.is_recurring){
+            recurringOptions.classList.remove('d-none');
+            appointmentRecurringTypeSelect.value = appointment.recurring_type || 'weekly';
+            appointmentRecurringIntervalInput.value = appointment.recurring_interval || 1;
+            appointmentRecurringEndDateInput.value = appointment.recurring_end_date || '';
+        } else {
+            recurringOptions.classList.add('d-none');
+        }
+
+        appointmentModalTitle.textContent = 'Termin bearbeiten';
+        appointmentDeleteBtn.classList.remove('d-none');
+
+        if(appointment.is_recurring){
+            appointmentPauseBtn.classList.remove('d-none');
+            appointmentPauseBtn.textContent = appointment.is_paused ? 'Reaktivieren' : 'Pausieren';
+        } else {
+            appointmentPauseBtn.classList.add('d-none');
+        }
+
+        setAppointmentFeedback('','');
+        appointmentModal.modal('show');
+    }
+    function setModeBadge(){ if(cache.is_group){ modeBadge.classList.remove('d-none'); } else { modeBadge.classList.add('d-none'); } }
+
+    // --- Daten laden ---
+    function loadWeek(){
+        const params = new URLSearchParams({week_start:formatDate(currentWeekStart)});
+        if(groupSelect && groupSelect.value){
+            params.append('group_id', groupSelect.value);
+        } else {
+            params.append('klasse_id', klasseSelect.value);
+        }
+        fetch('paed-diary/week?'+params.toString(),{headers:{'Accept':'application/json'}})
+            .then(r=>r.json())
+            .then(data=>{cache=data; setModeBadge(); render(); if(!cache.schueler.length){hideEditor();} if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns(); loadAppointments();})
+            .catch(()=>{});
+    }
+
     function loadAllColumns(){
         if(groupSelect.value){ return; } // Spaltenverwaltung nur im Klassenmodus
         const p = new URLSearchParams({ klasse_id: klasseSelect.value });
@@ -273,17 +453,169 @@
 
     // --- Aufgaben ---
     openTaskModalBtn.addEventListener('click', ()=>{ taskForm.reset(); document.getElementById('taskKlasseId').value=klasseSelect.value; taskModal.modal('show'); });
-    taskForm.addEventListener('submit', e=>{ e.preventDefault(); const fd=new FormData(taskForm); if(groupSelect.value){ fd.set('group_id', groupSelect.value); } fd.set('klasse_id',klasseSelect.value); if(!fd.get('highlighted')) fd.set('highlighted','0'); fetch('paed-diary/task',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ taskModal.modal('hide'); loadWeek(); } }).catch(()=>{}); });
+    taskForm.addEventListener('submit', e=>{
+        e.preventDefault();
+        const fd=new FormData(taskForm);
+        if(groupSelect.value){
+            fd.set('group_id', groupSelect.value);
+        }
+        fd.set('klasse_id',klasseSelect.value);
+        if(!fd.get('highlighted')) fd.set('highlighted','0');
+        fetch('paed-diary/task',{
+            method:'POST',
+            headers:{
+                'X-CSRF-TOKEN':csrf,
+                'Accept':'application/json'
+            },
+            body:fd
+        }).then(r=>r.json()).then(j=>{
+            if(j.success){
+                taskModal.modal('hide');
+                loadWeek();
+            }
+        }).catch(()=>{});
+    });
 
-    // --- Stages (unverändert bis auf Render Hook) ---
-    let gradingStagesCache=null;
-    function renderStudentStage(stu){ const stage=stu.stage; if(!stage) return `<div class="stage-badge text-muted small">-</div>`; const img=stage.image_url?`<img src="${stage.image_url}" alt="${escapeHtml(stage.name)}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;margin-right:6px;">`:''; const symbol=(!stage.image_url && stage.symbol)?`<i class="${escapeHtml(stage.symbol)} mr-1" aria-hidden="true"></i>`:''; return `<div class="stage-badge d-flex align-items-center" data-stage-id="${stage.id}">${img}${symbol}<span class="small">${escapeHtml(stage.name)}</span></div>`; }
-    function fetchStagesForClass(){ return fetch(`paed-diary/klasse/${encodeURIComponent(klasseSelect.value)}/stages`,{headers:{'Accept':'application/json'}}).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(j=> j.stages||[]); }
-    function changeStudentStage(schuelerId, gradingStageId){ fetch('paed-diary/change-stage',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify({schueler_id:schuelerId,grading_stage_id:gradingStageId})}).then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler beim Ändern der Stufe'); } }).catch(()=> alert('Fehler beim Ändern der Stufe')); }
-    const oldRender=render; render=function(){ oldRender(); // Stage Badges einfügen
-        document.querySelectorAll('#diaryBody tr').forEach(tr=>{ if(tr.classList.contains('class-divider-row')) return; const th=tr.querySelector('th'); if(!th) return; const stuLink=th.querySelector('a'); const href=stuLink?.getAttribute('href')||''; const match=href.match(/paed-diary\/schueler\/(\d+)/); if(!match) return; const stuId=parseInt(match[1]); const student=cache.schueler.find(s=>Number(s.id)===Number(stuId)); if(!student) return; let existing=th.querySelector('.stage-badge-container'); existing && existing.remove(); const container=document.createElement('div'); container.className='stage-badge-container d-inline-block ml-2'; container.innerHTML=renderStudentStage(student); th.appendChild(container); if(cache.can_manage_grading && !groupSelect.value){ container.style.cursor='pointer'; container.addEventListener('click', ev=>{ ev.stopPropagation(); fetchStagesForClass().then(stages=>{ gradingStagesCache=stages; const next=tr.nextElementSibling; if(next && next.classList.contains('stage-card-row')){ next.remove(); return; } document.querySelectorAll('.stage-card-row').forEach(r=>r.remove()); const row=document.createElement('tr'); row.className='stage-card-row'; const td=document.createElement('td'); td.colSpan=diaryHead.querySelector('tr').children.length; td.innerHTML='<div class="d-flex flex-wrap stage-cards-wrapper p-2"></div>'; row.appendChild(td); tr.parentNode.insertBefore(row,tr.nextSibling); const wrap=td.querySelector('.stage-cards-wrapper'); if(!stages.length){ wrap.innerHTML='<div class="text-muted small">Keine Stufen konfiguriert</div>'; return; } wrap.innerHTML=stages.map(s=>{ const img=s.image_url?`<img src="${s.image_url}" alt="${escapeHtml(s.name)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px;">`:''; const symbol=(!s.image_url && s.symbol)?`<i class="${escapeHtml(s.symbol)} fa-2x mb-1" aria-hidden="true"></i>`:''; return `<div class="grading-card border rounded mr-2 mb-2 p-2 text-center" data-stage-id="${s.id}" style="width:120px;cursor:pointer;">${img}${symbol}<div class="small mt-1">${escapeHtml(s.name)}</div></div>`; }).join(''); wrap.querySelectorAll('.grading-card').forEach(card=> card.addEventListener('click', ()=> changeStudentStage(stuId, card.dataset.stageId))); }); }); } }); };
+    // --- Termine ---
+    openAppointmentModalBtn.addEventListener('click', ()=>{
+        appointmentForm.reset();
+        appointmentIdInput.value = '';
+        appointmentModalTitle.textContent = 'Termin erstellen';
+        appointmentDeleteBtn.classList.add('d-none');
+        appointmentPauseBtn.classList.add('d-none');
+        setAppointmentFeedback('','');
+        appointmentModal.modal('show');
+    });
+
+    appointmentIsRecurringInput.addEventListener('change', ()=>{
+        if(appointmentIsRecurringInput.checked){
+            recurringOptions.classList.remove('d-none');
+        } else {
+            recurringOptions.classList.add('d-none');
+        }
+    });
+
+    appointmentForm.addEventListener('submit', e=>{
+        e.preventDefault();
+        appointmentStatus.textContent = 'Speichere...';
+
+        const fd = new FormData(appointmentForm);
+
+        // Aktuell gewählte Klasse/Gruppe hinzufügen falls keine spezifische Auswahl
+        if(groupSelect.value){
+            fd.append('group_ids[]', groupSelect.value);
+        } else {
+            fd.append('klasse_ids[]', klasseSelect.value);
+        }
+
+        const id = appointmentIdInput.value;
+        const url = id ? `paed-diary/appointments/${id}` : 'paed-diary/appointments';
+        const method = id ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: fd
+        })
+        .then(r => r.json())
+        .then(j => {
+            if(j.success){
+                appointmentStatus.textContent = 'Gespeichert';
+                setAppointmentFeedback('Termin erfolgreich gespeichert', 'success');
+                setTimeout(() => {
+                    appointmentModal.modal('hide');
+                    loadWeek();
+                }, 1000);
+            } else {
+                appointmentStatus.textContent = j.message || 'Fehler';
+                setAppointmentFeedback(j.message || 'Fehler beim Speichern', 'danger');
+            }
+        })
+        .catch(() => {
+            appointmentStatus.textContent = 'Fehler beim Speichern';
+            setAppointmentFeedback('Fehler beim Speichern', 'danger');
+        });
+    });
+
+    appointmentDeleteBtn.addEventListener('click', ()=>{
+        const id = appointmentIdInput.value;
+        if(!id) return;
+        if(!confirm('Termin wirklich löschen?')) return;
+
+        appointmentStatus.textContent = 'Lösche...';
+        fetch(`paed-diary/appointments/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(j => {
+            if(j.success){
+                appointmentStatus.textContent = 'Gelöscht';
+                setAppointmentFeedback('Termin gelöscht', 'success');
+                setTimeout(() => {
+                    appointmentModal.modal('hide');
+                    loadWeek();
+                }, 1000);
+            } else {
+                appointmentStatus.textContent = 'Löschen fehlgeschlagen';
+                setAppointmentFeedback('Löschen fehlgeschlagen', 'danger');
+            }
+        })
+        .catch(() => {
+            appointmentStatus.textContent = 'Löschen fehlgeschlagen';
+            setAppointmentFeedback('Löschen fehlgeschlagen', 'danger');
+        });
+    });
+
+    appointmentPauseBtn.addEventListener('click', ()=>{
+        const id = appointmentIdInput.value;
+        if(!id) return;
+
+        appointmentStatus.textContent = 'Aktualisiere...';
+        fetch(`paed-diary/appointments/${id}/toggle-pause`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(j => {
+            if(j.success){
+                const newText = j.is_paused ? 'Reaktivieren' : 'Pausieren';
+                appointmentPauseBtn.textContent = newText;
+                appointmentStatus.textContent = j.is_paused ? 'Pausiert' : 'Reaktiviert';
+                setAppointmentFeedback(j.is_paused ? 'Termin pausiert' : 'Termin reaktiviert', 'success');
+            } else {
+                appointmentStatus.textContent = 'Fehler';
+                setAppointmentFeedback('Fehler beim Pausieren/Reaktivieren', 'danger');
+            }
+        })
+        .catch(() => {
+            appointmentStatus.textContent = 'Fehler';
+            setAppointmentFeedback('Fehler beim Pausieren/Reaktivieren', 'danger');
+        });
+    });
+
+    function setAppointmentFeedback(msg, type = 'info') {
+        if(!appointmentFeedback) return;
+        const colors = {
+            info: '#17a2b8',
+            success: '#28a745',
+            warning: '#ffc107',
+            danger: '#dc3545'
+        };
+        appointmentFeedback.innerHTML = `<span style="color:${colors[type] || '#6c757d'}">${escapeHtml(msg)}</span>`;
+    }
 
     // initial
     loadWeek();
-    // Ende IIFE
+
+// Ende IIFE
 })();
