@@ -339,5 +339,5 @@
 @endpush
 
 @push('js')
-<script src="{{ asset('js/paedDiary.js') }}?v=schuelerterminen"></script>
+<script src="{{ asset('js/paedDiary.js') }}?v={{ filemtime(public_path('js/paedDiary.js'))}}"></script>
 @endpush
