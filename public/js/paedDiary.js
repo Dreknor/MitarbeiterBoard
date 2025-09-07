@@ -639,7 +639,13 @@
 
         const id = appointmentIdInput.value;
         const url = id ? `paed-diary/appointments/${id}` : 'paed-diary/appointments';
-        const method = id ? 'PUT' : 'POST';
+
+        // Laravel/PHP kann PUT-Requests mit FormData nicht direkt parsen.
+        // Wir müssen einen POST-Request mit einem _method-Feld senden.
+        const method = 'POST';
+        if (id) {
+            fd.append('_method', 'PUT');
+        }
 
         fetch(url, {
             method: method,
@@ -702,49 +708,17 @@
         });
     });
 
-    appointmentPauseBtn.addEventListener('click', ()=>{
-        const id = appointmentIdInput.value;
-        if(!id) return;
-
-        appointmentStatus.textContent = 'Aktualisiere...';
-        fetch(`paed-diary/appointments/${id}/toggle-pause`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json'
-            }
-        })
-        .then(r => r.json())
-        .then(j => {
-            if(j.success){
-                const newText = j.is_paused ? 'Reaktivieren' : 'Pausieren';
-                appointmentPauseBtn.textContent = newText;
-                appointmentStatus.textContent = j.is_paused ? 'Pausiert' : 'Reaktiviert';
-                setAppointmentFeedback(j.is_paused ? 'Termin pausiert' : 'Termin reaktiviert', 'success');
-            } else {
-                appointmentStatus.textContent = 'Fehler';
-                setAppointmentFeedback('Fehler beim Pausieren/Reaktivieren', 'danger');
-            }
-        })
-        .catch(() => {
-            appointmentStatus.textContent = 'Fehler';
-            setAppointmentFeedback('Fehler beim Pausieren/Reaktivieren', 'danger');
-        });
-    });
-
-    function setAppointmentFeedback(msg, type = 'info') {
+    function setAppointmentFeedback(msg, type='info'){
         if(!appointmentFeedback) return;
-        const colors = {
-            info: '#17a2b8',
-            success: '#28a745',
-            warning: '#ffc107',
-            danger: '#dc3545'
-        };
-        appointmentFeedback.innerHTML = `<span style="color:${colors[type] || '#6c757d'}">${escapeHtml(msg)}</span>`;
+        const alertClass = `alert-${type}`;
+        appointmentFeedback.innerHTML = `<div class="alert ${alertClass} small p-2 mb-0">${escapeHtml(msg)}</div>`;
+        if(msg === ''){
+            appointmentFeedback.innerHTML = '';
+        }
     }
 
-    // initial
+    // --- Initialisierung ---
     loadWeek();
+    loadGroups();
 
-// Ende IIFE
 })();
