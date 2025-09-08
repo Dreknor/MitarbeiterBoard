@@ -172,7 +172,14 @@ class PaedDiaryController extends Controller
             'completed_at' => $e->completed_at,
             'klasse_id' => $e->klasse_id
         ]);
-        $openEntries = $entries->filter(fn($e) => !$e->completed_at)->map(fn($e) => [
+
+        // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen)
+        $allOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name'])
+            ->whereIn('klasse_id', $klassen->pluck('id'))
+            ->whereNull('completed_at')
+            ->where('datum', '<=', $periodEnd->toDateString()) // Nur Notizen bis zum Ende der aktuellen Woche
+            ->get();
+        $openEntries = $allOpenEntries->map(fn($e) => [
             'id' => $e->id,
             'schueler_ids' => $e->schueler->pluck('id'),
             'date' => $e->datum->toDateString(),
