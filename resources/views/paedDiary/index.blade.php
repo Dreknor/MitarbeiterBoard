@@ -131,7 +131,7 @@
                             <select id="groupSelect" class="form-control form-control-sm">
                                 <option value="">-- Gruppe --</option>
                                 @foreach($groups as $g)
-                                    <option value="{{$g->id}}">{{$g->name}}</option>
+                                    <option value="{{$g->id}}" @if(isset($selectedGroup) && $selectedGroup && $selectedGroup->id === $g->id) selected @endif>{{$g->name}}</option>
                                 @endforeach
                             </select>
                             <button class="btn btn-outline-secondary btn-sm ml-2" id="manageGroupsBtn" type="button" title="Kopplungen verwalten"><i class="fas fa-object-group"></i></button>

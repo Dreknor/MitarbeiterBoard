@@ -30,6 +30,7 @@ class PaedDiaryController extends Controller
     /**
      * Zeigt die Hauptansicht des Pädagogischen Tagebuchs für eine Klasse des angemeldeten Benutzers.
      * Wählt entweder die angeforderte Klasse oder die erste verfügbare Klasse.
+     * Falls Gruppen vorhanden sind, wird die erste Gruppe als Standard geladen.
      *
      * @param Request $request
      * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
@@ -41,18 +42,46 @@ class PaedDiaryController extends Controller
         if ($klassen->isEmpty()) {
             return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Keine Klassen zugewiesen.']);
         }
+
+        $groups = Auth::user()->paed_diary_class_groups()->with('klassen:id,name')->get();
+
         $klasse = null;
-        if ($request->filled('klasse')) {
+        $selectedGroup = null;
+
+        // Prüfen ob eine spezifische Gruppe oder Klasse angefragt wurde
+        if ($request->filled('group')) {
+            $selectedGroup = $groups->firstWhere('id', (int)$request->get('group'));
+            if ($selectedGroup) {
+                // Erste Klasse der Gruppe als Fallback-Klasse verwenden
+                $klasse = $klassen->firstWhere('id', $selectedGroup->klassen->first()?->id) ?? $klassen->first();
+            }
+        } elseif ($request->filled('klasse')) {
             $klasse = $klassen->firstWhere('id', (int)$request->get('klasse'));
         }
+
+        // Falls nichts spezifisch angefragt wurde, Standard-Verhalten anwenden
+        if (!$klasse && !$selectedGroup) {
+            // Falls Gruppen vorhanden sind, erste Gruppe als Standard verwenden
+            if ($groups->isNotEmpty()) {
+                $selectedGroup = $groups->first();
+                // Erste Klasse der Gruppe als Fallback-Klasse verwenden
+                $klasse = $klassen->firstWhere('id', $selectedGroup->klassen->first()?->id) ?? $klassen->first();
+            } else {
+                // Falls keine Gruppen vorhanden, erste Klasse verwenden
+                $klasse = $klassen->first();
+            }
+        }
+
+        // Fallback falls immer noch keine Klasse gefunden wurde
         if (!$klasse) {
             $klasse = $klassen->first();
         }
-        $groups = Auth::user()->paed_diary_class_groups()->with('klassen:id,name')->get();
+
         return view('paedDiary.index', [
             'klassen' => $klassen,
             'klasse' => $klasse,
             'groups' => $groups,
+            'selectedGroup' => $selectedGroup,
         ]);
     }
 
