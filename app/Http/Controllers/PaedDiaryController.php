@@ -162,10 +162,23 @@ class PaedDiaryController extends Controller
                 });
             })
             ->orderBy('klasse_id')->orderBy('sort_order')->get();
-        $entries = PaedDiaryEntry::with(['schueler:id', 'user:id,name'])
+
+        // Einträge der aktuellen Woche laden
+        $currentWeekEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name'])
             ->whereIn('klasse_id', $klassen->pluck('id'))
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
             ->get();
+
+        // Zusätzlich alle offenen Einträge aus vorherigen Wochen laden
+        $previousOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name'])
+            ->whereIn('klasse_id', $klassen->pluck('id'))
+            ->where('datum', '<', $weekStart->toDateString())
+            ->whereNull('completed_at')
+            ->get();
+
+        // Beide Collections zusammenführen
+        $entries = $currentWeekEntries->merge($previousOpenEntries);
+
         $entryData = $entries->map(fn($e) => [
             'id' => $e->id, 'date' => $e->datum->toDateString(), 'content' => $e->content,
             'schueler_ids' => $e->schueler->pluck('id'), 'user' => $e->user?->name,

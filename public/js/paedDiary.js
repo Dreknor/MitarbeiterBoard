@@ -424,7 +424,34 @@
     function setGroupFeedback(msg,type='info'){ if(groupFeedback){ const colors={info:'#17a2b8',success:'#28a745',warning:'#ffc107',danger:'#dc3545'}; groupFeedback.innerHTML=`<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`; } }
 
     // --- Rendering ---
-    function buildEntryMap(){const m={};cache.entries.forEach(e=>e.schueler_ids.forEach(s=>{(m[s]||(m[s]={}))[e.date]=(m[s][e.date]||[]);m[s][e.date].push(e);}));return m;}
+    function buildEntryMap(){
+        const m={};
+
+        // Normale Einträge nach Datum gruppieren
+        cache.entries.forEach(e=>{
+            e.schueler_ids.forEach(s=>{
+                (m[s]||(m[s]={}))[e.date]=(m[s][e.date]||[]);
+                m[s][e.date].push(e);
+            });
+        });
+
+        // Offene Einträge aus vorherigen Wochen auch in allen aktuellen Tagen anzeigen
+        const openPreviousEntries = cache.entries.filter(e => !e.completed_at && new Date(e.date) < new Date(cache.days[0].date));
+        openPreviousEntries.forEach(e => {
+            e.schueler_ids.forEach(s => {
+                // Für jeden Tag der aktuellen Woche den offenen Eintrag hinzufügen
+                cache.days.forEach(day => {
+                    (m[s]||(m[s]={}))[day.date]=(m[s][day.date]||[]);
+                    // Nur hinzufügen wenn der Eintrag nicht bereits vorhanden ist
+                    if (!m[s][day.date].some(existing => existing.id === e.id)) {
+                        m[s][day.date].push(e);
+                    }
+                });
+            });
+        });
+
+        return m;
+    }
     function render(){
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
