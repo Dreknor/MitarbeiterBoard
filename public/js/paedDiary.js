@@ -527,7 +527,32 @@
     // --- Columns Management Events ---
     manageColumnsBtn.addEventListener('click', ()=>{ if(groupSelect.value){return;} columnsCardWrapper.classList.toggle('d-none'); if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns(); });
     columnsCloseBtn.addEventListener('click', ()=> columnsCardWrapper.classList.add('d-none'));
-    columnsList.addEventListener('click', e=>{ const rem=e.target.closest('.remove-col'); const res=e.target.closest('.restore-col'); if(rem){ const chip=rem.closest('.column-chip'); const id=chip.dataset.id; const col=columnsAllCache.find(c=>String(c.id)===String(id)); if(!col) return; const ws=formatDate(currentWeekStart); if(!confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return; fetch(`paed-diary/column/${id}?week_start=${encodeURIComponent(ws)}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte deaktiviert','warning'); loadWeek(); loadAllColumns(); } }); } else if(res){ const chip=res.closest('.column-chip'); const id=chip.dataset.id; fetch(`paed-diary/column/${id}/restore`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte reaktiviert','success'); loadWeek(); loadAllColumns(); } }); } });
+    columnsList.addEventListener('click', e=>{
+        const rem=e.target.closest('.remove-col');
+        const res=e.target.closest('.restore-col');
+        if(rem){
+            const chip=rem.closest('.column-chip');
+            const id=chip.dataset.id;
+            const col=columnsAllCache.find(c=>String(c.id)===String(id));
+            if(!col) return;
+            const ws=formatDate(currentWeekStart);
+            if(!confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return;
+            fetch(`paed-diary/column/${id}?week_start=${encodeURIComponent(ws)}&klasse_id=${encodeURIComponent(klasseSelect.value)}`,{
+                method:'DELETE',
+                headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}
+            }).then(r=>r.json()).then(j=>{
+                if(j.success){
+                    setColumnsFeedback('Spalte deaktiviert','warning');
+                    loadWeek();
+                    loadAllColumns();
+                }
+            });
+        } else if(res){
+            const chip=res.closest('.column-chip');
+            const id=chip.dataset.id;
+            fetch(`paed-diary/column/${id}/restore`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte reaktiviert','success'); loadWeek(); loadAllColumns(); } });
+        }
+    });
     addColumnForm && addColumnForm.addEventListener('submit', e=>{ e.preventDefault(); if(groupSelect.value) return; const fd=new FormData(addColumnForm); fd.append('klasse_id', klasseSelect.value); fetch('paed-diary/column',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ addColumnForm.reset(); setColumnsFeedback('Spalte angelegt','success'); loadWeek(); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); } }); });
 
     function renderColumnsList(){ if(!columnsList) return; if(!columnsAllCache.length){ columnsList.innerHTML='<span class="text-muted small">Keine Spalten</span>'; return; } columnsList.innerHTML = columnsAllCache.map(c=>{ const deac=!!c.deactivated_from; return `<span class="column-chip ${deac?'deactivated':''}" data-id="${c.id}" title="${escapeHtml(c.name)} (${c.type})${deac?` deaktiviert ab ${c.deactivated_from}`:''}"><span>${escapeHtml(c.name)}</span>${!deac?`<button type="button" class="remove-col" title="Deaktivieren">&times;</button>`:`<button type="button" class="restore restore-col" title="Reaktivieren">&#8634;</button>`}</span>`; }).join(''); }
