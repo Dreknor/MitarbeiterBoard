@@ -89,6 +89,94 @@
     function trimText(str,len){return str.length<=len?str:str.slice(0,len-1)+'…';}
     function setModeBadge(){ if(cache.is_group){ modeBadge.classList.remove('d-none'); } else { modeBadge.classList.add('d-none'); } }
 
+    // --- Neu hinzugefügt: Rendering der Zusatzspalten pro Zelle ---
+    function renderColumnInputs(stuId, date){
+        if(!cache.columns || !cache.columns.length) return '';
+        let html='';
+        cache.columns.forEach(col=>{
+            const val = (cache.column_values?.[col.id]?.[stuId]?.[date]) || '';
+            if(col.type==='boolean'){
+                const active = val==='1';
+                html += `<button type="button" class="btn btn-xs bool-btn ${active?'btn-success':'btn-outline-secondary'}" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" data-value="${active?'1':''}" data-name="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</button>`;
+            } else {
+                html += `<input type="text" maxlength="20" class="form-control form-control-sm col-val-input" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" value="${escapeHtml(val)}" placeholder="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">`;
+            }
+        });
+        return html;
+    }
+
+    // --- Neu hinzugefügt: Schüler-Checkboxen für Notizeditor ---
+    function renderStudentCheckboxes(){
+        if(!noteStudentsDiv) return;
+        if(!cache.schueler || !cache.schueler.length){ noteStudentsDiv.innerHTML='<span class="text-muted">Keine Schüler</span>'; return; }
+        // Gruppierung nach Klasse falls Gruppenmodus
+        const byClass = {};
+        cache.schueler.forEach(s=>{ (byClass[s.klasse_id] = byClass[s.klasse_id] || []).push(s); });
+        let html='';
+        Object.keys(byClass).sort().forEach(klasseId=>{
+            const klasse = (cache.klassen||[]).find(k=>k.id==klasseId);
+            if(cache.is_group){ html += `<div class="text-primary font-weight-bold small border-top pt-1 mt-1">${escapeHtml(klasse? klasse.name : ('Klasse '+klasseId))}</div>`; }
+            byClass[klasseId].sort((a,b)=> a.name.localeCompare(b.name,'de')).forEach(s=>{
+                html += `<label class="custom-checkbox-wrapper" style="font-size:.65rem;">`+
+                        `<input type="checkbox" class="custom-checkbox-input" id="stu_chk_${s.id}" value="${s.id}" name="schueler_ids[]">`+
+                        `<span class="custom-checkbox-label">${escapeHtml(s.name)}</span>`+
+                        `</label>`;
+            });
+        });
+        noteStudentsDiv.innerHTML=html;
+    }
+
+    // --- Neu hinzugefügt: Aufgaben & offene Notizen Panel ---
+    function renderTasks(){
+        if(!tasksPanel || !tasksList) return;
+        const hasTasks = Array.isArray(cache.tasks) && cache.tasks.length>0;
+        const openNotes = (cache.entries||[]).filter(e=>!e.completed_at);
+        const hasOpenNotes = openNotes.length>0;
+        if(!hasTasks && !hasOpenNotes){ tasksPanel.style.display='none'; return; }
+        tasksPanel.style.display='block';
+        let html='';
+        if(hasTasks){
+            html += cache.tasks.map(t=>{
+                const stu = cache.schueler.find(s=>s.id===t.schueler_id);
+                const name = stu? stu.name : 'Schüler';
+                const due = t.due_date? new Date(t.due_date).toLocaleDateString() : '';
+                return `<div class="task-item mb-2 p-2 border rounded ${t.highlighted?'border-warning bg-light':'border-secondary'}" data-task-id="${t.id}">`+
+                       `<div class="d-flex justify-content-between align-items-start">`+
+                       `<div class="flex-grow-1"><div class="font-weight-bold small">${escapeHtml(t.title)}</div>`+
+                       `<div class="text-muted small">${escapeHtml(name)}${due?' · Fällig: '+due:''}</div>`+
+                       `</div><button class="btn btn-sm btn-success close-task-btn" data-task-id="${t.id}" title="Erledigt"><i class="fas fa-check"></i></button></div></div>`;}).join('');
+        }
+        if(hasOpenNotes){
+            html += '<div class="mt-2 mb-1 small font-weight-bold">Offene Notizen</div>';
+            html += openNotes.slice(0,100).map(e=>{
+                const students = e.schueler_ids.map(id=>{ const s=cache.schueler.find(x=>x.id===id); return s? s.name: 'n/a'; }).join(', ');
+                return `<div class="task-item mb-2 p-2 border rounded border-danger bg-light" data-entry-id="${e.id}">`+
+                       `<div class="d-flex justify-content-between align-items-start">`+
+                       `<div class="flex-grow-1"><div class="font-weight-bold small">${escapeHtml(trimText(e.content,140))}</div>`+
+                       `<div class="text-muted small">${escapeHtml(students)}</div>`+
+                       `<div class="text-muted small">${escapeHtml(e.date)}</div>`+
+                       `</div><button class="btn btn-sm btn-success complete-entry-btn" data-entry-id="${e.id}" title="Abschließen"><i class="fas fa-check"></i></button></div></div>`;}).join('');
+        }
+        tasksList.innerHTML = html;
+    }
+
+    // Rendert das Symbol/Badge für die Graduierungsstufe eines Schülers (jetzt immer klickbar bei Berechtigung)
+    function renderStageSymbol(student) {
+        const canManage = cache.can_manage_grading;
+        const baseData = `data-stu="${student.id}" data-klasse="${student.klasse_id}"`;
+        let inner;
+        if(!student.stage){
+            inner = '<span class="badge badge-light" title="Stufe setzen">Stufe</span>';
+        } else if(student.stage.image_url){
+            inner = `<img src="${escapeHtml(student.stage.image_url)}" alt="${escapeHtml(student.stage.name)}" title="${escapeHtml(student.stage.name)}" class="stage-image" style="width:20px;height:20px;object-fit:contain;">`;
+        } else if(student.stage.symbol){
+            inner = `<span class="badge badge-info" title="${escapeHtml(student.stage.name)}">${escapeHtml(student.stage.symbol)}</span>`;
+        } else {
+            inner = `<span class="badge badge-secondary" title="${escapeHtml(student.stage.name)}">${escapeHtml(student.stage.name)}</span>`;
+        }
+        return canManage ? `<span class="stage-change ml-1" ${baseData}>${inner}</span>` : inner;
+    }
+
     // Formatiert Zeit von "HH:MM:SS" zu "HH:MM" oder von ISO 8601 DateTime zu "HH:MM" (lokale Zeitzone)
     function formatTime(timeStr) {
         if (!timeStr) return '';
@@ -473,14 +561,15 @@
                 diaryBody.appendChild(divider);
             }
             let row = `<th class="align-top" style="font-size:.72rem;">
-                <a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${stu.name} <i class="fas fa-external-link-alt small ml-1"></i></a>
+                <a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${stu.name} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>
                 <span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>
+                ${renderStageSymbol(stu)}
             </th>`;
             cache.days.forEach(d=>{
                 const entries=(entryMap[stu.id]?.[d.date])||[];
-                const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class="entry-item" data-entry="${e.id}" data-content="${enc}">`+(e.user?`<span class="author">${escapeHtml(e.user)}</span>`:'')+`<span class="text">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
+                const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">`+(e.user?`<span class=\"author\">${escapeHtml(e.user)}</span>`:'')+`<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
                 const isToday = d.date === todayStr;
-                row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday?' today-cell':''}" data-stu="${stu.id}" data-date="${d.date}"><div class="entry-list">${entriesHtml}</div><div class="col-inputs-row"><div class="col-inputs">${renderColumnInputs(stu.id,d.date)}</div></div></td>`;
+                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday?' today-cell':''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\"><div class=\"entry-list\">${entriesHtml}</div><div class=\"col-inputs-row\"><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></div></td>`;
             });
             const tr=document.createElement('tr');
             if(taskStudentIds.has(stu.id)) tr.classList.add('stu-has-task');
@@ -490,7 +579,6 @@
         weekLabel.textContent=`${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
         renderStudentCheckboxes();
         taskSchuelerSelect.innerHTML='<option value="">-- Schüler --</option>'+cache.schueler.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-        // Export-Button immer aktiv, auch im Gruppenmodus
         exportCsvBtn.classList.remove('disabled');
         if(groupSelect.value){
             exportCsvBtn.href = `/export/paed-diary/excel?group_id=${encodeURIComponent(groupSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
@@ -503,48 +591,96 @@
         }
         renderTasks();
     }
-    function renderColumnInputs(stuId, date) {
-        if (!cache.columns.length) return '';
-        const student = cache.schueler.find(s=>s.id===stuId);
-        let cols = cache.columns;
-        if(cache.is_group && student){
-            cols = cols.filter(c=>c.klasse_id === student.klasse_id);
-        }
-        return cols.map(col => {
-            const v = cache.column_values?.[col.id]?.[stuId]?.[date] || '';
-            if (col.type === 'boolean') {
-                const active = v === '1';
-                return `<button type="button" class="btn btn-${active?'success':'outline-secondary'} bool-btn" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" data-value="${active?1:0}" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</button>`;
-            } else if (col.type === 'number') {
-                return `<input type="number" class="form-control form-control-sm col-val-input" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" value="${escapeHtml(v)}" title="${escapeHtml(col.name)}" />`;
-            } else {
-                return `<input type="text" class="form-control form-control-sm col-val-input" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" value="${escapeHtml(v)}" title="${escapeHtml(col.name)}" maxlength="50" />`;
-            }
-        }).join('');
+
+    // --- Zusatz: Inline Stage Dropdown ---
+    let stageDropdownEl = null;
+    function closeStageDropdown(){
+        if(stageDropdownEl){ stageDropdownEl.remove(); stageDropdownEl=null; }
+        document.removeEventListener('keydown', onStageDropdownKey);
     }
-    function renderStudentCheckboxes(){
-        noteStudentsDiv.innerHTML = '<div class="mb-1">'+
-            '<button type="button" class="btn btn-xs btn-outline-primary mr-1" id="studentsSelectAll">Alle</button>'+
-            '<button type="button" class="btn btn-xs btn-outline-secondary" id="studentsSelectNone">Keine</button>'+
-            '</div>' +
-            cache.schueler.map(s=>`<div class="form-check-inline mb-1"><input class="form-check-input" type="checkbox" name="schueler_ids[]" id="stu_chk_${s.id}" value="${s.id}"><label class="form-check-label small" for="stu_chk_${s.id}">${escapeHtml(s.name)}</label></div>`).join('');
-        const allBtn=document.getElementById('studentsSelectAll'); const noneBtn=document.getElementById('studentsSelectNone');
-        allBtn&&allBtn.addEventListener('click',()=> noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=true));
-        noneBtn&&noneBtn.addEventListener('click',()=> noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false));
+    function onStageDropdownKey(e){ if(e.key==='Escape'){ closeStageDropdown(); } }
+
+    function openStageDropdown(stageTriggerEl){
+        if(!cache.can_manage_grading) return;
+        const stuId = stageTriggerEl.dataset.stu;
+        const klasseId = stageTriggerEl.dataset.klasse;
+        const student = cache.schueler.find(s=>String(s.id)===String(stuId));
+        if(!student) return;
+        closeStageDropdown();
+        stageDropdownEl = document.createElement('div');
+        stageDropdownEl.className='stage-dropdown shadow-sm';
+        stageDropdownEl.innerHTML = '<div class="stage-dd-inner small px-2 py-1">Lade...</div>';
+        document.body.appendChild(stageDropdownEl);
+        const rect = stageTriggerEl.getBoundingClientRect();
+        stageDropdownEl.style.top = (window.scrollY + rect.bottom + 4)+'px';
+        stageDropdownEl.style.left = (window.scrollX + rect.left)+'px';
+        stageDropdownEl.style.minWidth = Math.max(140, rect.width+20)+'px';
+        // Korrigierte Route
+        fetch(`paed-diary/klasse/${klasseId}/stages`, {headers:{'Accept':'application/json'}})
+            .then(r=>r.json())
+            .then(j=>{
+                const stages = j.stages||[];
+                const currentId = student.stage? student.stage.id : null;
+                if(!stages.length){
+                    stageDropdownEl.querySelector('.stage-dd-inner').innerHTML = '<div class="text-muted">Keine Stufen</div>';
+                    return;
+                }
+                const list = stages.map(s=>`<button type="button" class="dropdown-item stage-dd-item ${String(s.id)===String(currentId)?'active':''}" data-stage="${s.id}">${escapeHtml(s.name)}</button>`).join('');
+                const noneBtn = `<button type="button" class="dropdown-item stage-dd-item ${currentId? '':'active'}" data-stage="">(Keine)</button>`;
+                stageDropdownEl.querySelector('.stage-dd-inner').innerHTML = noneBtn + list;
+            }).catch(()=>{
+                stageDropdownEl.querySelector('.stage-dd-inner').innerHTML = '<div class="text-danger">Fehler</div>';
+            });
+        stageDropdownEl.addEventListener('click', ev=>{
+            const item = ev.target.closest('.stage-dd-item');
+            if(!item) return;
+            const newStageId = item.dataset.stage || '';
+            changeStudentStage(stuId, newStageId, klasseId, stageTriggerEl);
+        });
+        setTimeout(()=> document.addEventListener('keydown', onStageDropdownKey),0);
     }
 
-    // --- Tasks Rendering (unverändert weitgehend) ---
-    function renderTasks(){
-        const hasTasks = cache.tasks && cache.tasks.length > 0;
-        const openNotes = cache.entries.filter(e => !e.completed_at);
-        const hasOpenNotes = openNotes.length > 0;
-        if(!hasTasks && !hasOpenNotes){ tasksPanel.style.display='none'; return; }
-        tasksPanel.style.display='block';
-        let html='';
-        if(hasTasks){ html += cache.tasks.map(task=>{ const student = cache.schueler.find(s=>s.id===task.schueler_id); const studentName = student?student.name:'Unbekannt'; const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleDateString():''; return `<div class="task-item mb-2 p-2 border rounded ${task.highlighted?'border-warning bg-light':'border-secondary'}" data-task-id="${task.id}"><div class="d-flex justify-content-between align-items-start"><div class="flex-grow-1"><div class="font-weight-bold small">${escapeHtml(task.title)}</div><div class="text-muted small">Schüler: ${escapeHtml(studentName)}</div>${dueDateStr?`<div class="text-muted small">Fällig: ${dueDateStr}</div>`:''}</div><button class="btn btn-sm btn-success close-task-btn" data-task-id="${task.id}" title="Als erledigt markieren"><i class="fas fa-check"></i></button></div></div>`; }).join(''); }
-        if(hasOpenNotes){ html += '<div class="mt-3"><span class="font-weight-bold small">Offene Notizen</span></div>'; html += openNotes.map(entry=>{ const schuelerNamen = entry.schueler_ids.map(id=>{ const s=cache.schueler.find(stu=>stu.id===id); return s?escapeHtml(s.name):'Unbekannt'; }).join(', '); return `<div class="task-item mb-2 p-2 border rounded border-danger bg-light" data-entry-id="${entry.id}"><div class="d-flex justify-content-between align-items-start"><div class="flex-grow-1"><div class="font-weight-bold small">${escapeHtml(entry.content)}</div><div class="text-muted small">Schüler: ${schuelerNamen}</div><div class="text-muted small">Datum: ${escapeHtml(entry.date)}</div></div><button class="btn btn-sm btn-success complete-entry-btn" data-entry-id="${entry.id}" title="Notiz abschließen"><i class="fas fa-check"></i></button></div></div>`; }).join(''); }
-        tasksList.innerHTML = html;
+    function changeStudentStage(stuId, newStageId, klasseId, triggerEl){
+        if(!stuId) return;
+        const fd = new FormData();
+        fd.append('schueler_id', stuId);
+        if(newStageId){ fd.append('grading_stage_id', newStageId); }
+        // Korrigierte Route
+        fetch('paed-diary/change-stage', {method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}, body:fd})
+            .then(r=>r.json())
+            .then(j=>{
+                if(j.success){
+                    const student = cache.schueler.find(s=>String(s.id)===String(stuId));
+                    if(student){ student.stage = j.new_stage ? {id:j.new_stage.id, name:j.new_stage.name, symbol:j.new_stage.symbol} : null; }
+                    const th = triggerEl.closest('th');
+                    if(th){
+                        const nameLink = th.querySelector('a')?.outerHTML || '';
+                        const klasseBadge = th.querySelector('.badge-light')?.outerHTML || '';
+                        th.innerHTML = nameLink + ' ' + klasseBadge + ' ' + (renderStageSymbol(student)||'');
+                    }
+                    closeStageDropdown();
+                } else {
+                    alert(j.message||'Fehler beim Speichern');
+                }
+            })
+            .catch(()=> alert('Fehler beim Speichern'));
     }
+
+    // Überschreibe bestehenden Stage-Klick-Listener (falls vorhanden) nach Definition
+    diaryBody.addEventListener('click', e=>{
+        const stageEl = e.target.closest('.stage-change');
+        if(stageEl){
+            e.preventDefault();
+            e.stopPropagation();
+            openStageDropdown(stageEl);
+        }
+    }, true); // Capture, damit alter Listener (Modal) nicht greift
+
+    document.addEventListener('click', e=>{
+        if(stageDropdownEl && !stageDropdownEl.contains(e.target) && !e.target.closest('.stage-change')){
+            closeStageDropdown();
+        }
+    });
 
     // --- Events Diary ---
     diaryBody.addEventListener('click', e=>{ const entry=e.target.closest('.entry-item'); if(entry){ populateForEdit(entry); return; } const cell=e.target.closest('.note-cell'); if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }});
