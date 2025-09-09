@@ -49,6 +49,44 @@
           </div>
         </div>
         <!-- Ende Gruppen Management Modal -->
+
+        <!-- Graduierungsstufen Modal -->
+        <div class="modal fade" id="stagingModal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header py-2">
+                <h6 class="modal-title">Graduierungsstufe ändern</h6>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              </div>
+              <form id="stagingForm">
+                <div class="modal-body p-2">
+                    <div id="stagingFeedback" class="small mb-2"></div>
+                    <input type="hidden" name="schueler_id" id="stagingSchueler" value="">
+                    <div class="form-group mb-2">
+                        <label class="small mb-1">Schüler</label>
+                        <div class="form-control-plaintext small" id="stagingSchuelerName"></div>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="small mb-1">Aktuelle Stufe</label>
+                        <div class="form-control-plaintext small" id="stagingCurrentStage"></div>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="small mb-1">Neue Stufe</label>
+                        <select name="grading_stage_id" id="stagingNewStage" class="form-control form-control-sm">
+                            <option value="">-- Keine Stufe --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="submit" class="btn btn-primary btn-sm">Ändern</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Abbrechen</button>
+                    <span class="text-muted small ml-3" id="stagingStatus"></span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
         <div class="col-12 mb-2" id="noteEditorWrapper">
             <div class="card shadow-sm d-none" id="noteEditorCard">
                 <div class="card-header py-2 d-flex align-items-center justify-content-between">
