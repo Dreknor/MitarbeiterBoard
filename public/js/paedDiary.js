@@ -326,6 +326,7 @@
                         appointmentSpan.style.cursor = 'pointer';
                         appointmentSpan.title = appointment.description || appointment.title;
 
+
                         let timeText = '';
                         if(appointment.start_time){
                             timeText = formatTime(appointment.start_time);
@@ -335,7 +336,14 @@
                             timeText += ' ';
                         }
 
-                        appointmentSpan.innerHTML = `${timeText}${escapeHtml(trimText(appointment.title, 20))}`;
+                        // In der Gruppenansicht Klassennamen hinzufügen
+                        let titleText = escapeHtml(trimText(appointment.title, 20));
+                        if(cache.is_group && appointment.klassen && appointment.klassen.length > 0) {
+                            const klassenNames = appointment.klassen.map(k => k.name).join(', ');
+                            titleText += ` (${escapeHtml(klassenNames)})`;
+                        }
+
+                        appointmentSpan.innerHTML = `${timeText}${titleText}`;
 
                         // Click-Event zum Bearbeiten
                         appointmentSpan.addEventListener('click', () => {
