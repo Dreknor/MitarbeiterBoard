@@ -92,8 +92,17 @@
     // --- Neu hinzugefügt: Rendering der Zusatzspalten pro Zelle ---
     function renderColumnInputs(stuId, date){
         if(!cache.columns || !cache.columns.length) return '';
+
+        // In der Gruppenansicht nur Spalten der Klasse des Schülers anzeigen
+        const student = cache.schueler.find(s => s.id === stuId);
+        if (!student) return '';
+
+        const columnsForStudent = cache.is_group
+            ? cache.columns.filter(col => col.klasse_id === student.klasse_id)
+            : cache.columns;
+
         let html='';
-        cache.columns.forEach(col=>{
+        columnsForStudent.forEach(col=>{
             const val = (cache.column_values?.[col.id]?.[stuId]?.[date]) || '';
             if(col.type==='boolean'){
                 const active = val==='1';
