@@ -31,7 +31,8 @@ class CreateKlasseRequest extends FormRequest
             'kuerzel' => [
                 'nullable',
                 'unique:klassen',
-            ]
+            ],
+            'color' => 'nullable|string|max:7'
         ];
     }
 }

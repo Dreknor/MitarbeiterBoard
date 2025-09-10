@@ -89,6 +89,20 @@
     function trimText(str,len){return str.length<=len?str:str.slice(0,len-1)+'…';}
     function setModeBadge(){ if(cache.is_group){ modeBadge.classList.remove('d-none'); } else { modeBadge.classList.add('d-none'); } }
 
+    // Berechnet die Helligkeit einer Farbe für besseren Kontrast
+    function getBrightness(hexColor) {
+        // Entferne # falls vorhanden
+        const hex = hexColor.replace('#', '');
+
+        // Konvertiere zu RGB
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+
+        // Berechne relative Helligkeit nach W3C-Formel
+        return ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    }
+
     // --- Neu hinzugefügt: Rendering der Zusatzspalten pro Zelle ---
     function renderColumnInputs(stuId, date){
         if(!cache.columns || !cache.columns.length) return '';
@@ -574,6 +588,15 @@
                 const td=document.createElement('td');
                 td.colSpan = cache.days.length+1;
                 td.textContent = (kObj? kObj.name : ('Klasse '+stu.klasse_id));
+
+                // Klassenfarbe als Hintergrundfarbe setzen, falls vorhanden
+                if(kObj && kObj.color) {
+                    td.style.backgroundColor = kObj.color;
+                    // Textfarbe anpassen für besseren Kontrast
+                    const brightness = getBrightness(kObj.color);
+                    td.style.color = brightness > 128 ? '#000000' : '#ffffff';
+                }
+
                 divider.appendChild(td);
                 diaryBody.appendChild(divider);
             }
@@ -893,7 +916,7 @@
                 'Accept': 'application/json'
             }
         })
-        .then(r => r.json())
+        .then (r => r.json())
         .then(j => {
             if(j.success){
                 appointmentStatus.textContent = 'Gelöscht';

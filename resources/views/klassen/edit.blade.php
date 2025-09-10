@@ -23,6 +23,13 @@
                                     <label for="kuerzel">Kürzel</label>
                                     <input name="kuerzel" id="kuerzel" class="form-control" value="{{$klasse->kuerzel}}" required>
                                 </div>
+                                <div class="col-md-4 col-sm-8 mb-3">
+                                    <div class="form-group">
+                                        <label for="color">Farbe</label>
+                                        <input type="color" class="form-control color-picker-enhanced" placeholder="#ffffff" name="color" value="{{$klasse->color}}">
+
+                                    </div>
+                                </div>
                                 <div class="col-md-4 col-sm-12 mb-3">
                                     <label for="paed_user_ids">Mitarbeiter (pädagogisches Tagebuch)</label>
                                     <select name="paed_user_ids[]" id="paed_user_ids" class="form-control" multiple size="5">

@@ -18,7 +18,7 @@
         </thead>
         <tbody>
         @foreach($klassen as $klasse)
-            <tr>
+            <tr style="background-color: {{$klasse->color}}">
                 <td>{{ $klasse->name }}</td>
                 <td>{{ $klasse->kuerzel }}</td>
                 <td>
@@ -39,3 +39,7 @@
     </table>
 </div>
 @endsection
+
+@push('css')
+    <link rel="stylesheet" href="{{ asset('css/own.css') }}">
+@endpush

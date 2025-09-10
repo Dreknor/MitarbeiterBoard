@@ -1,0 +1,27 @@
+@extends('paedDiary.week.layout')
+@section('content')
+    <table id="week-table" class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>
+                    Klasse
+                </th>
+                <th>
+                    Montag
+                </th>
+                <th>
+                    Dienstag
+                </th>
+                <th>
+                    Mittwoch
+                </th>
+                <th>
+                    Donnerstag
+                </th>
+                <th>
+                    Freitag
+                </th>
+            </tr>
+        </thead>
+    </table>
+@endsection

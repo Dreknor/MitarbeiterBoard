@@ -31,7 +31,8 @@ class EditKlasseRequest extends FormRequest
             'kuerzel' => [
                 'nullable',
                 'unique:klassen,kuerzel',
-            ]
+            ],
+            'color' => 'nullable|string|max:7'
         ];
     }
 }

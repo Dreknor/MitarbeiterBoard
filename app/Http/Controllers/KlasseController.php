@@ -90,7 +90,8 @@ class KlasseController extends Controller
             'paed_user_ids.*' => ['integer','exists:users,id'],
             'paed_group_ids' => ['nullable','array'], // neu: Gruppen IDs
             'paed_group_ids.*' => ['integer','exists:groups,id'],
-            'grading_system_id' => ['nullable','integer','exists:grading_systems,id']
+            'grading_system_id' => ['nullable','integer','exists:grading_systems,id'],
+            'color' => 'nullable|string|max:7'
         ]);
 
         // Remember previous grading_system to detect changes
@@ -103,6 +104,7 @@ class KlasseController extends Controller
                 'name' => $validatedData['name'],
                 'kuerzel' => $validatedData['kuerzel'],
                 'grading_system_id' => $validatedData['grading_system_id'] ?? null,
+                'color' => $validatedData['color'] ?? null,
             ]);
 
             // Nutzer IDs aus Formular

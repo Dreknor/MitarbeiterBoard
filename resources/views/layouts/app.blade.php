@@ -149,6 +149,12 @@
                                 <p>Päd. Tagebuch</p>
                             </a>
                         </li>
+                        <li class="@if(request()->segment(1)=="display-week") active @endif">
+                            <a href="{{url('/display-week')}}">
+                                <i class="fas fa-calendar-week"></i>
+                                <p>Wochenübersicht</p>
+                            </a>
+                        </li>
                     @endcan
                     @can('edit inventar')
                         <li class="@if(request()->segment(1)=="inventory" ) active  @endif">

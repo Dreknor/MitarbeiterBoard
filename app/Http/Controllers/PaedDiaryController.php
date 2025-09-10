@@ -133,7 +133,7 @@ class PaedDiaryController extends Controller
         $klasse = null;
         $klassen = collect();
         if ($isGroup) {
-            $group = PaedDiaryClassGroup::with('klassen:id,name,kuerzel')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
+            $group = PaedDiaryClassGroup::with('klassen:id,name,kuerzel,color')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
             $klassen = $group->klassen->whereIn('id', $userKlassenIds)->values();
             if ($klassen->isEmpty()) {
@@ -221,7 +221,7 @@ class PaedDiaryController extends Controller
                 'klasse_name' => $klassen->firstWhere('id', $s->klasse_id)?->name,
                 'stage' => $s->grading_stage ? ['id' => $s->grading_stage->id, 'name' => $s->grading_stage->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url] : null
             ]),
-            'klassen' => $klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name, 'kuerzel' => $k->kuerzel]),
+            'klassen' => $klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name, 'kuerzel' => $k->kuerzel, 'color' => $k->color]),
             'can_manage_grading' => Auth::user()->can('manage grading systems'),
             'entries' => $entryData,
             'open_entries' => $openEntries,

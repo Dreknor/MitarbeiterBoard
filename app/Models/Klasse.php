@@ -11,8 +11,8 @@ class Klasse extends Model
 
     protected $table = 'klassen';
 
-    protected $visible = ['name', 'kuerzel'];
-    protected $fillable = ['name', 'kuerzel', 'grading_system_id'];
+    protected $visible = ['name', 'kuerzel', 'color'];
+    protected $fillable = ['name', 'kuerzel', 'grading_system_id', 'color'];
 
     public function wochenplaene(){
         return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);
@@ -45,5 +45,10 @@ class Klasse extends Model
     public function grading_system()
     {
         return $this->belongsTo(GradingSystem::class, 'grading_system_id');
+    }
+
+    public function  appointments()
+    {
+        return $this->belongsToMany(PaedDiaryAppointment::class, 'paed_diary_appointment_klassen');
     }
 }

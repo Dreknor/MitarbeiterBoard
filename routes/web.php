@@ -14,6 +14,7 @@ use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\PeadDiaryWeekController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\EmploymentController;
@@ -73,6 +74,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 Route::get('/auth/redirect', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'login']);
 
+Route::get('display-week/{secret?}', [PeadDiaryWeekController::class, 'displayWeek']);
 
 Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'auth']);
 
@@ -664,7 +666,6 @@ Route::group([
                         // Reorder stages via AJAX
                         Route::post('/system/{system}/stages/order', [\App\Http\Controllers\GradingAdminController::class,'reorderStages'])->name('admin.grading.stage.reorder');
                     });
-
                 });
 
             });
