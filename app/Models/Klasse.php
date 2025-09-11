@@ -51,4 +51,18 @@ class Klasse extends Model
     {
         return $this->belongsToMany(PaedDiaryAppointment::class, 'paed_diary_appointment_klassen');
     }
+
+    public function getTextColorAttribute()
+    {
+        // Calculate the brightness of the background color
+        $color = ltrim($this->color, '#');
+        $r = hexdec(substr($color, 0, 2));
+        $g = hexdec(substr($color, 2, 2));
+        $b = hexdec(substr($color, 4, 2));
+        $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
+
+        // Return black for light backgrounds and white for dark backgrounds
+        return $brightness > 125 ? '#000000' : '#FFFFFF';
+    }
+
 }

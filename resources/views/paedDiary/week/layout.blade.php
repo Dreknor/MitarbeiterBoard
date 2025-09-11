@@ -40,6 +40,18 @@
             min-height: 100vh;
             height: 100%;
         }
+
+        #week-table {
+            height: 100vh;
+            width: 100%;
+            font-size: 1.0vw; /* Skaliert Schriftgröße mit Bildschirmbreite */
+            table-layout: fixed;
+        }
+        #week-table th, #week-table td {
+            vertical-align: middle;
+            text-align: center;
+
+        }
     </style>
     @stack('css')
 
