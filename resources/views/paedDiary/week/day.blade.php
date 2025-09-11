@@ -3,10 +3,10 @@
    <li class="d-flex justify-content-between align-items-center">
        <div class="row">
 
-           <div class="col text-end">
+           <div class="col-auto text-start">
                 {{$appointment['start_time']->format('H:i')}} - {{$appointment['end_time']->format('H:i')}}
            </div>
-           <div class="col text-start">
+           <div class="col text-end">
                {{$appointment['title']}}
            </div>
        </div>
