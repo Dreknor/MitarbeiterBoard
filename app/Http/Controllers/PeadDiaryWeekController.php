@@ -24,6 +24,20 @@ class PeadDiaryWeekController extends Controller
 
         $klassen = Klasse::query()->where('color', '!=', '#ffffff')->with('appointments')->orderBy('name')->get();
 
+        $klassengruppen = \App\Models\PaedDiaryClassGroup::query()->whereHas('klassen', function($q){
+            $q->where('color', '!=', '#ffffff');
+        })->with(['klassen' => function($q){
+            $q->where('color', '!=', '#ffffff')->orderBy('name');
+        }])->orderBy('name')->get();
+
+        foreach ($klassengruppen as $gruppe){
+            foreach ($gruppe->klassen as $klasse){
+                if (!$klassen->contains($klasse)){
+                    $klassen->push($klasse);
+                }
+            }
+        }
+
 
         $appointmentsByDay = [];
 
