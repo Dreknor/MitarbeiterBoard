@@ -14,5 +14,9 @@ class PaedDiaryClassGroup extends Model
     public function klassen(){
         return $this->belongsToMany(Klasse::class,'paed_diary_class_group_klasse','group_id','klasse_id');
     }
+
+    public function appointments(){
+        return $this->belongsToMany(PaedDiaryAppointment::class, 'paed_diary_appointment_groups', 'paed_diary_class_group_id', 'paed_diary_appointment_id');
+    }
 }
 

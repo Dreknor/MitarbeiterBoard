@@ -22,7 +22,7 @@ class PeadDiaryWeekController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
         $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY);
 
-        $klassen = Klasse::query()->where('color', '!=', '#ffffff')->with('appointments')->orderBy('name')->get();
+        $klassen = Klasse::query()->where('color', '!=', '#ffffff')->orderBy('name')->get();
 
         $klassengruppen = \App\Models\PaedDiaryClassGroup::query()->whereHas('klassen', function($q){
             $q->where('color', '!=', '#ffffff');
@@ -42,11 +42,29 @@ class PeadDiaryWeekController extends Controller
         $appointmentsByDay = [];
 
         foreach ($klassen as $klasse) {
+
             foreach ($klasse->appointments as $appointment) {
                 $occurrences = $appointment->getOccurrencesInRange($startOfWeek, $endOfWeek);
                 foreach ($occurrences as $occurrence) {
                    $date = Carbon::parse($occurrence['date']);
                     $appointmentsByDay[$klasse->id][$date->dayOfWeek][] = $occurrence;
+                }
+            }
+        }
+
+        foreach ($klassengruppen as $gruppe) {
+
+            foreach ($gruppe->appointments as $appointment) {
+                $occurrences = $appointment->getOccurrencesInRange($startOfWeek, $endOfWeek);
+                foreach ($occurrences as $occurrence) {
+                   $date = Carbon::parse($occurrence['date']);
+                   foreach ($gruppe->klassen as $klasse) {
+                       if (!array_key_exists($klasse->id, $appointmentsByDay)) {
+                           $appointmentsByDay[$klasse->id] = [];
+                       }
+
+                       $appointmentsByDay[$klasse->id][$date->dayOfWeek][] = $occurrence;
+                   }
                 }
             }
         }
