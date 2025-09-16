@@ -369,7 +369,7 @@
 @endsection
 
 @push('css')
-<link rel="stylesheet" href="{{ asset('css/paedDiary.css') }}">
+<link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20250916') }}">
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }
