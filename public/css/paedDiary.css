@@ -9,7 +9,7 @@
 }
 #diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
 #diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
-#diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em;}
+#diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em; font-size:0.95rem;}
 #diaryTable td.note-cell .entry-item:hover{background:#e2e6ea;}
 #noteEditorCard{border-left:4px solid #17a2b8;}
 #noteEditorCard.editing{border-left-color:#ffc107;}
@@ -18,17 +18,33 @@
 #noteStudents .form-check-input{margin-right:3px;}
 #noteEditorWrapper .card{animation:fadeSlide .18s ease-in;}
 /* Columns Management */
-.column-chip{display:inline-flex;align-items:center;background:#e9ecef;border-radius:16px;padding:2px 8px;font-size:0.65rem;margin:2px;line-height:1;position:relative;}
-.column-chip.deactivated{background:#f8d7da;color:#721c24;text-decoration:line-through;}
-.column-chip button{border:none;background:transparent;color:#c00;margin-left:6px;padding:0;font-size:0.8rem;}
-.column-chip button.restore{color:#155724;}
-.column-chip button:hover{opacity:.8;}
+/* Modernisierte Chips für Spaltenverwaltung */
+.column-chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%);border:1px solid #dfe3e8;border-radius:18px;padding:3px 10px;font-size:0.72rem;margin:3px;line-height:1;color:#34495e;position:relative;box-shadow:0 1px 2px rgba(0,0,0,0.06);transition:background .2s ease, box-shadow .2s ease, transform .06s ease;}
+.column-chip:hover{background:linear-gradient(180deg,#eef2f7 0%,#e5eaf0 100%);box-shadow:0 2px 8px rgba(0,0,0,0.10);}
+.column-chip.deactivated{background:linear-gradient(180deg,#fdecec 0%,#f8d7da 100%);border-color:#f5c2c7;color:#7f1d1d;text-decoration:line-through;}
+.column-chip button{border:1px solid #ced4da;background:#ffffff;color:#c62828;margin-left:6px;padding:0 6px;height:18px;line-height:16px;font-size:0.8rem;border-radius:10px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;}
+.column-chip button:hover{background:#fdecea;border-color:#f5c2c7;color:#8b1d1d;}
+.column-chip button.restore{color:#1b5e20;border-color:#b7e1c0;background:#e9f7ef;}
+.column-chip button.restore:hover{background:#d4edda;border-color:#a3d9b1;color:#155724;}
 /* Column inputs */
-#diaryTable td.note-cell .col-inputs{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;}
+#diaryTable td.note-cell .col-inputs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;align-items:flex-start;}
 #diaryTable td.note-cell .col-inputs input[type=text],
-#diaryTable td.note-cell .col-inputs input[type=number]{width:48px;padding:0 3px;font-size:0.6rem;line-height:1.1;}
-#diaryTable td.note-cell .col-inputs .bool-btn{padding:2px 6px;font-size:0.70rem;line-height:1;border-radius:3px;}
-#diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary{background: #525055;}
+#diaryTable td.note-cell .col-inputs input[type=number]{width:56px;min-height:26px;padding:2px 6px;font-size:0.7rem;line-height:1.2;border:1px solid #ced4da;border-radius:6px;background:#fff;transition:border-color .15s ease, box-shadow .15s ease;}
+/* Fokus- und Placeholder-Styles für bessere Lesbarkeit */
+#diaryTable td.note-cell .col-inputs input[type=text]::placeholder,
+#diaryTable td.note-cell .col-inputs input[type=number]::placeholder{color:#9aa4af;opacity:1;}
+#diaryTable td.note-cell .col-inputs input[type=text]:focus,
+#diaryTable td.note-cell .col-inputs input[type=number]:focus{outline:0;border-color:#1976d2;box-shadow:0 0 0 2px rgba(25,118,210,0.15);}
+/* Bool-Buttons als kompakte Toggles */
+#diaryTable td.note-cell .col-inputs .bool-btn{padding:3px 8px;font-size:0.70rem;line-height:1;border-radius:999px;border-width:1px;border-style:solid;transition:background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;}
+/* Inaktiv (Outline) klarer und kontrastreicher */
+#diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary{background:#ffffff;border-color:#adb5bd;color:#495057;}
+#diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary:hover{background:#f1f3f5;border-color:#98a2ac;color:#343a40;}
+/* Aktiv (Success) etwas satter mit Hover */
+#diaryTable td.note-cell .col-inputs .bool-btn.btn-success{background:#2e7d32;border-color:#1b5e20;color:#fff;}
+#diaryTable td.note-cell .col-inputs .bool-btn.btn-success:hover{background:#1f6f25;border-color:#155a1a;}
+/* Disabled-Zustand subtil */
+#diaryTable td.note-cell .col-inputs .bool-btn:disabled{opacity:.7;cursor:not-allowed;}
 #diaryTable th.today-header {
     background: #1976d2;
     color: #fff;
@@ -40,7 +56,8 @@
 }
 #diaryTable td .col-inputs-row {
     display: block;
-    margin-top: 6px;
+    margin-top: 10px;
+
 }
 #diaryTable td .col-inputs {
     display: flex;
