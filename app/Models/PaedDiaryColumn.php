@@ -6,7 +6,7 @@ use App\Models\PaedDiaryColumnValue; // Import ergänzt
 
 class PaedDiaryColumn extends Model
 {
-    protected $fillable=['klasse_id','name','slug','type','sort_order','active','deactivated_from'];
+    protected $fillable=['klasse_id','name','slug','type','sort_order','active','deactivated_from','category'];
     protected $casts = [
         'deactivated_from' => 'date'
     ];

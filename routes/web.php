@@ -639,6 +639,8 @@ Route::group([
                     Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryController::class,'storeTask'])->name('paedDiary.task.store');
                     Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryController::class,'closeTask'])->name('paedDiary.task.close');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class,'columnsAll'])->name('paedDiary.columns.all');
+                    // Kategorie-Update für einzelne Spalten
+                    Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryController::class,'updateColumnCategory'])->name('paedDiary.column.updateCategory');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class,'restoreColumn'])->name('paedDiary.column.restore');
                     Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class,'exportExcel'])->name('paedDiary.export.excel');
                     // Neue Gruppen-Routen

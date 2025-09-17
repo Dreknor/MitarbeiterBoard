@@ -103,27 +103,43 @@
         return ((r * 299) + (g * 587) + (b * 114)) / 1000;
     }
 
-    // --- Neu hinzugefügt: Rendering der Zusatzspalten pro Zelle ---
+    // --- Neu: Kategorisierte Darstellung der Zusatzspalten pro Zelle ---
     function renderColumnInputs(stuId, date){
         if(!cache.columns || !cache.columns.length) return '';
 
-        // In der Gruppenansicht nur Spalten der Klasse des Schülers anzeigen
-        const student = cache.schueler.find(s => s.id === stuId);
-        if (!student) return '';
+        const student = cache.schueler.find(s => String(s.id)===String(stuId));
+        if(!student) return '';
 
         const columnsForStudent = cache.is_group
-            ? cache.columns.filter(col => col.klasse_id === student.klasse_id)
+            ? cache.columns.filter(col => String(col.klasse_id)===String(student.klasse_id))
             : cache.columns;
 
-        let html='';
+        // Gruppiere nach category (falls nicht vorhanden -> 'Unkategorisiert')
+        const byCat = {};
         columnsForStudent.forEach(col=>{
-            const val = (cache.column_values?.[col.id]?.[stuId]?.[date]) || '';
-            if(col.type==='boolean'){
-                const active = val==='1';
-                html += `<button type="button" class="btn btn-xs bool-btn ${active?'btn-success':'btn-outline-secondary'}" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" data-value="${active?'1':''}" data-name="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</button>`;
-            } else {
-                html += `<input type="text" maxlength="20" class="form-control form-control-sm col-val-input" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" value="${escapeHtml(val)}" placeholder="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">`;
-            }
+            const cat = col.category || 'Unkategorisiert';
+            (byCat[cat] = byCat[cat] || []).push(col);
+        });
+
+        const cats = Object.keys(byCat).sort((a,b)=>{
+            if(a==='Unkategorisiert') return 1;
+            if(b==='Unkategorisiert') return -1;
+            return a.localeCompare(b,'de');
+        });
+
+        let html = '';
+        cats.forEach(cat=>{
+            html += `<div class="col-cat-group" data-cat="${escapeHtml(cat)}"><div class="col-cat-label small text-muted mb-1">${escapeHtml(cat)}</div>`;
+            byCat[cat].forEach(col=>{
+                const val = (cache.column_values?.[col.id]?.[stuId]?.[date]) || '';
+                if(col.type === 'boolean'){
+                    const active = val === '1';
+                    html += `<button type="button" class="btn btn-xs bool-btn ${active?'btn-success':'btn-outline-secondary'}" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" data-value="${active?'1':''}" data-name="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">${escapeHtml(col.name)}</button>`;
+                } else {
+                    html += `<input type="text" maxlength="255" class="form-control form-control-sm col-val-input" data-col="${col.id}" data-stu="${stuId}" data-date="${date}" value="${escapeHtml(val)}" placeholder="${escapeHtml(col.name)}" title="${escapeHtml(col.name)}">`;
+                }
+            });
+            html += `</div>`;
         });
         return html;
     }
@@ -508,8 +524,34 @@
         const p = new URLSearchParams({ klasse_id: klasseSelect.value });
         fetch('paed-diary/columns/all?' + p.toString(), { headers: { 'Accept': 'application/json' } })
             .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
-            .then(data => { columnsAllCache = data.columns || []; renderColumnsList(); })
+            .then(data => { columnsAllCache = data.columns || []; renderColumnsList(); populateColumnCategoryControls(); })
             .catch(()=> setColumnsFeedback('Fehler beim Laden der Spalten','danger'));
+    }
+
+    // Baut/füllt das Category-Auswahlfeld im Add-Column-Form
+    function populateColumnCategoryControls(){
+        if(!addColumnForm) return;
+        // Erzeuge Select falls noch nicht vorhanden
+        let sel = addColumnForm.querySelector('select[name="category_select"]');
+        let newInput = addColumnForm.querySelector('input[name="new_category"]');
+        if(!sel){
+            sel = document.createElement('select');
+            sel.name = 'category_select';
+            sel.className = 'form-control form-control-sm mr-1 mb-1';
+            sel.innerHTML = '<option value="">-- Kategorie (neu oder wählen) --</option>';
+            addColumnForm.insertBefore(sel, addColumnForm.children[1]);
+        }
+        if(!newInput){
+            newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.name = 'new_category';
+            newInput.placeholder = 'Neue Kategorie (optional)';
+            newInput.className = 'form-control form-control-sm mr-1 mb-1';
+            addColumnForm.insertBefore(newInput, addColumnForm.children[2]);
+        }
+        // Fülle Optionen aus vorhandenen Kategorien aus cache
+        const cats = Array.from(new Set(columnsAllCache.map(c=>c.category).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'de'));
+        sel.innerHTML = '<option value="">-- Keine / Neue --</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     }
 
     // Gruppen laden
@@ -541,6 +583,7 @@
         groupSelect.innerHTML = opts.join('');
     }
     function setGroupFeedback(msg,type='info'){ if(groupFeedback){ const colors={info:'#17a2b8',success:'#28a745',warning:'#ffc107',danger:'#dc3545'}; groupFeedback.innerHTML=`<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`; } }
+    function setColumnsFeedback(msg,type='info'){ if(!columnsFeedback) return; const colors={info:'#17a2b8',success:'#28a745',warning:'#ffc107',danger:'#dc3545'}; columnsFeedback.innerHTML = `<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`; }
 
     // --- Rendering ---
     function buildEntryMap(){
@@ -574,53 +617,67 @@
     function render(){
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
-        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:180px;">Schüler</th>' + cache.days.map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday?' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
-        const entryMap=buildEntryMap();
+        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:180px;">Schüler</th>' + cache.days.map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday? ' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
+        const entryMap = buildEntryMap();
         diaryBody.innerHTML='';
-        const taskStudentIds=new Set(cache.tasks.map(t=>t.schueler_id));
-        let lastKlasseId=null;
-        cache.schueler.forEach(stu=>{
-            if(cache.is_group && stu.klasse_id!==lastKlasseId){
-                lastKlasseId=stu.klasse_id;
-                const kObj = (cache.klassen||[]).find(k=>k.id===stu.klasse_id);
-                const divider=document.createElement('tr');
-                divider.className='class-divider-row';
-                const td=document.createElement('td');
-                td.colSpan = cache.days.length+1;
-                td.textContent = (kObj? kObj.name : ('Klasse '+stu.klasse_id));
+        const taskStudentIds = new Set((cache.tasks||[]).map(t=>t.schueler_id));
+        let lastKlasseId = null;
 
-                // Klassenfarbe als Hintergrundfarbe setzen, falls vorhanden
-                if(kObj && kObj.color) {
+        (cache.schueler||[]).forEach(stu=>{
+            // Klassen-Divider in Gruppenmodus
+            if(cache.is_group && stu.klasse_id !== lastKlasseId){
+                lastKlasseId = stu.klasse_id;
+                const kObj = (cache.klassen||[]).find(k=>k.id===stu.klasse_id);
+                const divider = document.createElement('tr');
+                divider.className = 'class-divider-row';
+                const td = document.createElement('td');
+                td.colSpan = (cache.days||[]).length + 1;
+                td.textContent = (kObj? kObj.name : ('Klasse ' + stu.klasse_id));
+                if(kObj && kObj.color){
                     td.style.backgroundColor = kObj.color;
-                    // Textfarbe anpassen für besseren Kontrast
                     const brightness = getBrightness(kObj.color);
                     td.style.color = brightness > 128 ? '#000000' : '#ffffff';
                 }
-
                 divider.appendChild(td);
                 diaryBody.appendChild(divider);
             }
-            let row = `<th class="align-top" style="font-size:.72rem;">
-                <a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${stu.name} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>
-                <span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>
-                ${renderStageSymbol(stu)}
-            </th>`;
-            cache.days.forEach(d=>{
-                const entries=(entryMap[stu.id]?.[d.date])||[];
-                const entriesHtml=entries.map(e=>{const enc=encodeURIComponent(e.content||'');return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">`+(e.user?`<span class=\"author\">${escapeHtml(e.user)}</span>`:'')+`<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;}).join('');
+
+            // Kopfzelle mit Schülerlink und Stage
+            let row = `<th class="align-top" style="font-size:.72rem;">`+
+                      `<a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${escapeHtml(stu.name)} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>`+
+                      `<span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>`+
+                      `${renderStageSymbol(stu)}`+
+                      `</th>`;
+
+            // Zellen für Tage
+            (cache.days||[]).forEach(d=>{
+                const entries = (entryMap[stu.id]?.[d.date]) || [];
+                const entriesHtml = entries.map(e=>{
+                    const enc = encodeURIComponent(e.content||'');
+                    return `<div class=\"entry-item\" data-entry=\"${e.id}\" data-content=\"${enc}\">` + (e.user? `<span class=\"author\">${escapeHtml(e.user)}</span>` : '') + `<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span></div>`;
+                }).join('');
                 const isToday = d.date === todayStr;
-                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday?' today-cell':''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\"><div class=\"entry-list\">${entriesHtml}</div><div class=\"col-inputs-row\"><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></div></td>`;
+
+                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\">` +
+                       // anklickbare Leerstelle oben
+                       `<div class=\"entry-add-space\" style=\"min-height:18px; cursor:pointer;\" title=\"Neue Notiz erstellen\"></div>` +
+                       `<div class=\"entry-list\">${entriesHtml}</div>` +
+                       `<div class=\"col-inputs-row\"><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></div>` +
+                       `</td>`;
             });
-            const tr=document.createElement('tr');
+
+            const tr = document.createElement('tr');
             if(taskStudentIds.has(stu.id)) tr.classList.add('stu-has-task');
-            tr.innerHTML=row; diaryBody.appendChild(tr);
+            tr.innerHTML = row;
+            diaryBody.appendChild(tr);
         });
-        const endWeek=addDays(currentWeekStart,4);
-        weekLabel.textContent=`${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
+
+        const endWeek = addDays(currentWeekStart,4);
+        weekLabel.textContent = `${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
         renderStudentCheckboxes();
-        taskSchuelerSelect.innerHTML='<option value="">-- Schüler --</option>'+cache.schueler.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+        taskSchuelerSelect.innerHTML = '<option value="">-- Schüler --</option>' + (cache.schueler||[]).map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
         exportCsvBtn.classList.remove('disabled');
-        if(groupSelect.value){
+        if(groupSelect && groupSelect.value){
             exportCsvBtn.href = `/export/paed-diary/excel?group_id=${encodeURIComponent(groupSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
             exportCsvBtn.title='CSV Export (Gruppe)';
             manageColumnsBtn.classList.add('disabled');
@@ -756,10 +813,69 @@
             fetch(`paed-diary/column/${id}/restore`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte reaktiviert','success'); loadWeek(); loadAllColumns(); } });
         }
     });
-    addColumnForm && addColumnForm.addEventListener('submit', e=>{ e.preventDefault(); if(groupSelect.value) return; const fd=new FormData(addColumnForm); fd.append('klasse_id', klasseSelect.value); fetch('paed-diary/column',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ addColumnForm.reset(); setColumnsFeedback('Spalte angelegt','success'); loadWeek(); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); } }); });
+    if(addColumnForm){
+        addColumnForm.addEventListener('submit', e=>{
+            e.preventDefault(); if(groupSelect.value) return;
+            // gather values
+            const name = addColumnForm.querySelector('input[name="name"]').value.trim();
+            const type = addColumnForm.querySelector('select[name="type"]').value;
+            const sel = addColumnForm.querySelector('select[name="category_select"]');
+            const newCatInput = addColumnForm.querySelector('input[name="new_category"]');
+            let category = '';
+            if(newCatInput && newCatInput.value.trim()){ category = newCatInput.value.trim(); }
+            else if(sel && sel.value){ category = sel.value; }
+            const fd = new FormData();
+            fd.append('name', name);
+            if(type) fd.append('type', type);
+            fd.append('klasse_id', klasseSelect.value);
+            if(category) fd.append('category', category);
+            fetch('paed-diary/column',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ addColumnForm.reset(); setColumnsFeedback('Spalte angelegt','success'); loadWeek(); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); } }).catch(()=> setColumnsFeedback('Fehler beim Anlegen','danger'));
+        });
+    }
 
-    function renderColumnsList(){ if(!columnsList) return; if(!columnsAllCache.length){ columnsList.innerHTML='<span class="text-muted small">Keine Spalten</span>'; return; } columnsList.innerHTML = columnsAllCache.map(c=>{ const deac=!!c.deactivated_from; return `<span class="column-chip ${deac?'deactivated':''}" data-id="${c.id}" title="${escapeHtml(c.name)} (${c.type})${deac?` deaktiviert ab ${c.deactivated_from}`:''}"><span>${escapeHtml(c.name)}</span>${!deac?`<button type="button" class="remove-col" title="Deaktivieren">&times;</button>`:`<button type="button" class="restore restore-col" title="Reaktivieren">&#8634;</button>`}</span>`; }).join(''); }
-    function setColumnsFeedback(msg,type='info'){ if(!columnsFeedback) return; const colors={info:'#17a2b8',success:'#28a745',warning:'#ffc107',danger:'#dc3545'}; columnsFeedback.innerHTML = `<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`; }
+    function renderColumnsList(){ if(!columnsList) return; if(!columnsAllCache.length){ columnsList.innerHTML='<span class="text-muted small">Keine Spalten</span>'; return; }
+
+        // Gruppiere Spalten nach category
+        const grouped = {};
+        columnsAllCache.forEach(c=>{ const cat = c.category || 'Unkategorisiert'; (grouped[cat]=grouped[cat]||[]).push(c); });
+        const cats = Object.keys(grouped).sort((a,b)=>{
+            if(a==='Unkategorisiert') return 1;
+            if(b==='Unkategorisiert') return -1;
+            return a.localeCompare(b,'de');
+        });
+
+        // Build global category options for per-column selects
+        const allCats = cats.slice();
+        const optionsHtml = allCats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+        columnsList.innerHTML = cats.map(cat=>{
+            const colsHtml = grouped[cat].map(c=>{
+                const deac = !!c.deactivated_from;
+                // per-column category select
+                const sel = `<select class="col-cat-select form-control form-control-sm" data-id="${c.id}"><option value="">-- Keine --</option>${optionsHtml}</select>`;
+                return `<div class="column-chip ${deac?'deactivated':''}" data-id="${c.id}" title="${escapeHtml(c.name)} (${c.type})${deac?` deaktiviert ab ${c.deactivated_from}`:''}"><div class="d-flex align-items-center"><span class="mr-2">${escapeHtml(c.name)}</span>${sel}${!deac?`<button type="button" class="remove-col btn btn-link btn-sm ml-2" title="Deaktivieren">&times;</button>`:`<button type="button" class="restore restore-col btn btn-link btn-sm ml-2" title="Reaktivieren">&#8634;</button>`}</div></div>`;
+            }).join('');
+            return `<div class="column-category"><div class="small text-primary font-weight-bold mb-1">${escapeHtml(cat)}</div><div class="column-category-list d-flex flex-wrap">${colsHtml}</div></div>`;
+        }).join('');
+        // set current values for selects
+        document.querySelectorAll('.col-cat-select').forEach(sel=>{ const id=sel.dataset.id; const col = columnsAllCache.find(c=>String(c.id)===String(id)); if(col && col.category) sel.value = col.category; });
+    }
+
+    // Listen for per-column category changes
+    columnsList.addEventListener('change', e=>{
+        const sel = e.target.closest('.col-cat-select');
+        if(!sel) return;
+        const id = sel.dataset.id;
+        const category = sel.value || null;
+        sel.disabled = true;
+        fetch(`paed-diary/column/${id}/category`,{
+            method:'POST',
+            headers: {'X-CSRF-TOKEN':csrf, 'Accept':'application/json'},
+            body: new URLSearchParams({category: category})
+        }).then(r=>r.json()).then(j=>{
+            if(j.success){ setColumnsFeedback('Kategorie aktualisiert','success'); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); }
+        }).catch(()=> setColumnsFeedback('Fehler beim Speichern','danger')).finally(()=> sel.disabled=false);
+    });
 
     // --- Editor-Funktionen ---
     function showEditor(){ noteEditorCard.classList.remove('d-none'); }

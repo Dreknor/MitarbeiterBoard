@@ -142,6 +142,11 @@
                     <div id="columnsList" class="mb-2 d-flex flex-wrap align-items-start"></div>
                     <form id="addColumnForm" class="form-inline small mb-2">
                         <input type="text" name="name" class="form-control form-control-sm mr-1 mb-1" placeholder="Name" required maxlength="50">
+                        <!-- Category controls: choose existing or enter new -->
+                        <select name="category_select" class="form-control form-control-sm mr-1 mb-1">
+                            <option value="">-- Keine / Neue --</option>
+                        </select>
+                        <input type="text" name="new_category" class="form-control form-control-sm mr-1 mb-1" placeholder="Neue Kategorie (optional)" />
                         <select name="type" class="form-control form-control-sm mr-1 mb-1">
                             <option value="boolean">Ja/Nein</option>
                         </select>

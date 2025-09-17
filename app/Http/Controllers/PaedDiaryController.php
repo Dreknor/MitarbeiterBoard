@@ -225,7 +225,11 @@ class PaedDiaryController extends Controller
             'can_manage_grading' => Auth::user()->can('manage grading systems'),
             'entries' => $entryData,
             'open_entries' => $openEntries,
-            'columns' => $columns->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'type' => $c->type, 'klasse_id' => $c->klasse_id, 'deactivated_from' => Schema::hasColumn('paed_diary_columns', 'deactivated_from') ? $c->deactivated_from?->toDateString() : null]),
+            'columns' => $columns->map(fn($c) => [
+                'id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'type' => $c->type, 'klasse_id' => $c->klasse_id, 'deactivated_from' => Schema::hasColumn('paed_diary_columns', 'deactivated_from') ? $c->deactivated_from?->toDateString() : null,
+                // category only if column exists in table
+                'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($c->category ?? null) : null
+            ]),
             'column_values' => $valuesGrouped,
             'tasks' => $tasks,
         ]);
@@ -480,13 +484,15 @@ class PaedDiaryController extends Controller
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
             'group_id' => ['nullable', 'integer', 'exists:paed_diary_class_groups,id'],
             'name' => ['required', 'string', 'max:50'],
-            'type' => ['nullable', 'in:text,boolean,number']
+            'type' => ['nullable', 'in:text,boolean,number'],
+            'category' => ['nullable', 'string', 'max:50']
         ]);
         if (!$request->filled('klasse_id') && !$request->filled('group_id'))
             return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
         $user = Auth::user();
         $slug = Str::slug($data['name']);
         $type = $data['type'] ?? 'text';
+        $category = $data['category'] ?? null;
         if ($request->filled('group_id')) {
             $group = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
@@ -494,11 +500,11 @@ class PaedDiaryController extends Controller
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists()) continue;
                 $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
-                $col = PaedDiaryColumn::create([
-                    'klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort
-                ]);
+                $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
+                if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
+                $col = PaedDiaryColumn::create($colData);
                 $this->forgetWeekCache($klasse->id, Carbon::now());
-                $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name];
+                $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name, 'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($col->category ?? null) : null];
             }
             return response()->json(['success' => true, 'columns' => $created]);
         }
@@ -506,11 +512,30 @@ class PaedDiaryController extends Controller
         if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists())
             return response()->json(['message' => 'Spalte existiert bereits'], 422);
         $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
-        $col = PaedDiaryColumn::create([
-            'klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort
-        ]);
+        $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
+        if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
+        $col = PaedDiaryColumn::create($colData);
         $this->forgetWeekCache($klasse->id, Carbon::now());
-        return response()->json(['success' => true, 'column' => ['id' => $col->id, 'name' => $col->name]]);
+        return response()->json(['success' => true, 'column' => ['id' => $col->id, 'name' => $col->name, 'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($col->category ?? null) : null]]);
+    }
+
+    /**
+     * Aktualisiert die Kategorie einer bestehenden Spalte.
+     */
+    public function updateColumnCategory(PaedDiaryColumn $column, Request $request)
+    {
+        $data = $request->validate([
+            'category' => ['nullable', 'string', 'max:50']
+        ]);
+        $user = Auth::user();
+        $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
+        if (!Schema::hasColumn('paed_diary_columns', 'category')) {
+            return response()->json(['message' => 'Category support not available'], 400);
+        }
+        $column->category = $data['category'] ?? null;
+        $column->save();
+        $this->forgetWeekCache($klasse->id, Carbon::now());
+        return response()->json(['success' => true, 'category' => $column->category]);
     }
 
     /**
@@ -690,7 +715,8 @@ class PaedDiaryController extends Controller
             'name' => $c->name,
             'type' => $c->type,
             'sort_order' => $c->sort_order,
-            'deactivated_from' => $c->deactivated_from?->toDateString()
+            'deactivated_from' => $c->deactivated_from?->toDateString(),
+            'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($c->category ?? null) : null
         ]);
         return response()->json(['columns' => $cols]);
     }
