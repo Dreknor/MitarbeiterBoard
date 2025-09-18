@@ -833,7 +833,36 @@
         });
     }
 
-    function renderColumnsList(){ if(!columnsList) return; if(!columnsAllCache.length){ columnsList.innerHTML='<span class="text-muted small">Keine Spalten</span>'; return; }
+    // --- Spaltenverwaltung: Deaktivierte ausblenden/anzeigen ---
+    let showDeactivatedColumns = false;
+
+    function ensureDeactivatedToggle() {
+        if (!columnsList) return;
+        let toggle = document.getElementById('showDeactivatedColumns');
+        if (!toggle) {
+            toggle = document.createElement('input');
+            toggle.type = 'checkbox';
+            toggle.id = 'showDeactivatedColumns';
+            toggle.className = 'mr-2';
+            toggle.style.verticalAlign = 'middle';
+            const label = document.createElement('label');
+            label.htmlFor = 'showDeactivatedColumns';
+            label.className = 'small mr-3';
+            label.textContent = 'Deaktivierte anzeigen';
+            columnsList.parentNode.insertBefore(toggle, columnsList);
+            columnsList.parentNode.insertBefore(label, columnsList);
+            toggle.addEventListener('change', function() {
+                showDeactivatedColumns = this.checked;
+                renderColumnsList();
+            });
+        }
+        toggle.checked = showDeactivatedColumns;
+    }
+
+    function renderColumnsList(){
+        if(!columnsList) return;
+        ensureDeactivatedToggle();
+        if(!columnsAllCache.length){ columnsList.innerHTML='<span class="text-muted small">Keine Spalten</span>'; return; }
 
         // Gruppiere Spalten nach category
         const grouped = {};
@@ -849,7 +878,10 @@
         const optionsHtml = allCats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
 
         columnsList.innerHTML = cats.map(cat=>{
-            const colsHtml = grouped[cat].map(c=>{
+            // Filter: Zeige deaktivierte nur wenn Option aktiv
+            const cols = grouped[cat].filter(c => showDeactivatedColumns || !c.deactivated_from);
+            if (!cols.length) return '';
+            const colsHtml = cols.map(c=>{
                 const deac = !!c.deactivated_from;
                 // per-column category select
                 const sel = `<select class="col-cat-select form-control form-control-sm" data-id="${c.id}"><option value="">-- Keine --</option>${optionsHtml}</select>`;
