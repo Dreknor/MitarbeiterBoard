@@ -491,6 +491,10 @@ class PaedDiaryController extends Controller
             return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
         $user = Auth::user();
         $slug = Str::slug($data['name']);
+        if (empty($slug) ) {
+            $slug = $data['name'];
+        }
+
         $type = $data['type'] ?? 'text';
         $category = $data['category'] ?? null;
         if ($request->filled('group_id')) {
