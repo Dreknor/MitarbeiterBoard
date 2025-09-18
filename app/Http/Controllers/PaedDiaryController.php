@@ -1022,7 +1022,8 @@ class PaedDiaryController extends Controller
                     'klasse_id' => $klasse->id,
                     'user_id' => $userId,
                     'datum' => now(),
-                    'content' => $changeText
+                    'content' => $changeText,
+                    'completed_at' => Carbon::now()
                 ]);
                 // attach the student
                 $entry->schueler()->sync([$schueler->id]);
