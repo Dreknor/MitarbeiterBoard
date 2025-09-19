@@ -172,3 +172,35 @@
 .stage-dropdown .dropdown-item:hover { background:#f1f3f5; }
 .stage-dropdown .dropdown-item.active { background:#17a2b8; color:#fff; }
 .stage-change { cursor:pointer; }
+
+/* --- Kompakte Aktions-Buttons für Notizen (Abschließen / Pausieren / Reaktivieren) --- */
+.entry-item .d-flex { display:flex; align-items:center; }
+.diary-btn{--btn-bg:#f1f3f5;--btn-border:#d0d5da;--btn-color:#495057;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin-left:4px;border-radius:6px;font-size:0.75rem;line-height:1;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--btn-color);cursor:pointer;transition:background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;position:relative;}
+.diary-btn:first-child{margin-left:0;}
+.diary-btn:hover{background:#e3e7ea;}
+.diary-btn:focus{outline:0;box-shadow:0 0 0 3px rgba(25,118,210,0.25);}
+.diary-btn:active{transform:translateY(1px);}
+.diary-btn:disabled{opacity:.55;cursor:not-allowed;}
+
+.diary-btn-complete{--btn-bg:#e6f4ea;--btn-border:#b7e4c7;--btn-color:#2e7d32;}
+.diary-btn-complete:hover{background:#d9efdf;border-color:#a3dcb5;}
+.diary-btn-complete:focus{box-shadow:0 0 0 3px rgba(46,125,50,0.35);}
+
+.diary-btn-pause{--btn-bg:#fff4e0;--btn-border:#ffd8a8;--btn-color:#b76e00;}
+.diary-btn-pause:hover{background:#ffe8c2;border-color:#ffc781;}
+.diary-btn-pause:focus{box-shadow:0 0 0 3px rgba(247,154,30,0.35);}
+
+.diary-btn-unpause{--btn-bg:#e3f2fd;--btn-border:#90caf9;--btn-color:#1565c0;}
+.diary-btn-unpause:hover{background:#d2ebfb;border-color:#64b5f6;}
+.diary-btn-unpause:focus{box-shadow:0 0 0 3px rgba(21,101,192,0.35);}
+
+/* Kleiner auf sehr schmalen Bildschirmen */
+@media (max-width:576px){
+  .diary-btn{width:20px;height:20px;font-size:0.65rem;margin-left:2px;border-radius:5px;}
+}
+
+/* Unterschiedliche Bedeutungen farblich erkennbar für Barrierefreiheit (Kontrastprüfung > 4.5:1 für Textgröße >= 14px automatisch nicht nötig da Symbolcharakter) */
+.diary-btn-complete::after,.diary-btn-pause::after,.diary-btn-unpause::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;}
+
+/* Pausierte Einträge leicht abgetönt */
+.paused-entry .diary-btn-unpause{margin-left:0;}

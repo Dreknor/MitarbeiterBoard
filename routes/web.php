@@ -630,6 +630,8 @@ Route::group([
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class,'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'updateEntry'])->name('paedDiary.entry.update');
                     Route::post('paed-diary/entry/{entry}/complete', [\App\Http\Controllers\PaedDiaryController::class,'completeEntry'])->name('paedDiary.entry.complete');
+                    Route::post('paed-diary/entry/{entry}/pause-day', [\App\Http\Controllers\PaedDiaryController::class,'pauseEntryDay'])->name('paedDiary.entry.pause');
+                    Route::post('paed-diary/entry/{entry}/unpause-day', [\App\Http\Controllers\PaedDiaryController::class,'unpauseEntryDay'])->name('paedDiary.entry.unpause');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class,'destroyEntry'])->name('paedDiary.entry.destroy');
                     Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryController::class,'storeColumn'])->name('paedDiary.column.store');
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryController::class,'destroyColumn'])->name('paedDiary.column.destroy');

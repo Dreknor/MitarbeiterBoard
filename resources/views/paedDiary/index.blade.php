@@ -186,6 +186,13 @@
                         </div>
                         <span id="weekLabel" class="font-weight-bold small"></span>
                         <span id="modeBadge" class="badge badge-info ml-2 d-none">Gruppenmodus</span>
+                        <div class="paused-toggle ml-3" title="Pausierte Einträge anzeigen / ausblenden">
+                            <input type="checkbox" id="showPausedToggle" class="paused-toggle-input" />
+                            <label for="showPausedToggle" class="paused-toggle-label">
+                                <span class="paused-toggle-track" aria-hidden="true"></span>
+                                <span class="paused-toggle-text small">Pausierte</span>
+                            </label>
+                        </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
                         <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="manageColumnsBtn" title="Spalten verwalten"><i class="fas fa-columns"></i> Spalten</button>
@@ -375,6 +382,7 @@
 
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20250916') }}">
+<link rel="stylesheet" href="{{ asset('css/pausedToggle.css?v=20250919') }}">
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }

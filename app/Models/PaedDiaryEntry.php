@@ -16,6 +16,7 @@ class PaedDiaryEntry extends Model
     public function klasse(){ return $this->belongsTo(Klasse::class); }
     public function user(){ return $this->belongsTo(User::class); }
     public function schueler(){ return $this->belongsToMany(Schueler::class,'paed_diary_entry_schueler'); }
+    public function pauses(){ return $this->hasMany(PaedDiaryEntryPause::class,'paed_diary_entry_id'); }
 
     /**
      * Mutator: verschlüsselt den Inhalt vor dem Speichern (Application-Level Encryption).

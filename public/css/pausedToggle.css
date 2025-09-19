@@ -1,0 +1,39 @@
+/* pausedToggle.css - eigenes Styling für die Toggle-Checkbox 'Pausierte'
+   Fokus auf: geringe Breite, klare Zustände, Tastatur- und Screenreader-Kompatibilität */
+
+.paused-toggle{display:inline-flex;align-items:center;line-height:1;}
+.paused-toggle-input{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;padding:0;margin:-1px;}
+
+.paused-toggle-label{display:inline-flex;align-items:center;cursor:pointer;font-weight:500;font-size:.7rem;user-select:none;}
+.paused-toggle-track{--pt-bg-off:#e2e6ea;--pt-bg-on:#2e7d32;--pt-border-off:#c4c9ce;--pt-border-on:#256628;position:relative;width:36px;height:18px;background:var(--pt-bg-off);border:1px solid var(--pt-border-off);border-radius:999px;transition:background .25s ease,border-color .25s ease;flex-shrink:0;}
+.paused-toggle-track::after{content:"";position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s cubic-bezier(.4,.0,.2,1),background .25s ease;}
+
+/* Checked Zustand */
+.paused-toggle-input:checked + .paused-toggle-label .paused-toggle-track{background:var(--pt-bg-on);border-color:var(--pt-border-on);}
+.paused-toggle-input:checked + .paused-toggle-label .paused-toggle-track::after{transform:translateX(18px);}
+
+/* Fokus (für Tastatur) */
+.paused-toggle-input:focus-visible + .paused-toggle-label .paused-toggle-track{outline:3px solid rgba(25,118,210,.45);outline-offset:2px;}
+
+/* Disabled Zustand (falls später benötigt) */
+.paused-toggle-input:disabled + .paused-toggle-label{opacity:.5;cursor:not-allowed;}
+
+.paused-toggle-text{margin-left:.4rem;white-space:nowrap;color:#495057;}
+.paused-toggle-input:checked + .paused-toggle-label .paused-toggle-text{color:#2e7d32;}
+
+/* Hover Optimierung */
+.paused-toggle-label:hover .paused-toggle-track{filter:brightness(1.05);}
+.paused-toggle-input:checked + .paused-toggle-label:hover .paused-toggle-track{filter:brightness(1.1);}
+
+/* High Contrast Unterstützung (optional, wenn OS forced-colors) */
+@media (forced-colors: active){
+  .paused-toggle-track{border:1px solid CanvasText;}
+  .paused-toggle-input:checked + .paused-toggle-label .paused-toggle-track{background:Highlight;border-color:Highlight;}
+  .paused-toggle-input:checked + .paused-toggle-label .paused-toggle-track::after{background:Canvas;}
+}
+
+/* Reduzierte Bewegung */
+@media (prefers-reduced-motion: reduce){
+  .paused-toggle-track,.paused-toggle-track::after{transition:none;}
+}
+
