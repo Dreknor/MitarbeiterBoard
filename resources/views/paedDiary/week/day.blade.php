@@ -4,7 +4,7 @@
        <div class="row">
 
            <div class="col-auto text-start">
-                {{$appointment['start_time']->format('H:i')}} - {{$appointment['end_time']->format('H:i')}}
+                {{$appointment['start_time']?->format('H:i')}} - {{$appointment['end_time']?->format('H:i')}}
            </div>
            <div class="col text-end">
                {{$appointment['title']}}
