@@ -632,8 +632,15 @@
             }
             // Offen: ab max(Startdatum, Wochenstart) bis min(heute, Wochenende) anzeigen
             const from = entryStartDate < weekStartDate ? weekStartDate : entryStartDate;
-            let to = today < weekEndDate ? today : weekEndDate;
-            if(to < from) to = from; // Sicherheit
+            let to;
+            if(weekStartDate > today){
+                // Zukunftswoche: komplette Woche projizieren
+                to = weekEndDate;
+            } else {
+                // Aktuelle / Vergangene Woche: nur bis heute (oder Wochenende, falls früher)
+                to = today < weekEndDate ? today : weekEndDate;
+            }
+            if(to < from) to = from; // Sicherheit (falls Start in ferner Zukunft)
             for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){
                 const dateStr = formatDate(d);
                 e.schueler_ids.forEach(sid=>{
