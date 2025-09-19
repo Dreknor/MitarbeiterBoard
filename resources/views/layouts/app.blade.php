@@ -24,6 +24,11 @@
 
     @stack('css')
 
+    {{-- Paed-Diary spezifisches CSS nur auf dieser Route laden --}}
+    @if(request()->segment(1) == 'paed-diary')
+        <link href="{{ asset('css/paed-diary.css') }}" rel="stylesheet" />
+    @endif
+
 </head>
 
 <body id="app-layout">
@@ -601,6 +606,11 @@
     @endauth
     @yield('js')
     @stack('js')
+
+    {{-- Paed-Diary spezifisches JS nur auf dieser Route laden --}}
+    @if(request()->segment(1) == 'paed-diary')
+        <script src="{{ asset('js/paed-diary.js') }}"></script>
+    @endif
 
 </body>
 </html>

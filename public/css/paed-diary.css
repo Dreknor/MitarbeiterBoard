@@ -1,0 +1,61 @@
+/* Paed-Diary: Sidebar ausblenden und Main-Panel auf Vollbreite setzen */
+/* Wird nur auf der Route /paed-diary per Blade eingebunden */
+
+/* Standard: keine globale Änderung an Sidebar - nur wenn body.paed-hide-sidebar gesetzt ist */
+body.paed-hide-sidebar .sidebar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Main-Panel füllt die komplette Breite wenn Sidebar versteckt ist */
+body.paed-hide-sidebar .main-panel {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Navbar korrekt ausrichten (paper-dashboard verwendet position absolute) */
+.navbar.navbar-absolute {
+  left: 0 !important;
+  right: 0 !important;
+}
+
+/* Kleinere Anpassungen für Inhaltspadding */
+.content {
+  padding-left: 15px !important;
+  padding-right: 15px !important;
+}
+
+/* Floating Toggle-Button, sichtbar wenn Sidebar ausgeblendet ist */
+.paed-toggle-btn {
+  position: fixed;
+  top: 80px;
+  left: 10px;
+  z-index: 1100;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: none;
+}
+
+.paed-toggle-btn:focus {
+  outline: 2px solid rgba(255,255,255,0.2);
+}
+
+/* Wenn Sidebar sichtbar, Button zeigt close-icon */
+.paed-toggle-btn[data-state="visible"]::after { content: "×"; font-size: 20px; }
+.paed-toggle-btn[data-state="hidden"]::after { content: "☰"; font-size: 18px; }
+
+/* Hinweis: Top-Navigation wird nicht automatisch ausgeblendet, damit oben Platz erhalten bleibt */
+
+/* Bei sehr kleinen Bildschirmen keine weiteren Änderungen nötig, aber sicherstellen, dass Sidebar ausgeblendet bleibt */
+@media (max-width: 991px) {
+  body.paed-hide-sidebar .sidebar { display: none !important; }
+}
