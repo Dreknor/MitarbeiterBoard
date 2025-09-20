@@ -31,6 +31,7 @@ class PaedDiaryAppointment extends Model
         'recurring_end_date' => 'date',
         'is_recurring' => 'boolean',
         'is_paused' => 'boolean',
+        'recurring_interval' => 'integer',
     ];
 
     public function user()

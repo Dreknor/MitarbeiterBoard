@@ -514,7 +514,7 @@ class PaedDiaryController extends Controller
             $created = [];
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists()) continue;
-                $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
+                $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
                 $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
                 if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
                 $col = PaedDiaryColumn::create($colData);
@@ -526,7 +526,7 @@ class PaedDiaryController extends Controller
         $klasse = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
         if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists())
             return response()->json(['message' => 'Spalte existiert bereits'], 422);
-        $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
+        $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
         $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
         if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
         $col = PaedDiaryColumn::create($colData);
@@ -1099,6 +1099,7 @@ class PaedDiaryController extends Controller
     {
         $request->validate([
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
+            'completed_at' => ['nullable', 'date'],
         ]);
         $user = Auth::user();
         // Zugriff auf Klasse des Eintrags prüfen (unabhängig von gesendeter klasse_id)
@@ -1108,7 +1109,13 @@ class PaedDiaryController extends Controller
         }
         DB::beginTransaction();
         try {
-            $entry->completed_at = Carbon::now();
+            // Wenn ein completed_at Datum übergeben wurde, dieses verwenden (z.B. wenn aus einer Zelle abgeschlossen wird),
+            // sonst das aktuelle Datum/time.
+            if ($request->filled('completed_at')) {
+                $entry->completed_at = Carbon::parse($request->get('completed_at'))->startOfDay();
+            } else {
+                $entry->completed_at = Carbon::now();
+            }
             $entry->save();
             $entry->load('schueler');
             $this->finalizeEntry($entry);
@@ -1422,7 +1429,10 @@ class PaedDiaryController extends Controller
             if(empty($data['recurring_type'])) return response()->json(['message'=>'recurring_type erforderlich'],422);
             if(empty($data['recurring_interval'])) $data['recurring_interval']=1;
         } else {
-            $data['recurring_type']=null; $data['recurring_interval']=null; $data['recurring_end_date']=null;
+            // Für nicht wiederkehrende Termine: Typ & Enddatum löschen, Interval auf 1 (DB Default, kein NULL Insert)
+            $data['recurring_type']=null;
+            $data['recurring_interval']=1;
+            $data['recurring_end_date']=null;
         }
         // Zeitfelder in passendes Format bringen (wir speichern als einfache Strings / oder Carbon?) – wir lassen Strings, Modell-Casts formatiert
         $appointment = PaedDiaryAppointment::create([
@@ -1434,7 +1444,7 @@ class PaedDiaryController extends Controller
             'end_time'=>!empty($data['end_time'])? Carbon::parse($data['start_date'].' '.$data['end_time']) : null,
             'is_recurring'=>$isRecurring,
             'recurring_type'=>$data['recurring_type'] ?? null,
-            'recurring_interval'=>$data['recurring_interval'] ?? null,
+            'recurring_interval'=>$isRecurring ? ($data['recurring_interval'] ?? 1) : 1,
             'recurring_end_date'=>!empty($data['recurring_end_date'])? Carbon::parse($data['recurring_end_date'])->toDateString() : null,
             'is_paused'=>false,
         ]);
@@ -1471,7 +1481,10 @@ class PaedDiaryController extends Controller
             if(empty($data['recurring_type'])) return response()->json(['message'=>'recurring_type erforderlich'],422);
             if(empty($data['recurring_interval'])) $data['recurring_interval']=1;
         } else {
-            $data['recurring_type']=null; $data['recurring_interval']=null; $data['recurring_end_date']=null; $appointment->is_paused=false; // beim Umschalten Reset
+            $data['recurring_type']=null;
+            $data['recurring_interval']=1;
+            $data['recurring_end_date']=null;
+            $appointment->is_paused=false; // beim Umschalten Reset
         }
         $appointment->update([
             'title'=>trim($data['title']),
@@ -1481,7 +1494,7 @@ class PaedDiaryController extends Controller
             'end_time'=>!empty($data['end_time'])? Carbon::parse($data['start_date'].' '.$data['end_time']) : null,
             'is_recurring'=>$isRecurring,
             'recurring_type'=>$data['recurring_type'] ?? null,
-            'recurring_interval'=>$data['recurring_interval'] ?? null,
+            'recurring_interval'=>$isRecurring ? ($data['recurring_interval'] ?? 1) : 1,
             'recurring_end_date'=>!empty($data['recurring_end_date'])? Carbon::parse($data['recurring_end_date'])->toDateString() : null,
         ]);
         $this->syncAppointmentRelations($appointment,$data,$user);
