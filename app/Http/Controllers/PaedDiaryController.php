@@ -514,7 +514,7 @@ class PaedDiaryController extends Controller
             $created = [];
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists()) continue;
-                $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
+                $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
                 $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
                 if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
                 $col = PaedDiaryColumn::create($colData);
@@ -526,7 +526,7 @@ class PaedDiaryController extends Controller
         $klasse = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
         if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists())
             return response()->json(['message' => 'Spalte existiert bereits'], 422);
-        $sort = PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
+        $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
         $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
         if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
         $col = PaedDiaryColumn::create($colData);
@@ -1099,6 +1099,7 @@ class PaedDiaryController extends Controller
     {
         $request->validate([
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
+            'completed_at' => ['nullable', 'date'],
         ]);
         $user = Auth::user();
         // Zugriff auf Klasse des Eintrags prüfen (unabhängig von gesendeter klasse_id)
@@ -1108,7 +1109,13 @@ class PaedDiaryController extends Controller
         }
         DB::beginTransaction();
         try {
-            $entry->completed_at = Carbon::now();
+            // Wenn ein completed_at Datum übergeben wurde, dieses verwenden (z.B. wenn aus einer Zelle abgeschlossen wird),
+            // sonst das aktuelle Datum/time.
+            if ($request->filled('completed_at')) {
+                $entry->completed_at = Carbon::parse($request->get('completed_at'))->startOfDay();
+            } else {
+                $entry->completed_at = Carbon::now();
+            }
             $entry->save();
             $entry->load('schueler');
             $this->finalizeEntry($entry);

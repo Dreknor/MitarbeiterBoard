@@ -782,13 +782,19 @@
             e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
             const entryId = completeBtn.dataset.entryId;
             completeBtn.disabled=true;
-            fetch(`paed-diary/entry/${entryId}/complete`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify({klasse_id:klasseSelect.value})})
-                .then(r=>r.json())
-                .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
-                .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; });
-            return;
-        }
-    });
+            // Bestimme das Datum der Eintragszelle (falls vorhanden)
+            const entryEl = completeBtn.closest('.entry-item');
+            const completedAtDate = (entryEl && (entryEl.dataset.dateDisplay || entryEl.dataset.date)) ? (entryEl.dataset.dateDisplay || entryEl.dataset.date) : formatDate(new Date());
+            fetch(`paed-diary/entry/${entryId}/complete`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
+                body: JSON.stringify({klasse_id: klasseSelect.value, completed_at: completedAtDate})
+            })
+            .then(r=>r.json())
+            .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
+            .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
+refreshTasksBtn.addEventListener('click', ()=> loadWeek());
+
 
     // --- Gruppen UI Events ---
     manageGroupsBtn && manageGroupsBtn.addEventListener('click', ()=>{ groupForm.reset(); groupIdInput.value=''; groupCancelEdit.classList.add('d-none'); setGroupFeedback('',''); loadGroups().then(()=> groupModal.modal('show')); });
@@ -968,80 +974,65 @@
     function populateForNew(cell){ showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz erfassen'; noteDeleteBtn.classList.add('d-none'); if(cell){ const d=cell.dataset.date; if(d) noteDateInput.value=d; const stu=cell.dataset.stu; if(stu){ const cb=document.getElementById('stu_chk_'+stu); if(cb) cb.checked=true; } } }
     function populateForEdit(entryEl){ if(!entryEl) return; const entryId=entryEl.dataset.entry; const entryObj=(cache.entries||[]).find(e=> String(e.id)===String(entryId)); if(!entryObj) return; showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz bearbeiten'; noteDeleteBtn.classList.remove('d-none'); noteEntryIdInput.value=entryId; const dateDisp=entryEl.dataset.dateDisplay || entryObj.date; if(dateDisp) noteDateInput.value=dateDisp; try{ noteContentInput.value=decodeURIComponent(entryEl.dataset.content||''); }catch(_){ noteContentInput.value=entryEl.dataset.content||''; } (entryObj.schueler_ids||[]).forEach(id=>{ const cb=document.getElementById('stu_chk_'+id); if(cb) cb.checked=true; }); }
 
-    // Zusätzlicher Listener für Editor-Interaktionen (neu)
-    diaryBody.addEventListener('click', function(e){
-        const entryEl = e.target.closest('.entry-item');
-        if(entryEl && !e.target.closest('.entry-pause-btn') && !e.target.closest('.entry-unpause-btn') && !e.target.closest('.entry-complete-btn')){
-            populateForEdit(entryEl);
-            return;
-        }
-        const cell = e.target.closest('.note-cell');
-        if(cell){
-            // Nur neue Notiz, wenn in den freien Bereich oder entry-add-space geklickt wird und kein Button/Spalteneingabe
-            if(e.target.classList.contains('entry-add-space') || e.target.closest('.entry-add-space')){
-                populateForNew(cell);
-            }
+    // --- Events Diary ---
+    // Vereinheitlichter Listener (Guard verhindert Editor-Öffnen bei Steuer-Buttons)
+    diaryBody.addEventListener('click', e=>{
+        // Guard: wenn einer der Steuer-Buttons geklickt wurde, Editor nicht öffnen
+        if(e.target.closest('.entry-pause-btn, .entry-unpause-btn, .entry-complete-btn')) return;
+        const entry=e.target.closest('.entry-item');
+        if(entry){ populateForEdit(entry); return; }
+        const cell=e.target.closest('.note-cell');
+        if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }
+    });
+    diaryBody.addEventListener('input', e=>{ const inp=e.target.closest('.col-val-input'); if(!inp) return; const key=`${inp.dataset.col}-${inp.dataset.stu}-${inp.dataset.date}`; clearTimeout(debounceTimers[key]); const val=inp.value.trim(); debounceTimers[key]=setTimeout(()=>{ saveColumnValue(inp.dataset.col, inp.dataset.stu, inp.dataset.date, val).catch(()=>{inp.classList.add('border-danger'); setTimeout(()=>inp.classList.remove('border-danger'),1200);}); },400); });
+    diaryBody.addEventListener('click', e=>{ const btn=e.target.closest('.bool-btn'); if(!btn) return; const newVal=btn.dataset.value==='1'? '':'1'; btn.disabled=true; saveColumnValue(btn.dataset.col, btn.dataset.stu, btn.dataset.date, newVal).then(()=>{ btn.dataset.value=newVal; btn.classList.toggle('btn-success', newVal==='1'); btn.classList.toggle('btn-outline-secondary', newVal!=='1'); }).catch(()=>{btn.classList.add('btn-danger'); setTimeout(()=>btn.classList.remove('btn-danger'),1000);}).finally(()=>btn.disabled=false); });
+
+    // --- Columns Management Events ---
+    manageColumnsBtn.addEventListener('click', ()=>{ if(groupSelect.value){return;} columnsCardWrapper.classList.toggle('d-none'); if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns(); });
+    columnsCloseBtn.addEventListener('click', ()=> columnsCardWrapper.classList.add('d-none'));
+    columnsList.addEventListener('click', e=>{
+        const rem=e.target.closest('.remove-col');
+        const res=e.target.closest('.restore-col');
+        if(rem){
+            const chip=rem.closest('.column-chip');
+            const id=chip.dataset.id;
+            const col=columnsAllCache.find(c=>String(c.id)===String(id));
+            if(!col) return;
+            const ws=formatDate(currentWeekStart);
+            if(!confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return;
+            fetch(`paed-diary/column/${id}?week_start=${encodeURIComponent(ws)}&klasse_id=${encodeURIComponent(klasseSelect.value)}`,{
+                method:'DELETE',
+                headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}
+            }).then(r=>r.json()).then(j=>{
+                if(j.success){
+                    setColumnsFeedback('Spalte deaktiviert','warning');
+                    loadWeek();
+                    loadAllColumns();
+                }
+            });
+        } else if(res){
+            const chip=res.closest('.column-chip');
+            const id=chip.dataset.id;
+            fetch(`paed-diary/column/${id}/restore`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte reaktiviert','success'); loadWeek(); loadAllColumns(); } });
         }
     });
-
-// --- Events Diary ---
-diaryBody.addEventListener('click', e=>{
-    // Guard: wenn einer der Steuer-Buttons geklickt wurde, Editor nicht öffnen
-    if(e.target.closest('.entry-pause-btn, .entry-unpause-btn, .entry-complete-btn')) return;
-    const entry=e.target.closest('.entry-item');
-    if(entry){ populateForEdit(entry); return; }
-    const cell=e.target.closest('.note-cell');
-    if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }
-});
-diaryBody.addEventListener('input', e=>{ const inp=e.target.closest('.col-val-input'); if(!inp) return; const key=`${inp.dataset.col}-${inp.dataset.stu}-${inp.dataset.date}`; clearTimeout(debounceTimers[key]); const val=inp.value.trim(); debounceTimers[key]=setTimeout(()=>{ saveColumnValue(inp.dataset.col, inp.dataset.stu, inp.dataset.date, val).catch(()=>{inp.classList.add('border-danger'); setTimeout(()=>inp.classList.remove('border-danger'),1200);}); },400); });
-diaryBody.addEventListener('click', e=>{ const btn=e.target.closest('.bool-btn'); if(!btn) return; const newVal=btn.dataset.value==='1'? '':'1'; btn.disabled=true; saveColumnValue(btn.dataset.col, btn.dataset.stu, btn.dataset.date, newVal).then(()=>{ btn.dataset.value=newVal; btn.classList.toggle('btn-success', newVal==='1'); btn.classList.toggle('btn-outline-secondary', newVal!=='1'); }).catch(()=>{btn.classList.add('btn-danger'); setTimeout(()=>btn.classList.remove('btn-danger'),1000);}).finally(()=>btn.disabled=false); });
-
-// --- Columns Management Events ---
-manageColumnsBtn.addEventListener('click', ()=>{ if(groupSelect.value){return;} columnsCardWrapper.classList.toggle('d-none'); if(!columnsCardWrapper.classList.contains('d-none')) loadAllColumns(); });
-columnsCloseBtn.addEventListener('click', ()=> columnsCardWrapper.classList.add('d-none'));
-columnsList.addEventListener('click', e=>{
-    const rem=e.target.closest('.remove-col');
-    const res=e.target.closest('.restore-col');
-    if(rem){
-        const chip=rem.closest('.column-chip');
-        const id=chip.dataset.id;
-        const col=columnsAllCache.find(c=>String(c.id)===String(id));
-        if(!col) return;
-        const ws=formatDate(currentWeekStart);
-        if(!confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return;
-        fetch(`paed-diary/column/${id}?week_start=${encodeURIComponent(ws)}&klasse_id=${encodeURIComponent(klasseSelect.value)}`,{
-            method:'DELETE',
-            headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}
-        }).then(r=>r.json()).then(j=>{
-            if(j.success){
-                setColumnsFeedback('Spalte deaktiviert','warning');
-                loadWeek();
-                loadAllColumns();
-            }
-        });
-    } else if(res){
-        const chip=res.closest('.column-chip');
-        const id=chip.dataset.id;
-        fetch(`paed-diary/column/${id}/restore`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ setColumnsFeedback('Spalte reaktiviert','success'); loadWeek(); loadAllColumns(); } });
-    }
-});
-if(addColumnForm){
-    addColumnForm.addEventListener('submit', e=>{
-        e.preventDefault(); if(groupSelect.value) return;
-        // gather values
-        const name = addColumnForm.querySelector('input[name="name"]').value.trim();
-        const type = addColumnForm.querySelector('select[name="type"]').value;
-        const sel = addColumnForm.querySelector('select[name="category_select"]');
-        const newCatInput = addColumnForm.querySelector('input[name="new_category"]');
-        let category = '';
-        if(newCatInput && newCatInput.value.trim()){ category = newCatInput.value.trim(); }
-        else if(sel && sel.value){ category = sel.value; }
-        const fd = new FormData();
-        fd.append('name', name);
-        if(type) fd.append('type', type);
-        fd.append('klasse_id', klasseSelect.value);
-        if(category) fd.append('category', category);
-        fetch('paed-diary/column',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ addColumnForm.reset(); setColumnsFeedback('Spalte angelegt','success'); loadWeek(); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); } }).catch(()=> setColumnsFeedback('Fehler beim Anlegen','danger'));
+    if(addColumnForm){
+        addColumnForm.addEventListener('submit', e=>{
+            e.preventDefault(); if(groupSelect.value) return;
+            // gather values
+            const name = addColumnForm.querySelector('input[name="name"]').value.trim();
+            const type = addColumnForm.querySelector('select[name="type"]').value;
+            const sel = addColumnForm.querySelector('select[name="category_select"]');
+            const newCatInput = addColumnForm.querySelector('input[name="new_category"]');
+            let category = '';
+            if(newCatInput && newCatInput.value.trim()){ category = newCatInput.value.trim(); }
+            else if(sel && sel.value){ category = sel.value; }
+            const fd = new FormData();
+            fd.append('name', name);
+            if(type) fd.append('type', type);
+            fd.append('klasse_id', klasseSelect.value);
+            if(category) fd.append('category', category);
+            fetch('paed-diary/column',{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ addColumnForm.reset(); setColumnsFeedback('Spalte angelegt','success'); loadWeek(); loadAllColumns(); } else { setColumnsFeedback(j.message||'Fehler','danger'); } }).catch(()=> setColumnsFeedback('Fehler beim Anlegen','danger'));
     });
 }
 
@@ -1131,7 +1122,18 @@ function populateForEdit(entryDiv){ clearEditor(); const id=entryDiv.dataset.ent
 function saveColumnValue(colId, stuId, date, value){ return fetch('paed-diary/column/value',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify({column_id:colId,schueler_id:stuId,date:date,value:value})}).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(()=>{ if(!cache.column_values[colId]) cache.column_values[colId]={}; if(!cache.column_values[colId][stuId]) cache.column_values[colId][stuId]={}; if(value===''){ delete cache.column_values[colId][stuId][date]; } else { cache.column_values[colId][stuId][date]=value; } }); }
 
 // --- Tasks Events (close / complete) ---
-tasksPanel.addEventListener('click', e=>{ const closeBtn=e.target.closest('.close-task-btn'); if(closeBtn){ const taskId=closeBtn.dataset.taskId; closeBtn.disabled=true; fetch(`paed-diary/task/${taskId}/close`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ cache.tasks=cache.tasks.filter(t=>String(t.id)!==String(taskId)); renderTasks(); render(); } else { closeBtn.disabled=false; } }).catch(()=> closeBtn.disabled=false); return; } const completeBtn=e.target.closest('.complete-entry-btn'); if(completeBtn){ const entryId=completeBtn.dataset.entryId; completeBtn.disabled=true; fetch(`paed-diary/entry/${entryId}/complete`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify({klasse_id:klasseSelect.value})}).then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } }).catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
+tasksPanel.addEventListener('click', e=>{ const closeBtn=e.target.closest('.close-task-btn'); if(closeBtn){ const taskId=closeBtn.dataset.taskId; closeBtn.disabled=true; fetch(`paed-diary/task/${taskId}/close`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ cache.tasks=cache.tasks.filter(t=>String(t.id)!==String(taskId)); renderTasks(); render(); } else { closeBtn.disabled=false; } }).catch(()=> closeBtn.disabled=false); return; } const completeBtn=e.target.closest('.complete-entry-btn'); if(completeBtn){ const entryId=completeBtn.dataset.entryId; completeBtn.disabled=true;
+    // Bestimme das Datum der Eintragszelle (falls vorhanden)
+    const entryEl = completeBtn.closest('.entry-item');
+    const completedAtDate = (entryEl && (entryEl.dataset.dateDisplay || entryEl.dataset.date)) ? (entryEl.dataset.dateDisplay || entryEl.dataset.date) : formatDate(new Date());
+    fetch(`paed-diary/entry/${entryId}/complete`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
+        body: JSON.stringify({klasse_id: klasseSelect.value, completed_at: completedAtDate})
+    })
+    .then(r=>r.json())
+    .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
+    .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
 refreshTasksBtn.addEventListener('click', ()=> loadWeek());
 
 
