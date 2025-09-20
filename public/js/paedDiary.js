@@ -751,6 +751,7 @@
     diaryBody.addEventListener('click', e=>{
         const pauseBtn = e.target.closest('.entry-pause-btn');
         if(pauseBtn){
+            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
             const entryId = pauseBtn.dataset.entryId;
             const stu = pauseBtn.dataset.stu;
             const date = pauseBtn.dataset.date;
@@ -764,6 +765,7 @@
         }
         const unpauseBtn = e.target.closest('.entry-unpause-btn');
         if(unpauseBtn){
+            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
             const entryId = unpauseBtn.dataset.entryId;
             const stu = unpauseBtn.dataset.stu;
             const date = unpauseBtn.dataset.date;
@@ -777,6 +779,7 @@
         }
         const completeBtn = e.target.closest('.entry-complete-btn');
         if(completeBtn){
+            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
             const entryId = completeBtn.dataset.entryId;
             completeBtn.disabled=true;
             fetch(`paed-diary/entry/${entryId}/complete`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify({klasse_id:klasseSelect.value})})
@@ -982,7 +985,14 @@
     });
 
 // --- Events Diary ---
-diaryBody.addEventListener('click', e=>{ const entry=e.target.closest('.entry-item'); if(entry){ populateForEdit(entry); return; } const cell=e.target.closest('.note-cell'); if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }});
+diaryBody.addEventListener('click', e=>{
+    // Guard: wenn einer der Steuer-Buttons geklickt wurde, Editor nicht öffnen
+    if(e.target.closest('.entry-pause-btn, .entry-unpause-btn, .entry-complete-btn')) return;
+    const entry=e.target.closest('.entry-item');
+    if(entry){ populateForEdit(entry); return; }
+    const cell=e.target.closest('.note-cell');
+    if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }
+});
 diaryBody.addEventListener('input', e=>{ const inp=e.target.closest('.col-val-input'); if(!inp) return; const key=`${inp.dataset.col}-${inp.dataset.stu}-${inp.dataset.date}`; clearTimeout(debounceTimers[key]); const val=inp.value.trim(); debounceTimers[key]=setTimeout(()=>{ saveColumnValue(inp.dataset.col, inp.dataset.stu, inp.dataset.date, val).catch(()=>{inp.classList.add('border-danger'); setTimeout(()=>inp.classList.remove('border-danger'),1200);}); },400); });
 diaryBody.addEventListener('click', e=>{ const btn=e.target.closest('.bool-btn'); if(!btn) return; const newVal=btn.dataset.value==='1'? '':'1'; btn.disabled=true; saveColumnValue(btn.dataset.col, btn.dataset.stu, btn.dataset.date, newVal).then(()=>{ btn.dataset.value=newVal; btn.classList.toggle('btn-success', newVal==='1'); btn.classList.toggle('btn-outline-secondary', newVal!=='1'); }).catch(()=>{btn.classList.add('btn-danger'); setTimeout(()=>btn.classList.remove('btn-danger'),1000);}).finally(()=>btn.disabled=false); });
 
