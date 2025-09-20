@@ -1422,7 +1422,10 @@ class PaedDiaryController extends Controller
             if(empty($data['recurring_type'])) return response()->json(['message'=>'recurring_type erforderlich'],422);
             if(empty($data['recurring_interval'])) $data['recurring_interval']=1;
         } else {
-            $data['recurring_type']=null; $data['recurring_interval']=null; $data['recurring_end_date']=null;
+            // Für nicht wiederkehrende Termine: Typ & Enddatum löschen, Interval auf 1 (DB Default, kein NULL Insert)
+            $data['recurring_type']=null;
+            $data['recurring_interval']=1;
+            $data['recurring_end_date']=null;
         }
         // Zeitfelder in passendes Format bringen (wir speichern als einfache Strings / oder Carbon?) – wir lassen Strings, Modell-Casts formatiert
         $appointment = PaedDiaryAppointment::create([
@@ -1434,7 +1437,7 @@ class PaedDiaryController extends Controller
             'end_time'=>!empty($data['end_time'])? Carbon::parse($data['start_date'].' '.$data['end_time']) : null,
             'is_recurring'=>$isRecurring,
             'recurring_type'=>$data['recurring_type'] ?? null,
-            'recurring_interval'=>$data['recurring_interval'] ?? null,
+            'recurring_interval'=>$isRecurring ? ($data['recurring_interval'] ?? 1) : 1,
             'recurring_end_date'=>!empty($data['recurring_end_date'])? Carbon::parse($data['recurring_end_date'])->toDateString() : null,
             'is_paused'=>false,
         ]);
@@ -1471,7 +1474,10 @@ class PaedDiaryController extends Controller
             if(empty($data['recurring_type'])) return response()->json(['message'=>'recurring_type erforderlich'],422);
             if(empty($data['recurring_interval'])) $data['recurring_interval']=1;
         } else {
-            $data['recurring_type']=null; $data['recurring_interval']=null; $data['recurring_end_date']=null; $appointment->is_paused=false; // beim Umschalten Reset
+            $data['recurring_type']=null;
+            $data['recurring_interval']=1;
+            $data['recurring_end_date']=null;
+            $appointment->is_paused=false; // beim Umschalten Reset
         }
         $appointment->update([
             'title'=>trim($data['title']),
@@ -1481,7 +1487,7 @@ class PaedDiaryController extends Controller
             'end_time'=>!empty($data['end_time'])? Carbon::parse($data['start_date'].' '.$data['end_time']) : null,
             'is_recurring'=>$isRecurring,
             'recurring_type'=>$data['recurring_type'] ?? null,
-            'recurring_interval'=>$data['recurring_interval'] ?? null,
+            'recurring_interval'=>$isRecurring ? ($data['recurring_interval'] ?? 1) : 1,
             'recurring_end_date'=>!empty($data['recurring_end_date'])? Carbon::parse($data['recurring_end_date'])->toDateString() : null,
         ]);
         $this->syncAppointmentRelations($appointment,$data,$user);
