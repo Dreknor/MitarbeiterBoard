@@ -38,14 +38,9 @@
     const noteStudentsDiv = document.getElementById('noteStudents');
     const noteStatus = document.getElementById('noteStatus');
 
-    const taskModal = $('#taskModal');
-    const taskForm = document.getElementById('taskForm');
-    const taskSchuelerSelect = document.getElementById('taskSchueler');
     const openTaskModalBtn = document.getElementById('openTaskModal');
     const exportCsvBtn = document.getElementById('exportCsvBtn');
-    const tasksPanel = document.getElementById('tasksPanel');
-    const tasksList = document.getElementById('tasksList');
-    const refreshTasksBtn = document.getElementById('refreshTasks');
+
 
     // Termine-Elemente
     const openAppointmentModalBtn = document.getElementById('openAppointmentModal');
@@ -68,6 +63,17 @@
         escapeHtml,
         loadWeek,
         getCache: () => cache // Pass a function to get the latest cache
+    });
+
+    const tasksModule = initializeTasksModule({
+        csrf,
+        cache,
+        klasseSelect,
+        groupSelect,
+        escapeHtml,
+        trimText,
+        loadWeek,
+        getCache: () => cache
     });
 
     const appointmentsModule = initializeAppointmentsModule({
@@ -151,19 +157,10 @@
     }
 
     // --- Neu hinzugefügt: Aufgaben & offene Notizen Panel (ausgelagert) ---
-    // Die Funktion `renderTasks` wurde in die Datei `paedDiaryTasks.js` ausgelagert.
-    // Um das Verhalten nicht zu ändern, laden wir diese Datei synchron und evaluieren sie,
-    // so dass `renderTasks` im Scope dieser IIFE verfügbar ist.
-    try{
-        var __xhr = new XMLHttpRequest();
-        __xhr.open('GET', '/js/paedDiaryTasks.js', false); // synchron
-        __xhr.send(null);
-        if(__xhr.status === 200){
-            try{ eval(__xhr.responseText); } catch(e){ console.error('paedDiaryTasks.js: eval error', e); }
-        } else {
-            console.error('paedDiaryTasks.js: failed to load, status=' + __xhr.status);
-        }
-    }catch(e){ console.error('paedDiaryTasks.js: load error', e); }
+    function renderTasks() {
+        tasksModule.renderTasks();
+    }
+
 
     // Rendert das Symbol/Badge für die Graduierungsstufe eines Schülers (jetzt immer klickbar bei Berechtigung)
     function renderStageSymbol(student) {
@@ -252,23 +249,6 @@
         appointmentsModule.loadAppointments(currentWeekStart);
     }
 
-    function renderAppointments(){
-        // This is now handled by the appointments module
-    }
-
-    function editAppointment(appointment){
-        // This is now handled by the appointments module
-    }
-
-    function loadAllColumns(){
-        // This function is now part of the columns module.
-        // The module will be responsible for loading its own data.
-    }
-
-    // Baut/füllt das Category-Auswahlfeld im Add-Column-Form
-    function populateColumnCategoryControls(){
-        // This function is now part of the columns module.
-    }
 
     // Gruppen laden
     function loadGroups(){
@@ -299,9 +279,7 @@
         groupSelect.innerHTML = opts.join('');
     }
     function setGroupFeedback(msg,type='info'){ if(groupFeedback){ const colors={info:'#17a2b8',success:'#28a745',warning:'#ffc107',danger:'#dc3545'}; groupFeedback.innerHTML=`<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`; } }
-    function setColumnsFeedback(msg,type='info'){
-        // This function is now part of the columns module.
-    }
+
 
     // --- Rendering ---
     function buildEntryMap(){
@@ -430,7 +408,7 @@
         const endWeek = addDays(currentWeekStart,4);
         weekLabel.textContent = `${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
         renderStudentCheckboxes();
-        taskSchuelerSelect.innerHTML = '<option value="">-- Schüler --</option>' + (cache.schueler||[]).map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        tasksModule.updateTaskStudentSelect();
         exportCsvBtn.classList.remove('disabled');
         if(groupSelect && groupSelect.value){
             exportCsvBtn.href = `/export/paed-diary/excel?group_id=${encodeURIComponent(groupSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
@@ -490,7 +468,6 @@
             .then(r=>r.json())
             .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
             .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
-refreshTasksBtn.addEventListener('click', ()=> loadWeek());
 
 
     // --- Gruppen UI Events ---
@@ -518,34 +495,6 @@ refreshTasksBtn.addEventListener('click', ()=> loadWeek());
     noteEditorCancel.addEventListener('click', hideEditor);
     noteForm.addEventListener('submit', ev=>{ ev.preventDefault(); noteStatus.textContent='Speichere...'; const fd=new FormData(noteForm); if(groupSelect.value){ fd.set('group_id', groupSelect.value); } fd.set('klasse_id',klasseSelect.value); const completedCheckbox=document.getElementById('noteCompleted'); if(completedCheckbox && !completedCheckbox.checked){ fd.delete('completed'); } else { fd.set('completed','1'); } const id=noteEntryIdInput.value; const url=id?`paed-diary/entry/${id}`:'paed-diary/entry'; fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gespeichert'; loadWeek(); if(!id){ clearEditor(); } } else { noteStatus.textContent=j.message||'Fehler'; } }).catch(()=> noteStatus.textContent='Fehler beim Speichern'); });
     noteDeleteBtn.addEventListener('click', ()=>{ const id=noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...'; fetch(`paed-diary/entry/${id}?klasse_id=${encodeURIComponent(klasseSelect.value)}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); clearEditor(); } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen'); });
-
-    // --- Aufgaben ---
-    openTaskModalBtn.addEventListener('click', ()=>{ taskForm.reset(); document.getElementById('taskKlasseId').value=klasseSelect.value; taskModal.modal('show'); });
-    taskForm.addEventListener('submit', e=>{
-        e.preventDefault();
-        const fd=new FormData(taskForm);
-        if(groupSelect.value){
-            fd.set('group_id', groupSelect.value);
-        }
-        fd.set('klasse_id',klasseSelect.value);
-        if(!fd.get('highlighted')) fd.set('highlighted','0');
-        fetch('paed-diary/task',{
-            method:'POST',
-            headers:{
-                'X-CSRF-TOKEN':csrf,
-                'Accept':'application/json'
-            },
-            body:fd
-        }).then(r=>r.json()).then(j=>{
-            if(j.success){
-                taskModal.modal('hide');
-                loadWeek();
-            }
-        }).catch(()=>{});
-    });
-
-    // --- Termine ---
-    // All appointment event listeners are now in appointments.js
 
 
     // --- Editor Hilfsfunktionen (neu hinzugefügt) ---
@@ -587,19 +536,8 @@ refreshTasksBtn.addEventListener('click', ()=> loadWeek());
     }
 
 // --- Tasks Events (close / complete) ---
-tasksPanel.addEventListener('click', e=>{ const closeBtn=e.target.closest('.close-task-btn'); if(closeBtn){ const taskId=closeBtn.dataset.taskId; closeBtn.disabled=true; fetch(`paed-diary/task/${taskId}/close`,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ cache.tasks=cache.tasks.filter(t=>String(t.id)!==String(taskId)); renderTasks(); render(); } else { closeBtn.disabled=false; } }).catch(()=> closeBtn.disabled=false); return; } const completeBtn=e.target.closest('.complete-entry-btn'); if(completeBtn){ const entryId=completeBtn.dataset.entryId; completeBtn.disabled=true;
-    // Bestimme das Datum der Eintragszelle (falls vorhanden)
-    const entryEl = completeBtn.closest('.entry-item');
-    const completedAtDate = (entryEl && (entryEl.dataset.dateDisplay || entryEl.dataset.date)) ? (entryEl.dataset.dateDisplay || entryEl.dataset.date) : formatDate(new Date());
-    fetch(`paed-diary/entry/${entryId}/complete`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
-        body: JSON.stringify({klasse_id: klasseSelect.value, completed_at: completedAtDate})
-    })
-    .then(r=>r.json())
-    .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
-    .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
-refreshTasksBtn.addEventListener('click', ()=> loadWeek());
+// All task related event listeners are now in tasks.js
+
 
 
 // --- Initialisierung ---

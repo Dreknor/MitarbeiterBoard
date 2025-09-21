@@ -59,3 +59,22 @@ body.paed-hide-sidebar .main-panel {
 @media (max-width: 991px) {
   body.paed-hide-sidebar .sidebar { display: none !important; }
 }
+
+/* Größere Schrift für offene Einträge im pädagogischen Tagebuch */
+.open-entry-large {
+  /* Überschreibt die .small-Klasse, die an der gleichen Zeile gesetzt ist */
+  font-size: 1.05rem !important;
+  line-height: 1.35 !important;
+}
+.open-entry-large .fa-comment-alt {
+  font-size: 0.95rem;
+  margin-right: 0.4rem;
+}
+.open-entry-large .text-muted {
+  font-size: 0.85rem;
+}
+
+/* Auf sehr kleinen Bildschirmen etwas kleiner halten */
+@media (max-width: 767px) {
+  .open-entry-large { font-size: 1rem !important; }
+}
