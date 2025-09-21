@@ -170,9 +170,6 @@
     }
 
 
-    // Die Stage-Rendering-Logik wurde in "public/js/stages.js" ausgelagert.
-    // Verwende stagesModule.renderStageSymbol(student) um das Badge darzustellen.
-
 
     // Formatiert Zeit von "HH:MM:SS" zu "HH:MM" oder von ISO 8601 DateTime zu "HH:MM" (lokale Zeitzone)
     function formatTime(timeStr) {
@@ -512,8 +509,7 @@
     diaryBody.addEventListener('input', e=>{ const inp=e.target.closest('.col-val-input'); if(!inp) return; const key=`${inp.dataset.col}-${inp.dataset.stu}-${inp.dataset.date}`; clearTimeout(debounceTimers[key]); const val=inp.value.trim(); debounceTimers[key]=setTimeout(()=>{ saveColumnValue(inp.dataset.col, inp.dataset.stu, inp.dataset.date, val).catch(()=>{inp.classList.add('border-danger'); setTimeout(()=>inp.classList.remove('border-danger'),1200);}); },400); });
     diaryBody.addEventListener('click', e=>{ const btn=e.target.closest('.bool-btn'); if(!btn) return; const newVal=btn.dataset.value==='1'? '':'1'; btn.disabled=true; saveColumnValue(btn.dataset.col, btn.dataset.stu, btn.dataset.date, newVal).then(()=>{ btn.dataset.value=newVal; btn.classList.toggle('btn-success', newVal==='1'); btn.classList.toggle('btn-outline-secondary', newVal!=='1'); }).catch(()=>{btn.classList.add('btn-danger'); setTimeout(()=>btn.classList.remove('btn-danger'),1000);}).finally(()=>btn.disabled=false); });
 
-    // --- Columns Management Events ---
-    // All column management event listeners are now in columns.js
+
 
     // --- Editor-Funktionen ---
     function showEditor(){ noteEditorCard.classList.remove('d-none'); }
@@ -529,9 +525,6 @@
         console.warn("saveColumnValue is deprecated and should be handled by the columns module.");
         return Promise.resolve();
     }
-
-// --- Tasks Events (close / complete) ---
-// All task related event listeners are now in tasks.js
 
 
 
