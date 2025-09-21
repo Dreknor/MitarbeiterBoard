@@ -391,5 +391,6 @@
 
 @push('js')
     <script src="{{ asset('/js/paedDiary/columns.js')}}"></script>
+    <script src="{{ asset('/js/paedDiary/appointments.js')}}"></script>
 <script src="{{ asset('/js/paedDiary.js')}}"></script>
 @endpush
