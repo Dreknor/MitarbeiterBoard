@@ -266,5 +266,5 @@ function initializeEntriesModule(options){
     if(noteEditorCancel) noteEditorCancel.addEventListener('click', hideEditor);
 
     // expose API
-    return { render, populateForNew, populateForEdit, showEditor, hideEditor, clearEditor, rebuildPauseMap };
+    return { render, populateForNew, populateForEdit, showEditor, hideEditor, clearEditor, rebuildPauseMap, isPaused, getBrightness };
 }

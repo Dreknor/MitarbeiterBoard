@@ -38,20 +38,21 @@
     const noteStudentsDiv = document.getElementById('noteStudents');
     const noteStatus = document.getElementById('noteStatus');
 
-    const openTaskModalBtn = document.getElementById('openTaskModal');
     const exportCsvBtn = document.getElementById('exportCsvBtn');
 
 
     // Termine-Elemente
-    const openAppointmentModalBtn = document.getElementById('openAppointmentModal');
+    // (openAppointmentModalBtn entfernt, wird bei Bedarf vom appointments module verwaltet)
 
 
     // --- State ---
     let currentWeekStart = startOfWeek(new Date());
     let cache = { days:[], schueler:[], entries:[], columns:[], column_values:{}, tasks:[], klassen:[], is_group:false, appointments:[] };
-    let debounceTimers = {}; // für Spaltenwerte
+    // debounceTimers entfernt (nicht genutzt in diesem Modul)
     let groupsCache = [];
    let pauseMap = {}; // Neuer Map: entryId -> schuelerId -> date -> true
+
+    // Entferne lokale isPaused/getBrightness - verwende entriesModule.isPaused / entriesModule.getBrightness nach Initialisierung
 
     // --- Initialize Modules ---
     const columnsModule = initializeColumnsModule({
@@ -73,7 +74,8 @@
         escapeHtml,
         trimText,
         loadWeek,
-        getCache: () => cache
+        getCache: () => cache,
+        diaryBody // Übergibt das DOM-Element an das Tasks-Modul
     });
 
     const appointmentsModule = initializeAppointmentsModule({
@@ -107,14 +109,6 @@
         });
     }
 
-    function isPaused(entryId, stuId, date){
-        // Robust: prüfe verschachtelte Maps ohne Referenzfehler
-        const entryMap = pauseMap[entryId];
-        if(!entryMap) return false;
-        const stuMap = entryMap[stuId];
-        if(!stuMap) return false;
-        return !!stuMap[date];
-    }
 
     // --- Utils ---
     function startOfWeek(d){const dt=new Date(d);const wd=dt.getDay();const diff=(wd===0?-6:1-wd);dt.setDate(dt.getDate()+diff);dt.setHours(0,0,0,0);return dt;}
@@ -123,20 +117,6 @@
     function escapeHtml(str){return String(str).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));}
     function trimText(str,len){return str.length<=len?str:str.slice(0,len-1)+'…';}
     function setModeBadge(){ if(cache.is_group){ modeBadge.classList.remove('d-none'); } else { modeBadge.classList.add('d-none'); } }
-
-    // Berechnet die Helligkeit einer Farbe für besseren Kontrast
-    function getBrightness(hexColor) {
-        // Entferne # falls vorhanden
-        const hex = hexColor.replace('#', '');
-
-        // Konvertiere zu RGB
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-
-        // Berechne relative Helligkeit nach W3C-Formel
-        return ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    }
 
     // --- Neu: Kategorisierte Darstellung der Zusatzspalten pro Zelle ---
     function renderColumnInputs(stuId, date){
@@ -152,7 +132,7 @@
         cache.schueler.forEach(s=>{ (byClass[s.klasse_id] = byClass[s.klasse_id] || []).push(s); });
         let html='';
         Object.keys(byClass).sort().forEach(klasseId=>{
-            const klasse = (cache.klassen||[]).find(k=>k.id==klasseId);
+            const klasse = (cache.klassen||[]).find(k=> String(k.id) === String(klasseId));
             if(cache.is_group){ html += `<div class="text-primary font-weight-bold small border-top pt-1 mt-1">${escapeHtml(klasse? klasse.name : ('Klasse '+klasseId))}</div>`; }
             byClass[klasseId].sort((a,b)=> a.name.localeCompare(b.name,'de')).forEach(s=>{
                 html += `<label class="custom-checkbox-wrapper" style="font-size:.65rem;">`+
@@ -170,42 +150,6 @@
     }
 
 
-
-    // Formatiert Zeit von "HH:MM:SS" zu "HH:MM" oder von ISO 8601 DateTime zu "HH:MM" (lokale Zeitzone)
-    function formatTime(timeStr) {
-        if (!timeStr) return '';
-
-        // Falls es ein ISO 8601 DateTime-String ist (YYYY-MM-DDTHH:MM:SS)
-        if (timeStr.includes('T')) {
-            try {
-                // Konvertiere zu Date-Objekt und formatiere in lokaler Zeitzone
-                const date = new Date(timeStr);
-                if (!isNaN(date.getTime())) {
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    return `${hours}:${minutes}`;
-                }
-            } catch (e) {
-                // Fallback: einfache String-Extraktion
-                const timePart = timeStr.split('T')[1];
-                if (timePart && timePart.includes(':')) {
-                    const parts = timePart.split(':');
-                    if (parts.length >= 2) {
-                        return `${parts[0]}:${parts[1]}`;
-                    }
-                }
-            }
-        }
-
-        // Einfache String-Manipulation für HH:MM:SS -> HH:MM
-        if (timeStr.includes(':')) {
-            const parts = timeStr.split(':');
-            if (parts.length >= 2) {
-                return `${parts[0]}:${parts[1]}`;
-            }
-        }
-        return timeStr;
-    }
 
     // --- Daten laden ---
     function loadWeek(){
@@ -233,13 +177,7 @@
     }
 
     // Aktualisiert die Schüler-Liste für Termine basierend auf den verfügbaren Schülern im Cache
-    function updateAppointmentSchuelerList(){
-        appointmentsModule.updateAppointmentSchuelerList();
-    }
-
-    function loadAppointments(){
-        appointmentsModule.loadAppointments(currentWeekStart);
-    }
+    // (wird nun direkt über appointmentsModule erledigt)
 
 
     // Gruppen laden
@@ -306,6 +244,7 @@
          renderStudentCheckboxes
      });
 
+    // --- Rendering ---
     // Wrapper-Render: ruft das Eintrags-Rendering auf und führt restliche UI-Aufgaben aus
     function render(){
         entriesModule.render();
@@ -327,6 +266,8 @@
             if (manageColumnsBtn) manageColumnsBtn.classList.remove('disabled');
         }
         renderTasks();
+        // Tasks module rendert jetzt die Inline-Aufgaben unter den Namen
+        try{ tasksModule && typeof tasksModule.renderTaskBadgesOnNames === 'function' && tasksModule.renderTaskBadgesOnNames(diaryBody); }catch(_){ console.warn('tasksModule.renderTaskBadgesOnNames failed'); }
     }
 
     // --- Gruppen UI Events ---

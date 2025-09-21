@@ -8,7 +8,8 @@ function initializeTasksModule(dependencies) {
         escapeHtml,
         trimText,
         loadWeek,
-        getCache
+        getCache,
+        diaryBody // neu: DOM-Element der Tabelle, um inline-Buttons zu behandeln
     } = dependencies;
 
     // --- DOM-Elemente ---
@@ -108,6 +109,96 @@ function initializeTasksModule(dependencies) {
         }
     }
 
+
+    // --- Neu: Task-Badges neben Schülernamen (zentrale Darstellung in tasks module) ---
+    function getTasksForStudent(studentId){
+        const localCache = getCache();
+        if(!localCache) return [];
+        const openEntries = (localCache.entries || []).filter(e => !e.completed_at);
+        const entryTasks = openEntries.map(e => ({
+            is_entry: true,
+            entry_id: e.id,
+            title: e.content,
+            user: e.user,
+            schueler_ids: e.schueler_ids || []
+        }));
+        const normalTasks = (localCache.tasks || []).map(t => Object.assign({}, t));
+        const allTasks = normalTasks.concat(entryTasks);
+        return allTasks.filter(t => {
+            if(t.is_entry) return (t.schueler_ids||[]).map(String).includes(String(studentId));
+            return String(t.schueler_id) === String(studentId);
+        });
+    }
+
+    function renderTaskBadgesOnNames(diaryBodyEl){
+        if(!diaryBodyEl) return;
+        const rows = Array.from(diaryBodyEl.querySelectorAll('tr'));
+        rows.forEach(tr => {
+            const noteCell = tr.querySelector('td.note-cell');
+            let stuId = noteCell ? noteCell.dataset.stu : null;
+            if(!stuId) return;
+            const th = tr.querySelector('th');
+            if(!th) return;
+            const existing = th.querySelector('.student-tasks-inline');
+            if(existing) existing.remove();
+            const tasks = getTasksForStudent(stuId);
+            if(!tasks || tasks.length === 0) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'student-tasks-inline';
+            const visible = tasks.slice(0,3);
+            visible.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'student-tasks-item d-flex justify-content-between align-items-center';
+                if(t.is_entry){
+                    item.classList.add('task-entry');
+                    item.innerHTML = `<span class="task-inline-title text-truncate">${escapeHtml(trimText(t.title || (t.content||''), 80))}</span>`+
+                                     ` <button type="button" class="btn btn-link btn-sm p-0 inline-complete-entry-btn" data-entry-id="${t.entry_id}" title="Notiz abschließen">✔</button>`;
+                } else {
+                    const overdue = t.due_date && new Date(t.due_date) < new Date();
+                    item.classList.add('task-normal');
+                    if(overdue) item.classList.add('task-overdue');
+                    item.innerHTML = `<span class="task-inline-title text-truncate">${escapeHtml(trimText(t.title || '', 80))}`+
+                                     `${t.due_date? ` <small class="text-muted">(${new Date(t.due_date).toLocaleDateString()})</small>` : ''}</span>`+
+                                     ` <button type="button" class="btn btn-link btn-sm p-0 inline-close-task-btn" data-task-id="${t.id}" title="Aufgabe abschließen">✕</button>`;
+                }
+                wrapper.appendChild(item);
+            });
+            if(tasks.length > 3){
+                const more = document.createElement('div');
+                more.className = 'text-muted small';
+                more.textContent = `+${tasks.length - 3}`;
+                wrapper.appendChild(more);
+            }
+            th.appendChild(wrapper);
+        });
+    }
+
+    // Wenn diaryBody übergeben wurde, wire Event-Handler für die inline-Buttons
+    if(diaryBody){
+        diaryBody.addEventListener('click', function(e){
+            const closeTaskBtn = e.target.closest('.inline-close-task-btn');
+            if(closeTaskBtn){
+                e.preventDefault(); e.stopPropagation();
+                const taskId = closeTaskBtn.dataset.taskId; if(!taskId) return; closeTaskBtn.disabled = true;
+                fetch(`paed-diary/task/${taskId}/close`, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
+                    .then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { closeTaskBtn.disabled = false; alert(j.message||'Fehler'); } })
+                    .catch(()=>{ closeTaskBtn.disabled = false; alert('Fehler'); });
+                return;
+            }
+            const completeEntryBtn = e.target.closest('.inline-complete-entry-btn');
+            if(completeEntryBtn){
+                e.preventDefault(); e.stopPropagation();
+                const entryId = completeEntryBtn.dataset.entryId; if(!entryId) return; completeEntryBtn.disabled = true;
+                const completedAtDate = new Date().toISOString().slice(0,10);
+                fetch(`paed-diary/entry/${entryId}/complete`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ completed_at: completedAtDate })
+                }).then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { completeEntryBtn.disabled = false; alert(j.message || 'Fehler'); } })
+                .catch(()=>{ completeEntryBtn.disabled = false; alert('Fehler'); });
+                return;
+            }
+        });
+    }
 
     // --- Event Listeners ---
     if (openTaskModalBtn) {
@@ -214,6 +305,7 @@ function initializeTasksModule(dependencies) {
     // --- Öffentliche API ---
     return {
         renderTasks,
-        updateTaskStudentSelect
+        updateTaskStudentSelect,
+        renderTaskBadgesOnNames // neue API zum Rendern der Namen-Badges
     };
 }
