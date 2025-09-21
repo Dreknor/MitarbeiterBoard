@@ -274,133 +274,48 @@
 
 
     // --- Rendering ---
-    function buildEntryMap(){
-        const m={};
-        if(!cache.entries) return m;
-        const weekDates = (cache.days||[]).map(d=>d.date);
-        if(!weekDates.length) return m;
-        const weekStartStr = weekDates[0];
-        const weekEndStr = weekDates[weekDates.length-1];
-        const weekStartDate = new Date(weekStartStr+ 'T00:00:00');
-        const weekEndDate = new Date(weekEndStr+ 'T00:00:00');
-        const today = new Date(); today.setHours(0,0,0,0);
+    // Eintrags-Logik ist ausgelagert in `public/js/paedDiaryEntries.js`.
+    const entriesModule = initializeEntriesModule({
+         csrf,
+         diaryHead,
+         diaryBody,
+         weekLabel,
+         noteEditorCard,
+         noteEditorTitle,
+         noteEditorCancel,
+         noteClearBtn,
+         openNoteInline,
+         noteForm,
+         noteEntryIdInput,
+         noteDateInput,
+         noteContentInput,
+         noteDeleteBtn,
+         noteStudentsDiv,
+         noteStatus,
+         showPausedToggle: typeof showPausedToggle !== 'undefined' ? showPausedToggle : null,
+         renderColumnInputs,
+         stagesModule,
+         tasksModule,
+         getCache: () => cache,
+         formatDate,
+         addDays,
+         escapeHtml,
+         trimText,
+         loadWeek,
+         saveColumnValue: (columnsModule && typeof columnsModule.saveColumnValue === 'function') ? columnsModule.saveColumnValue : null,
+         renderStudentCheckboxes
+     });
 
-        cache.entries.forEach(e=>{
-            const entryStartDate = new Date(e.date+'T00:00:00');
-            const isCompleted = !!e.completed_at;
-            // Wenn abgeschlossen: nur an seinem eigenen Datum (fertige Klone existieren ggf. schon für andere Tage separat)
-            if(isCompleted){
-                e.schueler_ids.forEach(sid=>{
-                    if(isPaused(e.id, sid, e.date)) return; // pausiert -> ausblenden
-                    (m[sid]||(m[sid]={}))[e.date]=(m[sid][e.date]||[]);
-                    if(!m[sid][e.date].some(x=>x.id===e.id)) m[sid][e.date].push(Object.assign({}, e, {virtual_date:e.date}));
-                });
-                return;
-            }
-            // Offen: ab max(Startdatum, Wochenstart) bis min(heute, Wochenende) anzeigen
-            const from = entryStartDate < weekStartDate ? weekStartDate : entryStartDate;
-            let to;
-            if(weekStartDate > today){
-                // Zukunftswoche: komplette Woche projizieren
-                to = weekEndDate;
-            } else {
-                // Aktuelle / Vergangene Woche: nur bis heute (oder Wochenende, falls früher)
-                to = today < weekEndDate ? today : weekEndDate;
-            }
-
-            if(to < from) to = from; // Sicherheit
-            for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){
-                const dateStr = formatDate(d);
-                e.schueler_ids.forEach(sid=>{
-                    if(isPaused(e.id, sid, dateStr)) return; // pausiert an diesem Tag
-                    (m[sid]||(m[sid]={}))[dateStr]=(m[sid][dateStr]||[]);
-                    if(!m[sid][dateStr].some(x=>x.id===e.id)) m[sid][dateStr].push(Object.assign({}, e, {virtual_date:dateStr}));
-                });
-            }
-        });
-        return m;
-    }
+    // Wrapper-Render: ruft das Eintrags-Rendering auf und führt restliche UI-Aufgaben aus
     function render(){
-        const showPaused = showPausedToggle ? !!showPausedToggle.checked : false;
-        diaryHead.innerHTML='';
-        const todayStr = formatDate(new Date());
-        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:180px;">Schüler</th>' + cache.days.map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday? ' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
-        const entryMap = buildEntryMap();
-        diaryBody.innerHTML='';
-        const taskStudentIds = new Set((cache.tasks||[]).map(t=>t.schueler_id));
-        let lastKlasseId = null;
+        entriesModule.render();
+        if(!cache.schueler.length){ entriesModule.hideEditor && entriesModule.hideEditor(); }
+        if(columnsCardWrapper && !columnsCardWrapper.classList.contains('d-none')) {
+            // The columns module handles its own data loading
+        }
+        appointmentsModule.loadAppointments(currentWeekStart);
+        appointmentsModule.updateAppointmentSchuelerList();
 
-        (cache.schueler||[]).forEach(stu=>{
-            // Klassen-Divider in Gruppenmodus
-            if(cache.is_group && stu.klasse_id !== lastKlasseId){
-                lastKlasseId = stu.klasse_id;
-                const kObj = (cache.klassen||[]).find(k=>k.id===stu.klasse_id);
-                const divider = document.createElement('tr');
-                divider.className = 'class-divider-row';
-                const td = document.createElement('td');
-                td.colSpan = (cache.days||[]).length + 1;
-                td.textContent = (kObj? kObj.name : ('Klasse ' + stu.klasse_id));
-                if(kObj && kObj.color){
-                    td.style.backgroundColor = kObj.color;
-                    const brightness = getBrightness(kObj.color);
-                    td.style.color = brightness > 128 ? '#000000' : '#ffffff';
-                }
-                divider.appendChild(td);
-                diaryBody.appendChild(divider);
-            }
-
-            // Kopfzelle mit Schülerlink und Stage
-            let row = `<th class="align-top" style="font-size:.72rem;">`+
-                      `<a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${escapeHtml(stu.name)} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>`+
-                      `<span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>`+
-                      `${stagesModule.renderStageSymbol(stu)}`+
-                      `</th>`;
-
-            // Zellen für Tage
-            (cache.days||[]).forEach(d=>{
-                const entries = (entryMap[stu.id]?.[d.date]) || [];
-                const entriesHtml = entries.map(e=>{
-                    const enc = encodeURIComponent(e.content||'');
-                    const isOpen = !e.completed_at;
-                    const pauseBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-pause entry-pause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag ausblenden" aria-label="Pausieren">⏸</button>` : '';
-                    const completeBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-complete entry-complete-btn" data-entry-id="${e.id}" title="Notiz abschließen" aria-label="Abschließen">✔</button>` : '';
-                    return `<div class=\"entry-item d-flex align-items-start\" data-entry=\"${e.id}\" data-content=\"${enc}\" data-date-display=\"${d.date}\">`+
-                           `<div class=\"flex-grow-1\">${e.user? `<span class=\"author\">${escapeHtml(e.user)}</span>` : ''}<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class=\"badge badge-warning badge-pill ml-1\" title="Fortlaufende offene Notiz">laufend</span>':''}</div>`+
-                           `<div class=\"ml-1 d-flex\">${completeBtn}${pauseBtn}</div>`+
-                           `</div>`;
-                }).join('');
-                // Pausierte offene Einträge als Platzhalter anzeigen
-                let pausedHtml = '';
-                if(showPaused){
-                    (cache.entries||[]).forEach(e=>{
-                        if(e.completed_at) return; // nur offene
-                        if(!e.schueler_ids.includes(stu.id)) return;
-                        if(isPaused(e.id, stu.id, d.date)){
-                            pausedHtml += `<div class=\"entry-item paused-entry d-flex align-items-start text-muted\" data-entry=\"${e.id}\" data-date-display=\"${d.date}\">`+
-                                          `<div class=\"flex-grow-1\"><em>${escapeHtml(trimText(e.content,100))}</em> <span class=\"badge badge-light ml-1\" title=\"Pausiert\">Pause</span></div>`+
-                                          `<div class=\"ml-1 d-flex\"><button type=\"button\" class=\"diary-btn diary-btn-unpause entry-unpause-btn\" data-entry-id=\"${e.id}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\" title=\"Notiz an diesem Tag wieder anzeigen\" aria-label=\"Reaktivieren\">▶</button></div>`+
-                                          `</div>`;
-                        }
-                    });
-                }
-                const isToday = d.date === todayStr;
-                row += `<td class=\"note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\">`+
-                       `<div class=\"entry-add-space\" style=\"min-height:18px; cursor:pointer;\" title=\"Neue Notiz erstellen\"></div>`+
-                       `<div class=\"entry-list\">${entriesHtml}${pausedHtml}</div>`+
-                       `<div class=\"col-inputs-row\"><div class=\"col-inputs\">${renderColumnInputs(stu.id,d.date)}</div></div>`+
-                       `</td>`;
-            });
-
-            const tr = document.createElement('tr');
-            if(taskStudentIds.has(stu.id)) tr.classList.add('stu-has-task');
-            tr.innerHTML = row;
-            diaryBody.appendChild(tr);
-        });
-
-        const endWeek = addDays(currentWeekStart,4);
-        weekLabel.textContent = `${currentWeekStart.toLocaleDateString()} - ${endWeek.toLocaleDateString()}`;
-        renderStudentCheckboxes();
-        tasksModule.updateTaskStudentSelect();
         exportCsvBtn.classList.remove('disabled');
         if(groupSelect && groupSelect.value){
             exportCsvBtn.href = `/export/paed-diary/excel?group_id=${encodeURIComponent(groupSelect.value)}&week_start=${encodeURIComponent(formatDate(currentWeekStart))}`;
@@ -413,54 +328,6 @@
         }
         renderTasks();
     }
-
-    // Event Listener Erweiterung für Pause/Complete Buttons in diaryBody
-    diaryBody.addEventListener('click', e=>{
-        const pauseBtn = e.target.closest('.entry-pause-btn');
-        if(pauseBtn){
-            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
-            const entryId = pauseBtn.dataset.entryId;
-            const stu = pauseBtn.dataset.stu;
-            const date = pauseBtn.dataset.date;
-            pauseBtn.disabled = true;
-            const fd = new FormData(); fd.append('schueler_id', stu); fd.append('date', date);
-            fetch(`paed-diary/entry/${entryId}/pause-day`, {method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}, body:fd})
-                .then(r=>r.json())
-                .then(j=>{ if(j.success){ cache.pauses.push({entry_id: parseInt(entryId), schueler_id: parseInt(stu), date: date}); rebuildPauseMap(); render(); } else { alert(j.message||'Fehler beim Pausieren'); pauseBtn.disabled=false; } })
-                .catch(()=>{ alert('Fehler beim Pausieren'); pauseBtn.disabled=false; });
-            return;
-        }
-        const unpauseBtn = e.target.closest('.entry-unpause-btn');
-        if(unpauseBtn){
-            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
-            const entryId = unpauseBtn.dataset.entryId;
-            const stu = unpauseBtn.dataset.stu;
-            const date = unpauseBtn.dataset.date;
-            unpauseBtn.disabled = true;
-            const fd = new FormData(); fd.append('schueler_id', stu); fd.append('date', date);
-            fetch(`paed-diary/entry/${entryId}/unpause-day`, {method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}, body:fd})
-                .then(r=>r.json())
-                .then(j=>{ if(j.success){ cache.pauses = cache.pauses.filter(p=> !(String(p.entry_id)===String(entryId) && String(p.schueler_id)===String(stu) && p.date===date)); rebuildPauseMap(); render(); } else { alert(j.message||'Fehler beim Reaktivieren'); unpauseBtn.disabled=false; } })
-                .catch(()=>{ alert('Fehler beim Reaktivieren'); unpauseBtn.disabled=false; });
-            return;
-        }
-        const completeBtn = e.target.closest('.entry-complete-btn');
-        if(completeBtn){
-            e.stopImmediatePropagation(); // verhindert andere Listener auf diaryBody
-            const entryId = completeBtn.dataset.entryId;
-            completeBtn.disabled=true;
-            // Bestimme das Datum der Eintragszelle (falls vorhanden)
-            const entryEl = completeBtn.closest('.entry-item');
-            const completedAtDate = (entryEl && (entryEl.dataset.dateDisplay || entryEl.dataset.date)) ? (entryEl.dataset.dateDisplay || entryEl.dataset.date) : formatDate(new Date());
-            fetch(`paed-diary/entry/${entryId}/complete`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
-                body: JSON.stringify({klasse_id: klasseSelect.value, completed_at: completedAtDate})
-            })
-            .then(r=>r.json())
-            .then(j=>{ if(j.success){ loadWeek(); } else { alert(j.message||'Fehler'); completeBtn.disabled=false; } })
-            .catch(()=>{ alert('Fehler'); completeBtn.disabled=false; }); } });
-
 
     // --- Gruppen UI Events ---
     manageGroupsBtn && manageGroupsBtn.addEventListener('click', ()=>{ groupForm.reset(); groupIdInput.value=''; groupCancelEdit.classList.add('d-none'); setGroupFeedback('',''); loadGroups().then(()=> groupModal.modal('show')); });
@@ -481,61 +348,16 @@
     todayWeekBtn.addEventListener('click', ()=>{ currentWeekStart=startOfWeek(new Date()); loadWeek(); });
     klasseSelect.addEventListener('change', ()=>{ if(groupSelect.value){ groupSelect.value=''; } currentWeekStart=startOfWeek(new Date()); loadWeek(); });
 
-    // --- Note Editor Actions ---
-    openNoteInline.addEventListener('click', ()=> populateForNew(null));
-    noteClearBtn.addEventListener('click', ()=> populateForNew(null));
-    noteEditorCancel.addEventListener('click', hideEditor);
-    noteForm.addEventListener('submit', ev=>{ ev.preventDefault(); noteStatus.textContent='Speichere...'; const fd=new FormData(noteForm); if(groupSelect.value){ fd.set('group_id', groupSelect.value); } fd.set('klasse_id',klasseSelect.value); const completedCheckbox=document.getElementById('noteCompleted'); if(completedCheckbox && !completedCheckbox.checked){ fd.delete('completed'); } else { fd.set('completed','1'); } const id=noteEntryIdInput.value; const url=id?`paed-diary/entry/${id}`:'paed-diary/entry'; fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gespeichert'; loadWeek(); if(!id){ clearEditor(); } } else { noteStatus.textContent=j.message||'Fehler'; } }).catch(()=> noteStatus.textContent='Fehler beim Speichern'); });
-    noteDeleteBtn.addEventListener('click', ()=>{ const id=noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...'; fetch(`paed-diary/entry/${id}?klasse_id=${encodeURIComponent(klasseSelect.value)}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); clearEditor(); } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen'); });
+    // Note-Editor Events werden vom ausgelagerten `entriesModule` verwaltet (keine Doppel-Registrierung hier).
 
-
-    // --- Editor Hilfsfunktionen (neu hinzugefügt) ---
-    function showEditor(){ if(noteEditorCard) noteEditorCard.classList.remove('d-none'); }
-    function hideEditor(){ if(noteEditorCard) noteEditorCard.classList.add('d-none'); }
-    function clearEditor(){ if(!noteForm) return; noteForm.reset(); noteEntryIdInput.value=''; noteStatus.textContent=''; if(noteStudentsDiv){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); } }
-    function populateForNew(cell){ showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz erfassen'; noteDeleteBtn.classList.add('d-none'); if(cell){ const d=cell.dataset.date; if(d) noteDateInput.value=d; const stu=cell.dataset.stu; if(stu){ const cb=document.getElementById('stu_chk_'+stu); if(cb) cb.checked=true; } } }
-    function populateForEdit(entryEl){ if(!entryEl) return; const entryId=entryEl.dataset.entry; const entryObj=(cache.entries||[]).find(e=> String(e.id)===String(entryId)); if(!entryObj) return; showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz bearbeiten'; noteDeleteBtn.classList.remove('d-none'); noteEntryIdInput.value=entryId; const dateDisp=entryEl.dataset.dateDisplay || entryObj.date; if(dateDisp) noteDateInput.value=dateDisp; try{ noteContentInput.value=decodeURIComponent(entryEl.dataset.content||''); }catch(_){ noteContentInput.value=entryEl.dataset.content||''; } (entryObj.schueler_ids||[]).forEach(id=>{ const cb=document.getElementById('stu_chk_'+id); if(cb) cb.checked=true; }); }
-
-    // --- Events Diary ---
-    // Vereinheitlichter Listener (Guard verhindert Editor-Öffnen bei Steuer-Buttons)
-    diaryBody.addEventListener('click', e=>{
-        // Guard: wenn einer der Steuer-Buttons geklickt wurde, Editor nicht öffnen
-        if(e.target.closest('.entry-pause-btn, .entry-unpause-btn, .entry-complete-btn')) return;
-        const entry=e.target.closest('.entry-item');
-        if(entry){ populateForEdit(entry); return; }
-        const cell=e.target.closest('.note-cell');
-        if(cell && !e.target.closest('.col-inputs')){ populateForNew(cell); }
-    });
-    diaryBody.addEventListener('input', e=>{ const inp=e.target.closest('.col-val-input'); if(!inp) return; const key=`${inp.dataset.col}-${inp.dataset.stu}-${inp.dataset.date}`; clearTimeout(debounceTimers[key]); const val=inp.value.trim(); debounceTimers[key]=setTimeout(()=>{ saveColumnValue(inp.dataset.col, inp.dataset.stu, inp.dataset.date, val).catch(()=>{inp.classList.add('border-danger'); setTimeout(()=>inp.classList.remove('border-danger'),1200);}); },400); });
-    diaryBody.addEventListener('click', e=>{ const btn=e.target.closest('.bool-btn'); if(!btn) return; const newVal=btn.dataset.value==='1'? '':'1'; btn.disabled=true; saveColumnValue(btn.dataset.col, btn.dataset.stu, btn.dataset.date, newVal).then(()=>{ btn.dataset.value=newVal; btn.classList.toggle('btn-success', newVal==='1'); btn.classList.toggle('btn-outline-secondary', newVal!=='1'); }).catch(()=>{btn.classList.add('btn-danger'); setTimeout(()=>btn.classList.remove('btn-danger'),1000);}).finally(()=>btn.disabled=false); });
-
-
-
-    // --- Editor-Funktionen ---
-    function showEditor(){ noteEditorCard.classList.remove('d-none'); }
-    function hideEditor(){ noteEditorCard.classList.add('d-none'); clearEditor(); }
-    function clearEditor(){ noteEntryIdInput.value=''; noteContentInput.value=''; noteDeleteBtn.classList.add('d-none'); noteEditorCard.classList.remove('editing'); noteEditorTitle.textContent='Notiz erfassen'; noteStatus.textContent=''; }
-    function populateForNew(cell){ clearEditor(); const date=cell? cell.dataset.date : formatDate(new Date()); noteDateInput.value=date; [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb=> cb.checked=false); if(cell){ const cb=document.getElementById('stu_chk_'+cell.dataset.stu); cb && (cb.checked=true); } showEditor(); noteContentInput.focus(); }
-    function populateForEdit(entryDiv){ clearEditor(); const id=entryDiv.dataset.entry; const entry=cache.entries.find(e=>String(e.id)===String(id)); noteEntryIdInput.value=id; noteEditorTitle.textContent='Notiz bearbeiten'; noteEditorCard.classList.add('editing'); noteDeleteBtn.classList.remove('d-none'); const cell=entryDiv.closest('.note-cell'); if(cell){ noteDateInput.value=cell.dataset.date; [...noteStudentsDiv.querySelectorAll('input[type=checkbox]')].forEach(cb=> cb.checked=false); if(entry?.schueler_ids){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked = entry.schueler_ids.includes(parseInt(cb.value))); } }
-    noteContentInput.value = entry?.content || decodeURIComponent(entryDiv.dataset.content||''); const completedCheckbox=document.getElementById('noteCompleted'); completedCheckbox && (completedCheckbox.checked=!!entry?.completed_at); showEditor(); noteContentInput.focus(); }
-    function saveColumnValue(colId, stuId, date, value){
-        // This function is now part of the columns module.
-        // The event listeners in this file are now calling a placeholder.
-        // This will be handled by the module directly.
-        console.warn("saveColumnValue is deprecated and should be handled by the columns module.");
-        return Promise.resolve();
-    }
-
-
-
-// --- Initialisierung ---
-    loadWeek();
-    loadGroups();
-    if(showPausedToggle){
-        showPausedToggle.addEventListener('change', ()=> {
-            // Nur Darstellung neu zeichnen (Daten bleiben gleich)
-            render();
-        });
-    }
+    // --- Initialisierung ---
+     loadWeek();
+     loadGroups();
+     if(showPausedToggle){
+         showPausedToggle.addEventListener('change', ()=> {
+             // Nur Darstellung neu zeichnen (Daten bleiben gleich)
+             render();
+         });
+     }
 
 })();
