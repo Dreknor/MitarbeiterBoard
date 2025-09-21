@@ -1066,7 +1066,7 @@ class PaedDiaryController extends Controller
         // Cache invalideren
         $this->forgetWeekCache($klasse->id, Carbon::now());
 
-        return response()->json(['success' => true, 'new_stage' => $newStage ? ['id' => $newStage->id, 'name' => $newStage->name, 'symbol' => $newStage->symbol] : null]);
+        return response()->json(['success' => true, 'new_stage' => $newStage ? ['id' => $newStage->id, 'name' => $newStage->name, 'symbol' => $newStage->symbol, 'image_url' => $newStage->image_url] : null]);
     }
 
     /**
@@ -1085,7 +1085,7 @@ class PaedDiaryController extends Controller
             return response()->json(['stages' => []]);
         }
         $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
-        $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->symbol, 'sort_order' => $s->sort_order]);
+        $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->symbol, 'sort_order' => $s->sort_order, 'image_url' => $s->image_url ?? null]);
         return response()->json(['stages' => $data]);
     }
 

@@ -89,6 +89,14 @@
         getCache: () => cache
     });
 
+    // Stages module (ausgelagert nach public/js/stages.js)
+    const stagesModule = initializeStagesModule({
+        csrf,
+        getCache: () => cache,
+        escapeHtml,
+        loadWeek
+    });
+
     function rebuildPauseMap(){
         pauseMap = {};
         if(!cache.pauses) return;
@@ -162,22 +170,9 @@
     }
 
 
-    // Rendert das Symbol/Badge für die Graduierungsstufe eines Schülers (jetzt immer klickbar bei Berechtigung)
-    function renderStageSymbol(student) {
-        const canManage = cache.can_manage_grading;
-        const baseData = `data-stu="${student.id}" data-klasse="${student.klasse_id}"`;
-        let inner;
-        if(!student.stage){
-            inner = '<span class="badge badge-light" title="Stufe setzen">Stufe</span>';
-        } else if(student.stage.image_url){
-            inner = `<img src="${escapeHtml(student.stage.image_url)}" alt="${escapeHtml(student.stage.name)}" title="${escapeHtml(student.stage.name)}" class="stage-image" style="width:20px;height:20px;object-fit:contain;">`;
-        } else if(student.stage.symbol){
-            inner = `<span class="badge badge-info" title="${escapeHtml(student.stage.name)}">${escapeHtml(student.stage.symbol)}</span>`;
-        } else {
-            inner = `<span class="badge badge-secondary" title="${escapeHtml(student.stage.name)}">${escapeHtml(student.stage.name)}</span>`;
-        }
-        return canManage ? `<span class="stage-change ml-1" ${baseData}>${inner}</span>` : inner;
-    }
+    // Die Stage-Rendering-Logik wurde in "public/js/stages.js" ausgelagert.
+    // Verwende stagesModule.renderStageSymbol(student) um das Badge darzustellen.
+
 
     // Formatiert Zeit von "HH:MM:SS" zu "HH:MM" oder von ISO 8601 DateTime zu "HH:MM" (lokale Zeitzone)
     function formatTime(timeStr) {
@@ -361,7 +356,7 @@
             let row = `<th class="align-top" style="font-size:.72rem;">`+
                       `<a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${escapeHtml(stu.name)} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>`+
                       `<span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>`+
-                      `${renderStageSymbol(stu)}`+
+                      `${stagesModule.renderStageSymbol(stu)}`+
                       `</th>`;
 
             // Zellen für Tage
