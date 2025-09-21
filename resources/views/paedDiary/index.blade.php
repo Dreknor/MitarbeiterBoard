@@ -75,6 +75,7 @@
                         <select name="grading_stage_id" id="stagingNewStage" class="form-control form-control-sm">
                             <option value="">-- Keine Stufe --</option>
                         </select>
+                        <div id="stagingNewStagePreview" class="mt-2 small text-muted"></div>
                     </div>
                 </div>
                 <div class="modal-footer py-2">
@@ -390,5 +391,10 @@
 @endpush
 
 @push('js')
+    <script src="{{ asset('/js/paedDiary/columns.js')}}"></script>
+    <script src="{{ asset('/js/paedDiary/paedDiaryEntries.js')}}"></script>
+    <script src="{{ asset('/js/paedDiary/stages.js')}}"></script>
+    <script src="{{ asset('/js/paedDiary/tasks.js')}}"></script>
+    <script src="{{ asset('/js/paedDiary/appointments.js')}}"></script>
 <script src="{{ asset('/js/paedDiary.js')}}"></script>
 @endpush
