@@ -380,7 +380,32 @@ class PaedDiaryController extends Controller
         $klasse = $user->paed_klassen()->where('klassen.id', $validated['klasse_id'])->firstOrFail();
         $schuelerIds = Schueler::whereIn('id', $validated['schueler_ids'])
             ->where('klasse_id', $klasse->id)->pluck('id')->all();
-        if (empty($schuelerIds)) return response()->json(['message' => 'Keine gültigen Schüler'], 422);
+
+        // Prüfen, ob einige der übergebenen IDs nicht zur Klasse gehören
+        $invalidIds = array_values(array_diff($validated['schueler_ids'], $schuelerIds));
+        if (empty($schuelerIds)) {
+            // Log debug info zur Fehlersuche
+            try {
+                $sentSchueler = Schueler::whereIn('id', $validated['schueler_ids'])->get(['id','vorname','nachname','klasse_id']);
+                Log::warning('storeEntry: keine gültigen Schüler für klasse_id', ['user_id' => $user->id ?? null, 'klasse_id' => $validated['klasse_id'] ?? null, 'sent_schueler' => $sentSchueler->toArray()]);
+            } catch (\Throwable $_) {
+                Log::warning('storeEntry: keine gültigen Schüler (unable to load sent schueler)', ['user_id' => $user->id ?? null, 'klasse_id' => $validated['klasse_id'] ?? null, 'sent_ids' => $validated['schueler_ids']]);
+            }
+            // Versuche aussagekräftige Namen für die ungültigen IDs zu liefern (falls vorhanden)
+            $invalidNames = Schueler::whereIn('id', $invalidIds)->get()->map(fn($s) => $s->vorname . ' ' . $s->nachname)->all();
+            if (!empty($invalidNames)) {
+                return response()->json(['message' => 'Die ausgewählten Schüler gehören nicht zur ausgewählten Klasse.', 'invalid_ids' => $invalidIds, 'invalid_names' => $invalidNames], 422);
+            }
+            return response()->json(['message' => 'Keine gültigen Schüler'], 422);
+        }
+
+        // Falls einige IDs ignoriert wurden: Erstelle den Eintrag trotzdem mit den gültigen Schülern und informiere den Client
+        $ignored = [];
+        if (!empty($invalidIds)) {
+            $ignored = $invalidIds;
+            Log::info('storeEntry: einige schueler_ids wurden ignoriert, da sie nicht zur klasse gehören', ['user_id' => $user->id ?? null, 'klasse_id' => $klasse->id ?? null, 'ignored_ids' => $ignored]);
+        }
+
         $entry = PaedDiaryEntry::create([
             'klasse_id' => $klasse->id,
             'user_id' => $user->id,
@@ -390,7 +415,12 @@ class PaedDiaryController extends Controller
         ]);
         $entry->schueler()->sync($schuelerIds);
         $this->forgetWeekCache($klasse->id, $dateObj);
-        return response()->json(['success' => true, 'entry_id' => $entry->id]);
+
+        $response = ['success' => true, 'entry_id' => $entry->id];
+        if (!empty($ignored)) {
+            $response['ignored_schueler_ids'] = $ignored;
+        }
+        return response()->json($response);
     }
 
     /**
