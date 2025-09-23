@@ -163,6 +163,9 @@
             .then(r=>r.json())
             .then(data=>{
                 cache=data;
+                cache.klasse_id = (klasseSelect && !groupSelect?.value) ? klasseSelect.value : (klasseSelect ? klasseSelect.value : null);
+                cache.group_id = (groupSelect && groupSelect.value) ? groupSelect.value : null;
+                cache.currentWeekStart = currentWeekStart;
                 rebuildPauseMap(); // neu
                 setModeBadge();
                 render();
