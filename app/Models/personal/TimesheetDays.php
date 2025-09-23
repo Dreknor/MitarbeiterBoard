@@ -6,11 +6,14 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class TimesheetDays extends Model
+class TimesheetDays extends Model implements Auditable
 {
     use SoftDeletes;
     use \Znck\Eloquent\Traits\BelongsToThrough;
+    use \OwenIt\Auditing\Auditable;
+
 
 
     protected $fillable = [
