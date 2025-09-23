@@ -163,13 +163,13 @@ class ThemeController extends Controller
                 if ($group->stack_themes == true) {
 
                     $themes = $themes->sortBy('date')->groupBy(function ($item) {
-                        return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('Ymd');
+                        return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('d.m.Y');
                     });
 
 
                 } else {
                     $themes = $themes->sortBy('date')->groupBy(function ($item) {
-                        return  $item->date->format('Ymd');
+                        return  $item->date->format('d.m.Y');
                     });
                 }
                 break;
