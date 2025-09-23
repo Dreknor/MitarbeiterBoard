@@ -426,8 +426,7 @@ class PaedDiaryController extends Controller
      */
     public function updateEntry(PaedDiaryEntry $entry, Request $request)
     {
-        // ...existing code before $entry->update([...]) remains...
-        // (Wir fügen nur Transaktions-/Finalize-Logik hinzu.)
+
         $validated = $request->validate([
             'klasse_id' => ['required', 'integer', 'exists:klassen,id'],
             'date' => ['required', 'date'],
