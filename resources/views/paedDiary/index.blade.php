@@ -34,7 +34,7 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
-                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn">Speichern</button>
+                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn" type="button">Speichern</button>
                         <button class="btn btn-secondary btn-sm mr-2 d-none" id="groupCancelEdit" type="button">Abbrechen</button>
                         <span id="groupStatus" class="small text-muted"></span>
                     </div>
@@ -240,7 +240,12 @@
             <input type="hidden" name="klasse_id" id="taskKlasseId" value="{{$klasse->id}}">
             <div class="form-group mb-2">
                 <label class="small mb-1">Schüler</label>
-                <select name="schueler_id" id="taskSchueler" class="form-control form-control-sm" required></select>
+                <div class="form-check mb-1 d-none" id="taskSelectGroupWrap">
+                    <input type="checkbox" id="taskSelectAllGroup" class="form-check-input">
+                    <label class="form-check-label small" for="taskSelectAllGroup">Alle Schüler der Gruppe auswählen</label>
+                </div>
+                <div id="taskStudents" class="border rounded p-2 bg-light" style="font-size:0.75rem; max-height:220px; overflow:auto;"></div>
+                <small class="form-text text-muted">Einzelne Schüler wählen oder Klassen-Checkboxen verwenden; leer lassen = ganze Klasse (bzw. Gruppe).</small>
             </div>
             <div class="form-group mb-2">
                 <label class="small mb-1">Titel</label>
@@ -387,6 +392,52 @@
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }
+/* Robust checkbox styling: ensure checkboxes inside #taskStudents are visible and small */
+#taskStudents .form-check-input,
+#taskModal .form-check-input {
+    display: inline-block !important;
+    width: 14px !important;
+    height: 14px !important;
+    margin-right: 6px !important;
+    vertical-align: middle !important;
+    -webkit-appearance: checkbox !important;
+    appearance: checkbox !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    z-index: auto !important;
+}
+#taskModal .form-check {
+    position: relative !important;
+    overflow: visible !important;
+}
+/* Allow elements inside modal to overflow instead of being clipped */
+#taskModal .modal-content,
+#taskModal .modal-body { overflow: visible !important; }
+#taskStudents .form-check-label,
+#taskModal .form-check-label {
+    font-size: 0.65rem !important;
+    line-height: 1.2 !important;
+}
+#taskStudents .pl-3 { padding-left:0.6rem; }
+#taskSelectAllGroup { width:14px; height:14px; margin-right:6px; vertical-align:middle; }
+#taskModal .modal-dialog { transform: none !important; -webkit-transform: none !important; }
+#taskModal .modal-content, #taskModal .modal-body, #taskModal .form-check-content, #taskStudents { transform: none !important; -webkit-transform: none !important; backface-visibility: visible !important; }
+#taskModal * { -webkit-transform: none !important; transform: none !important; }
+#taskModal .form-check-input {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    margin: 0 .4rem 0 0 !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+}
 </style>
 @endpush
 

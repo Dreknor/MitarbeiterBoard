@@ -605,9 +605,9 @@ class PaedDiaryController extends Controller
     }
 
     /**
-     * Erzeugt eine neue Aufgabe (Task) für einen Schüler.
+     * Erzeugt eine neue Aufgabe (Task) für einen Schüler oder mehrere Schüler.
      *
-     * @param Request $request {klasse_id, schueler_id, title, description?, due_date?, highlighted?}
+     * @param Request $request {klasse_id, group_id, schueler_id, schueler_ids[], title, description?, due_date?, highlighted?}
      * @return \Illuminate\Http\JsonResponse
      */
     public function storeTask(Request $request)
@@ -615,7 +615,9 @@ class PaedDiaryController extends Controller
         $data = $request->validate([
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
             'group_id' => ['nullable', 'integer', 'exists:paed_diary_class_groups,id'],
-            'schueler_id' => ['required', 'integer', 'exists:schueler,id'],
+            'schueler_id' => ['nullable', 'integer', 'exists:schueler,id'],
+            'schueler_ids' => ['nullable', 'array', 'min:1'],
+            'schueler_ids.*' => ['integer', 'exists:schueler,id'],
             'title' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'due_date' => ['nullable', 'date'],
@@ -623,18 +625,85 @@ class PaedDiaryController extends Controller
         ]);
         if (!$request->filled('klasse_id') && !$request->filled('group_id'))
             return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
+
         $user = Auth::user();
         $highlighted = $data['highlighted'] ?? true;
-        $ids = [];
+        $created = [];
+
+        // Normalisiere übergebene Schüler-IDs
+        $schuelerIds = [];
+        if (!empty($data['schueler_ids'])) {
+            $schuelerIds = array_values(array_unique($data['schueler_ids']));
+        } elseif (!empty($data['schueler_id'])) {
+            $schuelerIds = [$data['schueler_id']];
+        }
+
+        // Hilfsdaten: erlaubte Klassen des Users
+        $allowedClassIds = $user->paed_klassen()->pluck('klassen.id')->toArray();
+
+        // Gruppenmodus: für jede Klasse der Gruppe Aufgaben anlegen
         if ($request->filled('group_id')) {
             $group = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
+
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
-                $schueler = Schueler::where('id', $data['schueler_id'])->where('klasse_id', $klasse->id)->first();
-                if (!$schueler) continue;
+                // Wenn konkrete Schüler-IDs übergeben wurden: filtere auf Schüler dieser Klasse
+                if (!empty($schuelerIds)) {
+                    $ids = Schueler::whereIn('id', $schuelerIds)->where('klasse_id', $klasse->id)->pluck('id')->all();
+                } else {
+                    // Keine spezifischen Schüler: ganze Klasse
+                    $ids = Schueler::where('klasse_id', $klasse->id)->pluck('id')->all();
+                }
+
+                if (empty($ids)) continue;
+
+                foreach ($ids as $sid) {
+                    $task = PaedDiaryTask::create([
+                        'klasse_id' => $klasse->id,
+                        'schueler_id' => $sid,
+                        'title' => $data['title'],
+                        'description' => $data['description'] ?? null,
+                        'due_date' => $data['due_date'] ?? null,
+                        'status' => 'open',
+                        'highlighted' => $highlighted,
+                        'created_by' => $user->id
+                    ]);
+
+                    $created[] = [
+                        'id' => $task->id,
+                        'schueler_id' => $task->schueler_id,
+                        'title' => $task->title,
+                        'due_date' => $task->due_date?->toDateString(),
+                        'highlighted' => $task->highlighted,
+                        'klasse_id' => $task->klasse_id
+                    ];
+                }
+
+                $this->forgetWeekCache($klasse->id, Carbon::now());
+            }
+
+            return response()->json(['success' => true, 'tasks' => $created]);
+        }
+
+        // Einzel- oder Mehrschüler-Modus ohne Gruppe
+        if ($request->filled('klasse_id')) {
+            $klasse = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
+
+            if (!empty($schuelerIds)) {
+                $ids = Schueler::whereIn('id', $schuelerIds)->where('klasse_id', $klasse->id)->pluck('id')->all();
+            } else {
+                // Keine spezifischen Schüler: ganze Klasse
+                $ids = Schueler::where('klasse_id', $klasse->id)->pluck('id')->all();
+            }
+
+            if (empty($ids)) {
+                return response()->json(['message' => 'Keine gültigen Schüler'], 422);
+            }
+
+            foreach ($ids as $sid) {
                 $task = PaedDiaryTask::create([
                     'klasse_id' => $klasse->id,
-                    'schueler_id' => $schueler->id,
+                    'schueler_id' => $sid,
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
                     'due_date' => $data['due_date'] ?? null,
@@ -642,8 +711,8 @@ class PaedDiaryController extends Controller
                     'highlighted' => $highlighted,
                     'created_by' => $user->id
                 ]);
-                $this->forgetWeekCache($klasse->id, Carbon::now());
-                $ids[] = [
+
+                $created[] = [
                     'id' => $task->id,
                     'schueler_id' => $task->schueler_id,
                     'title' => $task->title,
@@ -652,29 +721,49 @@ class PaedDiaryController extends Controller
                     'klasse_id' => $task->klasse_id
                 ];
             }
-            return response()->json(['success' => true, 'tasks' => $ids]);
+
+            $this->forgetWeekCache($klasse->id, Carbon::now());
+
+            return response()->json(['success' => true, 'tasks' => $created]);
         }
-        $klasse = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
-        $schueler = Schueler::where('id', $data['schueler_id'])->where('klasse_id', $klasse->id)->firstOrFail();
-        $task = PaedDiaryTask::create([
-            'klasse_id' => $klasse->id,
-            'schueler_id' => $schueler->id,
-            'title' => $data['title'],
-            'description' => $data['description'] ?? null,
-            'due_date' => $data['due_date'] ?? null,
-            'status' => 'open',
-            'highlighted' => $highlighted,
-            'created_by' => $user->id
-        ]);
-        $this->forgetWeekCache($klasse->id, Carbon::now());
-        return response()->json(['success' => true, 'task' => [
-            'id' => $task->id,
-            'schueler_id' => $task->schueler_id,
-            'title' => $task->title,
-            'due_date' => $task->due_date?->toDateString(),
-            'highlighted' => $task->highlighted,
-            'klasse_id' => $klasse->id
-        ]]);
+
+        // Falls nur schueler_ids übergeben wurden (ohne klasse_id), erstelle Aufgaben für gültige Schüler unabhängig von Klasse
+        if (!empty($schuelerIds)) {
+            $sentSchueler = Schueler::whereIn('id', $schuelerIds)->get(['id', 'klasse_id']);
+            $validSchueler = $sentSchueler->filter(fn($s) => in_array($s->klasse_id, $allowedClassIds));
+
+            if ($validSchueler->isEmpty()) {
+                return response()->json(['message' => 'Keine gültigen Schüler'], 422);
+            }
+
+            foreach ($validSchueler as $s) {
+                $task = PaedDiaryTask::create([
+                    'klasse_id' => $s->klasse_id,
+                    'schueler_id' => $s->id,
+                    'title' => $data['title'],
+                    'description' => $data['description'] ?? null,
+                    'due_date' => $data['due_date'] ?? null,
+                    'status' => 'open',
+                    'highlighted' => $highlighted,
+                    'created_by' => $user->id
+                ]);
+
+                $created[] = [
+                    'id' => $task->id,
+                    'schueler_id' => $task->schueler_id,
+                    'title' => $task->title,
+                    'due_date' => $task->due_date?->toDateString(),
+                    'highlighted' => $task->highlighted,
+                    'klasse_id' => $task->klasse_id
+                ];
+
+                $this->forgetWeekCache($s->klasse_id, Carbon::now());
+            }
+
+            return response()->json(['success' => true, 'tasks' => $created]);
+        }
+
+        return response()->json(['message' => 'Keine Schüler angegeben'], 422);
     }
 
     /**

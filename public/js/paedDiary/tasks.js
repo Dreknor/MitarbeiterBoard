@@ -15,7 +15,6 @@ function initializeTasksModule(dependencies) {
     // --- DOM-Elemente ---
     const taskModal = $('#taskModal');
     const taskForm = document.getElementById('taskForm');
-    const taskSchuelerSelect = document.getElementById('taskSchueler');
     const openTaskModalBtn = document.getElementById('openTaskModal');
     const tasksPanel = document.getElementById('tasksPanel');
     const tasksList = document.getElementById('tasksList');
@@ -104,8 +103,133 @@ function initializeTasksModule(dependencies) {
 
     function updateTaskStudentSelect() {
         const localCache = getCache();
-        if (taskSchuelerSelect) {
-            taskSchuelerSelect.innerHTML = '<option value="">-- Schüler --</option>' + (localCache.schueler || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        const container = document.getElementById('taskStudents');
+        const selectGroupWrap = document.getElementById('taskSelectGroupWrap');
+        const selectAllGroup = document.getElementById('taskSelectAllGroup');
+        if (!container) return;
+
+        // Clear
+        container.innerHTML = '';
+        if (!localCache || !Array.isArray(localCache.schueler) || localCache.schueler.length === 0) {
+            container.innerHTML = '<div class="text-muted small">Keine Schüler</div>';
+            if (selectGroupWrap) selectGroupWrap.classList.add('d-none');
+            if (selectAllGroup) selectAllGroup.checked = false;
+            return;
+        }
+
+        // Show or hide group-select hint
+        if (localCache.is_group) {
+            if (selectGroupWrap) selectGroupWrap.classList.remove('d-none');
+        } else {
+            if (selectGroupWrap) selectGroupWrap.classList.add('d-none');
+            if (selectAllGroup) selectAllGroup.checked = false;
+        }
+
+        // Group students by class
+        const byClass = {};
+        (localCache.schueler || []).forEach(s => { (byClass[s.klasse_id] = byClass[s.klasse_id] || []).push(s); });
+
+        // For each class, render a header with a class-select checkbox and student checkboxes
+        const klasseMap = {};
+        (localCache.klassen || []).forEach(k => { klasseMap[k.id] = k; });
+
+        const fragment = document.createDocumentFragment();
+        Object.keys(byClass).sort((a,b)=> Number(a)-Number(b)).forEach(klasseId => {
+            const students = byClass[klasseId];
+            const klasse = klasseMap[klasseId];
+            const header = document.createElement('div');
+            header.className = 'mb-2';
+
+            const headInner = document.createElement('div');
+            headInner.className = 'd-flex align-items-center justify-content-between';
+
+            const left = document.createElement('div');
+            left.className = 'form-check';
+            const clsId = `task_cls_${klasseId}`;
+            // Use Bootstrap form-check-input but wrap in a small flex container to avoid positioning issues
+            left.innerHTML = `<div class="form-check-content" style="display:flex;align-items:center;position:relative;">`+
+                             `<input class="form-check-input task-class-checkbox" type="checkbox" id="${clsId}" data-klasse-id="${klasseId}" style="display:inline-block;width:14px;height:14px;visibility:visible;position:relative;">`+
+                             `<label class="form-check-label small font-weight-bold ml-2" for="${clsId}" style="margin:0;">${escapeHtml(klasse ? klasse.name : ('Klasse '+klasseId))} (${students.length})</label>`+
+                             `</div>`;
+
+            headInner.appendChild(left);
+            header.appendChild(headInner);
+
+            const studentsDiv = document.createElement('div');
+            studentsDiv.className = 'pl-3';
+            students.forEach(s => {
+                const chkId = `stu_chk_${s.id}`;
+                // Bootstrap form-check wrapper for student checkbox
+                const studentWrap = document.createElement('div');
+                studentWrap.className = 'form-check mb-1';
+                studentWrap.style.position = 'relative';
+                studentWrap.style.display = 'flex';
+                studentWrap.style.alignItems = 'center';
+                studentWrap.innerHTML = `<input type="checkbox" class="form-check-input task-stu-checkbox" id="${chkId}" name="schueler_ids[]" value="${s.id}" style="display:inline-block;width:14px;height:14px;visibility:visible;position:relative;">`+
+                                         `<label class="form-check-label small" for="${chkId}" style="margin:0 0 0 .4rem;">${escapeHtml(s.name)}</label>`;
+                studentsDiv.appendChild(studentWrap);
+            });
+
+            fragment.appendChild(header);
+            fragment.appendChild(studentsDiv);
+        });
+
+        container.appendChild(fragment);
+
+        // Reset top-level selects
+        if (selectAllGroup) selectAllGroup.checked = false;
+
+        // Attach event handlers (delegation) if not already
+        // We use a once-setup flag on the container element
+        if (!container._tasks_listeners_bound) {
+            container.addEventListener('change', function (e) {
+                const target = e.target;
+                if (target.classList.contains('task-class-checkbox')) {
+                    // Toggle all student checkboxes under this class
+                    const klasseId = target.dataset.klasseId;
+                    const checkboxes = container.querySelectorAll(`input.task-stu-checkbox[value][type=checkbox]`);
+                    checkboxes.forEach(cb => {
+                        // only those with matching parent class grouping
+                        // find nearest header for cb by scanning DOM: simpler -> check the DOM structure where cb is in a label inside a studentsDiv after header
+                        const parent = cb.closest('div.pl-3');
+                        if (!parent) return;
+                        // header before parent contains the class checkbox
+                        const prev = parent.previousElementSibling;
+                        const clsCheckbox = prev ? prev.querySelector(`input.task-class-checkbox[data-klasse-id="${klasseId}"]`) : null;
+                        if (clsCheckbox) cb.checked = target.checked;
+                    });
+                    // Uncheck group-select when partial change occurs
+                    const selectAllGroupEl = document.getElementById('taskSelectAllGroup'); if (selectAllGroupEl) selectAllGroupEl.checked = false;
+                }
+                if (target.classList.contains('task-stu-checkbox')) {
+                    // uncheck class header if any student unchecked
+                    const parent = target.closest('div.pl-3');
+                    if (!parent) return;
+                    const prev = parent.previousElementSibling;
+                    if (!prev) return;
+                    const klasseCheckbox = prev.querySelector('input.task-class-checkbox');
+                    if (!klasseCheckbox) return;
+                    const all = parent.querySelectorAll('input.task-stu-checkbox');
+                    const checked = parent.querySelectorAll('input.task-stu-checkbox:checked');
+                    klasseCheckbox.checked = (all.length === checked.length && all.length > 0);
+                    // uncheck global selects
+                    const selectAllGroupEl = document.getElementById('taskSelectAllGroup'); if (selectAllGroupEl) selectAllGroupEl.checked = false;
+                }
+            });
+
+            // Select-all group
+            if (selectAllGroup) {
+                selectAllGroup.addEventListener('change', function () {
+                    const checked = this.checked;
+                    const boxes = container.querySelectorAll('input.task-stu-checkbox');
+                    boxes.forEach(cb => cb.checked = checked);
+                    const classBoxes = container.querySelectorAll('input.task-class-checkbox');
+                    classBoxes.forEach(cb => cb.checked = checked);
+                    // nothing else to update
+                });
+            }
+
+            container._tasks_listeners_bound = true;
         }
     }
 
@@ -206,6 +330,8 @@ function initializeTasksModule(dependencies) {
             if (taskForm) taskForm.reset();
             const taskKlasseId = document.getElementById('taskKlasseId');
             if (taskKlasseId) taskKlasseId.value = klasseSelect.value;
+            // ensure the checkbox list is up-to-date when opening
+            try { updateTaskStudentSelect(); } catch (e) { /* ignore */ }
             taskModal.modal('show');
         });
     }
@@ -235,8 +361,8 @@ function initializeTasksModule(dependencies) {
                         loadWeek();
                     }
                 }).catch(() => {});
-        });
-    }
+        }); // end submit event listener
+    } // end if (taskForm)
 
     if (tasksPanel) {
         tasksPanel.addEventListener('click', e => {
@@ -251,14 +377,15 @@ function initializeTasksModule(dependencies) {
                             'Accept': 'application/json'
                         }
                     })
-                    .then(r => r.json())
+                    .then (r => r.json())
                     .then(j => {
-                        if (j.success) {
-                            loadWeek();
-                        } else {
-                            closeBtn.disabled = false;
-                        }
-                    }).catch(() => closeBtn.disabled = false);
+
+                         if (j.success) {
+                             loadWeek();
+                         } else {
+                             closeBtn.disabled = false;
+                         }
+                     }).catch(() => closeBtn.disabled = false);
                 return;
             }
 
