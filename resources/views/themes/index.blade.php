@@ -27,7 +27,7 @@
             </div>
         @else
             @foreach($themes as $day => $dayThemes)
-                        <div class="card mb-3" id="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
+                        <div class="card mb-3" id="@if($day == "offen")offen @else{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}@endif">
                             <div class="card-header bg-gradient-directional-blue-grey text-white">
                                 <div class="row">
                                     <div class="col-sm-12 col-md-8">
