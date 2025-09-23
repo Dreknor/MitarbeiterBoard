@@ -228,16 +228,24 @@ class TimesheetController extends Controller
      */
     public function show(User $user, $date = null)
     {
-        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
-            return redirect()->back();
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
         }
-/*
-        if ($user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() < 1){
-            $user->timesheets()->latest()->first();
-            return redirect(url('timesheets/'.$user->id.'/'.$date))->with([]);
-            //return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
         }
-   */
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
         if ($user->employments->count() < 1){
             return redirectBack('warning', 'Keine Anstellung eingetragen');
         }
@@ -246,9 +254,7 @@ class TimesheetController extends Controller
         if ($date == null){
            $act_month = Carbon::today();
         } else {
-            //$year = substr($date, 0, 4);
-            //$month = substr($date, 5, 2);
-            //$act_month = Carbon::createFromFormat('Y-m-d', $year.'-'.$month.'-01');
+
             $act_month = Carbon::createFromFormat('Y-m', $date);
 
         }
@@ -348,12 +354,27 @@ class TimesheetController extends Controller
 
     public function export(User $user, Timesheet $timesheet)
     {
-        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
-            return redirect()->back();
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
+        }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
 
-            $act_month = Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month);
+
+        $act_month = Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month);
 
 
         //keine Anstellung in diesem Monat
@@ -473,16 +494,7 @@ class TimesheetController extends Controller
     }
 
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\personal\Timesheet  $timesheet
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Timesheet $timesheet)
-    {
-        //
-    }
+
 
     /**
      * Update the specified resource in storage.
@@ -494,33 +506,49 @@ class TimesheetController extends Controller
     public function updateSheet(User $user,  Timesheet $timesheet)
     {
 
-        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
-            return redirect()->back()->with([
-                'type' => 'warning',
-                'Meldung' => "Zigriff verweigert"
-            ]);
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
         }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
 
         $timesheet->updateTime();
 
         return redirectBack('success', 'Aktuslisierung erfolgt');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\personal\Timesheet  $timesheet
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Timesheet $timesheet)
-    {
-        //
-    }
 
     public function updateTimesheets(User $user){
-        if (!auth()->user()->can('edit employe') and auth()->user()->can('has timesheet')){
-            return redirect(url('timesheets/'.auth()->id()));
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
         }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
 
         $timesheets = $user->timesheets;
         $timesheets = $timesheets->sortBy([
@@ -536,9 +564,24 @@ class TimesheetController extends Controller
     }
 
     public function lock(User $user, Timesheet $timesheet){
-        if (!auth()->user()->can('edit employe') and (auth()->id() != $timesheet->employe_id or $user->id != $timesheet->employe_id)){
-            return redirectBack('warning', 'Recht fehlt');
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
         }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
 
         $timesheet->update([
             'locked_at' => Carbon::now(),
@@ -565,9 +608,24 @@ class TimesheetController extends Controller
     }
 
     public function overviewTimesheetsUser (User $user){
-        if (!auth()->user()->can('edit employe') and (auth()->id() != $user->id)){
-            return redirectBack('warning', 'Recht fehlt');
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
         }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
 
         return \view('personal.timesheets.overview', [
             'user' => $user,
