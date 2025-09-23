@@ -92,11 +92,13 @@
                                             <a class="menu-item" href="{{route('employes.index')}}">
                                                 Personal Übersicht
                                             </a>
-                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
-                                            <a class="menu-item" href="{{url('timesheets/select/employe')}}">
-                                                Arbeitszeitnachweise
-                                            </a>
-                                        </li>
+                                    </li>
+                                @endcan
+                                @can('lock timesheets')
+                                    <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
+                                        <a class="menu-item" href="{{url('timesheets/select/employe')}}">
+                                            Arbeitszeitnachweise
+                                        </a>
                                     </li>
                                 @endcan
                                 @can('has timesheet')
