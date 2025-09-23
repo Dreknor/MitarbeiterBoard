@@ -72,8 +72,8 @@ function initializeEntriesModule(options){
                 return;
             }
             const from = entryStartDate < weekStartDate ? weekStartDate : entryStartDate;
-            let to;
-            if(weekStartDate > today){ to = weekEndDate; } else { to = today < weekEndDate ? today : weekEndDate; }
+            // Show open entries for the whole week (including days after today in the current week)
+            let to = weekEndDate;
             if(to < from) to = from;
             for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){
                 const dateStr = formatDate(d);
