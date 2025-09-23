@@ -203,6 +203,10 @@ class TimesheetController extends Controller
     }
 
     public function editDay(TimesheetDays $timesheetDay){
+
+        $timesheetDay->load('timesheet');
+        $user = $timesheetDay->timesheet->employe;
+
         if ($user != auth()->user()){
             if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
                 return redirect(url('timesheets/'.auth()->id()))->with([
