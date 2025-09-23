@@ -31,14 +31,20 @@ class TimesheetController extends Controller
      */
     public function index()
     {
-        if (!auth()->user()->can('edit employe') and auth()->user()->can('has timesheet')){
+        if (!auth()->user()->can('lock timesheets') and auth()->user()->can('has timesheet')){
             return redirect(url('timesheets/'.auth()->id()));
         }
-        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+        if (!auth()->user()->can('lock timesheets') and !auth()->user()->can('has timesheet')){
             return redirect()->back();
         }
 
-        $users = User::whereHas('employments')->get();
+        if (auth()->user()->can('lock timesheets') and auth()->user()->can('edit employe')){
+            $users = User::whereHas('employments')->get();
+        } else {
+            $users = User::whereHas('employments')
+                ->where('superior_id', auth()->id())->get();
+        }
+
 
         foreach ($users as $key => $user){
            if (!$user->can('has timesheet')){
@@ -54,7 +60,8 @@ class TimesheetController extends Controller
 
 
     public function storeDay(createTimesheetDayRequest $request, User $user, Timesheet $timesheet, $day){
-        if (!auth()->user()->can('edit employe') and auth()->id() != $user->id){
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
             return redirect(url('timesheets/'.auth()->id()))->with([
                 'type' => 'error',
                 'Meldung' => 'falscher Benutzer']
@@ -66,6 +73,13 @@ class TimesheetController extends Controller
                     'Meldung' => 'keine Berechtigung']
             );
         }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
+
+
         $day = Carbon::createFromFormat('Y-m-d', $day);
         $timesheetDay = new TimesheetDays($request->validated());
         $timesheetDay->timesheet_id=$timesheet->id;
@@ -74,12 +88,15 @@ class TimesheetController extends Controller
 
         $timesheet->updateTime();
 
+
+
         return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
 
     }
 
     public function addFromAbsence(User $user, Timesheet $timesheet, $day, $absence){
-        if (!auth()->user()->can('edit employe') and auth()->id() != $user->id){
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
             return redirect(url('timesheets/'.auth()->id()))->with([
                     'type' => 'error',
                     'Meldung' => 'falscher Benutzer']
@@ -91,6 +108,12 @@ class TimesheetController extends Controller
                     'Meldung' => 'keine Berechtigung']
             );
         }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
+        }
+
+
         if( !array_key_exists($absence, config('config.abwesenheiten_arbeitszeit'))){
             return redirectBack('warning', 'Fehler bei der Auswahl');
         }
@@ -112,8 +135,22 @@ class TimesheetController extends Controller
 
 
     public function deleteDay(User $user, Timesheet $timesheet, TimesheetDays $timesheetDay){
-        if (!auth()->user()->can('edit employe') and ($user->id != auth()->id() and auth()->user()->can('has timesheet'))){
-            return redirect()->back();
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
+            return redirect(url('timesheets/'.auth()->id()))->with([
+                    'type' => 'error',
+                    'Meldung' => 'falscher Benutzer']
+            );
+        }
+        if (!auth()->user()->can('edit employe') and !auth()->user()->can('has timesheet')){
+            return redirect()->back()->with([
+                    'type' => 'error',
+                    'Meldung' => 'keine Berechtigung']
+            );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
         $day = $timesheetDay->date;
@@ -132,7 +169,8 @@ class TimesheetController extends Controller
      */
 
     public function addDay(User $user, Timesheet $timesheet, $day){
-        if (!auth()->user()->can('edit employe') and auth()->id() != $user->id){
+
+        if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
             return redirect(url('timesheets/'.auth()->id()))->with([
                     'type' => 'error',
                     'Meldung' => 'falscher Benutzer']
@@ -143,6 +181,10 @@ class TimesheetController extends Controller
                     'type' => 'error',
                     'Meldung' => 'keine Berechtigung']
             );
+        }
+
+        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+            return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
         $day = Carbon::createFromFormat('Y-m-d', $day);
