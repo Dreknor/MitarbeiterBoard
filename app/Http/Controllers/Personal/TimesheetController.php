@@ -352,8 +352,9 @@ class TimesheetController extends Controller
     public function timesheet_mail()
     {
         foreach (User::all() as $user){
-            set_time_limit(60);
+            set_time_limit(180);
             if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
+                Log::debug('Sende Arbeitszeitnachweis an '.$user->email);
                 try {
                     if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
                         $date = Carbon::now()->subMonth();
@@ -388,9 +389,11 @@ class TimesheetController extends Controller
                                 if ($user->superior_id != null){
                                     $superior = User::find($user->superior_id);
                                     if ($superior != null and $superior->email != null){
+                                        Log::debug('Sende Arbeitszeitnachweis an '.$user->email.' mit CC an '.$superior->email);
                                         Mail::to($user->email)->cc($superior->email)->send(new SendMonthlyTimesheetMail($user, $date));
                                     }
                                 } else {
+                                    Log::debug('Sende Arbeitszeitnachweis an '.$user->email . "da kein Supervisor vorhanden ist");
                                     Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
                                 }
 
@@ -415,7 +418,10 @@ class TimesheetController extends Controller
                     })->first();
 
                     $admin->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Fehler beim Versenden des Arbeitszeitnachweises für ' . $user->name . ' ' . $user->familienname . ' ' . $date->format('Y-m')));
-
+                    Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
+                        'user' => $user,
+                        'exception' => $e->getMessage()
+                    ]);
                     continue;
                 }
 
