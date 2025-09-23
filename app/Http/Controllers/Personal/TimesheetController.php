@@ -74,7 +74,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -109,7 +109,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -149,7 +149,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -183,7 +183,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -242,7 +242,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             Log::debug('Timesheets - Kein Zugriff aus diesen Mitarbeiter', [
                 'Benutzer' => auth()->user(),
                 'Angestellter' => $user,
@@ -376,7 +376,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -527,7 +527,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -553,7 +553,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -586,7 +586,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
@@ -630,7 +630,7 @@ class TimesheetController extends Controller
             );
         }
 
-        if (auth()->user()->can('lock timesheets') and $user->supervisor_id != auth()->id()) {
+        if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
             return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
         }
 
