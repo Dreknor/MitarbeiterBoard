@@ -323,9 +323,20 @@ function initializeEntriesModule(options){
                 try{ hideEditor(); }catch(_){ }
             } else { noteStatus.textContent=j.message||'Fehler'; } }).catch(()=> noteStatus.textContent='Fehler beim Speichern').finally(()=>{ noteSubmitting = false; if(noteSaveBtn) noteSaveBtn.disabled = false; });
     });
-    noteDeleteBtn && noteDeleteBtn.addEventListener('click', ()=>{ const id = noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...'; fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); // Schließe das Formular nach erfolgreichem Löschen
+    noteDeleteBtn && noteDeleteBtn.addEventListener('click', ()=>{ const id = noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...';
+    try{
+        const cache = getCache ? getCache() : null;
+        const fd = new FormData();
+        const klasseId = (cache && cache.klasse_id) ? cache.klasse_id : (document.getElementById('noteKlasseId')?.value || '');
+        if(klasseId) fd.append('klasse_id', klasseId);
+        fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); // Schließe das Formular nach erfolgreichem Löschen
                 try{ hideEditor(); }catch(_){ }
-            } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen'); });
+            } else { noteStatus.textContent=j.message||'Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
+    }catch(_){
+        // fallback: plain delete without body (will likely 422)
+        fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); try{ hideEditor(); }catch(_){ } } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
+   }
+    });
 
     // Wire optional editor open/clear/cancel buttons if provided
     if(openNoteInline) openNoteInline.addEventListener('click', ()=> populateForNew(null));

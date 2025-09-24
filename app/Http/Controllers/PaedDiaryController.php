@@ -541,11 +541,12 @@ class PaedDiaryController extends Controller
      */
     public function destroyEntry(PaedDiaryEntry $entry, Request $request)
     {
+
         $data = $request->validate([
-            'klasse_id' => ['required', 'integer', 'exists:klassen,id']
+            'klasse_id' => ['nullable', 'integer', 'exists:klassen,id']
         ]);
         $user = Auth::user();
-        if ($entry->klasse_id != $data['klasse_id']) {
+        if ($request->filled('klasse_id') && $entry->klasse_id != $data['klasse_id']) {
             abort(403);
         }
         $klasse = $user->paed_klassen()->where('klassen.id', $entry->klasse_id)->firstOrFail();
