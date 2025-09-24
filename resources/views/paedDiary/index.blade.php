@@ -34,7 +34,7 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
-                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn" type="button">Speichern</button>
+                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn" type="submit">Speichern</button>
                         <button class="btn btn-secondary btn-sm mr-2 d-none" id="groupCancelEdit" type="button">Abbrechen</button>
                         <span id="groupStatus" class="small text-muted"></span>
                     </div>
