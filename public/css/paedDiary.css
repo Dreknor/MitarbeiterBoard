@@ -269,4 +269,17 @@
 /* Leichter Abstand zwischen Name und Aufgabenliste in Table-Header */
 #diaryTable th .student-tasks-inline{margin-top:8px}
 
-/* Ende neue Stile */
+/* Category header above grouped entries in the diary cells */
+.entry-category-header{
+    border-bottom: 1px dashed #e9ecef;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    color: #525352;
+    font-size: 0.75rem;
+
+    border-bottom:1px dashed #4aa1f8; margin-bottom:6px; padding-bottom:4px;
+}
+
+
+/* Small spacing between groups */
+.category-entries + div{ height:6px; }

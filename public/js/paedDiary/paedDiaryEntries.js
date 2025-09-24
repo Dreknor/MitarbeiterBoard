@@ -140,32 +140,66 @@ function initializeEntriesModule(options){
 
             (cache.days||[]).forEach(d=>{
                 const entries = (entryMap[stu.id]?.[d.date]) || [];
-                const entriesHtml = entries.map(e=>{
+                // Group entries by category while preserving category order (categories from sorted list)
+                const entriesSorted = (entries||[]).slice().sort((a,b)=>{
+                    const ca = (a.category||'').toString().toLowerCase();
+                    const cb = (b.category||'').toString().toLowerCase();
+                    if(ca === cb) return (Number(a.id) || 0) - (Number(b.id) || 0);
+                    if(!ca) return 1; // empty category goes last
+                    if(!cb) return -1;
+                    return ca.localeCompare(cb, 'de');
+                });
+
+                // build groups
+                const groups = {};
+                const order = [];
+                entriesSorted.forEach(e=>{
+                    const key = e.category || ''; // empty string for no category
+                    if(!(key in groups)){
+                        groups[key] = [];
+                        order.push(key);
+                    }
+                    groups[key].push(e);
+                });
+
+                // helper to render single entry
+                const renderEntry = (e)=>{
                     const enc = encodeURIComponent(e.content||'');
                     const isOpen = !e.completed_at;
                     const pauseBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-pause entry-pause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag ausblenden" aria-label="Pausieren">⏸</button>` : '';
                     const completeBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-complete entry-complete-btn" data-entry-id="${e.id}" title="Notiz abschließen" aria-label="Abschließen">✔</button>` : '';
-                    // include category data attributes (if available)
                     const catIdAttr = e.category_id? `data-category-id="${e.category_id}"` : '';
                     const catNameAttr = e.category? `data-category-name="${escapeHtml(e.category)}"` : '';
-                    return `<div class=\"entry-item d-flex align-items-start\" data-entry=\"${e.id}\" data-content=\"${enc}\" data-date-display=\"${d.date}\" ${catIdAttr} ${catNameAttr}>`+
-                           `<div class=\"flex-grow-1\">${e.user? `<span class=\"author\">${escapeHtml(e.user)}</span>` : ''}<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class=\"badge badge-warning badge-pill ml-1\" title=\"Fortlaufende offene Notiz\">laufend</span>':''}</div>`+
-                           `<div class=\"ml-1 d-flex\">${completeBtn}${pauseBtn}</div>`+
+                    return `<div class="entry-item d-flex align-items-start" data-entry="${e.id}" data-content="${enc}" data-date-display="${d.date}" ${catIdAttr} ${catNameAttr}>`+
+                           `<div class="flex-grow-1">${e.user? `<span class="author">${escapeHtml(e.user)}</span>` : ''}<span class="text">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class="badge badge-warning badge-pill ml-1" title="Fortlaufende offene Notiz">laufend</span>':''}</div>`+
+                           `<div class="ml-1 d-flex">${completeBtn}${pauseBtn}</div>`+
                            `</div>`;
-                }).join('');
-                let pausedHtml = '';
-                if(showPaused){
-                    (cache.entries||[]).forEach(e=>{
-                        if(e.completed_at) return;
-                        if(!e.schueler_ids.includes(stu.id)) return;
-                        if(isPaused(e.id, stu.id, d.date)){
-                            pausedHtml += `<div class="entry-item paused-entry d-flex align-items-start text-muted" data-entry="${e.id}" data-date-display="${d.date}">`+
-                                          `<div class="flex-grow-1"><em>${escapeHtml(trimText(e.content,100))}</em> <span class="badge badge-light ml-1" title="Pausiert">Pause</span></div>`+
-                                          `<div class="ml-1 d-flex"><button type="button" class="diary-btn diary-btn-unpause entry-unpause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag wieder anzeigen" aria-label="Reaktivieren">▶</button></div>`+
-                                          `</div>`;
-                        }
-                    });
-                }
+                };
+
+                // assemble grouped HTML with category headers and visual separator
+                let entriesHtml = '';
+                order.forEach((catKey, idx)=>{
+                    const catLabel = catKey ? catKey : 'Ohne Kategorie';
+                    // category header with subtle separator
+                    entriesHtml += `<div class="entry-category-header small ">${escapeHtml(catLabel)}</div>`;
+                    entriesHtml += `<div class="category-entries">${groups[catKey].map(e => renderEntry(e)).join('')}</div>`;
+                    // optional spacing between category groups
+                    if(idx < order.length - 1) entriesHtml += `<div style="height:6px"></div>`;
+                });
+                // if there were no entries, entriesHtml remains empty
+                 let pausedHtml = '';
+                 if(showPaused){
+                     (cache.entries||[]).forEach(e=>{
+                         if(e.completed_at) return;
+                         if(!e.schueler_ids.includes(stu.id)) return;
+                         if(isPaused(e.id, stu.id, d.date)){
+                             pausedHtml += `<div class="entry-item paused-entry d-flex align-items-start text-muted" data-entry="${e.id}" data-date-display="${d.date}">`+
+                                           `<div class="flex-grow-1"><em>${escapeHtml(trimText(e.content,100))}</em> <span class="badge badge-light ml-1" title="Pausiert">Pause</span></div>`+
+                                           `<div class="ml-1 d-flex"><button type="button" class="diary-btn diary-btn-unpause entry-unpause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag wieder anzeigen" aria-label="Reaktivieren">▶</button></div>`+
+                                           `</div>`;
+                         }
+                     });
+                 }
                 const isToday = d.date === todayStr;
                 row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}" data-stu="${stu.id}" data-date="${d.date}">`+
                        `<div class="entry-add-space" style="min-height:18px; cursor:pointer;\" title="Neue Notiz erstellen"></div>`+
