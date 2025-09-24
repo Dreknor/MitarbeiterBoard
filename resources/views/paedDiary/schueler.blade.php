@@ -137,7 +137,8 @@
                                         <thead class="thead-light">
                                             <tr>
                                                 <th style="width: 100px;">Datum</th>
-                                                <th>Notiz</th>
+                                                <th class="w-50">Notiz</th>
+                                                <th>Kategorie</th>
                                                 <th style="width: 120px;">Autor</th>
                                             </tr>
                                         </thead>
@@ -355,7 +356,7 @@
             .then(response => response.json())
             .then(data => {
                 currentData = data;
-                // Fülle Kategorie-Select falls Kategorien vorhanden
+                console.log('Loaded Data:', data);
                 populateCategories(data.categories || []);
                 applyFiltersAndRender();
             })
@@ -483,8 +484,7 @@
 
             // determine category name robustly
             let categoryName = '';
-            if (entry.category) categoryName = entry.category.name || entry.category.title || '';
-            if (!categoryName) categoryName = entry.category_name || entry.kategorie || entry.kategorie_name || '';
+            if (entry.category) categoryName = entry.category || '';
 
             // Wenn noch keine Kategorie-Name, versuche Lookup von ID in categoryMap
             if (!categoryName) {
@@ -492,11 +492,11 @@
                 if (cid && categoryMap.has(String(cid))) categoryName = categoryMap.get(String(cid));
             }
 
-            const categoryHtml = categoryName ? ` <span class="badge badge-secondary ml-2">${escapeHtml(categoryName)}</span>` : '';
 
             row.innerHTML = `
                 <td class="text-center">${formatDisplayDate(entry.date)}</td>
-                <td>${escapeHtml(entry.content)}${categoryHtml}</td>
+                <td>${escapeHtml(entry.content)}</td>
+                <td >${escapeHtml(categoryName)}</td>
                 <td class="text-center">${escapeHtml(entry.user || '')}</td>
             `;
             tbody.appendChild(row);
