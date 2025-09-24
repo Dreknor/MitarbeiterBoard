@@ -201,9 +201,11 @@ function initializeEntriesModule(options){
                      });
                  }
                 const isToday = d.date === todayStr;
+                // pausedHtml rendered outside of .entry-list to avoid creating scrollbars inside the cell
                 row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}" data-stu="${stu.id}" data-date="${d.date}">`+
-                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;\" title="Neue Notiz erstellen"></div>`+
-                       `<div class="entry-list">${entriesHtml}${pausedHtml}</div>`+
+                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;" title="Neue Notiz erstellen"></div>`+
+                       `<div class="entry-list">${entriesHtml}</div>`+
+                       `<div class="paused-entries">${pausedHtml}</div>`+
                        `<div class="col-inputs-row"><div class="col-inputs">${renderColumnInputs(stu.id,d.date)}</div></div>`+
                        `</td>`;
             });

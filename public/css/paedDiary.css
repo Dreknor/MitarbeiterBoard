@@ -7,6 +7,8 @@
     min-height: 1.8em;
     /* sorgt für mindestens eine Zeile Höhe */
 }
+#diaryTable td.note-cell .paused-entries { max-height: none; overflow: visible; }
+#diaryTable td.note-cell .paused-entries .entry-item { /* same appearance as normal entries */ }
 #diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
 #diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
 #diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em; font-size:0.95rem;}
@@ -274,7 +276,7 @@
     border-bottom: 1px dashed #e9ecef;
     margin-bottom: 6px;
     padding-bottom: 4px;
-    color: #525352;
+    color: #000000;
     font-size: 0.75rem;
 
     border-bottom:1px dashed #4aa1f8; margin-bottom:6px; padding-bottom:4px;
