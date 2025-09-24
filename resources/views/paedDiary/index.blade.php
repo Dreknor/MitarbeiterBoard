@@ -212,7 +212,7 @@
                         <a id="exportCsvBtn" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="CSV Export"><i class="fas fa-file-csv"></i></a>
                         <button class="btn btn-sm btn-warning mb-1 mr-2" id="openAppointmentModal"><i class="fas fa-calendar-alt"></i> Termin</button>
                         <button class="btn btn-sm btn-success mb-1 mr-2" id="openTaskModal">Aufgabe</button>
-                        <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neue Notiz</button>
+                        <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neuer Eintrag</button>
                     </div>
                 </div>
                 <div class="card-body p-2">
