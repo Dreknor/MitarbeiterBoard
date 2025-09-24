@@ -960,7 +960,7 @@ class PaedDiaryController extends Controller
             $dateTo = Carbon::parse($request->date_to);
 
             // Einträge für den Schüler laden
-            $entries = PaedDiaryEntry::with(['user:id,name'])
+            $entries = PaedDiaryEntry::with(['user:id,name', 'category:id,name'])
                 ->where('klasse_id', $klasse->id)
                 ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
                 ->whereHas('schueler', fn($q) => $q->where('schueler.id', $schueler->id))
@@ -971,7 +971,10 @@ class PaedDiaryController extends Controller
                     'date' => $e->datum->toDateString(),
                     'content' => $e->content,
                     'user' => $e->user?->name,
-                    'formatted_date' => $e->datum->format('d.m.Y')
+                    'formatted_date' => $e->datum->format('d.m.Y'),
+                    'category' => $e->category?->name,
+                    'category_id' => $e->category_id,
+
                 ]);
 
             // Aktuelle Stage und Historie (mit Bild/Sort-Order und menschlichem Namen des Änderers)
@@ -1007,11 +1010,28 @@ class PaedDiaryController extends Controller
             $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
                 ->orderBy('sort_order')
                 ->get()
-                ->map(fn($c) => [
-                    'id' => $c->id,
-                    'name' => $c->name,
-                    'type' => $c->type
-                ]);
+                ->map(function($c) use ($dateTo) {
+                    // Ein Feld `deactivated_from` an die Frontend-Antwort anhängen
+                    // und ein berechnetes `active`-Flag setzen (aktiv wenn kein deactivated_from gesetzt ist
+                    // oder das Deaktivierungsdatum nach dem angefragten Enddatum liegt).
+                    $deactivated = $c->deactivated_from ? $c->deactivated_from->toDateString() : null;
+                    $isActive = true;
+                    if ($c->deactivated_from) {
+                        // Vergleiche mit dem angefragten Enddatum
+                        try {
+                            $isActive = $c->deactivated_from->gt($dateTo);
+                        } catch (\Throwable $_) {
+                            $isActive = true;
+                        }
+                    }
+                    return [
+                        'id' => $c->id,
+                        'name' => $c->name,
+                        'type' => $c->type,
+                        'deactivated_from' => $deactivated,
+                        'active' => $isActive
+                    ];
+                });
 
             // Spaltenwerte für den Schüler laden und nach YYYY-MM-DD gruppieren
             $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
@@ -1046,6 +1066,8 @@ class PaedDiaryController extends Controller
                     'created_at' => $t->created_at->format('d.m.Y H:i')
                 ]);
 
+            $categories = PaedDiaryCategory::all(['id', 'name']);
+
             return response()->json([
                 'entries' => $entries,
                 'current_stage' => $currentStage,
@@ -1056,7 +1078,8 @@ class PaedDiaryController extends Controller
                 'period' => [
                     'from' => $dateFrom->format('d.m.Y'),
                     'to' => $dateTo->format('d.m.Y')
-                ]
+                ],
+                'categories' => $categories
             ]);
 
         } catch (\Throwable $e) {
@@ -1105,11 +1128,28 @@ class PaedDiaryController extends Controller
         $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
             ->orderBy('sort_order')
             ->get()
-            ->map(fn($c) => [
-                'id' => $c->id,
-                'name' => $c->name,
-                'type' => $c->type
-            ]);
+            ->map(function($c) use ($dateTo) {
+                // Ein Feld `deactivated_from` an die Frontend-Antwort anhängen
+                // und ein berechnetes `active`-Flag setzen (aktiv wenn kein deactivated_from gesetzt ist
+                // oder das Deaktivierungsdatum nach dem angefragten Enddatum liegt).
+                $deactivated = $c->deactivated_from ? $c->deactivated_from->toDateString() : null;
+                $isActive = true;
+                if ($c->deactivated_from) {
+                    // Vergleiche mit dem angefragten Enddatum
+                    try {
+                        $isActive = $c->deactivated_from->gt($dateTo);
+                    } catch (\Throwable $_) {
+                        $isActive = true;
+                    }
+                }
+                return [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'type' => $c->type,
+                    'deactivated_from' => $deactivated,
+                    'active' => $isActive
+                ];
+            });
 
         // Spaltenwerte für den Schüler laden (transformiert) und nach YYYY-MM-DD gruppiert
         $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))

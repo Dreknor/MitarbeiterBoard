@@ -171,12 +171,13 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped" id="columnsTable">
                                         <thead class="thead-light">
-                                            <tr>
+                                            <tr id="columnHeaders">
                                                 <th style="width: 100px;">Datum</th>
-                                                <th id="columnHeaders"></th>
+
                                             </tr>
                                         </thead>
                                         <tbody id="columnsTableBody"></tbody>
+                                        <tfoot id="columnsTableFooter"></tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -447,12 +448,33 @@
         // Update Badges
         document.getElementById('entriesBadge').textContent = filteredEntries.length;
         document.getElementById('tasksBadge').textContent = (currentData.tasks || []).length;
-        document.getElementById('columnsBadge').textContent = (currentData.columns || []).length;
+
+        // Determine active columns: if a column has an explicit `active` flag use it, otherwise treat as active
+        const allColumns = (currentData.columns || []);
+        const endDate = dateToInput && dateToInput.value ? new Date(dateToInput.value) : null;
+        const activeColumns = allColumns.filter(c => {
+            if (!c) return false;
+            // If active flag exists, only include when truthy (supports 1/'1'/true/'true')
+            if (typeof c.active !== 'undefined' && c.active !== null) {
+                const isActiveFlag = (c.active === 1 || c.active === '1' || c.active === true || c.active === 'true');
+                if (!isActiveFlag) return false;
+            }
+
+            // If deactivated_from is set and it's on or before the selected end date, consider the column deactivated
+            if (c.deactivated_from && endDate) {
+                const deact = new Date(c.deactivated_from);
+                if (!isNaN(deact.getTime()) && deact <= endDate) return false;
+            }
+
+            return true;
+        });
+
+        document.getElementById('columnsBadge').textContent = activeColumns.length;
 
         // Render Tables with filtered entries
         renderEntries(filteredEntries);
         renderTasks(currentData.tasks || []);
-        renderColumns(currentData.columns || [], currentData.column_values || {});
+        renderColumns(activeColumns, currentData.column_values || {});
 
         renderStage(currentData.current_stage);
         renderHistory(currentData.stage_history || []);
@@ -530,69 +552,98 @@
         const headers = document.getElementById('columnHeaders');
         const tbody = document.getElementById('columnsTableBody');
 
-        headers.innerHTML = '';
+        // Always ensure the first header cell for the date exists
+        headers.innerHTML = '<th style="width: 100px;">Datum</th>';
         tbody.innerHTML = '';
 
         if (columns.length === 0) {
-            headers.innerHTML = '<th>Keine Spalten konfiguriert</th>';
+            // If no columns, keep the date header and show a placeholder
+            headers.innerHTML = '<th style="width:100px;">Datum</th><th>Keine Spalten konfiguriert</th>';
             return;
         }
 
         // Create headers
+        // Nur aktive Spalten werden übergeben; hier werden die Header für diese Spalten angelegt
         columns.forEach(column => {
             const th = document.createElement('th');
-            th.textContent = column.name;
+            th.textContent = column.name || '';
             th.style.minWidth = '100px';
             headers.appendChild(th);
         });
 
-        // Group column values by date
-        const valuesByDate = {};
-        Object.keys(columnValues).forEach(date => {
-            valuesByDate[date] = columnValues[date];
-        });
+        // Prepare counts for boolean "true" values per column
+        const trueCounts = {};
+        columns.forEach(column => { trueCounts[column.id] = 0; });
 
-        // Create rows for each date that has column values
-        const sortedDates = Object.keys(valuesByDate).sort();
-        sortedDates.forEach(date => {
-            const row = document.createElement('tr');
+         // Group column values by date
+         const valuesByDate = {};
+         Object.keys(columnValues).forEach(date => {
+             valuesByDate[date] = columnValues[date];
+         });
 
-            // Date column
-            const dateCell = document.createElement('td');
-            dateCell.textContent = formatDisplayDate(date);
-            dateCell.className = 'text-center';
-            row.appendChild(dateCell);
+         // Create rows for each date that has column values
+         const sortedDates = Object.keys(valuesByDate).sort();
+         sortedDates.forEach(date => {
+             const row = document.createElement('tr');
 
-            // Value columns
-            columns.forEach(column => {
-                const cell = document.createElement('td');
-                const value = valuesByDate[date][column.id];
+             // Date column
+             const dateCell = document.createElement('td');
+             dateCell.textContent = formatDisplayDate(date);
+             dateCell.className = 'text-center';
+             row.appendChild(dateCell);
 
-                if (value) {
-                    if (column.type === 'boolean') {
-                        cell.innerHTML = value.value === '1' ?
+             // Value columns
+             columns.forEach(column => {
+                 const cell = document.createElement('td');
+                 const value = valuesByDate[date] ? valuesByDate[date][column.id] : null;
+
+                 if (value) {
+                     if (column.type === 'boolean') {
+                         const isTrue = (value.value === '1' || value.value === 1 || value.value === true || value.value === 'true');
+                         cell.innerHTML = isTrue ?
                             '<span class="badge badge-success">Ja</span>' :
                             '<span class="badge badge-secondary">Nein</span>';
-                    } else {
-                        cell.textContent = value.value;
-                    }
-                } else {
-                    cell.innerHTML = '<span class="text-muted">-</span>';
-                }
+                         if (isTrue) {
+                            trueCounts[column.id] = (trueCounts[column.id] || 0) + 1;
+                         }
+                     } else {
+                         cell.textContent = value.value;
+                     }
+                 } else {
+                     cell.innerHTML = '<span class="text-muted">-</span>';
+                 }
 
-                cell.className = 'text-center';
-                row.appendChild(cell);
-            });
+                 cell.className = '';
+                 row.appendChild(cell);
+             });
 
-            tbody.appendChild(row);
+             tbody.appendChild(row);
+         });
+
+         if (sortedDates.length === 0) {
+             const row = document.createElement('tr');
+             row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
+             tbody.appendChild(row);
+         }
+
+        // Append a counts row under the values: Anzahl (Ja) pro Spalte
+        const countsRow = document.createElement('tr');
+        const countsLabelCell = document.createElement('td');
+        countsLabelCell.className = 'text-center font-weight-bold';
+        countsLabelCell.textContent = 'Anzahl (Ja)';
+        countsRow.appendChild(countsLabelCell);
+        columns.forEach(column => {
+            const ccell = document.createElement('td');
+            ccell.className = ' font-weight-bold';
+            if (column.type === 'boolean') {
+                ccell.textContent = String(trueCounts[column.id] || 0);
+            } else {
+                ccell.innerHTML = '<span class="text-muted">-</span>';
+            }
+            countsRow.appendChild(ccell);
         });
-
-        if (sortedDates.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
-            tbody.appendChild(row);
-        }
-    }
+        tbody.appendChild(countsRow);
+     }
 
     // Export Word
     function exportWord() {
