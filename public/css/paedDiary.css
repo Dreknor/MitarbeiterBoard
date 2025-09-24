@@ -273,13 +273,14 @@
 
 /* Category header above grouped entries in the diary cells */
 .entry-category-header{
-    border-bottom: 1px dashed #e9ecef;
     margin-bottom: 6px;
     padding-bottom: 4px;
-    color: #000000;
+    color: rgba(76, 76, 76, 0.82);
     font-size: 0.75rem;
-
-    border-bottom:1px dashed #4aa1f8; margin-bottom:6px; padding-bottom:4px;
+    background-color: rgba(248, 227, 196, 0.5);
+    text-align: center;
+    border-bottom:1px dashed #b57c4e; margin-bottom:6px; padding-bottom:4px;
+    border-radius: 6px;
 }
 
 

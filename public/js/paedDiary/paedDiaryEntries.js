@@ -181,7 +181,7 @@ function initializeEntriesModule(options){
                 order.forEach((catKey, idx)=>{
                     const catLabel = catKey ? catKey : 'Ohne Kategorie';
                     // category header with subtle separator
-                    entriesHtml += `<div class="entry-category-header small ">${escapeHtml(catLabel)}</div>`;
+                    entriesHtml += `<div class="entry-category-header">${escapeHtml(catLabel)}</div>`;
                     entriesHtml += `<div class="category-entries">${groups[catKey].map(e => renderEntry(e)).join('')}</div>`;
                     // optional spacing between category groups
                     if(idx < order.length - 1) entriesHtml += `<div style="height:6px"></div>`;
