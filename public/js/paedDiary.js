@@ -37,6 +37,8 @@
     const noteDeleteBtn = document.getElementById('noteDeleteBtn');
     const noteStudentsDiv = document.getElementById('noteStudents');
     const noteStatus = document.getElementById('noteStatus');
+    const noteCategory = document.getElementById('noteCategory');
+    const noteNewCategory = document.getElementById('noteNewCategory');
 
     const exportCsvBtn = document.getElementById('exportCsvBtn');
 
@@ -244,7 +246,9 @@
          trimText,
          loadWeek,
          saveColumnValue: (columnsModule && typeof columnsModule.saveColumnValue === 'function') ? columnsModule.saveColumnValue : null,
-         renderStudentCheckboxes
+         renderStudentCheckboxes,
+         noteCategory,
+         noteNewCategory
      });
 
     // --- Rendering ---

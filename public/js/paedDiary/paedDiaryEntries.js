@@ -28,7 +28,10 @@ function initializeEntriesModule(options){
         escapeHtml,
         trimText,
         loadWeek,
-        saveColumnValue // optional function from columns module
+        saveColumnValue, // optional function from columns module
+        // optional category elements
+        noteCategory,
+        noteNewCategory
     } = options;
 
     let debounceTimers = {};
@@ -100,6 +103,16 @@ function initializeEntriesModule(options){
         const cache = getCache();
         if(!cache) return;
         rebuildPauseMap();
+        // populate category select if present
+        try{
+            if(noteCategory && cache.categories){
+                // preserve current selection
+                const cur = noteCategory.value || '';
+                noteCategory.innerHTML = '<option value="">-- Keine --</option>' + (cache.categories||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+                if(cur) noteCategory.value = cur;
+            }
+        }catch(_){ }
+
         const showPaused = showPausedToggle ? !!showPausedToggle.checked : false;
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
@@ -132,7 +145,10 @@ function initializeEntriesModule(options){
                     const isOpen = !e.completed_at;
                     const pauseBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-pause entry-pause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag ausblenden" aria-label="Pausieren">⏸</button>` : '';
                     const completeBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-complete entry-complete-btn" data-entry-id="${e.id}" title="Notiz abschließen" aria-label="Abschließen">✔</button>` : '';
-                    return `<div class=\"entry-item d-flex align-items-start\" data-entry=\"${e.id}\" data-content=\"${enc}\" data-date-display=\"${d.date}\">`+
+                    // include category data attributes (if available)
+                    const catIdAttr = e.category_id? `data-category-id="${e.category_id}"` : '';
+                    const catNameAttr = e.category? `data-category-name="${escapeHtml(e.category)}"` : '';
+                    return `<div class=\"entry-item d-flex align-items-start\" data-entry=\"${e.id}\" data-content=\"${enc}\" data-date-display=\"${d.date}\" ${catIdAttr} ${catNameAttr}>`+
                            `<div class=\"flex-grow-1\">${e.user? `<span class=\"author\">${escapeHtml(e.user)}</span>` : ''}<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class=\"badge badge-warning badge-pill ml-1\" title=\"Fortlaufende offene Notiz\">laufend</span>':''}</div>`+
                            `<div class=\"ml-1 d-flex\">${completeBtn}${pauseBtn}</div>`+
                            `</div>`;
@@ -143,9 +159,9 @@ function initializeEntriesModule(options){
                         if(e.completed_at) return;
                         if(!e.schueler_ids.includes(stu.id)) return;
                         if(isPaused(e.id, stu.id, d.date)){
-                            pausedHtml += `<div class=\"entry-item paused-entry d-flex align-items-start text-muted\" data-entry=\"${e.id}\" data-date-display=\"${d.date}\">`+
-                                          `<div class=\"flex-grow-1\"><em>${escapeHtml(trimText(e.content,100))}</em> <span class=\"badge badge-light ml-1\" title=\"Pausiert\">Pause</span></div>`+
-                                          `<div class=\"ml-1 d-flex\"><button type=\"button\" class=\"diary-btn diary-btn-unpause entry-unpause-btn\" data-entry-id=\"${e.id}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\" title=\"Notiz an diesem Tag wieder anzeigen\" aria-label=\"Reaktivieren\">▶</button></div>`+
+                            pausedHtml += `<div class="entry-item paused-entry d-flex align-items-start text-muted" data-entry="${e.id}" data-date-display="${d.date}">`+
+                                          `<div class="flex-grow-1"><em>${escapeHtml(trimText(e.content,100))}</em> <span class="badge badge-light ml-1" title="Pausiert">Pause</span></div>`+
+                                          `<div class="ml-1 d-flex"><button type="button" class="diary-btn diary-btn-unpause entry-unpause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag wieder anzeigen" aria-label="Reaktivieren">▶</button></div>`+
                                           `</div>`;
                         }
                     });
@@ -224,12 +240,27 @@ function initializeEntriesModule(options){
     // Editor helper functions and handlers
     function showEditor(){ if(noteEditorCard) noteEditorCard.classList.remove('d-none'); }
     function hideEditor(){ if(noteEditorCard) noteEditorCard.classList.add('d-none'); }
-    function clearEditor(){ if(!noteForm) return; noteForm.reset(); noteEntryIdInput.value=''; noteStatus.textContent=''; if(noteStudentsDiv){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); } }
+    function clearEditor(){ if(!noteForm) return; noteForm.reset(); noteEntryIdInput.value=''; noteStatus.textContent=''; if(noteStudentsDiv){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); }
+        if(noteCategory) try{ noteCategory.value=''; }catch(_){ }
+        if(noteNewCategory) try{ noteNewCategory.value=''; }catch(_){ }
+    }
     function populateForNew(cell){ showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz erfassen'; noteDeleteBtn.classList.add('d-none'); if(cell){ const d = cell.dataset.date; if(d) noteDateInput.value = d; const stu = cell.dataset.stu; if(stu){ const cb = document.getElementById('stu_chk_'+stu); if(cb) cb.checked=true; } }
+        // Ensure category controls are cleared
+        if(noteCategory) try{ noteCategory.value=''; }catch(_){ }
+        if(noteNewCategory) try{ noteNewCategory.value=''; }catch(_){ }
         // Scroll to editor when opening (Neuer Eintrag)
         try{ if(noteEditorCard && typeof noteEditorCard.scrollIntoView === 'function'){ noteEditorCard.scrollIntoView({behavior:'smooth', block:'center'}); } }catch(_){ }
     }
     function populateForEdit(entryEl){ if(!entryEl) return; const entryId = entryEl.dataset.entry; const cache = getCache(); const entryObj = (cache.entries||[]).find(e=> String(e.id)===String(entryId)); if(!entryObj) return; showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz bearbeiten'; noteDeleteBtn.classList.remove('d-none'); noteEntryIdInput.value = entryId; const dateDisp = entryEl.dataset.dateDisplay || entryObj.date; if(dateDisp) noteDateInput.value = dateDisp; try{ noteContentInput.value = decodeURIComponent(entryEl.dataset.content||''); }catch(_){ noteContentInput.value = entryEl.dataset.content||''; } (entryObj.schueler_ids||[]).forEach(id=>{ const cb = document.getElementById('stu_chk_'+id); if(cb) cb.checked=true; });
+        // set category fields if present
+        try{
+            if(noteCategory){
+                // prefer server-provided category_id from entryObj or the data attribute
+                const cid = entryObj.category_id || entryEl.dataset.categoryId || '';
+                noteCategory.value = cid || '';
+            }
+            if(noteNewCategory){ noteNewCategory.value = ''; }
+        }catch(_){ }
         // Automatisch zum Editor scrollen, damit der Benutzer das Formular sofort sieht
         try{ if(noteEditorCard && typeof noteEditorCard.scrollIntoView === 'function'){ noteEditorCard.scrollIntoView({behavior:'smooth', block:'center'}); } }catch(_){ }
     }

@@ -115,6 +115,18 @@
                             <label class="small mb-1" for="noteContent">Notiz</label>
                             <textarea name="content" id="noteContent" rows="3" class="form-control form-control-sm" required></textarea>
                         </div>
+                        <div class="form-row">
+                            <div class="col-md-6 mb-2">
+                                <label class="small mb-1" for="noteCategory">Kategorie</label>
+                                <select name="category_id" id="noteCategory" class="form-control form-control-sm">
+                                    <option value="">-- Keine --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="small mb-1" for="noteNewCategory">Neue Kategorie (optional)</label>
+                                <input type="text" name="new_category" id="noteNewCategory" class="form-control form-control-sm" placeholder="Neue Kategorie eingeben (wird priorisiert)">
+                            </div>
+                        </div>
                         <div class="form-group mb-2">
                             <input type="checkbox" name="completed" id="noteCompleted" value="1" checked class="align-middle" style="vertical-align:middle;">
                             <label for="noteCompleted" class="small mb-0 align-middle" style="vertical-align:middle;">Erledigt</label>

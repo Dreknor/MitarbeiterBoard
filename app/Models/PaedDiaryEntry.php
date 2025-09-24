@@ -3,11 +3,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use App\Models\PaedDiaryCategory; // import category model
 
 class PaedDiaryEntry extends Model
 {
     /** @var array<int,string> */
-    protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at' ]; // completed_at ergänzt
+    protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at','category_id' ]; // completed_at und category_id ergänzt
 
     /** @var array<string,string> */
     protected $casts = [ 'datum' => 'date','completed_at'=>'datetime' ]; // Cast ergänzt
@@ -17,6 +18,7 @@ class PaedDiaryEntry extends Model
     public function user(){ return $this->belongsTo(User::class); }
     public function schueler(){ return $this->belongsToMany(Schueler::class,'paed_diary_entry_schueler'); }
     public function pauses(){ return $this->hasMany(PaedDiaryEntryPause::class,'paed_diary_entry_id'); }
+    public function category(){ return $this->belongsTo(PaedDiaryCategory::class,'category_id'); }
 
     /**
      * Mutator: verschlüsselt den Inhalt vor dem Speichern (Application-Level Encryption).
