@@ -326,15 +326,19 @@ function initializeEntriesModule(options){
     noteDeleteBtn && noteDeleteBtn.addEventListener('click', ()=>{ const id = noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...';
     try{
         const cache = getCache ? getCache() : null;
-        const fd = new FormData();
+        // berechne klasseId außerhalb von try/catch, damit es im Fallback verfügbar ist
         const klasseId = (cache && cache.klasse_id) ? cache.klasse_id : (document.getElementById('noteKlasseId')?.value || '');
+        const fd = new FormData();
         if(klasseId) fd.append('klasse_id', klasseId);
         fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); // Schließe das Formular nach erfolgreichem Löschen
                 try{ hideEditor(); }catch(_){ }
             } else { noteStatus.textContent=j.message||'Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
     }catch(_){
-        // fallback: plain delete without body (will likely 422)
-        fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); try{ hideEditor(); }catch(_){ } } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
+        // fallback: send klasse_id als query param wenn Body nicht unterstützt
+        const cache = getCache ? getCache() : null;
+        const klasseId = (cache && cache.klasse_id) ? cache.klasse_id : (document.getElementById('noteKlasseId')?.value || '');
+        const url = klasseId ? `paed-diary/entry/${id}?klasse_id=${encodeURIComponent(klasseId)}` : `paed-diary/entry/${id}`;
+        fetch(url,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); try{ hideEditor(); }catch(_){ } } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
    }
     });
 
