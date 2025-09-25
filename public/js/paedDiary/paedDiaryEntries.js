@@ -28,7 +28,10 @@ function initializeEntriesModule(options){
         escapeHtml,
         trimText,
         loadWeek,
-        saveColumnValue // optional function from columns module
+        saveColumnValue, // optional function from columns module
+        // optional category elements
+        noteCategory,
+        noteNewCategory
     } = options;
 
     let debounceTimers = {};
@@ -100,6 +103,16 @@ function initializeEntriesModule(options){
         const cache = getCache();
         if(!cache) return;
         rebuildPauseMap();
+        // populate category select if present
+        try{
+            if(noteCategory && cache.categories){
+                // preserve current selection
+                const cur = noteCategory.value || '';
+                noteCategory.innerHTML = '<option value="">-- Keine --</option>' + (cache.categories||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+                if(cur) noteCategory.value = cur;
+            }
+        }catch(_){ }
+
         const showPaused = showPausedToggle ? !!showPausedToggle.checked : false;
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
@@ -127,33 +140,72 @@ function initializeEntriesModule(options){
 
             (cache.days||[]).forEach(d=>{
                 const entries = (entryMap[stu.id]?.[d.date]) || [];
-                const entriesHtml = entries.map(e=>{
+                // Group entries by category while preserving category order (categories from sorted list)
+                const entriesSorted = (entries||[]).slice().sort((a,b)=>{
+                    const ca = (a.category||'').toString().toLowerCase();
+                    const cb = (b.category||'').toString().toLowerCase();
+                    if(ca === cb) return (Number(a.id) || 0) - (Number(b.id) || 0);
+                    if(!ca) return 1; // empty category goes last
+                    if(!cb) return -1;
+                    return ca.localeCompare(cb, 'de');
+                });
+
+                // build groups
+                const groups = {};
+                const order = [];
+                entriesSorted.forEach(e=>{
+                    const key = e.category || ''; // empty string for no category
+                    if(!(key in groups)){
+                        groups[key] = [];
+                        order.push(key);
+                    }
+                    groups[key].push(e);
+                });
+
+                // helper to render single entry
+                const renderEntry = (e)=>{
                     const enc = encodeURIComponent(e.content||'');
                     const isOpen = !e.completed_at;
                     const pauseBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-pause entry-pause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag ausblenden" aria-label="Pausieren">⏸</button>` : '';
                     const completeBtn = isOpen ? `<button type="button" class="diary-btn diary-btn-complete entry-complete-btn" data-entry-id="${e.id}" title="Notiz abschließen" aria-label="Abschließen">✔</button>` : '';
-                    return `<div class=\"entry-item d-flex align-items-start\" data-entry=\"${e.id}\" data-content=\"${enc}\" data-date-display=\"${d.date}\">`+
-                           `<div class=\"flex-grow-1\">${e.user? `<span class=\"author\">${escapeHtml(e.user)}</span>` : ''}<span class=\"text\">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class=\"badge badge-warning badge-pill ml-1\" title=\"Fortlaufende offene Notiz\">laufend</span>':''}</div>`+
-                           `<div class=\"ml-1 d-flex\">${completeBtn}${pauseBtn}</div>`+
+                    const catIdAttr = e.category_id? `data-category-id="${e.category_id}"` : '';
+                    const catNameAttr = e.category? `data-category-name="${escapeHtml(e.category)}"` : '';
+                    return `<div class="entry-item d-flex align-items-start" data-entry="${e.id}" data-content="${enc}" data-date-display="${d.date}" ${catIdAttr} ${catNameAttr}>`+
+                           `<div class="flex-grow-1">${e.user? `<span class="author">${escapeHtml(e.user)}</span>` : ''}<span class="text">${escapeHtml(trimText(e.content,120))}</span>${isOpen && e.virtual_date!==e.date? ' <span class="badge badge-warning badge-pill ml-1" title="Fortlaufende offene Notiz">laufend</span>':''}</div>`+
+                           `<div class="ml-1 d-flex">${completeBtn}${pauseBtn}</div>`+
                            `</div>`;
-                }).join('');
-                let pausedHtml = '';
-                if(showPaused){
-                    (cache.entries||[]).forEach(e=>{
-                        if(e.completed_at) return;
-                        if(!e.schueler_ids.includes(stu.id)) return;
-                        if(isPaused(e.id, stu.id, d.date)){
-                            pausedHtml += `<div class=\"entry-item paused-entry d-flex align-items-start text-muted\" data-entry=\"${e.id}\" data-date-display=\"${d.date}\">`+
-                                          `<div class=\"flex-grow-1\"><em>${escapeHtml(trimText(e.content,100))}</em> <span class=\"badge badge-light ml-1\" title=\"Pausiert\">Pause</span></div>`+
-                                          `<div class=\"ml-1 d-flex\"><button type=\"button\" class=\"diary-btn diary-btn-unpause entry-unpause-btn\" data-entry-id=\"${e.id}\" data-stu=\"${stu.id}\" data-date=\"${d.date}\" title=\"Notiz an diesem Tag wieder anzeigen\" aria-label=\"Reaktivieren\">▶</button></div>`+
-                                          `</div>`;
-                        }
-                    });
-                }
+                };
+
+                // assemble grouped HTML with category headers and visual separator
+                let entriesHtml = '';
+                order.forEach((catKey, idx)=>{
+                    const catLabel = catKey ? catKey : 'Ohne Kategorie';
+                    // category header with subtle separator
+                    entriesHtml += `<div class="entry-category-header">${escapeHtml(catLabel)}</div>`;
+                    entriesHtml += `<div class="category-entries">${groups[catKey].map(e => renderEntry(e)).join('')}</div>`;
+                    // optional spacing between category groups
+                    if(idx < order.length - 1) entriesHtml += `<div style="height:6px"></div>`;
+                });
+                // if there were no entries, entriesHtml remains empty
+                 let pausedHtml = '';
+                 if(showPaused){
+                     (cache.entries||[]).forEach(e=>{
+                         if(e.completed_at) return;
+                         if(!e.schueler_ids.includes(stu.id)) return;
+                         if(isPaused(e.id, stu.id, d.date)){
+                             pausedHtml += `<div class="entry-item paused-entry d-flex align-items-start text-muted" data-entry="${e.id}" data-date-display="${d.date}">`+
+                                           `<div class="flex-grow-1"><em>${escapeHtml(trimText(e.content,100))}</em> <span class="badge badge-light ml-1" title="Pausiert">Pause</span></div>`+
+                                           `<div class="ml-1 d-flex"><button type="button" class="diary-btn diary-btn-unpause entry-unpause-btn" data-entry-id="${e.id}" data-stu="${stu.id}" data-date="${d.date}" title="Notiz an diesem Tag wieder anzeigen" aria-label="Reaktivieren">▶</button></div>`+
+                                           `</div>`;
+                         }
+                     });
+                 }
                 const isToday = d.date === todayStr;
+                // pausedHtml rendered outside of .entry-list to avoid creating scrollbars inside the cell
                 row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}" data-stu="${stu.id}" data-date="${d.date}">`+
-                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;\" title="Neue Notiz erstellen"></div>`+
-                       `<div class="entry-list">${entriesHtml}${pausedHtml}</div>`+
+                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;" title="Neue Notiz erstellen"></div>`+
+                       `<div class="entry-list">${entriesHtml}</div>`+
+                       `<div class="paused-entries">${pausedHtml}</div>`+
                        `<div class="col-inputs-row"><div class="col-inputs">${renderColumnInputs(stu.id,d.date)}</div></div>`+
                        `</td>`;
             });
@@ -224,12 +276,27 @@ function initializeEntriesModule(options){
     // Editor helper functions and handlers
     function showEditor(){ if(noteEditorCard) noteEditorCard.classList.remove('d-none'); }
     function hideEditor(){ if(noteEditorCard) noteEditorCard.classList.add('d-none'); }
-    function clearEditor(){ if(!noteForm) return; noteForm.reset(); noteEntryIdInput.value=''; noteStatus.textContent=''; if(noteStudentsDiv){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); } }
+    function clearEditor(){ if(!noteForm) return; noteForm.reset(); noteEntryIdInput.value=''; noteStatus.textContent=''; if(noteStudentsDiv){ noteStudentsDiv.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.checked=false); }
+        if(noteCategory) try{ noteCategory.value=''; }catch(_){ }
+        if(noteNewCategory) try{ noteNewCategory.value=''; }catch(_){ }
+    }
     function populateForNew(cell){ showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz erfassen'; noteDeleteBtn.classList.add('d-none'); if(cell){ const d = cell.dataset.date; if(d) noteDateInput.value = d; const stu = cell.dataset.stu; if(stu){ const cb = document.getElementById('stu_chk_'+stu); if(cb) cb.checked=true; } }
+        // Ensure category controls are cleared
+        if(noteCategory) try{ noteCategory.value=''; }catch(_){ }
+        if(noteNewCategory) try{ noteNewCategory.value=''; }catch(_){ }
         // Scroll to editor when opening (Neuer Eintrag)
         try{ if(noteEditorCard && typeof noteEditorCard.scrollIntoView === 'function'){ noteEditorCard.scrollIntoView({behavior:'smooth', block:'center'}); } }catch(_){ }
     }
     function populateForEdit(entryEl){ if(!entryEl) return; const entryId = entryEl.dataset.entry; const cache = getCache(); const entryObj = (cache.entries||[]).find(e=> String(e.id)===String(entryId)); if(!entryObj) return; showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz bearbeiten'; noteDeleteBtn.classList.remove('d-none'); noteEntryIdInput.value = entryId; const dateDisp = entryEl.dataset.dateDisplay || entryObj.date; if(dateDisp) noteDateInput.value = dateDisp; try{ noteContentInput.value = decodeURIComponent(entryEl.dataset.content||''); }catch(_){ noteContentInput.value = entryEl.dataset.content||''; } (entryObj.schueler_ids||[]).forEach(id=>{ const cb = document.getElementById('stu_chk_'+id); if(cb) cb.checked=true; });
+        // set category fields if present
+        try{
+            if(noteCategory){
+                // prefer server-provided category_id from entryObj or the data attribute
+                const cid = entryObj.category_id || entryEl.dataset.categoryId || '';
+                noteCategory.value = cid || '';
+            }
+            if(noteNewCategory){ noteNewCategory.value = ''; }
+        }catch(_){ }
         // Automatisch zum Editor scrollen, damit der Benutzer das Formular sofort sieht
         try{ if(noteEditorCard && typeof noteEditorCard.scrollIntoView === 'function'){ noteEditorCard.scrollIntoView({behavior:'smooth', block:'center'}); } }catch(_){ }
     }
@@ -256,9 +323,24 @@ function initializeEntriesModule(options){
                 try{ hideEditor(); }catch(_){ }
             } else { noteStatus.textContent=j.message||'Fehler'; } }).catch(()=> noteStatus.textContent='Fehler beim Speichern').finally(()=>{ noteSubmitting = false; if(noteSaveBtn) noteSaveBtn.disabled = false; });
     });
-    noteDeleteBtn && noteDeleteBtn.addEventListener('click', ()=>{ const id = noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...'; fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); // Schließe das Formular nach erfolgreichem Löschen
+    noteDeleteBtn && noteDeleteBtn.addEventListener('click', ()=>{ const id = noteEntryIdInput.value; if(!id) return; if(!confirm('Eintrag wirklich löschen?')) return; noteStatus.textContent='Lösche...';
+    try{
+        const cache = getCache ? getCache() : null;
+        // berechne klasseId außerhalb von try/catch, damit es im Fallback verfügbar ist
+        const klasseId = (cache && cache.klasse_id) ? cache.klasse_id : (document.getElementById('noteKlasseId')?.value || '');
+        const fd = new FormData();
+        if(klasseId) fd.append('klasse_id', klasseId);
+        fetch(`paed-diary/entry/${id}`,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); // Schließe das Formular nach erfolgreichem Löschen
                 try{ hideEditor(); }catch(_){ }
-            } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen'); });
+            } else { noteStatus.textContent=j.message||'Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
+    }catch(_){
+        // fallback: send klasse_id als query param wenn Body nicht unterstützt
+        const cache = getCache ? getCache() : null;
+        const klasseId = (cache && cache.klasse_id) ? cache.klasse_id : (document.getElementById('noteKlasseId')?.value || '');
+        const url = klasseId ? `paed-diary/entry/${id}?klasse_id=${encodeURIComponent(klasseId)}` : `paed-diary/entry/${id}`;
+        fetch(url,{method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gelöscht'; loadWeek(); try{ hideEditor(); }catch(_){ } } else { noteStatus.textContent='Löschen fehlgeschlagen'; } }).catch(()=> noteStatus.textContent='Löschen fehlgeschlagen');
+   }
+    });
 
     // Wire optional editor open/clear/cancel buttons if provided
     if(openNoteInline) openNoteInline.addEventListener('click', ()=> populateForNew(null));

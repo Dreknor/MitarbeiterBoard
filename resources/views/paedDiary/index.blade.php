@@ -34,7 +34,7 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
-                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn" type="button">Speichern</button>
+                        <button class="btn btn-primary btn-sm mr-2" id="groupSaveBtn" type="submit">Speichern</button>
                         <button class="btn btn-secondary btn-sm mr-2 d-none" id="groupCancelEdit" type="button">Abbrechen</button>
                         <span id="groupStatus" class="small text-muted"></span>
                     </div>
@@ -114,6 +114,18 @@
                         <div class="form-group mb-2">
                             <label class="small mb-1" for="noteContent">Notiz</label>
                             <textarea name="content" id="noteContent" rows="3" class="form-control form-control-sm" required></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-6 mb-2">
+                                <label class="small mb-1" for="noteCategory">Kategorie</label>
+                                <select name="category_id" id="noteCategory" class="form-control form-control-sm">
+                                    <option value="">-- Keine --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="small mb-1" for="noteNewCategory">Neue Kategorie (optional)</label>
+                                <input type="text" name="new_category" id="noteNewCategory" class="form-control form-control-sm" placeholder="Neue Kategorie eingeben (wird priorisiert)">
+                            </div>
                         </div>
                         <div class="form-group mb-2">
                             <input type="checkbox" name="completed" id="noteCompleted" value="1" checked class="align-middle" style="vertical-align:middle;">
@@ -200,7 +212,7 @@
                         <a id="exportCsvBtn" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="CSV Export"><i class="fas fa-file-csv"></i></a>
                         <button class="btn btn-sm btn-warning mb-1 mr-2" id="openAppointmentModal"><i class="fas fa-calendar-alt"></i> Termin</button>
                         <button class="btn btn-sm btn-success mb-1 mr-2" id="openTaskModal">Aufgabe</button>
-                        <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neue Notiz</button>
+                        <button class="btn btn-sm btn-info mb-1" id="openNoteInline">Neuer Eintrag</button>
                     </div>
                 </div>
                 <div class="card-body p-2">

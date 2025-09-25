@@ -7,6 +7,8 @@
     min-height: 1.8em;
     /* sorgt für mindestens eine Zeile Höhe */
 }
+#diaryTable td.note-cell .paused-entries { max-height: none; overflow: visible; }
+#diaryTable td.note-cell .paused-entries .entry-item { /* same appearance as normal entries */ }
 #diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
 #diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
 #diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em; font-size:0.95rem;}
@@ -269,4 +271,18 @@
 /* Leichter Abstand zwischen Name und Aufgabenliste in Table-Header */
 #diaryTable th .student-tasks-inline{margin-top:8px}
 
-/* Ende neue Stile */
+/* Category header above grouped entries in the diary cells */
+.entry-category-header{
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    color: rgba(76, 76, 76, 0.82);
+    font-size: 0.75rem;
+    background-color: rgba(248, 227, 196, 0.5);
+    text-align: center;
+    border-bottom:1px dashed #b57c4e; margin-bottom:6px; padding-bottom:4px;
+    border-radius: 6px;
+}
+
+
+/* Small spacing between groups */
+.category-entries + div{ height:6px; }

@@ -42,6 +42,9 @@
                         </div>
                     </div>
 
+                    <!-- Neue Filter-Zeile: Kategorie + Suche -->
+
+
                     <div id="loadingIndicator" class="text-center py-4 d-none">
                         <div class="spinner-border text-primary" role="status">
                             <span class="sr-only">Lade...</span>
@@ -109,12 +112,33 @@
                         <div class="tab-content" id="viewTabContent">
                             <!-- Einträge Tab -->
                             <div class="tab-pane fade show active" id="entries" role="tabpanel">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="small mb-1" for="categoryFilter">Kategorie</label>
+                                        <select id="categoryFilter" class="form-control form-control-sm">
+                                            <option value="">Alle Kategorien</option>
+                                            <!-- Kategorien werden clientseitig gefüllt -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="small mb-1" for="searchNotes">Suche Notizen</label>
+                                        <div class="">
+                                            <input type="text" id="searchNotes" class="form-control" placeholder="Textsuche in Notizen (Inhalt, Autor)">
+
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <small class="text-muted">Suche wird clientseitig gefiltert</small>
+                                    </div>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped" id="entriesTable">
                                         <thead class="thead-light">
                                             <tr>
                                                 <th style="width: 100px;">Datum</th>
-                                                <th>Notiz</th>
+                                                <th class="w-50">Notiz</th>
+                                                <th>Kategorie</th>
                                                 <th style="width: 120px;">Autor</th>
                                             </tr>
                                         </thead>
@@ -147,12 +171,13 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped" id="columnsTable">
                                         <thead class="thead-light">
-                                            <tr>
+                                            <tr id="columnHeaders">
                                                 <th style="width: 100px;">Datum</th>
-                                                <th id="columnHeaders"></th>
+
                                             </tr>
                                         </thead>
                                         <tbody id="columnsTableBody"></tbody>
+                                        <tfoot id="columnsTableFooter"></tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -240,7 +265,6 @@
 @push('js')
 <script>
 (function(){
-    const csrf = document.querySelector('meta[name=csrf-token]').content;
     const schuelerID = {{ $schueler->id }};
 
     // DOM Elemente
@@ -253,6 +277,11 @@
     const dataSection = document.getElementById('dataSection');
     const noDataMessage = document.getElementById('noDataMessage');
 
+    // Neue Filter-Elemente
+    const categoryFilter = document.getElementById('categoryFilter');
+    const searchNotesInput = document.getElementById('searchNotes');
+    const clearSearchBtn = document.getElementById('clearSearch');
+
     // Quick Date Buttons
     const last7DaysBtn = document.getElementById('last7Days');
     const last30DaysBtn = document.getElementById('last30Days');
@@ -260,6 +289,9 @@
 
     // Data Storage
     let currentData = null;
+    let filteredEntries = [];
+    // Map für Kategorien (id -> name), damit renderEntries zuverlässig Namen findet
+    let categoryMap = new Map();
 
     // Utils
     function formatDate(date) {
@@ -274,6 +306,14 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function debounce(fn, wait){
+        let t;
+        return function(...args){
+            clearTimeout(t);
+            t = setTimeout(()=> fn.apply(this, args), wait);
+        };
     }
 
     // Quick Date Functions
@@ -317,7 +357,9 @@
             .then(response => response.json())
             .then(data => {
                 currentData = data;
-                renderData(data);
+                console.log('Loaded Data:', data);
+                populateCategories(data.categories || []);
+                applyFiltersAndRender();
             })
             .catch(error => {
                 console.error('Error loading data:', error);
@@ -328,51 +370,155 @@
             });
     }
 
-    // Render Data
-    function renderData(data) {
-        if (!data.entries.length && !data.tasks.length) {
-            noDataMessage.classList.remove('d-none');
-            return;
+    function populateCategories(categories){
+        if (!categoryFilter) return;
+        // Preserve current selection
+        const cur = categoryFilter.value;
+        categoryFilter.innerHTML = '<option value="">Alle Kategorien</option>';
+
+        // Build map id -> name from provided categories
+        const catMap = new Map();
+        if (categories) {
+            // If categories is an object mapping id->name
+            if (typeof categories === 'object' && !Array.isArray(categories)) {
+                Object.keys(categories).forEach(k => {
+                    const v = categories[k];
+                    // if v is string, use it, else try to read properties
+                    if (typeof v === 'string') catMap.set(String(k), v);
+                    else if (v && (v.name || v.title || v.label)) catMap.set(String(k), v.name || v.title || v.label);
+                });
+            } else if (Array.isArray(categories)) {
+                categories.forEach(c => {
+                    if (!c) return;
+                    const id = c.id != null ? String(c.id) : (c.value != null ? String(c.value) : null);
+                    const name = c.name || c.title || c.label || c.text || '';
+                    if (id) catMap.set(id, name || id);
+                });
+            }
         }
 
-        // Update Summary
-        document.getElementById('periodText').textContent = `${data.period.from} - ${data.period.to}`;
-        document.getElementById('entriesCount').textContent = data.entries.length;
-        document.getElementById('tasksCount').textContent = data.tasks.length;
+        // If no categories provided, try to extract from currentData.entries
+        if (catMap.size === 0 && currentData && Array.isArray(currentData.entries)) {
+            currentData.entries.forEach(e => {
+                const cid = e.category_id || (e.category && (e.category.id || e.categoryId)) || e.kategorie_id || e.kategorieId || null;
+                const cname = (e.category && (e.category.name || e.category.title)) || e.category_name || e.kategorie || e.kategorie_name || '';
+                if (cid) catMap.set(String(cid), cname || ('Kategorie ' + cid));
+            });
+        }
 
-        // Calculate days with entries
-        const uniqueDays = new Set(data.entries.map(e => e.date));
+        // Populate select from map and set global categoryMap
+        categoryMap = new Map(catMap);
+        Array.from(catMap.entries()).forEach(([id,name]) => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = name || id;
+            categoryFilter.appendChild(opt);
+        });
+
+        if (cur) categoryFilter.value = cur;
+    }
+
+    // Apply filters (category + search) and render
+    function applyFiltersAndRender(){
+        if (!currentData) return;
+        const entries = currentData.entries || [];
+        const searchTerm = (searchNotesInput && searchNotesInput.value || '').trim().toLowerCase();
+        const category = (categoryFilter && categoryFilter.value) || '';
+
+        filteredEntries = entries.filter(e => {
+            // Category filter: support e.category_id or e.category?.id or e.category_id as string
+            if (category){
+                const entryCat = e.category_id || (e.category && e.category.id) || (e.category && e.category_id) || '';
+                if (String(entryCat) !== String(category)) return false;
+            }
+            if (!searchTerm) return true;
+            // Search in content and user and (category name)
+            const fields = [e.content || '', e.user || '', (e.category && e.category.name) || ''].join(' ').toLowerCase();
+            return fields.indexOf(searchTerm) !== -1;
+        });
+
+        // Update summary counts based on filtered entries
+        document.getElementById('periodText').textContent = `${currentData.period.from} - ${currentData.period.to}`;
+        document.getElementById('entriesCount').textContent = filteredEntries.length;
+        document.getElementById('tasksCount').textContent = (currentData.tasks || []).length;
+
+        const uniqueDays = new Set(filteredEntries.map(e => e.date));
         document.getElementById('daysWithEntriesCount').textContent = uniqueDays.size;
 
         // Update Badges
-        document.getElementById('entriesBadge').textContent = data.entries.length;
-        document.getElementById('tasksBadge').textContent = data.tasks.length;
-        document.getElementById('columnsBadge').textContent = data.columns.length;
+        document.getElementById('entriesBadge').textContent = filteredEntries.length;
+        document.getElementById('tasksBadge').textContent = (currentData.tasks || []).length;
 
-        // Render Tables
-        renderEntries(data.entries);
-        renderTasks(data.tasks);
-        renderColumns(data.columns, data.column_values);
+        // Determine active columns: if a column has an explicit `active` flag use it, otherwise treat as active
+        const allColumns = (currentData.columns || []);
+        const endDate = dateToInput && dateToInput.value ? new Date(dateToInput.value) : null;
+        const activeColumns = allColumns.filter(c => {
+            if (!c) return false;
+            // If active flag exists, only include when truthy (supports 1/'1'/true/'true')
+            if (typeof c.active !== 'undefined' && c.active !== null) {
+                const isActiveFlag = (c.active === 1 || c.active === '1' || c.active === true || c.active === 'true');
+                if (!isActiveFlag) return false;
+            }
 
-        // Render current stage and history
-        renderStage(data.current_stage);
-        renderHistory(data.stage_history);
+            // If deactivated_from is set and it's on or before the selected end date, consider the column deactivated
+            if (c.deactivated_from && endDate) {
+                const deact = new Date(c.deactivated_from);
+                if (!isNaN(deact.getTime()) && deact <= endDate) return false;
+            }
 
-        // Show Sections
+            return true;
+        });
+
+        document.getElementById('columnsBadge').textContent = activeColumns.length;
+
+        // Render Tables with filtered entries
+        renderEntries(filteredEntries);
+        renderTasks(currentData.tasks || []);
+        renderColumns(activeColumns, currentData.column_values || {});
+
+        renderStage(currentData.current_stage);
+        renderHistory(currentData.stage_history || []);
+
         summarySection.classList.remove('d-none');
         dataSection.classList.remove('d-none');
+
+        if (filteredEntries.length === 0 && (currentData.tasks || []).length === 0) {
+            noDataMessage.classList.remove('d-none');
+        } else {
+            noDataMessage.classList.add('d-none');
+        }
     }
 
-    // Render Entries
+    // Render Entries (zeigt Kategorie als Badge falls vorhanden)
     function renderEntries(entries) {
         const tbody = document.getElementById('entriesTableBody');
         tbody.innerHTML = '';
 
+        if (!entries || entries.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="3" class="text-center text-muted">Keine Einträge</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
         entries.forEach(entry => {
             const row = document.createElement('tr');
+
+            // determine category name robustly
+            let categoryName = '';
+            if (entry.category) categoryName = entry.category || '';
+
+            // Wenn noch keine Kategorie-Name, versuche Lookup von ID in categoryMap
+            if (!categoryName) {
+                const cid = entry.category_id || (entry.category && (entry.category.id || entry.categoryId)) || entry.kategorie_id || entry.kategorieId || null;
+                if (cid && categoryMap.has(String(cid))) categoryName = categoryMap.get(String(cid));
+            }
+
+
             row.innerHTML = `
                 <td class="text-center">${formatDisplayDate(entry.date)}</td>
                 <td>${escapeHtml(entry.content)}</td>
+                <td >${escapeHtml(categoryName)}</td>
                 <td class="text-center">${escapeHtml(entry.user || '')}</td>
             `;
             tbody.appendChild(row);
@@ -406,69 +552,98 @@
         const headers = document.getElementById('columnHeaders');
         const tbody = document.getElementById('columnsTableBody');
 
-        headers.innerHTML = '';
+        // Always ensure the first header cell for the date exists
+        headers.innerHTML = '<th style="width: 100px;">Datum</th>';
         tbody.innerHTML = '';
 
         if (columns.length === 0) {
-            headers.innerHTML = '<th>Keine Spalten konfiguriert</th>';
+            // If no columns, keep the date header and show a placeholder
+            headers.innerHTML = '<th style="width:100px;">Datum</th><th>Keine Spalten konfiguriert</th>';
             return;
         }
 
         // Create headers
+        // Nur aktive Spalten werden übergeben; hier werden die Header für diese Spalten angelegt
         columns.forEach(column => {
             const th = document.createElement('th');
-            th.textContent = column.name;
+            th.textContent = column.name || '';
             th.style.minWidth = '100px';
             headers.appendChild(th);
         });
 
-        // Group column values by date
-        const valuesByDate = {};
-        Object.keys(columnValues).forEach(date => {
-            valuesByDate[date] = columnValues[date];
-        });
+        // Prepare counts for boolean "true" values per column
+        const trueCounts = {};
+        columns.forEach(column => { trueCounts[column.id] = 0; });
 
-        // Create rows for each date that has column values
-        const sortedDates = Object.keys(valuesByDate).sort();
-        sortedDates.forEach(date => {
-            const row = document.createElement('tr');
+         // Group column values by date
+         const valuesByDate = {};
+         Object.keys(columnValues).forEach(date => {
+             valuesByDate[date] = columnValues[date];
+         });
 
-            // Date column
-            const dateCell = document.createElement('td');
-            dateCell.textContent = formatDisplayDate(date);
-            dateCell.className = 'text-center';
-            row.appendChild(dateCell);
+         // Create rows for each date that has column values
+         const sortedDates = Object.keys(valuesByDate).sort();
+         sortedDates.forEach(date => {
+             const row = document.createElement('tr');
 
-            // Value columns
-            columns.forEach(column => {
-                const cell = document.createElement('td');
-                const value = valuesByDate[date][column.id];
+             // Date column
+             const dateCell = document.createElement('td');
+             dateCell.textContent = formatDisplayDate(date);
+             dateCell.className = 'text-center';
+             row.appendChild(dateCell);
 
-                if (value) {
-                    if (column.type === 'boolean') {
-                        cell.innerHTML = value.value === '1' ?
+             // Value columns
+             columns.forEach(column => {
+                 const cell = document.createElement('td');
+                 const value = valuesByDate[date] ? valuesByDate[date][column.id] : null;
+
+                 if (value) {
+                     if (column.type === 'boolean') {
+                         const isTrue = (value.value === '1' || value.value === 1 || value.value === true || value.value === 'true');
+                         cell.innerHTML = isTrue ?
                             '<span class="badge badge-success">Ja</span>' :
                             '<span class="badge badge-secondary">Nein</span>';
-                    } else {
-                        cell.textContent = value.value;
-                    }
-                } else {
-                    cell.innerHTML = '<span class="text-muted">-</span>';
-                }
+                         if (isTrue) {
+                            trueCounts[column.id] = (trueCounts[column.id] || 0) + 1;
+                         }
+                     } else {
+                         cell.textContent = value.value;
+                     }
+                 } else {
+                     cell.innerHTML = '<span class="text-muted">-</span>';
+                 }
 
-                cell.className = 'text-center';
-                row.appendChild(cell);
-            });
+                 cell.className = '';
+                 row.appendChild(cell);
+             });
 
-            tbody.appendChild(row);
+             tbody.appendChild(row);
+         });
+
+         if (sortedDates.length === 0) {
+             const row = document.createElement('tr');
+             row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
+             tbody.appendChild(row);
+         }
+
+        // Append a counts row under the values: Anzahl (Ja) pro Spalte
+        const countsRow = document.createElement('tr');
+        const countsLabelCell = document.createElement('td');
+        countsLabelCell.className = 'text-center font-weight-bold';
+        countsLabelCell.textContent = 'Anzahl (Ja)';
+        countsRow.appendChild(countsLabelCell);
+        columns.forEach(column => {
+            const ccell = document.createElement('td');
+            ccell.className = ' font-weight-bold';
+            if (column.type === 'boolean') {
+                ccell.textContent = String(trueCounts[column.id] || 0);
+            } else {
+                ccell.innerHTML = '<span class="text-muted">-</span>';
+            }
+            countsRow.appendChild(ccell);
         });
-
-        if (sortedDates.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
-            tbody.appendChild(row);
-        }
-    }
+        tbody.appendChild(countsRow);
+     }
 
     // Export Word
     function exportWord() {
@@ -481,6 +656,10 @@
             date_from: dateFromInput.value,
             date_to: dateToInput.value
         });
+
+        // include filters
+        if (categoryFilter && categoryFilter.value) params.append('category', categoryFilter.value);
+        if (searchNotesInput && searchNotesInput.value.trim()) params.append('search', searchNotesInput.value.trim());
 
         window.location.href = `/paed-diary/schueler/${schuelerID}/export/word?${params}`;
     }
@@ -525,7 +704,6 @@
     // Render grading history
     function renderHistory(history){
         const tbody = document.getElementById('historyTableBody');
-        const row = document.getElementById('stageHistoryRow');
         if (!tbody) return;
         tbody.innerHTML = '';
         if (!history || history.length === 0){
@@ -578,6 +756,11 @@
     dateToInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loadData();
     });
+
+    // Category / Search listeners
+    if (categoryFilter) categoryFilter.addEventListener('change', () => applyFiltersAndRender());
+    if (searchNotesInput) searchNotesInput.addEventListener('input', debounce(() => applyFiltersAndRender(), 300));
+    if (clearSearchBtn) clearSearchBtn.addEventListener('click', () => { if (searchNotesInput) { searchNotesInput.value = ''; applyFiltersAndRender(); } });
 
     // Initial load
     loadData();
