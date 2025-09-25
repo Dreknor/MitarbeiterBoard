@@ -187,7 +187,15 @@ class TimesheetController extends Controller
                 );
             }
 
-            if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
+            if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id() and $user!= auth()->user()) {
+                Log::debug('Timesheets - Kein Zugriff aus diesen Mitarbeiter', [
+                    'Benutzer' => auth()->user(),
+                    'Angestellter' => $user,
+                    'Rechte' => [
+                        'edit employe' => auth()->user()->can('edit employe'),
+                        'lock timesheets' => auth()->user()->can('lock timesheets'),
+                    ]
+                ]);
                 return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
             }
         }
