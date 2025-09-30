@@ -116,7 +116,7 @@ function initializeEntriesModule(options){
         const showPaused = showPausedToggle ? !!showPausedToggle.checked : false;
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
-        diaryHead.insertAdjacentHTML('beforeend','<tr><th style="min-width:180px;">Schüler</th>' + (cache.days||[]).map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday? ' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
+        diaryHead.insertAdjacentHTML('beforeend','<tr><th class="name_column">Schüler</th>' + (cache.days||[]).map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday? ' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
         const entryMap = buildEntryMap();
         diaryBody.innerHTML='';
         const taskStudentIds = new Set((cache.tasks||[]).map(t=>t.schueler_id));
@@ -132,7 +132,7 @@ function initializeEntriesModule(options){
                 divider.appendChild(td); diaryBody.appendChild(divider);
             }
 
-            let row = `<th class="align-top" style="font-size:.72rem;">`+
+            let row = `<th class="align-top schueler_name_field" style="font-size:.72rem;">`+
                       `<a href="paed-diary/schueler/${stu.id}" class="text-decoration-none" title="Detailansicht öffnen">${escapeHtml(stu.name)} <i class=\"fas fa-external-link-alt small ml-1\"></i></a>`+
                       `<span class="badge badge-light ml-1" title="Klasse">${(cache.klassen.find(k=>k.id===stu.klasse_id)||{}).kuerzel||''}</span>`+
                       `${stagesModule.renderStageSymbol(stu)}`+

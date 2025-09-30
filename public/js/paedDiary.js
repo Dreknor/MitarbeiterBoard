@@ -181,8 +181,6 @@
             .catch(()=>{});
     }
 
-    // Aktualisiert die Schüler-Liste für Termine basierend auf den verfügbaren Schülern im Cache
-    // (wird nun direkt über appointmentsModule erledigt)
 
 
     // Gruppen laden

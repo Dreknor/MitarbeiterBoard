@@ -78,3 +78,41 @@ body.paed-hide-sidebar .main-panel {
 @media (max-width: 767px) {
   .open-entry-large { font-size: 1rem !important; }
 }
+
+/* Begrenze die erste Spalte der Wochenansicht und erlaube Umbrüche */
+.name_column,
+.schueler_name_field {
+  max-width: 180px;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Falls die Zelle Inline-Elemente enthält, sicherstellen, dass der Inhalt
+   als Block umbricht, ohne das Layout komplett zu verändern */
+.name_column *,
+.schueler_name_field * {
+  white-space: normal !important;
+}
+
+/* Erzwinge, dass die Tagebuch-Tabelle feste Layout-Berechnung nutzt,
+   damit die vorgegebene Breite der Namen-Spalte beachtet wird. */
+#diaryTable {
+  table-layout: fixed;
+}
+
+/* Setze eine feste Breite für Header- und Namenszellen (180px max)
+   und erlaube Umbrüche. Breite wird mit !important gesetzt, damit
+   Inline-styles (z.B. style="font-size:..") die Breite nicht überschreiben. */
+
+#diaryTable th.name_column,
+#diaryTable th.schueler_name_field,
+#diaryTable td.schueler_name_field,
+#diaryTable th.schueler_name_field a {
+  width: 200px !important;
+  max-width: 200px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
