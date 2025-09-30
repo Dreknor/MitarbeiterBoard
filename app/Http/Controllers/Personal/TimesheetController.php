@@ -61,7 +61,7 @@ class TimesheetController extends Controller
 
     public function storeDay(createTimesheetDayRequest $request, User $user, Timesheet $timesheet, $day){
 
-        if ($user != auth()->user()){
+        if ($user->id != auth()->id()){
             if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
                 return redirect(url('timesheets/'.auth()->id()))->with([
                         'type' => 'error',
