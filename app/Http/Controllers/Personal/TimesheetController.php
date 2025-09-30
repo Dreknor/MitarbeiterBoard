@@ -563,7 +563,7 @@ class TimesheetController extends Controller
     public function updateSheet(User $user,  Timesheet $timesheet)
     {
 
-        if ($user != auth()->user()){
+        if ($user->id != auth()->id()){
             if ((!auth()->user()->can('edit employe') and !auth()->user()->can('lock timesheets')) and auth()->id() != $user->id){
                 return redirect(url('timesheets/'.auth()->id()))->with([
                         'type' => 'error',
@@ -577,7 +577,7 @@ class TimesheetController extends Controller
                 );
             }
 
-            if (auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
+            if (!auth()->user()->can('lock timesheets') and $user->superior_id != auth()->id()) {
                 return redirectBack('warning', 'Kein Zugriff auf diesen Mitarbeiter');
             }
         }
