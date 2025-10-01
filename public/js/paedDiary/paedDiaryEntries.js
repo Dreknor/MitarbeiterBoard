@@ -1,6 +1,6 @@
 // paedDiaryEntries.js - Modul für Eintragsverwaltung (Pause/Unpause, Render, Editor)
 function initializeEntriesModule(options){
-    console.debug('initializeEntriesModule called');
+    //console.debug('initializeEntriesModule called');
     const {
         csrf,
         diaryHead,
@@ -317,6 +317,10 @@ function initializeEntriesModule(options){
          if(cache && cache.klasse_id) fd.set('klasse_id', cache.klasse_id);
          const completedCheckbox = document.getElementById('noteCompleted');
          if(completedCheckbox && !completedCheckbox.checked){ fd.delete('completed'); } else { fd.set('completed','1'); }
+
+         const dossier_onlyCheckbox = document.getElementById('noteCompleted');
+        if(dossier_onlyCheckbox && !dossier_onlyCheckbox.checked){ fd.delete('dossier_only'); } else { fd.set('dossier_only','1'); }
+
          const id = noteEntryIdInput.value;
          const url = id?`paed-diary/entry/${id}`:'paed-diary/entry';
          fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:fd}).then(r=>r.json()).then(j=>{ if(j.success){ noteStatus.textContent='Gespeichert'; loadWeek(); // Schließe das Formular nach erfolgreichem Speichern

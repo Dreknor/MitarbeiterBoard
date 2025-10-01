@@ -8,10 +8,14 @@ use App\Models\PaedDiaryCategory; // import category model
 class PaedDiaryEntry extends Model
 {
     /** @var array<int,string> */
-    protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at','category_id' ]; // completed_at und category_id ergänzt
+    protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at','category_id', 'dossier_only' ]; // completed_at und category_id ergänzt
 
     /** @var array<string,string> */
-    protected $casts = [ 'datum' => 'date','completed_at'=>'datetime' ]; // Cast ergänzt
+    protected $casts = [
+        'datum' => 'date',
+        'completed_at'=>'datetime',
+        'dossier_only'=>'boolean'
+        ];
 
     // Beziehungen
     public function klasse(){ return $this->belongsTo(Klasse::class); }

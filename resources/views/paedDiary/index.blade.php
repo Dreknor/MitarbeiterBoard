@@ -127,10 +127,22 @@
                                 <input type="text" name="new_category" id="noteNewCategory" class="form-control form-control-sm" placeholder="Neue Kategorie eingeben (wird priorisiert)">
                             </div>
                         </div>
-                        <div class="form-group mb-2">
-                            <input type="checkbox" name="completed" id="noteCompleted" value="1" checked class="align-middle" style="vertical-align:middle;">
-                            <label for="noteCompleted" class="small mb-0 align-middle" style="vertical-align:middle;">Erledigt</label>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <div class="form-group mb-2">
+                                    <input type="checkbox" name="completed" id="noteCompleted" value="1" checked class="align-middle" style="vertical-align:middle;">
+                                    <label for="noteCompleted" class="small mb-0 align-middle" style="vertical-align:middle;">Erledigt</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="form-group mb-2">
+                                    <input type="checkbox" name="dossier_only" id="dossier_only_input" value="1" class="align-middle" style="vertical-align:middle;">
+                                    <label for="dossier_only_input" class="small mb-0 align-middle" style="vertical-align:middle;">nur für Schüler-Ansicht</label>
+                                </div>
+                            </div>
                         </div>
+
+
                         <div class="d-flex align-items-center flex-wrap">
                             <button type="submit" class="btn btn-primary btn-sm mr-2" id="noteSaveBtn">Speichern</button>
                             <button type="button" class="btn btn-danger btn-sm mr-2 d-none" id="noteDeleteBtn">Löschen</button>
