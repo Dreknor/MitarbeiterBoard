@@ -94,7 +94,12 @@ class TimesheetController extends Controller
                     'Rechte' => [
                         'edit employe' => auth()->user()->can('edit employe'),
                         'lock timesheets' => auth()->user()->can('lock timesheets'),
-                    ]
+                    ],
+                    'is_same_user' => $is_same_user,
+                    'is_supervisor' => $is_supervisor,
+                    'edit_employe' => $edit_employe,
+                    'lock_timesheets' => $lock_timesheets,
+
                 ]);
                 return false;
                 break;
