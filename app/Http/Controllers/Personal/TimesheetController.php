@@ -63,7 +63,7 @@ class TimesheetController extends Controller
         $edit_employe = (auth()->user()->can('edit employe')) ? true : false;
         $lock_timesheets = (auth()->user()->can('lock timesheets')) ? true : false;
 
-        $is_supervisor = (auth()->id() == $user->supervisor_id) ? true : false;
+        $is_supervisor = (auth()->id() == $user->superior_id) ? true : false;
 
         switch ($function){
             case 'lock':
@@ -96,7 +96,7 @@ class TimesheetController extends Controller
                         'lock timesheets' => auth()->user()->can('lock timesheets'),
                     ],
                     'is_same_user' => $is_same_user,
-                    'is_supervisor' => $is_supervisor,
+                    'is_supervisor' => $is_supervisor . ' - ' . auth()->id() .' -> '. $user->superior_id,
                     'edit_employe' => $edit_employe,
                     'lock_timesheets' => $lock_timesheets,
 
