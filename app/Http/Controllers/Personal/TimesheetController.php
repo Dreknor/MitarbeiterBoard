@@ -59,7 +59,7 @@ class TimesheetController extends Controller
 
     public function berechtigt(User $user, $function)
     {
-        $is_same_user = (auth()->id == $user->id) ? true : false;
+        $is_same_user = (auth()->id() == $user->id) ? true : false;
         $edit_employe = (auth()->user()->can('edit employe')) ? true : false;
         $lock_timesheets = (auth()->user()->can('lock timesheets')) ? true : false;
 
