@@ -220,6 +220,12 @@ class TimesheetController extends Controller
 
         $user = $timesheetDay->employe;
 
+        Log::debug('update Timesheet Day', [
+            'timesheet_day' => $timesheetDay,
+            'user' => $user,
+            'request' => $request->all()
+        ]);
+
         if (!$this->berechtigt($user, 'edit')){
             return redirectBack('warning', 'Keine Berechtigung');
         }
