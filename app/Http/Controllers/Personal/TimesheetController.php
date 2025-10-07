@@ -217,6 +217,9 @@ class TimesheetController extends Controller
     }
 
     public function updateDay(updateTimesheetDayRequest $request, TimesheetDays $timesheetDay){
+
+        $user = $timesheetDay->employe;
+
         if (!$this->berechtigt($user, 'edit')){
             return redirectBack('warning', 'Keine Berechtigung');
         }
