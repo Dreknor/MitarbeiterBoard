@@ -13,7 +13,7 @@ class createTimesheetDayRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('edit employe') or ($this->user->id == auth()->id() and auth()->user()->can('has timesheet'));
+        return auth()->check();
     }
 
     /**
