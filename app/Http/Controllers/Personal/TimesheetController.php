@@ -206,6 +206,8 @@ class TimesheetController extends Controller
         $user = $timesheetDay->timesheet->employe;
 
 
+
+
         if (!$this->berechtigt($user, 'edit')){
             return redirectBack('warning', 'Keine Berechtigung');
         }
