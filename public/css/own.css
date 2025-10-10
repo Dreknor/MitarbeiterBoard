@@ -41,6 +41,9 @@ word-wrap: break-word;
 .border-left-10{
     border-left: 10px solid #17a2b8!important
 }
+.border-left-10-success{
+    border-left: 10px solid #28a745!important
+}
 
 @media (max-width: 767.98px) {
     .card-columns {
