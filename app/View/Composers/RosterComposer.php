@@ -36,5 +36,18 @@ class RosterComposer
                 ->get());
         }
 
+        //aktuelle Woche
+        $roster = Roster::whereIn('department_id', auth()->user()->groups()->pluck('id'))
+            ->whereDate('start_date', '=' ,Carbon::now()->startOfWeek()->format('Y-m-d'))
+            ->where('type', '!=', 'template')
+            ->where('published', true)
+            ->first();
+        $working_times = collect([]);
+        if ($roster)
+        {
+            //Arbeitszeiten der aktuellen Woche
+            $working_times = $roster->working_times_day(Carbon::today());
+        }
+        $view->with('working_times', $working_times);
     }
 }

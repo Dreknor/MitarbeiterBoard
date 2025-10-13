@@ -34,4 +34,18 @@
             </div>
         @endforeach
     </div>
+    @if($working_times->count() > 0)
+        <div class="card-footer border-top">
+            <h6>Arbeitszeiten heute</h6>
+            <ul class="list-group">
+                @foreach($working_times as $working_time)
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{$working_time->employe->name}}:
+                        <div class="d-inline " ><b>{{$working_time->start->format('H:i')}} - {{$working_time->end->format('H:i')}}</b>  </div>
+                        <span class="badge badge-primary badge-pill p-2">{{$working_time->function}} </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 </div>
