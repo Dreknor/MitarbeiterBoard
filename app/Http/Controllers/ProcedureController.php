@@ -142,7 +142,15 @@ class ProcedureController extends Controller
         });
 
         return view('procedure.edit', [
-            'procedure'=>$procedure->load('steps', 'steps.position', 'steps.childs.position'),
+            'procedure'=>$procedure->load(
+                'steps',
+                'steps.position',
+                'steps.parent_rel',
+                'steps.users',
+                'steps.childs.position',
+                'steps.childs.parent_rel',
+                'steps.childs.users'
+            ),
             'positions'=>$positions,
         ]);
     }
@@ -163,7 +171,15 @@ class ProcedureController extends Controller
         });
 
         return view('procedure.start', [
-            'procedure'=>$procedure->load('steps', 'steps.position', 'steps.childs.position'),
+            'procedure'=>$procedure->load(
+                'steps',
+                'steps.position',
+                'steps.parent_rel',
+                'steps.users',
+                'steps.childs.position',
+                'steps.childs.parent_rel'
+                , 'steps.childs.users'
+            ),
             'positions'=>$positions,
             'users' => $users,
 
@@ -264,6 +280,24 @@ class ProcedureController extends Controller
 
     public function done(Procedure_Step $step)
     {
+        // Autorisierungs-Check: nur zuständige Benutzer oder Administratoren mit 'edit procedures' dürfen markieren
+        if (!auth()->check()) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Keine Berechtigung.'
+            ]);
+        }
+
+        $currentUser = auth()->user();
+        // Verwende die geladene Collection, vermeidet direkte DB-Query und reduziert statische Analysewarnungen
+        $isAssigned = $step->users->contains('id', $currentUser->id);
+        if (!$isAssigned && !$currentUser->can('edit procedures')) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Keine Berechtigung.'
+            ]);
+        }
+
         $step->update(['done' => 1]);
 
         if (count(Procedure_Step::where('procedure_id', $step->procedure_id)->where('done', 0)->get()) < 1) {
@@ -309,11 +343,41 @@ class ProcedureController extends Controller
 
     public function addUser(Request $request)
     {
-        $step = Procedure_Step::where('id', $request->input('step'))->first();
+        $data = $request->validate([
+            'step' => 'required|integer',
+            'person_id' => 'required|integer'
+        ]);
 
-        $step->users()->attach($request->input('person_id'));
+        $step = Procedure_Step::find($data['step']);
+        if (!$step) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Schritt nicht gefunden.'
+            ]);
+        }
 
-        return redirect()->back();
+        $user = User::find($data['person_id']);
+        if (!$user) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Benutzer nicht gefunden.'
+            ]);
+        }
+
+        // Verhindere doppelte Zuweisung
+        if ($step->users->contains('id', $user->id)) {
+            return redirect()->back()->with([
+                'type' => 'info',
+                'Meldung' => 'Benutzer ist bereits zugewiesen.'
+            ]);
+        }
+
+        $step->users()->attach($user->id);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Benutzer hinzugefügt.'
+        ]);
     }
 
     public function remindStepMail(): void

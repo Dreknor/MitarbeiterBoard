@@ -46,7 +46,14 @@
                             <div class="mr-3">
                                 <strong>Verantwortlich:</strong>
                                 @foreach($step->users as $user)
-                                    <span class="d-inline-block ml-1">{{$user->name}}</span>
+                                    <span class="d-inline-block ml-1">
+                                        {{$user->name}}
+                                        @if($step->done == 0)
+                                            <a href="{{ url('procedure/step/'.$step->id.'/remove/'.$user->id) }}" class="text-danger ml-1" title="Person entfernen" aria-label="Person entfernen" onclick="return confirm('Person von dieser Aufgabe entfernen?');">
+                                                <i class="fas fa-user-minus" aria-hidden="true"></i>
+                                            </a>
+                                        @endif
+                                    </span>
                                 @endforeach
                             </div>
 
@@ -69,26 +76,37 @@
                     <form class="mr-2" action="{{url('procedure/step/'.$step->id."/delete")}}" method="post">
                         @csrf
                         @method('delete')
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Schritt löschen">
-                            <i class="fas fa-trash"></i>
+                        <button type="submit" class="btn btn-sm btn-danger rounded-pill d-flex align-items-center" title="Schritt löschen" aria-label="Schritt löschen">
+                            <i class="fas fa-trash mr-2" aria-hidden="true"></i>
+                            <span class="d-none d-md-inline">Löschen</span>
                         </button>
                     </form>
                 @endif
 
                 {{-- Person hinzufügen link (öffnet Modal) --}}
                 @if($step->done == 0)
-                    <a href="#" class="btn btn-sm btn-outline-primary mr-2 addUser" data-toggle="modal" data-target="#addUserModal" data-step="{{$step->id}}" title="Person hinzufügen">
-                        <i class="fas fa-user-plus"></i>
+                    <a href="#" class="btn btn-sm btn-primary rounded-pill mr-2 addUser d-flex align-items-center" data-toggle="modal" data-target="#addUserModal" data-step="{{$step->id}}" title="Person hinzufügen" aria-label="Person zuweisen">
+                        <i class="fas fa-user-plus mr-2" aria-hidden="true"></i>
+                        <span class="d-none d-md-inline">Zuweisen</span>
                     </a>
                 @endif
 
-                {{-- Aufgabe als erledigt markieren (nur wenn Zugehörig und nicht erledigt und endDate gesetzt) --}}
-                @if($step->users->contains(auth()->user()) and $step->done  == 0 and $step->endDate != null)
+                @php
+                    $parentDone = false;
+                    if ($step->parent === null || $step->parent === "") {
+                        $parentDone = true;
+                    } elseif ($step->parent_rel) {
+                        $parentDone = ($step->parent_rel->done == 1);
+                    }
+                @endphp
+
+                @if($step->users->contains(auth()->user()) and $step->done  == 0 and $step->endDate != null and $parentDone)
                     <form action="{{url('procedure/step/'.$step->id.'/done')}}" method="post" class="mr-2">
                         @csrf
                         @method('put')
-                        <button type="submit" class="btn btn-sm btn-success" title="Aufgabe als erledigt markieren">
-                            <i class="fas fa-check"></i> Erledigt
+                        <button type="submit" class="btn btn-sm btn-success rounded-pill d-flex align-items-center" title="Aufgabe als erledigt markieren" aria-label="Aufgabe als erledigt markieren">
+                            <i class="fas fa-check mr-2" aria-hidden="true"></i>
+                            <span>Erledigt</span>
                         </button>
                     </form>
                 @endif
@@ -96,10 +114,10 @@
                 {{-- Falls Kinder vorhanden: Toggle-Button --}}
                 @if( count($step->childs) > 0)
                     @php $expanded = ($hasIncomplete || $step->parent == ""); @endphp
-                    <button type="button" class="btn btn-sm btn-outline-secondary toggle-children-btn" data-target-id="step_children_{{$step->id}}" aria-expanded="{{ $expanded ? 'true' : 'false' }}" aria-controls="step_children_{{$step->id}}" title="{{ $expanded ? 'Schritte ausblenden' : 'Mehr Schritte einblenden' }}">
-                        <i class="fa {{ $expanded ? 'fa-minus-circle' : 'fa-plus-circle' }}"></i>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle toggle-children-btn" style="width:38px;height:38px;" data-target-id="step_children_{{$step->id}}" aria-expanded="{{ $expanded ? 'true' : 'false' }}" aria-controls="step_children_{{$step->id}}" title="{{ $expanded ? 'Schritte ausblenden' : 'Mehr Schritte einblenden' }}" aria-label="Schritte ein-/ausklappen">
+                        <i class="fa {{ $expanded ? 'fa-minus' : 'fa-plus' }}" aria-hidden="true"></i>
                     </button>
-                @endif
+                 @endif
             </div>
         </div>
     </div>
