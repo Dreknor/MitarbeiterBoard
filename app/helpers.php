@@ -178,9 +178,48 @@ function fetch_holidays_by_year(int $year): Collection
     return collect([]);
 }
 
+/**
+ * Ruft Ferien für ein bestimmtes Jahr von der API ab.
+ *
+ * @param int $year
+ * @param string|null $state
+ * @return Collection
+ */
+function fetch_ferien_by_year(int $year, ?string $state = null): Collection
+{
+    if (is_null($state)) {
+        $state = settings('ferien_state', 'holidays');
+    }
 
+    try {
+        $ferien = Cache::remember('ferien_'.$state.'_'.$year, 60*60*24*30, function () use ($year, $state) {
+            $response = Http::timeout(5)->get("https://ferien-api.de/api/v1/holidays/".$state."/".$year);
+            if ($response->successful()) {
+                return collect($response->json());
+            }
+            return collect([]);
+        });
 
+        return $ferien;
+    } catch (Throwable $e) {
+        Log::error('Ferien-API: Fehler beim Abrufen der Ferien von der API: ', [
+            'year' => $year,
+            'state' => $state,
+            'error' => $e->getMessage(),
+        ]);
+    }
 
+    return collect([]);
+}
+
+/**
+ * Prüft ob ein Datum in den Ferien liegt und gibt Ferien-Details zurück.
+ *
+ * @param Carbon $date
+ * @param string|null $state
+ * @param int|null $year
+ * @return object|null
+ */
 function is_ferien(Carbon $date, $state = null, $year = null)
 {
     if (is_null($year)){
@@ -190,26 +229,25 @@ function is_ferien(Carbon $date, $state = null, $year = null)
     if (is_null($state)){
         $state = settings('ferien_state', 'holidays');
     }
+
     try {
-        $ferien = Cache::remember('ferien_'.$year, 60*60*24*30, function () use ($year, $state) {
-            return collect(json_decode(file_get_contents("https://ferien-api.de/api/v1/holidays/".$state."/".$year)));
-        });
+        $ferien = fetch_ferien_by_year($year, $state);
+
         return $ferien->first(function ($item) use ($date) {
-            $start = Carbon::createFromFormat('Y-m-d', $item->start);
-            $end = Carbon::createFromFormat('Y-m-d', $item->end);
+            // Die API gibt Arrays zurück, nicht Objekte
+            $start = is_array($item) ? Carbon::createFromFormat('Y-m-d', $item['start']) : Carbon::createFromFormat('Y-m-d', $item->start);
+            $end = is_array($item) ? Carbon::createFromFormat('Y-m-d', $item['end']) : Carbon::createFromFormat('Y-m-d', $item->end);
             return $date->between($start->startOfDay(), $end->endOfDay());
         });
-    } catch (Exception $e) {
-        Log::error('Ferien-API: Fehler beim Abrufen der Ferien von der API: ', [
-            'url' => "https://ferien-api.de/api/v1/holidays/".$state."/".$year,
+    } catch (Throwable $e) {
+        Log::error('Ferien-Helfer: Fehler beim Überprüfen von Ferien: ', [
+            'date' => $date->toDateString(),
             'year' => $year,
             'state' => $state,
             'error' => $e->getMessage(),
         ]);
-        return false;
+        return null;
     }
-
-
 }
 
 function calculateWorkingTime(Collection $working_times, Collection $roster_events = null)
@@ -307,9 +345,3 @@ function settings($key, $config_file = null)
 
     return $settings;
 }
-
-
-
-
-
-

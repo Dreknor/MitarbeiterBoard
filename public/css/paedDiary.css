@@ -56,6 +56,32 @@
     background: #e3f2fd;
     border: 2px solid #90caf9;
 }
+
+/* Ferien-Tage Styling */
+#diaryTable th.ferien-header {
+    background: #fff3e0;
+    color: #e65100;
+    border: 2px solid #ffb74d;
+    font-weight: bold;
+}
+#diaryTable td.ferien-cell {
+    background: #fff8e1;
+    border: 2px solid #ffe082;
+}
+#diaryTable td.ferien-cell:hover {
+    background: #ffecb3;
+}
+/* Kombination: Heute + Ferien */
+#diaryTable th.today-header.ferien-header {
+    background: linear-gradient(135deg, #1976d2 0%, #fff3e0 100%);
+    color: #fff;
+    border: 2px solid #ff9800;
+}
+#diaryTable td.today-cell.ferien-cell {
+    background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
+    border: 2px solid #ff9800;
+}
+
 #diaryTable td .col-inputs-row {
     display: block;
     margin-top: 10px;

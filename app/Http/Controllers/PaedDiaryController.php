@@ -149,8 +149,43 @@ class PaedDiaryController extends Controller
         $periodEnd = $weekStart->copy()->addDays(4);
         $period = CarbonPeriod::create($weekStart, $periodEnd);
         $days = collect();
+        $ferienDates = [];
+
         foreach ($period as $date) {
-            $days->push(['date' => $date->toDateString(), 'label' => $date->format('D d.m.')]);
+            $ferienInfo = is_ferien($date);
+            $isFerienTag = !is_null($ferienInfo);
+
+            // Debug-Logging
+            if ($isFerienTag) {
+                Log::info('Ferien gefunden für Datum: ' . $date->toDateString(), [
+                    'ferienInfo' => $ferienInfo,
+                    'is_object' => is_object($ferienInfo),
+                    'is_array' => is_array($ferienInfo)
+                ]);
+            }
+
+            // Sicherer Zugriff auf ferien_name - kann Objekt oder Array sein
+            $ferienName = null;
+            if ($isFerienTag) {
+                if (is_object($ferienInfo)) {
+                    $ferienName = $ferienInfo->name ?? $ferienInfo->slug ?? 'Ferien';
+                } elseif (is_array($ferienInfo)) {
+                    $ferienName = $ferienInfo['name'] ?? $ferienInfo['slug'] ?? 'Ferien';
+                } else {
+                    $ferienName = 'Ferien';
+                }
+            }
+
+            $days->push([
+                'date' => $date->toDateString(),
+                'label' => $date->format('D d.m.'),
+                'is_ferien' => $isFerienTag,
+                'ferien_name' => $ferienName
+            ]);
+
+            if ($isFerienTag) {
+                $ferienDates[] = $date->toDateString();
+            }
         }
 
         // Schüler aller Klassen laden
@@ -182,13 +217,40 @@ class PaedDiaryController extends Controller
         // Beide Collections zusammenführen
         $entries = $currentWeekEntries->merge($previousOpenEntries);
 
+        // Auto-Pausierung: Offene Einträge während der Ferien pausieren
+        if (!empty($ferienDates)) {
+            foreach ($entries as $entry) {
+                if (is_null($entry->completed_at)) {
+                    foreach ($entry->schueler as $schueler_item) {
+                        foreach ($ferienDates as $ferienDate) {
+                            // Prüfen ob bereits eine Pause existiert
+                            $existingPause = PaedDiaryEntryPause::where('paed_diary_entry_id', $entry->id)
+                                ->where('schueler_id', $schueler_item->id)
+                                ->where('date', $ferienDate)
+                                ->first();
+
+                            if (!$existingPause) {
+                                // Neue Pause für Ferien-Tag erstellen
+                                PaedDiaryEntryPause::create([
+                                    'paed_diary_entry_id' => $entry->id,
+                                    'schueler_id' => $schueler_item->id,
+                                    'date' => $ferienDate,
+                                    'reason' => 'Ferien'
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         $entryData = $entries->map(fn($e) => [
             'id' => $e->id, 'date' => $e->datum->toDateString(), 'content' => $e->content,
             'schueler_ids' => $e->schueler->pluck('id'), 'user' => $e->user?->name,
             'completed_at' => $e->completed_at,
             'klasse_id' => $e->klasse_id,
             'category_id' => $e->category_id,
-            'category' => $e->category?->name
+            'category' => (is_object($e->category)) ? $e->category->name : null
         ]);
 
         // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen)
@@ -205,7 +267,7 @@ class PaedDiaryController extends Controller
             'user' => $e->user?->name,
             'klasse_id' => $e->klasse_id,
             'category_id' => $e->category_id,
-            'category' => $e->category?->name
+            'category' => (is_object($e->category)) ? $e->category->name : null
         ])->values();
         $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
@@ -218,7 +280,7 @@ class PaedDiaryController extends Controller
             'id' => $t->id, 'schueler_id' => $t->schueler_id, 'title' => $t->title,
             'due_date' => $t->due_date?->toDateString(), 'highlighted' => $t->highlighted, 'klasse_id' => $t->klasse_id,
         ]);
-        // Pausen für Tage der Woche laden
+        // Pausen für Tage der Woche laden (inkl. neu erstellte Ferien-Pausen)
         $pauseRecords = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entries->pluck('id'))
             ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
             ->get(['paed_diary_entry_id','schueler_id','date']);
@@ -978,7 +1040,7 @@ class PaedDiaryController extends Controller
                     'content' => $e->content,
                     'user' => $e->user?->name,
                     'formatted_date' => $e->datum->format('d.m.Y'),
-                    'category' => $e->category?->name,
+                    'category' => ((is_object($e->category))? $e->category->name : ''),
                     'category_id' => $e->category_id,
                     'dossier_only' => $e->dossier_only,
 

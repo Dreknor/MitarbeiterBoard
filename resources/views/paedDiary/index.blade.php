@@ -411,8 +411,8 @@
 @endsection
 
 @push('css')
-<link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20250916') }}">
-<link rel="stylesheet" href="{{ asset('css/pausedToggle.css?v=20250919') }}">
+<link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20251019') }}">
+<link rel="stylesheet" href="{{ asset('css/pausedToggle.css?v=20251019') }}">
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }

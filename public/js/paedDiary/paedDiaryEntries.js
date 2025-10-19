@@ -116,7 +116,13 @@ function initializeEntriesModule(options){
         const showPaused = showPausedToggle ? !!showPausedToggle.checked : false;
         diaryHead.innerHTML='';
         const todayStr = formatDate(new Date());
-        diaryHead.insertAdjacentHTML('beforeend','<tr><th class="name_column">Schüler</th>' + (cache.days||[]).map(d=>{const isToday=d.date===todayStr;return `<th class="text-center${isToday? ' today-header':''}" data-date="${d.date}">${d.label}</th>`;}).join('') + '</tr>');
+        diaryHead.insertAdjacentHTML('beforeend','<tr><th class="name_column">Schüler</th>' + (cache.days||[]).map(d=>{
+            const isToday=d.date===todayStr;
+            const isFerienTag = d.is_ferien || false;
+            const ferienTitle = isFerienTag && d.ferien_name ? ` title="${escapeHtml(d.ferien_name)}"` : '';
+            const ferienClass = isFerienTag ? ' ferien-header' : '';
+            return `<th class="text-center${isToday? ' today-header':''}${ferienClass}" data-date="${d.date}"${ferienTitle}>${d.label}${isFerienTag?' 🏖️':''}</th>`;
+        }).join('') + '</tr>');
         const entryMap = buildEntryMap();
         diaryBody.innerHTML='';
         const taskStudentIds = new Set((cache.tasks||[]).map(t=>t.schueler_id));
@@ -140,6 +146,7 @@ function initializeEntriesModule(options){
 
             (cache.days||[]).forEach(d=>{
                 const entries = (entryMap[stu.id]?.[d.date]) || [];
+                const isFerienTag = d.is_ferien || false;
                 // Group entries by category while preserving category order (categories from sorted list)
                 const entriesSorted = (entries||[]).slice().sort((a,b)=>{
                     const ca = (a.category||'').toString().toLowerCase();
@@ -201,8 +208,9 @@ function initializeEntriesModule(options){
                      });
                  }
                 const isToday = d.date === todayStr;
+                const ferienClass = isFerienTag ? ' ferien-cell' : '';
                 // pausedHtml rendered outside of .entry-list to avoid creating scrollbars inside the cell
-                row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}" data-stu="${stu.id}" data-date="${d.date}">`+
+                row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}${ferienClass}" data-stu="${stu.id}" data-date="${d.date}">`+
                        `<div class="entry-add-space" style="min-height:18px; cursor:pointer;" title="Neue Notiz erstellen"></div>`+
                        `<div class="entry-list">${entriesHtml}</div>`+
                        `<div class="paused-entries">${pausedHtml}</div>`+
