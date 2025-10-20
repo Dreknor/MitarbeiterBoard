@@ -12,7 +12,7 @@ class GradingAdminController extends Controller
 {
     public function index()
     {
-        $systems = GradingSystem::with('stages')->orderBy('name')->get();
+        $systems = GradingSystem::with(['stages', 'questions'])->orderBy('name')->get();
         return view('admin.grading.index', ['systems' => $systems]);
     }
 
@@ -147,6 +147,81 @@ class GradingAdminController extends Controller
 
         foreach ($order as $index => $stageId) {
             GradingStage::where('id', $stageId)->update(['sort_order' => $index]);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Speichert eine neue Frage für ein Graduierungssystem
+     */
+    public function storeQuestion(Request $request, GradingSystem $system)
+    {
+        $data = $request->validate([
+            'question' => ['required', 'string', 'max:1000'],
+            'sort_order' => ['nullable', 'integer'],
+        ]);
+
+        $question = $system->questions()->create([
+            'question' => $data['question'],
+            'sort_order' => $data['sort_order'] ?? 0,
+            'active' => true,
+        ]);
+
+        return redirect()->route('admin.grading.index')->with('success', 'Frage angelegt');
+    }
+
+    /**
+     * Aktualisiert eine Frage
+     */
+    public function updateQuestion(Request $request, \App\Models\GradingQuestion $question)
+    {
+        $data = $request->validate([
+            'question' => ['required', 'string', 'max:1000'],
+            'sort_order' => ['nullable', 'integer'],
+            'active' => ['boolean'],
+        ]);
+
+        $question->update([
+            'question' => $data['question'],
+            'sort_order' => $data['sort_order'] ?? $question->sort_order,
+            'active' => $request->boolean('active'),
+        ]);
+
+        return redirect()->route('admin.grading.index')->with('success', 'Frage aktualisiert');
+    }
+
+    /**
+     * Löscht eine Frage
+     */
+    public function destroyQuestion(\App\Models\GradingQuestion $question)
+    {
+        $question->delete();
+        return redirect()->route('admin.grading.index')->with('success', 'Frage gelöscht');
+    }
+
+    /**
+     * Sortiert Fragen per AJAX
+     */
+    public function reorderQuestions(Request $request, GradingSystem $system)
+    {
+        $data = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['integer', 'exists:grading_questions,id']
+        ]);
+
+        $order = $data['order'];
+
+        // Prüfen ob alle Fragen zum System gehören
+        $questions = \App\Models\GradingQuestion::whereIn('id', $order)->pluck('grading_system_id', 'id');
+        foreach ($order as $index => $questionId) {
+            if (!isset($questions[$questionId]) || $questions[$questionId] != $system->id) {
+                return response()->json(['status' => 'error', 'message' => 'Ungültige Frage in Reihenfolge'], 422);
+            }
+        }
+
+        foreach ($order as $index => $questionId) {
+            \App\Models\GradingQuestion::where('id', $questionId)->update(['sort_order' => $index]);
         }
 
         return response()->json(['status' => 'ok']);

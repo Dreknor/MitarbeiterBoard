@@ -41,8 +41,7 @@ class Klasse extends Model
         return $this->hasMany(PaedDiaryTask::class, 'klasse_id');
     }
 
-    // Relation: Welches Graduierungssystem gilt für die Klasse
-    public function grading_system()
+    public function gradingSystem()
     {
         return $this->belongsTo(GradingSystem::class, 'grading_system_id');
     }

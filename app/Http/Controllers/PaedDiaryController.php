@@ -999,9 +999,36 @@ class PaedDiaryController extends Controller
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
 
+        // Graduierungs-Dokumentationen laden
+        $sessions = \App\Models\GradingDocumentationSession::where('klasse_id', $klasse->id)
+            ->where(function($q) use ($schueler) {
+                $q->where('type', 'group')
+                  ->orWhere(function($q2) use ($schueler) {
+                      $q2->where('type', 'individual')
+                         ->where('schueler_id', $schueler->id);
+                  });
+            })
+            ->whereNotNull('completed_at')
+            ->with([
+                'gradingSystem',
+                'gradingSystem.questions' => function($q) {
+                    $q->orderBy('sort_order');
+                },
+                'user',
+                'studentAnswers' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id);
+                },
+                'teacherAssessments' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id);
+                }
+            ])
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
         return view('paedDiary.schueler', [
             'schueler' => $schueler,
             'klasse' => $klasse,
+            'gradingSessions' => $sessions,
         ]);
     }
 
@@ -1358,8 +1385,28 @@ class PaedDiaryController extends Controller
             return response()->json(['stages' => []]);
         }
         $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
-        $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->symbol, 'sort_order' => $s->sort_order, 'image_url' => $s->image_url ?? null]);
+        $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null]);
         return response()->json(['stages' => $data]);
+    }
+
+    /**
+     * Gibt die Schüler einer Klasse für die Dokumentation zurück
+     *
+     * @param Klasse $klasse
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getClassSchueler(Klasse $klasse)
+    {
+        $user = Auth::user();
+        // Prüfen, ob Nutzer Zugriff auf die Klasse hat
+        $user->paed_klassen()->where('klassen.id', $klasse->id)->firstOrFail();
+
+        $schueler = $klasse->schueler()
+            ->orderBy('nachname')
+            ->orderBy('vorname')
+            ->get(['id', 'vorname', 'nachname', 'klasse_id']);
+
+        return response()->json(['schueler' => $schueler]);
     }
 
     /**

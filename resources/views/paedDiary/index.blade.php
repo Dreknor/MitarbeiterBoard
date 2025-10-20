@@ -221,6 +221,9 @@
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
                         <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="manageColumnsBtn" title="Spalten verwalten"><i class="fas fa-columns"></i> Spalten</button>
+                        <a href="{{ route('gradingDocumentation.index') }}" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="Graduierungssystem-Dokumentation">
+                            <i class="fas fa-clipboard-check"></i> Dokumentation
+                        </a>
                         <a id="exportCsvBtn" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="CSV Export"><i class="fas fa-file-csv"></i></a>
                         <button class="btn btn-sm btn-warning mb-1 mr-2" id="openAppointmentModal"><i class="fas fa-calendar-alt"></i> Termin</button>
                         <button class="btn btn-sm btn-success mb-1 mr-2" id="openTaskModal">Aufgabe</button>
