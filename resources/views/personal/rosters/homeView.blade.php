@@ -39,6 +39,9 @@
             <h6>Arbeitszeiten heute</h6>
             <ul class="list-group">
                 @foreach($working_times as $working_time)
+                    @if(is_null($working_time->start) and is_null($working_time->end))
+                        @continue
+                    @endif
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{$working_time->employe->name}}:
                         <div class="d-inline " ><b>{{$working_time->start?->format('H:i')}} - {{$working_time->end?->format('H:i')}}</b>  </div>
