@@ -41,7 +41,7 @@
                 @foreach($working_times as $working_time)
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{$working_time->employe->name}}:
-                        <div class="d-inline " ><b>{{$working_time->start->format('H:i')}} - {{$working_time->end->format('H:i')}}</b>  </div>
+                        <div class="d-inline " ><b>{{$working_time->start?->format('H:i')}} - {{$working_time->end?->format('H:i')}}</b>  </div>
                         <span class="badge badge-primary badge-pill p-2">{{$working_time->function}} </span>
                     </li>
                 @endforeach
