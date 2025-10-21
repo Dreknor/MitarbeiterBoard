@@ -7,6 +7,7 @@ use App\Http\Requests\MeetingRequest;
 use App\Models\Group;
 use App\Models\Meeting;
 use App\Models\MeetingTask;
+use App\Models\Theme;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -161,6 +162,7 @@ class MeetingController extends Controller
             $theme->group_id = $group->id;
             $theme->type_id = $request->input('type');
             $theme->creator_id = auth()->id();
+            $theme->date = $meeting->date;
             $theme->save();
 
             $meeting->themes()->attach($theme->id);
@@ -171,6 +173,7 @@ class MeetingController extends Controller
             $themeId = $request->input('existing_theme_id');
             if (!$meeting->themes()->where('theme_id', $themeId)->exists()) {
                 $meeting->themes()->attach($themeId);
+                Theme::query()->where('id', $themeId)->update(['date' => $meeting->date]);
             }
         }
 

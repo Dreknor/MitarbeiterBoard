@@ -1,4 +1,4 @@
-<tr class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-directional-teal text-white @endif">
+<tr class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif">
     <td>
         @if($theme->ersteller->getMedia('profile')->count() != 0)
             <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">
