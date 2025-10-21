@@ -68,6 +68,16 @@
                                         <a href="{{url('rooms/rooms/'.$room->id.'/edit')}}" class="btn btn-sm btn-bg-gradient-x-orange-yellow">
                                             <i class="fa fa-edit"></i>
                                         </a>
+                                        @if($room->bookings->count() == 0)
+                                            <button class="btn btn-sm btn-bg-gradient-x-red-pink" type="submit" title="Raum löschen" form="deleteForm_{{$room->id}}">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                            <form method="post" id="deleteForm_{{$room->id}}" action="{{url('rooms/rooms/'.$room->id)}}" class="form-inline m-1">
+                                                @csrf
+                                                @method('delete')
+                                            </form>
+                                        @endif
+
                                     @endcan
                                     <!--
                                     <a href="{{url('rooms/rooms/'.$room->id.'/export')}}" class="btn btn-bg-gradient-x-blue-green btn-sm">
@@ -75,15 +85,7 @@
                                     </a>
                                     -->
 
-                                    @if($room->bookings->count() == 0)
-                                        <button class="btn btn-sm btn-bg-gradient-x-red-pink" type="submit" title="Raum löschen" form="deleteForm_{{$room->id}}">
-                                            <i class="fa fa-trash"></i>
-                                        </button>
-                                            <form method="post" id="deleteForm_{{$room->id}}" action="{{url('rooms/rooms/'.$room->id)}}" class="form-inline m-1">
-                                                @csrf
-                                                @method('delete')
-                                            </form>
-                                    @endif
+
                                 </td>
                             </tr>
                         @endforeach
