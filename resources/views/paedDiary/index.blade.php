@@ -103,7 +103,7 @@
                         <div class="form-row">
                             <div class="col-md-2 mb-2">
                                 <label class="small mb-1" for="noteDate">Datum</label>
-                                <input type="date" name="date" id="noteDate" class="form-control form-control-sm" required>
+                                <input type="date" name="date" id="noteDate" class="form-control form-control-sm" value="{{ today()->format('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-10 mb-2">
                                 <label class="small mb-1">Schüler</label>
@@ -130,7 +130,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-2">
                                 <div class="form-group mb-2">
-                                    <input type="checkbox" name="completed" id="noteCompleted" value="1" checked class="align-middle" style="vertical-align:middle;">
+                                    <input type="checkbox" name="completed" id="noteCompleted" value="1" class="align-middle" style="vertical-align:middle;">
                                     <label for="noteCompleted" class="small mb-0 align-middle" style="vertical-align:middle;">Erledigt</label>
                                 </div>
                             </div>
