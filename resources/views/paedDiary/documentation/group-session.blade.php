@@ -83,10 +83,6 @@
     const schueler = @json($schueler);
     const questions = @json($questions);
 
-    console.log('Session ID:', sessionId);
-    console.log('Schüler:', schueler);
-    console.log('Fragen:', questions);
-
     // State
     let currentSchuelerIndex = 0;
     let currentQuestionIndex = 0;
@@ -123,15 +119,6 @@
 
     function getCompletedSteps() {
         return Object.keys(answers).length;
-    }
-
-    function getProgressPercent() {
-        const total = getTotalSteps();
-        return total > 0 ? ((getCompletedSteps() / total) * 100).toFixed(0) : 0;
-    }
-
-    function getProgressText() {
-        return `${getCompletedSteps()} / ${getTotalSteps()}`;
     }
 
     function isAllCompleted() {
@@ -394,9 +381,51 @@
 </script>
 
 <style>
-.smiley-btn:hover {
-    transform: scale(1.1);
-    transition: transform 0.2s;
+:root{
+    --primary: #0d6efd;
+    --primary-700: #0b5ed7;
+    --muted: #6c757d;
+    --radius: 12px;
+}
+
+.smiley-btn {
+    width: 110px;
+    height: 110px;
+    border-radius: 14px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    box-shadow: 0 8px 28px rgba(10,15,40,0.06);
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    border: none;
+    background: linear-gradient(180deg,#fff,#f8fafc);
+}
+.smiley-btn i { font-size: 3rem; }
+.smiley-btn .small { font-size: 0.8rem; }
+.smiley-btn:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 16px 40px rgba(10,15,40,0.12); }
+
+/* Current student card */
+#currentStudentCard { border-radius: 12px; border: 1px solid rgba(13,110,253,0.12); box-shadow: 0 12px 34px rgba(10,15,40,0.06); }
+#currentStudentCard .card-header { background: linear-gradient(90deg,#0d6efd,#0b5ed7); color: #fff; }
+
+/* Table */
+.table thead th { border-bottom: none; }
+.table tbody tr.table-primary { background: linear-gradient(90deg, rgba(13,110,253,0.06), rgba(13,110,253,0.02)); }
+
+/* Completed alert */
+#completedAlert { border-radius: 10px; box-shadow: 0 8px 24px rgba(10,15,40,0.06); }
+
+/* Buttons */
+.btn-success, .btn-primary { border-radius: 10px; box-shadow: 0 6px 18px rgba(10,15,40,0.06); }
+.btn-warning { border-radius: 8px; }
+
+/* Small helpers */
+.text-center h3 { font-weight: 600; }
+
+@media (max-width: 768px) {
+    .smiley-btn { width: 76px; height: 76px; }
 }
 </style>
 @endsection

@@ -52,12 +52,6 @@
         return $assessments->keyBy('question_id');
     }));
 
-    console.log('Session ID:', sessionId);
-    console.log('Schüler:', schueler);
-    console.log('Fragen:', questions);
-    console.log('Student Answers:', studentAnswers);
-    console.log('Teacher Assessments:', teacherAssessmentsData);
-
     // State
     let currentSchuelerIndex = 0;
     let teacherAssessments = teacherAssessmentsData || {};
@@ -492,13 +486,105 @@
 </script>
 
 <style>
-.teacher-smiley-btn {
-    min-width: 80px;
+:root{
+    --primary: #0d6efd; /* Bootstrap primary */
+    --primary-600: #0b5ed7;
+    --muted: #6c757d;
+    --card-bg: #ffffff;
+    --glass: rgba(255,255,255,0.6);
+    --radius: 12px;
 }
 
-.teacher-smiley-btn:hover {
-    transform: scale(1.05);
-    transition: transform 0.2s;
+/* Grundlegendes */
+.teacher-smiley-btn, .smiley-btn, .btn-smiley {
+    min-width: 88px;
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    box-shadow: 0 6px 18px rgba(20,20,50,0.06);
+    transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+    cursor: pointer;
+    border: none;
+    background: linear-gradient(180deg, #fff 0%, #f8f9fa 100%);
 }
+
+.teacher-smiley-btn:hover, .smiley-btn:hover, .btn-smiley:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 10px 30px rgba(20,20,50,0.12);
+}
+
+.teacher-smiley-btn.btn-primary, .btn-smiley.active {
+    background: linear-gradient(90deg, var(--primary) 0%, #0b5ed7 100%);
+    color: #fff;
+}
+
+.teacher-smiley-btn i, .smiley-btn i {
+    font-size: 1.8rem;
+}
+
+.teacher-smiley-btn .small, .smiley-btn .small {
+    font-size: 0.75rem;
+}
+
+/* Karten & Allgemeines */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+.card-header {
+    background: linear-gradient(90deg, rgba(13,110,253,0.98), rgba(11,94,215,0.9));
+    color: #fff;
+    border-bottom: none;
+    padding: 1rem 1.25rem;
+}
+.card-header .mb-0 { font-weight: 600; }
+.card-body { padding: 1.25rem; background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,251,252,0.98)); }
+
+/* Tabs moderner Look */
+.nav-tabs {
+    border-bottom: none;
+    gap: 0.5rem;
+}
+.nav-tabs .nav-item .nav-link {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+.nav-tabs .nav-item .nav-link:hover { background: rgba(13,110,253,0.06); transform: translateY(-2px); }
+.nav-tabs .nav-item .nav-link.active {
+    background: linear-gradient(90deg, var(--primary) 0%, #0b5ed7 100%);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(13,110,253,0.14);
+}
+
+/* Alerts */
+.alert { border-radius: 10px; }
+.alert-info { background: linear-gradient(90deg, #e9f2ff, #f7fbff); color: #08325a; }
+.alert-warning { background: linear-gradient(90deg,#fff4e5,#fffaf0);}
+
+/* Kommentar-Textarea */
+.form-control { border-radius: 8px; box-shadow: none; border: 1px solid #e6e9ef; }
+.form-control:focus { border-color: var(--primary); box-shadow: 0 6px 18px rgba(13,110,253,0.08); }
+
+/* Abschluss-Button */
+#completeButton { padding: 0.8rem 1.4rem; border-radius: 10px; font-size: 1.05rem; }
+#completeButton[disabled] { opacity: 0.6; transform: none; }
+#completeHint { margin-top: 0.6rem; }
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+    .teacher-smiley-btn { min-width: 64px; padding: 0.45rem; }
+    .card-header { padding: 0.75rem; }
+}
+
 </style>
 @endsection

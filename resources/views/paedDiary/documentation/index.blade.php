@@ -103,6 +103,23 @@
     </div>
 </div>
 
+<style>
+:root{ --primary: #0d6efd; --muted:#6c757d; --radius:12px; }
+
+.card { border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,0.06); border: none; }
+.card-header { background: linear-gradient(90deg,var(--primary), #0b5ed7); color: #fff; }
+
+.form-control { border-radius: 8px; border: 1px solid #e6e9ef; }
+.form-group label { font-weight: 600; }
+
+.btn { border-radius: 10px; transition: transform 160ms ease, box-shadow 160ms ease; }
+.btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(13,110,253,0.08); }
+
+.alert-info { border-radius: 10px; background: linear-gradient(90deg,#e9f2ff,#f7fbff); color: #08325a; }
+
+@media (max-width: 768px){ .card { margin-bottom: 0.8rem; } }
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const klasseIndividual = document.getElementById('klasse_individual');
