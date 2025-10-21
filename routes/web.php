@@ -277,15 +277,16 @@ Route::group([
 
                 //Raumplan
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
-                    Route::resource('rooms', RoomController::class)->except('create');
-                    Route::get('rooms/{room}/{week?}', [RoomController::class, 'show']);
+                    Route::get('rooms/{room}/export', [RoomController::class, 'export']);
+                    Route::get('rooms/{room}/{week?}/{date?}', [RoomController::class, 'show'])->name('rooms.show.week');
                     Route::post('bookings', [RoomController::class, 'storeBooking']);
                     Route::get('booking/{booking}', [RoomController::class, 'editBooking']);
-                    Route::get('rooms/{room}/export', [RoomController::class, 'export']);
                     Route::delete('booking/{booking}', [RoomController::class, 'deleteBooking']);
                     Route::put('bookings/{booking}', [RoomController::class, 'updateBooking']);
                     Route::post('import', [RoomController::class, 'import'])->middleware('permission:manage rooms');
 
+                    // Resource-Route zuletzt
+                    Route::resource('rooms', RoomController::class)->except('create', 'show');
                 });
 
 
@@ -347,7 +348,13 @@ Route::group([
                     Route::resource('locations', LocationController::class);
                     Route::resource('lieferanten', \App\Http\Controllers\Inventory\LieferantController::class);
                     Route::resource('items', ItemsController::class);
-                    Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class);
+                    Route::resource('categories', \App\Http\Controllers\Inventory\CategoryController::class)->names([
+                        'index' => 'inventory.categories.index',
+                        'store' => 'inventory.categories.store',
+                        'show' => 'inventory.categories.show',
+                        'update' => 'inventory.categories.update',
+                        'destroy' => 'inventory.categories.destroy',
+                    ]);
                     Route::resource('locationtype', LocationTypeController::class);
 
                 });
