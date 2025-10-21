@@ -278,6 +278,7 @@ class PaedDiaryController extends Controller
         }
         $tasks = PaedDiaryTask::whereIn('klasse_id', $klassen->pluck('id'))->open()->with('schueler:id,vorname,nachname')->get()->map(fn($t) => [
             'id' => $t->id, 'schueler_id' => $t->schueler_id, 'title' => $t->title,
+            'description' => $t->description,
             'due_date' => $t->due_date?->toDateString(), 'highlighted' => $t->highlighted, 'klasse_id' => $t->klasse_id,
         ]);
         // Pausen für Tage der Woche laden (inkl. neu erstellte Ferien-Pausen)
@@ -899,6 +900,48 @@ class PaedDiaryController extends Controller
         $task->update(['status' => 'closed', 'highlighted' => false, 'closed_at' => now()]);
         $this->forgetWeekCache($task->klasse_id, Carbon::now());
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Aktualisiert eine bestehende Aufgabe.
+     *
+     * @param Request $request
+     * @param PaedDiaryTask $task
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateTask(Request $request, PaedDiaryTask $task)
+    {
+        $user = Auth::user();
+        $user->paed_klassen()->where('klassen.id', $task->klasse_id)->firstOrFail();
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'due_date' => ['nullable', 'date'],
+            'highlighted' => ['nullable', 'boolean']
+        ]);
+
+        $task->update([
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+            'highlighted' => $data['highlighted'] ?? $task->highlighted
+        ]);
+
+        $this->forgetWeekCache($task->klasse_id, Carbon::now());
+
+        return response()->json([
+            'success' => true,
+            'task' => [
+                'id' => $task->id,
+                'schueler_id' => $task->schueler_id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'due_date' => $task->due_date?->toDateString(),
+                'highlighted' => $task->highlighted,
+                'klasse_id' => $task->klasse_id
+            ]
+        ]);
     }
 
     /**

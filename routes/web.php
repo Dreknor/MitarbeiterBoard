@@ -643,6 +643,7 @@ Route::group([
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
                     Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryController::class, 'storeTask'])->name('paedDiary.task.store');
+                    Route::put('paed-diary/task/{task}', [\App\Http\Controllers\PaedDiaryController::class, 'updateTask'])->name('paedDiary.task.update');
                     Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryController::class, 'closeTask'])->name('paedDiary.task.close');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class, 'columnsAll'])->name('paedDiary.columns.all');
                     // Kategorie-Update für einzelne Spalten

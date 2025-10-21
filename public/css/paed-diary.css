@@ -116,3 +116,38 @@ body.paed-hide-sidebar .main-panel {
   overflow-wrap: break-word;
   word-break: break-word;
 }
+
+/* Buttons für Aufgaben-Verwaltung */
+.diary-btn {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.diary-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.diary-btn-edit {
+  color: #007bff;
+}
+
+.diary-btn-edit:hover {
+  background: rgba(0, 123, 255, 0.1);
+  color: #0056b3;
+}
+
+.diary-btn-complete {
+  color: #28a745;
+}
+
+.diary-btn-complete:hover {
+  background: rgba(40, 167, 69, 0.1);
+  color: #1e7e34;
+}

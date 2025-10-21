@@ -20,6 +20,9 @@ function initializeTasksModule(dependencies) {
     const tasksList = document.getElementById('tasksList');
     const refreshTasksBtn = document.getElementById('refreshTasks');
 
+    // Neu: Variable zum Speichern der zu bearbeitenden Task-ID
+    let editingTaskId = null;
+
     // --- Kernfunktionen ---
 
     function renderTasks() {
@@ -92,7 +95,10 @@ function initializeTasksModule(dependencies) {
                                 <i class="fas fa-tasks mr-1"></i> ${escapeHtml(task.title)}
                                 ${task.due_date ? `<span class="text-muted small ml-1">(${isOverdue ? 'Fällig: ' : ''}${new Date(task.due_date).toLocaleDateString()})</span>` : ''}
                             </div>
-                            <button class="diary-btn diary-btn-complete close-task-btn ml-2" title="Aufgabe ausblenden" data-task-id="${task.id}">✕</button>
+                            <div class="ml-2">
+                                <button class="diary-btn diary-btn-edit edit-task-btn" title="Aufgabe bearbeiten" data-task-id="${task.id}">✎</button>
+                                <button class="diary-btn diary-btn-complete close-task-btn" title="Aufgabe ausblenden" data-task-id="${task.id}">✕</button>
+                            </div>
                         </div>`;
                 }
             });
@@ -327,9 +333,15 @@ function initializeTasksModule(dependencies) {
     // --- Event Listeners ---
     if (openTaskModalBtn) {
         openTaskModalBtn.addEventListener('click', () => {
+            editingTaskId = null; // Neue Aufgabe
             if (taskForm) taskForm.reset();
             const taskKlasseId = document.getElementById('taskKlasseId');
             if (taskKlasseId) taskKlasseId.value = klasseSelect.value;
+
+            // Modal-Titel anpassen
+            const modalTitle = taskModal.find('.modal-title');
+            if (modalTitle.length) modalTitle.text('Aufgabe erfassen');
+
             // ensure the checkbox list is up-to-date when opening
             try { updateTaskStudentSelect(); } catch (e) { /* ignore */ }
             taskModal.modal('show');
@@ -340,14 +352,24 @@ function initializeTasksModule(dependencies) {
         taskForm.addEventListener('submit', e => {
             e.preventDefault();
             const fd = new FormData(taskForm);
+
+            // _method MUSS zuerst gesetzt werden, bevor andere Felder hinzugefügt werden
+            if (editingTaskId) {
+                fd.set('_method', 'PUT');
+            }
+
             if (groupSelect.value) {
                 fd.set('group_id', groupSelect.value);
             }
             fd.set('klasse_id', klasseSelect.value);
             if (!fd.get('highlighted')) fd.set('highlighted', '0');
 
-            fetch('paed-diary/task', {
-                    method: 'POST',
+            const url = editingTaskId
+                ? `paed-diary/task/${editingTaskId}`
+                : 'paed-diary/task';
+
+            fetch(url, {
+                    method: 'POST', // Laravel erwartet POST mit _method=PUT
                     headers: {
                         'X-CSRF-TOKEN': csrf,
                         'Accept': 'application/json'
@@ -358,14 +380,66 @@ function initializeTasksModule(dependencies) {
                 .then(j => {
                     if (j.success) {
                         taskModal.modal('hide');
+                        editingTaskId = null;
                         loadWeek();
+                    } else {
+                        alert(j.message || 'Fehler beim Speichern');
                     }
-                }).catch(() => {});
+                }).catch(err => {
+                    console.error('Task save error:', err);
+                    alert('Fehler beim Speichern der Aufgabe');
+                });
         }); // end submit event listener
     } // end if (taskForm)
 
     if (tasksPanel) {
         tasksPanel.addEventListener('click', e => {
+            // Bearbeiten-Button Handler
+            const editBtn = e.target.closest('.edit-task-btn');
+            if (editBtn) {
+                const taskId = editBtn.dataset.taskId;
+                const localCache = getCache();
+                const task = (localCache.tasks || []).find(t => String(t.id) === String(taskId));
+
+                if (task) {
+                    editingTaskId = taskId;
+
+                    // Modal-Titel anpassen
+                    const modalTitle = taskModal.find('.modal-title');
+                    if (modalTitle.length) modalTitle.text('Aufgabe bearbeiten');
+
+                    // Formular mit Task-Daten füllen
+                    if (taskForm) {
+                        const titleInput = taskForm.querySelector('[name="title"]');
+                        const descInput = taskForm.querySelector('[name="description"]');
+                        const dueDateInput = taskForm.querySelector('[name="due_date"]');
+                        const highlightedInput = taskForm.querySelector('[name="highlighted"]');
+
+                        if (titleInput) titleInput.value = task.title || '';
+                        if (descInput) descInput.value = task.description || '';
+                        if (dueDateInput) dueDateInput.value = task.due_date || '';
+                        if (highlightedInput) highlightedInput.checked = task.highlighted;
+
+                        // Schüler-Auswahl ist deaktiviert beim Bearbeiten (nicht änderbar)
+                        const taskStudents = document.getElementById('taskStudents');
+                        if (taskStudents) {
+                            taskStudents.style.opacity = '0.5';
+                            taskStudents.style.pointerEvents = 'none';
+                            const checkboxes = taskStudents.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(cb => {
+                                cb.disabled = true;
+                                if (String(cb.value) === String(task.schueler_id)) {
+                                    cb.checked = true;
+                                }
+                            });
+                        }
+                    }
+
+                    taskModal.modal('show');
+                }
+                return;
+            }
+
             const closeBtn = e.target.closest('.close-task-btn');
             if (closeBtn) {
                 const taskId = closeBtn.dataset.taskId;
@@ -420,6 +494,20 @@ function initializeTasksModule(dependencies) {
                         alert('Fehler');
                         completeBtn.disabled = false;
                     });
+            }
+        });
+    }
+
+    // Modal-Reset beim Schließen
+    if (taskModal.length) {
+        taskModal.on('hidden.bs.modal', function() {
+            editingTaskId = null;
+            const taskStudents = document.getElementById('taskStudents');
+            if (taskStudents) {
+                taskStudents.style.opacity = '';
+                taskStudents.style.pointerEvents = '';
+                const checkboxes = taskStudents.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.disabled = false);
             }
         });
     }
