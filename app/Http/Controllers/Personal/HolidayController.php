@@ -140,7 +140,7 @@ class HolidayController extends Controller
                         'approved' => auth()->user()->can('approve holidays'),
                         'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                         'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                        'days' => workdays(Carbon::createFromFormat('Y-m-d',$start), Carbon::createFromFormat('Y-m-d',$start->copy()->endOfYear()))
+                        'days' => workdays($start, $start->copy()->endOfYear())
                     ],
                         [
                             'start_date' => $end->copy()->startOfYear(),
@@ -148,7 +148,7 @@ class HolidayController extends Controller
                             'approved' => auth()->user()->can('approve holidays'),
                             'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                             'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                            'days' => workdays(Carbon::createFromFormat('Y-m-d',$end->copy()->startOfYear()), Carbon::createFromFormat('Y-m-d',$end))
+                            'days' => workdays($end->copy()->startOfYear(), $end)
                         ]);
                 } else {
                     $user->holidays()->create([
@@ -170,7 +170,7 @@ class HolidayController extends Controller
                     'Benutzer' => $user->name,
                     'start_date' => $request->start_date,
                     'end_date'  => $request->end_date,
-                    'exception' => $e->getMessage()
+                    'exception' => $e
                 ]);
 
                 return redirectBack('danger', 'Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.');
@@ -205,7 +205,7 @@ class HolidayController extends Controller
                             'approved' => auth()->user()->can('approve holidays'),
                             'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                             'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                            'days' => workdays(Carbon::createFromFormat('Y-m-d', $start), Carbon::createFromFormat('Y-m-d', $start->copy()->endOfYear()))
+                            'days' => workdays($start, $start->copy()->endOfYear())
                         ],
                             [
                                 'start_date' => $end->copy()->startOfYear(),
@@ -213,7 +213,7 @@ class HolidayController extends Controller
                                 'approved' => auth()->user()->can('approve holidays'),
                                 'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                                 'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                                'days' => workdays(Carbon::createFromFormat('Y-m-d', $end->copy()->startOfYear()), Carbon::createFromFormat('Y-m-d', $end))
+                                'days' => workdays($end->copy()->startOfYear(), $end)
                             ]);
                     } else {
                         $user->holidays()->create([
