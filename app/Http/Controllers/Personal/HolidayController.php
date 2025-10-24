@@ -141,7 +141,9 @@ class HolidayController extends Controller
                         'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
                         'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
                         'days' => workdays($start, $start->copy()->endOfYear())
-                    ],
+                    ]);
+
+                    $user->holidays()->create(
                         [
                             'start_date' => $end->copy()->startOfYear(),
                             'end_date' => $end,
@@ -150,6 +152,7 @@ class HolidayController extends Controller
                             'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
                             'days' => workdays($end->copy()->startOfYear(), $end)
                         ]);
+
                 } else {
                     $user->holidays()->create([
                         'start_date' => $request->start_date,
