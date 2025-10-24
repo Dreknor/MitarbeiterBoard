@@ -32,7 +32,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\MailController@remindTaskMail')->mondays()->at('07:15');
         $schedule->call('App\Http\Controllers\ThemeController@remind_assigned_themes')->mondays()->at('07:15');
         $schedule->call('App\Http\Controllers\AbsenceController@dailyReport')->weekdays()->at('07:30');
-        $schedule->call('App\Http\Controllers\ProcedureController@remindStepMail')->weekdays()->at('09:05');
+        $schedule->call('App\Http\Controllers\ProcedureController@remindStepMail')->weekdays()->at('07:30');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
         $schedule->call('App\Http\Controllers\PostsController@dailyMail')->dailyAt('20:00');
