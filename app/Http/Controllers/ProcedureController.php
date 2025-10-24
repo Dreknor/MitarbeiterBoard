@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 
@@ -421,6 +422,7 @@ class ProcedureController extends Controller
 
     private function sendReminderEmail(User $user, array $pendingSteps): void
     {
+        Log::debug('Prozesse: Erinnerungsemail senden', ['user' => $user, 'pendingSteps' => $pendingSteps]);;
         Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
     }
 
