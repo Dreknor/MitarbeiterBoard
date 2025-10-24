@@ -38,7 +38,7 @@ class StepErinnerungMail extends Mailable
             'name' => $this->name,
             'steps' => $this->steps,
         ]);
-        return $this->subject('Ausstehender Auftrag')->view('mails.remindStepMail', [
+        return $this->subject('Offene Prozessschritte')->view('mails.remindStepMail', [
             'name' =>$this->name,
             'steps' =>$this->steps,
         ]);
