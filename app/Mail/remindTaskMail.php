@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class remindTaskMail extends Mailable
 {
@@ -32,7 +33,8 @@ class remindTaskMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Ausstehende Aufgaben')->view('mails.remindTaskMail', [
+        Log::debug('Mail Austehende Prozess-Schritte: ', ['name' => $this->name, 'tasks' => $this->tasks]);;
+        return $this->subject('Ausstehende Prozess-Schritte')->view('mails.remindTaskMail', [
             'name' =>$this->name,
             'tasks' =>$this->tasks,
         ]);
