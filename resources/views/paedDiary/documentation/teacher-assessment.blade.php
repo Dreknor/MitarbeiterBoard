@@ -5,13 +5,26 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Lehrereinschätzung - {{ $session->klasse->name }}</h5>
-                    <small class="text-muted">{{ $session->gradingSystem->name }}</small>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">Lehrereinschätzung - {{ $session->klasse->name }}</h5>
+                        <small class="text-muted">{{ $session->gradingSystem->name }}</small>
+                    </div>
+                    @if($session->type === 'group')
+                        <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left"></i> Zurück zur Schülereinschätzung
+                        </a>
+                    @elseif($session->type === 'individual')
+                        <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left"></i> Zurück zur Schülereinschätzung
+                        </a>
+                    @endif
                 </div>
                 <div class="card-body" id="teacherApp">
                     <div class="alert alert-info mb-4">
-                        <i class="fas fa-info-circle"></i> Geben Sie für jeden Schüler und jede Frage Ihre Einschätzung ab und fügen Sie bei Bedarf einen Kommentar hinzu.
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Flexibler Wechsel:</strong> Sie können jederzeit zwischen Lehrereinschätzung und Schülereinschätzung wechseln.
+                        Geben Sie für jeden Schüler und jede Frage Ihre Einschätzung ab und fügen Sie bei Bedarf einen Kommentar hinzu.
                     </div>
 
                     <!-- Schüler-Tabs -->
@@ -305,7 +318,7 @@
 
         // Überspringen-Button oben
         const skipDiv = document.createElement('div');
-        skipDiv.className = 'alert alert-warning d-flex justify-content-between align-items-center mb-3';
+        skipDiv.className = 'alert alert-info d-flex justify-content-between align-items-center mb-3';
 
         const skipInfo = document.createElement('span');
         skipInfo.innerHTML = '<i class="fas fa-info-circle"></i> Sie können diesen Schüler überspringen, wenn aktuell keine Bewertung möglich ist.';

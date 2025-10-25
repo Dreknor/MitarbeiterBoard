@@ -10,6 +10,17 @@
                     <small class="text-muted">{{ $session->gradingSystem->name }} | Klasse: {{ $session->klasse->name }}</small>
                 </div>
                 <div class="card-body" id="individualApp">
+                    <!-- Navigation zwischen Schüler- und Lehrereinschätzung -->
+                    <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Flexibler Wechsel:</strong> Sie können jederzeit zwischen Schülereinschätzung und Lehrereinschätzung wechseln.
+                        </div>
+                        <a id="teacherAssessmentLinkTop" href="#" class="btn btn-success">
+                            <i class="fas fa-user-tie"></i> Zur Lehrereinschätzung wechseln
+                        </a>
+                    </div>
+
                     <!-- Fortschrittsanzeige -->
                     <div class="progress mb-4" style="height: 30px;">
                         <div class="progress-bar bg-success" role="progressbar" id="progressBar"
@@ -63,7 +74,8 @@
         progressText: document.getElementById('progressText'),
         questionsList: document.getElementById('questionsList'),
         completedAlert: document.getElementById('completedAlert'),
-        teacherAssessmentLink: document.getElementById('teacherAssessmentLink')
+        teacherAssessmentLink: document.getElementById('teacherAssessmentLink'),
+        teacherAssessmentLinkTop: document.getElementById('teacherAssessmentLinkTop')
     };
 
     // Computed Properties als Funktionen
@@ -266,6 +278,13 @@
             alert('Keine Fragen für dieses Bewertungssystem gefunden!');
             return;
         }
+
+        // Setze den Top-Link beim Start
+        const url = getTeacherAssessmentUrl();
+        if (elements.teacherAssessmentLinkTop) {
+            elements.teacherAssessmentLinkTop.href = url;
+        }
+
         render();
     }
 

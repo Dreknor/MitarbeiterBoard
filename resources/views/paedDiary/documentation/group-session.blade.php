@@ -46,13 +46,22 @@
                         </a>
                     </div>
 
+                    <!-- Navigation zwischen Schüler- und Lehrereinschätzung -->
+                    <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Flexibler Wechsel:</strong> Sie können jederzeit zwischen Schülereinschätzung und Lehrereinschätzung wechseln.
+                        </div>
+                        <a id="teacherAssessmentLinkTop" href="#" class="btn btn-success">
+                            <i class="fas fa-user-tie"></i> Zur Lehrereinschätzung wechseln
+                        </a>
+                    </div>
+
                     <!-- Schüler-Liste -->
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">Schüler-Übersicht</h6>
-                            <a id="teacherAssessmentLinkBottom" href="#" class="btn btn-success btn-sm">
-                                <i class="fas fa-user-tie"></i> Weiter zur Lehrereinschätzung
-                            </a>
+
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
@@ -97,6 +106,7 @@
         smileyButtons: document.getElementById('smileyButtons'),
         completedAlert: document.getElementById('completedAlert'),
         teacherAssessmentLink: document.getElementById('teacherAssessmentLink'),
+        teacherAssessmentLinkTop: document.getElementById('teacherAssessmentLinkTop'),
         teacherAssessmentLinkBottom: document.getElementById('teacherAssessmentLinkBottom'),
         studentTableBody: document.getElementById('studentTableBody'),
         questionContent: document.getElementById('questionContent'),
@@ -323,16 +333,20 @@
     function renderCompletionState() {
         if (!elements.currentStudentCard || !elements.completedAlert) return;
 
-        // Setze immer den Link für den unteren Button
+        // Setze immer die Links für beide Buttons
+        const url = getTeacherAssessmentUrl();
+        if (elements.teacherAssessmentLinkTop) {
+            elements.teacherAssessmentLinkTop.href = url;
+        }
         if (elements.teacherAssessmentLinkBottom) {
-            elements.teacherAssessmentLinkBottom.href = getTeacherAssessmentUrl();
+            elements.teacherAssessmentLinkBottom.href = url;
         }
 
         if (isAllCompleted()) {
             elements.currentStudentCard.style.display = 'none';
             elements.completedAlert.style.display = 'block';
             if (elements.teacherAssessmentLink) {
-                elements.teacherAssessmentLink.href = getTeacherAssessmentUrl();
+                elements.teacherAssessmentLink.href = url;
             }
         } else {
             elements.currentStudentCard.style.display = 'block';
@@ -363,9 +377,13 @@
             return;
         }
 
-        // Setze den Link beim Start
+        // Setze die Links beim Start
+        const url = getTeacherAssessmentUrl();
+        if (elements.teacherAssessmentLinkTop) {
+            elements.teacherAssessmentLinkTop.href = url;
+        }
         if (elements.teacherAssessmentLinkBottom) {
-            elements.teacherAssessmentLinkBottom.href = getTeacherAssessmentUrl();
+            elements.teacherAssessmentLinkBottom.href = url;
         }
 
         render();
