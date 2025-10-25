@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 
@@ -421,7 +422,27 @@ class ProcedureController extends Controller
 
     private function sendReminderEmail(User $user, array $pendingSteps): void
     {
+        Log::debug('Prozesse: Erinnerungsemail senden', ['user' => $user, 'pendingSteps' => $pendingSteps]);;
         Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
+    }
+
+    // Public wrapper so the reminder can be triggered for a single user from CLI (Artisan) or elsewhere.
+    public function sendReminderEmailForUser(User $user): void
+    {
+        // If the user is currently absent, do not send a reminder.
+        if (method_exists($user, 'hasAbsence') && $user->hasAbsence(Carbon::now())) {
+            Log::info('Prozesse: Erinnerung nicht gesendet, Benutzer abwesend', ['user' => $user->id]);
+            return;
+        }
+
+        $pendingSteps = $this->formatPendingSteps($user);
+
+        if (empty($pendingSteps)) {
+            Log::info('Prozesse: Keine ausstehenden Schritte für Benutzer', ['user' => $user->id]);
+            return;
+        }
+
+        $this->sendReminderEmail($user, $pendingSteps);
     }
 
     public function endProcedure(Procedure $procedure){
