@@ -170,6 +170,10 @@ class GroupController extends Controller
         $user = User::where('id', $user_id)->first();
 
         if (isset($user)) {
+
+            $user->subscriptions()->where('subscriptionable_type', 'App\Models\Group')->where('subscriptionable_id', $group->id)->delete();
+            $user->tasks()->where('group_id', $group->id)->delete();
+
             $group->users()->detach($user);
 
             Log::info(
