@@ -14,6 +14,7 @@ return new class extends Migration
         $settings = [
             [
                 'module' => 'Raumplan',
+                'setting' => 'Startzeit für die Raumreservierung',
                 'setting_name' => 'roombooking_start_hour',
                 'type' => 'integer',
                 'value' => '8',
@@ -21,6 +22,7 @@ return new class extends Migration
             ],
             [
                 'module' => 'Raumplan',
+                'setting' => 'Endzeit für die Raumreservierung',
                 'setting_name' => 'roombooking_end_hour',
                 'type' => 'integer',
                 'value' => '20',

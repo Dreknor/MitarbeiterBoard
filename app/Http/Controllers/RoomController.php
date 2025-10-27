@@ -159,7 +159,7 @@ class RoomController extends Controller
 
         $settingsArray = [];
         foreach ($settings as $setting) {
-            $settingsArray[$setting->setting] = $setting->value;
+            $settingsArray[$setting->setting_name] = $setting->value;
         }
 
         $first_booking = $bookings->sortBy('start')->first();
