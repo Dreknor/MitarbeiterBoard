@@ -42,6 +42,7 @@ class createRoomRequest extends FormRequest
                 'nullable',
                 Rule::in(['A', 'B'])
             ],
+            /*
             'start' => [
                 'required',
                 'date_format:H:i',
@@ -51,7 +52,7 @@ class createRoomRequest extends FormRequest
                 'required',
                 'date_format:H:i',
                 'after:start'
-            ],
+            ],*/
             'indiware_shortname' => [
                 'nullable',
                 'string',
