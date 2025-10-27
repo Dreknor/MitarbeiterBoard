@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Laravie\Parser\Xml\Reader;
 use Laravie\Parser\Xml\Document;
+use Illuminate\Http\Request;
 
 
 class RoomController extends Controller
@@ -570,6 +571,53 @@ class RoomController extends Controller
 
 
 
+    }
+
+    /**
+     * Generate an iCal feed token for a room (admin)
+     */
+    public function generateFeedToken(Request $request, Room $room)
+    {
+        if (! auth()->user()->can('manage rooms')) {
+            return redirect(url('/'))->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $days = $request->input('expires_in_days');
+        $expiresAt = null;
+        if ($days && is_numeric($days)) {
+            $expiresAt = Carbon::now()->addDays((int)$days);
+        }
+
+        $token = $room->generateFeedToken($expiresAt);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Feed-Token generiert',
+            'feed_url' => $room->feed_url
+        ]);
+    }
+
+    /**
+     * Revoke current feed token (admin)
+     */
+    public function revokeFeedToken(Room $room)
+    {
+        if (! auth()->user()->can('manage rooms')) {
+            return redirect(url('/'))->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $room->revokeFeedToken();
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Feed-Token widerrufen'
+        ]);
     }
 
 }

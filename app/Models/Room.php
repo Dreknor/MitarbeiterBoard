@@ -8,13 +8,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class Room extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'room_number', 'indiware_shortname'];
+    protected $fillable = ['name', 'room_number', 'indiware_shortname', 'feed_token', 'feed_expires_at'];
+
+    protected $casts = [
+        'feed_expires_at' => 'datetime',
+    ];
 
     public function bookings(){
         return $this->hasMany(RoomBooking::class, 'room_id');
@@ -177,5 +182,34 @@ class Room extends Model
         return $booking->first();
     }
 
+    /**
+     * Generates and persists a new feed token. Optionally set an expiry DateTime.
+     */
+    public function generateFeedToken(?\DateTimeInterface $expiresAt = null)
+    {
+        $this->feed_token = Str::random(48);
+        $this->feed_expires_at = $expiresAt ? Carbon::instance($expiresAt) : null;
+        $this->save();
+        return $this->feed_token;
+    }
+
+    /**
+     * Invalidates the current feed token.
+     */
+    public function revokeFeedToken()
+    {
+        $this->feed_token = null;
+        $this->feed_expires_at = null;
+        $this->save();
+    }
+
+    /**
+     * Returns the public feed URL for this room (if token exists).
+     */
+    public function getFeedUrlAttribute()
+    {
+        if (!$this->feed_token) return null;
+        return url('/rooms/'.$this->id.'/calendar/'.$this->feed_token.'.ics');
+    }
 
 }

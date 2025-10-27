@@ -36,6 +36,7 @@ use App\Http\Controllers\PushController;
 use App\Http\Controllers\RecurringProcedureController;
 use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
+use App\Http\Controllers\RoomCalendarController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
@@ -277,6 +278,7 @@ Route::group([
 
                 //Raumplan
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
+                    Route::get('rooms/{room}/edit', [RoomController::class, 'edit'])->middleware('permission:manage rooms');
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);
                     Route::get('rooms/{room}/{week?}/{date?}', [RoomController::class, 'show'])->name('rooms.show.week');
                     Route::post('bookings', [RoomController::class, 'storeBooking']);
@@ -287,6 +289,10 @@ Route::group([
 
                     // Resource-Route zuletzt
                     Route::resource('rooms', RoomController::class)->except('create', 'show');
+
+                    // Admin: generate/revoke calendar feed token for a room
+                    Route::post('rooms/{room}/feed/generate', [RoomController::class, 'generateFeedToken'])->middleware('permission:manage rooms')->name('rooms.feed.generate');
+                    Route::post('rooms/{room}/feed/revoke', [RoomController::class, 'revokeFeedToken'])->middleware('permission:manage rooms')->name('rooms.feed.revoke');
                 });
 
 
@@ -702,3 +708,8 @@ Route::group([
 
             });
     });
+
+
+// Public room calendar feed (token protected)
+Route::get('/rooms/{room}/calendar/{token}.ics', [RoomCalendarController::class, 'feed'])->name('rooms.calendar.feed');
+
