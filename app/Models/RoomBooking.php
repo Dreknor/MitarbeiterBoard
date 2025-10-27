@@ -21,6 +21,10 @@ class RoomBooking extends Model
         'booking_date' => 'datetime',
     ];
 
+    public function user(){
+        return $this->belongsTo(User::class, 'users_id');
+    }
+
     public function room(){
         return $this->belongsTo(Room::class, 'room_id');
     }

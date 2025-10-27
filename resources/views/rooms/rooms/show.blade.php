@@ -407,6 +407,12 @@
                                 badge.className = 'badge badge-light';
                                 badge.textContent = 'Einzeltermin';
                                 cell.appendChild(badge);
+
+                                const authorBadge = document.createElement('span');
+                                authorBadge.className = 'badge badge-light ml-1';
+                                authorBadge.textContent = booking.author;
+                                cell.appendChild(authorBadge);
+
                             }
 
                             row.appendChild(cell);

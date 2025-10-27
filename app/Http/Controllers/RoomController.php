@@ -131,6 +131,7 @@ class RoomController extends Controller
                 'is_recurring' => $booking->is_recurring,
                 'weekday' => $booking->weekday,
                 'week' => $booking->week,
+                'author' => $booking->user?->name ?? 'Unbekannt',
             ];
 
             // Für individuelle Buchungen: Berechne Wochentag
