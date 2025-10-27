@@ -30,9 +30,17 @@ class GradingDocumentationController extends Controller
 
         $groups = Auth::user()->paed_diary_class_groups()->with('klassen:id,name')->get();
 
+        // Offene Sessions des Benutzers laden
+        $openSessions = GradingDocumentationSession::where('user_id', $user->id)
+            ->whereNull('completed_at')
+            ->with(['klasse', 'gradingSystem', 'schueler', 'group'])
+            ->orderBy('started_at', 'desc')
+            ->get();
+
         return view('paedDiary.documentation.index', [
             'klassen' => $klassen,
             'groups' => $groups,
+            'openSessions' => $openSessions,
         ]);
     }
 
@@ -53,6 +61,24 @@ class GradingDocumentationController extends Controller
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
         }
 
+        // Prüfen ob bereits eine offene Session für diese Klasse/Gruppe existiert
+        $existingSession = GradingDocumentationSession::where('user_id', $user->id)
+            ->where('klasse_id', $klasse->id)
+            ->where('type', 'group')
+            ->where('group_id', $request->group_id)
+            ->whereNull('completed_at')
+            ->first();
+
+        if ($existingSession) {
+            // Bestehende Session fortsetzen
+            return response()->json([
+                'session' => $existingSession,
+                'redirect' => route('gradingDocumentation.groupSession', $existingSession->id),
+                'resumed' => true
+            ]);
+        }
+
+        // Neue Session erstellen
         $session = GradingDocumentationSession::create([
             'klasse_id' => $klasse->id,
             'grading_system_id' => $klasse->grading_system_id,
@@ -64,7 +90,8 @@ class GradingDocumentationController extends Controller
 
         return response()->json([
             'session' => $session,
-            'redirect' => route('gradingDocumentation.groupSession', $session->id)
+            'redirect' => route('gradingDocumentation.groupSession', $session->id),
+            'resumed' => false
         ]);
     }
 
@@ -81,7 +108,8 @@ class GradingDocumentationController extends Controller
             },
             'gradingSystem.questions' => function($q) {
                 $q->where('active', true)->orderBy('sort_order');
-            }
+            },
+            'studentAnswers'
         ]);
 
         // Schüler filtern nach Gruppe falls vorhanden
@@ -100,6 +128,7 @@ class GradingDocumentationController extends Controller
             'schueler_ids' => $schueler->pluck('id')->toArray(),
             'questions_count' => $session->gradingSystem->questions->count(),
             'questions_ids' => $session->gradingSystem->questions->pluck('id')->toArray(),
+            'answers_count' => $session->studentAnswers->count(),
         ]);
 
         return view('paedDiary.documentation.group-session', [
@@ -220,6 +249,26 @@ class GradingDocumentationController extends Controller
     }
 
     /**
+     * Bricht eine offene Session ab und löscht sie
+     */
+    public function cancelSession(GradingDocumentationSession $session)
+    {
+        $this->authorize('update', $session);
+
+        // Nur offene Sessions können abgebrochen werden
+        if ($session->isCompleted()) {
+            return response()->json(['message' => 'Abgeschlossene Sessions können nicht gelöscht werden.'], 422);
+        }
+
+        // Alle zugehörigen Daten löschen
+        $session->studentAnswers()->delete();
+        $session->teacherAssessments()->delete();
+        $session->delete();
+
+        return response()->json(['message' => 'Session erfolgreich abgebrochen.']);
+    }
+
+    /**
      * Startet eine individuelle Dokumentationssession
      */
     public function startIndividualSession(Request $request)
@@ -236,6 +285,24 @@ class GradingDocumentationController extends Controller
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
         }
 
+        // Prüfen ob bereits eine offene Session für diesen Schüler existiert
+        $existingSession = GradingDocumentationSession::where('user_id', $user->id)
+            ->where('klasse_id', $klasse->id)
+            ->where('type', 'individual')
+            ->where('schueler_id', $request->schueler_id)
+            ->whereNull('completed_at')
+            ->first();
+
+        if ($existingSession) {
+            // Bestehende Session fortsetzen
+            return response()->json([
+                'session' => $existingSession,
+                'redirect' => route('gradingDocumentation.individualSession', $existingSession->id),
+                'resumed' => true
+            ]);
+        }
+
+        // Neue Session erstellen
         $session = GradingDocumentationSession::create([
             'klasse_id' => $klasse->id,
             'grading_system_id' => $klasse->grading_system_id,
@@ -247,7 +314,8 @@ class GradingDocumentationController extends Controller
 
         return response()->json([
             'session' => $session,
-            'redirect' => route('gradingDocumentation.individualSession', $session->id)
+            'redirect' => route('gradingDocumentation.individualSession', $session->id),
+            'resumed' => false
         ]);
     }
 

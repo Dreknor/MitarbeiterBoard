@@ -10,6 +10,16 @@
                     <small class="text-muted">{{ $session->gradingSystem->name }} | Klasse: {{ $session->klasse->name }}</small>
                 </div>
                 <div class="card-body" id="individualApp">
+                    <div class="alert alert-success mb-4">
+                        <i class="fas fa-save"></i>
+                        <strong>Automatisches Speichern:</strong> Alle Antworten werden automatisch gespeichert. Sie können die Session jederzeit unterbrechen und später fortsetzen.
+                    </div>
+
+                    <div class="alert alert-info mb-4" id="resumedAlert" style="display: none;">
+                        <i class="fas fa-history"></i>
+                        <strong>Session fortgesetzt:</strong> <span id="resumedCount"></span> bereits gespeicherte Antworten wurden geladen.
+                    </div>
+
                     <!-- Navigation zwischen Schüler- und Lehrereinschätzung -->
                     <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -67,6 +77,17 @@
     // State
     let answers = answersData || {};
     let loading = false;
+
+    // Zeige Hinweis wenn Session fortgesetzt wird
+    const answersCount = Object.keys(answers).length;
+    if (answersCount > 0) {
+        const resumedAlert = document.getElementById('resumedAlert');
+        const resumedCount = document.getElementById('resumedCount');
+        if (resumedAlert && resumedCount) {
+            resumedCount.textContent = answersCount;
+            resumedAlert.style.display = 'block';
+        }
+    }
 
     // DOM Elemente
     const elements = {

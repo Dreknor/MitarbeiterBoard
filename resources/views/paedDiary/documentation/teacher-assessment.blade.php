@@ -27,6 +27,16 @@
                         Geben Sie für jeden Schüler und jede Frage Ihre Einschätzung ab und fügen Sie bei Bedarf einen Kommentar hinzu.
                     </div>
 
+                    <div class="alert alert-success mb-4">
+                        <i class="fas fa-save"></i>
+                        <strong>Automatisches Speichern:</strong> Ihre Eingaben werden automatisch gespeichert. Sie können die Session jederzeit unterbrechen und später fortsetzen, solange sie noch nicht abgeschlossen ist.
+                    </div>
+
+                    <div class="alert alert-info mb-4" id="resumedAlert" style="display: none;">
+                        <i class="fas fa-history"></i>
+                        <strong>Session fortgesetzt:</strong> <span id="resumedCount"></span> bereits gespeicherte Bewertungen wurden geladen.
+                    </div>
+
                     <!-- Schüler-Tabs -->
                     <ul class="nav nav-tabs" role="tablist" id="studentTabs">
                         <!-- Tabs werden dynamisch generiert -->
@@ -69,6 +79,19 @@
     let currentSchuelerIndex = 0;
     let teacherAssessments = teacherAssessmentsData || {};
     let loading = false;
+
+    // Zeige Hinweis wenn Session fortgesetzt wird
+    const assessmentCount = Object.values(teacherAssessments).reduce((count, assessments) => {
+        return count + Object.keys(assessments).length;
+    }, 0);
+    if (assessmentCount > 0) {
+        const resumedAlert = document.getElementById('resumedAlert');
+        const resumedCount = document.getElementById('resumedCount');
+        if (resumedAlert && resumedCount) {
+            resumedCount.textContent = assessmentCount;
+            resumedAlert.style.display = 'block';
+        }
+    }
 
     // DOM Elemente
     const elements = {
@@ -486,6 +509,13 @@
             alert('Keine Fragen für dieses Bewertungssystem gefunden!');
             return;
         }
+
+        // Zum ersten nicht vollständig bewerteten Schüler springen
+        const firstIncompleteIndex = schueler.findIndex(s => !isSchuelerComplete(s.id));
+        if (firstIncompleteIndex !== -1) {
+            currentSchuelerIndex = firstIncompleteIndex;
+        }
+
         render();
     }
 

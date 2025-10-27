@@ -10,6 +10,16 @@
                     <small class="text-muted">{{ $session->gradingSystem->name }}</small>
                 </div>
                 <div class="card-body" id="documentationApp">
+                    <div class="alert alert-success mb-4">
+                        <i class="fas fa-save"></i>
+                        <strong>Automatisches Speichern:</strong> Alle Antworten werden automatisch gespeichert. Sie können die Session jederzeit unterbrechen und später fortsetzen.
+                    </div>
+
+                    <div class="alert alert-info mb-4" id="resumedAlert" style="display: none;">
+                        <i class="fas fa-history"></i>
+                        <strong>Session fortgesetzt:</strong> <span id="resumedCount"></span> bereits gespeicherte Antworten wurden geladen.
+                    </div>
+
                     <!-- Aktueller Schüler -->
                     <div id="currentStudentCard" class="card mb-4 border-primary">
                         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -91,12 +101,30 @@
     const sessionId = {{ $session->id }};
     const schueler = @json($schueler);
     const questions = @json($questions);
+    const existingAnswers = @json($session->studentAnswers);
 
     // State
     let currentSchuelerIndex = 0;
     let currentQuestionIndex = 0;
     let answers = {};
     let loading = false;
+
+    // Bereits vorhandene Antworten in das answers Objekt laden
+    if (existingAnswers && existingAnswers.length > 0) {
+        existingAnswers.forEach(answer => {
+            const key = `${answer.schueler_id}_${answer.question_id}`;
+            answers[key] = answer.self_rating;
+        });
+        console.log(`${existingAnswers.length} vorhandene Antworten geladen`);
+
+        // Zeige Hinweis dass Session fortgesetzt wird
+        const resumedAlert = document.getElementById('resumedAlert');
+        const resumedCount = document.getElementById('resumedCount');
+        if (resumedAlert && resumedCount) {
+            resumedCount.textContent = existingAnswers.length;
+            resumedAlert.style.display = 'block';
+        }
+    }
 
     // DOM Elemente
     const elements = {
@@ -375,6 +403,21 @@
             console.warn('Keine Fragen gefunden!');
             alert('Keine Fragen für dieses Bewertungssystem gefunden!');
             return;
+        }
+
+        // Zum ersten unbeantworteten Schüler/Frage springen
+        let found = false;
+        for (let sIndex = 0; sIndex < schueler.length; sIndex++) {
+            for (let qIndex = 0; qIndex < questions.length; qIndex++) {
+                const key = `${schueler[sIndex].id}_${questions[qIndex].id}`;
+                if (answers[key] === undefined) {
+                    currentSchuelerIndex = sIndex;
+                    currentQuestionIndex = qIndex;
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
         }
 
         // Setze die Links beim Start

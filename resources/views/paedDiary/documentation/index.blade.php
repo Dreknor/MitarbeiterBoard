@@ -12,6 +12,64 @@
                     </a>
                 </div>
                 <div class="card-body">
+                    @if($openSessions->isNotEmpty())
+                    <div class="alert alert-warning mb-4">
+                        <h6 class="mb-3 text-dark"><i class="fas fa-clock"></i> <strong>Offene Sessions</strong></h6>
+                        <p class="mb-3 text-dark">Sie haben noch nicht abgeschlossene Dokumentationen. Klicken Sie auf "Fortsetzen", um diese weiterzuführen.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered bg-white text-dark">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="text-dark">Typ</th>
+                                        <th class="text-dark">Klasse</th>
+                                        <th class="text-dark">Details</th>
+                                        <th class="text-dark">Gestartet</th>
+                                        <th class="text-dark">Aktion</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($openSessions as $session)
+                                    <tr>
+                                        <td>
+                                            @if($session->type === 'group')
+                                                <span class="badge badge-primary"><i class="fas fa-users"></i> Gruppe</span>
+                                            @else
+                                                <span class="badge badge-success"><i class="fas fa-user"></i> Einzel</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $session->klasse->name }}</td>
+                                        <td>
+                                            @if($session->type === 'individual')
+                                                {{ $session->schueler->nachname }}, {{ $session->schueler->vorname }}
+                                            @elseif($session->group_id)
+                                                {{ $session->group->name }}
+                                            @else
+                                                Alle Schüler
+                                            @endif
+                                        </td>
+                                        <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>
+                                        <td>
+                                            @if($session->type === 'group')
+                                                <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-play"></i> Fortsetzen
+                                                </a>
+                                            @else
+                                                <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-play"></i> Fortsetzen
+                                                </a>
+                                            @endif
+                                            <button class="btn btn-sm btn-danger cancel-session-btn" data-session-id="{{ $session->id }}">
+                                                <i class="fas fa-times"></i> Abbrechen
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @endif
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="card mb-3">
@@ -148,6 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
+            if (data.resumed) {
+                alert('Eine offene Session für diese Auswahl wurde gefunden und wird fortgesetzt.');
+            }
             if (data.redirect) {
                 window.location.href = data.redirect;
             } else {
@@ -183,6 +244,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
+            if (data.resumed) {
+                alert('Eine offene Session für diesen Schüler wurde gefunden und wird fortgesetzt.');
+            }
             if (data.redirect) {
                 window.location.href = data.redirect;
             } else {
@@ -226,6 +290,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Fehler beim Laden der Schüler:', error);
                 alert('Fehler beim Laden der Schüler.');
             });
+    });
+
+    // Session abbrechen
+    const cancelButtons = document.querySelectorAll('.cancel-session-btn');
+    cancelButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sessionId = this.dataset.sessionId;
+
+            if (!confirm('Möchten Sie diese Session wirklich abbrechen? Alle bisherigen Eingaben gehen verloren.')) {
+                return;
+            }
+
+            const originalBtnText = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(`/paed-diary/documentation/session/${sessionId}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Session erfolgreich abgebrochen.');
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Fehler:', error);
+                alert('Fehler beim Abbrechen der Session.');
+                this.disabled = false;
+                this.innerHTML = originalBtnText;
+            });
+        });
     });
 });
 </script>
