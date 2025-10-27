@@ -9,6 +9,7 @@ use App\Http\Requests\ImportRoomsRequest;
 use App\Models\Room;
 use App\Models\RoomBooking;
 //use Barryvdh\DomPDF\Facade as PDF;
+use App\Models\Setting;
 use App\Models\VertretungsplanWeek;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
@@ -63,6 +64,18 @@ class RoomController extends Controller
             ]);
         }
 
+        $settings = Setting::query()->where('module', 'Raumplan')->get();
+
+        $time_start = Carbon::createFromFormat('H:i', request('start'));
+        $time_end = Carbon::createFromFormat('H:i' , request('end'));
+
+        if ($time_start->hour < $settings->where('setting', 'room_booking_start')->first()->value or
+            $time_end->hour > $settings->where('setting', 'room_booking_end')->first()->value) {
+            return redirect()->back()->withInput()->with([
+                'type' => 'warning',
+                'Meldung' => 'Buchungszeit liegt außerhalb der erlaubten Zeiten ('.$settings->where('setting', 'room_booking_start')->first()->value.':00 - '.$settings->where('setting', 'room_booking_end')->first()->value.':00)'
+            ]);
+        }
 
         $room = Room::updateOrCreate(
             [
@@ -142,6 +155,18 @@ class RoomController extends Controller
             return $result;
         });
 
+        $settings = Setting::query()->where('module', 'Raumplan')->get();
+
+        $settingsArray = [];
+        foreach ($settings as $setting) {
+            $settingsArray[$setting->setting] = $setting->value;
+        }
+
+        $first_booking = $bookings->sortBy('start')->first();
+        $last_booking = $bookings->sortByDesc('end')->first();
+
+
+
         return view('rooms.rooms.show', [
             'room' => $room,
             'bookings' => $bookings,
@@ -150,6 +175,9 @@ class RoomController extends Controller
             'date' => $date,
             'startOfWeek' => $startOfWeek,
             'endOfWeek' => $endOfWeek,
+            'settings' => $settingsArray,
+            'first_booking' => $first_booking,
+            'last_booking' => $last_booking,
         ]);
     }
 

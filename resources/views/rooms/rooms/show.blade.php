@@ -47,16 +47,16 @@
                                 <div class="col-sm-3 col-md-3 col-lg-2">
                                     <label>Start</label>
                                     <input type="time" name="start" class="form-control p-2" required
-                                           min="{{config('rooms.start_booking')}}"
-                                           max="{{config('rooms.end_booking')}}"
+                                           min="{{$settings['roombooking_start_hour'] ?? config('rooms.start_booking')}}"
+                                           max="{{$settings['roombooking_end_hour'] ?? config('rooms.end_booking')}}"
                                            step="300"
                                            value="{{old('start')}}">
                                 </div>
                                 <div class="col-sm-3 col-md-3 col-lg-2">
                                     <label>Ende</label>
                                     <input type="time" name="end" class="form-control p-2" required
-                                           min="{{config('rooms.start_booking')}}"
-                                           max="{{config('rooms.end_booking')}}"
+                                             min="{{$settings['roombooking_start_hour'] ?? config('rooms.start_booking')}}"
+                                             max="{{$settings['roombooking_end_hour'] ?? config('rooms.end_booking')}}"
                                            step="300"
                                            value="{{old('end')}}">
                                 </div>
@@ -95,16 +95,16 @@
                                 <div class="col-sm-3 col-md-3 col-lg-2">
                                     <label>Start</label>
                                     <input type="time" name="start" class="form-control p-2" required
-                                           min="{{config('rooms.start_booking')}}"
-                                           max="{{config('rooms.end_booking')}}"
+                                             min="{{$settings['roombooking_start_hour'] ?? config('rooms.start_booking')}}"
+                                                max="{{$settings['roombooking_end_hour'] ?? config('rooms.end_booking')}}"
                                            step="300"
                                            value="{{old('start')}}">
                                 </div>
                                 <div class="col-sm-3 col-md-3 col-lg-2">
                                     <label>Ende</label>
                                     <input type="time" name="end" class="form-control p-2" required
-                                           min="{{config('rooms.start_booking')}}"
-                                           max="{{config('rooms.end_booking')}}"
+                                                min="{{$settings['roombooking_start_hour'] ?? config('rooms.start_booking')}}"
+                                                    max="{{$settings['roombooking_end_hour'] ?? config('rooms.end_booking')}}"
                                            step="300"
                                            value="{{old('end')}}">
                                 </div>
@@ -223,8 +223,8 @@
         // Buchungsdaten vom Server
         const bookings = {!! $bookingsJson !!};
         const currentWeek = '{{$week}}';
-        const startTime = '{{config('rooms.start_booking')}}';
-        const endTime = '{{config('rooms.end_booking')}}';
+        const startTime = '{{$settings['roombooking_start_hour'] ?? config('rooms.start_booking')}}';
+        const endTime = '{{$settings['roombooking_end_hour'] ?? config('rooms.end_booking')}}';
         const editUrl = '{{url('rooms/booking')}}';
 
         // Hilfsfunktion: Zeit in Minuten umrechnen
