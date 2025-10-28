@@ -200,6 +200,22 @@
                     </table>
                 </div>
 
+                @if($room->feed_url != "")
+                    <hr />
+                    <div class="card">
+                        <div class="card-header bg-gradient-directional-grey-blue">
+                            <h5>Kalender-Feed</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Der Kalender-Feed ermöglicht es, die Raumbelegungen in externen Kalenderanwendungen (z.B. Outlook, Google Calendar) zu abonnieren.</p>
+                            <p class="">
+                                {{$room->feed_url}}
+                            </p>
+                        </div>
+                    </div>
+
+                @endif
+
                 <div class="mt-3">
                     <h6>Legende:</h6>
                     <div class="row">
