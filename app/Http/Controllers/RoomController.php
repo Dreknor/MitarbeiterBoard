@@ -71,6 +71,9 @@ class RoomController extends Controller
                 'room_number' => request('room_number')
             ],
             ['deleted_at' => null]);
+
+        // Speichere bookable falls gesetzt (Checkbox liefert '1'), Standard: true
+        $room->bookable = $request->has('bookable') ? (bool)$request->input('bookable') : true;
         $room->save();
 
         return redirect()->back()->with([
@@ -185,7 +188,10 @@ class RoomController extends Controller
      */
     public function update(editRoomRequest $request, Room $room)
     {
-        $room->update($request->validated());
+        $data = $request->validated();
+        // Checkbox sendet nichts, wenn nicht gesetzt => Wert explizit setzen
+        $data['bookable'] = $request->has('bookable') ? true : false;
+        $room->update($data);
         return redirect()->back()->with([
             'type' => 'success',
             'Meldung' => 'Raum wurde aktualisiert'

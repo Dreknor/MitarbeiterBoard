@@ -112,6 +112,12 @@
                             <input class="form-control" type="text" name="room_number">
                         </label>
                     </div>
+                    <div class="form-row mb-2">
+                        <div class="ml-3">
+                            <input class="form-check-input" type="checkbox" name="bookable" id="bookable_create" value="1" checked>
+                            <label class="form-check-label" for="bookable_create">Raum buchbar (aktiv)</label>
+                        </div>
+                    </div>
                     <div class="form-row">
                             <button class="btn btn-success btn-bg-gradient-x-blue-green btn-block" type="submit">
                                 Raum erstellen

@@ -26,7 +26,7 @@ class RoomsComposer
         });
 
         $freeRooms = $rooms->filter(function ($room){
-            return $room->availability == true;
+            return $room->bookable && $room->availability == true;
         });
         $view->with('freeRooms', $freeRooms);
     }

@@ -9,12 +9,20 @@
                     <h5>
                         {{$room->name}} ({{$room->room_number}})
                     </h5>
-                    <a class="btn btn-bg-gradient-x-blue-green" data-toggle="collapse" href="#createForm" role="button">
-                        neue Reservierung
-                    </a>
+                    @if($room->bookable)
+                        <a class="btn btn-bg-gradient-x-blue-green" data-toggle="collapse" href="#createForm" role="button">
+                            neue Reservierung
+                        </a>
+                    @else
+                        <span class="badge badge-danger p-2">
+                            Raum nicht buchbar
+                        </span>
+                    @endif
+
                 </div>
             </div>
-            <div class="card-body collapse" id="createForm">
+            @if($room->bookable)
+                <div class="card-body collapse" id="createForm">
                 <ul class="nav nav-tabs" id="bookingTabs" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" id="recurring-tab" data-toggle="tab" href="#recurring" role="tab">
@@ -122,6 +130,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <div class="card-body">
                 <!-- Wochennavigation -->

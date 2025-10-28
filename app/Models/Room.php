@@ -15,10 +15,11 @@ class Room extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'room_number', 'indiware_shortname', 'feed_token', 'feed_expires_at'];
+    protected $fillable = ['name', 'room_number', 'indiware_shortname', 'feed_token', 'feed_expires_at', 'bookable'];
 
     protected $casts = [
         'feed_expires_at' => 'datetime',
+        'bookable' => 'boolean',
     ];
 
     public function bookings(){
