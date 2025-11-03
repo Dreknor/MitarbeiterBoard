@@ -33,8 +33,8 @@ class remindTaskMail extends Mailable
      */
     public function build()
     {
-        Log::debug('Mail Austehende Prozess-Schritte: ', ['name' => $this->name, 'tasks' => $this->tasks]);;
-        return $this->subject('Ausstehende Prozess-Schritte')->view('mails.remindTaskMail', [
+        Log::debug('Mail Schritte: ', ['name' => $this->name, 'tasks' => $this->tasks]);;
+        return $this->subject('Ausstehende Aufgaben')->view('mails.remindTaskMail', [
             'name' =>$this->name,
             'tasks' =>$this->tasks,
         ]);
