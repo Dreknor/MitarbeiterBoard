@@ -58,6 +58,10 @@ class createRoomRequest extends FormRequest
                 'string',
                 'max:10',
                 Rule::unique('rooms')->whereNull('deleted_at')
+            ],
+            'bookable' => [
+                'nullable',
+                'boolean'
             ]
         ];
     }

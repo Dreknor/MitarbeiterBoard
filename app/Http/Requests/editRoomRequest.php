@@ -44,6 +44,10 @@ class editRoomRequest extends FormRequest
                 'max:10',
                 Rule::unique('rooms')->whereNull('deleted_at')->ignore($this->room)
             ],
+            'bookable' => [
+                'nullable',
+                'boolean'
+            ],
         ];
     }
 }

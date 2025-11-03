@@ -71,6 +71,9 @@ class RoomController extends Controller
                 'room_number' => request('room_number')
             ],
             ['deleted_at' => null]);
+
+        // Speichere bookable falls gesetzt (Checkbox liefert '1'), Standard: true
+        $room->bookable = $request->has('bookable') ? (bool)$request->input('bookable') : true;
         $room->save();
 
         return redirect()->back()->with([
@@ -185,7 +188,10 @@ class RoomController extends Controller
      */
     public function update(editRoomRequest $request, Room $room)
     {
-        $room->update($request->validated());
+        $data = $request->validated();
+        // Checkbox sendet nichts, wenn nicht gesetzt => Wert explizit setzen
+        $data['bookable'] = $request->has('bookable') ? true : false;
+        $room->update($data);
         return redirect()->back()->with([
             'type' => 'success',
             'Meldung' => 'Raum wurde aktualisiert'
@@ -411,21 +417,28 @@ class RoomController extends Controller
             ]);
         }
 
+        $rooms = collect([]);
+
         if ($request->create_rooms == true){
             foreach ($raeume['raeume'] as $raum){
-                Room::updateOrCreate(
+
+                $room = Room::firstOrCreate(
                     [
                         'room_number' => $raum['ra_kurzform'],
-                        'name' => $raum['ra_langform'],
-                        'indiware_shortname' => $raum['ra_kurzform']
                     ],
-                    ['deleted_at' => null]
+                    [
+                        'name' => $raum['ra_langform'],
+                        'indiware_shortname' => $raum['ra_kurzform'],
+                        'bookable' => true,
+                    ]
                 );
+
+                $rooms->push($room);
             }
 
         }
 
-        $rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
+        //$rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
 
         if ($request->deletePlan == true){
             foreach ($rooms as $room){

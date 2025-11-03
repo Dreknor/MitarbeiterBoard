@@ -24,6 +24,16 @@
                         <input class="form-control" type="text" name="indiware_shortname" value="{{$room->indiware_shortname}}" maxlength="10">
                     </label>
                 </div>
+
+                <div class="form-row mb-2">
+                    <div class="ml-3">
+                        <input class="form-check-input" type="checkbox" name="bookable" id="bookable" value="1" {{$room->bookable ? 'checked' : ''}}>
+                        <label class="form-check-label" for="bookable">
+                            Raum buchbar (aktiv: kann gebucht werden)
+                        </label>
+                    </div>
+                </div>
+
                 <div class="form-row">
                     <button class="btn btn-success btn-bg-gradient-x-blue-green btn-block" type="submit">
                         Raum speichern
