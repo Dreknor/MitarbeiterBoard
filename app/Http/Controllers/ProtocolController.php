@@ -252,8 +252,21 @@ class ProtocolController extends Controller
 
         $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
 
+        // Protokollersteller basierend auf der Anzahl der geschriebenen Protokolle ermitteln
+        $protocolCreator = null;
+        $allProtocols = $themes->flatMap(function($theme) use ($date) {
+            return $theme->protocols->filter(function($protocol) use ($date) {
+                return $protocol->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            });
+        });
 
-        $protocolCreator = $themes->first()->protocols->first()->ersteller;
+        if ($allProtocols->count() > 0) {
+            $creatorCounts = $allProtocols->groupBy('creator_id')->map(function($protocols) {
+                return $protocols->count();
+            });
+            $topCreatorId = $creatorCounts->sortDesc()->keys()->first();
+            $protocolCreator = $allProtocols->firstWhere('creator_id', $topCreatorId)?->ersteller;
+        }
 
 
 
@@ -467,7 +480,21 @@ class ProtocolController extends Controller
 
         $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
 
-        $protocolCreator = $themes->first()?->protocols->first()?->ersteller;
+        // Protokollersteller basierend auf der Anzahl der geschriebenen Protokolle ermitteln
+        $protocolCreator = null;
+        $allProtocols = $themes->flatMap(function($theme) use ($date) {
+            return $theme->protocols->filter(function($protocol) use ($date) {
+                return $protocol->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            });
+        });
+
+        if ($allProtocols->count() > 0) {
+            $creatorCounts = $allProtocols->groupBy('creator_id')->map(function($protocols) {
+                return $protocols->count();
+            });
+            $topCreatorId = $creatorCounts->sortDesc()->keys()->first();
+            $protocolCreator = $allProtocols->firstWhere('creator_id', $topCreatorId)?->ersteller;
+        }
 
         // Filter protocols based on options
         $filteredThemes = $themes->map(function($theme) use ($date, $closed, $memory, $changed) {
