@@ -527,12 +527,16 @@ class ProtocolController extends Controller
 
         $pdf->setPaper('A4', 'portrait');
 
-        // Optionen für bessere Seitenumbrüche
         $pdf->setOption('enable-local-file-access', true);
-        $pdf->setOption('margin-top', 20);
-        $pdf->setOption('margin-bottom', 20);
-        $pdf->setOption('margin-left', 15);
-        $pdf->setOption('margin-right', 15);
+        $pdf->setOption('margin-top', '20mm');
+        $pdf->setOption('margin-bottom', '20mm');
+        $pdf->setOption('margin-left', '15mm');
+        $pdf->setOption('margin-right', '15mm');
+        $pdf->setOption('encoding', 'UTF-8');
+        $pdf->setOption('javascript-delay', 1000);
+        $pdf->setOption('no-stop-slow-scripts', true);
+        $pdf->setOption('enable-smart-shrinking', false);
+        $pdf->setOption('print-media-type', true);
 
         $filename = Carbon::now()->format('Ymd_Hi').'_Protokoll_'.$groupname.'.pdf';
 

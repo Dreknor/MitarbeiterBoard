@@ -6,19 +6,22 @@
     <title>Protokoll {{ $group->name }} - {{ $date->format('d.m.Y') }}</title>
     <style>
         @page {
-            margin: 2cm 1.5cm 2.5cm 1.5cm;
+            margin: 20mm 15mm;
         }
 
         body {
             font-family: 'DejaVu Sans', sans-serif;
             font-size: 10pt;
             margin: 0;
+            padding: 0;
         }
 
         h1 {
             font-size: 18pt;
             margin-bottom: 10px;
+            margin-top: 0;
             color: #333;
+            page-break-after: avoid;
         }
 
         h2 {
@@ -37,6 +40,7 @@
 
         table.info-table {
             margin-bottom: 20px;
+            page-break-inside: avoid;
             page-break-after: avoid;
         }
 
@@ -53,14 +57,15 @@
 
         table.protocol-table {
             page-break-inside: auto;
+            border-collapse: collapse;
         }
 
         table.protocol-table thead {
             display: table-header-group;
         }
 
-        table.protocol-table tfoot {
-            display: table-footer-group;
+        table.protocol-table tbody {
+            display: table-row-group;
         }
 
         table.protocol-table th {
@@ -69,17 +74,24 @@
             border: 1px solid #333;
             font-weight: bold;
             text-align: left;
+            page-break-inside: avoid;
+            page-break-after: avoid;
         }
 
         table.protocol-table tr {
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
             page-break-after: auto;
+        }
+
+        table.protocol-table tbody tr {
+            page-break-inside: avoid !important;
         }
 
         table.protocol-table td {
             padding: 8px;
             border: 1px solid #ddd;
             vertical-align: top;
+            page-break-inside: avoid;
         }
 
         table.protocol-table td.number {
@@ -95,6 +107,12 @@
             width: 45%;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        /* Wenn keine Aufgaben vorhanden sind, mehr Platz für Protokoll */
+        table.protocol-table.no-tasks td.protocol {
+            width: 65%;
         }
 
         table.protocol-table td.task {
@@ -104,6 +122,7 @@
         .header {
             margin-bottom: 20px;
             page-break-after: avoid;
+            page-break-inside: avoid;
         }
 
         .logo {
@@ -115,32 +134,28 @@
             clear: both;
         }
 
-        .footer {
-            position: fixed;
-            bottom: 1cm;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 9pt;
-            color: #666;
-        }
-
         ul {
-            margin: 0;
+            margin: 5px 0;
             padding-left: 20px;
         }
 
-        .page-break {
-            page-break-after: always;
+        ul li {
+            margin: 2px 0;
         }
 
         .protocol-content {
             word-wrap: break-word;
             overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .protocol-content p {
             margin: 5px 0;
+        }
+
+        .protocol-content div {
+            orphans: 3;
+            widows: 3;
         }
     </style>
 </head>
@@ -228,13 +243,29 @@
 
     <h2>Protokollpunkte</h2>
 
-    <table class="protocol-table">
+    @php
+        // Prüfen, ob es überhaupt Aufgaben gibt
+        $hasAnyTasks = false;
+        foreach($themes as $theme) {
+            $tasks = $theme->tasks->filter(function ($task) use ($date) {
+                return $task->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            });
+            if ($tasks->count() > 0) {
+                $hasAnyTasks = true;
+                break;
+            }
+        }
+    @endphp
+
+    <table class="protocol-table {{ !$hasAnyTasks ? 'no-tasks' : '' }}">
         <thead>
             <tr>
                 <th class="number">#</th>
                 <th class="theme">Thema</th>
                 <th class="protocol">Protokoll</th>
+                @if($hasAnyTasks)
                 <th class="task">Aufgaben</th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -254,6 +285,7 @@
                             @endforeach
                         </div>
                     </td>
+                    @if($hasAnyTasks)
                     <td class="task">
                         @php
                             $tasks = $theme->tasks->filter(function ($task) use ($date) {
@@ -268,6 +300,7 @@
                             </ul>
                         @endif
                     </td>
+                    @endif
                 </tr>
                 @endif
             @endforeach
