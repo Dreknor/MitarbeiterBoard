@@ -131,40 +131,83 @@
                 <p>
                     Zusätzliche Protokollearten auswählen
                 </p>
-                <form action="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/download')}}" method="post">
-                    @csrf
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Word-Export</h6>
+                        <form action="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/download')}}" method="post">
+                            @csrf
 
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="closed">
+                                        <input type="checkbox" name="closed" class="custom-checkbox" checked>
+                                        Thema geschlossen
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="changed">
+                                        <input type="checkbox" name="changed" class="custom-checkbox" checked>
+                                        Thema verschoben
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="memory">
+                                        <input type="checkbox" name="memory" class="custom-checkbox checkbox" checked>
+                                        Änderung Themenspeicher
+                                    </label>
+                                </div>
+                            </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="closed">
-                                <input type="checkbox" name="closed" class="custom-checkbox" checked>
-                                Thema geschlossen
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="changed">
-                                <input type="checkbox" name="changed" class="custom-checkbox" checked>
-                                Thema verschoben
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="memory">
-                                <input type="checkbox" name="memory" class="custom-checkbox checkbox" checked>
-                                Änderung Themenspeicher
-                            </label>
-                        </div>
+                            <div class="form-row">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-file-word"></i> Als Word exportieren
+                                </button>
+                            </div>
+                        </form>
                     </div>
 
-                    <div class="form-row">
-                        <button type="submit" class="btn btn-success"> exportieren</button>
-                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">PDF-Export</h6>
+                        <form action="{{url(request()->segment(1).'/export/'.$date->format('Y-m-d').'/pdf')}}" method="post">
+                            @csrf
 
-                </form>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="closed_pdf">
+                                        <input type="checkbox" name="closed" id="closed_pdf" class="custom-checkbox" checked>
+                                        Thema geschlossen
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="changed_pdf">
+                                        <input type="checkbox" name="changed" id="changed_pdf" class="custom-checkbox" checked>
+                                        Thema verschoben
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="memory_pdf">
+                                        <input type="checkbox" name="memory" id="memory_pdf" class="custom-checkbox checkbox" checked>
+                                        Änderung Themenspeicher
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-file-pdf"></i> Als PDF exportieren
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 

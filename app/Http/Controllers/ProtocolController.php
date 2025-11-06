@@ -18,6 +18,7 @@ use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\Style\Language;
 use PhpOffice\PhpWord\Style\Table;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class ProtocolController extends Controller
 {
@@ -429,5 +430,78 @@ class ProtocolController extends Controller
         $objWriter->save(storage_path($filename));
 
         return response()->download(storage_path($filename));
+    }
+
+    /**
+     * @param Request $request
+     * @param $groupname
+     * @param $date
+     * @return \Illuminate\Http\Response
+     */
+    public function exportPdf(Request $request, $groupname, $date = '')
+    {
+        ($request->closed == "on")? $closed = true : $closed=false;
+        ($request->changed == "on")? $changed = true : $changed=false;
+        ($request->memory == "on")? $memory = true : $memory=false;
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect(url('home'))->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if ($date != '') {
+            $date = Carbon::createFromFormat('Y-m-d', $date);
+        } else {
+            $date = Carbon::now();
+        }
+
+        $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date) {
+            $query->whereDate('created_at', '=', $date);
+        })->get();
+
+        $themes->load(['group', 'protocols', 'tasks']);
+
+        $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
+
+        $protocolCreator = $themes->first()?->protocols->first()?->ersteller;
+
+        // Filter protocols based on options
+        $filteredThemes = $themes->map(function($theme) use ($date, $closed, $memory, $changed) {
+            $filteredProtocols = $theme->protocols->filter(function ($protocol) use ($date, $closed, $memory, $changed){
+                if ($protocol->created_at->format('Y-m-d') == $date->format('Y-m-d')){
+                    if (
+                        (!$protocol->isMemory() or $memory == true) and
+                        (!$protocol->isClosed() or $closed == true) and
+                        (!$protocol->isChanged() or $changed == true)
+                    ){
+                        return true;
+                    }
+                }
+                return false;
+            });
+
+            $theme->setRelation('protocols', $filteredProtocols);
+            return $theme;
+        })->filter(function($theme) {
+            return $theme->protocols->count() > 0;
+        });
+
+        $pdf = PDF::loadView('protocol.pdf', [
+            'themes' => $filteredThemes,
+            'date' => $date,
+            'group' => $group,
+            'presences' => $presences,
+            'protocolCreator' => $protocolCreator,
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = Carbon::now()->format('Ymd_Hi').'_Protokoll_'.$groupname.'.pdf';
+
+        return $pdf->download($filename);
     }
 }
