@@ -30,6 +30,8 @@
             margin-bottom: 10px;
             color: #333;
             page-break-after: avoid;
+            border-bottom: 2px solid #B0CFFE;
+            padding-bottom: 5px;
         }
 
         table {
@@ -55,70 +57,6 @@
             background-color: #f5f5f5;
         }
 
-        table.protocol-table {
-            page-break-inside: auto;
-            border-collapse: collapse;
-        }
-
-        table.protocol-table thead {
-            display: table-header-group;
-        }
-
-        table.protocol-table tbody {
-            display: table-row-group;
-        }
-
-        table.protocol-table th {
-            background-color: #B0CFFE;
-            padding: 8px;
-            border: 1px solid #333;
-            font-weight: bold;
-            text-align: left;
-            page-break-inside: avoid;
-            page-break-after: avoid;
-        }
-
-        table.protocol-table tr {
-            page-break-inside: avoid !important;
-            page-break-after: auto;
-        }
-
-        table.protocol-table tbody tr {
-            page-break-inside: avoid !important;
-        }
-
-        table.protocol-table td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            vertical-align: top;
-            page-break-inside: avoid;
-        }
-
-        table.protocol-table td.number {
-            width: 5%;
-            text-align: center;
-        }
-
-        table.protocol-table td.theme {
-            width: 30%;
-        }
-
-        table.protocol-table td.protocol {
-            width: 45%;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-        }
-
-        /* Wenn keine Aufgaben vorhanden sind, mehr Platz für Protokoll */
-        table.protocol-table.no-tasks td.protocol {
-            width: 65%;
-        }
-
-        table.protocol-table td.task {
-            width: 20%;
-        }
-
         .header {
             margin-bottom: 20px;
             page-break-after: avoid;
@@ -134,28 +72,72 @@
             clear: both;
         }
 
-        ul {
-            margin: 5px 0;
-            padding-left: 20px;
+        /* Protokoll-Item Styling */
+        .protocol-item {
+            border: 1px solid #333;
+            margin-bottom: 15px;
+            page-break-inside: auto;
+            background: white;
         }
 
-        ul li {
-            margin: 2px 0;
+        .protocol-header {
+            background-color: #B0CFFE;
+            padding: 8px 10px;
+            border-bottom: 1px solid #333;
+            page-break-after: avoid;
+        }
+
+        .protocol-number {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .protocol-theme {
+            font-size: 11pt;
+        }
+
+        .protocol-body {
+            padding: 10px;
+        }
+
+        .protocol-content-wrapper {
+            margin-bottom: 10px;
+        }
+
+        .protocol-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
         }
 
         .protocol-content {
+            padding-left: 10px;
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-word;
         }
 
-        .protocol-content p {
+        .protocol-entry {
+            margin-bottom: 8px;
+        }
+
+        .protocol-entry p {
             margin: 5px 0;
         }
 
-        .protocol-content div {
-            orphans: 3;
-            widows: 3;
+        .protocol-tasks {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        ul {
+            margin: 5px 0;
+            padding-left: 25px;
+        }
+
+        ul li {
+            margin: 3px 0;
         }
     </style>
 </head>
@@ -257,55 +239,47 @@
         }
     @endphp
 
-    <table class="protocol-table {{ !$hasAnyTasks ? 'no-tasks' : '' }}">
-        <thead>
-            <tr>
-                <th class="number">#</th>
-                <th class="theme">Thema</th>
-                <th class="protocol">Protokoll</th>
-                @if($hasAnyTasks)
-                <th class="task">Aufgaben</th>
-                @endif
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($themes as $theme)
-                @if($theme->protocols->count() > 0)
-                <tr>
-                    <td class="number">{{ $loop->iteration }}</td>
-                    <td class="theme">
-                        <strong>{{ $theme->theme }}</strong>
-                    </td>
-                    <td class="protocol">
+    @foreach($themes as $theme)
+        @if($theme->protocols->count() > 0)
+            <div class="protocol-item">
+                <div class="protocol-header">
+                    <span class="protocol-number">{{ $loop->iteration }}.</span>
+                    <strong class="protocol-theme">{{ $theme->theme }}</strong>
+                </div>
+
+                <div class="protocol-body">
+                    <div class="protocol-content-wrapper">
+                        <div class="protocol-label">Protokoll:</div>
                         <div class="protocol-content">
                             @foreach($theme->protocols as $protocol)
-                                <div style="margin-bottom: 5px;">
+                                <div class="protocol-entry">
                                     {!! strip_tags($protocol->protocol, '<p><br><b><i><u><strong><em><ul><ol><li>') !!}
                                 </div>
                             @endforeach
                         </div>
-                    </td>
+                    </div>
+
                     @if($hasAnyTasks)
-                    <td class="task">
                         @php
                             $tasks = $theme->tasks->filter(function ($task) use ($date) {
                                 return $task->created_at->format('Y-m-d') == $date->format('Y-m-d');
                             });
                         @endphp
                         @if($tasks->count() > 0)
-                            <ul>
-                                @foreach($tasks as $task)
-                                    <li>{{ $task->taskable->name ?? '' }} - {{ $task->task }}</li>
-                                @endforeach
-                            </ul>
+                            <div class="protocol-tasks">
+                                <div class="protocol-label">Aufgaben:</div>
+                                <ul>
+                                    @foreach($tasks as $task)
+                                        <li>{{ $task->taskable->name ?? '' }} - {{ $task->task }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
                         @endif
-                    </td>
                     @endif
-                </tr>
-                @endif
-            @endforeach
-        </tbody>
-    </table>
+                </div>
+            </div>
+        @endif
+    @endforeach
 </body>
 </html>
 
