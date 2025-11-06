@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Protokoll {{ $group->name }} - {{ $date->format('d.m.Y') }}</title>
     <style>
+        @page {
+            margin: 2cm 1.5cm 2.5cm 1.5cm;
+        }
+
         body {
             font-family: 'DejaVu Sans', sans-serif;
             font-size: 10pt;
-            margin: 2cm 1.5cm;
+            margin: 0;
         }
 
         h1 {
@@ -22,6 +26,7 @@
             margin-top: 15px;
             margin-bottom: 10px;
             color: #333;
+            page-break-after: avoid;
         }
 
         table {
@@ -32,6 +37,7 @@
 
         table.info-table {
             margin-bottom: 20px;
+            page-break-after: avoid;
         }
 
         table.info-table td {
@@ -45,12 +51,29 @@
             background-color: #f5f5f5;
         }
 
+        table.protocol-table {
+            page-break-inside: auto;
+        }
+
+        table.protocol-table thead {
+            display: table-header-group;
+        }
+
+        table.protocol-table tfoot {
+            display: table-footer-group;
+        }
+
         table.protocol-table th {
             background-color: #B0CFFE;
             padding: 8px;
             border: 1px solid #333;
             font-weight: bold;
             text-align: left;
+        }
+
+        table.protocol-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
         }
 
         table.protocol-table td {
@@ -70,6 +93,8 @@
 
         table.protocol-table td.protocol {
             width: 45%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         table.protocol-table td.task {
@@ -78,6 +103,7 @@
 
         .header {
             margin-bottom: 20px;
+            page-break-after: avoid;
         }
 
         .logo {
@@ -106,6 +132,15 @@
 
         .page-break {
             page-break-after: always;
+        }
+
+        .protocol-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .protocol-content p {
+            margin: 5px 0;
         }
     </style>
 </head>
@@ -211,11 +246,13 @@
                         <strong>{{ $theme->theme }}</strong>
                     </td>
                     <td class="protocol">
-                        @foreach($theme->protocols as $protocol)
-                            <div style="margin-bottom: 5px;">
-                                {!! strip_tags($protocol->protocol, '<p><br><b><i><u><strong><em><ul><ol><li>') !!}
-                            </div>
-                        @endforeach
+                        <div class="protocol-content">
+                            @foreach($theme->protocols as $protocol)
+                                <div style="margin-bottom: 5px;">
+                                    {!! strip_tags($protocol->protocol, '<p><br><b><i><u><strong><em><ul><ol><li>') !!}
+                                </div>
+                            @endforeach
+                        </div>
                     </td>
                     <td class="task">
                         @php
