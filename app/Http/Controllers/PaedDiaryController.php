@@ -1421,15 +1421,26 @@ class PaedDiaryController extends Controller
     public function getClassStages(Klasse $klasse)
     {
         $user = Auth::user();
-        // Prüfen, ob Nutzer Zugriff auf die Klasse hat
-        $user->paed_klassen()->where('klassen.id', $klasse->id)->firstOrFail();
+        try {
+            $user->paed_klassen()->where('klassen.id', $klasse->id)->firstOrFail();
 
-        if (!$klasse->grading_system_id) {
-            return response()->json(['stages' => []]);
+            if (!$klasse->grading_system_id) {
+                return response()->json(['stages' => []]);
+            }
+            $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
+            $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null]);
+            return response()->json(['stages' => $data]);
+        } catch (\Throwable $e) {
+            Log::debug('Fehler getStages: ', [
+                'message' => $e->getMessage(),
+                'klasse'  => $user->paed_klassen()->where('klassen.id', $klasse->id)->first(),
+                'stages' => GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get(),
+                'date' => $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null])
+            ]);
+
+            return response()->json(['message' => $e], 500);
         }
-        $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
-        $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null]);
-        return response()->json(['stages' => $data]);
+
     }
 
     /**
