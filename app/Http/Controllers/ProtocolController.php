@@ -18,6 +18,7 @@ use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\Style\Language;
 use PhpOffice\PhpWord\Style\Table;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class ProtocolController extends Controller
 {
@@ -251,8 +252,21 @@ class ProtocolController extends Controller
 
         $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
 
+        // Protokollersteller basierend auf der Anzahl der geschriebenen Protokolle ermitteln
+        $protocolCreator = null;
+        $allProtocols = $themes->flatMap(function($theme) use ($date) {
+            return $theme->protocols->filter(function($protocol) use ($date) {
+                return $protocol->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            });
+        });
 
-        $protocolCreator = $themes->first()->protocols->first()->ersteller;
+        if ($allProtocols->count() > 0) {
+            $creatorCounts = $allProtocols->groupBy('creator_id')->map(function($protocols) {
+                return $protocols->count();
+            });
+            $topCreatorId = $creatorCounts->sortDesc()->keys()->first();
+            $protocolCreator = $allProtocols->firstWhere('creator_id', $topCreatorId)?->ersteller;
+        }
 
 
 
@@ -429,5 +443,104 @@ class ProtocolController extends Controller
         $objWriter->save(storage_path($filename));
 
         return response()->download(storage_path($filename));
+    }
+
+    /**
+     * @param Request $request
+     * @param $groupname
+     * @param $date
+     * @return \Illuminate\Http\Response
+     */
+    public function exportPdf(Request $request, $groupname, $date = '')
+    {
+        ($request->closed == "on")? $closed = true : $closed=false;
+        ($request->changed == "on")? $changed = true : $changed=false;
+        ($request->memory == "on")? $memory = true : $memory=false;
+
+        $group = Group::where('name', $groupname)->first();
+
+        if (! auth()->user()->groups()->contains($group)) {
+            return redirect(url('home'))->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        if ($date != '') {
+            $date = Carbon::createFromFormat('Y-m-d', $date);
+        } else {
+            $date = Carbon::now();
+        }
+
+        $themes = $group->themes()->WhereHas('protocols', function ($query) use ($date) {
+            $query->whereDate('created_at', '=', $date);
+        })->get();
+
+        $themes->load(['group', 'protocols', 'tasks']);
+
+        $presences = $group->presences()->where('date', $date->format('Y-m-d'))->get();
+
+        // Protokollersteller basierend auf der Anzahl der geschriebenen Protokolle ermitteln
+        $protocolCreator = null;
+        $allProtocols = $themes->flatMap(function($theme) use ($date) {
+            return $theme->protocols->filter(function($protocol) use ($date) {
+                return $protocol->created_at->format('Y-m-d') == $date->format('Y-m-d');
+            });
+        });
+
+        if ($allProtocols->count() > 0) {
+            $creatorCounts = $allProtocols->groupBy('creator_id')->map(function($protocols) {
+                return $protocols->count();
+            });
+            $topCreatorId = $creatorCounts->sortDesc()->keys()->first();
+            $protocolCreator = $allProtocols->firstWhere('creator_id', $topCreatorId)?->ersteller;
+        }
+
+        // Filter protocols based on options
+        $filteredThemes = $themes->map(function($theme) use ($date, $closed, $memory, $changed) {
+            $filteredProtocols = $theme->protocols->filter(function ($protocol) use ($date, $closed, $memory, $changed){
+                if ($protocol->created_at->format('Y-m-d') == $date->format('Y-m-d')){
+                    if (
+                        (!$protocol->isMemory() or $memory == true) and
+                        (!$protocol->isClosed() or $closed == true) and
+                        (!$protocol->isChanged() or $changed == true)
+                    ){
+                        return true;
+                    }
+                }
+                return false;
+            });
+
+            $theme->setRelation('protocols', $filteredProtocols);
+            return $theme;
+        })->filter(function($theme) {
+            return $theme->protocols->count() > 0;
+        });
+
+        $pdf = PDF::loadView('protocol.pdf', [
+            'themes' => $filteredThemes,
+            'date' => $date,
+            'group' => $group,
+            'presences' => $presences,
+            'protocolCreator' => $protocolCreator,
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+
+        // Erweiterte Optionen für bessere Seitenumbrüche und Rendering
+        $pdf->setOption('enable-local-file-access', true);
+        $pdf->setOption('margin-top', '20mm');
+        $pdf->setOption('margin-bottom', '20mm');
+        $pdf->setOption('margin-left', '15mm');
+        $pdf->setOption('margin-right', '15mm');
+        $pdf->setOption('encoding', 'UTF-8');
+        // Wichtig: Kein javascript-delay und keine Optimierungen, die Umbrüche beeinflussen
+        $pdf->setOption('enable-smart-shrinking', false);
+        $pdf->setOption('print-media-type', true);
+        $pdf->setOption('dpi', 96);
+
+        $filename = Carbon::now()->format('Ymd_Hi').'_Protokoll_'.$groupname.'.pdf';
+
+        return $pdf->download($filename);
     }
 }

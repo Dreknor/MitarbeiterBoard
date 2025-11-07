@@ -483,6 +483,7 @@ Route::group([
                 Route::get('{groupname}/protocols/{protocol}/edit', [ProtocolController::class, 'edit']);
                 Route::get('{groupname}/export/{date?}/', [ProtocolController::class, 'showDailyProtocol']);
                 Route::post('{groupname}/export/{date}/download', [ProtocolController::class, 'createSheet']);
+                Route::post('{groupname}/export/{date}/pdf', [ProtocolController::class, 'exportPdf']);
                 Route::put('{groupname}/protocols/{protocol}/', [ProtocolController::class, 'update']);
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
