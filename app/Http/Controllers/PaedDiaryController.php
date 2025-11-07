@@ -1428,14 +1428,19 @@ class PaedDiaryController extends Controller
                 return response()->json(['stages' => []]);
             }
             $stages = GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get();
-            $data = $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null]);
+            $data = $stages->map(fn($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'symbol' => $s->symbol,
+                'sort_order' => $s->sort_order,
+                'image_url' => $s->image_url ?? null
+            ]);
             return response()->json(['stages' => $data]);
         } catch (\Throwable $e) {
             Log::debug('Fehler getStages: ', [
                 'message' => $e->getMessage(),
                 'klasse'  => $user->paed_klassen()->where('klassen.id', $klasse->id)->first(),
                 'stages' => GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get(),
-                'date' => $stages->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url ?? null])
             ]);
 
             return response()->json(['message' => $e], 500);
