@@ -1,0 +1,323 @@
+/* Tablet Scroll Optimization für Pädagogisches Tagebuch */
+/* Optimiert das Scrollverhalten auf Tablets ohne Schriftgrößen zu ändern */
+
+/* ========================================
+   MOMENTUM SCROLLING & TOUCH OPTIMIZATION
+   ======================================== */
+
+/* Enable smooth momentum scrolling on iOS/Safari */
+.table-responsive,
+#diaryBody,
+#schueler-diary-app .table-responsive,
+#paed-diary-app .table-responsive,
+#tasksList,
+#noteStudents,
+#taskStudents,
+#groupKlassenBox,
+.card-body,
+.modal-body {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+}
+
+/* Touch-action optimization for better scrolling performance */
+.table-responsive,
+#diaryBody,
+#schueler-diary-app .table-responsive,
+#paed-diary-app .table-responsive {
+    touch-action: pan-y;
+}
+
+/* ========================================
+   HARDWARE ACCELERATION
+   ======================================== */
+
+/* Enable GPU acceleration for smoother scrolling */
+.table-responsive,
+#diaryTable,
+#entriesTable,
+#tasksTable,
+#columnsTable,
+#historyTable,
+#diaryBody,
+.tab-content {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
+    will-change: scroll-position;
+}
+
+/* ========================================
+   SCROLL CONTAINER OPTIMIZATIONS
+   ======================================== */
+
+/* Optimiere Scroll-Container in Schüler-Ansicht */
+#schueler-diary-app .table-responsive {
+    /* Behalte max-height bei, aber optimiere Performance */
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    /* Verbessere Scroll-Performance */
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+}
+
+/* Optimiere Haupttabellen-Container */
+#paed-diary-app .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+}
+
+/* ========================================
+   TABLE PERFORMANCE OPTIMIZATION
+   ======================================== */
+
+/* Reduziere Repaints durch feste Layout-Berechnung */
+#diaryTable,
+#entriesTable,
+#tasksTable,
+#columnsTable {
+    /* table-layout: fixed wird bereits in paed-diary.css gesetzt */
+    /* Optimiere für schnelleres Rendering */
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Optimiere Tabellenzellen für schnelleres Rendering */
+#diaryTable td,
+#diaryTable th,
+#entriesTable td,
+#entriesTable th,
+#tasksTable td,
+#tasksTable th,
+#columnsTable td,
+#columnsTable th {
+    contain: layout style paint;
+}
+
+/* ========================================
+   MODAL & DROPDOWN SCROLL OPTIMIZATION
+   ======================================== */
+
+/* Optimiere Modal-Scrolling */
+.modal-body {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Optimiere Dropdown-Container */
+.stage-dropdown {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* ========================================
+   MOBILE/TABLET SPECIFIC OPTIMIZATIONS
+   ======================================== */
+
+/* Tablet-spezifische Optimierungen (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+
+    /* Verbesserte Touch-Targets für Tablet */
+    .table-responsive {
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+
+    /* Optimiere Container-Höhen für Tablets */
+    #schueler-diary-app .table-responsive {
+        max-height: 65vh;
+    }
+
+    /* Reduziere Komplexität in Tabellenzellen für bessere Performance */
+    #diaryTable td.note-cell .entry-list {
+        /* Verwende max-height statt unbegrenzte Höhe */
+        max-height: none;
+    }
+
+    /* Optimiere Accordion in Dokumentation */
+    #documentationAccordion .card-body {
+        -webkit-overflow-scrolling: touch;
+        overflow-scrolling: touch;
+    }
+}
+
+/* Mobile-spezifisch (bis 767px) */
+@media (max-width: 767px) {
+
+    #schueler-diary-app .table-responsive {
+        max-height: 60vh;
+    }
+
+    /* Vereinfache Layout für bessere Performance */
+    .table-responsive {
+        scroll-behavior: smooth;
+    }
+}
+
+/* ========================================
+   SAFARI/WEBKIT SPECIFIC FIXES
+   ======================================== */
+
+/* iOS Safari spezifische Fixes */
+@supports (-webkit-touch-callout: none) {
+
+    /* Fix für iOS Rubber-Band-Effekt */
+    .table-responsive {
+        overscroll-behavior-y: none;
+    }
+
+    /* Optimiere Scroll-Container auf iOS */
+    #schueler-diary-app .table-responsive,
+    #paed-diary-app .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        /* Verhindere Layout-Shifts beim Scrollen */
+        position: relative;
+        z-index: 1;
+    }
+}
+
+/* ========================================
+   SCROLL SNAP (Optional - kann aktiviert werden)
+   ======================================== */
+
+/* Deaktiviert per Default, kann bei Bedarf aktiviert werden
+.table-responsive {
+    scroll-snap-type: y proximity;
+}
+
+.table-responsive tbody tr {
+    scroll-snap-align: start;
+}
+*/
+
+/* ========================================
+   PERFORMANCE-KRITISCHE BEREICHE
+   ======================================== */
+
+/* Optimiere Listen mit vielen Einträgen */
+#tasksList,
+#noteEditorCard .card-body,
+#columnsCard .card-body {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Optimiere Entry-Listen in Zellen */
+#diaryTable td.note-cell .entry-list {
+    /* Entferne max-height Begrenzungen für besseres natürliches Scrolling */
+    contain: content;
+}
+
+/* ========================================
+   REDUCE MOTION (Accessibility)
+   ======================================== */
+
+/* Respektiere User-Präferenz für reduzierte Bewegung */
+@media (prefers-reduced-motion: reduce) {
+    .table-responsive,
+    #diaryBody,
+    .modal-body,
+    .stage-dropdown {
+        scroll-behavior: auto;
+        animation: none;
+        transition: none;
+    }
+
+    /* Deaktiviere Hardware-Beschleunigung bei Motion-Sensitivity */
+    .table-responsive,
+    #diaryTable,
+    #entriesTable,
+    #tasksTable,
+    #columnsTable {
+        transform: none;
+        -webkit-transform: none;
+        will-change: auto;
+    }
+}
+
+/* ========================================
+   PREVENT SCROLLING ISSUES
+   ======================================== */
+
+/* Verhindere horizontales Scroll-Problem auf kleinen Geräten */
+#paed-diary-app,
+#schueler-diary-app {
+    overflow-x: hidden;
+}
+
+/* Stelle sicher, dass Container nicht zu weit scrollen */
+.table-responsive {
+    position: relative;
+}
+
+/* Optimiere Nested Scroll Container */
+.tab-pane {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+}
+
+/* ========================================
+   TOUCHPAD & MOUSE WHEEL OPTIMIZATION
+   ======================================== */
+
+/* Verbessere Scrolling mit Maus/Touchpad auf Tablets mit Peripherie */
+@media (hover: hover) and (pointer: fine) {
+    .table-responsive {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* ========================================
+   FIXES FÜR SPEZIFISCHE PROBLEME
+   ======================================== */
+
+/* Fix für "klebriges" Scrollen in modalen Dialogen */
+.modal.show .modal-body {
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* Fix für verschachtelte Scroll-Container */
+#taskStudents,
+#noteStudents,
+#groupKlassenBox,
+#appointmentStudentsBox {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Verbessere Performance bei langen Listen */
+#entriesTableBody tr,
+#tasksTableBody tr,
+#columnsTableBody tr {
+    contain: layout style;
+}
+
