@@ -1,60 +1,85 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid px-2 px-md-3">
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">Lehrereinschätzung - {{ $session->klasse->name }}</h5>
-                        <small class="text-muted">{{ $session->gradingSystem->name }}</small>
+            <div class="card main-card">
+                <div class="card-header">
+                    <div class="header-content">
+                        <div class="header-info">
+                            <h5 class="mb-0">Lehrereinschätzung</h5>
+                            <div class="class-info">
+                                <span class="badge badge-light">{{ $session->klasse->name }}</span>
+                                <span class="badge badge-light">{{ $session->gradingSystem->name }}</span>
+                            </div>
+                        </div>
+                        @if($session->type === 'group')
+                            <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-outline-light btn-sm back-btn">
+                                <i class="fas fa-arrow-left"></i> <span class="d-none d-md-inline">Zurück</span>
+                            </a>
+                        @elseif($session->type === 'individual')
+                            <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-outline-light btn-sm back-btn">
+                                <i class="fas fa-arrow-left"></i> <span class="d-none d-md-inline">Zurück</span>
+                            </a>
+                        @endif
                     </div>
-                    @if($session->type === 'group')
-                        <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-outline-primary">
-                            <i class="fas fa-arrow-left"></i> Zurück zur Schülereinschätzung
-                        </a>
-                    @elseif($session->type === 'individual')
-                        <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-outline-primary">
-                            <i class="fas fa-arrow-left"></i> Zurück zur Schülereinschätzung
-                        </a>
-                    @endif
                 </div>
-                <div class="card-body" id="teacherApp">
-                    <div class="alert alert-info mb-4">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Flexibler Wechsel:</strong> Sie können jederzeit zwischen Lehrereinschätzung und Schülereinschätzung wechseln.
-                        Geben Sie für jeden Schüler und jede Frage Ihre Einschätzung ab und fügen Sie bei Bedarf einen Kommentar hinzu.
+                <div class="card-body p-2 p-md-3" id="teacherApp">
+                    <!-- Kompakte Info-Banner -->
+                    <div class="info-banners mb-3">
+                        <div class="info-banner info-banner-primary">
+                            <i class="fas fa-save"></i>
+                            <span>Auto-Speicherung aktiv</span>
+                        </div>
+                        <div class="info-banner info-banner-success" id="resumedAlert" style="display: none;">
+                            <i class="fas fa-history"></i>
+                            <span><span id="resumedCount"></span> Bewertungen geladen</span>
+                        </div>
+                        <div class="info-banner info-banner-info" id="autoScrollToggle" style="cursor: pointer;" title="Klicken zum Umschalten">
+                            <i class="fas fa-arrows-alt-v"></i>
+                            <span id="autoScrollText">Auto-Scroll: An</span>
+                        </div>
                     </div>
 
-                    <div class="alert alert-success mb-4">
-                        <i class="fas fa-save"></i>
-                        <strong>Automatisches Speichern:</strong> Ihre Eingaben werden automatisch gespeichert. Sie können die Session jederzeit unterbrechen und später fortsetzen, solange sie noch nicht abgeschlossen ist.
+                    <!-- Fortschrittsanzeige -->
+                    <div class="progress-section mb-3">
+                        <div class="progress-info">
+                            <span class="progress-label">Fortschritt:</span>
+                            <span class="progress-text" id="progressText">0 von 0 Schülern</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
                     </div>
 
-                    <div class="alert alert-info mb-4" id="resumedAlert" style="display: none;">
-                        <i class="fas fa-history"></i>
-                        <strong>Session fortgesetzt:</strong> <span id="resumedCount"></span> bereits gespeicherte Bewertungen wurden geladen.
+                    <!-- Schüler-Navigation (Dropdown für mobile, Pills für Tablet/Desktop) -->
+                    <div class="student-navigation mb-3">
+                        <div class="d-md-none">
+                            <select class="form-control form-control-lg student-select" id="studentSelect">
+                                <!-- Options werden dynamisch generiert -->
+                            </select>
+                        </div>
+                        <div class="d-none d-md-block">
+                            <ul class="nav nav-pills student-pills" role="tablist" id="studentTabs">
+                                <!-- Tabs werden dynamisch generiert -->
+                            </ul>
+                        </div>
                     </div>
-
-                    <!-- Schüler-Tabs -->
-                    <ul class="nav nav-tabs" role="tablist" id="studentTabs">
-                        <!-- Tabs werden dynamisch generiert -->
-                    </ul>
 
                     <!-- Tab-Inhalt -->
-                    <div class="tab-content mt-3" id="tabContent">
+                    <div class="tab-content" id="tabContent">
                         <!-- Inhalt wird dynamisch generiert -->
                     </div>
 
-                    <!-- Abschluss-Button -->
-                    <div class="text-center mt-4">
-                        <button id="completeButton" class="btn btn-success btn-lg" disabled>
-                            <i class="fas fa-check"></i> Dokumentation abschließen
+                    <!-- Sticky Footer mit Aktionsbuttons -->
+                    <div class="action-footer">
+                        <button id="skipButton" class="btn btn-warning btn-action">
+                            <i class="fas fa-forward"></i> Überspringen
                         </button>
-                        <p id="completeHint" class="text-muted mt-2">
-                            <small>Bitte bewerten Sie mindestens einen Schüler.</small>
-                        </p>
+                        <button id="completeButton" class="btn btn-success btn-action" disabled>
+                            <i class="fas fa-check"></i> Abschließen
+                        </button>
                     </div>
                 </div>
             </div>
@@ -79,6 +104,7 @@
     let currentSchuelerIndex = 0;
     let teacherAssessments = teacherAssessmentsData || {};
     let loading = false;
+    let autoScrollEnabled = localStorage.getItem('teacherAssessment_autoScroll') !== 'false'; // Standard: An
 
     // Zeige Hinweis wenn Session fortgesetzt wird
     const assessmentCount = Object.values(teacherAssessments).reduce((count, assessments) => {
@@ -89,16 +115,19 @@
         const resumedCount = document.getElementById('resumedCount');
         if (resumedAlert && resumedCount) {
             resumedCount.textContent = assessmentCount;
-            resumedAlert.style.display = 'block';
+            resumedAlert.style.display = 'flex';
         }
     }
 
     // DOM Elemente
     const elements = {
         studentTabs: document.getElementById('studentTabs'),
+        studentSelect: document.getElementById('studentSelect'),
         tabContent: document.getElementById('tabContent'),
         completeButton: document.getElementById('completeButton'),
-        completeHint: document.getElementById('completeHint')
+        skipButton: document.getElementById('skipButton'),
+        progressBar: document.getElementById('progressBar'),
+        progressText: document.getElementById('progressText')
     };
 
     // Hilfsfunktionen
@@ -170,6 +199,84 @@
         }
     }
 
+    function scrollToNextQuestion(currentQuestionId) {
+        // Nur scrollen wenn aktiviert
+        if (!autoScrollEnabled) return;
+
+        // Finde den Index der aktuellen Frage
+        const currentIndex = questions.findIndex(q => q.id === currentQuestionId);
+
+        if (currentIndex === -1) return;
+
+        // Nächste Frage ermitteln
+        const nextIndex = currentIndex + 1;
+
+        if (nextIndex < questions.length) {
+            // Zur nächsten Frage scrollen
+            setTimeout(() => {
+                const allCards = document.querySelectorAll('.question-card');
+                if (allCards[nextIndex]) {
+                    allCards[nextIndex].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+
+                    // Optionale visuelle Hervorhebung
+                    allCards[nextIndex].classList.add('highlight-question');
+                    setTimeout(() => {
+                        allCards[nextIndex].classList.remove('highlight-question');
+                    }, 1500);
+                }
+            }, 300);
+        } else {
+            // Alle Fragen für diesen Schüler beantwortet
+            const currentSchueler = getCurrentSchueler();
+            if (isSchuelerComplete(currentSchueler.id)) {
+                // Zum nächsten Schüler wechseln, wenn nicht der letzte
+                if (currentSchuelerIndex < schueler.length - 1) {
+                    setTimeout(() => {
+                        if (confirm(`Alle Fragen für ${currentSchueler.vorname} ${currentSchueler.nachname} beantwortet! Zum nächsten Schüler wechseln?`)) {
+                            currentSchuelerIndex++;
+                            render();
+                            // Zum Anfang scrollen
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    }, 500);
+                } else {
+                    // Letzter Schüler komplett - Hinweis auf Abschluss
+                    setTimeout(() => {
+                        if (confirm('Alle Fragen beantwortet! Möchten Sie die Dokumentation jetzt abschließen?')) {
+                            completeSession();
+                        }
+                    }, 500);
+                }
+            }
+        }
+    }
+
+    function toggleAutoScroll() {
+        autoScrollEnabled = !autoScrollEnabled;
+        localStorage.setItem('teacherAssessment_autoScroll', autoScrollEnabled);
+        updateAutoScrollUI();
+    }
+
+    function updateAutoScrollUI() {
+        const toggle = document.getElementById('autoScrollToggle');
+        const text = document.getElementById('autoScrollText');
+
+        if (toggle && text) {
+            if (autoScrollEnabled) {
+                text.textContent = 'Auto-Scroll: An';
+                toggle.classList.remove('info-banner-secondary');
+                toggle.classList.add('info-banner-info');
+            } else {
+                text.textContent = 'Auto-Scroll: Aus';
+                toggle.classList.remove('info-banner-info');
+                toggle.classList.add('info-banner-secondary');
+            }
+        }
+    }
+
     // API-Funktionen
     async function saveAssessment(schuelerId, questionId, rating) {
         if (loading) return;
@@ -201,6 +308,9 @@
                     comment: getTeacherComment(schuelerId, questionId)
                 };
                 render();
+
+                // Automatisch zur nächsten Frage scrollen
+                scrollToNextQuestion(questionId);
             } else {
                 alert('Fehler beim Speichern der Einschätzung.');
             }
@@ -299,6 +409,48 @@
     }
 
     // Render-Funktionen
+    function updateProgress() {
+        const completedCount = schueler.filter(s => isSchuelerComplete(s.id)).length;
+        const totalCount = schueler.length;
+        const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+        if (elements.progressBar) {
+            elements.progressBar.style.width = `${percentage}%`;
+            elements.progressBar.setAttribute('aria-valuenow', percentage);
+            elements.progressBar.textContent = `${percentage}%`;
+        }
+
+        if (elements.progressText) {
+            elements.progressText.textContent = `${completedCount} von ${totalCount} Schülern`;
+        }
+    }
+
+    function renderStudentSelect() {
+        if (!elements.studentSelect) return;
+        elements.studentSelect.innerHTML = '';
+
+        schueler.forEach((s, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = `${s.nachname}, ${s.vorname}`;
+
+            if (isSchuelerComplete(s.id)) {
+                option.textContent += ' ✓';
+            }
+
+            if (currentSchuelerIndex === index) {
+                option.selected = true;
+            }
+
+            elements.studentSelect.appendChild(option);
+        });
+
+        elements.studentSelect.onchange = (e) => {
+            currentSchuelerIndex = parseInt(e.target.value);
+            render();
+        };
+    }
+
     function renderTabs() {
         if (!elements.studentTabs) return;
         elements.studentTabs.innerHTML = '';
@@ -313,11 +465,14 @@
                 a.classList.add('active');
             }
             a.href = '#';
-            a.textContent = `${s.nachname}, ${s.vorname}`;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${s.nachname}, ${s.vorname}`;
+            a.appendChild(nameSpan);
 
             if (isSchuelerComplete(s.id)) {
                 const icon = document.createElement('i');
-                icon.className = 'fas fa-check-circle text-success ml-1';
+                icon.className = 'fas fa-check-circle text-success ml-2';
                 a.appendChild(icon);
             }
 
@@ -339,135 +494,116 @@
         const currentSchueler = getCurrentSchueler();
         if (!currentSchueler) return;
 
-        // Überspringen-Button oben
-        const skipDiv = document.createElement('div');
-        skipDiv.className = 'alert alert-info d-flex justify-content-between align-items-center mb-3';
+        // Schüler-Info Header
+        const studentHeader = document.createElement('div');
+        studentHeader.className = 'student-header mb-3';
+        studentHeader.innerHTML = `
+            <div class="student-info-card">
+                <div class="student-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="student-details">
+                    <h5 class="mb-0">${currentSchueler.vorname} ${currentSchueler.nachname}</h5>
+                    <small class="text-muted">Frage ${1} von ${questions.length}</small>
+                </div>
+                ${isSchuelerComplete(currentSchueler.id) ? '<span class="badge badge-success"><i class="fas fa-check"></i> Vollständig</span>' : '<span class="badge badge-warning"><i class="fas fa-clock"></i> In Bearbeitung</span>'}
+            </div>
+        `;
+        elements.tabContent.appendChild(studentHeader);
 
-        const skipInfo = document.createElement('span');
-        skipInfo.innerHTML = '<i class="fas fa-info-circle"></i> Sie können diesen Schüler überspringen, wenn aktuell keine Bewertung möglich ist.';
-
-        const skipBtn = document.createElement('button');
-        skipBtn.className = 'btn btn-warning btn-sm';
-        skipBtn.innerHTML = '<i class="fas fa-forward"></i> Schüler überspringen';
-        skipBtn.onclick = skipCurrentStudent;
-
-        skipDiv.appendChild(skipInfo);
-        skipDiv.appendChild(skipBtn);
-        elements.tabContent.appendChild(skipDiv);
-
-        questions.forEach(question => {
+        questions.forEach((question, qIndex) => {
             const card = document.createElement('div');
-            card.className = 'card mb-3';
+            card.className = 'question-card mb-3';
 
-            // Card Header
-            const cardHeader = document.createElement('div');
-            cardHeader.className = 'card-header';
-            const h6 = document.createElement('h6');
-            h6.className = 'mb-0';
-            h6.textContent = question.question;
-            cardHeader.appendChild(h6);
-            card.appendChild(cardHeader);
+            // Question Header mit Nummer
+            const questionHeader = document.createElement('div');
+            questionHeader.className = 'question-header';
+            questionHeader.innerHTML = `
+                <span class="question-number">${qIndex + 1}</span>
+                <h6 class="question-text mb-0">${question.question}</h6>
+            `;
+            card.appendChild(questionHeader);
 
             // Card Body
             const cardBody = document.createElement('div');
-            cardBody.className = 'card-body';
+            cardBody.className = 'question-body';
 
-            const row = document.createElement('div');
-            row.className = 'row';
-
-            // Linke Spalte - Selbsteinschätzung
-            const colLeft = document.createElement('div');
-            colLeft.className = 'col-md-6';
-
-            const h6Left = document.createElement('h6');
-            h6Left.className = 'text-muted';
-            h6Left.textContent = 'Selbsteinschätzung des Schülers:';
-            colLeft.appendChild(h6Left);
-
+            // Selbsteinschätzung (kompakt)
             const studentAnswer = getStudentAnswer(currentSchueler.id, question.id);
+            const studentSection = document.createElement('div');
+            studentSection.className = 'student-answer-section mb-3';
+
             if (studentAnswer) {
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-light';
-
-                const icon = document.createElement('i');
-                icon.className = getSmileyIcon(studentAnswer);
-                icon.style.fontSize = '2rem';
-
-                const span = document.createElement('span');
-                span.className = 'ml-2';
-                span.textContent = getSmileyLabel(studentAnswer);
-
-                alertDiv.appendChild(icon);
-                alertDiv.appendChild(span);
-                colLeft.appendChild(alertDiv);
+                studentSection.innerHTML = `
+                    <div class="section-label">Schüler-Einschätzung:</div>
+                    <div class="student-answer">
+                        <i class="${getSmileyIcon(studentAnswer)}"></i>
+                        <span>${getSmileyLabel(studentAnswer)}</span>
+                    </div>
+                `;
             } else {
-                const noAnswer = document.createElement('div');
-                noAnswer.className = 'text-muted';
-                noAnswer.innerHTML = '<i class="fas fa-times-circle"></i> Keine Antwort';
-                colLeft.appendChild(noAnswer);
+                studentSection.innerHTML = `
+                    <div class="section-label">Schüler-Einschätzung:</div>
+                    <div class="no-answer">
+                        <i class="fas fa-minus-circle"></i> Keine Antwort
+                    </div>
+                `;
             }
+            cardBody.appendChild(studentSection);
 
-            // Rechte Spalte - Lehrereinschätzung
-            const colRight = document.createElement('div');
-            colRight.className = 'col-md-6';
+            // Lehrereinschätzung
+            const teacherSection = document.createElement('div');
+            teacherSection.className = 'teacher-section';
 
-            const h6Right = document.createElement('h6');
-            h6Right.className = 'text-primary';
-            h6Right.textContent = 'Ihre Einschätzung:';
-            colRight.appendChild(h6Right);
+            const sectionLabel = document.createElement('div');
+            sectionLabel.className = 'section-label';
+            sectionLabel.textContent = 'Ihre Einschätzung:';
+            teacherSection.appendChild(sectionLabel);
 
-            // Rating Buttons
+            // Rating Buttons (optimiert für Touch)
             const buttonDiv = document.createElement('div');
-            buttonDiv.className = 'd-flex justify-content-center mb-3';
+            buttonDiv.className = 'rating-buttons mb-3';
 
             for (let rating = 1; rating <= 5; rating++) {
                 const btn = document.createElement('button');
-                btn.className = 'btn btn-md mx-1 teacher-smiley-btn';
+                btn.className = 'rating-btn';
 
                 const currentRating = getTeacherRating(currentSchueler.id, question.id);
                 if (currentRating === rating) {
-                    btn.classList.add('btn-primary');
-                } else {
-                    btn.classList.add('btn-outline-secondary');
+                    btn.classList.add('active');
                 }
 
                 const icon = document.createElement('i');
                 icon.className = getSmileyIcon(rating);
-                icon.style.fontSize = '2rem';
                 btn.appendChild(icon);
 
-                const label = document.createElement('div');
-                label.className = 'small mt-1';
-                label.textContent = getSmileyLabel(rating);
+                const label = document.createElement('span');
+                label.className = 'rating-label';
+                label.textContent = rating;
                 btn.appendChild(label);
 
                 btn.onclick = () => saveAssessment(currentSchueler.id, question.id, rating);
+                btn.setAttribute('aria-label', getSmileyLabel(rating));
 
                 buttonDiv.appendChild(btn);
             }
-            colRight.appendChild(buttonDiv);
+            teacherSection.appendChild(buttonDiv);
 
-            // Kommentar Textarea
+            // Kommentar Textarea (kompakter)
             const formGroup = document.createElement('div');
-            formGroup.className = 'form-group';
-
-            const label = document.createElement('label');
-            label.textContent = 'Kommentar:';
+            formGroup.className = 'comment-section';
 
             const textarea = document.createElement('textarea');
-            textarea.className = 'form-control';
-            textarea.rows = 3;
+            textarea.className = 'form-control comment-input';
+            textarea.rows = 2;
             textarea.value = getTeacherComment(currentSchueler.id, question.id);
-            textarea.placeholder = 'Optional: Fügen Sie hier einen Kommentar hinzu...';
+            textarea.placeholder = 'Optional: Kommentar hinzufügen...';
             textarea.onblur = (e) => saveComment(currentSchueler.id, question.id, e.target.value);
 
-            formGroup.appendChild(label);
             formGroup.appendChild(textarea);
-            colRight.appendChild(formGroup);
+            teacherSection.appendChild(formGroup);
 
-            row.appendChild(colLeft);
-            row.appendChild(colRight);
-            cardBody.appendChild(row);
+            cardBody.appendChild(teacherSection);
             card.appendChild(cardBody);
 
             elements.tabContent.appendChild(card);
@@ -475,26 +611,50 @@
     }
 
     function renderCompleteButton() {
-        if (!elements.completeButton || !elements.completeHint) return;
+        if (!elements.completeButton) return;
 
         if (isAllComplete()) {
             elements.completeButton.disabled = false;
-            elements.completeHint.style.display = 'none';
         } else {
             elements.completeButton.disabled = true;
-            elements.completeHint.style.display = 'block';
         }
     }
 
     function render() {
         console.log('Rendering...');
+        updateProgress();
+        renderStudentSelect();
         renderTabs();
         renderTabContent();
         renderCompleteButton();
     }
 
     // Event Listener
-    elements.completeButton.addEventListener('click', completeSession);
+    if (elements.completeButton) {
+        elements.completeButton.addEventListener('click', completeSession);
+    }
+
+    if (elements.skipButton) {
+        elements.skipButton.addEventListener('click', skipCurrentStudent);
+    }
+
+    // Auto-Scroll Toggle
+    const autoScrollToggle = document.getElementById('autoScrollToggle');
+    if (autoScrollToggle) {
+        autoScrollToggle.addEventListener('click', toggleAutoScroll);
+        updateAutoScrollUI();
+    }
+
+    // Keyboard Navigation für Tablets
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && currentSchuelerIndex < schueler.length - 1) {
+            currentSchuelerIndex++;
+            render();
+        } else if (e.key === 'ArrowLeft' && currentSchuelerIndex > 0) {
+            currentSchuelerIndex--;
+            render();
+        }
+    });
 
     // Initialisierung
     function init() {
@@ -529,105 +689,548 @@
 </script>
 
 <style>
-:root{
-    --primary: #0d6efd; /* Bootstrap primary */
-    --primary-600: #0b5ed7;
+:root {
+    --primary: #0d6efd;
+    --primary-dark: #0b5ed7;
+    --success: #198754;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --info: #0dcaf0;
+    --light: #f8f9fa;
+    --dark: #212529;
     --muted: #6c757d;
-    --card-bg: #ffffff;
-    --glass: rgba(255,255,255,0.6);
-    --radius: 12px;
+    --border-radius: 12px;
+    --transition: all 0.3s ease;
 }
 
-/* Grundlegendes */
-.teacher-smiley-btn, .smiley-btn, .btn-smiley {
-    min-width: 88px;
-    padding: 0.6rem 0.75rem;
-    border-radius: 10px;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    box-shadow: 0 6px 18px rgba(20,20,50,0.06);
-    transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
-    cursor: pointer;
+/* Haupt-Card */
+.main-card {
     border: none;
-    background: linear-gradient(180deg, #fff 0%, #f8f9fa 100%);
-}
-
-.teacher-smiley-btn:hover, .smiley-btn:hover, .btn-smiley:hover {
-    transform: translateY(-4px) scale(1.03);
-    box-shadow: 0 10px 30px rgba(20,20,50,0.12);
-}
-
-.teacher-smiley-btn.btn-primary, .btn-smiley.active {
-    background: linear-gradient(90deg, var(--primary) 0%, #0b5ed7 100%);
-    color: #fff;
-}
-
-.teacher-smiley-btn i, .smiley-btn i {
-    font-size: 1.8rem;
-}
-
-.teacher-smiley-btn .small, .smiley-btn .small {
-    font-size: 0.75rem;
-}
-
-/* Karten & Allgemeines */
-.card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     overflow: hidden;
 }
-.card-header {
-    background: linear-gradient(90deg, rgba(13,110,253,0.98), rgba(11,94,215,0.9));
-    color: #fff;
-    border-bottom: none;
-    padding: 1rem 1.25rem;
-}
-.card-header .mb-0 { font-weight: 600; }
-.card-body { padding: 1.25rem; background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,251,252,0.98)); }
 
-/* Tabs moderner Look */
-.nav-tabs {
-    border-bottom: none;
+.main-card .card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    padding: 1rem 1.5rem;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-info {
+    flex: 1;
+}
+
+.header-info h5 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.class-info {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.class-info .badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white !important;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateX(-3px);
+}
+
+/* Info-Banner */
+.info-banners {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.info-banner {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.info-banner-primary {
+    background: linear-gradient(135deg, #e7f3ff 0%, #cfe7ff 100%);
+    color: #0056b3;
+}
+
+.info-banner-success {
+    background: linear-gradient(135deg, #d1f4e0 0%, #b8f0cf 100%);
+    color: #0f5132;
+}
+
+.info-banner-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+.info-banner-secondary {
+    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+    color: #383d41;
+}
+
+.info-banner i {
+    font-size: 1.1rem;
+}
+
+/* Fortschrittsanzeige */
+.progress-section {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.progress-label {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.progress-text {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.progress {
+    height: 8px;
+    border-radius: 10px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--info) 100%);
+    transition: width 0.4s ease;
+    font-size: 0.7rem;
+    line-height: 8px;
+    text-align: center;
+    color: transparent;
+}
+
+/* Schüler-Navigation */
+.student-navigation {
+    margin-bottom: 1.5rem;
+}
+
+.student-select {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.student-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.student-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+
+.student-pills .nav-item {
+    margin: 0;
+}
+
+.student-pills .nav-link {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    background: white;
+    color: var(--dark);
+    font-weight: 500;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.student-pills .nav-link:hover {
+    border-color: var(--primary);
+    background: #f0f7ff;
+    transform: translateY(-2px);
+}
+
+.student-pills .nav-link.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+/* Schüler Header */
+.student-header {
+    margin-bottom: 1.5rem;
+}
+
+.student-info-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.student-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.student-details {
+    flex: 1;
+}
+
+.student-details h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.student-info-card .badge {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+}
+
+/* Fragen-Karten */
+.question-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: var(--transition);
+    scroll-margin-top: 20px;
+}
+
+.question-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.question-card.highlight-question {
+    animation: highlightPulse 1.5s ease;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.3);
+}
+
+@keyframes highlightPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(13, 110, 253, 0.2);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+        transform: scale(1);
+    }
+}
+
+.question-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.question-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.question-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    flex: 1;
+}
+
+.question-body {
+    padding: 1.25rem;
+}
+
+/* Schüler-Antwort Bereich */
+.student-answer-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.section-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.student-answer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.student-answer i {
+    font-size: 1.5rem;
+}
+
+.no-answer {
+    color: var(--muted);
+    font-style: italic;
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
 }
-.nav-tabs .nav-item .nav-link {
-    background: transparent;
-    border: none;
-    color: #6c757d;
-    padding: 0.55rem 0.85rem;
+
+/* Lehrer-Einschätzung */
+.teacher-section {
+    margin-top: 1rem;
+}
+
+.rating-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.rating-btn {
+    flex: 1;
+    min-width: 60px;
+    max-width: 80px;
+    padding: 0.75rem 0.5rem;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.rating-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary);
+}
+
+.rating-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 4px 16px rgba(13, 110, 253, 0.4);
+}
+
+.rating-btn i {
+    font-size: 1.5rem;
+}
+
+.rating-btn.active i {
+    color: white !important;
+}
+
+.rating-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Kommentar-Bereich */
+.comment-section {
+    margin-top: 1rem;
+}
+
+.comment-input {
     border-radius: 8px;
-    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
-}
-.nav-tabs .nav-item .nav-link:hover { background: rgba(13,110,253,0.06); transform: translateY(-2px); }
-.nav-tabs .nav-item .nav-link.active {
-    background: linear-gradient(90deg, var(--primary) 0%, #0b5ed7 100%);
-    color: #fff;
-    box-shadow: 0 8px 24px rgba(13,110,253,0.14);
+    border: 2px solid #e9ecef;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    transition: var(--transition);
+    resize: vertical;
 }
 
-/* Alerts */
-.alert { border-radius: 10px; }
-.alert-info { background: linear-gradient(90deg, #e9f2ff, #f7fbff); color: #08325a; }
-.alert-warning { background: linear-gradient(90deg,#fff4e5,#fffaf0);}
+.comment-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
 
-/* Kommentar-Textarea */
-.form-control { border-radius: 8px; box-shadow: none; border: 1px solid #e6e9ef; }
-.form-control:focus { border-color: var(--primary); box-shadow: 0 6px 18px rgba(13,110,253,0.08); }
+/* Sticky Footer */
+.action-footer {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 1rem;
+    margin: 1.5rem -0.5rem -0.5rem;
+    border-top: 2px solid #e9ecef;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+}
 
-/* Abschluss-Button */
-#completeButton { padding: 0.8rem 1.4rem; border-radius: 10px; font-size: 1.05rem; }
-#completeButton[disabled] { opacity: 0.6; transform: none; }
-#completeHint { margin-top: 0.6rem; }
+.btn-action {
+    flex: 1;
+    max-width: 250px;
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-action:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-action i {
+    font-size: 1.1rem;
+}
 
 /* Responsive Anpassungen */
-@media (max-width: 768px) {
-    .teacher-smiley-btn { min-width: 64px; padding: 0.45rem; }
-    .card-header { padding: 0.75rem; }
+@media (max-width: 767px) {
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .back-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .info-banners {
+        flex-direction: column;
+    }
+
+    .student-info-card {
+        flex-wrap: wrap;
+    }
+
+    .rating-buttons {
+        gap: 0.4rem;
+    }
+
+    .rating-btn {
+        min-width: 50px;
+        padding: 0.6rem 0.4rem;
+    }
+
+    .rating-btn i {
+        font-size: 1.3rem;
+    }
+
+    .action-footer {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
 }
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* Tablet-spezifische Optimierungen */
+    .student-pills {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .rating-buttons {
+        gap: 0.75rem;
+    }
+
+    .rating-btn {
+        min-width: 70px;
+    }
+
+    .question-card {
+        margin-bottom: 1rem;
+    }
 
 </style>
 @endsection

@@ -416,6 +416,7 @@
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20251019') }}">
 <link rel="stylesheet" href="{{ asset('css/pausedToggle.css?v=20251019') }}">
+<link rel="stylesheet" href="{{ asset('css/tablet-scroll-optimization.css?v=20251110') }}">
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }
@@ -469,6 +470,7 @@
 @endpush
 
 @push('js')
+    <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
     <script src="{{ asset('/js/paedDiary/columns.js')}}"></script>
     <script src="{{ asset('/js/paedDiary/paedDiaryEntries.js')}}"></script>
     <script src="{{ asset('/js/paedDiary/stages.js')}}"></script>

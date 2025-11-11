@@ -351,6 +351,7 @@
 @endsection
 
 @push('css')
+<link rel="stylesheet" href="{{ asset('css/tablet-scroll-optimization.css?v=20251110') }}">
 <style>
 .card-title {
     font-size: 0.9rem;
@@ -389,6 +390,7 @@
 @endpush
 
 @push('js')
+<script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
 <script>
 (function(){
     const schuelerID = {{ $schueler->id }};
