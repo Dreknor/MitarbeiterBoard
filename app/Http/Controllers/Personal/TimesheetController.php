@@ -67,7 +67,7 @@ class TimesheetController extends Controller
 
         switch ($function){
             case 'lock':
-                if ($lock_timesheets and ($is_supervisor or $is_same_user)){
+                if ($is_same_user or ($lock_timesheets and $is_supervisor)){
 
                     return true;
                 }
