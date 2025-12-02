@@ -215,15 +215,16 @@
                                                         <p class="text-muted mb-3">
                                                             <strong>Lehrer:</strong> {{ $session->user->name }}
                                                         </p>
-
-                                                        <div class="table-responsive">
                                                             <table class="table table-sm table-bordered">
                                                                 <thead class="thead-light">
                                                                     <tr>
-                                                                        <th style="width: 50%;">Frage</th>
-                                                                        <th class="text-center">Selbsteinschätzung</th>
-                                                                        <th class="text-center">Lehrereinschätzung</th>
-                                                                        <th>Kommentar</th>
+                                                                        <th style="width: 40%;" rowspan="2">Frage</th>
+                                                                        <th style="width: 30%" colspan="2" class="align-center">Einschätzung</th>
+                                                                        <th rowspan="2">Kommentar</th>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <th style="width: 15%;">Schüler</th>
+                                                                        <th style="width: 15%;">Lehrer</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -299,7 +300,6 @@
                                                                     @endforeach
                                                                 </tbody>
                                                             </table>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
