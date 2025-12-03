@@ -163,6 +163,14 @@
                             </a>
                         </li>
                     @endcan
+                    @can('view diagnostics')
+                        <li class="@if(request()->segment(1)=="diagnostics") active @endif">
+                            <a href="{{route('diagnostic.index')}}">
+                                <i class="fas fa-clipboard-check"></i>
+                                <p>Diagnosebögen</p>
+                            </a>
+                        </li>
+                    @endcan
                     @can('edit inventar')
                         <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
                             <a data-toggle="collapse" href="#inventory">
@@ -593,6 +601,7 @@
     <script src="{{asset('js/plugins/perfect-scrollbar.jquery.min.js')}}"></script>
 
 
+
     <!-- Chart JS
     <script src="{{asset('js/plugins/chartjs.min.js')}}"></script>
     -->
@@ -603,6 +612,12 @@
     <!-- Control Center for Now Ui Dashboard: parallax effects, scripts for the example pages etc -->
     <script src="{{asset('js/paper-dashboard.min.js?v=2.0.0')}}"></script>
 
+
+<!-- Axios für AJAX-Requests -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- Alpine.js für reactive UI -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     @auth
         <script src="{{ asset('js/enable-push.js') }}" defer></script>
     @endauth
