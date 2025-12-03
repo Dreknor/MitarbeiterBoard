@@ -26,4 +26,4 @@ Homestead.json
 *.iml
 
 .idea/
-
+database/seeders/DiagnosticSeeder.php
