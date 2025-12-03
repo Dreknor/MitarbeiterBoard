@@ -18,9 +18,12 @@
                                     </b>
                                      {{$task->task}}
                                         <div class="pull-right ml-1">
-                                            <a href="{{url($task->theme->group->name.'/themes/'.$task->theme_id)}}" class="btn btn-sm btn-bg-gradient-x-blue-purple-1">
-                                                <i class="fas fa-external-link-alt"></i> zum Thema
-                                            </a>
+                                            @if($task->theme?->group)
+                                                <a href="{{url($task->theme?->group?->name.'/themes/'.$task->theme_id)}}" class="btn btn-sm btn-bg-gradient-x-blue-purple-1">
+                                                    <i class="fas fa-external-link-alt"></i> zum Thema
+                                                </a>
+                                            @endif
+
                                         </div>
                                 </p>
                                     <div class="pull-right">
