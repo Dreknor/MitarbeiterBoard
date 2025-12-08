@@ -43,6 +43,7 @@
                                     </thead>
                                     <tbody>
                                     @forelse($unapproved as $holiday)
+                                        @if($holiday->employe)
                                         <tr>
                                             <td>{{ $holiday->employe->name }}</td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
@@ -86,6 +87,7 @@
                                                 </div>
                                             </td>
                                         </tr>
+                                        @endif
                                     @empty
                                         <tr>
                                             <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
@@ -114,7 +116,8 @@
                                     </thead>
                                     <tbody>
                                     @forelse($holidays->where('approved', true) as $holiday)
-                                        <tr class="@foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach">
+                                        @if($holiday->employe)
+                                        <tr class="@if($holiday->employe->groups_rel) @foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach @endif">
                                             <td>{{ $holiday->employe->name }}</td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
@@ -148,6 +151,7 @@
                                                 @endif
                                             </td>
                                         </tr>
+                                        @endif
                                     @empty
                                         <tr>
                                             <td colspan="5" class="text-center">Keine genehmigten Anträge gefunden.</td>

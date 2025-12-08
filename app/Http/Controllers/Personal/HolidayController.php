@@ -38,11 +38,13 @@ class HolidayController extends Controller
         if (settings('show_holidays') == 1 or auth()->user()->can('approve holidays'))
         {
             $holidays = Holiday::query()
+                ->with(['employe', 'employe.groups_rel'])
                 ->whereBetween('start_date', [$startMonth, $endMonth])
                 ->orWhereBetween('end_date', [$startMonth, $endMonth])
                 ->get();
         }else{
             $holidays = Holiday::where('employe_id', auth()->id())
+                ->with(['employe', 'employe.groups_rel'])
                 ->whereBetween('start_date', [$startMonth, $endMonth])
                 ->orWhereBetween('end_date', [$startMonth, $endMonth])
                 ->get();
@@ -89,7 +91,7 @@ class HolidayController extends Controller
             'holidays' => $holidays,
             'month' => $startMonth,
             'users' => $users->sortBy('name'),
-            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::where('approved', false)->where('rejected', false)->get() : []
+            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::with(['employe', 'employe.groups_rel'])->where('approved', false)->where('rejected', false)->get() : []
         ]);
     }
 
@@ -322,6 +324,7 @@ class HolidayController extends Controller
         }
 
             $holidays = Holiday::query()
+                ->with(['employe', 'employe.groups_rel'])
                 ->whereBetween('start_date', [$startMonth, $endMonth])
                 ->orWhereBetween('end_date', [$startMonth, $endMonth])
                 ->get();
