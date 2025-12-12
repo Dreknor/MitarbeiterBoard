@@ -94,11 +94,24 @@ class DiagnosticController extends Controller
                 ->where('is_completed', true)
                 ->count();
 
+            // Aktuelle Ziele für diesen Bereich laden
+            $currentGoals = DiagnosticAssessment::join('diagnostic_sessions', 'diagnostic_assessments.diagnostic_session_id', '=', 'diagnostic_sessions.id')
+                ->join('diagnostic_goals', 'diagnostic_assessments.diagnostic_goal_id', '=', 'diagnostic_goals.id')
+                ->join('diagnostic_stages', 'diagnostic_goals.diagnostic_stage_id', '=', 'diagnostic_stages.id')
+                ->where('diagnostic_sessions.schueler_id', $schueler->id)
+                ->where('diagnostic_stages.diagnostic_area_id', $area->id)
+                ->where('diagnostic_assessments.is_current_goal', true)
+                ->select('diagnostic_goals.*', 'diagnostic_stages.name as stage_name')
+                ->orderBy('diagnostic_stages.sort_order')
+                ->orderBy('diagnostic_goals.code')
+                ->get();
+
             $areaStatus[$area->id] = [
                 'has_open_session' => (bool) $openSession,
                 'open_session' => $openSession,
                 'completed_count' => $completedCount,
                 'can_start' => $this->diagnosticService->canStartNewSession($schueler, $area),
+                'current_goals' => $currentGoals,
             ];
         }
 
@@ -205,6 +218,8 @@ class DiagnosticController extends Controller
                 'success' => true,
                 'message' => 'Bewertung gespeichert',
                 'assessment' => $assessment,
+                'assessment_id' => $assessment->id,
+                'is_current_goal' => $assessment->is_current_goal ?? false,
             ]);
         } catch (\Exception $e) {
             Log::error('Fehler beim Speichern der Bewertung: ' . $e->getMessage());
@@ -252,16 +267,50 @@ class DiagnosticController extends Controller
      */
     public function complete(DiagnosticSession $session)
     {
-        $this->authorize('complete', $session);
+        \Log::info('Complete session called', [
+            'session_id' => $session->id,
+            'user_id' => auth()->id(),
+            'is_completed' => $session->is_completed
+        ]);
 
         try {
-            $this->diagnosticService->completeSession($session);
+            $this->authorize('complete', $session);
+            \Log::info('Authorization passed');
+        } catch (\Exception $e) {
+            \Log::error('Authorization failed', [
+                'error' => $e->getMessage(),
+                'session_id' => $session->id,
+                'user_id' => auth()->id()
+            ]);
+
+            return redirect()->back()->with([
+                'type' => 'error',
+                'Meldung' => 'Sie haben keine Berechtigung, diese Session abzuschließen.',
+            ]);
+        }
+
+        try {
+            $result = $this->diagnosticService->completeSession($session);
+            \Log::info('Session completion result', ['result' => $result]);
+
+            if (!$result) {
+                throw new \Exception('Session konnte nicht aktualisiert werden');
+            }
+
+            // Session neu laden um sicherzustellen dass der Status aktualisiert wurde
+            $session->refresh();
+            \Log::info('Session refreshed', ['is_completed' => $session->is_completed]);
 
             return redirect()->route('diagnostic.areas', $session->schueler_id)->with([
                 'type' => 'success',
                 'Meldung' => 'Session erfolgreich abgeschlossen.',
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error completing session', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return redirect()->back()->with([
                 'type' => 'error',
                 'Meldung' => 'Fehler beim Abschließen der Session: ' . $e->getMessage()

@@ -729,13 +729,36 @@ Route::group([
                         Route::post('/session/{session}/reopen', [\App\Http\Controllers\DiagnosticController::class, 'reopen'])
                             ->name('reopen')
                             ->middleware('permission:manage diagnostics');
-                    });
 
-                    // Diagnosebögen Admin
-                    Route::middleware(['permission:manage diagnostics'])->prefix('admin/diagnostics')->name('diagnostic.admin.')->group(function () {
-                        Route::get('/', [\App\Http\Controllers\DiagnosticAdminController::class, 'index'])->name('index');
+                        // PDF-Export
+                        Route::get('/session/{session}/export-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportSessionPdf'])->name('export-session-pdf');
+                        Route::get('/schueler/{schueler}/area/{area}/export-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportStudentAreaPdf'])->name('export-area-pdf');
+                        Route::get('/area/{area}/blank-form-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportBlankFormPdf'])->name('export-blank-form-pdf');
 
-                        // Areas
+                        // Admin Section
+                        Route::middleware(['permission:manage diagnostics'])->prefix('admin')->name('admin.')->group(function () {
+                            Route::get('/', [\App\Http\Controllers\DiagnosticAdminController::class, 'index'])->name('index');
+
+                            // Areas
+                            Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
+                            Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
+                            Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
+                            Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
+
+                            // Stages
+                            Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
+                            Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
+                            Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
+                            Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
+
+                            // Goals
+                            Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
+                            Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
+                            Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
+                            Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                        });
+
+                        // Legacy routes for backward compatibility (deprecated)
                         Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
                         Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
                         Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');

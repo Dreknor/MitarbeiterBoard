@@ -114,15 +114,40 @@ class DiagnosticService
      */
     public function saveAssessment(DiagnosticSession $session, DiagnosticGoal $goal, ?string $rating): DiagnosticAssessment
     {
+        // Vorhandene Bewertung laden, falls vorhanden
+        $assessment = DiagnosticAssessment::where([
+            'diagnostic_session_id' => $session->id,
+            'diagnostic_goal_id' => $goal->id,
+        ])->first();
+
+        $data = [
+            'rating' => $rating,
+            'saved_at' => now(),
+        ];
+
+        // Wenn das Ziel von grau (aktuelles Ziel) zu weiß (erreicht) wechselt,
+        // dann is_current_goal auf false setzen
+        if ($assessment) {
+            $oldRating = $assessment->rating;
+
+            // Von grau (aktuelles Ziel) zu weiß (erreicht) -> kein aktuelles Ziel mehr
+            if ($oldRating === 'gray' && $rating === 'white') {
+                $data['is_current_goal'] = false;
+                \Log::info('Ziel erreicht - entferne von aktuellen Zielen', [
+                    'session_id' => $session->id,
+                    'goal_id' => $goal->id,
+                    'old_rating' => $oldRating,
+                    'new_rating' => $rating,
+                ]);
+            }
+        }
+
         return DiagnosticAssessment::updateOrCreate(
             [
                 'diagnostic_session_id' => $session->id,
                 'diagnostic_goal_id' => $goal->id,
             ],
-            [
-                'rating' => $rating,
-                'saved_at' => now(),
-            ]
+            $data
         );
     }
 
@@ -147,10 +172,28 @@ class DiagnosticService
      */
     public function completeSession(DiagnosticSession $session): bool
     {
-        return $session->update([
+        \Log::info('DiagnosticService: Completing session', [
+            'session_id' => $session->id,
+            'current_is_completed' => $session->is_completed
+        ]);
+
+        $result = $session->update([
             'is_completed' => true,
             'completed_at' => now(),
         ]);
+
+        \Log::info('DiagnosticService: Update result', [
+            'result' => $result,
+            'is_completed_after' => $session->is_completed,
+            'completed_at' => $session->completed_at
+        ]);
+
+        if (!$result) {
+            \Log::error('DiagnosticService: Failed to update session');
+            throw new \Exception('Konnte Session nicht aktualisieren');
+        }
+
+        return $result;
     }
 
     /**

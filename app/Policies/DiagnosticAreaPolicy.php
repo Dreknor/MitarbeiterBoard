@@ -23,7 +23,16 @@ class DiagnosticAreaPolicy
      */
     public function view(User $user, DiagnosticArea $area): bool
     {
-        return $user->hasPermissionTo('manage diagnostics');
+        return $user->hasPermissionTo('view diagnostics') || $user->hasPermissionTo('manage diagnostics');
+    }
+
+    /**
+     * Determine whether the user can view a specific area (alias for view).
+     * Used by export controllers.
+     */
+    public function viewArea(User $user, DiagnosticArea $area): bool
+    {
+        return $user->hasPermissionTo('view diagnostics') || $user->hasPermissionTo('manage diagnostics');
     }
 
     /**

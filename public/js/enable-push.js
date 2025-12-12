@@ -2,7 +2,7 @@ initSW();
 
 
 function initSW() {
-    if (!"serviceWorker" in navigator) {
+    if (!("serviceWorker" in navigator)) {
         //service worker isn't supported
         console.log('service worker isn\'t supported');
         return;
@@ -10,7 +10,7 @@ function initSW() {
 
     //don't use it here if you use service worker
     //for other stuff.
-    if (!"PushManager" in window) {
+    if (!("PushManager" in window)) {
         //push isn't supported
         console.log('push isn\'t supported');
         return;

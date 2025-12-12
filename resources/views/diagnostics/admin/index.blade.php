@@ -44,6 +44,10 @@
                                         </button>
                                     </div>
                                     <div class="btn-group btn-group-sm">
+                                        <a href="{{ route('diagnostic.export-blank-form-pdf', $area->id) }}"
+                                           class="btn btn-sm btn-info" target="_blank" title="Leerformular als PDF exportieren">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
                                         <button type="button" class="btn btn-sm btn-primary"
                                                 @click="openStageModal({{ $area->id }}, '{{ addslashes($area->name) }}')">
                                             <i class="fas fa-plus"></i> Stufe
@@ -261,11 +265,22 @@
         </div>
     </div>
 </div>
+@endsection
 
-@push('scripts')
+@push('js')
 <script>
-document.addEventListener('alpine:init', () => {
-    Alpine.data('diagnosticAdmin', () => ({
+// Warten auf Alpine.js
+(function() {
+    function initDiagnosticAdmin() {
+        if (typeof Alpine === 'undefined') {
+            // Alpine ist noch nicht geladen, versuche es später erneut
+            setTimeout(initDiagnosticAdmin, 50);
+            return;
+        }
+
+        // Alpine ist geladen, registriere die Komponente
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('diagnosticAdmin', () => ({
         areaModalTitle: 'Neuer Bereich',
         areaForm: { id: null, name: '', description: '', active: true },
 
@@ -291,8 +306,8 @@ document.addEventListener('alpine:init', () => {
         async saveArea() {
             try {
                 const url = this.areaForm.id
-                    ? `/admin/diagnostics/areas/${this.areaForm.id}`
-                    : '/admin/diagnostics/areas';
+                    ? `/diagnostics/admin/areas/${this.areaForm.id}`
+                    : '/diagnostics/admin/areas';
 
                 const method = this.areaForm.id ? 'put' : 'post';
 
@@ -312,7 +327,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             try {
-                await axios.delete(`/admin/diagnostics/areas/${id}`);
+                await axios.delete(`/diagnostics/admin/areas/${id}`);
                 window.location.reload();
             } catch (error) {
                 console.error('Fehler:', error);
@@ -336,8 +351,8 @@ document.addEventListener('alpine:init', () => {
         async saveStage() {
             try {
                 const url = this.stageForm.id
-                    ? `/admin/diagnostics/stages/${this.stageForm.id}`
-                    : `/admin/diagnostics/areas/${this.stageForm.area_id}/stages`;
+                    ? `/diagnostics/admin/stages/${this.stageForm.id}`
+                    : `/diagnostics/admin/areas/${this.stageForm.area_id}/stages`;
 
                 const method = this.stageForm.id ? 'put' : 'post';
 
@@ -357,7 +372,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             try {
-                await axios.delete(`/admin/diagnostics/stages/${id}`);
+                await axios.delete(`/diagnostics/admin/stages/${id}`);
                 window.location.reload();
             } catch (error) {
                 console.error('Fehler:', error);
@@ -381,8 +396,8 @@ document.addEventListener('alpine:init', () => {
         async saveGoal() {
             try {
                 const url = this.goalForm.id
-                    ? `/admin/diagnostics/goals/${this.goalForm.id}`
-                    : `/admin/diagnostics/stages/${this.goalForm.stage_id}/goals`;
+                    ? `/diagnostics/admin/goals/${this.goalForm.id}`
+                    : `/diagnostics/admin/stages/${this.goalForm.stage_id}/goals`;
 
                 const method = this.goalForm.id ? 'put' : 'post';
 
@@ -402,7 +417,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             try {
-                await axios.delete(`/admin/diagnostics/goals/${id}`);
+                await axios.delete(`/diagnostics/admin/goals/${id}`);
                 window.location.reload();
             } catch (error) {
                 console.error('Fehler:', error);
@@ -410,8 +425,12 @@ document.addEventListener('alpine:init', () => {
             }
         }
     }));
-});
+        });
+    }
+
+    // Starte die Initialisierung
+    initDiagnosticAdmin();
+})();
 </script>
 @endpush
-@endsection
 
