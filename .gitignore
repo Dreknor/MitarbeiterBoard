@@ -28,3 +28,5 @@ Homestead.json
 
 .idea/
 database/seeders/DiagnosticSeeder.php
+
+/public/build
