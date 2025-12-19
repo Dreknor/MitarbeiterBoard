@@ -61,9 +61,49 @@ class DiagnosticController extends Controller
 
         $schueler = $klasse->schueler()->orderBy('nachname')->orderBy('vorname')->get();
 
+        // Für jeden Schüler zusätzliche Diagnosedaten laden
+        $schuelerData = [];
+        foreach ($schueler as $s) {
+            // Aktuelle Ziele des Schülers
+            $currentGoals = DiagnosticAssessment::join('diagnostic_sessions', 'diagnostic_assessments.diagnostic_session_id', '=', 'diagnostic_sessions.id')
+                ->join('diagnostic_goals', 'diagnostic_assessments.diagnostic_goal_id', '=', 'diagnostic_goals.id')
+                ->join('diagnostic_stages', 'diagnostic_goals.diagnostic_stage_id', '=', 'diagnostic_stages.id')
+                ->join('diagnostic_areas', 'diagnostic_stages.diagnostic_area_id', '=', 'diagnostic_areas.id')
+                ->where('diagnostic_sessions.schueler_id', $s->id)
+                ->where('diagnostic_assessments.is_current_goal', true)
+                ->select(
+                    'diagnostic_goals.*',
+                    'diagnostic_stages.name as stage_name',
+                    'diagnostic_areas.name as area_name',
+                    'diagnostic_areas.id as area_id'
+                )
+                ->orderBy('diagnostic_areas.sort_order')
+                ->orderBy('diagnostic_stages.sort_order')
+                ->orderBy('diagnostic_goals.code')
+                ->get();
+
+            // Letzte abgeschlossene Session
+            $lastSession = DiagnosticSession::where('schueler_id', $s->id)
+                ->where('is_completed', true)
+                ->orderBy('completed_at', 'desc')
+                ->first();
+
+            // Anzahl offener Sessions
+            $openSessionsCount = DiagnosticSession::where('schueler_id', $s->id)
+                ->where('is_completed', false)
+                ->count();
+
+            $schuelerData[$s->id] = [
+                'current_goals' => $currentGoals,
+                'last_session' => $lastSession,
+                'open_sessions_count' => $openSessionsCount,
+            ];
+        }
+
         return view('diagnostics.students', [
             'klasse' => $klasse,
             'schueler' => $schueler,
+            'schuelerData' => $schuelerData,
         ]);
     }
 

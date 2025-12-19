@@ -64,8 +64,9 @@
                     <span class="ml-2 text-sm font-normal text-gray-500">({{ $schueler->count() }} {{ $schueler->count() == 1 ? 'Schüler' : 'Schüler' }})</span>
                 </h2>
             </div>
-            <div class="overflow-x-auto">
-                <table class="table-diagnostic">
+            <div class="overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-8">
+                <div class="inline-block min-w-full align-middle">
+                    <table class="table-diagnostic min-w-full">
                     <thead>
                         <tr>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -75,7 +76,13 @@
                                 Vorname
                             </th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                Geburtsdatum
+                                Status
+                            </th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Aktuelle Ziele
+                            </th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Letzte Erfassung
                             </th>
                             <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                 Aktionen
@@ -84,6 +91,12 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($schueler as $s)
+                            @php
+                                $data = $schuelerData[$s->id] ?? [];
+                                $currentGoals = $data['current_goals'] ?? collect();
+                                $lastSession = $data['last_session'] ?? null;
+                                $openSessionsCount = $data['open_sessions_count'] ?? 0;
+                            @endphp
                             <tr class="hover:bg-blue-50 transition-colors duration-150">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">{{ $s->nachname }}</div>
@@ -92,12 +105,69 @@
                                     <div class="text-sm text-gray-700">{{ $s->vorname }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-500 flex items-center">
-                                        <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                        </svg>
-                                        {{ $s->geburtsdatum ? $s->geburtsdatum->format('d.m.Y') : '-' }}
-                                    </div>
+                                    @if($openSessionsCount > 0)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            {{ $openSessionsCount }} offen
+                                        </span>
+                                    @elseif($lastSession)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Erfasst
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                            Noch keine Erfassung
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if($currentGoals->isNotEmpty())
+                                        <div class="space-y-1">
+                                            @foreach($currentGoals->take(3) as $goal)
+                                                @php
+                                                    // Farbpalette für verschiedene Bereiche
+                                                    $colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+                                                    $areaColor = $colors[($goal->area_id - 1) % count($colors)];
+                                                @endphp
+                                                <div class="flex items-start text-xs">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-2 flex-shrink-0"
+                                                          style="background-color: {{ $areaColor }}20; color: {{ $areaColor }}; border: 1px solid {{ $areaColor }}40;">
+                                                        {{ $goal->code }}
+                                                    </span>
+                                                    <span class="text-gray-700 line-clamp-1">{{$goal->description}}</span>
+                                                </div>
+                                            @endforeach
+                                            @if($currentGoals->count() > 3)
+                                                <div class="text-xs text-gray-500 italic">
+                                                    + {{ $currentGoals->count() - 3 }} weitere {{ $currentGoals->count() - 3 === 1 ? 'Ziel' : 'Ziele' }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-sm text-gray-400 italic">Keine aktuellen Ziele</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($lastSession)
+                                        <div class="text-sm text-gray-700">
+                                            <div class="flex items-center">
+                                                <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                </svg>
+                                                {{ $lastSession->completed_at->format('d.m.Y') }}
+                                            </div>
+                                            <div class="text-xs text-gray-500 ml-5">
+                                                {{ $lastSession->completed_at->diffForHumans() }}
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span class="text-sm text-gray-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <a href="{{ route('diagnostic.areas', $s->id) }}"
@@ -112,6 +182,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     @endif

@@ -238,6 +238,197 @@ Alpine.data('diagnosticAdmin', () => ({
 }));
 
 
+// Diagnostic Admin Component
+Alpine.data('diagnosticAdmin', () => ({
+    // Inline form states (instead of modals)
+    showAreaForm: false,
+    showStageForm: {},
+    showGoalForm: {},
+
+    // Collapse states
+    expandedAreas: {},
+    expandedStages: {},
+
+
+    // Forms
+    areaForm: { id: null, name: '', description: '', active: true },
+    stageForm: { id: null, area_id: null, name: '', code: '', goal_description: '' },
+    goalForm: { id: null, stage_id: null, code: '', description: '' },
+
+    // Toggle Methods
+    toggleArea(areaId) {
+        this.expandedAreas[areaId] = !this.expandedAreas[areaId];
+    },
+
+    toggleStage(stageId) {
+        this.expandedStages[stageId] = !this.expandedStages[stageId];
+    },
+
+    isAreaExpanded(areaId) {
+        return this.expandedAreas[areaId] === true;
+    },
+
+    isStageExpanded(stageId) {
+        return this.expandedStages[stageId] === true;
+    },
+
+    // Area Methods
+    openAreaForm() {
+        this.areaForm = { id: null, name: '', description: '', active: true };
+        this.showAreaForm = true;
+    },
+
+    closeAreaForm() {
+        this.showAreaForm = false;
+        this.areaForm = { id: null, name: '', description: '', active: true };
+    },
+
+    editArea(id, name, description, active) {
+        this.areaForm = { id, name, description, active };
+        this.showAreaForm = true;
+        // Scroll to form
+        setTimeout(() => {
+            document.getElementById('area-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    },
+
+    async saveArea() {
+        try {
+            const url = this.areaForm.id
+                ? `/diagnostics/areas/${this.areaForm.id}`
+                : '/diagnostics/areas';
+
+            const method = this.areaForm.id ? 'put' : 'post';
+
+            await axios[method](url, this.areaForm);
+
+            this.closeAreaForm();
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern: ' + (error.response?.data?.message || error.message));
+        }
+    },
+
+    async deleteArea(id, name) {
+        if (!confirm(`Bereich "${name}" wirklich löschen? Alle Stufen und Ziele werden ebenfalls gelöscht!`)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`/diagnostics/areas/${id}`);
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Löschen: ' + (error.response?.data?.message || error.message));
+        }
+    },
+
+    // Stage Methods
+    openStageForm(areaId) {
+        this.stageForm = { id: null, area_id: areaId, name: '', code: '', goal_description: '' };
+        this.showStageForm[areaId] = true;
+    },
+
+    closeStageForm(areaId) {
+        this.showStageForm[areaId] = false;
+        this.stageForm = { id: null, area_id: null, name: '', code: '', goal_description: '' };
+    },
+
+    editStage(id, areaId, name, code, goalDescription) {
+        this.stageForm = { id, area_id: areaId, name, code, goal_description: goalDescription };
+        this.showStageForm[areaId] = true;
+        this.expandedAreas[areaId] = true;
+        setTimeout(() => {
+            document.getElementById(`stage-form-${areaId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    },
+
+    async saveStage() {
+        try {
+            const url = this.stageForm.id
+                ? `/diagnostics/admin/stages/${this.stageForm.id}`
+                : `/diagnostics/admin/areas/${this.stageForm.area_id}/stages`;
+
+            const method = this.stageForm.id ? 'put' : 'post';
+
+            await axios[method](url, this.stageForm);
+
+            this.closeStageForm(this.stageForm.area_id);
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern: ' + (error.response?.data?.message || error.message));
+        }
+    },
+
+    async deleteStage(id, name) {
+        if (!confirm(`Stufe "${name}" wirklich löschen? Alle Ziele werden ebenfalls gelöscht!`)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`/diagnostics/admin/stages/${id}`);
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Löschen: ' + (error.response?.data?.message || error.message));
+        }
+    },
+
+    // Goal Methods
+    openGoalForm(stageId) {
+        this.goalForm = { id: null, stage_id: stageId, code: '', description: '' };
+        this.showGoalForm[stageId] = true;
+    },
+
+    closeGoalForm(stageId) {
+        this.showGoalForm[stageId] = false;
+        this.goalForm = { id: null, stage_id: null, code: '', description: '' };
+    },
+
+    editGoal(id, stageId, code, description) {
+        this.goalForm = { id, stage_id: stageId, code, description };
+        this.showGoalForm[stageId] = true;
+        this.expandedStages[stageId] = true;
+        setTimeout(() => {
+            document.getElementById(`goal-form-${stageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    },
+
+    async saveGoal() {
+        try {
+            const url = this.goalForm.id
+                ? `/diagnostics/admin/goals/${this.goalForm.id}`
+                : `/diagnostics/admin/stages/${this.goalForm.stage_id}/goals`;
+
+            const method = this.goalForm.id ? 'put' : 'post';
+
+            await axios[method](url, this.goalForm);
+
+            this.closeGoalForm(this.goalForm.stage_id);
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern: ' + (error.response?.data?.message || error.message));
+        }
+    },
+
+    async deleteGoal(id, code) {
+        if (!confirm(`Ziel "${code}" wirklich löschen?`)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`/diagnostics/admin/goals/${id}`);
+            window.location.reload();
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Löschen: ' + (error.response?.data?.message || error.message));
+        }
+    }
+}));
+
 // Enable tooltips initialization (if using a tooltip library)
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize any third-party components here
