@@ -657,6 +657,13 @@ Route::group([
                     Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class, 'restoreColumn'])->name('paedDiary.column.restore');
                     Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportExcel'])->name('paedDiary.export.excel');
+
+                    // Kategorieverwaltung
+                    Route::get('paed-diary/categories', [\App\Http\Controllers\PaedDiaryController::class, 'getCategories'])->name('paedDiary.categories.index');
+                    Route::put('paed-diary/categories/{category}/rename', [\App\Http\Controllers\PaedDiaryController::class, 'renameCategory'])->name('paedDiary.categories.rename');
+                    Route::delete('paed-diary/categories/{category}', [\App\Http\Controllers\PaedDiaryController::class, 'deleteCategory'])->name('paedDiary.categories.delete');
+                    Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
+
                     // Neue Gruppen-Routen
                     Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'classGroups'])->name('paedDiary.classGroups.index');
                     Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'storeClassGroup'])->name('paedDiary.classGroups.store');
@@ -704,6 +711,77 @@ Route::group([
                         Route::post('session/{session}/cancel', [\App\Http\Controllers\GradingDocumentationController::class, 'cancelSession'])->name('cancelSession');
                         Route::get('session/{session}/data', [\App\Http\Controllers\GradingDocumentationController::class, 'getSessionData'])->name('sessionData');
                         Route::get('schueler/{schueler}/documentations', [\App\Http\Controllers\GradingDocumentationController::class, 'showSchuelerDocumentations'])->name('schuelerDocumentations');
+                    });
+
+                    // Diagnosebögen System
+                    Route::middleware(['permission:view diagnostics'])->prefix('diagnostics')->name('diagnostic.')->group(function () {
+                        Route::get('/', [\App\Http\Controllers\DiagnosticController::class, 'index'])->name('index');
+                        Route::get('/klasse/{klasse}/students', [\App\Http\Controllers\DiagnosticController::class, 'selectStudent'])->name('students');
+                        Route::get('/schueler/{schueler}/areas', [\App\Http\Controllers\DiagnosticController::class, 'selectArea'])->name('areas');
+                        Route::post('/schueler/{schueler}/area/{area}/start', [\App\Http\Controllers\DiagnosticController::class, 'start'])->name('start');
+                        Route::get('/session/{session}', [\App\Http\Controllers\DiagnosticController::class, 'showSession'])->name('session');
+                        Route::post('/session/{session}/assess', [\App\Http\Controllers\DiagnosticController::class, 'saveAssessment'])->name('assess');
+                        Route::post('/session/{session}/stage/{stage}/note', [\App\Http\Controllers\DiagnosticController::class, 'saveStageNote'])->name('stage-note');
+                        Route::post('/session/{session}/complete', [\App\Http\Controllers\DiagnosticController::class, 'complete'])->name('complete');
+                        Route::get('/schueler/{schueler}/area/{area}/history', [\App\Http\Controllers\DiagnosticController::class, 'history'])->name('history');
+                        Route::get('/schueler/{schueler}/goals', [\App\Http\Controllers\DiagnosticController::class, 'currentGoals'])->name('current-goals');
+                        Route::post('/assessment/{assessment}/toggle-current', [\App\Http\Controllers\DiagnosticController::class, 'toggleCurrentGoal'])->name('toggle-current-goal');
+
+                        // Kommentare zu Zielen
+                        Route::post('/goal/{goal}/schueler/{schueler}/comment', [\App\Http\Controllers\DiagnosticController::class, 'storeGoalComment'])->name('goal-comment.store');
+                        Route::put('/comment/{comment}', [\App\Http\Controllers\DiagnosticController::class, 'updateGoalComment'])->name('goal-comment.update');
+                        Route::delete('/comment/{comment}', [\App\Http\Controllers\DiagnosticController::class, 'deleteGoalComment'])->name('goal-comment.delete');
+
+                        // Reopen nur für Admins
+                        Route::post('/session/{session}/reopen', [\App\Http\Controllers\DiagnosticController::class, 'reopen'])
+                            ->name('reopen')
+                            ->middleware('permission:manage diagnostics');
+
+                        // PDF-Export
+                        Route::get('/session/{session}/export-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportSessionPdf'])->name('export-session-pdf');
+                        Route::get('/schueler/{schueler}/area/{area}/export-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportStudentAreaPdf'])->name('export-area-pdf');
+                        Route::get('/area/{area}/blank-form-pdf', [\App\Http\Controllers\DiagnosticExportController::class, 'exportBlankFormPdf'])->name('export-blank-form-pdf');
+
+                        // Admin Section
+                        Route::middleware(['permission:manage diagnostics'])->prefix('admin')->name('admin.')->group(function () {
+                            Route::get('/', [\App\Http\Controllers\DiagnosticAdminController::class, 'index'])->name('index');
+
+                            // Areas
+                            Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
+                            Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
+                            Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
+                            Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
+
+                            // Stages
+                            Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
+                            Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
+                            Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
+                            Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
+
+                            // Goals
+                            Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
+                            Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
+                            Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
+                            Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                        });
+
+                        // Legacy routes for backward compatibility (deprecated)
+                        Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
+                        Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
+                        Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
+                        Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
+
+                        // Stages
+                        Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
+                        Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
+                        Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
+                        Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
+
+                        // Goals
+                        Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
+                        Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
+                        Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
+                        Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
                     });
                 });
 

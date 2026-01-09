@@ -21,6 +21,9 @@
     <!--<script src="https://kit.fontawesome.com/c8f58e3eb6.js"></script>-->
     <link href="{{asset('/css/all.css')}}" rel="stylesheet"> <!--load all styles -->
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
+
+
+
     @stack('css')
 
 </head>

@@ -194,6 +194,118 @@
                                         <i class="fas fa-info-circle"></i> Für diesen Schüler liegen noch keine Graduierungs-Dokumentationen vor.
                                     </div>
                                 @else
+                                    <!-- Entwicklungs-Übersicht -->
+                                    <div class="row mb-4">
+                                        <div class="col-lg-6 mb-3">
+                                            <div class="card">
+                                                <div class="card-header bg-primary text-white">
+                                                    <h6 class="mb-0">
+                                                        <i class="fas fa-chart-radar"></i> Aktuelle Kompetenzen (Letzte Session)
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <canvas id="radarChart" height="280"></canvas>
+                                                    <div class="text-center mt-2">
+                                                        <small class="text-muted">
+                                                            <span class="badge badge-info">●</span> Schüler-Einschätzung &nbsp;
+                                                            <span class="badge badge-success">●</span> Lehrer-Bewertung
+                                                        </small>
+                                                    </div>
+                                                    <div class="mt-3 pt-2 border-top">
+                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="d-flex justify-content-between align-items-center px-2">
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">1</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">2</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">3</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">4</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">5</small></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6 mb-3">
+                                            <div class="card">
+                                                <div class="card-header bg-success text-white">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0">
+                                                            <i class="fas fa-chart-line"></i> Entwicklung über Zeit
+                                                        </h6>
+                                                        <div class="d-flex align-items-center">
+                                                            <select id="lineChartQuestionSelector" class="form-control form-control-sm" style="max-width: 250px; background-color: white; color: #333;">
+                                                                <option value="average">Durchschnitt aller Fragen</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body">
+                                                    <canvas id="lineChart" height="280"></canvas>
+                                                    <div class="text-center mt-2">
+                                                        <small class="text-muted" id="lineChartDescription">Durchschnittliche Bewertung über alle Fragen</small>
+                                                    </div>
+                                                    <div class="mt-3 pt-2 border-top">
+                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="d-flex justify-content-between align-items-center px-2">
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">1</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">2</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">3</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">4</small></div>
+                                                            </div>
+                                                            <div class="text-center" style="flex: 1;">
+                                                                <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
+                                                                <div><small class="text-muted">5</small></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Schwierige Bereiche Zusammenfassung -->
+                                    <div class="card mb-4 border-warning">
+                                        <div class="card-header bg-warning">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-exclamation-triangle"></i> Entwicklungsbereiche
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="challengingAreas">
+                                                <div class="text-center text-muted">
+                                                    <i class="fas fa-spinner fa-spin"></i> Wird berechnet...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Einzelne Dokumentations-Sessions -->
+                                    <h6 class="mb-3"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
                                     <div class="accordion" id="documentationAccordion">
                                         @foreach($gradingSessions as $session)
                                             <div class="card mb-2">
@@ -386,10 +498,23 @@
     max-height: 70vh;
     overflow-y: auto;
 }
+/* Chart Styling */
+#radarChart, #lineChart {
+    max-height: 280px;
+}
+.challenging-area-item {
+    border-left: 3px solid #ffc107;
+    padding-left: 12px;
+    margin-bottom: 12px;
+}
+.progress-small {
+    height: 8px;
+}
 </style>
 @endpush
 
 @push('js')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
 <script>
 (function(){
@@ -892,6 +1017,374 @@
 
     // Initial load
     loadData();
+
+    // ===== Graduierungs-Visualisierung =====
+    // Daten für Graduierungen aus Blade-Template
+    const gradingSessions = @json($gradingSessions ?? []);
+
+    // Globale Variable für das Chart-Objekt
+    let lineChartInstance = null;
+
+    if (gradingSessions && gradingSessions.length > 0) {
+        initializeGraduationCharts();
+    }
+
+    function initializeGraduationCharts() {
+        // Letzte Session für Radar-Chart
+        const latestSession = gradingSessions[gradingSessions.length - 1];
+
+        // Extrahiere alle einzigartigen Fragen aus allen Sessions
+        const allQuestionsMap = new Map();
+        gradingSessions.forEach(session => {
+            const sessionQuestions = session.grading_system?.questions || [];
+            sessionQuestions.forEach(q => {
+                if (!allQuestionsMap.has(q.id)) {
+                    allQuestionsMap.set(q.id, q);
+                }
+            });
+        });
+        const allQuestions = Array.from(allQuestionsMap.values());
+
+        // Extrahiere Fragen aus letzter Session für Radar Chart
+        const questions = latestSession.grading_system?.questions || [];
+
+        // Bereite Daten für Radar-Chart vor (letzte Session)
+        const radarLabels = questions.map(q => truncateText(q.question, 30));
+        const studentRatings = [];
+        const teacherRatings = [];
+
+        questions.forEach(question => {
+            // Finde Student Answer
+            const studentAnswer = latestSession.student_answers?.find(
+                sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
+            );
+            studentRatings.push(studentAnswer?.self_rating || 0);
+
+            // Finde Teacher Assessment
+            const teacherAssessment = latestSession.teacher_assessments?.find(
+                ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
+            );
+            teacherRatings.push(teacherAssessment?.teacher_rating || 0);
+        });
+
+        // Erstelle Radar Chart
+        const radarCtx = document.getElementById('radarChart');
+        if (radarCtx) {
+            new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels: radarLabels,
+                    datasets: [{
+                        label: 'Schüler-Einschätzung',
+                        data: studentRatings,
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: 'rgba(23, 162, 184, 0.2)',
+                        pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(23, 162, 184, 1)'
+                    }, {
+                        label: 'Lehrer-Bewertung',
+                        data: teacherRatings,
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                        pointBackgroundColor: 'rgba(40, 167, 69, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(40, 167, 69, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            min: 0,
+                            ticks: {
+                                stepSize: 1
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const labels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
+                                    return context.dataset.label + ': ' + labels[context.parsed.r] + ' (' + context.parsed.r + ')';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fülle das Dropdown mit allen Fragen
+        populateQuestionSelector(allQuestions);
+
+        // Erstelle das Linien-Chart (Entwicklung über Zeit)
+        createLineChart('average', allQuestions);
+
+        // Analysiere schwierige Bereiche (Fragen mit niedrigen Bewertungen)
+        analyzeChallenges(questions, latestSession);
+    }
+
+
+    function populateQuestionSelector(questions) {
+        const selector = document.getElementById('lineChartQuestionSelector');
+        if (!selector) {
+            console.error('lineChartQuestionSelector nicht gefunden');
+            return;
+        }
+
+        // Behalte die "Durchschnitt"-Option
+        selector.innerHTML = '<option value="average">Durchschnitt aller Fragen</option>';
+
+        // Füge alle Fragen hinzu
+        questions.forEach((question) => {
+            const option = document.createElement('option');
+            option.value = question.id;
+            option.textContent = truncateText(question.question, 50);
+            selector.appendChild(option);
+        });
+
+
+        // Event-Listener für Änderungen
+        selector.addEventListener('change', function() {
+            const selectedValue = this.value;
+            createLineChart(selectedValue, questions);
+        });
+    }
+
+    function createLineChart(selectedOption, allQuestions) {
+        // Bereite Daten vor
+        const sessionDates = gradingSessions.map(s => {
+            const date = new Date(s.completed_at);
+            return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+        });
+
+        let studentRatingsData = [];
+        let teacherRatingsData = [];
+        let chartTitle = 'Durchschnittliche Bewertung über alle Fragen';
+
+        if (selectedOption === 'average') {
+            // Durchschnitt aller Fragen
+            gradingSessions.forEach(session => {
+                const questions = session.grading_system?.questions || [];
+                let studentSum = 0, studentCount = 0;
+                let teacherSum = 0, teacherCount = 0;
+
+                questions.forEach(question => {
+                    const studentAnswer = session.student_answers?.find(
+                        sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
+                    );
+                    if (studentAnswer && studentAnswer.self_rating) {
+                        studentSum += studentAnswer.self_rating;
+                        studentCount++;
+                    }
+
+                    const teacherAssessment = session.teacher_assessments?.find(
+                        ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
+                    );
+                    if (teacherAssessment && teacherAssessment.teacher_rating) {
+                        teacherSum += teacherAssessment.teacher_rating;
+                        teacherCount++;
+                    }
+                });
+
+                studentRatingsData.push(studentCount > 0 ? parseFloat((studentSum / studentCount).toFixed(2)) : null);
+                teacherRatingsData.push(teacherCount > 0 ? parseFloat((teacherSum / teacherCount).toFixed(2)) : null);
+            });
+        } else {
+            // Spezifische Frage
+            const selectedQuestionId = parseInt(selectedOption);
+            const selectedQuestion = allQuestions.find(q => q.id === selectedQuestionId);
+
+            if (selectedQuestion) {
+                chartTitle = truncateText(selectedQuestion.question, 60);
+
+                gradingSessions.forEach(session => {
+                    const studentAnswer = session.student_answers?.find(
+                        sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === selectedQuestionId
+                    );
+                    studentRatingsData.push(studentAnswer?.self_rating || null);
+
+                    const teacherAssessment = session.teacher_assessments?.find(
+                        ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === selectedQuestionId
+                    );
+                    teacherRatingsData.push(teacherAssessment?.teacher_rating || null);
+                });
+            }
+        }
+
+        // Aktualisiere die Beschreibung
+        const descriptionElement = document.getElementById('lineChartDescription');
+        if (descriptionElement) {
+            descriptionElement.textContent = chartTitle;
+        }
+
+        // Erstelle oder aktualisiere das Chart
+        const lineCtx = document.getElementById('lineChart');
+        if (lineCtx) {
+            // Zerstöre das alte Chart, falls vorhanden
+            if (lineChartInstance) {
+                lineChartInstance.destroy();
+            }
+
+            // Erstelle neues Chart
+            lineChartInstance = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: sessionDates,
+                    datasets: [{
+                        label: 'Schüler-Einschätzung',
+                        data: studentRatingsData,
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        spanGaps: true
+                    }, {
+                        label: 'Lehrer-Bewertung',
+                        data: teacherRatingsData,
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            min: 0,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const labels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
+                                    const value = context.parsed.y;
+                                    if (value === null || value === 0) {
+                                        return context.dataset.label + ': Keine Bewertung';
+                                    }
+                                    const labelText = Math.round(value) >= 1 && Math.round(value) <= 5 ? labels[Math.round(value)] : '';
+                                    return context.dataset.label + ': ' + value + (labelText ? ' (' + labelText + ')' : '');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function analyzeChallenges(questions, latestSession) {
+        const challengeData = [];
+
+        questions.forEach(question => {
+            const studentAnswer = latestSession.student_answers?.find(
+                sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
+            );
+            const teacherAssessment = latestSession.teacher_assessments?.find(
+                ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
+            );
+
+            const studentRating = studentAnswer?.self_rating || 0;
+            const teacherRating = teacherAssessment?.teacher_rating || 0;
+            const avgRating = (studentRating + teacherRating) / 2;
+
+            // Nur Fragen mit durchschnittlicher Bewertung unter 3 als "herausfordernd" markieren
+            if (avgRating > 0 && avgRating < 3) {
+                challengeData.push({
+                    question: question.question,
+                    studentRating: studentRating,
+                    teacherRating: teacherRating,
+                    avgRating: avgRating,
+                    comment: teacherAssessment?.comment || ''
+                });
+            }
+        });
+
+        // Sortiere nach niedrigster Durchschnittsbewertung
+        challengeData.sort((a, b) => a.avgRating - b.avgRating);
+
+        // Rendere Entwicklungsbereiche
+        const container = document.getElementById('challengingAreas');
+        if (container) {
+            if (challengeData.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle"></i> <strong>Ausgezeichnet!</strong>
+                        Alle Bereiche zeigen gute bis sehr gute Bewertungen. Weiter so!
+                    </div>
+                `;
+            } else {
+                let html = '<div class="row">';
+                challengeData.forEach((item, index) => {
+                    const ratingLabels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
+                    const progressPercent = (item.avgRating / 5) * 100;
+                    const progressColor = item.avgRating < 2 ? 'bg-danger' : 'bg-warning';
+
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="challenging-area-item">
+                                <h6 class="font-weight-bold mb-2">
+                                    <span class="badge badge-warning">${index + 1}</span> ${escapeHtml(item.question)}
+                                </h6>
+                                <div class="row mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Schüler:</small>
+                                        <strong>${ratingLabels[item.studentRating] || '-'}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Lehrer:</small>
+                                        <strong>${ratingLabels[item.teacherRating] || '-'}</strong>
+                                    </div>
+                                </div>
+                                <div class="progress progress-small mb-2">
+                                    <div class="progress-bar ${progressColor}" role="progressbar"
+                                         style="width: ${progressPercent}%"
+                                         aria-valuenow="${item.avgRating}" aria-valuemin="0" aria-valuemax="5">
+                                    </div>
+                                </div>
+                                ${item.comment ? `<small class="text-muted"><i class="fas fa-comment"></i> ${escapeHtml(item.comment)}</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        }
+    }
+
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
 })();
 </script>
 @endpush

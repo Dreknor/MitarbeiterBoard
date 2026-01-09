@@ -24,6 +24,7 @@
 
     @stack('css')
 
+
     {{-- Paed-Diary spezifisches CSS nur auf dieser Route laden --}}
     @if(request()->segment(1) == 'paed-diary')
         <link href="{{ asset('css/paed-diary.css') }}" rel="stylesheet" />
@@ -161,6 +162,35 @@
                                 <i class="fas fa-calendar-week"></i>
                                 <p>Wochenübersicht</p>
                             </a>
+                        </li>
+                    @endcan
+                    @can('view diagnostics')
+                        <li class="@if(request()->segment(1)=="diagnostics") active @endif">
+                            <a data-toggle="collapse" href="#diagnostics">
+                                <p>
+                                    <i class="fas fa-clipboard-check"></i>
+                                    Diagnosebögen
+                                    <b class="caret"></b>
+                                </p>
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=="diagnostics") show @endif" id="diagnostics">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(1)=="diagnostics" && request()->segment(2)!="admin") active @endif">
+                                        <a href="{{route('diagnostic.index')}}">
+                                            <i class="fas fa-edit"></i>
+                                            <p>Erfassung</p>
+                                        </a>
+                                    </li>
+                                    @can('manage diagnostics')
+                                        <li class="@if(request()->segment(2)=="admin" && request()->segment(1)=="diagnostics") active @endif">
+                                            <a href="{{route('diagnostic.admin.index')}}">
+                                                <i class="fas fa-cog"></i>
+                                                <p>Verwaltung</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                </ul>
+                            </div>
                         </li>
                     @endcan
                     @can('edit inventar')
@@ -593,6 +623,7 @@
     <script src="{{asset('js/plugins/perfect-scrollbar.jquery.min.js')}}"></script>
 
 
+
     <!-- Chart JS
     <script src="{{asset('js/plugins/chartjs.min.js')}}"></script>
     -->
@@ -613,6 +644,7 @@
     @if(request()->segment(1) == 'paed-diary')
         <script src="{{ asset('js/paed-diary.js') }}"></script>
     @endif
+
 
 </body>
 </html>

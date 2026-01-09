@@ -299,6 +299,12 @@ class PaedDiaryController extends Controller
             }
         }catch(\Throwable $_){ $categories = []; }
 
+        // Benutzereinstellung für Kategorieanzeige
+        $showColumnCategories = false;
+        if (Schema::hasColumn('users', 'show_column_categories')) {
+            $showColumnCategories = (bool) $user->show_column_categories;
+        }
+
         return response()->json([
             'is_group' => $isGroup,
             'group' => $isGroup ? ['id' => $group->id, 'name' => $group->name] : null,
@@ -322,6 +328,7 @@ class PaedDiaryController extends Controller
             'tasks' => $tasks,
             'pauses' => $pauses,
             'categories' => $categories,
+            'show_column_categories' => $showColumnCategories,
         ]);
     }
 
@@ -1930,6 +1937,141 @@ class PaedDiaryController extends Controller
             $appointment->schueler()->sync($validSchueler);
         } else {
             $appointment->schueler()->sync([]);
+        }
+    }
+
+    /**
+     * Liefert alle Kategorien (global + user-spezifisch).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCategories(Request $request)
+    {
+        $user = Auth::user();
+        $categories = PaedDiaryCategory::where(function($q) use ($user) {
+            $q->whereNull('user_id')->orWhere('user_id', $user->id);
+        })->orderBy('name')->get(['id', 'name', 'user_id']);
+
+        return response()->json([
+            'categories' => $categories->map(fn($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'is_global' => is_null($c->user_id),
+                'can_edit' => is_null($c->user_id) ? false : ($c->user_id === $user->id)
+            ])
+        ]);
+    }
+
+    /**
+     * Benennt eine Kategorie um (nur user-spezifische Kategorien).
+     *
+     * @param PaedDiaryCategory $category
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function renameCategory(PaedDiaryCategory $category, Request $request)
+    {
+        $user = Auth::user();
+
+        // Nur user-spezifische Kategorien können umbenannt werden
+        if (is_null($category->user_id) || $category->user_id !== $user->id) {
+            return response()->json(['message' => 'Keine Berechtigung'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100']
+        ]);
+
+        $newName = trim($data['name']);
+
+        // Prüfen ob Name bereits existiert (für diesen User)
+        $exists = PaedDiaryCategory::where('name', $newName)
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $category->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['message' => 'Kategorie mit diesem Namen existiert bereits'], 422);
+        }
+
+        $category->name = $newName;
+        $category->save();
+
+        return response()->json(['success' => true, 'name' => $category->name]);
+    }
+
+    /**
+     * Löscht eine Kategorie (nur user-spezifische Kategorien).
+     * Einträge mit dieser Kategorie werden auf category_id=null gesetzt.
+     *
+     * @param PaedDiaryCategory $category
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteCategory(PaedDiaryCategory $category)
+    {
+        $user = Auth::user();
+
+        // Nur user-spezifische Kategorien können gelöscht werden
+        if (is_null($category->user_id) || $category->user_id !== $user->id) {
+            return response()->json(['message' => 'Keine Berechtigung'], 403);
+        }
+
+        // Alle Einträge mit dieser Kategorie auf null setzen
+        PaedDiaryEntry::where('category_id', $category->id)->update(['category_id' => null]);
+
+        // Spalten mit dieser Kategorie leeren (falls category-Feld existiert)
+        if (Schema::hasColumn('paed_diary_columns', 'category')) {
+            PaedDiaryColumn::where('category', $category->name)->update(['category' => null]);
+        }
+
+        $category->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Speichert oder aktualisiert die Benutzereinstellung für die Anzeige von Spalten-Kategorien.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateShowCategoriesSetting(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'show_column_categories' => ['required', 'boolean']
+            ]);
+
+            $user = Auth::user();
+
+            if (Schema::hasColumn('users', 'show_column_categories')) {
+                $user->show_column_categories = $data['show_column_categories'];
+                $user->save();
+
+                return response()->json([
+                    'success' => true,
+                    'show_column_categories' => $user->show_column_categories
+                ]);
+            }
+
+            Log::warning('show_column_categories column does not exist in users table');
+            return response()->json(['message' => 'Einstellung nicht verfügbar'], 400);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed for updateShowCategoriesSetting', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Validierungsfehler',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error updating show categories setting', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json(['message' => 'Ein Fehler ist aufgetreten'], 500);
         }
     }
 }

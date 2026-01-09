@@ -1,9 +1,15 @@
 module.exports = {
+  // Scan only diagnostic-related files to avoid conflicts
   content: [
-    "./resources/**/*.blade.php",
-    "./resources/**/*.js",
-    "./resources/**/*.vue",
+    "./resources/views/diagnostics/**/*.blade.php",
+    "./resources/js/diagnostics.js",
   ],
+  // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
+  corePlugins: {
+    preflight: false,
+  },
+  // Make Tailwind styles more specific to win over Bootstrap when needed
+  important: '.diagnostic-wrapper',
   theme: {
     extend: {
       colors: {
