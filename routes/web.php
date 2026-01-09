@@ -657,6 +657,13 @@ Route::group([
                     Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class, 'restoreColumn'])->name('paedDiary.column.restore');
                     Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportExcel'])->name('paedDiary.export.excel');
+
+                    // Kategorieverwaltung
+                    Route::get('paed-diary/categories', [\App\Http\Controllers\PaedDiaryController::class, 'getCategories'])->name('paedDiary.categories.index');
+                    Route::put('paed-diary/categories/{category}/rename', [\App\Http\Controllers\PaedDiaryController::class, 'renameCategory'])->name('paedDiary.categories.rename');
+                    Route::delete('paed-diary/categories/{category}', [\App\Http\Controllers\PaedDiaryController::class, 'deleteCategory'])->name('paedDiary.categories.delete');
+                    Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
+
                     // Neue Gruppen-Routen
                     Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'classGroups'])->name('paedDiary.classGroups.index');
                     Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'storeClassGroup'])->name('paedDiary.classGroups.store');

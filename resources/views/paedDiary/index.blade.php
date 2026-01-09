@@ -164,6 +164,22 @@
                 </div>
                 <div class="card-body py-2">
                     <div id="columnsFeedback" class="mb-2 small"></div>
+
+                    <!-- Kategorien-Verwaltung Bereich -->
+                    <div class="mb-3 border-bottom pb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 small font-weight-bold">Kategorien verwalten</h6>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="showCategoriesToggle">
+                                <label class="custom-control-label small" for="showCategoriesToggle">Kategorien in Wochenansicht anzeigen</label>
+                            </div>
+                        </div>
+                        <div id="categoriesList" class="mb-2"></div>
+                        <div id="categoriesFeedback" class="small text-muted"></div>
+                    </div>
+
+                    <!-- Spalten-Verwaltung Bereich -->
+                    <h6 class="mb-2 small font-weight-bold">Spalten verwalten</h6>
                     <div id="columnsList" class="mb-2 d-flex flex-wrap align-items-start"></div>
                     <form id="addColumnForm" class="form-inline small mb-2">
                         <input type="text" name="name" class="form-control form-control-sm mr-1 mb-1" placeholder="Name" required maxlength="50">
