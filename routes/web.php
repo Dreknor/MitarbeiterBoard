@@ -95,6 +95,10 @@ Route::get('image/{media_id}', [ImageController::class, 'getImage'])->name('imag
 
 Route::get('/vertretungsplan/withkey/{key}', [VertretungsplanController::class, 'allowAllIndex']);
 
+// Öffentliche Schüler-Dokumentation via QR-Code (ohne Anmeldung)
+Route::get('/paed-diary/documentation/public/{token}', [\App\Http\Controllers\GradingDocumentationController::class, 'showPublicStudentSession'])->name('gradingDocumentation.publicStudentSession');
+Route::post('/paed-diary/documentation/public/student-answer', [\App\Http\Controllers\GradingDocumentationController::class, 'savePublicStudentAnswer'])->name('gradingDocumentation.savePublicStudentAnswer');
+
 
 Route::get('/vertretungsplan/{key}/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
 Route::get('/vertretungsplan/{gruppen?}', [VertretungsplanController::class, 'index'])->where('gruppen','.+');
@@ -711,6 +715,9 @@ Route::group([
                         Route::post('session/{session}/cancel', [\App\Http\Controllers\GradingDocumentationController::class, 'cancelSession'])->name('cancelSession');
                         Route::get('session/{session}/data', [\App\Http\Controllers\GradingDocumentationController::class, 'getSessionData'])->name('sessionData');
                         Route::get('schueler/{schueler}/documentations', [\App\Http\Controllers\GradingDocumentationController::class, 'showSchuelerDocumentations'])->name('schuelerDocumentations');
+
+                        // QR-Code Token für öffentlichen Schüler-Zugriff
+                        Route::post('session/{session}/student/{schueler}/qr-token', [\App\Http\Controllers\GradingDocumentationController::class, 'generateStudentQRToken'])->name('generateQRToken');
                     });
 
                     // Diagnosebögen System

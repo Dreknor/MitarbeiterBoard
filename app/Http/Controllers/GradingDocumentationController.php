@@ -399,5 +399,133 @@ class GradingDocumentationController extends Controller
 
         return response()->json(['session' => $session]);
     }
+
+    /**
+     * Generiert einen temporären Token für QR-Code Zugriff auf Schüler-Dokumentation
+     */
+    public function generateStudentQRToken(GradingDocumentationSession $session, Schueler $schueler)
+    {
+        try {
+            $this->authorize('update', $session);
+
+            // Prüfen ob Schüler zur Session gehört
+            if ($session->type === 'individual' && $session->schueler_id !== $schueler->id) {
+                return response()->json([
+                    'message' => 'Schüler gehört nicht zu dieser Session'
+                ], 403);
+            }
+
+            if ($session->type === 'group' && $session->klasse_id !== $schueler->klasse_id) {
+                return response()->json([
+                    'message' => 'Schüler gehört nicht zu dieser Klasse'
+                ], 403);
+            }
+
+            // Token generieren (64 Zeichen, sicher)
+            $token = bin2hex(random_bytes(32));
+
+            // Token in der Datenbank speichern (mit Ablaufzeit 24 Stunden)
+            DB::table('grading_student_tokens')->insert([
+                'token' => $token,
+                'session_id' => $session->id,
+                'schueler_id' => $schueler->id,
+                'expires_at' => now()->addHours(24),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $url = route('gradingDocumentation.publicStudentSession', ['token' => $token]);
+
+            return response()->json([
+                'token' => $token,
+                'url' => $url,
+                'expires_at' => now()->addHours(24)->toIso8601String(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Fehler beim Generieren des QR-Tokens', [
+                'session_id' => $session->id ?? null,
+                'schueler_id' => $schueler->id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Fehler beim Generieren des Tokens: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Zeigt die öffentliche Schüler-Dokumentationsseite (ohne Anmeldung)
+     */
+    public function showPublicStudentSession($token)
+    {
+        // Token validieren
+        $tokenData = DB::table('grading_student_tokens')
+            ->where('token', $token)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$tokenData) {
+            abort(404, 'Ungültiger oder abgelaufener Token');
+        }
+
+        // Session und Schüler laden
+        $session = GradingDocumentationSession::with([
+            'gradingSystem.questions' => function($q) {
+                $q->where('active', true)->orderBy('sort_order');
+            },
+            'studentAnswers' => function($q) use ($tokenData) {
+                $q->where('schueler_id', $tokenData->schueler_id);
+            }
+        ])->findOrFail($tokenData->session_id);
+
+        $schueler = Schueler::findOrFail($tokenData->schueler_id);
+
+        return view('paedDiary.documentation.public-student-session', [
+            'token' => $token,
+            'session' => $session,
+            'schueler' => $schueler,
+            'questions' => $session->gradingSystem->questions,
+        ]);
+    }
+
+    /**
+     * Speichert eine Schülerantwort über den öffentlichen Token-Link
+     */
+    public function savePublicStudentAnswer(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'question_id' => 'required|exists:grading_questions,id',
+            'self_rating' => 'required|integer|min:1|max:5',
+        ]);
+
+        // Token validieren
+        $tokenData = DB::table('grading_student_tokens')
+            ->where('token', $request->token)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$tokenData) {
+            return response()->json(['message' => 'Ungültiger oder abgelaufener Token'], 403);
+        }
+
+        // Antwort speichern
+        $answer = GradingStudentAnswer::updateOrCreate(
+            [
+                'session_id' => $tokenData->session_id,
+                'schueler_id' => $tokenData->schueler_id,
+                'question_id' => $request->question_id,
+            ],
+            [
+                'self_rating' => $request->self_rating,
+                'answered_at' => now(),
+            ]
+        );
+
+        return response()->json(['answer' => $answer]);
+    }
 }
+
 

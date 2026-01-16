@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@section('js')
+<script src="{{ asset('js/qrcode.min.js') }}"></script>
+@endsection
+
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -80,6 +84,7 @@
                                         <tr>
                                             <th>Schüler</th>
                                             <th>Fortschritt</th>
+                                            <th>Aktionen</th>
                                         </tr>
                                     </thead>
                                     <tbody id="studentTableBody">
@@ -90,6 +95,36 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR-Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" role="dialog" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrCodeModalLabel">QR-Code für Schüler</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-3" id="qrCodeSchuelerName"></p>
+                <div id="qrCodeContainer" class="mb-3">
+                    <!-- QR-Code wird hier eingefügt -->
+                </div>
+                <p class="small text-muted">Der Schüler kann diesen QR-Code scannen, um die Fragen auf einem anderen Gerät zu beantworten, ohne sich anmelden zu müssen.</p>
+                <div class="mt-3">
+                    <input type="text" class="form-control" id="qrCodeUrl" readonly>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="copyQRUrl()">
+                        <i class="fas fa-copy"></i> Link kopieren
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Schließen</button>
             </div>
         </div>
     </div>
@@ -279,6 +314,36 @@
         }
     }
 
+    function jumpToStudent(schuelerIndex) {
+        if (loading) return;
+
+        currentSchuelerIndex = schuelerIndex;
+
+        // Finde die erste unbeantwortete Frage für diesen Schüler
+        const s = schueler[schuelerIndex];
+        let foundUnanswered = false;
+        for (let qIndex = 0; qIndex < questions.length; qIndex++) {
+            const key = `${s.id}_${questions[qIndex].id}`;
+            if (answers[key] === undefined) {
+                currentQuestionIndex = qIndex;
+                foundUnanswered = true;
+                break;
+            }
+        }
+
+        // Falls alle Fragen beantwortet sind, beginne bei der ersten Frage
+        if (!foundUnanswered) {
+            currentQuestionIndex = 0;
+        }
+
+        render();
+
+        // Scrolle zur aktuellen Schülerkarte
+        if (elements.currentStudentCard) {
+            elements.currentStudentCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     // Event Listener
     if (elements.skipStudentButton) {
         elements.skipStudentButton.addEventListener('click', skipStudent);
@@ -330,7 +395,7 @@
         if (!elements.studentTableBody) return;
         elements.studentTableBody.innerHTML = '';
 
-        schueler.forEach(s => {
+        schueler.forEach((s, index) => {
             const row = document.createElement('tr');
 
             const currentSchueler = getCurrentSchueler();
@@ -352,8 +417,28 @@
                 progressCell.appendChild(checkIcon);
             }
 
+            // Aktionsspalte
+            const actionsCell = document.createElement('td');
+
+            // Springen-Button
+            const jumpBtn = document.createElement('button');
+            jumpBtn.className = 'btn btn-sm btn-primary mr-1';
+            jumpBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Springen';
+            jumpBtn.onclick = () => jumpToStudent(index);
+            jumpBtn.title = 'Zu diesem Schüler springen';
+            actionsCell.appendChild(jumpBtn);
+
+            // QR-Code Button
+            const qrBtn = document.createElement('button');
+            qrBtn.className = 'btn btn-sm btn-info';
+            qrBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+            qrBtn.onclick = () => showQRCode(s.id);
+            qrBtn.title = 'QR-Code für Schüler anzeigen';
+            actionsCell.appendChild(qrBtn);
+
             row.appendChild(nameCell);
             row.appendChild(progressCell);
+            row.appendChild(actionsCell);
             elements.studentTableBody.appendChild(row);
         });
     }
@@ -439,6 +524,84 @@
         init();
     }
 })();
+
+// Globale Funktionen für QR-Code
+async function showQRCode(schuelerId) {
+    const schuelerList = @json($schueler);
+    const schueler = schuelerList.find(s => s.id === schuelerId);
+
+    if (!schueler) {
+        alert('Schüler nicht gefunden');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/paed-diary/documentation/session/{{ $session->id }}/student/${schuelerId}/qr-token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+
+        if (!response.ok) {
+            // Versuche die Fehlermeldung vom Server zu lesen
+            let errorMessage = 'Fehler beim Generieren des QR-Codes';
+            try {
+                const errorData = await response.json();
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (e) {
+                // Falls JSON-Parsing fehlschlägt, zeige HTTP-Status
+                errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+
+        // Modal-Inhalt aktualisieren
+        document.getElementById('qrCodeSchuelerName').textContent =
+            `${schueler.vorname} ${schueler.nachname}`;
+        document.getElementById('qrCodeUrl').value = data.url;
+
+        // QR-Code generieren
+        const qrContainer = document.getElementById('qrCodeContainer');
+        qrContainer.innerHTML = '';
+
+        // Verwende QRCode.js wenn verfügbar, sonst zeige nur den Link
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrContainer, {
+                text: data.url,
+                width: 256,
+                height: 256
+            });
+        } else {
+            qrContainer.innerHTML = `<p class="text-warning">QR-Code Bibliothek nicht verfügbar. Bitte Link verwenden.</p>`;
+        }
+
+        // Modal anzeigen
+        $('#qrCodeModal').modal('show');
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Generieren des QR-Codes: ' + error.message);
+    }
+}
+
+function copyQRUrl() {
+    const urlInput = document.getElementById('qrCodeUrl');
+    urlInput.select();
+    urlInput.setSelectionRange(0, 99999); // Für mobile Geräte
+
+    try {
+        document.execCommand('copy');
+        alert('Link in die Zwischenablage kopiert!');
+    } catch (err) {
+        console.error('Fehler beim Kopieren:', err);
+        alert('Fehler beim Kopieren des Links');
+    }
+}
 </script>
 
 <style>
@@ -463,30 +626,64 @@
     border: none;
     background: linear-gradient(180deg,#fff,#f8fafc);
 }
-.smiley-btn i { font-size: 3rem; }
-.smiley-btn .small { font-size: 0.8rem; }
-.smiley-btn:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 16px 40px rgba(10,15,40,0.12); }
+.smiley-btn i {
+    font-size: 3rem;
+}
+.smiley-btn .small {
+    font-size: 0.8rem;
+}
+.smiley-btn:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 16px 40px rgba(10,15,40,0.12);
+}
 
 /* Current student card */
-#currentStudentCard { border-radius: 12px; border: 1px solid rgba(13,110,253,0.12); box-shadow: 0 12px 34px rgba(10,15,40,0.06); }
-#currentStudentCard .card-header { background: linear-gradient(90deg,#0d6efd,#0b5ed7); color: #fff; }
+#currentStudentCard {
+    border-radius: 12px;
+    border: 1px solid rgba(13,110,253,0.12);
+    box-shadow: 0 12px 34px rgba(10,15,40,0.06);
+}
+#currentStudentCard .card-header {
+    background: linear-gradient(90deg,#0d6efd,#0b5ed7);
+    color: #fff;
+}
 
 /* Table */
-.table thead th { border-bottom: none; }
-.table tbody tr.table-primary { background: linear-gradient(90deg, rgba(13,110,253,0.06), rgba(13,110,253,0.02)); }
+.table thead th {
+    border-bottom: none;
+}
+.table tbody tr.table-primary {
+    background: linear-gradient(90deg, rgba(13,110,253,0.06), rgba(13,110,253,0.02));
+}
 
 /* Completed alert */
-#completedAlert { border-radius: 10px; box-shadow: 0 8px 24px rgba(10,15,40,0.06); }
+#completedAlert {
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(10,15,40,0.06);
+}
 
 /* Buttons */
-.btn-success, .btn-primary { border-radius: 10px; box-shadow: 0 6px 18px rgba(10,15,40,0.06); }
-.btn-warning { border-radius: 8px; }
+.btn-success, .btn-primary {
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(10,15,40,0.06);
+}
+.btn-warning {
+    border-radius: 8px;
+}
 
 /* Small helpers */
-.text-center h3 { font-weight: 600; }
+.text-center h3 {
+    font-weight: 600;
+}
 
 @media (max-width: 768px) {
-    .smiley-btn { width: 76px; height: 76px; }
+    .smiley-btn {
+        width: 76px;
+        height: 76px;
+    }
+    .smiley-btn i {
+        font-size: 2rem;
+    }
 }
 </style>
 @endsection

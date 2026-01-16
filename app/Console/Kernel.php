@@ -43,6 +43,9 @@ class Kernel extends ConsoleKernel
 
         //Close old tickets
         $schedule->call('App\Http\Controllers\Ticketsystem\TicketController@closeTicketAfterTime')->dailyAt('02:00');
+
+        // Cleanup expired grading tokens
+        $schedule->command('grading:cleanup-tokens')->daily();
     }
 
     /**
