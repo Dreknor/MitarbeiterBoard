@@ -652,9 +652,9 @@ class PaedDiaryController extends Controller
         if (!$request->filled('klasse_id') && !$request->filled('group_id'))
             return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
         $user = Auth::user();
-        $slug = Str::slug($data['name']);
-        if (empty($slug) ) {
-            $slug = $data['name'];
+        $baseSlug = Str::slug($data['name']);
+        if (empty($baseSlug) ) {
+            $baseSlug = $data['name'];
         }
 
         $type = $data['type'] ?? 'text';
@@ -664,7 +664,8 @@ class PaedDiaryController extends Controller
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
             $created = [];
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
-                if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists()) continue;
+                // Generiere einen eindeutigen Slug, falls schon einer existiert
+                $slug = $this->generateUniqueSlug($baseSlug, $klasse->id);
                 $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
                 $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
                 if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
@@ -675,8 +676,8 @@ class PaedDiaryController extends Controller
             return response()->json(['success' => true, 'columns' => $created]);
         }
         $klasse = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
-        if (PaedDiaryColumn::where('klasse_id', $klasse->id)->where('slug', $slug)->exists())
-            return response()->json(['message' => 'Spalte existiert bereits'], 422);
+        // Generiere einen eindeutigen Slug, falls schon einer existiert
+        $slug = $this->generateUniqueSlug($baseSlug, $klasse->id);
         $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
         $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
         if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
@@ -2073,5 +2074,26 @@ class PaedDiaryController extends Controller
             ]);
             return response()->json(['message' => 'Ein Fehler ist aufgetreten'], 500);
         }
+    }
+
+    /**
+     * Generiert einen eindeutigen Slug für eine Spalte in einer Klasse.
+     * Wenn der Slug bereits existiert, wird eine Nummer angehängt (z.B. "spaltenname-2").
+     *
+     * @param string $baseSlug Der Basis-Slug
+     * @param int $klasseId Die ID der Klasse
+     * @return string Der eindeutige Slug
+     */
+    private function generateUniqueSlug(string $baseSlug, int $klasseId): string
+    {
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (PaedDiaryColumn::where('klasse_id', $klasseId)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 }
