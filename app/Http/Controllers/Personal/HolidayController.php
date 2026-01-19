@@ -35,18 +35,35 @@ class HolidayController extends Controller
         }
 
 
+        // Performance-Optimierung: Eager Loading und bessere Query
         if (settings('show_holidays') == 1 or auth()->user()->can('approve holidays'))
         {
             $holidays = Holiday::query()
-                ->with(['employe', 'employe.groups_rel'])
-                ->whereBetween('start_date', [$startMonth, $endMonth])
-                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->with(['employe.groups_rel'])
+                ->where(function($query) use ($startMonth, $endMonth) {
+                    $query->whereBetween('start_date', [$startMonth, $endMonth])
+                          ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                          ->orWhere(function($q) use ($startMonth, $endMonth) {
+                              $q->where('start_date', '<=', $startMonth)
+                                ->where('end_date', '>=', $endMonth);
+                          });
+                })
+                ->where('rejected', false)
+                ->orderBy('start_date')
                 ->get();
         }else{
             $holidays = Holiday::where('employe_id', auth()->id())
-                ->with(['employe', 'employe.groups_rel'])
-                ->whereBetween('start_date', [$startMonth, $endMonth])
-                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                ->with(['employe.groups_rel'])
+                ->where(function($query) use ($startMonth, $endMonth) {
+                    $query->whereBetween('start_date', [$startMonth, $endMonth])
+                          ->orWhereBetween('end_date', [$startMonth, $endMonth])
+                          ->orWhere(function($q) use ($startMonth, $endMonth) {
+                              $q->where('start_date', '<=', $startMonth)
+                                ->where('end_date', '>=', $endMonth);
+                          });
+                })
+                ->where('rejected', false)
+                ->orderBy('start_date')
                 ->get();
         }
         $users = collect([]);
@@ -87,8 +104,21 @@ class HolidayController extends Controller
             }
         }
 
+        // Performance-Optimierung: Erstelle eine Map für schnellen Zugriff
+        $holidayMap = [];
+        foreach ($holidays as $holiday) {
+            if (!$holiday->employe) continue;
+
+            $userId = $holiday->employe_id;
+            if (!isset($holidayMap[$userId])) {
+                $holidayMap[$userId] = [];
+            }
+            $holidayMap[$userId][] = $holiday;
+        }
+
         return view('personal.holidays.index', [
             'holidays' => $holidays,
+            'holidayMap' => $holidayMap,
             'month' => $startMonth,
             'users' => $users->sortBy('name'),
             'unapproved' => auth()->user()->can('approve holidays') ? Holiday::with(['employe', 'employe.groups_rel'])->where('approved', false)->where('rejected', false)->get() : []

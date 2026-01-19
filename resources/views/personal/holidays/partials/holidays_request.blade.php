@@ -16,7 +16,15 @@
                                     @can('approve holidays')
                                         <option value="all">Alle</option>
                                         @foreach($users as $user)
-                                            <option value="{{$user->id}}">{{$user->name}}</option>
+                                            @php
+                                                $userGroupClasses = '';
+                                                if($user->groups_rel) {
+                                                    foreach($user->groups_rel as $group) {
+                                                        $userGroupClasses .= $group->name . ' ';
+                                                    }
+                                                }
+                                            @endphp
+                                            <option value="{{$user->id}}" class="{{ trim($userGroupClasses) }}">{{$user->name}}</option>
                                         @endforeach
                                     @else
                                         <option value="{{auth()->user()->id}}">{{auth()->user()->name}}</option>
