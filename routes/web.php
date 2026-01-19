@@ -339,6 +339,8 @@ Route::group([
 
                 Route::middleware(['permission:manage sick_notes'])->group(function () {
                     Route::get('sick_notes', [AbsenceController::class, 'sick_notes_index']);
+                    Route::get('sick_notes/export', [AbsenceController::class, 'sick_notes_export']);
+                    Route::get('sick_notes/export/user/{user}', [AbsenceController::class, 'sick_notes_export_user']);
                     Route::get('sick_notes/{absence}/set_note_date', [AbsenceController::class, 'sick_notes_update']);
                     Route::get('sick_notes/{absence}/sick_note_remove', [AbsenceController::class, 'sick_notes_remove']);
                 });

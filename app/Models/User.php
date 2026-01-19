@@ -345,6 +345,10 @@ class User extends Authenticatable implements HasMedia
         return $absence != null;
     }
 
+    public function absences(){
+        return $this->hasMany(Absence::class, 'users_id');
+    }
+
     /*
      * Tickets
      */

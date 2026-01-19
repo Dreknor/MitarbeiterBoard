@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Exports\AbsenceExport;
+use App\Exports\SickNotesCompleteExport;
+use App\Exports\SickNotesByUserExport;
+use App\Exports\SickNotesExport;
+use App\Exports\SickNotesUserSummaryExport;
 use App\Http\Requests\CreateAbsenceRequest;
 use App\Mail\DailyAbsenceReport;
 use App\Mail\NewAbsenceMail;
@@ -236,7 +240,7 @@ class AbsenceController extends Controller
     /**
      * @return Application|Factory|View|\Illuminate\Foundation\Application|RedirectResponse|Redirector
      */
-    public function sick_notes_index() {
+    public function sick_notes_index(Request $request) {
         if (!auth()->user()->can('manage sick_notes')){
             return redirect(url('/'))->with([
                 'type'  => "warning",
@@ -244,12 +248,60 @@ class AbsenceController extends Controller
             ]);
         }
 
-        $absences = Absence::where(function ($query){
+        // Filter-Parameter aus Request holen
+        $filterReason = $request->get('reason');
+        $filterUser = $request->get('user');
+        $filterSickNoteStatus = $request->get('sick_note_status');
+        $sortBy = $request->get('sort_by', 'start');
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        // Query aufbauen
+        $query = Absence::where(function ($query){
             $query->whereIn('reason', config('absences.absence_sick_note'))
                 ->orWhere('sick_note_required', 1);
-        })->whereDate('start', '>=', Carbon::now()->subYear())
-            ->orderByDesc('start')->with('user')->get();
+        })->whereDate('start', '>=', Carbon::now()->subYear());
 
+        // Filter anwenden
+        if ($filterReason) {
+            $query->where('reason', $filterReason);
+        }
+
+        if ($filterUser) {
+            $query->where('users_id', $filterUser);
+        }
+
+        if ($filterSickNoteStatus) {
+            $sickNoteDays = settings('absence_sick_note_days', 'absences');
+
+            switch ($filterSickNoteStatus) {
+                case 'with_note':
+                    $query->whereNotNull('sick_note_date');
+                    break;
+                case 'without_note':
+                    $query->whereNull('sick_note_date')
+                        ->where(function($q) use ($sickNoteDays) {
+                            $q->where('days', '<', $sickNoteDays)
+                                ->where('sick_note_required', false);
+                        });
+                    break;
+                case 'missing_note':
+                    $query->whereNull('sick_note_date')
+                        ->where(function($q) use ($sickNoteDays) {
+                            $q->where('days', '>=', $sickNoteDays)
+                                ->orWhere('sick_note_required', true);
+                        });
+                    break;
+            }
+        }
+
+        // Sortierung anwenden
+        if (in_array($sortBy, ['start', 'end', 'days', 'reason'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $absences = $query->with('user')->get();
+
+        // Mitarbeiter-Übersicht berechnen
         $users_absences = $absences->groupBy('users_id');
         $users = new Collection();
 
@@ -259,15 +311,15 @@ class AbsenceController extends Controller
             $missing_note = 0;
 
             foreach ($absences_user as $absence){
-                if ($absence->days < settings('absences.absence_sick_note_days') and $absence->sick_note_required == false)
+                if ($absence->days < settings('absence_sick_note_days', 'absences') and $absence->sick_note_required == false)
                 {
                     $without_note+=$absence->days;
                 }
-                if (($absence->days >= config('absences.absence_sick_note_days') or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
+                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
                 {
                     $missing_note+=$absence->days;
                 }
-                if (($absence->days >= config('absences.absence_sick_note_days') or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
+                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
                 {
                     $with_note+=$absence->days;
                 }
@@ -276,6 +328,7 @@ class AbsenceController extends Controller
 
             $users->add([
                 'user' => $absence->user->name,
+                'user_id' => $absence->user->id,
                 'without_note' => $without_note,
                 'with_note' => $with_note,
                 'missing_note' => $missing_note,
@@ -283,9 +336,34 @@ class AbsenceController extends Controller
 
         }
 
+        // Alle Abwesenheitsgründe für Filter-Dropdown
+        $allReasons = Absence::where(function ($query){
+                $query->whereIn('reason', config('absences.absence_sick_note'))
+                    ->orWhere('sick_note_required', 1);
+            })
+            ->whereDate('start', '>=', Carbon::now()->subYear())
+            ->distinct()
+            ->pluck('reason')
+            ->sort();
+
+        // Alle Mitarbeiter für Filter-Dropdown
+        $allUsers = User::whereHas('absences', function($query) {
+            $query->where(function ($q){
+                $q->whereIn('reason', config('absences.absence_sick_note'))
+                    ->orWhere('sick_note_required', 1);
+            })->whereDate('start', '>=', Carbon::now()->subYear());
+        })->orderBy('name')->get();
+
         return view('absences.sicknotes',[
            'absences' => $absences,
-            'users' => $users->sortBy('user')
+            'users' => $users->sortBy('user'),
+            'allReasons' => $allReasons,
+            'allUsers' => $allUsers,
+            'filterReason' => $filterReason,
+            'filterUser' => $filterUser,
+            'filterSickNoteStatus' => $filterSickNoteStatus,
+            'sortBy' => $sortBy,
+            'sortOrder' => $sortOrder,
         ]);
     }
 
@@ -351,6 +429,134 @@ class AbsenceController extends Controller
             'type'  => "success",
             'Meldung' => 'Krankenschein entfernt für '.$absence->user->name.' ('.$absence->start->format('d.m.Y').' - '.$absence->end->format('d.m.Y').')'
         ]);
+    }
+
+    /**
+     * Export aller Krankmeldungen
+     * @param Request $request
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|RedirectResponse
+     */
+    public function sick_notes_export(Request $request) {
+        if (!auth()->user()->can('manage sick_notes')){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        // Gleiche Filter wie in sick_notes_index anwenden
+        $filterReason = $request->get('reason');
+        $filterUser = $request->get('user');
+        $filterSickNoteStatus = $request->get('sick_note_status');
+
+        $query = Absence::where(function ($query){
+            $query->whereIn('reason', config('absences.absence_sick_note'))
+                ->orWhere('sick_note_required', 1);
+        })->whereDate('start', '>=', Carbon::now()->subYear());
+
+        if ($filterReason) {
+            $query->where('reason', $filterReason);
+        }
+
+        if ($filterUser) {
+            $query->where('users_id', $filterUser);
+        }
+
+        if ($filterSickNoteStatus) {
+            $sickNoteDays = settings('absence_sick_note_days', 'absences');
+
+            switch ($filterSickNoteStatus) {
+                case 'with_note':
+                    $query->whereNotNull('sick_note_date');
+                    break;
+                case 'without_note':
+                    $query->whereNull('sick_note_date')
+                        ->where(function($q) use ($sickNoteDays) {
+                            $q->where('days', '<', $sickNoteDays)
+                                ->where('sick_note_required', false);
+                        });
+                    break;
+                case 'missing_note':
+                    $query->whereNull('sick_note_date')
+                        ->where(function($q) use ($sickNoteDays) {
+                            $q->where('days', '>=', $sickNoteDays)
+                                ->orWhere('sick_note_required', true);
+                        });
+                    break;
+            }
+        }
+
+        $absences = $query->with('user')->orderByDesc('start')->get();
+
+        // Mitarbeiter-Übersicht berechnen
+        $users_absences = $absences->groupBy('users_id');
+        $users = new Collection();
+
+        foreach ($users_absences as $absences_user){
+            $without_note = 0;
+            $with_note = 0;
+            $missing_note = 0;
+
+            foreach ($absences_user as $absence){
+                if ($absence->days < settings('absence_sick_note_days', 'absences') and $absence->sick_note_required == false)
+                {
+                    $without_note+=$absence->days;
+                }
+                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
+                {
+                    $missing_note+=$absence->days;
+                }
+                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
+                {
+                    $with_note+=$absence->days;
+                }
+            }
+
+            $users->add([
+                'user' => $absence->user->name,
+                'user_id' => $absence->user->id,
+                'without_note' => $without_note,
+                'with_note' => $with_note,
+                'missing_note' => $missing_note,
+            ]);
+        }
+
+        $filename = 'Krankmeldungen_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(
+            new SickNotesCompleteExport($absences, $users->sortBy('user')),
+            $filename
+        );
+    }
+
+    /**
+     * Export von Krankmeldungen eines einzelnen Mitarbeiters
+     * @param User $user
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|RedirectResponse
+     */
+    public function sick_notes_export_user(User $user) {
+        if (!auth()->user()->can('manage sick_notes')){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $absences = Absence::where('users_id', $user->id)
+            ->where(function ($query){
+                $query->whereIn('reason', config('absences.absence_sick_note'))
+                    ->orWhere('sick_note_required', 1);
+            })
+            ->whereDate('start', '>=', Carbon::now()->subYear())
+            ->orderByDesc('start')
+            ->get();
+
+        $filename = 'Krankmeldungen_' . $user->name . '_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(
+            new SickNotesByUserExport($absences, $user->name),
+            $filename
+        );
     }
 }
 
