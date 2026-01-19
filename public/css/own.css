@@ -41,6 +41,9 @@ word-wrap: break-word;
 .border-left-10{
     border-left: 10px solid #17a2b8!important
 }
+.border-left-10-success{
+    border-left: 10px solid #28a745!important
+}
 
 @media (max-width: 767.98px) {
     .card-columns {
@@ -69,3 +72,43 @@ word-wrap: break-word;
     }
 }
 
+.color-picker-enhanced {
+    width: 50px;
+    height: 40px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.color-picker-enhanced:hover {
+    border-color: #007bff;
+}
+
+.color-picker-enhanced:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Für Webkit-Browser (Chrome, Safari) */
+.color-picker-enhanced::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.color-picker-enhanced::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+/* Für Firefox */
+.color-picker-enhanced::-moz-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+.color-picker-enhanced::-moz-focus-inner {
+    border: 0;
+}

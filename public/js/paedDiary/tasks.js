@@ -1,0 +1,526 @@
+// public/js/paedDiary/tasks.js
+
+function initializeTasksModule(dependencies) {
+    const {
+        csrf,
+        klasseSelect,
+        groupSelect,
+        escapeHtml,
+        trimText,
+        loadWeek,
+        getCache,
+        diaryBody // neu: DOM-Element der Tabelle, um inline-Buttons zu behandeln
+    } = dependencies;
+
+    // --- DOM-Elemente ---
+    const taskModal = $('#taskModal');
+    const taskForm = document.getElementById('taskForm');
+    const openTaskModalBtn = document.getElementById('openTaskModal');
+    const tasksPanel = document.getElementById('tasksPanel');
+    const tasksList = document.getElementById('tasksList');
+    const refreshTasksBtn = document.getElementById('refreshTasks');
+
+    // Neu: Variable zum Speichern der zu bearbeitenden Task-ID
+    let editingTaskId = null;
+
+    // --- Kernfunktionen ---
+
+    function renderTasks() {
+        const localCache = getCache();
+        if (!tasksList) return;
+
+        const openEntries = (localCache.entries || []).filter(e => !e.completed_at);
+        const allTasks = (localCache.tasks || []).concat(openEntries.map(e => ({
+            id: 'entry-' + e.id,
+            schueler_id: e.schueler_ids[0], // Annahme: offene Notizen sind oft für einen Schüler
+            title: e.content,
+            is_entry: true,
+            entry_id: e.id,
+            user: e.user,
+            schueler_ids: e.schueler_ids,
+        })));
+
+        if (allTasks.length === 0) {
+            tasksPanel.style.display = 'none';
+            return;
+        }
+
+        tasksPanel.style.display = 'block';
+        tasksList.innerHTML = '';
+
+        const tasksByStudent = {};
+        allTasks.forEach(task => {
+            const studentIds = task.is_entry ? task.schueler_ids : [task.schueler_id];
+            studentIds.forEach(studentId => {
+                if (!tasksByStudent[studentId]) {
+                    tasksByStudent[studentId] = [];
+                }
+                tasksByStudent[studentId].push(task);
+            });
+        });
+
+        const sortedStudentIds = Object.keys(tasksByStudent).sort((a, b) => {
+            const studentA = (localCache.schueler || []).find(s => String(s.id) === String(a));
+            const studentB = (localCache.schueler || []).find(s => String(s.id) === String(b));
+            if (studentA && studentB) {
+                return studentA.name.localeCompare(studentB.name, 'de');
+            }
+            return 0;
+        });
+
+        sortedStudentIds.forEach(studentId => {
+            const student = (localCache.schueler || []).find(s => String(s.id) === String(studentId));
+            if (!student) return;
+
+            const studentTasks = tasksByStudent[studentId];
+            const studentDiv = document.createElement('div');
+            studentDiv.className = 'mb-3';
+            let studentHtml = `<strong class="small d-block border-bottom mb-1">${escapeHtml(student.name)}</strong>`;
+
+            studentTasks.forEach(task => {
+                if (task.is_entry) {
+                    studentHtml += `
+                        <div class="d-flex justify-content-between align-items-start  text-info mb-1 open-entry-large">
+                            <div class="flex-grow-1">
+                                <i class="fas fa-comment-alt mr-1"></i> ${escapeHtml(trimText(task.title, 60))}
+                                <span class="text-muted small">(${escapeHtml(task.user)})</span>
+                            </div>
+                            <button class="diary-btn diary-btn-complete complete-entry-btn ml-2" title="Notiz abschließen" data-entry-id="${task.entry_id}">✔</button>
+                        </div>`;
+                } else {
+                    const isOverdue = task.due_date && new Date(task.due_date) < new Date();
+                    studentHtml += `
+                        <div class="d-flex justify-content-between align-items-start  ${task.highlighted ? 'text-danger font-weight-bold' : ''} mb-1">
+                            <div class="flex-grow-1">
+                                <i class="fas fa-tasks mr-1"></i> ${escapeHtml(task.title)}
+                                ${task.due_date ? `<span class="text-muted small ml-1">(${isOverdue ? 'Fällig: ' : ''}${new Date(task.due_date).toLocaleDateString()})</span>` : ''}
+                            </div>
+                            <div class="ml-2">
+                                <button class="diary-btn diary-btn-edit edit-task-btn" title="Aufgabe bearbeiten" data-task-id="${task.id}">✎</button>
+                                <button class="diary-btn diary-btn-complete close-task-btn" title="Aufgabe ausblenden" data-task-id="${task.id}">✕</button>
+                            </div>
+                        </div>`;
+                }
+            });
+            studentDiv.innerHTML = studentHtml;
+            tasksList.appendChild(studentDiv);
+        });
+    }
+
+    function updateTaskStudentSelect() {
+        const localCache = getCache();
+        const container = document.getElementById('taskStudents');
+        const selectGroupWrap = document.getElementById('taskSelectGroupWrap');
+        const selectAllGroup = document.getElementById('taskSelectAllGroup');
+        if (!container) return;
+
+        // Clear
+        container.innerHTML = '';
+        if (!localCache || !Array.isArray(localCache.schueler) || localCache.schueler.length === 0) {
+            container.innerHTML = '<div class="text-muted small">Keine Schüler</div>';
+            if (selectGroupWrap) selectGroupWrap.classList.add('d-none');
+            if (selectAllGroup) selectAllGroup.checked = false;
+            return;
+        }
+
+        // Show or hide group-select hint
+        if (localCache.is_group) {
+            if (selectGroupWrap) selectGroupWrap.classList.remove('d-none');
+        } else {
+            if (selectGroupWrap) selectGroupWrap.classList.add('d-none');
+            if (selectAllGroup) selectAllGroup.checked = false;
+        }
+
+        // Group students by class
+        const byClass = {};
+        (localCache.schueler || []).forEach(s => { (byClass[s.klasse_id] = byClass[s.klasse_id] || []).push(s); });
+
+        // For each class, render a header with a class-select checkbox and student checkboxes
+        const klasseMap = {};
+        (localCache.klassen || []).forEach(k => { klasseMap[k.id] = k; });
+
+        const fragment = document.createDocumentFragment();
+        Object.keys(byClass).sort((a,b)=> Number(a)-Number(b)).forEach(klasseId => {
+            const students = byClass[klasseId];
+            const klasse = klasseMap[klasseId];
+            const header = document.createElement('div');
+            header.className = 'mb-2';
+
+            const headInner = document.createElement('div');
+            headInner.className = 'd-flex align-items-center justify-content-between';
+
+            const left = document.createElement('div');
+            left.className = 'form-check';
+            const clsId = `task_cls_${klasseId}`;
+            // Use Bootstrap form-check-input but wrap in a small flex container to avoid positioning issues
+            left.innerHTML = `<div class="form-check-content" style="display:flex;align-items:center;position:relative;">`+
+                             `<input class="form-check-input task-class-checkbox" type="checkbox" id="${clsId}" data-klasse-id="${klasseId}" style="display:inline-block;width:14px;height:14px;visibility:visible;position:relative;">`+
+                             `<label class="form-check-label small font-weight-bold ml-2" for="${clsId}" style="margin:0;">${escapeHtml(klasse ? klasse.name : ('Klasse '+klasseId))} (${students.length})</label>`+
+                             `</div>`;
+
+            headInner.appendChild(left);
+            header.appendChild(headInner);
+
+            const studentsDiv = document.createElement('div');
+            studentsDiv.className = 'pl-3';
+            students.forEach(s => {
+                const chkId = `stu_chk_${s.id}`;
+                // Bootstrap form-check wrapper for student checkbox
+                const studentWrap = document.createElement('div');
+                studentWrap.className = 'form-check mb-1';
+                studentWrap.style.position = 'relative';
+                studentWrap.style.display = 'flex';
+                studentWrap.style.alignItems = 'center';
+                studentWrap.innerHTML = `<input type="checkbox" class="form-check-input task-stu-checkbox" id="${chkId}" name="schueler_ids[]" value="${s.id}" style="display:inline-block;width:14px;height:14px;visibility:visible;position:relative;">`+
+                                         `<label class="form-check-label small" for="${chkId}" style="margin:0 0 0 .4rem;">${escapeHtml(s.name)}</label>`;
+                studentsDiv.appendChild(studentWrap);
+            });
+
+            fragment.appendChild(header);
+            fragment.appendChild(studentsDiv);
+        });
+
+        container.appendChild(fragment);
+
+        // Reset top-level selects
+        if (selectAllGroup) selectAllGroup.checked = false;
+
+        // Attach event handlers (delegation) if not already
+        // We use a once-setup flag on the container element
+        if (!container._tasks_listeners_bound) {
+            container.addEventListener('change', function (e) {
+                const target = e.target;
+                if (target.classList.contains('task-class-checkbox')) {
+                    // Toggle all student checkboxes under this class
+                    const klasseId = target.dataset.klasseId;
+                    const checkboxes = container.querySelectorAll(`input.task-stu-checkbox[value][type=checkbox]`);
+                    checkboxes.forEach(cb => {
+                        // only those with matching parent class grouping
+                        // find nearest header for cb by scanning DOM: simpler -> check the DOM structure where cb is in a label inside a studentsDiv after header
+                        const parent = cb.closest('div.pl-3');
+                        if (!parent) return;
+                        // header before parent contains the class checkbox
+                        const prev = parent.previousElementSibling;
+                        const clsCheckbox = prev ? prev.querySelector(`input.task-class-checkbox[data-klasse-id="${klasseId}"]`) : null;
+                        if (clsCheckbox) cb.checked = target.checked;
+                    });
+                    // Uncheck group-select when partial change occurs
+                    const selectAllGroupEl = document.getElementById('taskSelectAllGroup'); if (selectAllGroupEl) selectAllGroupEl.checked = false;
+                }
+                if (target.classList.contains('task-stu-checkbox')) {
+                    // uncheck class header if any student unchecked
+                    const parent = target.closest('div.pl-3');
+                    if (!parent) return;
+                    const prev = parent.previousElementSibling;
+                    if (!prev) return;
+                    const klasseCheckbox = prev.querySelector('input.task-class-checkbox');
+                    if (!klasseCheckbox) return;
+                    const all = parent.querySelectorAll('input.task-stu-checkbox');
+                    const checked = parent.querySelectorAll('input.task-stu-checkbox:checked');
+                    klasseCheckbox.checked = (all.length === checked.length && all.length > 0);
+                    // uncheck global selects
+                    const selectAllGroupEl = document.getElementById('taskSelectAllGroup'); if (selectAllGroupEl) selectAllGroupEl.checked = false;
+                }
+            });
+
+            // Select-all group
+            if (selectAllGroup) {
+                selectAllGroup.addEventListener('change', function () {
+                    const checked = this.checked;
+                    const boxes = container.querySelectorAll('input.task-stu-checkbox');
+                    boxes.forEach(cb => cb.checked = checked);
+                    const classBoxes = container.querySelectorAll('input.task-class-checkbox');
+                    classBoxes.forEach(cb => cb.checked = checked);
+                    // nothing else to update
+                });
+            }
+
+            container._tasks_listeners_bound = true;
+        }
+    }
+
+
+    // --- Neu: Task-Badges neben Schülernamen (zentrale Darstellung in tasks module) ---
+    function getTasksForStudent(studentId){
+        const localCache = getCache();
+        if(!localCache) return [];
+        const openEntries = (localCache.entries || []).filter(e => !e.completed_at);
+        const entryTasks = openEntries.map(e => ({
+            is_entry: true,
+            entry_id: e.id,
+            title: e.content,
+            user: e.user,
+            schueler_ids: e.schueler_ids || []
+        }));
+        const normalTasks = (localCache.tasks || []).map(t => Object.assign({}, t));
+        const allTasks = normalTasks.concat(entryTasks);
+        return allTasks.filter(t => {
+            if(t.is_entry) return (t.schueler_ids||[]).map(String).includes(String(studentId));
+            return String(t.schueler_id) === String(studentId);
+        });
+    }
+
+    function renderTaskBadgesOnNames(diaryBodyEl){
+        if(!diaryBodyEl) return;
+        const rows = Array.from(diaryBodyEl.querySelectorAll('tr'));
+        rows.forEach(tr => {
+            const noteCell = tr.querySelector('td.note-cell');
+            let stuId = noteCell ? noteCell.dataset.stu : null;
+            if(!stuId) return;
+            const th = tr.querySelector('th');
+            if(!th) return;
+            const existing = th.querySelector('.student-tasks-inline');
+            if(existing) existing.remove();
+            const tasks = getTasksForStudent(stuId);
+            if(!tasks || tasks.length === 0) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'student-tasks-inline';
+            const visible = tasks.slice(0,3);
+            visible.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'student-tasks-item d-flex justify-content-between align-items-center';
+                if(t.is_entry){
+                    item.classList.add('task-entry');
+                    item.innerHTML = `<span class="task-inline-title text-truncate">${escapeHtml(trimText(t.title || (t.content||''), 80))}</span>`+
+                                     ` <button type="button" class="btn btn-link btn-sm p-0 inline-complete-entry-btn" data-entry-id="${t.entry_id}" title="Notiz abschließen">✔</button>`;
+                } else {
+                    const overdue = t.due_date && new Date(t.due_date) < new Date();
+                    item.classList.add('task-normal');
+                    if(overdue) item.classList.add('task-overdue');
+                    item.innerHTML = `<span class="task-inline-title text-truncate">${escapeHtml(trimText(t.title || '', 80))}`+
+                                     `${t.due_date? ` <small class="text-muted">(${new Date(t.due_date).toLocaleDateString()})</small>` : ''}</span>`+
+                                     ` <button type="button" class="btn btn-link btn-sm p-0 inline-close-task-btn" data-task-id="${t.id}" title="Aufgabe abschließen">✕</button>`;
+                }
+                wrapper.appendChild(item);
+            });
+            if(tasks.length > 3){
+                const more = document.createElement('div');
+                more.className = 'text-muted small';
+                more.textContent = `+${tasks.length - 3}`;
+                wrapper.appendChild(more);
+            }
+            th.appendChild(wrapper);
+        });
+    }
+
+    // Wenn diaryBody übergeben wurde, wire Event-Handler für die inline-Buttons
+    if(diaryBody){
+        diaryBody.addEventListener('click', function(e){
+            const closeTaskBtn = e.target.closest('.inline-close-task-btn');
+            if(closeTaskBtn){
+                e.preventDefault(); e.stopPropagation();
+                const taskId = closeTaskBtn.dataset.taskId; if(!taskId) return; closeTaskBtn.disabled = true;
+                fetch(`paed-diary/task/${taskId}/close`, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
+                    .then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { closeTaskBtn.disabled = false; alert(j.message||'Fehler'); } })
+                    .catch(()=>{ closeTaskBtn.disabled = false; alert('Fehler'); });
+                return;
+            }
+            const completeEntryBtn = e.target.closest('.inline-complete-entry-btn');
+            if(completeEntryBtn){
+                e.preventDefault(); e.stopPropagation();
+                const entryId = completeEntryBtn.dataset.entryId; if(!entryId) return; completeEntryBtn.disabled = true;
+                const completedAtDate = new Date().toISOString().slice(0,10);
+                fetch(`paed-diary/entry/${entryId}/complete`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ completed_at: completedAtDate })
+                }).then(r=>r.json()).then(j=>{ if(j.success){ loadWeek(); } else { completeEntryBtn.disabled = false; alert(j.message || 'Fehler'); } })
+                .catch(()=>{ completeEntryBtn.disabled = false; alert('Fehler'); });
+                return;
+            }
+        });
+    }
+
+    // --- Event Listeners ---
+    if (openTaskModalBtn) {
+        openTaskModalBtn.addEventListener('click', () => {
+            editingTaskId = null; // Neue Aufgabe
+            if (taskForm) taskForm.reset();
+            const taskKlasseId = document.getElementById('taskKlasseId');
+            if (taskKlasseId) taskKlasseId.value = klasseSelect.value;
+
+            // Modal-Titel anpassen
+            const modalTitle = taskModal.find('.modal-title');
+            if (modalTitle.length) modalTitle.text('Aufgabe erfassen');
+
+            // ensure the checkbox list is up-to-date when opening
+            try { updateTaskStudentSelect(); } catch (e) { /* ignore */ }
+            taskModal.modal('show');
+        });
+    }
+
+    if (taskForm) {
+        taskForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const fd = new FormData(taskForm);
+
+            // _method MUSS zuerst gesetzt werden, bevor andere Felder hinzugefügt werden
+            if (editingTaskId) {
+                fd.set('_method', 'PUT');
+            }
+
+            if (groupSelect.value) {
+                fd.set('group_id', groupSelect.value);
+            }
+            fd.set('klasse_id', klasseSelect.value);
+            if (!fd.get('highlighted')) fd.set('highlighted', '0');
+
+            const url = editingTaskId
+                ? `paed-diary/task/${editingTaskId}`
+                : 'paed-diary/task';
+
+            fetch(url, {
+                    method: 'POST', // Laravel erwartet POST mit _method=PUT
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(j => {
+                    if (j.success) {
+                        taskModal.modal('hide');
+                        editingTaskId = null;
+                        loadWeek();
+                    } else {
+                        alert(j.message || 'Fehler beim Speichern');
+                    }
+                }).catch(err => {
+                    console.error('Task save error:', err);
+                    alert('Fehler beim Speichern der Aufgabe');
+                });
+        }); // end submit event listener
+    } // end if (taskForm)
+
+    if (tasksPanel) {
+        tasksPanel.addEventListener('click', e => {
+            // Bearbeiten-Button Handler
+            const editBtn = e.target.closest('.edit-task-btn');
+            if (editBtn) {
+                const taskId = editBtn.dataset.taskId;
+                const localCache = getCache();
+                const task = (localCache.tasks || []).find(t => String(t.id) === String(taskId));
+
+                if (task) {
+                    editingTaskId = taskId;
+
+                    // Modal-Titel anpassen
+                    const modalTitle = taskModal.find('.modal-title');
+                    if (modalTitle.length) modalTitle.text('Aufgabe bearbeiten');
+
+                    // Formular mit Task-Daten füllen
+                    if (taskForm) {
+                        const titleInput = taskForm.querySelector('[name="title"]');
+                        const descInput = taskForm.querySelector('[name="description"]');
+                        const dueDateInput = taskForm.querySelector('[name="due_date"]');
+                        const highlightedInput = taskForm.querySelector('[name="highlighted"]');
+
+                        if (titleInput) titleInput.value = task.title || '';
+                        if (descInput) descInput.value = task.description || '';
+                        if (dueDateInput) dueDateInput.value = task.due_date || '';
+                        if (highlightedInput) highlightedInput.checked = task.highlighted;
+
+                        // Schüler-Auswahl ist deaktiviert beim Bearbeiten (nicht änderbar)
+                        const taskStudents = document.getElementById('taskStudents');
+                        if (taskStudents) {
+                            taskStudents.style.opacity = '0.5';
+                            taskStudents.style.pointerEvents = 'none';
+                            const checkboxes = taskStudents.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(cb => {
+                                cb.disabled = true;
+                                if (String(cb.value) === String(task.schueler_id)) {
+                                    cb.checked = true;
+                                }
+                            });
+                        }
+                    }
+
+                    taskModal.modal('show');
+                }
+                return;
+            }
+
+            const closeBtn = e.target.closest('.close-task-btn');
+            if (closeBtn) {
+                const taskId = closeBtn.dataset.taskId;
+                closeBtn.disabled = true;
+                fetch(`paed-diary/task/${taskId}/close`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then (r => r.json())
+                    .then(j => {
+
+                         if (j.success) {
+                             loadWeek();
+                         } else {
+                             closeBtn.disabled = false;
+                         }
+                     }).catch(() => closeBtn.disabled = false);
+                return;
+            }
+
+            const completeBtn = e.target.closest('.complete-entry-btn');
+            if (completeBtn) {
+                const entryId = completeBtn.dataset.entryId;
+                completeBtn.disabled = true;
+                const completedAtDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+                fetch(`paed-diary/entry/${entryId}/complete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            klasse_id: klasseSelect.value,
+                            completed_at: completedAtDate
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(j => {
+                        if (j.success) {
+                            loadWeek();
+                        } else {
+                            alert(j.message || 'Fehler');
+                            completeBtn.disabled = false;
+                        }
+                    })
+                    .catch(() => {
+                        alert('Fehler');
+                        completeBtn.disabled = false;
+                    });
+            }
+        });
+    }
+
+    // Modal-Reset beim Schließen
+    if (taskModal.length) {
+        taskModal.on('hidden.bs.modal', function() {
+            editingTaskId = null;
+            const taskStudents = document.getElementById('taskStudents');
+            if (taskStudents) {
+                taskStudents.style.opacity = '';
+                taskStudents.style.pointerEvents = '';
+                const checkboxes = taskStudents.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.disabled = false);
+            }
+        });
+    }
+
+    if (refreshTasksBtn) {
+        refreshTasksBtn.addEventListener('click', () => loadWeek());
+    }
+
+
+    // --- Öffentliche API ---
+    return {
+        renderTasks,
+        updateTaskStudentSelect,
+        renderTaskBadgesOnNames // neue API zum Rendern der Namen-Badges
+    };
+}

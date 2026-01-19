@@ -72,7 +72,7 @@
                                     <td id="priority_{{$theme->id}}">
                                         @if ($theme->priorities->where('creator_id', auth()->id())->first())
                                             <div class="progress">
-                                                <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
+                                                <div class="progress-bar amount" role="progressbar" style="width: {{105-$theme->priority}}%;" ></div>
                                             </div>
                                         @else
                                             <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">

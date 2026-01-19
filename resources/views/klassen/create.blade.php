@@ -15,6 +15,14 @@
 
             </div>
         </div>
+        <div class="col-sm-12 col-md-2 col-2">
+            <div class="form-group">
+                <label for="color">Farbe</label>
+                <input type="color" class="form-control color-picker-enhanced" placeholder="#ffffff" name="color">
+
+            </div>
+        </div>
+
         <div class="col-sm-12 col-md-3 col-2">
             <label></label>
             <button type="submit" class="btn btn-success btn-block">anlegen</button>

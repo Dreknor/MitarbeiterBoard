@@ -24,6 +24,12 @@
 
     @stack('css')
 
+
+    {{-- Paed-Diary spezifisches CSS nur auf dieser Route laden --}}
+    @if(request()->segment(1) == 'paed-diary')
+        <link href="{{ asset('css/paed-diary.css') }}" rel="stylesheet" />
+    @endif
+
 </head>
 
 <body id="app-layout">
@@ -87,11 +93,13 @@
                                             <a class="menu-item" href="{{route('employes.index')}}">
                                                 Personal Übersicht
                                             </a>
-                                        <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
-                                            <a class="menu-item" href="{{url('timesheets/select/employe')}}">
-                                                Arbeitszeitnachweise
-                                            </a>
-                                        </li>
+                                    </li>
+                                @endcan
+                                @can('lock timesheets')
+                                    <li class="@if(request()->segment(1)=="timesheets"  and request()->segment(2) != auth()->id()  and request()->segment(2) != 'import') active  @endif">
+                                        <a class="menu-item" href="{{url('timesheets/select/employe')}}">
+                                            Arbeitszeitnachweise
+                                        </a>
                                     </li>
                                 @endcan
                                 @can('has timesheet')
@@ -140,6 +148,49 @@
                                 <i class="fas fa-calendar"></i>
                                 <p>Listen</p>
                             </a>
+                        </li>
+                    @endcan
+                    @can('view paed diary')
+                        <li class="@if(request()->segment(1)=="paed-diary") active @endif">
+                            <a href="{{url('/paed-diary')}}">
+                                <i class="fas fa-book"></i>
+                                <p>Päd. Tagebuch</p>
+                            </a>
+                        </li>
+                        <li class="@if(request()->segment(1)=="display-week") active @endif">
+                            <a href="{{url('/display-week')}}">
+                                <i class="fas fa-calendar-week"></i>
+                                <p>Wochenübersicht</p>
+                            </a>
+                        </li>
+                    @endcan
+                    @can('view diagnostics')
+                        <li class="@if(request()->segment(1)=="diagnostics") active @endif">
+                            <a data-toggle="collapse" href="#diagnostics">
+                                <p>
+                                    <i class="fas fa-clipboard-check"></i>
+                                    Diagnosebögen
+                                    <b class="caret"></b>
+                                </p>
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=="diagnostics") show @endif" id="diagnostics">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(1)=="diagnostics" && request()->segment(2)!="admin") active @endif">
+                                        <a href="{{route('diagnostic.index')}}">
+                                            <i class="fas fa-edit"></i>
+                                            <p>Erfassung</p>
+                                        </a>
+                                    </li>
+                                    @can('manage diagnostics')
+                                        <li class="@if(request()->segment(2)=="admin" && request()->segment(1)=="diagnostics") active @endif">
+                                            <a href="{{route('diagnostic.admin.index')}}">
+                                                <i class="fas fa-cog"></i>
+                                                <p>Verwaltung</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                </ul>
+                            </div>
                         </li>
                     @endcan
                     @can('edit inventar')
@@ -222,7 +273,7 @@
                                 Beratungen <b class="caret"></b>
                             </p>
                         </a>
-                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
+                        <div class="collapse  @if(request()->segment(2)=="themes" or request()->segment(2)=="meetings" or request()->segment(2)=="memory"  or request()->segment(2)=="archive"  or request()->segment(2)=="search"  or request()->segment(2)=="export") show  active @endif" id="Beratungen">
                             <ul class="nav pl-2">
                                 <li class="@if(request()->segment(1)=="search") active @endif">
                                     <a href="{{url('/search')}}">
@@ -240,12 +291,21 @@
                                         </a>
                                         <div class="collapse @if(request()->segment(1)=="$group->name" ) show  @endif" id="{{$group->name}}">
                                             <ul class="nav pl-2">
-                                                <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
-                                                    <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
-                                                        <i class="far fa-comments"></i>
-                                                        <p>Themen</p>
-                                                    </a>
-                                                </li>
+                                                @if($group->use_meetings)
+                                                    <li class="@if(request()->segment(2)=="meetings" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
+
+                                                            <a href="{{url($group->name.'/meetings')}}">
+                                                                <i class="fas fa-users"></i>
+                                                                <p>Meetings</p>
+                                                            </a>
+                                                    </li>
+                                                @endif
+                                                    <li class="@if(request()->segment(2)=="themes" and request()->segment(3)!="recurring" and request()->segment(1)=="$group->name" ) active @endif">
+                                                        <a href="{{url($group->name.'/themes#'.\Carbon\Carbon::now()->format('Ymd'))}}">
+                                                            <i class="far fa-comments"></i>
+                                                            <p>Themen</p>
+                                                        </a>
+                                                    </li>
                                                 <li class="@if(request()->segment(2)=="archive" and request()->segment(1)=="$group->name"  ) active @endif">
                                                     <a href="{{url($group->name.'/archive')}}">
                                                         <i class="fas fa-archive"></i>
@@ -381,6 +441,16 @@
                             </a>
                         </li>
                     @endcan
+
+                    @can('manage grading systems')
+                        <li class="@if(request()->segment(1)=="admin" && request()->segment(2)=="grading") active @endif">
+                            <a href="{{ route('admin.grading.index') }}">
+                                <i class="fas fa-layer-group"></i>
+                                <p>Graduierungssysteme</p>
+                            </a>
+                        </li>
+                    @endcan
+
                     @can('edit permissions')
                         <li class="@if(request()->segment(1)=="roles" and request()->segment(2)!="user"  ) active @endif">
                             <a href="{{url('/roles')}}">
@@ -553,6 +623,7 @@
     <script src="{{asset('js/plugins/perfect-scrollbar.jquery.min.js')}}"></script>
 
 
+
     <!-- Chart JS
     <script src="{{asset('js/plugins/chartjs.min.js')}}"></script>
     -->
@@ -568,6 +639,12 @@
     @endauth
     @yield('js')
     @stack('js')
+
+    {{-- Paed-Diary spezifisches JS nur auf dieser Route laden --}}
+    @if(request()->segment(1) == 'paed-diary')
+        <script src="{{ asset('js/paed-diary.js') }}"></script>
+    @endif
+
 
 </body>
 </html>

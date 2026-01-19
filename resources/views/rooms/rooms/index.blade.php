@@ -68,6 +68,16 @@
                                         <a href="{{url('rooms/rooms/'.$room->id.'/edit')}}" class="btn btn-sm btn-bg-gradient-x-orange-yellow">
                                             <i class="fa fa-edit"></i>
                                         </a>
+                                        @if($room->bookings->count() == 0)
+                                            <button class="btn btn-sm btn-bg-gradient-x-red-pink" type="submit" title="Raum löschen" form="deleteForm_{{$room->id}}">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                            <form method="post" id="deleteForm_{{$room->id}}" action="{{url('rooms/rooms/'.$room->id)}}" class="form-inline m-1">
+                                                @csrf
+                                                @method('delete')
+                                            </form>
+                                        @endif
+
                                     @endcan
                                     <!--
                                     <a href="{{url('rooms/rooms/'.$room->id.'/export')}}" class="btn btn-bg-gradient-x-blue-green btn-sm">
@@ -75,15 +85,7 @@
                                     </a>
                                     -->
 
-                                    @if($room->bookings->count() == 0)
-                                        <button class="btn btn-sm btn-bg-gradient-x-red-pink" type="submit" title="Raum löschen" form="deleteForm_{{$room->id}}">
-                                            <i class="fa fa-trash"></i>
-                                        </button>
-                                            <form method="post" id="deleteForm_{{$room->id}}" action="{{url('rooms/rooms/'.$room->id)}}" class="form-inline m-1">
-                                                @csrf
-                                                @method('delete')
-                                            </form>
-                                    @endif
+
                                 </td>
                             </tr>
                         @endforeach
@@ -109,6 +111,12 @@
                             Raumnummer
                             <input class="form-control" type="text" name="room_number">
                         </label>
+                    </div>
+                    <div class="form-row mb-2">
+                        <div class="ml-3">
+                            <input class="form-check-input" type="checkbox" name="bookable" id="bookable_create" value="1" checked>
+                            <label class="form-check-label" for="bookable_create">Raum buchbar (aktiv)</label>
+                        </div>
                     </div>
                     <div class="form-row">
                             <button class="btn btn-success btn-bg-gradient-x-blue-green btn-block" type="submit">

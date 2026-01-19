@@ -197,6 +197,8 @@ return [
 
         App\Providers\ViewServiceProvider::class,
         App\Providers\LogLevelServiceProvider::class,
+        OwenIt\Auditing\AuditingServiceProvider::class,
+
 
     ],
 

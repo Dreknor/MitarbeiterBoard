@@ -28,11 +28,14 @@ class createRoomBookingRequest extends FormRequest
                 'exists:rooms,id',
                 'required'
             ],
-            'weekdays' => ['array', 'min:1', 'max:5', 'required'],
-            'start'  => ['required', 'date_format:H:i', 'before:end'],
-            'end'  => ['required', 'date_format:H:i', 'after:start'],
-            'name' => ['required', 'string']
-
+            'weekdays' => ['array', 'min:1', 'max:7'],
+            'weekday' => ['integer', 'min:1', 'max:7'],
+            'start'  => ['required',  'before:end'],
+            'end'  => ['required',  'after:start'],
+            'name' => ['required', 'string'],
+            'week' => ['nullable', 'string'],
+            'is_recurring' => ['boolean'],
+            'booking_date' => ['nullable', 'date', 'required_if:is_recurring,false']
         ];
     }
 }

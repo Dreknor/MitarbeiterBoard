@@ -25,7 +25,7 @@ class CreateDailyNewsRequest extends FormRequest
     {
         return [
             'date_start' => ['date', 'required'],
-            'date_end' => ['date', 'nullable', 'after:date_start'],
+            'date_end' => ['date', 'nullable', 'after_or_equal:date_start'],
             'news' => ['required', 'string'],
         ];
     }

@@ -122,10 +122,6 @@ class CreatePermissionTables extends Migration
                     'guard_name' => 'web',
                 ],
 
-                [
-                    'name' => 'disable menu',
-                    'guard_name' => 'web'
-                ],
             ]
         );
 

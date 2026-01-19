@@ -25,7 +25,13 @@ class UrlaubCardComposer
         $unapproved = [];
 
         if (auth()->user()->can('approve holidays')) {
-            $unapproved = Holiday::where('approved', false)->where('rejected', false)->get();
+            // Nur Urlaubsanfragen von Mitarbeitern anzeigen, für die der User als Vorgesetzter verantwortlich ist
+            $subordinateIds = auth()->user()->subordinates()->pluck('id');
+
+            $unapproved = Holiday::where('approved', false)
+                ->where('rejected', false)
+                ->whereIn('employe_id', $subordinateIds)
+                ->get();
         }
 
         $view->with([

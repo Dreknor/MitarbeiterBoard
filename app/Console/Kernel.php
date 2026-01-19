@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Http\Controllers\Personal\TimesheetController;
+use App\Console\Commands\RemindProcedureUser;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -14,7 +15,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        RemindProcedureUser::class,
     ];
 
     /**
@@ -42,6 +43,9 @@ class Kernel extends ConsoleKernel
 
         //Close old tickets
         $schedule->call('App\Http\Controllers\Ticketsystem\TicketController@closeTicketAfterTime')->dailyAt('02:00');
+
+        // Cleanup expired grading tokens
+        $schedule->command('grading:cleanup-tokens')->daily();
     }
 
     /**

@@ -28,9 +28,7 @@ class Theme extends Model implements HasMedia
 
     public function ersteller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'creator_id')->withDefault([
-           'name' => 'System / gelöschter Benutzer',
-       ]);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function zugewiesen_an(): BelongsTo
@@ -95,6 +93,13 @@ class Theme extends Model implements HasMedia
     public function surveys(): HasMany
     {
         return $this->hasMany(Survey::class);
+    }
+
+    public function meetings()
+    {
+        return $this->belongsToMany(Meeting::class, 'meeting_themes', 'theme_id', 'meeting_id')
+            ->withPivot('id', 'created_at', 'updated_at')
+            ->withTimestamps();
     }
 
     //Events

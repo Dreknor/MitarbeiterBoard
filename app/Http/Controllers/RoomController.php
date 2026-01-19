@@ -9,6 +9,7 @@ use App\Http\Requests\ImportRoomsRequest;
 use App\Models\Room;
 use App\Models\RoomBooking;
 //use Barryvdh\DomPDF\Facade as PDF;
+use App\Models\Setting;
 use App\Models\VertretungsplanWeek;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
@@ -16,9 +17,11 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Laravie\Parser\Xml\Reader;
 use Laravie\Parser\Xml\Document;
+use Illuminate\Http\Request;
 
 
 class RoomController extends Controller
@@ -62,13 +65,15 @@ class RoomController extends Controller
             ]);
         }
 
-
         $room = Room::updateOrCreate(
             [
                 'name' =>  request('name'),
                 'room_number' => request('room_number')
             ],
             ['deleted_at' => null]);
+
+        // Speichere bookable falls gesetzt (Checkbox liefert '1'), Standard: true
+        $room->bookable = $request->has('bookable') ? (bool)$request->input('bookable') : true;
         $room->save();
 
         return redirect()->back()->with([
@@ -92,26 +97,72 @@ class RoomController extends Controller
             $date = Carbon::parse($date);
         }
 
-        if ($week == null){
-            $week = VertretungsplanWeek::query()->where('week', \Carbon\Carbon::now()->startOfWeek())->first()->type;
-        }
+        $startOfWeek = $date->copy()->startOfWeek();
+        $endOfWeek = $date->copy()->endOfWeek();
 
+
+            $vpWeek = VertretungsplanWeek::query()->where('week', $startOfWeek)->first();
+            $week = $vpWeek?->type;
+
+        // Hole alle relevanten Buchungen für diese Woche
         $bookings = RoomBooking::query()
             ->where('room_id', $room->id)
-            ->where(function ($query) use ($date){
-                $query->whereNull('date');
-                $query->orWhereDate('date', ">=", $date->format('Y-m-d'));
-            })
-            ->where(function ($query) use ($week){
-                $query->whereNull('week');
-                $query->orWhere('week', $week);
+            ->where(function ($query) use ($startOfWeek, $endOfWeek, $week) {
+                // Wiederkehrende Buchungen
+                $query->where(function ($q) use ($week) {
+                    $q->where('is_recurring', true)
+                      ->where(function ($subQ) use ($week) {
+                          $subQ->whereNull('week')
+                               ->orWhere('week', $week);
+                      });
+                })
+                // Oder individuelle Buchungen in dieser Woche
+                ->orWhere(function ($q) use ($startOfWeek, $endOfWeek) {
+                    $q->where('is_recurring', false)
+                      ->whereBetween('booking_date', [$startOfWeek, $endOfWeek]);
+                });
             })
             ->get();
+
+
+        // Formatiere Buchungen für JavaScript
+        $bookingsFormatted = $bookings->map(function($booking) use ($startOfWeek, $endOfWeek, $week) {
+            $result = [
+                'id' => $booking->id,
+                'name' => $booking->name,
+                'start' => $booking->start,
+                'end' => $booking->end,
+                'is_recurring' => $booking->is_recurring,
+                'weekday' => $booking->weekday,
+                'week' => $booking->week,
+                'author' => $booking->user?->name ?? 'Unbekannt',
+            ];
+
+            // Für individuelle Buchungen: Berechne Wochentag
+            if (!$booking->is_recurring && $booking->booking_date) {
+                $result['date'] = $booking->booking_date->format('Y-m-d');
+                $result['weekday'] = $booking->booking_date->dayOfWeek;
+            }
+
+            return $result;
+        });
+
+
+        $first_booking = $bookings->sortBy('start')->first();
+        $last_booking = $bookings->sortByDesc('end')->first();
+
+
 
         return view('rooms.rooms.show', [
             'room' => $room,
             'bookings' => $bookings,
+            'bookingsJson' => $bookingsFormatted->toJson(),
             'week' => $week,
+            'date' => $date,
+            'startOfWeek' => $startOfWeek,
+            'endOfWeek' => $endOfWeek,
+            'first_booking' => $first_booking,
+            'last_booking' => $last_booking,
         ]);
     }
 
@@ -137,7 +188,10 @@ class RoomController extends Controller
      */
     public function update(editRoomRequest $request, Room $room)
     {
-        $room->update($request->validated());
+        $data = $request->validated();
+        // Checkbox sendet nichts, wenn nicht gesetzt => Wert explizit setzen
+        $data['bookable'] = $request->has('bookable') ? true : false;
+        $room->update($data);
         return redirect()->back()->with([
             'type' => 'success',
             'Meldung' => 'Raum wurde aktualisiert'
@@ -170,25 +224,65 @@ class RoomController extends Controller
 
         $room = $booking->room;
 
-        $start = Carbon::parse($request->start);
-        $end = Carbon::parse($request->end);
-
-        for ($x = $start->copy(); $x->lessThanOrEqualTo($end); $x->addMinutes(15)){
-            if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i')) and $room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'))->id != $booking->id){
-                return redirect()->back()->with([
-                    'type' => 'warning',
-                    'Meldung'=> 'Raum ist bereits belegt'
-                ]);
-            }
+        try {
+            $start = Carbon::parse($request->start);
+            $end = Carbon::parse($request->end);
+        } catch (\Exception $e) {
+            return redirect()->back()->withInput()->with([
+                'type' => 'warning',
+                'Meldung' => 'ungültige Start- oder Endzeit'
+            ]);
         }
 
-        $booking->update($request->validated());
+
+        $isRecurring = $request->is_recurring ?? $booking->is_recurring;
+        $bookingDate = $request->booking_date ? Carbon::parse($request->booking_date) : $booking->booking_date;
+        $weekday = $isRecurring ? $request->weekday : ($bookingDate ? $bookingDate->dayOfWeek : $booking->weekday);
+
+        if ($request->week != "A" and $request->week != 'B'){
+            $week = null;
+        } else {
+            $week = $request->week;
+        }
+
+        // Prüfe auf Kollisionen
+        $collision = $room->hasBookingCollision(
+            $start,
+            $end,
+            $weekday,
+            !$isRecurring ? $bookingDate : null,
+            $isRecurring ? $week : null,
+            $booking->id
+        );
+
+        if ($collision) {
+            $dateInfo = !$isRecurring && $bookingDate ? ' am ' . $bookingDate->format('d.m.Y') : '';
+            return redirect()->back()->withInput()->with([
+                'type' => 'warning',
+                'Meldung'=> 'Raum ist bereits belegt' . $dateInfo
+            ]);
+        }
+
+        $updateData = [
+            'start' => $start->format('H:i'),
+            'end' => $end->format('H:i'),
+            'name' => $request->name,
+            'weekday' => $weekday,
+        ];
+
+        if ($isRecurring) {
+            $updateData['week'] = $week;
+        } else {
+            $updateData['booking_date'] = $bookingDate;
+        }
+
+        $booking->update($updateData);
 
         Cache::forget('bookings_'.$room->name);
 
         return redirect(url('rooms/rooms/'.$room->id))->with([
             'type' => 'success',
-            'Meldung'=> 'Raum gebucht'
+            'Meldung'=> 'Buchung aktualisiert'
         ]);
 
     }
@@ -218,14 +312,55 @@ class RoomController extends Controller
             $week = $request->week;
         }
 
-        foreach ($request->weekdays as $weekday){
-            for ($x = $start->copy(); $x->lessThanOrEqualTo($end); $x->addMinutes(15)){
-                if ($room->hasBooking($request->weekday, $x->copy()->addMinute()->format('H:i'), $week)){
-                    return redirect()->back()->with([
-                        'type' => 'warning',
-                        'Meldung'=> 'Raum ist bereits belegt'
-                    ]);
-                }
+        $isRecurring = $request->is_recurring ?? true;
+        $bookingDate = $request->booking_date ? Carbon::parse($request->booking_date) : null;
+
+        // Individuelle Buchung
+        if (!$isRecurring && $bookingDate) {
+            $weekday = $bookingDate->dayOfWeek;
+
+            // Prüfe auf Kollisionen
+            $collision = $room->hasBookingCollision($start, $end, $weekday, $bookingDate, $week);
+
+            if ($collision) {
+                return redirect()->back()->withInput()->with([
+                    'type' => 'warning',
+                    'Meldung'=> 'Raum ist bereits am ' . $bookingDate->format('d.m.Y') . ' belegt'
+                ]);
+            }
+
+            $booking = new RoomBooking([
+                'room_id' => $request->room_id,
+                'weekday' => $weekday,
+                'start' => $start->format('H:i'),
+                'end' => $end->format('H:i'),
+                'name' => $request->name,
+                'users_id' => auth()->id(),
+                'is_recurring' => false,
+                'booking_date' => $bookingDate,
+            ]);
+            $booking->save();
+
+            Cache::forget('bookings_'.$room->name);
+
+            return redirect()->back()->with([
+                'type' => 'success',
+                'Meldung'=> 'Einzeltermin für ' . $bookingDate->format('d.m.Y') . ' gebucht'
+            ]);
+        }
+
+        // Wiederkehrende Buchung
+        $weekdays = $request->weekdays ?? [$request->weekday];
+
+        foreach ($weekdays as $weekday){
+            // Prüfe auf Kollisionen
+            $collision = $room->hasBookingCollision($start, $end, $weekday, null, $week);
+
+            if ($collision) {
+                return redirect()->back()->withInput()->with([
+                    'type' => 'warning',
+                    'Meldung'=> 'Raum ist bereits am ' . config('config.days')[$weekday] . ' belegt'
+                ]);
             }
 
             $booking = new RoomBooking([
@@ -236,18 +371,16 @@ class RoomController extends Controller
                 'week' => $week ?? null,
                 'name' => $request->name,
                 'users_id' => auth()->id(),
+                'is_recurring' => true,
             ]);
             $booking->save();
-
         }
-
 
         Cache::forget('bookings_'.$room->name);
 
-
         return redirect()->back()->with([
             'type' => 'success',
-            'Meldung'=> 'Raum gebucht'
+            'Meldung'=> 'Wiederkehrende Buchung erstellt'
         ]);
 
     }
@@ -284,21 +417,28 @@ class RoomController extends Controller
             ]);
         }
 
+        $rooms = collect([]);
+
         if ($request->create_rooms == true){
             foreach ($raeume['raeume'] as $raum){
-                Room::updateOrCreate(
+
+                $room = Room::firstOrCreate(
                     [
                         'room_number' => $raum['ra_kurzform'],
-                        'name' => $raum['ra_langform'],
-                        'indiware_shortname' => $raum['ra_kurzform']
                     ],
-                    ['deleted_at' => null]
+                    [
+                        'name' => $raum['ra_langform'],
+                        'indiware_shortname' => $raum['ra_kurzform'],
+                        'bookable' => true,
+                    ]
                 );
+
+                $rooms->push($room);
             }
 
         }
 
-        $rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
+        //$rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
 
         if ($request->deletePlan == true){
             foreach ($rooms as $room){
@@ -413,7 +553,10 @@ class RoomController extends Controller
                     'users_id' => auth()->id(),
                     'room_id' => $room->id,
                     'name' => $plan['unterricht'][$unterricht_key]['fach'] . ' ' . $plan['unterricht'][$unterricht_key]['klasse'],
-                    'week' => isset($woche) ? $woche : null
+                    'week' => isset($woche) ? $woche : null,
+                    'is_recurring' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
         }
@@ -441,6 +584,53 @@ class RoomController extends Controller
 
 
 
+    }
+
+    /**
+     * Generate an iCal feed token for a room (admin)
+     */
+    public function generateFeedToken(Request $request, Room $room)
+    {
+        if (! auth()->user()->can('manage rooms')) {
+            return redirect(url('/'))->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $days = $request->input('expires_in_days');
+        $expiresAt = null;
+        if ($days && is_numeric($days)) {
+            $expiresAt = Carbon::now()->addDays((int)$days);
+        }
+
+        $token = $room->generateFeedToken($expiresAt);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Feed-Token generiert',
+            'feed_url' => $room->feed_url
+        ]);
+    }
+
+    /**
+     * Revoke current feed token (admin)
+     */
+    public function revokeFeedToken(Room $room)
+    {
+        if (! auth()->user()->can('manage rooms')) {
+            return redirect(url('/'))->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $room->revokeFeedToken();
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Feed-Token widerrufen'
+        ]);
     }
 
 }

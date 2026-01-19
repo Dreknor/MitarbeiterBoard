@@ -1,0 +1,153 @@
+/* Paed-Diary: Sidebar ausblenden und Main-Panel auf Vollbreite setzen */
+/* Wird nur auf der Route /paed-diary per Blade eingebunden */
+
+/* Standard: keine globale Änderung an Sidebar - nur wenn body.paed-hide-sidebar gesetzt ist */
+body.paed-hide-sidebar .sidebar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Main-Panel füllt die komplette Breite wenn Sidebar versteckt ist */
+body.paed-hide-sidebar .main-panel {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Navbar korrekt ausrichten (paper-dashboard verwendet position absolute) */
+.navbar.navbar-absolute {
+  left: 0 !important;
+  right: 0 !important;
+}
+
+/* Kleinere Anpassungen für Inhaltspadding */
+.content {
+  padding-left: 15px !important;
+  padding-right: 15px !important;
+}
+
+/* Floating Toggle-Button, sichtbar wenn Sidebar ausgeblendet ist */
+.paed-toggle-btn {
+  position: fixed;
+  top: 80px;
+  left: 10px;
+  z-index: 1100;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: none;
+}
+
+.paed-toggle-btn:focus {
+  outline: 2px solid rgba(255,255,255,0.2);
+}
+
+/* Wenn Sidebar sichtbar, Button zeigt close-icon */
+.paed-toggle-btn[data-state="visible"]::after { content: "×"; font-size: 20px; }
+.paed-toggle-btn[data-state="hidden"]::after { content: "☰"; font-size: 18px; }
+
+/* Hinweis: Top-Navigation wird nicht automatisch ausgeblendet, damit oben Platz erhalten bleibt */
+
+/* Bei sehr kleinen Bildschirmen keine weiteren Änderungen nötig, aber sicherstellen, dass Sidebar ausgeblendet bleibt */
+@media (max-width: 991px) {
+  body.paed-hide-sidebar .sidebar { display: none !important; }
+}
+
+/* Größere Schrift für offene Einträge im pädagogischen Tagebuch */
+.open-entry-large {
+  /* Überschreibt die .small-Klasse, die an der gleichen Zeile gesetzt ist */
+  font-size: 1.05rem !important;
+  line-height: 1.35 !important;
+}
+.open-entry-large .fa-comment-alt {
+  font-size: 0.95rem;
+  margin-right: 0.4rem;
+}
+.open-entry-large .text-muted {
+  font-size: 0.85rem;
+}
+
+/* Auf sehr kleinen Bildschirmen etwas kleiner halten */
+@media (max-width: 767px) {
+  .open-entry-large { font-size: 1rem !important; }
+}
+
+/* Begrenze die erste Spalte der Wochenansicht und erlaube Umbrüche */
+.name_column,
+.schueler_name_field {
+  max-width: 180px;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Falls die Zelle Inline-Elemente enthält, sicherstellen, dass der Inhalt
+   als Block umbricht, ohne das Layout komplett zu verändern */
+.name_column *,
+.schueler_name_field * {
+  white-space: normal !important;
+}
+
+/* Erzwinge, dass die Tagebuch-Tabelle feste Layout-Berechnung nutzt,
+   damit die vorgegebene Breite der Namen-Spalte beachtet wird. */
+#diaryTable {
+  table-layout: fixed;
+}
+
+/* Setze eine feste Breite für Header- und Namenszellen (180px max)
+   und erlaube Umbrüche. Breite wird mit !important gesetzt, damit
+   Inline-styles (z.B. style="font-size:..") die Breite nicht überschreiben. */
+
+#diaryTable th.name_column,
+#diaryTable th.schueler_name_field,
+#diaryTable td.schueler_name_field,
+#diaryTable th.schueler_name_field a {
+  width: 200px !important;
+  max-width: 200px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Buttons für Aufgaben-Verwaltung */
+.diary-btn {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.diary-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.diary-btn-edit {
+  color: #007bff;
+}
+
+.diary-btn-edit:hover {
+  background: rgba(0, 123, 255, 0.1);
+  color: #0056b3;
+}
+
+.diary-btn-complete {
+  color: #28a745;
+}
+
+.diary-btn-complete:hover {
+  background: rgba(40, 167, 69, 0.1);
+  color: #1e7e34;
+}

@@ -2,97 +2,112 @@
 
 ## Über das MitarbeiterBoard
 
-Das MitarbeiterBoard ist ein Freizeitprojekt, welches entstanden ist um die Kommunikation innerhalb des Evangelischen Schulzentrums zu unterstützen. Es ermöglicht die Vorbereitung von Dienstberatungen online, in dem Themen durch Leitungen und Mitarbeiter im vorraus benannt, terminiert und priorisiert werden. Die Protokolle der besprochenen Themen werden direkt zu dem Thema abgelegt und sind somit jederzeit direkt abruf- und nachverfolgbar.
-Es basiert auf dem [Laravel-Framework](https://laravel.com/).
+Das MitarbeiterBoard ist eine umfassende Intranet- und Management-Plattform, die ursprünglich für das Evangelische Schulzentrum Radebeul entwickelt wurde. Es hat sich von einem Tool für Dienstberatungen zu einer vollständigen Organisationslösung für Schulen und Bildungseinrichtungen entwickelt. Es erleichtert die Verwaltung von Personal, Ressourcen, pädagogischen Prozessen und interner Kommunikation.
 
-## Nutzung
+## Features
 
-Obwohl das MitarbeiterBoard ausschließlich für das Evangelische Schulzentrum Radebeul gedacht war, kann die Software frei für nicht-kommerzielle Projekte im Bereich der Bildung genutzt werden. Es gibt jedoch keinerlei Anspruch auf Support oder Haftung, sollten Schäden oder Probleme auftreten.
-Änderungen und Weiterentwicklungen sind ebenfalls als Open-Source zur Verfügung zu stellen.
+Das System ist modular aufgebaut und umfasst unter anderem folgende Bereiche:
+
+### 🏢 Organisation & Verwaltung
+*   **Dienstberatungen**: Planung und Durchführung von Meetings, inkl. Themen-Einreichung, Protokollierung und Aufgabenmanagement.
+*   **Terminlisten**: Digitale Einschreibelisten für Veranstaltungen oder Aufgaben.
+*   **Ticketsystem**: Interner IT- und Hausmeister-Support.
+*   **Wiki**: Zentrale Wissensdatenbank und Dokumentation.
+*   **Prozesse & Abläufe**: Definition und Nachverfolgung wiederkehrender Abläufe (Onboarding, Jahresplanung etc.).
+*   **Inventar**: Verwaltung von Inventar, Standorten und Lieferanten inkl. Barcode-Scan.
+*   **Raumbuchung**: Verwaltung und Buchung von Räumen, inkl. Kalender-Feeds.
+
+### 👥 Personalwesen (HR)
+*   **Dienstpläne (Roster)**: Schichtplanung, automatische Planungsvorschläge, PDF-Export.
+*   **Arbeitszeiterfassung**: Digitale Stempeluhr und Stundenzettel.
+*   **Urlaubsverwaltung**: Beantragung und Genehmigung von Urlaub und Abwesenheiten.
+*   **Vertretungsplan**: Management von Ausfällen und Vertretungen.
+
+### 🎓 Pädagogik
+*   **Pädagogisches Tagebuch**: Dokumentation von Beobachtungen, Tagesverläufen und Gruppenereignissen.
+*   **Diagnostik**: Erfassung von Entwicklungsständen, Zielen und Förderplänen.
+*   **Wochenpläne**: Planung und Dokumentation der pädagogischen Arbeit in den Gruppen.
+
+
+### 🛠 Technik & Sicherheit
+*   **Rollen & Rechte**: Detailliertes Berechtigungssystem (RBAC).
+*   **SSO Integration**: Unterstützung für SAML2 / Keycloak.
+*   **Benachrichtigungen**: E-Mail und Push-Notifications (WebPush).
+*   **Logging**: Protokollierung wichtiger Systemvorgänge.
 
 ## Systemvoraussetzungen
 
- * PHP 8
- * MySQL/Maria-DB
- * Composer 2
+ * **PHP**: >= 8.1
+ * **Datenbank**: MySQL / MariaDB
+ * **Webserver**: Apache oder Nginx
+ * **Node.js & NPM**: Für das Bauen der Frontend-Assets (Vite / TailwindCSS)
+ * **Composer**: >= 2.x
 
 ## Installation
 
-Nach dem Upload der Dateien auf den Server ist zunächst die Datei ".env.example" in ".env" umzubenennen und auszufüllen. Entscheidend sind dabei die Eintragungen zu Datenbank und Mail-Server.
+1. **Repository klonen**
+   ```bash
+   git clone <repository-url>
+   cd mitarbeiter-board
+   ```
 
+2. **Backend-Abhängigkeiten installieren**
+   ```bash
+   composer install
+   ```
 
+3. **Frontend-Assets bauen**
+   ```bash
+   npm install
+   npm run build
+   ```
+
+4. **Umgebungsvariablen konfigurieren**
+   Kopieren Sie die `.env.example` zu `.env` und passen Sie die Werte an (Datenbank, Mail, URL etc.).
+   ```bash
+   cp .env.example .env
+   # Bearbeiten Sie die .env Datei
+   ```
+
+5. **App-Key generieren**
+   ```bash
+   php artisan key:generate
+   ```
+
+6. **VAPID Keys für WebPush generieren**
+   ```bash
+   php artisan webpush:vapid
+   ```
+
+7. **Datenbank migrieren**
+   ```bash
+   php artisan migrate
+   ```
+   *Hinweis: Während der Migration wird ggf. ein initialer Admin-User angelegt (siehe Konsolen-Output).*
+
+8. **Storage verlinken**
+   ```bash
+   php artisan storage:link
+   ```
+
+## Konfiguration & CronJobs
+
+Damit Benachrichtigungen, automatische Planungen und Wartungsaufgaben funktionieren, müssen der Scheduler und die Queue eingerichtet werden.
+
+**CronJob Eintrag:**
 ```bash
-cp .env.example .env
+* * * * * cd /pfad/zum/projekt && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Die Datei per Texteditor öffnen und mindestens folgende Daten ausfüllen:
-
-APP_NAME=
-
-APP_LOGO=
-
-APP_ENV=production
-
-APP_DEBUG=false
-
-APP_URL=
-
-
-DB_CONNECTION=mysql
-
-DB_HOST=127.0.0.1
-
-DB_PORT=3306
-
-DB_DATABASE=laravel
-
-DB_USERNAME=root
-
-DB_PASSWORD=
-
-
-MAIL_MAILER=smtp
-
-MAIL_HOST=
-
-MAIL_PORT=
-
-MAIL_USERNAME=
-
-MAIL_PASSWORD=
-
-MAIL_ENCRYPTION=
-
-MAIL_FROM_ADDRESS=
-
-MAIL_FROM_NAME=
-
-
-Anschließend die Installation durchführen:
-
+**Queue Worker:**
+Für den Mailversand und Hintergrundaufgaben sollte ein Queue-Worker laufen (z.B. via Supervisor):
 ```bash
-composer install
-```
-```bash
-php artisan key:generate
+php artisan queue:work
 ```
 
-```bash
-php artisan webpush:vapid
-```
+## Nutzung & Lizenz
 
-```bash
-php artisan migrate
-```
-Während dem Erstellen der Datenbanktabellen wird ein erster Benutzer mit der in der .env-Datei angegebenen E-Mail erstellt. Als Kennwort dient das aktuelle Datum 8-stellig. Es muss mit dem ersten Login geändert werden.
+Die Software wurde primär für das Evangelische Schulzentrum Radebeul entwickelt. Sie kann für nicht-kommerzielle Bildungsprojekte genutzt werden.
+Es besteht kein Anspruch auf Support oder Haftung.
+Änderungen und Weiterentwicklungen sollten der Community als Open-Source zur Verfügung gestellt werden.
 
-Nun muss noch der CronJob angelegt werden, damit die automatisierten Prozesse für Benachrichtigungen und Mail-Versan laufen:
-
-```bash
-crontab -e
-```
-
-und dort eintragen:
-```bash
-* * * * * cd /your-project-path && php artisan schedule:run >> /dev/null 2>&1
-```

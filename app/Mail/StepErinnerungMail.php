@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class StepErinnerungMail extends Mailable
 {
@@ -24,6 +25,11 @@ class StepErinnerungMail extends Mailable
     {
         $this->name = $name;
         $this->steps = $steps;
+
+        Log::debug('StepErinnerungMail constructor', [
+            'name' => $this->name,
+            'steps' => $this->steps,
+        ]);
     }
 
     /**
@@ -33,9 +39,15 @@ class StepErinnerungMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Ausstehender Auftrag')->view('mails.remindStepMail', [
-            'name' =>$this->name,
-            'steps' =>$this->steps,
+        Log::debug('StepErinnerungMail build', [
+            'name' => $this->name,
+            'steps' => $this->steps,
         ]);
+
+        return $this->subject('Offene Prozessschritte')
+            ->view('mails.remindStepMail', [
+                'name' => $this->name,
+                'steps' => $this->steps,
+            ]);
     }
 }

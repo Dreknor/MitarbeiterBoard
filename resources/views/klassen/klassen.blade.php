@@ -4,7 +4,11 @@
     <div>
         @include('klassen.create')
 
-    <table class="table table-bordered mt-5">
+        <div class="mt-3 mb-3">
+            <a href="{{route('schueler.import.form')}}" class="btn btn-outline-primary btn-sm">Schüler Import</a>
+        </div>
+
+    <table class="table table-bordered mt-2">
         <thead>
         <tr>
             <th class="w-50">Klasse</th>
@@ -14,7 +18,7 @@
         </thead>
         <tbody>
         @foreach($klassen as $klasse)
-            <tr>
+            <tr style="background-color: {{$klasse->color}}">
                 <td>{{ $klasse->name }}</td>
                 <td>{{ $klasse->kuerzel }}</td>
                 <td>
@@ -35,3 +39,7 @@
     </table>
 </div>
 @endsection
+
+@push('css')
+    <link rel="stylesheet" href="{{ asset('css/own.css') }}">
+@endpush

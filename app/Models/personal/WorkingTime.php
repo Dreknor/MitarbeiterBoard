@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class WorkingTime extends Model
@@ -83,6 +85,21 @@ class WorkingTime extends Model
             return true;
         }
         return false;
+    }
+
+    public function diff_start_first_event(Collection $events = null)
+    {
+
+        $events_filtered = $events->whereInstanceOf(RosterEvents::class);
+
+        $events_filtered = $events_filtered->filter(function ($event) {
+
+            return ($event->date->format('Y-m-d') == $this->attributes['date']) && ($event->start->format('H:i:s') < $this->attributes['start']);
+
+        });
+
+
+        return ($events_filtered->count() > 0)? true : false;
     }
 
     public function getICal(){

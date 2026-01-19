@@ -12,6 +12,7 @@
 @section('content')
         <div class="row">
 
+
             <div class="col-md-6">
                 @include('personal.holidays.partials.group_filter')
                 @include('personal.holidays.partials.holidays_request')
@@ -43,6 +44,7 @@
                                     </thead>
                                     <tbody>
                                     @forelse($unapproved as $holiday)
+                                        @if($holiday->employe)
                                         <tr>
                                             <td>{{ $holiday->employe->name }}</td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
@@ -86,6 +88,7 @@
                                                 </div>
                                             </td>
                                         </tr>
+                                        @endif
                                     @empty
                                         <tr>
                                             <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
@@ -114,7 +117,8 @@
                                     </thead>
                                     <tbody>
                                     @forelse($holidays->where('approved', true) as $holiday)
-                                        <tr class="@foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach">
+                                        @if($holiday->employe)
+                                        <tr class="@if($holiday->employe->groups_rel) @foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach @endif">
                                             <td>{{ $holiday->employe->name }}</td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
@@ -148,6 +152,7 @@
                                                 @endif
                                             </td>
                                         </tr>
+                                        @endif
                                     @empty
                                         <tr>
                                             <td colspan="5" class="text-center">Keine genehmigten Anträge gefunden.</td>
@@ -207,12 +212,14 @@
                     <div class="container-fluid">
                         @include('personal.holidays.partials.table', [
                             'holidays' => $holidays,
+                            'holidayMap' => $holidayMap,
                             'startOfTable' => $month->copy(),
                             'endOfTable' => $month->copy()->addDays(15),
                             'users' => $users
                             ])
                         @include('personal.holidays.partials.table', [
                             'holidays' => $holidays,
+                            'holidayMap' => $holidayMap,
                             'startOfTable' => $month->copy()->addDays(16),
                             'endOfTable' => $month->copy()->endOfMonth(),
                             'users' => $users
@@ -228,6 +235,38 @@
 
 @push('js')
     <script>
+        // Funktion zum Filtern der Mitarbeiter-Optionen basierend auf der Gruppe
+        function filterEmployeeOptions(group) {
+            var $employeeSelect = $('#employe_id');
+            var $allOptions = $employeeSelect.find('option');
+
+            if(group == 'all' || group == '') {
+                // Zeige alle Optionen
+                $allOptions.each(function() {
+                    $(this).prop('disabled', false).show();
+                });
+            } else {
+                // Filtere basierend auf Gruppen-Klassen
+                $allOptions.each(function() {
+                    var $option = $(this);
+                    var userId = $option.val();
+
+                    // "Alle" Option und eigene Option immer anzeigen
+                    if(userId == 'all' || userId == '{{ auth()->id() }}') {
+                        $option.prop('disabled', false).show();
+                        return;
+                    }
+
+                    // Prüfe ob die Option die ausgewählte Gruppen-Klasse hat
+                    if($option.hasClass(group)) {
+                        $option.prop('disabled', false).show();
+                    } else {
+                        $option.prop('disabled', true).hide();
+                    }
+                });
+            }
+        }
+
         $('#group_filter').change(function() {
             document.cookie = "group="+$(this).val();
             var group = $(this).val();
@@ -243,11 +282,14 @@
 
                 $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}'+'/'+group);
             }
+
+            // Filtere auch die Mitarbeiter-Auswahl
+            filterEmployeeOptions(group);
         });
 
         document.addEventListener('DOMContentLoaded', function() {
             var group = document.cookie.replace(/(?:(?:^|.*;\s*)group\s*\=\s*([^;]*).*$)|^.*$/, "$1");
-            if(group == 'all') {
+            if(group == 'all' || group == '') {
                 $('#group_filter').val('all');
                 $('table tbody tr').show();
 
@@ -260,6 +302,9 @@
                 $('#exportLink').attr('href', '{{url('holidays/export/'.$month->year)}}'+'/'+group);
 
             }
+
+            // Filtere auch die Mitarbeiter-Auswahl beim Laden
+            filterEmployeeOptions(group);
         });
     </script>
 @endpush

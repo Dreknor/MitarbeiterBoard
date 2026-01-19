@@ -48,15 +48,15 @@
     <div class="card-body">
         <p>{!! $show_ticket->description  !!} </p>
     </div>
-    @if($show_ticket->getMedia()->count() > 0)
+    @if($show_ticket->getMedia('ticket_files')->count() > 0)
         <div class="card-footer">
             {{-- Dateien anzeigen --}}
 
                 <h6>Dateien</h6>
                 <ul class="list-group">
-                    @foreach($show_ticket->files as $file)
+                    @foreach($show_ticket->getMedia('ticket_files') as $file)
                         <li class="list-group-item">
-                            <a href="{{ route('tickets.download', $file->id) }}">{{ $file->name }}</a>
+                            <a href="{{url('/image/'.$file->id)}}" target="_blank">{{ $file->name }}</a>
                         </li>
                     @endforeach
                 </ul>

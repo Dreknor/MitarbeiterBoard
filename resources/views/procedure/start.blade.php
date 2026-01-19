@@ -61,9 +61,13 @@
 @push('js')
     <script>
         $('.newStep').on('click', function (e){
-            $('#parent').val(e.target.dataset.parent);
-            console.log(e.target.dataset.parent)
-        })
+            var parentId = $(this).data('parent');
+            if (!parentId) {
+                parentId = $(e.target).closest('.newStep').data('parent');
+            }
+            $('#parent').val(parentId);
+            console.log(parentId);
+        });
     </script>
 @endpush
 
@@ -167,8 +171,21 @@
 
 @push('js')
     <script>
-        $('.addUser').on('click', function (e){
-            $('#step').val(e.target.dataset.step);
-        })
+        $(document).on('click', '.addUser', function (e){
+            // Verwende die data-Attribute des Buttons selbst; falls das eigentliche Ziel ein Kind-Element ist,
+            // lese es von der nächsthöheren .addUser-Element.
+            var stepId = $(this).data('step');
+            if (!stepId) {
+                stepId = $(e.target).closest('.addUser').data('step');
+            }
+            $('#step').val(stepId);
+        });
+
+        // Reset hidden input when modal closes to avoid stale values
+        $(document).on('hidden.bs.modal', '#addUserModal', function () {
+            $('#step').val('');
+            // move focus back to the visible back button for accessibility
+            $('.btn-info').first().focus();
+        });
     </script>
 @endpush

@@ -15,8 +15,10 @@ use App\Models\Procedure_Step;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 
@@ -141,7 +143,15 @@ class ProcedureController extends Controller
         });
 
         return view('procedure.edit', [
-            'procedure'=>$procedure->load('steps', 'steps.position', 'steps.childs.position'),
+            'procedure'=>$procedure->load(
+                'steps',
+                'steps.position',
+                'steps.parent_rel',
+                'steps.users',
+                'steps.childs.position',
+                'steps.childs.parent_rel',
+                'steps.childs.users'
+            ),
             'positions'=>$positions,
         ]);
     }
@@ -162,7 +172,15 @@ class ProcedureController extends Controller
         });
 
         return view('procedure.start', [
-            'procedure'=>$procedure->load('steps', 'steps.position', 'steps.childs.position'),
+            'procedure'=>$procedure->load(
+                'steps',
+                'steps.position',
+                'steps.parent_rel',
+                'steps.users',
+                'steps.childs.position',
+                'steps.childs.parent_rel'
+                , 'steps.childs.users'
+            ),
             'positions'=>$positions,
             'users' => $users,
 
@@ -204,15 +222,22 @@ class ProcedureController extends Controller
 
             $users = $step->position->users;
 
-            $newStep->users()->attach($users);
-            foreach ($users as $user) {
-                Mail::to($user)->queue(new newStepMail(
-                    $user->name,
-                    Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
-                    $newStep->name,
-                    $newStep->procedure->name,
-                    $step->procedure->id));
+            if ($users->contains('id', auth()->id())) {
+                $newStep->users()->attach(auth()->user());
+            } else {
+                $newStep->users()->attach($users);
+                foreach ($users as $user) {
+                    Mail::to($user)->queue(new newStepMail(
+                        $user->name,
+                        Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
+                        $newStep->name,
+                        $newStep->procedure->name,
+                        $step->procedure->id));
+                }
             }
+
+
+
 
             $this->recursiveSteps($step->childs, $newStep);
         }
@@ -256,6 +281,24 @@ class ProcedureController extends Controller
 
     public function done(Procedure_Step $step)
     {
+        // Autorisierungs-Check: nur zuständige Benutzer oder Administratoren mit 'edit procedures' dürfen markieren
+        if (!auth()->check()) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Keine Berechtigung.'
+            ]);
+        }
+
+        $currentUser = auth()->user();
+        // Verwende die geladene Collection, vermeidet direkte DB-Query und reduziert statische Analysewarnungen
+        $isAssigned = $step->users->contains('id', $currentUser->id);
+        if (!$isAssigned && !$currentUser->can('edit procedures')) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Keine Berechtigung.'
+            ]);
+        }
+
         $step->update(['done' => 1]);
 
         if (count(Procedure_Step::where('procedure_id', $step->procedure_id)->where('done', 0)->get()) < 1) {
@@ -270,13 +313,15 @@ class ProcedureController extends Controller
         }
 
         foreach ($step->childs as $child) {
-            foreach ($child->users as $user) {
-                Mail::to($user)->send(new newStepMail(
-                    $user->name,
-                    Carbon::now()->addDays($child->durationDays)->format('d.m.Y'),
-                    $child->name,
-                    $child->procedure->name,
-                    $step->procedure->id));
+            if (!$child->users->contains('id', auth()->id())) {
+                foreach ($child->users as $user) {
+                    Mail::to($user)->send(new newStepMail(
+                        $user->name,
+                        Carbon::now()->addDays($child->durationDays)->format('d.m.Y'),
+                        $child->name,
+                        $child->procedure->name,
+                        $step->procedure->id));
+                }
             }
 
             $child->update([
@@ -299,44 +344,105 @@ class ProcedureController extends Controller
 
     public function addUser(Request $request)
     {
-        $step = Procedure_Step::where('id', $request->input('step'))->first();
+        $data = $request->validate([
+            'step' => 'required|integer',
+            'person_id' => 'required|integer'
+        ]);
 
-        $step->users()->attach($request->input('person_id'));
+        $step = Procedure_Step::find($data['step']);
+        if (!$step) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Schritt nicht gefunden.'
+            ]);
+        }
 
-        return redirect()->back();
+        $user = User::find($data['person_id']);
+        if (!$user) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Benutzer nicht gefunden.'
+            ]);
+        }
+
+        // Verhindere doppelte Zuweisung
+        if ($step->users->contains('id', $user->id)) {
+            return redirect()->back()->with([
+                'type' => 'info',
+                'Meldung' => 'Benutzer ist bereits zugewiesen.'
+            ]);
+        }
+
+        $step->users()->attach($user->id);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Benutzer hinzugefügt.'
+        ]);
     }
 
-    public function remindStepMail()
+    public function remindStepMail(): void
     {
-        $users = User::whereHas('steps', function (Builder $query){
-            $query->where('endDate', '<=', Carbon::now())->where('done', 0);
-        })->get();
+        $usersWithPendingSteps = $this->getUsersWithPendingSteps();
 
-        foreach ($users as $user){
-            $steps = $user->steps()->with('procedure')->where('endDate', '<=', Carbon::now())->where('done', 0)->get();
-            $step_array = [];
-
-            foreach ($steps as $step){
-                $step_array[]= [
-                    'endDate' => $step->endDate->format('d.m.Y'),
-                    'procedureName' => $step->procedure->name,
-                    'procedureId' => $step->procedure_id,
-                    'stepName' => $step->name,
-                    'stepId' => $step->id
-                ];
+        foreach ($usersWithPendingSteps as $user) {
+            if (!$user->hasAbsence(Carbon::now())) {
+                $pendingSteps = $this->formatPendingSteps($user);
+                $this->sendReminderEmail($user, $pendingSteps);
             }
-
-            $absences = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                ->where('end', '>=', Carbon::now()->format('Y-m-d'))
-                ->where('users_id', $user->id)
-                ->first();
-
-            if (is_null($absences)) {
-                Mail::to($user)->queue(new StepErinnerungMail($user->name, $step_array));
-            }
-
-            return '';
         }
+    }
+
+    private function getUsersWithPendingSteps(): Collection
+    {
+        return User::whereHas('steps', function (Builder $query) {
+            $query->where('endDate', '<=', Carbon::now())
+                ->where('done', 0);
+        })->get();
+    }
+
+    private function formatPendingSteps(User $user): array
+    {
+        $steps = $user->steps()
+            ->with('procedure')
+            ->where('endDate', '<=', Carbon::now())
+            ->where('done', 0)
+            ->get();
+
+        return $steps->map(function ($step) {
+            return [
+                'endDate' => $step->endDate->format('d.m.Y'),
+                'procedureName' => $step->procedure->name,
+                'procedureId' => $step->procedure_id,
+                'stepName' => $step->name,
+                'stepId' => $step->id
+            ];
+        })->toArray();
+    }
+
+    private function sendReminderEmail(User $user, array $pendingSteps): void
+    {
+        Log::debug('Prozesse: Erinnerungsemail senden', ['user' => $user, 'pendingSteps' => $pendingSteps]);;
+        Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
+    }
+
+    // Public wrapper so the reminder can be triggered for a single user from CLI (Artisan) or elsewhere.
+    public function sendReminderEmailForUser(User $user): void
+    {
+        // If the user is currently absent, do not send a reminder.
+        if (method_exists($user, 'hasAbsence') && $user->hasAbsence(Carbon::now())) {
+            Log::info('Prozesse: Erinnerung nicht gesendet, Benutzer abwesend', ['user' => $user->id]);
+            return;
+        }
+
+        $pendingSteps = $this->formatPendingSteps($user);
+
+        if (empty($pendingSteps)) {
+            Log::info('Prozesse: Keine ausstehenden Schritte für Benutzer', ['user' => $user->id]);
+            return;
+        }
+
+        $this->sendReminderEmail($user, $pendingSteps);
     }
 
     public function endProcedure(Procedure $procedure){

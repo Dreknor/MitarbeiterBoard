@@ -6,6 +6,7 @@ use App\Models\Liste;
 use App\Models\personal\Employment;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterCheck;
+use App\Models\personal\RosterTaskRequirement;
 use App\Models\Subscription;
 use DateTime;
 use Illuminate\Database\Eloquent\Model;
@@ -17,8 +18,8 @@ class Group extends Model
     use HasRelationships;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
 
     protected $casts = [
         'protected' => 'boolean',
@@ -27,6 +28,7 @@ class Group extends Model
         'hasAllocations' => 'boolean',
         'enddate'  => 'date',
         'stack_themes' => 'boolean',
+        'use_meetings' => 'boolean',
     ];
 
     public function users()
@@ -71,6 +73,12 @@ class Group extends Model
     {
         return $this->morphMany(\App\Models\Task::class, 'taskable');
     }
+
+    public function meetings()
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
 
 
 
@@ -132,6 +140,11 @@ class Group extends Model
     public function roster_checks()
     {
         return $this->hasMany(RosterCheck::class, 'department_id');
+    }
+
+    public function roster_task_requirements()
+    {
+        return $this->hasMany(RosterTaskRequirement::class, 'department_id');
     }
 
     public function employes()

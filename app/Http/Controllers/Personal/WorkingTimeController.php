@@ -10,6 +10,7 @@ use App\Models\personal\Roster;
 use App\Models\personal\WorkingTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Spatie\GoogleCalendar\Event;
 
 class WorkingTimeController extends Controller
@@ -55,17 +56,26 @@ class WorkingTimeController extends Controller
 
             } else {
                 if (isset($request->start) and isset($request->end)){
-                    $event = Event::create([
-                        'name' => 'Dienst',
-                        'startDateTime' => Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->start),
-                        'endDateTime' => Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->end),
-                    ],
-                        $working_time->employe->employe_data->google_calendar_link
-                    );
-                    $event->save();
+                    try {
+                        $event = Event::create([
+                            'name' => 'Dienst',
+                            'startDateTime' => Carbon::parse($request->date.' '.$request->start),
+                            'endDateTime' => Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->end),
+                        ],
+                            $working_time->employe->employe_data->google_calendar_link
+                        );
+                        $event->save();
 
-                    $working_time->googleCalendarId = $event->id;
-                    $working_time->save();
+                        $working_time->googleCalendarId = $event->id;
+                        $working_time->save();
+                    } catch (\Exception $exception){
+                        Log::error("Arbeitszeit: Kalendereintrag fehlgeschlagen:", [
+                            'message' => $exception->getMessage(),
+                        ]);
+
+                        return redirectBack('warning', 'Arbeitszeit gespeichert, aber Kalendereintrag fehlgeschlagen');
+                    }
+
                 }
             }
 

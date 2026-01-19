@@ -102,7 +102,7 @@
                                                     @endif
                                                 >
                                                     <div class="innerText">
-                                                        {{\Illuminate\Support\Str::limit($events->searchRosterEvent($employe, $time)->first()->event, 15, ' (...)')}}
+                                                        {{\Illuminate\Support\Str::limit($events->searchRosterEvent($employe, $time)->first()->event, 40, ' (...)')}}
                                                         @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > '14:30')
                                                             (bis {{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}
                                                             Uhr)

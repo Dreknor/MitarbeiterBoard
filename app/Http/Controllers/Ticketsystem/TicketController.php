@@ -159,12 +159,17 @@ class TicketController extends Controller
 
 
         try {
-            $ticket->addMediaFromRequest('file')->toMediaCollection('ticket_files');
+            $ticket->addAllMediaFromRequest()
+                ->each(fn($fileAdder) => $fileAdder->toMediaCollection('ticket_files'));
+
         } catch (\Exception $e) {
-            Log::error('Ticketsystem: Ticket konnte nicht gespeichert werden: ',
+            Log::error('Ticketsystem: Datei nicht hochgeladen: ',
                 [
                     'ticket' => $ticket->id,
+                    'user' => auth()->user()->id,
+                    'email' => auth()->user()->email,
                     'error' => $e->getMessage(),
+                    'files' => $request->file('ticket_files'),
                 ]
             );
             return redirect()->back()->with('error', 'Datei konnte nicht hochgeladen werden');
@@ -180,7 +185,20 @@ class TicketController extends Controller
                 });
             })->get();
 
+            Log::debug('Ticketsystem: Ticket-Mail wird versendet: ',
+                [
+                    'ticket' => $ticket->title,
+                    'user' => auth()->user()->id,
+                    'email' => auth()->user()->email,
+                ]
+
+            );
+
             foreach ($users as $user) {
+                $user->notify(new \App\Notifications\Push(
+                    'Neues Ticket',
+                    'Ein neues Ticket wurde erstellt: ' . $ticket->title
+                ));
                 Mail::to($user->email)->queue(new newTicketMail($ticket));
             }
         } catch (\Exception $e) {
