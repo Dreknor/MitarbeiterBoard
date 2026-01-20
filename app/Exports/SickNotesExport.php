@@ -23,6 +23,8 @@ class SickNotesExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function map($row): array
     {
+        $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+
         return [
             ++$this->rows,
             $row->user->name,
@@ -31,7 +33,7 @@ class SickNotesExport implements FromCollection, WithHeadings, WithMapping, With
             $row->end->format('d.m.Y'),
             $row->days,
             $row->sick_note_date ? $row->sick_note_date->format('d.m.Y') :
-                (($row->sick_note_required or $row->days >= settings('absence_sick_note_days', 'absences')) ? 'Benötigt' : '-'),
+                (($row->sick_note_required or $row->days >= $sickNoteDaysThreshold) ? 'Benötigt' : '-'),
         ];
     }
 

@@ -255,6 +255,13 @@ class AbsenceController extends Controller
         $sortBy = $request->get('sort_by', 'start');
         $sortOrder = $request->get('sort_order', 'desc');
 
+        // Mitarbeiter-Übersicht Filter
+        $filterWithNoteMin = $request->get('filter_with_note_min');
+        $filterWithoutNoteMin = $request->get('filter_without_note_min');
+        $filterMissingNoteMin = $request->get('filter_missing_note_min');
+        $userSortBy = $request->get('user_sort_by', 'user');
+        $userSortOrder = $request->get('user_sort_order', 'asc');
+
         // Query aufbauen
         $query = Absence::where(function ($query){
             $query->whereIn('reason', config('absences.absence_sick_note'))
@@ -336,6 +343,32 @@ class AbsenceController extends Controller
 
         }
 
+        // Filter für Mitarbeiter-Übersicht anwenden
+        $filteredUsers = $users->filter(function($user) use ($filterWithNoteMin, $filterWithoutNoteMin, $filterMissingNoteMin) {
+            $pass = true;
+
+            if (!is_null($filterWithNoteMin) && $filterWithNoteMin !== '') {
+                $pass = $pass && ($user['with_note'] >= intval($filterWithNoteMin));
+            }
+
+            if (!is_null($filterWithoutNoteMin) && $filterWithoutNoteMin !== '') {
+                $pass = $pass && ($user['without_note'] >= intval($filterWithoutNoteMin));
+            }
+
+            if (!is_null($filterMissingNoteMin) && $filterMissingNoteMin !== '') {
+                $pass = $pass && ($user['missing_note'] >= intval($filterMissingNoteMin));
+            }
+
+            return $pass;
+        });
+
+        // Sortierung für Mitarbeiter-Übersicht anwenden
+        if ($userSortOrder === 'desc') {
+            $sortedUsers = $filteredUsers->sortByDesc($userSortBy);
+        } else {
+            $sortedUsers = $filteredUsers->sortBy($userSortBy);
+        }
+
         // Alle Abwesenheitsgründe für Filter-Dropdown
         $allReasons = Absence::where(function ($query){
                 $query->whereIn('reason', config('absences.absence_sick_note'))
@@ -356,7 +389,7 @@ class AbsenceController extends Controller
 
         return view('absences.sicknotes',[
            'absences' => $absences,
-            'users' => $users->sortBy('user'),
+            'users' => $sortedUsers,
             'allReasons' => $allReasons,
             'allUsers' => $allUsers,
             'filterReason' => $filterReason,
@@ -498,15 +531,17 @@ class AbsenceController extends Controller
             $missing_note = 0;
 
             foreach ($absences_user as $absence){
-                if ($absence->days < settings('absence_sick_note_days', 'absences') and $absence->sick_note_required == false)
+                $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+
+                if ($absence->days < $sickNoteDaysThreshold and $absence->sick_note_required == false)
                 {
                     $without_note+=$absence->days;
                 }
-                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
+                if (($absence->days >= $sickNoteDaysThreshold or $absence->sick_note_required != false) and is_null($absence->sick_note_date))
                 {
                     $missing_note+=$absence->days;
                 }
-                if (($absence->days >= settings('absence_sick_note_days', 'absences') or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
+                if (($absence->days >= $sickNoteDaysThreshold or $absence->sick_note_required != false) and !is_null($absence->sick_note_date))
                 {
                     $with_note+=$absence->days;
                 }

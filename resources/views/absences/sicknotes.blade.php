@@ -162,7 +162,7 @@
                 </div>
             </div>
     </div>
-    <div class="container-fluid">
+    <div class="container-fluid mt-4">
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
@@ -171,13 +171,58 @@
                         </h5>
                     </div>
                 </div>
+
+                <!-- Filter für Mitarbeiter-Übersicht -->
+                <div class="card-body border-bottom">
+                    <form method="GET" action="{{url('sick_notes')}}" class="row g-3">
+                        <!-- Bestehende Filter beibehalten -->
+                        <input type="hidden" name="reason" value="{{$filterReason}}">
+                        <input type="hidden" name="user" value="{{$filterUser}}">
+                        <input type="hidden" name="sick_note_status" value="{{$filterSickNoteStatus}}">
+                        <input type="hidden" name="sort_by" value="{{$sortBy}}">
+                        <input type="hidden" name="sort_order" value="{{$sortOrder}}">
+
+                        <div class="col-md-3">
+                            <label for="filter_with_note_min" class="form-label">Mit Schein min. Tage</label>
+                            <input type="number" name="filter_with_note_min" id="filter_with_note_min"
+                                   class="form-control form-control-sm"
+                                   value="{{request('filter_with_note_min')}}"
+                                   min="0" placeholder="z.B. 1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter_without_note_min" class="form-label">Ohne Schein min. Tage</label>
+                            <input type="number" name="filter_without_note_min" id="filter_without_note_min"
+                                   class="form-control form-control-sm"
+                                   value="{{request('filter_without_note_min')}}"
+                                   min="0" placeholder="z.B. 1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter_missing_note_min" class="form-label">Fehlt Schein min. Tage</label>
+                            <input type="number" name="filter_missing_note_min" id="filter_missing_note_min"
+                                   class="form-control form-control-sm"
+                                   value="{{request('filter_missing_note_min')}}"
+                                   min="0" placeholder="z.B. 1">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-sm me-2">
+                                <i class="fa fa-filter"></i> Filtern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="card-body">
                     <div class="table-responsive-md table-responsive-sm">
                         <table class="table table-striped">
                             <thead>
                             <tr class="text-center">
                                 <th rowspan="2" class="border">
-                                    Mitarbeiter
+                                    <a href="?{{http_build_query(array_merge(request()->except(['user_sort_by', 'user_sort_order']), ['user_sort_by' => 'user', 'user_sort_order' => request('user_sort_by') == 'user' && request('user_sort_order') == 'asc' ? 'desc' : 'asc']))}}" class="text-dark">
+                                        Mitarbeiter
+                                        @if(request('user_sort_by') == 'user')
+                                            <i class="fa fa-sort-{{request('user_sort_order') == 'asc' ? 'up' : 'down'}}"></i>
+                                        @endif
+                                    </a>
                                 </th>
                                 <th colspan="3" class="border">
                                     Tage
@@ -188,13 +233,28 @@
                             </tr>
                             <tr class="text-center">
                                 <th class="border" >
-                                    mit Schein
+                                    <a href="?{{http_build_query(array_merge(request()->except(['user_sort_by', 'user_sort_order']), ['user_sort_by' => 'with_note', 'user_sort_order' => request('user_sort_by') == 'with_note' && request('user_sort_order') == 'asc' ? 'desc' : 'asc']))}}" class="text-dark">
+                                        mit Schein
+                                        @if(request('user_sort_by') == 'with_note')
+                                            <i class="fa fa-sort-{{request('user_sort_order') == 'asc' ? 'up' : 'down'}}"></i>
+                                        @endif
+                                    </a>
                                 </th>
                                 <th class="border">
-                                    ohne Schein
+                                    <a href="?{{http_build_query(array_merge(request()->except(['user_sort_by', 'user_sort_order']), ['user_sort_by' => 'without_note', 'user_sort_order' => request('user_sort_by') == 'without_note' && request('user_sort_order') == 'asc' ? 'desc' : 'asc']))}}" class="text-dark">
+                                        ohne Schein
+                                        @if(request('user_sort_by') == 'without_note')
+                                            <i class="fa fa-sort-{{request('user_sort_order') == 'asc' ? 'up' : 'down'}}"></i>
+                                        @endif
+                                    </a>
                                 </th>
                                 <th class="border">
-                                    fehlt
+                                    <a href="?{{http_build_query(array_merge(request()->except(['user_sort_by', 'user_sort_order']), ['user_sort_by' => 'missing_note', 'user_sort_order' => request('user_sort_by') == 'missing_note' && request('user_sort_order') == 'asc' ? 'desc' : 'asc']))}}" class="text-dark">
+                                        fehlt
+                                        @if(request('user_sort_by') == 'missing_note')
+                                            <i class="fa fa-sort-{{request('user_sort_order') == 'asc' ? 'up' : 'down'}}"></i>
+                                        @endif
+                                    </a>
                                 </th>
                             </tr>
                             </thead>
