@@ -1,15 +1,16 @@
 module.exports = {
-  // Scan only diagnostic-related files to avoid conflicts
+  // Scan diagnostic and paedDiary files
   content: [
     "./resources/views/diagnostics/**/*.blade.php",
     "./resources/js/diagnostics.js",
+    "./resources/views/paedDiary/**/*.blade.php",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {
     preflight: false,
   },
   // Make Tailwind styles more specific to win over Bootstrap when needed
-  important: '.diagnostic-wrapper',
+  important: true,
   theme: {
     extend: {
       colors: {

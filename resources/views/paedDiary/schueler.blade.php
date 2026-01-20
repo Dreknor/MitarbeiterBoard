@@ -2,286 +2,420 @@
 
 @section('content')
 <div class="container-fluid" id="schueler-diary-app">
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-3">
-                <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
-                    <div class="d-flex align-items-center flex-wrap">
-                        <h5 class="mb-0 mr-3">Pädagogisches Tagebuch - {{ $schueler->vorname }} {{ $schueler->nachname }}</h5>
-                        <div class="small text-muted">Klasse: {{ $klasse->name }}</div>
+    <!-- Moderner Tailwind-Header -->
+    <div class="mb-6">
+        <!-- Hauptüberschrift und Aktionen -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <!-- Titel und Info -->
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                            <i class="fas fa-user-graduate text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl sm:text-3xl font-bold text-white mb-1">
+                                {{ $schueler->vorname }} {{ $schueler->nachname }}
+                            </h1>
+                            <div class="flex items-center gap-2 text-blue-100">
+                                <i class="fas fa-users text-sm"></i>
+                                <span class="text-sm font-medium">Klasse: {{ $klasse->name }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center">
-                        <a href="{{ route('paedDiary.index', ['klasse' => $klasse->id]) }}" class="btn btn-sm btn-outline-secondary mb-1 mr-2">
-                            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
-                        </a>
-                        <button id="exportWordBtn" class="btn btn-sm btn-outline-success mb-1" title="Excel Export">
-                            <i class="fas fa-file-excel"></i> Excel Export
+                </div>
+
+                <!-- Aktions-Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('paedDiary.index', ['klasse' => $klasse->id]) }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:inline">Zurück zur Übersicht</span>
+                        <span class="sm:hidden">Zurück</span>
+                    </a>
+                    <button id="exportWordBtn"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium shadow-md"
+                            title="Excel Export">
+                        <i class="fas fa-file-excel"></i>
+                        <span class="hidden sm:inline">Excel Export</span>
+                        <span class="sm:hidden">Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter-Bereich mit Tailwind -->
+        <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <!-- Zeitraum-Filter -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
+                <!-- Von Datum -->
+                <div class="lg:col-span-3">
+                    <label for="dateFrom" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Von:
+                    </label>
+                    <input type="date"
+                           id="dateFrom"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           value="{{ now()->subDays(30)->format('Y-m-d') }}">
+                </div>
+
+                <!-- Bis Datum -->
+                <div class="lg:col-span-3">
+                    <label for="dateTo" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Bis:
+                    </label>
+                    <input type="date"
+                           id="dateTo"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           value="{{ now()->format('Y-m-d') }}">
+                </div>
+
+                <!-- Daten laden Button -->
+                <div class="lg:col-span-3 flex items-end">
+                    <button id="loadDataBtn"
+                            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md">
+                        <i class="fas fa-sync-alt mr-2"></i>Daten laden
+                    </button>
+                </div>
+
+                <!-- Schnell-Filter -->
+                <div class="lg:col-span-3 flex items-end">
+                    <div class="w-full flex gap-2">
+                        <button type="button"
+                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                                id="last7Days">
+                            7T
+                        </button>
+                        <button type="button"
+                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                                id="last30Days">
+                            30T
+                        </button>
+                        <button type="button"
+                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                                id="last90Days">
+                            90T
                         </button>
                     </div>
                 </div>
-                <div class="card-body p-3">
-                    <!-- Zeitraum-Filter -->
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label class="small mb-1" for="dateFrom">Von:</label>
-                            <input type="date" id="dateFrom" class="form-control form-control-sm" value="{{ now()->subDays(30)->format('Y-m-d') }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="small mb-1" for="dateTo">Bis:</label>
-                            <input type="date" id="dateTo" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}">
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button id="loadDataBtn" class="btn btn-primary btn-sm">Daten laden</button>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary" id="last7Days">7 Tage</button>
-                                <button type="button" class="btn btn-outline-secondary" id="last30Days">30 Tage</button>
-                                <button type="button" class="btn btn-outline-secondary" id="last90Days">90 Tage</button>
+            </div>
+
+            <!-- Trennlinie -->
+            <div class="border-t border-gray-200 my-4"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="text-center py-12 hidden">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                <div class="text-gray-600 font-medium">Daten werden geladen...</div>
+            </div>
+
+            <!-- Zusammenfassung - Moderne Statistik-Karten -->
+            <div id="summarySection" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- Zeitraum -->
+                    <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="bg-gray-200 rounded-full p-2">
+                                <i class="fas fa-calendar-alt text-gray-600"></i>
                             </div>
                         </div>
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Zeitraum</h3>
+                        <p class="text-lg font-bold text-gray-800" id="periodText"></p>
                     </div>
 
-                    <!-- Neue Filter-Zeile: Kategorie + Suche -->
-
-
-                    <div id="loadingIndicator" class="text-center py-4 d-none">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="sr-only">Lade...</span>
+                    <!-- Einträge -->
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                                <i class="fas fa-file-alt text-white"></i>
+                            </div>
                         </div>
-                        <div class="mt-2">Daten werden geladen...</div>
+                        <h3 class="text-sm font-medium text-blue-100 mb-1">Einträge</h3>
+                        <p class="text-3xl font-bold text-white" id="entriesCount">0</p>
                     </div>
 
-                    <!-- Zusammenfassung -->
-                    <div id="summarySection" class="row mb-4 d-none">
-                        <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Zeitraum</h6>
-                                    <p class="card-text small mb-0" id="periodText"></p>
-                                </div>
+                    <!-- Aufgaben -->
+                    <div class="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                                <i class="fas fa-tasks text-white"></i>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Einträge</h6>
-                                    <p class="card-text mb-0"><span id="entriesCount">0</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Aufgaben</h6>
-                                    <p class="card-text mb-0"><span id="tasksCount">0</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Tage mit Einträgen</h6>
-                                    <p class="card-text mb-0"><span id="daysWithEntriesCount">0</span></p>
-                                </div>
-                            </div>
-                        </div>
+                        <h3 class="text-sm font-medium text-cyan-100 mb-1">Aufgaben</h3>
+                        <p class="text-3xl font-bold text-white" id="tasksCount">0</p>
                     </div>
 
-                    <!-- Daten-Anzeige -->
-                    <div id="dataSection" class="d-none">
-                        <!-- Navigation zwischen Ansichten -->
-                        <ul class="nav nav-tabs mb-3" id="viewTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link active" id="entries-tab" data-toggle="tab" href="#entries" role="tab">
-                                    Einträge <span class="badge badge-secondary" id="entriesBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="tasks-tab" data-toggle="tab" href="#tasks" role="tab">
-                                    Aufgaben <span class="badge badge-secondary" id="tasksBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="columns-tab" data-toggle="tab" href="#columns" role="tab">
-                                    Spalten <span class="badge badge-secondary" id="columnsBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="graduations-tab" data-toggle="tab" href="#graduations" role="tab">
-                                    Dokumentation <span class="badge badge-secondary">{{ $gradingSessions->count() }}</span>
-                                </a>
-                            </li>
-                        </ul>
+                    <!-- Tage mit Einträgen -->
+                    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                                <i class="fas fa-check-circle text-white"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-sm font-medium text-green-100 mb-1">Tage mit Einträgen</h3>
+                        <p class="text-3xl font-bold text-white" id="daysWithEntriesCount">0</p>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Daten-Anzeige -->
+            <div id="dataSection" class="hidden">
+                        <!-- Moderne Tab-Navigation -->
+                        <div class="mb-6">
+                            <div class="border-b border-gray-200">
+                                <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="viewTabs" role="tablist">
+                                    <li class="mr-2" role="presentation">
+                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-blue-600 rounded-t-lg text-blue-600 active group"
+                                                id="entries-tab"
+                                                data-toggle="tab"
+                                                href="#entries"
+                                                role="tab"
+                                                aria-selected="true">
+                                            <i class="fas fa-file-alt"></i>
+                                            <span>Einträge</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-600" id="entriesBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
+                                                id="tasks-tab"
+                                                data-toggle="tab"
+                                                href="#tasks"
+                                                role="tab"
+                                                aria-selected="false">
+                                            <i class="fas fa-tasks"></i>
+                                            <span>Aufgaben</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600" id="tasksBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
+                                                id="columns-tab"
+                                                data-toggle="tab"
+                                                href="#columns"
+                                                role="tab"
+                                                aria-selected="false">
+                                            <i class="fas fa-columns"></i>
+                                            <span>Spalten</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600" id="columnsBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
+                                                id="graduations-tab"
+                                                data-toggle="tab"
+                                                href="#graduations"
+                                                role="tab"
+                                                aria-selected="false">
+                                            <i class="fas fa-graduation-cap"></i>
+                                            <span>Dokumentation</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">{{ $gradingSessions->count() }}</span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Tab Content Container -->
                         <div class="tab-content" id="viewTabContent">
                             <!-- Einträge Tab -->
-                            <div class="tab-pane fade show active" id="entries" role="tabpanel">
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="small mb-1" for="categoryFilter">Kategorie</label>
-                                        <select id="categoryFilter" class="form-control form-control-sm">
-                                            <option value="">Alle Kategorien</option>
-                                            <!-- Kategorien werden clientseitig gefüllt -->
-                                        </select>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <label class="small mb-1" for="searchNotes">Suche Notizen</label>
-                                        <div class="">
-                                            <input type="text" id="searchNotes" class="form-control" placeholder="Textsuche in Notizen (Inhalt, Autor)">
+                            <div class="tab-pane fade show active" id="entries" role="tabpanel" aria-labelledby="entries-tab">
+                                <!-- Filter für Einträge -->
+                                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+                                        <!-- Kategorie-Filter -->
+                                        <div class="lg:col-span-4">
+                                            <label for="categoryFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-filter text-blue-500 mr-1"></i> Kategorie
+                                            </label>
+                                            <select id="categoryFilter"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all">
+                                                <option value="">Alle Kategorien</option>
+                                                <!-- Kategorien werden clientseitig gefüllt -->
+                                            </select>
+                                        </div>
 
+                                        <!-- Textsuche -->
+                                        <div class="lg:col-span-6">
+                                            <label for="searchNotes" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-search text-blue-500 mr-1"></i> Suche Notizen
+                                            </label>
+                                            <input type="text"
+                                                   id="searchNotes"
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                                   placeholder="Textsuche in Notizen (Inhalt, Autor)">
+                                        </div>
+
+                                        <!-- Info -->
+                                        <div class="lg:col-span-2 flex items-end">
+                                            <small class="text-xs text-gray-500">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Clientseitige Filterung
+                                            </small>
                                         </div>
                                     </div>
-
-                                    <div class="col-md-2 d-flex align-items-end">
-                                        <small class="text-muted">Suche wird clientseitig gefiltert</small>
-                                    </div>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="entriesTable">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th style="width: 100px;">Datum</th>
-                                                <th class="w-50">Notiz</th>
-                                                <th>Kategorie</th>
-                                                <th style="width: 120px;">Autor</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="entriesTableBody"></tbody>
-                                    </table>
+
+                                <!-- Tabelle mit Einträgen -->
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="entriesTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;">
+                                                        Datum
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 50%;">
+                                                        Notiz
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Kategorie
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 120px;">
+                                                        Autor
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="entriesTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Aufgaben Tab -->
-                            <div class="tab-pane fade" id="tasks" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="tasksTable">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th style="width: 120px;">Erstellt</th>
-                                                <th>Titel</th>
-                                                <th>Beschreibung</th>
-                                                <th style="width: 100px;">Fällig</th>
-                                                <th style="width: 80px;">Status</th>
-                                                <th style="width: 80px;">Priorität</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tasksTableBody"></tbody>
-                                    </table>
+                            <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="tasksTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 120px;">Erstellt</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titel</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;">Fällig</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 80px;">Status</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 80px;">Priorität</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tasksTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Spalten Tab -->
-                            <div class="tab-pane fade" id="columns" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="columnsTable">
-                                        <thead class="thead-light">
-                                            <tr id="columnCategoryHeaders">
-                                                <th style="width: 100px;" rowspan="2">Datum</th>
-                                            </tr>
-                                            <tr id="columnHeaders">
+                            <div class="tab-pane fade" id="columns" role="tabpanel" aria-labelledby="columns-tab">
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="columnsTable">
+                                            <thead class="bg-gray-50">
+                                                <tr id="columnCategoryHeaders">
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;" rowspan="2">Datum</th>
+                                                </tr>
+                                                <tr id="columnHeaders">
 
-                                            </tr>
-                                        </thead>
-                                        <tbody id="columnsTableBody"></tbody>
-                                        <tfoot id="columnsTableFooter"></tfoot>
-                                    </table>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="columnsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                            <tfoot id="columnsTableFooter" class="bg-gray-50"></tfoot>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Graduierungen Tab -->
-                            <div class="tab-pane fade" id="graduations" role="tabpanel">
+                            <div class="tab-pane fade" id="graduations" role="tabpanel" aria-labelledby="graduations-tab">
                                 @if($gradingSessions->isEmpty())
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle"></i> Für diesen Schüler liegen noch keine Graduierungs-Dokumentationen vor.
                                     </div>
                                 @else
                                     <!-- Entwicklungs-Übersicht -->
-                                    <div class="row mb-4">
-                                        <div class="col-lg-6 mb-3">
-                                            <div class="card">
-                                                <div class="card-header bg-primary text-white">
-                                                    <h6 class="mb-0">
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                                <div class="bg-blue-600 text-white px-4 py-3">
+                                                    <h6 class="mb-0 font-semibold">
                                                         <i class="fas fa-chart-radar"></i> Aktuelle Kompetenzen (Letzte Session)
                                                     </h6>
                                                 </div>
-                                                <div class="card-body">
+                                                <div class="p-4">
                                                     <canvas id="radarChart" height="280"></canvas>
                                                     <div class="text-center mt-2">
-                                                        <small class="text-muted">
-                                                            <span class="badge badge-info">●</span> Schüler-Einschätzung &nbsp;
-                                                            <span class="badge badge-success">●</span> Lehrer-Bewertung
+                                                        <small class="text-gray-500">
+                                                            <span class="inline-block w-3 h-3 bg-cyan-500 rounded-full"></span> Schüler-Einschätzung &nbsp;
+                                                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span> Lehrer-Bewertung
                                                         </small>
                                                     </div>
-                                                    <div class="mt-3 pt-2 border-top">
-                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
-                                                        <div class="d-flex justify-content-between align-items-center px-2">
-                                                            <div class="text-center" style="flex: 1;">
+                                                    <div class="mt-3 pt-2 border-t border-gray-200">
+                                                        <small class="text-gray-500 block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="flex justify-between items-center px-2">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">1</small></div>
+                                                                <div><small class="text-gray-500">1</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">2</small></div>
+                                                                <div><small class="text-gray-500">2</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">3</small></div>
+                                                                <div><small class="text-gray-500">3</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">4</small></div>
+                                                                <div><small class="text-gray-500">4</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">5</small></div>
+                                                                <div><small class="text-gray-500">5</small></div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-lg-6 mb-3">
-                                            <div class="card">
-                                                <div class="card-header bg-success text-white">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <h6 class="mb-0">
+                                        <div>
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                                <div class="bg-green-600 text-white px-4 py-3">
+                                                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                                        <h6 class="mb-0 font-semibold">
                                                             <i class="fas fa-chart-line"></i> Entwicklung über Zeit
                                                         </h6>
-                                                        <div class="d-flex align-items-center">
-                                                            <select id="lineChartQuestionSelector" class="form-control form-control-sm" style="max-width: 250px; background-color: white; color: #333;">
+                                                        <div class="w-full sm:w-auto">
+                                                            <select id="lineChartQuestionSelector" class="w-full sm:max-w-xs px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 text-sm">
                                                                 <option value="average">Durchschnitt aller Fragen</option>
                                                             </select>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="card-body">
+                                                <div class="p-4">
                                                     <canvas id="lineChart" height="280"></canvas>
                                                     <div class="text-center mt-2">
-                                                        <small class="text-muted" id="lineChartDescription">Durchschnittliche Bewertung über alle Fragen</small>
+                                                        <small class="text-gray-500" id="lineChartDescription">Durchschnittliche Bewertung über alle Fragen</small>
                                                     </div>
-                                                    <div class="mt-3 pt-2 border-top">
-                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
-                                                        <div class="d-flex justify-content-between align-items-center px-2">
-                                                            <div class="text-center" style="flex: 1;">
+                                                    <div class="mt-3 pt-2 border-t border-gray-200">
+                                                        <small class="text-gray-500 block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="flex justify-between items-center px-2">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">1</small></div>
+                                                                <div><small class="text-gray-500">1</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">2</small></div>
+                                                                <div><small class="text-gray-500">2</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">3</small></div>
+                                                                <div><small class="text-gray-500">3</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">4</small></div>
+                                                                <div><small class="text-gray-500">4</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">5</small></div>
+                                                                <div><small class="text-gray-500">5</small></div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -290,58 +424,44 @@
                                         </div>
                                     </div>
 
-                                    <!-- Schwierige Bereiche Zusammenfassung -->
-                                    <div class="card mb-4 border-warning">
-                                        <div class="card-header bg-warning">
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-exclamation-triangle"></i> Entwicklungsbereiche
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="challengingAreas">
-                                                <div class="text-center text-muted">
-                                                    <i class="fas fa-spinner fa-spin"></i> Wird berechnet...
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
 
                                     <!-- Einzelne Dokumentations-Sessions -->
-                                    <h6 class="mb-3"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
-                                    <div class="accordion" id="documentationAccordion">
+                                    <h6 class="mb-3 font-semibold text-gray-700"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
+                                    <div class="space-y-2" id="documentationAccordion">
                                         @foreach($gradingSessions as $session)
-                                            <div class="card mb-2">
-                                                <div class="card-header" id="heading{{ $session->id }}">
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                                <div class="bg-gray-100 px-4 py-3" id="heading{{ $session->id }}">
                                                     <h6 class="mb-0">
-                                                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse"
+                                                        <button class="w-full text-left font-medium text-gray-700 hover:text-blue-600 transition-colors" type="button" data-toggle="collapse"
                                                                 data-target="#collapse{{ $session->id }}" aria-expanded="false">
                                                             <i class="fas fa-calendar-alt"></i>
                                                             {{ $session->completed_at->format('d.m.Y H:i') }} Uhr
-                                                            <span class="badge badge-info ml-2">{{ $session->gradingSystem->name }}</span>
-                                                            <span class="badge badge-secondary ml-1">
+                                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 ml-2">{{ $session->gradingSystem->name }}</span>
+                                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-800 ml-1">
                                                                 {{ $session->isGroupSession() ? 'Gruppe' : 'Einzeln' }}
                                                             </span>
                                                         </button>
                                                     </h6>
                                                 </div>
                                                 <div id="collapse{{ $session->id }}" class="collapse" data-parent="#documentationAccordion">
-                                                    <div class="card-body">
-                                                        <p class="text-muted mb-3">
+                                                    <div class="p-4">
+                                                        <p class="text-gray-600 mb-3">
                                                             <strong>Lehrer:</strong> {{ $session->user->name }}
                                                         </p>
-                                                            <table class="table table-sm table-bordered">
-                                                                <thead class="thead-light">
+                                                        <div class="overflow-x-auto">
+                                                            <table class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                                                                <thead class="bg-gray-50">
                                                                     <tr>
-                                                                        <th style="width: 40%;" rowspan="2">Frage</th>
-                                                                        <th style="width: 30%" colspan="2" class="align-center">Einschätzung</th>
-                                                                        <th rowspan="2">Kommentar</th>
+                                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 40%;" rowspan="2">Frage</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 30%" colspan="2">Einschätzung</th>
+                                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" rowspan="2">Kommentar</th>
                                                                     </tr>
                                                                     <tr>
-                                                                        <th style="width: 15%;">Schüler</th>
-                                                                        <th style="width: 15%;">Lehrer</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Schüler</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Lehrer</th>
                                                                     </tr>
                                                                 </thead>
-                                                                <tbody>
+                                                                <tbody class="bg-white divide-y divide-gray-200">
                                                                     @foreach($session->gradingSystem->questions as $question)
                                                                         @php
                                                                             $studentAnswer = $session->studentAnswers->where('schueler_id', $schueler->id)
@@ -352,8 +472,8 @@
                                                                                                                               ->first();
                                                                         @endphp
                                                                         <tr>
-                                                                            <td>{{ $question->question }}</td>
-                                                                            <td class="text-center">
+                                                                            <td class="px-4 py-3">{{ $question->question }}</td>
+                                                                            <td class="px-4 py-3 text-center">
                                                                                 @if($studentAnswer)
                                                                                     @php
                                                                                         $rating = $studentAnswer->self_rating;
@@ -375,10 +495,10 @@
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
                                                                                        title="{{ $labels[$rating] }}"></i>
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
-                                                                            <td class="text-center">
+                                                                            <td class="px-4 py-3 text-center">
                                                                                 @if($teacherAssessment && $teacherAssessment->teacher_rating)
                                                                                     @php
                                                                                         $rating = $teacherAssessment->teacher_rating;
@@ -400,20 +520,21 @@
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
                                                                                        title="{{ $labels[$rating] }}"></i>
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
-                                                                            <td>
+                                                                            <td class="px-4 py-3">
                                                                                 @if($teacherAssessment && $teacherAssessment->comment)
                                                                                     {{ $teacherAssessment->comment }}
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
                                                                         </tr>
                                                                     @endforeach
                                                                 </tbody>
                                                             </table>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -425,48 +546,62 @@
                     </div>
 
                     <!-- Stage & History (sichtbar in Schüleransicht) -->
-                    <div class="row mb-3" id="stageHistoryRow" style="display:none">
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title">Aktuelle Stufe</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4" id="stageHistoryRow" style="display:none">
+                        <div class="md:col-span-4">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <div class="p-4 text-center">
+                                    <h6 class="font-semibold text-gray-700 mb-3">Aktuelle Stufe</h6>
                                     <div id="stageCard" class="mt-2">
-                                        <div class="text-muted">—</div>
+                                        <div class="text-gray-400">—</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-8">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">Stufen-Historie</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped" id="historyTable">
-                                            <thead class="thead-light"><tr><th style="width:120px">Datum</th><th>Neu</th><th>Vorher</th><th style="width:120px">Geändert von</th></tr></thead>
-                                            <tbody id="historyTableBody"></tbody>
+                        <div class="md:col-span-8">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <div class="p-4">
+                                    <h6 class="font-semibold text-gray-700 mb-3">Stufen-Historie</h6>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="historyTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Neu</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vorher</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Geändert von</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200"></tbody>
                                         </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Keine Daten Nachricht -->
-                    <div id="noDataMessage" class="text-center py-5 d-none">
-                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">Keine Daten gefunden</h5>
-                        <p class="text-muted">Für den gewählten Zeitraum wurden keine Einträge gefunden.</p>
-                    </div>
                 </div>
             </div>
+            <!-- Ende von dataSection -->
+
+            <!-- Keine Daten Nachricht -->
+            <div id="noDataMessage" class="text-center py-12 hidden">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
+                    <i class="fas fa-info-circle text-4xl text-gray-400"></i>
+                </div>
+                <h5 class="text-xl font-semibold text-gray-600 mb-2">Keine Daten gefunden</h5>
+                <p class="text-gray-500">Für den gewählten Zeitraum wurden keine Einträge gefunden.</p>
+            </div>
         </div>
+        <!-- Ende bg-white Filter/Content Card -->
     </div>
+    <!-- Ende mb-6 Hauptcontainer -->
 </div>
+<!-- Ende container-fluid -->
 @endsection
 
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/tablet-scroll-optimization.css?v=20251110') }}">
 <style>
+/* Tailwind-kompatible Styles */
 .card-title {
     font-size: 0.9rem;
 }
@@ -477,6 +612,11 @@
 .badge {
     font-size: 0.7rem;
 }
+
+/* Tabellen-Styling */
+#entriesTable tbody tr:hover {
+    background-color: #f9fafb;
+}
 #entriesTable td:nth-child(2) {
     max-width: 400px;
     word-wrap: break-word;
@@ -485,6 +625,8 @@
     max-width: 300px;
     word-wrap: break-word;
 }
+
+/* Status und Priorität */
 .status-open {
     color: #dc3545;
     font-weight: bold;
@@ -496,22 +638,69 @@
     color: #dc3545;
     font-weight: bold;
 }
-.table-responsive {
+
+/* Responsive Tabellen mit optimierter Höhe für iPads */
+.overflow-x-auto {
     max-height: 70vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
+
+/* Tab-Pane Animation */
+.tab-pane {
+    display: none;
+}
+.tab-pane.show.active {
+    display: block;
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tab-Button Übergangseffekte */
+[data-toggle="tab"] {
+    transition: all 0.2s ease-in-out;
+}
+
 /* Chart Styling */
 #radarChart, #lineChart {
     max-height: 280px;
 }
-.challenging-area-item {
-    border-left: 3px solid #ffc107;
-    padding-left: 12px;
-    margin-bottom: 12px;
+
+.border-l-3 {
+    border-left-width: 3px;
 }
-.progress-small {
-    height: 8px;
+
+.border-blue-400 {
+    border-color: #60a5fa;
 }
+
+/* Collapse Funktionalität mit Transition */
+.collapse {
+    display: none;
+    transition: all 0.3s ease-in-out;
+}
+
+.collapse.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+    }
+    to {
+        opacity: 1;
+        max-height: 2000px;
+    }
+}
+
 /* Kategorie-Header Styling */
 #columnsTable thead tr:first-child th {
     background-color: #2c5f8d;
@@ -519,27 +708,222 @@
     font-weight: bold;
     text-align: center;
     vertical-align: middle;
+    padding: 0.75rem 1rem;
 }
 #columnsTable thead tr:nth-child(2) th {
     background-color: #4a90e2;
     color: white;
+    padding: 0.75rem 1rem;
 }
+
 /* Vertikale Trennlinien zwischen Kategorien */
 #columnsTable thead tr:first-child th:not(:first-child) {
     border-left: 2px solid #1a3a5a;
 }
+
+#columnsTable tbody tr td {
+    padding: 0.5rem 1rem;
+}
+
 #columnsTable tbody tr td:first-child {
     border-right: 2px solid #2c5f8d;
 }
+
 /* Trennlinie für den Beginn einer neuen Kategorie */
 #columnsTable th.category-start,
 #columnsTable td.category-start {
     border-left: 2px solid #2c5f8d !important;
 }
+
+/* Collapse Funktionalität */
+.collapse {
+    display: none;
+}
+
+.collapse.show {
+    display: block;
+}
+
+/* Badge Styles für Tailwind-Kompatibilität */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+/* Progress Bar */
+.progress {
+    display: flex;
+    height: 1rem;
+    overflow: hidden;
+    font-size: 0.75rem;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+}
+
+.progress-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #007bff;
+    transition: width 0.6s ease;
+}
+
+.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* Alert Styles */
+.alert {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* Responsive Optimierungen für iPads und Tablets */
+@media (max-width: 1024px) {
+    /* iPad Landscape und kleiner */
+    .overflow-x-auto {
+        max-height: 60vh;
+    }
+
+    /* Kompaktere Charts auf Tablets */
+    #radarChart, #lineChart {
+        max-height: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* iPad Portrait und kleiner */
+    .bg-gradient-to-r {
+        padding: 1rem !important;
+    }
+
+    /* Kompaktere Tab-Navigation */
+    [data-toggle="tab"] {
+        padding: 0.75rem 1rem !important;
+        font-size: 0.875rem;
+    }
+
+    [data-toggle="tab"] span:not([id$="Badge"]) {
+        display: none;
+    }
+
+    /* Tabellen scrollbar für kleine Bildschirme */
+    .overflow-x-auto {
+        max-height: 50vh;
+    }
+
+    /* Kleinere Charts auf mobilen Geräten */
+    #radarChart, #lineChart {
+        max-height: 200px;
+    }
+
+    /* Kompaktere Tabellen-Padding */
+    #entriesTable td,
+    #tasksTable td,
+    #columnsTable td,
+    #historyTable td {
+        padding: 0.5rem !important;
+        font-size: 0.875rem;
+    }
+
+    #entriesTable th,
+    #tasksTable th,
+    #columnsTable th,
+    #historyTable th {
+        padding: 0.5rem !important;
+        font-size: 0.75rem;
+    }
+}
+
+/* Touch-Optimierung für iPads */
+@media (hover: none) and (pointer: coarse) {
+    /* Größere Touch-Targets */
+    button, a, [data-toggle="tab"], [data-toggle="collapse"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Verbesserte Scroll-Performance */
+    .overflow-x-auto {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Kleine Mobilgeräte */
+@media (max-width: 640px) {
+    /* Noch kompaktere Darstellung */
+    .overflow-x-auto {
+        max-height: 45vh;
+    }
+
+    #radarChart, #lineChart {
+        max-height: 180px;
+    }
+
+    /* Stack charts vertikal */
+    .grid > div {
+        margin-bottom: 1rem;
+    }
+}
 </style>
 @endpush
 
 @push('js')
+<script src="{{ asset('/js/paed-diary.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
 <script>
@@ -621,10 +1005,10 @@
         }
 
         // UI Updates
-        loadingIndicator.classList.remove('d-none');
-        summarySection.classList.add('d-none');
-        dataSection.classList.add('d-none');
-        noDataMessage.classList.add('d-none');
+        loadingIndicator.classList.remove('hidden');
+        summarySection.classList.add('hidden');
+        dataSection.classList.add('hidden');
+        noDataMessage.classList.add('hidden');
 
         // Fetch Data
         const params = new URLSearchParams({
@@ -645,7 +1029,7 @@
                 alert('Fehler beim Laden der Daten.');
             })
             .finally(() => {
-                loadingIndicator.classList.add('d-none');
+                loadingIndicator.classList.add('hidden');
             });
     }
 
@@ -758,13 +1142,13 @@
         renderStage(currentData.current_stage);
         renderHistory(currentData.stage_history || []);
 
-        summarySection.classList.remove('d-none');
-        dataSection.classList.remove('d-none');
+        summarySection.classList.remove('hidden');
+        dataSection.classList.remove('hidden');
 
         if (filteredEntries.length === 0 && (currentData.tasks || []).length === 0) {
-            noDataMessage.classList.remove('d-none');
+            noDataMessage.classList.remove('hidden');
         } else {
-            noDataMessage.classList.add('d-none');
+            noDataMessage.classList.add('hidden');
         }
     }
 
@@ -775,7 +1159,7 @@
 
         if (!entries || entries.length === 0) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="3" class="text-center text-muted">Keine Einträge</td>`;
+            tr.innerHTML = `<td colspan="4" class="px-4 py-3 text-center text-gray-500">Keine Einträge</td>`;
             tbody.appendChild(tr);
             return;
         }
@@ -795,10 +1179,10 @@
 
 
             row.innerHTML = `
-                <td class="text-center">${formatDisplayDate(entry.date)}</td>
-                <td>${escapeHtml(entry.content)}</td>
-                <td >${escapeHtml(categoryName)}</td>
-                <td class="text-center">${escapeHtml(entry.user || '')}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${formatDisplayDate(entry.date)}</td>
+                <td class="px-4 py-3">${escapeHtml(entry.content)}</td>
+                <td class="px-4 py-3">${escapeHtml(categoryName)}</td>
+                <td class="px-4 py-3 text-center">${escapeHtml(entry.user || '')}</td>
             `;
             tbody.appendChild(row);
         });
@@ -809,18 +1193,25 @@
         const tbody = document.getElementById('tasksTableBody');
         tbody.innerHTML = '';
 
+        if (!tasks || tasks.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="6" class="px-4 py-3 text-center text-gray-500">Keine Aufgaben</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
         tasks.forEach(task => {
             const row = document.createElement('tr');
             const statusClass = task.status === 'open' ? 'status-open' : 'status-closed';
             const priorityClass = task.highlighted ? 'priority-high' : '';
 
             row.innerHTML = `
-                <td class="text-center">${escapeHtml(task.created_at)}</td>
-                <td>${escapeHtml(task.title)}</td>
-                <td>${escapeHtml(task.description || '')}</td>
-                <td class="text-center">${escapeHtml(task.due_date || '')}</td>
-                <td class="text-center"><span class="${statusClass}">${task.status === 'open' ? 'Offen' : 'Geschlossen'}</span></td>
-                <td class="text-center"><span class="${priorityClass}">${task.highlighted ? 'Hoch' : 'Normal'}</span></td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${escapeHtml(task.created_at)}</td>
+                <td class="px-4 py-3">${escapeHtml(task.title)}</td>
+                <td class="px-4 py-3">${escapeHtml(task.description || '')}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${escapeHtml(task.due_date || '')}</td>
+                <td class="px-4 py-3 text-center"><span class="${statusClass}">${task.status === 'open' ? 'Offen' : 'Geschlossen'}</span></td>
+                <td class="px-4 py-3 text-center"><span class="${priorityClass}">${task.highlighted ? 'Hoch' : 'Normal'}</span></td>
             `;
             tbody.appendChild(row);
         });
@@ -914,11 +1305,9 @@
              row.appendChild(dateCell);
 
              // Value columns (in sorted order) - track category boundaries
-             let currentCategoryIndex = 0;
-             let columnIndexInCategory = 0;
              let currentCategory = sortedColumns[0]?.category || 'Unkategorisiert';
 
-             sortedColumns.forEach((column, idx) => {
+             sortedColumns.forEach((column) => {
                  const cell = document.createElement('td');
                  const value = valuesByDate[date] ? valuesByDate[date][column.id] : null;
 
@@ -1222,9 +1611,6 @@
 
         // Erstelle das Linien-Chart (Entwicklung über Zeit)
         createLineChart('average', allQuestions);
-
-        // Analysiere schwierige Bereiche (Fragen mit niedrigen Bewertungen)
-        analyzeChallenges(questions, latestSession);
     }
 
 
@@ -1389,90 +1775,126 @@
         }
     }
 
-    function analyzeChallenges(questions, latestSession) {
-        const challengeData = [];
-
-        questions.forEach(question => {
-            const studentAnswer = latestSession.student_answers?.find(
-                sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
-            );
-            const teacherAssessment = latestSession.teacher_assessments?.find(
-                ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
-            );
-
-            const studentRating = studentAnswer?.self_rating || 0;
-            const teacherRating = teacherAssessment?.teacher_rating || 0;
-            const avgRating = (studentRating + teacherRating) / 2;
-
-            // Nur Fragen mit durchschnittlicher Bewertung unter 3 als "herausfordernd" markieren
-            if (avgRating > 0 && avgRating < 3) {
-                challengeData.push({
-                    question: question.question,
-                    studentRating: studentRating,
-                    teacherRating: teacherRating,
-                    avgRating: avgRating,
-                    comment: teacherAssessment?.comment || ''
-                });
-            }
-        });
-
-        // Sortiere nach niedrigster Durchschnittsbewertung
-        challengeData.sort((a, b) => a.avgRating - b.avgRating);
-
-        // Rendere Entwicklungsbereiche
-        const container = document.getElementById('challengingAreas');
-        if (container) {
-            if (challengeData.length === 0) {
-                container.innerHTML = `
-                    <div class="alert alert-success mb-0">
-                        <i class="fas fa-check-circle"></i> <strong>Ausgezeichnet!</strong>
-                        Alle Bereiche zeigen gute bis sehr gute Bewertungen. Weiter so!
-                    </div>
-                `;
-            } else {
-                let html = '<div class="row">';
-                challengeData.forEach((item, index) => {
-                    const ratingLabels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
-                    const progressPercent = (item.avgRating / 5) * 100;
-                    const progressColor = item.avgRating < 2 ? 'bg-danger' : 'bg-warning';
-
-                    html += `
-                        <div class="col-md-6 mb-3">
-                            <div class="challenging-area-item">
-                                <h6 class="font-weight-bold mb-2">
-                                    <span class="badge badge-warning">${index + 1}</span> ${escapeHtml(item.question)}
-                                </h6>
-                                <div class="row mb-2">
-                                    <div class="col-6">
-                                        <small class="text-muted">Schüler:</small>
-                                        <strong>${ratingLabels[item.studentRating] || '-'}</strong>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Lehrer:</small>
-                                        <strong>${ratingLabels[item.teacherRating] || '-'}</strong>
-                                    </div>
-                                </div>
-                                <div class="progress progress-small mb-2">
-                                    <div class="progress-bar ${progressColor}" role="progressbar"
-                                         style="width: ${progressPercent}%"
-                                         aria-valuenow="${item.avgRating}" aria-valuemin="0" aria-valuemax="5">
-                                    </div>
-                                </div>
-                                ${item.comment ? `<small class="text-muted"><i class="fas fa-comment"></i> ${escapeHtml(item.comment)}</small>` : ''}
-                            </div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            }
-        }
-    }
 
     function truncateText(text, maxLength) {
         if (!text) return '';
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
+
+    // Tab-Funktionalität (ersetzt Bootstrap-Tabs)
+    function initTabs() {
+        const tabButtons = document.querySelectorAll('[data-toggle="tab"]');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const targetId = this.getAttribute('href');
+                const targetPane = document.querySelector(targetId);
+
+                if (!targetPane) return;
+
+                // Alle Tabs deaktivieren
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('border-blue-600', 'text-blue-600', 'active');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                    btn.setAttribute('aria-selected', 'false');
+                    // Badge Farbe zurücksetzen
+                    const badge = btn.querySelector('span[id$="Badge"]');
+                    if (badge && badge.id !== 'entriesBadge' && badge.id !== 'tasksBadge' && badge.id !== 'columnsBadge') {
+                        badge.classList.remove('bg-blue-100', 'text-blue-600');
+                        badge.classList.add('bg-gray-200', 'text-gray-600');
+                    }
+                });
+
+                // Alle Tab-Panes verstecken
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+
+                // Aktiven Tab aktivieren
+                this.classList.remove('border-transparent', 'text-gray-500');
+                this.classList.add('border-blue-600', 'text-blue-600', 'active');
+                this.setAttribute('aria-selected', 'true');
+
+                // Badge Farbe aktualisieren
+                const activeBadge = this.querySelector('span[id$="Badge"]');
+                if (activeBadge) {
+                    activeBadge.classList.remove('bg-gray-200', 'text-gray-600');
+                    activeBadge.classList.add('bg-blue-100', 'text-blue-600');
+                }
+
+                // Ziel-Pane anzeigen
+                targetPane.classList.add('show', 'active');
+            });
+        });
+    }
+
+    // Initialisiere Tabs beim Laden
+    initTabs();
+
+    // Initialisiere Collapse-Funktionalität für Accordion mit Event-Delegation
+    function initCollapse() {
+        // Event-Delegation auf document-level um sicherzustellen, dass alle Elemente erfasst werden
+        document.addEventListener('click', function(e) {
+            // Prüfe ob ein collapse-button oder dessen Kind-Element geklickt wurde
+            const button = e.target.closest('[data-toggle="collapse"]');
+
+            if (!button) return;
+
+            // Verhindere Standard-Verhalten und Event-Propagation
+            e.preventDefault();
+            e.stopPropagation();
+
+            const targetId = button.getAttribute('data-target');
+            const targetElement = document.querySelector(targetId);
+
+            if (!targetElement) {
+                console.error('Collapse target not found:', targetId);
+                return;
+            }
+
+            // Toggle collapse
+            const isCurrentlyOpen = targetElement.classList.contains('show');
+
+            if (isCurrentlyOpen) {
+                // Schließen
+                targetElement.classList.remove('show');
+                button.setAttribute('aria-expanded', 'false');
+                button.classList.remove('text-blue-600');
+                button.classList.add('text-gray-700');
+            } else {
+                // Optional: Schließe andere Items im selben Accordion
+                const parent = button.getAttribute('data-parent');
+                if (parent) {
+                    const parentElement = document.querySelector(parent);
+                    if (parentElement) {
+                        const siblings = parentElement.querySelectorAll('.collapse.show');
+                        siblings.forEach(sibling => {
+                            if (sibling !== targetElement) {
+                                sibling.classList.remove('show');
+                                const siblingButton = document.querySelector(`[data-target="#${sibling.id}"]`);
+                                if (siblingButton) {
+                                    siblingButton.setAttribute('aria-expanded', 'false');
+                                    siblingButton.classList.remove('text-blue-600');
+                                    siblingButton.classList.add('text-gray-700');
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Öffnen
+                targetElement.classList.add('show');
+                button.setAttribute('aria-expanded', 'true');
+                button.classList.remove('text-gray-700');
+                button.classList.add('text-blue-600');
+            }
+        });
+    }
+
+    // Initialisiere Collapse beim Laden
+    initCollapse();
 })();
 </script>
 @endpush

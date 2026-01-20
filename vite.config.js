@@ -8,12 +8,14 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/css/diagnostics.css',
-                'resources/js/diagnostics.js'
+                'resources/js/diagnostics.js',
+                'resources/css/paed-diary.css'
             ],
             refresh: [
                 'resources/views/diagnostics/**/*.blade.php',
                 'app/Http/Controllers/DiagnosticController.php',
-                'app/Http/Controllers/DiagnosticAdminController.php'
+                'app/Http/Controllers/DiagnosticAdminController.php',
+                'resources/views/paedDiary/**/*.blade.php'
             ],
         }),
     ],

@@ -22,13 +22,13 @@
     <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
     <link href="{{asset('css/own.css')}}" rel="stylesheet" />
 
-    @stack('css')
-
-
     {{-- Paed-Diary spezifisches CSS nur auf dieser Route laden --}}
     @if(request()->segment(1) == 'paed-diary')
         <link href="{{ asset('css/paed-diary.css') }}" rel="stylesheet" />
+        <link href="{{ asset('css/paed-diary-tailwind.css') }}" rel="stylesheet" />
     @endif
+
+    @stack('css')
 
 </head>
 
