@@ -191,6 +191,10 @@ Route::group([
 
 
                 Route::middleware(['permission:edit employe'])->group(function () {
+                    // Bulk-Update für Urlaubsanspruch nach Gruppen (muss vor resource Route stehen)
+                    Route::get('employes/bulk-holiday-claim', [EmployeController::class, 'bulkHolidayClaimForm'])->name('employes.bulk-holiday-claim');
+                    Route::post('employes/bulk-holiday-claim', [EmployeController::class, 'bulkUpdateHolidayClaim'])->name('employes.bulk-holiday-claim.update');
+
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
                         'index' => 'employes.index',

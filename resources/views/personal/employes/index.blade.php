@@ -25,6 +25,15 @@
                         @endcan
                     </div>
                 </div>
+                @can('edit employe')
+                    <div class="row mt-2">
+                        <div class="col">
+                            <a href="{{ route('employes.bulk-holiday-claim') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-users"></i> Urlaubsanspruch für Gruppen festlegen
+                            </a>
+                        </div>
+                    </div>
+                @endcan
             </div>
             <div class="card-body">
                 <table class="table table-hover" id="userTable">

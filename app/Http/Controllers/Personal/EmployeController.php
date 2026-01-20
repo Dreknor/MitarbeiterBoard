@@ -7,6 +7,7 @@ use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\personal\CreateEmployeRequest;
 use App\Http\Requests\personal\selfUpdateProfileRequest;
 use App\Http\Requests\UpdateEmployeDataRequest;
+use App\Http\Requests\personal\BulkUpdateHolidayClaimRequest;
 use App\Models\Group;
 use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
@@ -285,6 +286,75 @@ class EmployeController extends Controller
         return redirect()->back()->with([
             'type' => 'success',
             'message' => 'Foto aktualisiert'
+        ]);
+    }
+
+    /**
+     * Show the form for bulk updating holiday claims by group.
+     *
+     * @return View
+     */
+    public function bulkHolidayClaimForm()
+    {
+        if (!auth()->user()->can('edit employe')) {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $groups = Group::all();
+
+        return view('personal.employes.bulk-holiday-claim', [
+            'groups' => $groups
+        ]);
+    }
+
+    /**
+     * Update holiday claims for all employees in a group.
+     *
+     * @param BulkUpdateHolidayClaimRequest $request
+     * @return RedirectResponse
+     */
+    public function bulkUpdateHolidayClaim(BulkUpdateHolidayClaimRequest $request)
+    {
+        $group = Group::findOrFail($request->group_id);
+
+        // Hole alle Mitarbeiter der Gruppe
+        $employees = $group->users;
+
+        if ($employees->isEmpty()) {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Die ausgewählte Gruppe hat keine Mitarbeiter.'
+            ]);
+        }
+
+        $updatedCount = 0;
+
+        foreach ($employees as $employee) {
+            // Nur aktualisieren, wenn sich der Urlaubsanspruch geändert hat
+            if ($request->holiday_claim != $employee->getHolidayClaim()) {
+                EmployeHolidayClaim::create([
+                    'holiday_claim' => $request->holiday_claim,
+                    'employe_id' => $employee->id,
+                    'date_start' => $request->date_start,
+                    'changedBy' => auth()->id()
+                ]);
+                $updatedCount++;
+            }
+        }
+
+        if ($updatedCount == 0) {
+            return redirect()->back()->with([
+                'type' => 'info',
+                'Meldung' => 'Kein Mitarbeiter wurde aktualisiert, da alle bereits den gleichen Urlaubsanspruch haben.'
+            ]);
+        }
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => "Urlaubsanspruch für {$updatedCount} Mitarbeiter der Gruppe '{$group->name}' wurde erfolgreich aktualisiert."
         ]);
     }
 }
