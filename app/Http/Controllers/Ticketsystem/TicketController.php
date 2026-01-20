@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Ticketsystem;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketRequest;
+use App\Mail\TicketAssignmentMail;
 use App\Mail\newTicketMail;
 use App\Models\Group;
 use App\Models\Protocol;
@@ -237,18 +238,28 @@ class TicketController extends Controller
 
     public function assign(Ticket $ticket, User $user)
     {
+        $previousAssignedUser = $ticket->assigned;
+
         $ticket->assigned_to = $user->id;
         $ticket->save();
 
-        $ticket->comments()->create([
-            'user_id' => auth()->id(),
-            'comment' => 'Ticket zugewiesen an ' . $user->name
-        ]);
+        // Create comment based on whether this is a reassignment or initial assignment
+        if ($previousAssignedUser) {
+            $ticket->comments()->create([
+                'user_id' => auth()->id(),
+                'comment' => 'Ticket von ' . $previousAssignedUser->name . ' an ' . $user->name . ' übertragen'
+            ]);
+        } else {
+            $ticket->comments()->create([
+                'user_id' => auth()->id(),
+                'comment' => 'Ticket zugewiesen an ' . $user->name
+            ]);
+        }
 
-
+        // Send email to new assignee if it's not the current user
         if (auth()->user()->id != $user->id) {
             try {
-                Mail::to($user->email)->queue(new newTicketMail($ticket));
+                Mail::to($user->email)->queue(new TicketAssignmentMail($ticket));
             } catch (\Exception $e) {
                 Log::error(
                     'Ticketsystem: Ticket-Mail konnte nicht versendet werden: ',
@@ -256,6 +267,25 @@ class TicketController extends Controller
                         'ticket' => $ticket->title,
                         'user' => $user->id,
                         'email' => $user->email,
+                        'error' => $e->getMessage(),
+                    ]
+                );
+            }
+        }
+
+        // Notify previous assignee about reassignment
+        if ($previousAssignedUser && $previousAssignedUser->id != auth()->user()->id && $previousAssignedUser->id != $user->id) {
+            try {
+                $previousAssignedUser->notify(new \App\Notifications\Push(
+                    'Ticket neu zugewiesen',
+                    'Das Ticket "' . $ticket->title . '" wurde an ' . $user->name . ' übertragen'
+                ));
+            } catch (\Exception $e) {
+                Log::error(
+                    'Ticketsystem: Push-Benachrichtigung konnte nicht versendet werden: ',
+                    [
+                        'ticket' => $ticket->title,
+                        'user' => $previousAssignedUser->id,
                         'error' => $e->getMessage(),
                     ]
                 );
