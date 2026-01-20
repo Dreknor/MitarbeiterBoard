@@ -301,12 +301,19 @@ class AbsenceController extends Controller
             }
         }
 
-        // Sortierung anwenden
-        if (in_array($sortBy, ['start', 'end', 'days', 'reason'])) {
+        // Sortierung anwenden (nur für Datenbankfelder)
+        if (in_array($sortBy, ['start', 'end', 'reason'])) {
             $query->orderBy($sortBy, $sortOrder);
         }
 
         $absences = $query->with('user')->get();
+
+        // Sortierung nach 'days' (berechnetes Feld) auf Collection-Ebene
+        if ($sortBy === 'days') {
+            $absences = $sortOrder === 'asc'
+                ? $absences->sortBy('days')
+                : $absences->sortByDesc('days');
+        }
 
         // Mitarbeiter-Übersicht berechnen
         $users_absences = $absences->groupBy('users_id');
