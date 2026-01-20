@@ -277,26 +277,22 @@ class AbsenceController extends Controller
             $query->where('users_id', $filterUser);
         }
 
+        // Filter nach Krankenschein-Status (vereinfacht - ohne 'days' Prüfung in Query)
         if ($filterSickNoteStatus) {
-            $sickNoteDays = settings('absence_sick_note_days', 'absences');
-
             switch ($filterSickNoteStatus) {
                 case 'with_note':
                     $query->whereNotNull('sick_note_date');
                     break;
                 case 'without_note':
+                    // Nur Einträge ohne Schein und ohne Pflicht
+                    // Die Tage-Prüfung erfolgt auf Collection-Ebene
                     $query->whereNull('sick_note_date')
-                        ->where(function($q) use ($sickNoteDays) {
-                            $q->where('days', '<', $sickNoteDays)
-                                ->where('sick_note_required', false);
-                        });
+                        ->where('sick_note_required', false);
                     break;
                 case 'missing_note':
+                    // Nur Einträge ohne Schein aber mit Pflicht
                     $query->whereNull('sick_note_date')
-                        ->where(function($q) use ($sickNoteDays) {
-                            $q->where('days', '>=', $sickNoteDays)
-                                ->orWhere('sick_note_required', true);
-                        });
+                        ->where('sick_note_required', true);
                     break;
             }
         }
@@ -307,6 +303,19 @@ class AbsenceController extends Controller
         }
 
         $absences = $query->with('user')->get();
+
+        // WICHTIG: Zusätzliche Filterung nach 'days' auf Collection-Ebene
+        if ($filterSickNoteStatus === 'without_note') {
+            $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+            $absences = $absences->filter(function($absence) use ($sickNoteDaysThreshold) {
+                return $absence->days < $sickNoteDaysThreshold;
+            });
+        } elseif ($filterSickNoteStatus === 'missing_note') {
+            $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+            $absences = $absences->filter(function($absence) use ($sickNoteDaysThreshold) {
+                return $absence->days >= $sickNoteDaysThreshold || $absence->sick_note_required;
+            });
+        }
 
         // Sortierung nach 'days' (berechnetes Feld) auf Collection-Ebene
         if ($sortBy === 'days') {
@@ -502,31 +511,40 @@ class AbsenceController extends Controller
             $query->where('users_id', $filterUser);
         }
 
+        // Filter nach Krankenschein-Status (vereinfacht - ohne 'days' Prüfung in Query)
         if ($filterSickNoteStatus) {
-            $sickNoteDays = settings('absence_sick_note_days', 'absences');
-
             switch ($filterSickNoteStatus) {
                 case 'with_note':
                     $query->whereNotNull('sick_note_date');
                     break;
                 case 'without_note':
+                    // Nur Einträge ohne Schein und ohne Pflicht
+                    // Die Tage-Prüfung erfolgt auf Collection-Ebene
                     $query->whereNull('sick_note_date')
-                        ->where(function($q) use ($sickNoteDays) {
-                            $q->where('days', '<', $sickNoteDays)
-                                ->where('sick_note_required', false);
-                        });
+                        ->where('sick_note_required', false);
                     break;
                 case 'missing_note':
+                    // Nur Einträge ohne Schein aber mit Pflicht
                     $query->whereNull('sick_note_date')
-                        ->where(function($q) use ($sickNoteDays) {
-                            $q->where('days', '>=', $sickNoteDays)
-                                ->orWhere('sick_note_required', true);
-                        });
+                        ->where('sick_note_required', true);
                     break;
             }
         }
 
         $absences = $query->with('user')->orderByDesc('start')->get();
+
+        // WICHTIG: Zusätzliche Filterung nach 'days' auf Collection-Ebene
+        if ($filterSickNoteStatus === 'without_note') {
+            $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+            $absences = $absences->filter(function($absence) use ($sickNoteDaysThreshold) {
+                return $absence->days < $sickNoteDaysThreshold;
+            });
+        } elseif ($filterSickNoteStatus === 'missing_note') {
+            $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
+            $absences = $absences->filter(function($absence) use ($sickNoteDaysThreshold) {
+                return $absence->days >= $sickNoteDaysThreshold || $absence->sick_note_required;
+            });
+        }
 
         // Mitarbeiter-Übersicht berechnen
         $users_absences = $absences->groupBy('users_id');
