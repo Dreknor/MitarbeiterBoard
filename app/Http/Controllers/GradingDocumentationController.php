@@ -13,6 +13,7 @@ use App\Models\PaedDiaryClassGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GradingDocumentationController extends Controller
 {
@@ -37,10 +38,23 @@ class GradingDocumentationController extends Controller
             ->orderBy('started_at', 'desc')
             ->get();
 
+        // Abgeschlossene Sessions im aktuellen Schuljahr
+        $completedSessions = GradingDocumentationSession::where('user_id', $user->id)
+            ->completed()
+            ->currentSchoolYear()
+            ->with(['klasse', 'gradingSystem', 'schueler', 'group'])
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
+        // Maximale Wiederöffnungsfrist aus Settings
+        $reopenDays = settings('session_reopen_days', 'config.grading_documentation');
+
         return view('paedDiary.documentation.index', [
             'klassen' => $klassen,
             'groups' => $groups,
             'openSessions' => $openSessions,
+            'completedSessions' => $completedSessions,
+            'reopenDays' => $reopenDays,
         ]);
     }
 
@@ -120,7 +134,7 @@ class GradingDocumentationController extends Controller
         }
 
         // Debug: Log the data being passed to the view
-        \Log::info('Group Session Data:', [
+        Log::info('Group Session Data:', [
             'session_id' => $session->id,
             'klasse_id' => $session->klasse_id,
             'klasse_name' => $session->klasse->name,
@@ -442,7 +456,7 @@ class GradingDocumentationController extends Controller
                 'expires_at' => now()->addHours(24)->toIso8601String(),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Fehler beim Generieren des QR-Tokens', [
+            Log::error('Fehler beim Generieren des QR-Tokens', [
                 'session_id' => $session->id ?? null,
                 'schueler_id' => $schueler->id ?? null,
                 'error' => $e->getMessage(),
@@ -525,6 +539,35 @@ class GradingDocumentationController extends Controller
         );
 
         return response()->json(['answer' => $answer]);
+    }
+
+    /**
+     * Öffnet eine abgeschlossene Session wieder
+     */
+    public function reopenSession(GradingDocumentationSession $session)
+    {
+        $this->authorize('update', $session);
+
+        // Prüfen ob Session wiedergeöffnet werden kann
+        if (!$session->canBeReopened()) {
+            $maxDays = settings('session_reopen_days', 'config.grading_documentation');
+            $daysSinceCompleted = $session->completed_at ? $session->completed_at->diffInDays(now()) : 0;
+
+            return response()->json([
+                'message' => "Die Session kann nicht wiedergeöffnet werden. Sie wurde vor {$daysSinceCompleted} Tagen abgeschlossen. Maximale Frist: {$maxDays} Tage."
+            ], 422);
+        }
+
+        if ($session->reopen()) {
+            return response()->json([
+                'message' => 'Session wurde erfolgreich wiedergeöffnet.',
+                'redirect' => $session->type === 'group'
+                    ? route('gradingDocumentation.groupSession', $session->id)
+                    : route('gradingDocumentation.individualSession', $session->id)
+            ]);
+        }
+
+        return response()->json(['message' => 'Fehler beim Wiederöffnen der Session.'], 500);
     }
 }
 

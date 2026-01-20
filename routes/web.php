@@ -719,6 +719,7 @@ Route::group([
                         Route::post('teacher-assessment', [\App\Http\Controllers\GradingDocumentationController::class, 'saveTeacherAssessment'])->name('saveTeacherAssessment');
                         Route::post('session/{session}/complete', [\App\Http\Controllers\GradingDocumentationController::class, 'completeSession'])->name('completeSession');
                         Route::post('session/{session}/cancel', [\App\Http\Controllers\GradingDocumentationController::class, 'cancelSession'])->name('cancelSession');
+                        Route::post('session/{session}/reopen', [\App\Http\Controllers\GradingDocumentationController::class, 'reopenSession'])->name('reopenSession');
                         Route::get('session/{session}/data', [\App\Http\Controllers\GradingDocumentationController::class, 'getSessionData'])->name('sessionData');
                         Route::get('schueler/{schueler}/documentations', [\App\Http\Controllers\GradingDocumentationController::class, 'showSchuelerDocumentations'])->name('schuelerDocumentations');
 

@@ -12,148 +12,255 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    @if($openSessions->isNotEmpty())
-                    <div class="alert alert-warning mb-4">
-                        <h6 class="mb-3 text-dark"><i class="fas fa-clock"></i> <strong>Offene Sessions</strong></h6>
-                        <p class="mb-3 text-dark">Sie haben noch nicht abgeschlossene Dokumentationen. Klicken Sie auf "Fortsetzen", um diese weiterzuführen.</p>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered bg-white text-dark">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th class="text-dark">Typ</th>
-                                        <th class="text-dark">Klasse</th>
-                                        <th class="text-dark">Details</th>
-                                        <th class="text-dark">Gestartet</th>
-                                        <th class="text-dark">Aktion</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($openSessions as $session)
-                                    <tr>
-                                        <td>
-                                            @if($session->type === 'group')
-                                                <span class="badge badge-primary"><i class="fas fa-users"></i> Gruppe</span>
-                                            @else
-                                                <span class="badge badge-success"><i class="fas fa-user"></i> Einzel</span>
-                                            @endif
-                                        </td>
-                                        <td>{{ $session->klasse->name }}</td>
-                                        <td>
-                                            @if($session->type === 'individual')
-                                                {{ $session->schueler->nachname }}, {{ $session->schueler->vorname }}
-                                            @elseif($session->group_id)
-                                                {{ $session->group->name }}
-                                            @else
-                                                Alle Schüler
-                                            @endif
-                                        </td>
-                                        <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>
-                                        <td>
-                                            @if($session->type === 'group')
-                                                <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-sm btn-primary">
-                                                    <i class="fas fa-play"></i> Fortsetzen
-                                                </a>
-                                            @else
-                                                <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-sm btn-success">
-                                                    <i class="fas fa-play"></i> Fortsetzen
-                                                </a>
-                                            @endif
-                                            <button class="btn btn-sm btn-danger cancel-session-btn" data-session-id="{{ $session->id }}">
-                                                <i class="fas fa-times"></i> Abbrechen
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    @endif
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="sessionTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="new-tab" data-toggle="tab" href="#newSession" role="tab">
+                                <i class="fas fa-plus-circle"></i> Neue Session starten
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="open-tab" data-toggle="tab" href="#openSessions" role="tab">
+                                <i class="fas fa-clock"></i> Offene Sessions
+                                @if($openSessions->isNotEmpty())
+                                    <span class="badge badge-warning ml-1">{{ $openSessions->count() }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="completed-tab" data-toggle="tab" href="#completedSessions" role="tab">
+                                <i class="fas fa-check-circle"></i> Abgeschlossene Sessions (Schuljahr)
+                                @if($completedSessions->isNotEmpty())
+                                    <span class="badge badge-info ml-1">{{ $completedSessions->count() }}</span>
+                                @endif
+                            </a>
+                        </li>
+                    </ul>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0"><i class="fas fa-users"></i> Gruppendokumentation</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p>Alle Schüler einer Klasse oder Gruppe beantworten nacheinander die Fragen zur Selbsteinschätzung.</p>
-
-                                    <form method="POST" action="{{ route('gradingDocumentation.startGroup') }}" id="groupForm">
-                                        @csrf
-                                        <div class="form-group">
-                                            <label for="klasse_group">Klasse auswählen</label>
-                                            <select name="klasse_id" id="klasse_group" class="form-control" required>
-                                                <option value="">-- Bitte wählen --</option>
-                                                @foreach($klassen as $klasse)
-                                                    @if($klasse->gradingSystem)
-                                                        <option value="{{ $klasse->id }}">{{ $klasse->name }} ({{ $klasse->gradingSystem->name }})</option>
-                                                    @endif
-                                                @endforeach
-                                            </select>
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="sessionTabsContent">
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="sessionTabsContent">
+                        <!-- Neue Session starten -->
+                        <div class="tab-pane fade show active" id="newSession" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="fas fa-users"></i> Gruppendokumentation</h6>
                                         </div>
+                                        <div class="card-body">
+                                            <p>Alle Schüler einer Klasse oder Gruppe beantworten nacheinander die Fragen zur Selbsteinschätzung.</p>
 
-                                        @if($groups->isNotEmpty())
-                                        <div class="form-group">
-                                            <label for="group_id">Gruppe (optional)</label>
-                                            <select name="group_id" id="group_id" class="form-control">
-                                                <option value="">-- Alle Schüler der Klasse --</option>
-                                                @foreach($groups as $group)
-                                                    <option value="{{ $group->id }}">{{ $group->name }}</option>
-                                                @endforeach
-                                            </select>
+                                            <form method="POST" action="{{ route('gradingDocumentation.startGroup') }}" id="groupForm">
+                                                @csrf
+                                                <div class="form-group">
+                                                    <label for="klasse_group">Klasse auswählen</label>
+                                                    <select name="klasse_id" id="klasse_group" class="form-control" required>
+                                                        <option value="">-- Bitte wählen --</option>
+                                                        @foreach($klassen as $klasse)
+                                                            @if($klasse->gradingSystem)
+                                                                <option value="{{ $klasse->id }}">{{ $klasse->name }} ({{ $klasse->gradingSystem->name }})</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+
+                                                @if($groups->isNotEmpty())
+                                                <div class="form-group">
+                                                    <label for="group_id">Gruppe (optional)</label>
+                                                    <select name="group_id" id="group_id" class="form-control">
+                                                        <option value="">-- Alle Schüler der Klasse --</option>
+                                                        @foreach($groups as $group)
+                                                            <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                @endif
+
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-play"></i> Gruppendokumentation starten
+                                                </button>
+                                            </form>
                                         </div>
-                                        @endif
-
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-play"></i> Gruppendokumentation starten
-                                        </button>
-                                    </form>
+                                    </div>
                                 </div>
+
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="fas fa-user"></i> Einzeldokumentation</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>Ein einzelner Schüler bearbeitet alle Fragen vorab.</p>
+
+                                            <form method="POST" action="{{ route('gradingDocumentation.startIndividual') }}" id="individualForm">
+                                                @csrf
+                                                <div class="form-group">
+                                                    <label for="klasse_individual">Klasse auswählen</label>
+                                                    <select name="klasse_id" id="klasse_individual" class="form-control" required>
+                                                        <option value="">-- Bitte wählen --</option>
+                                                        @foreach($klassen as $klasse)
+                                                            @if($klasse->gradingSystem)
+                                                                <option value="{{ $klasse->id }}">{{ $klasse->name }} ({{ $klasse->gradingSystem->name }})</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="schueler_id">Schüler auswählen</label>
+                                                    <select name="schueler_id" id="schueler_id" class="form-control" required disabled>
+                                                        <option value="">-- Erst Klasse wählen --</option>
+                                                    </select>
+                                                </div>
+
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-play"></i> Einzeldokumentation starten
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i> <strong>Hinweis:</strong>
+                                Nur Klassen mit einem zugewiesenen Graduierungssystem werden angezeigt.
                             </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0"><i class="fas fa-user"></i> Einzeldokumentation</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p>Ein einzelner Schüler bearbeitet alle Fragen vorab.</p>
-
-                                    <form method="POST" action="{{ route('gradingDocumentation.startIndividual') }}" id="individualForm">
-                                        @csrf
-                                        <div class="form-group">
-                                            <label for="klasse_individual">Klasse auswählen</label>
-                                            <select name="klasse_id" id="klasse_individual" class="form-control" required>
-                                                <option value="">-- Bitte wählen --</option>
-                                                @foreach($klassen as $klasse)
-                                                    @if($klasse->gradingSystem)
-                                                        <option value="{{ $klasse->id }}">{{ $klasse->name }} ({{ $klasse->gradingSystem->name }})</option>
+                        <!-- Offene Sessions -->
+                        <div class="tab-pane fade" id="openSessions" role="tabpanel">
+                            @if($openSessions->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Typ</th>
+                                                <th>Klasse</th>
+                                                <th>Details</th>
+                                                <th>Gestartet</th>
+                                                <th>Aktionen</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($openSessions as $session)
+                                            <tr>
+                                                <td>
+                                                    @if($session->type === 'group')
+                                                        <span class="badge badge-primary"><i class="fas fa-users"></i> Gruppe</span>
+                                                    @else
+                                                        <span class="badge badge-success"><i class="fas fa-user"></i> Einzel</span>
                                                     @endif
-                                                @endforeach
-                                            </select>
-                                        </div>
+                                                </td>
+                                                <td>{{ $session->klasse->name }}</td>
+                                                <td>
+                                                    @if($session->type === 'individual')
+                                                        {{ $session->schueler->nachname }}, {{ $session->schueler->vorname }}
+                                                    @elseif($session->group_id)
+                                                        {{ $session->group->name }}
+                                                    @else
+                                                        Alle Schüler
+                                                    @endif
+                                                </td>
+                                                <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>
+                                                <td>
+                                                    @if($session->type === 'group')
+                                                        <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-sm btn-primary">
+                                                            <i class="fas fa-play"></i> Fortsetzen
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-sm btn-success">
+                                                            <i class="fas fa-play"></i> Fortsetzen
+                                                        </a>
+                                                    @endif
+                                                    <button class="btn btn-sm btn-danger cancel-session-btn" data-session-id="{{ $session->id }}">
+                                                        <i class="fas fa-times"></i> Abbrechen
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Sie haben derzeit keine offenen Sessions.
+                                </div>
+                            @endif
+                        </div>
 
-                                        <div class="form-group">
-                                            <label for="schueler_id">Schüler auswählen</label>
-                                            <select name="schueler_id" id="schueler_id" class="form-control" required disabled>
-                                                <option value="">-- Erst Klasse wählen --</option>
-                                            </select>
-                                        </div>
-
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-play"></i> Einzeldokumentation starten
-                                        </button>
-                                    </form>
+                        <!-- Abgeschlossene Sessions -->
+                        <div class="tab-pane fade" id="completedSessions" role="tabpanel">
+                            <div class="mb-3">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Wiederöffnungsfrist:</strong> Sessions können innerhalb von {{ $reopenDays }} Tagen nach Abschluss wiedergeöffnet werden.
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle"></i> <strong>Hinweis:</strong>
-                        Nur Klassen mit einem zugewiesenen Graduierungssystem werden angezeigt.
+                            @if($completedSessions->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Typ</th>
+                                                <th>Klasse</th>
+                                                <th>Details</th>
+                                                <th>Gestartet</th>
+                                                <th>Abgeschlossen</th>
+                                                <th>Aktionen</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($completedSessions as $session)
+                                            <tr>
+                                                <td>
+                                                    @if($session->type === 'group')
+                                                        <span class="badge badge-primary"><i class="fas fa-users"></i> Gruppe</span>
+                                                    @else
+                                                        <span class="badge badge-success"><i class="fas fa-user"></i> Einzel</span>
+                                                    @endif
+                                                </td>
+                                                <td>{{ $session->klasse->name }}</td>
+                                                <td>
+                                                    @if($session->type === 'individual')
+                                                        {{ $session->schueler->nachname }}, {{ $session->schueler->vorname }}
+                                                    @elseif($session->group_id)
+                                                        {{ $session->group->name }}
+                                                    @else
+                                                        Alle Schüler
+                                                    @endif
+                                                </td>
+                                                <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>
+                                                <td>
+                                                    {{ $session->completed_at->format('d.m.Y H:i') }}
+                                                    <br>
+                                                    <small class="text-muted">vor {{ $session->completed_at->diffForHumans() }}</small>
+                                                </td>
+                                                <td>
+                                                    @if($session->canBeReopened())
+                                                        <button class="btn btn-sm btn-warning reopen-session-btn" data-session-id="{{ $session->id }}">
+                                                            <i class="fas fa-folder-open"></i> Wiederöffnen
+                                                        </button>
+                                                    @else
+                                                        <span class="badge badge-secondary" title="Wiederöffnungsfrist abgelaufen">
+                                                            <i class="fas fa-lock"></i> Gesperrt
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Keine abgeschlossenen Sessions im aktuellen Schuljahr gefunden.
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -174,6 +281,11 @@
 .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(13,110,253,0.08); }
 
 .alert-info { border-radius: 10px; background: linear-gradient(90deg,#e9f2ff,#f7fbff); color: #08325a; }
+
+.nav-tabs .nav-link { border-radius: 8px 8px 0 0; font-weight: 500; }
+.nav-tabs .nav-link.active { background: #fff; border-bottom-color: #fff; }
+
+.table-hover tbody tr:hover { background-color: #f8f9fa; }
 
 @media (max-width: 768px){ .card { margin-bottom: 0.8rem; } }
 </style>
@@ -261,6 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Schüler-Dropdown basierend auf Klasse laden
     klasseIndividual.addEventListener('change', function() {
         const klasseId = this.value;
 
@@ -322,6 +435,51 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Fehler:', error);
                 alert('Fehler beim Abbrechen der Session.');
+                this.disabled = false;
+                this.innerHTML = originalBtnText;
+            });
+        });
+    });
+
+    // Session wiederöffnen
+    const reopenButtons = document.querySelectorAll('.reopen-session-btn');
+    reopenButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sessionId = this.dataset.sessionId;
+
+            if (!confirm('Möchten Sie diese abgeschlossene Session wiederöffnen? Die Session wird wieder bearbeitbar.')) {
+                return;
+            }
+
+            const originalBtnText = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(`/paed-diary/documentation/session/${sessionId}/reopen`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Fehler:', error);
+                alert(error.message || 'Fehler beim Wiederöffnen der Session.');
                 this.disabled = false;
                 this.innerHTML = originalBtnText;
             });

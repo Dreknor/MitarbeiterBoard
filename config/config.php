@@ -104,4 +104,9 @@ return [
 
     //Gruppen
     'meeting_day' => env('DEFAULT_MEETINGDAY', 1),
+
+    // Graduierungssystem-Dokumentation
+    'grading_documentation' => [
+        'session_reopen_days' => env('GRADING_SESSION_REOPEN_DAYS', 30), // Tage, innerhalb derer Sessions wiedergeöffnet werden können
+    ],
 ];
