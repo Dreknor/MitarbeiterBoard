@@ -176,8 +176,10 @@
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped" id="columnsTable">
                                         <thead class="thead-light">
+                                            <tr id="columnCategoryHeaders">
+                                                <th style="width: 100px;" rowspan="2">Datum</th>
+                                            </tr>
                                             <tr id="columnHeaders">
-                                                <th style="width: 100px;">Datum</th>
 
                                             </tr>
                                         </thead>
@@ -510,6 +512,30 @@
 .progress-small {
     height: 8px;
 }
+/* Kategorie-Header Styling */
+#columnsTable thead tr:first-child th {
+    background-color: #2c5f8d;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+}
+#columnsTable thead tr:nth-child(2) th {
+    background-color: #4a90e2;
+    color: white;
+}
+/* Vertikale Trennlinien zwischen Kategorien */
+#columnsTable thead tr:first-child th:not(:first-child) {
+    border-left: 2px solid #1a3a5a;
+}
+#columnsTable tbody tr td:first-child {
+    border-right: 2px solid #2c5f8d;
+}
+/* Trennlinie für den Beginn einer neuen Kategorie */
+#columnsTable th.category-start,
+#columnsTable td.category-start {
+    border-left: 2px solid #2c5f8d !important;
+}
 </style>
 @endpush
 
@@ -802,31 +828,73 @@
 
     // Render Columns
     function renderColumns(columns, columnValues) {
+        const categoryHeaders = document.getElementById('columnCategoryHeaders');
         const headers = document.getElementById('columnHeaders');
         const tbody = document.getElementById('columnsTableBody');
 
-        // Always ensure the first header cell for the date exists
-        headers.innerHTML = '<th style="width: 100px;">Datum</th>';
+        // Reset headers
+        categoryHeaders.innerHTML = '<th style="width: 100px;" rowspan="2">Datum</th>';
+        headers.innerHTML = '';
         tbody.innerHTML = '';
 
         if (columns.length === 0) {
-            // If no columns, keep the date header and show a placeholder
-            headers.innerHTML = '<th style="width:100px;">Datum</th><th>Keine Spalten konfiguriert</th>';
+            // If no columns, show a placeholder
+            categoryHeaders.innerHTML = '<th style="width:100px;" rowspan="2">Datum</th><th>Keine Spalten konfiguriert</th>';
             return;
         }
 
-        // Create headers
-        // Nur aktive Spalten werden übergeben; hier werden die Header für diese Spalten angelegt
+        // Group columns by category
+        const columnsByCategory = {};
         columns.forEach(column => {
+            const cat = column.category || 'Unkategorisiert';
+            if (!columnsByCategory[cat]) {
+                columnsByCategory[cat] = [];
+            }
+            columnsByCategory[cat].push(column);
+        });
+
+        // Create category headers with colspan
+        const categories = Object.keys(columnsByCategory).sort((a, b) => {
+            if (a === 'Unkategorisiert') return 1;
+            if (b === 'Unkategorisiert') return -1;
+            return a.localeCompare(b, 'de');
+        });
+
+        categories.forEach(category => {
             const th = document.createElement('th');
-            th.textContent = column.name || '';
-            th.style.minWidth = '100px';
-            headers.appendChild(th);
+            th.textContent = category;
+            th.colSpan = columnsByCategory[category].length;
+            th.className = 'text-center';
+            th.style.borderBottom = '2px solid #dee2e6';
+            categoryHeaders.appendChild(th);
+        });
+
+        // Create column name headers
+        let isFirstColumnInCategory = true;
+        categories.forEach(category => {
+            isFirstColumnInCategory = true;
+            columnsByCategory[category].forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column.name || '';
+                th.style.minWidth = '100px';
+                // Markiere die erste Spalte jeder Kategorie für vertikale Trennlinie
+                if (isFirstColumnInCategory && category !== categories[0]) {
+                    th.classList.add('category-start');
+                }
+                headers.appendChild(th);
+                isFirstColumnInCategory = false;
+            });
+        });
+
+        // Create flat array of columns in the same order as headers (grouped by category)
+        const sortedColumns = [];
+        categories.forEach(category => {
+            sortedColumns.push(...columnsByCategory[category]);
         });
 
         // Prepare counts for boolean "true" values per column
         const trueCounts = {};
-        columns.forEach(column => { trueCounts[column.id] = 0; });
+        sortedColumns.forEach(column => { trueCounts[column.id] = 0; });
 
          // Group column values by date
          const valuesByDate = {};
@@ -845,10 +913,21 @@
              dateCell.className = 'text-center';
              row.appendChild(dateCell);
 
-             // Value columns
-             columns.forEach(column => {
+             // Value columns (in sorted order) - track category boundaries
+             let currentCategoryIndex = 0;
+             let columnIndexInCategory = 0;
+             let currentCategory = sortedColumns[0]?.category || 'Unkategorisiert';
+
+             sortedColumns.forEach((column, idx) => {
                  const cell = document.createElement('td');
                  const value = valuesByDate[date] ? valuesByDate[date][column.id] : null;
+
+                 // Check if this is the start of a new category
+                 const colCategory = column.category || 'Unkategorisiert';
+                 if (colCategory !== currentCategory) {
+                     cell.classList.add('category-start');
+                     currentCategory = colCategory;
+                 }
 
                  if (value) {
                      if (column.type === 'boolean') {
@@ -866,7 +945,6 @@
                      cell.innerHTML = '<span class="text-muted">-</span>';
                  }
 
-                 cell.className = '';
                  row.appendChild(cell);
              });
 
@@ -875,7 +953,7 @@
 
          if (sortedDates.length === 0) {
              const row = document.createElement('tr');
-             row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
+             row.innerHTML = `<td colspan="${sortedColumns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
              tbody.appendChild(row);
          }
 
@@ -885,9 +963,19 @@
         countsLabelCell.className = 'text-center font-weight-bold';
         countsLabelCell.textContent = 'Anzahl (Ja)';
         countsRow.appendChild(countsLabelCell);
-        columns.forEach(column => {
+
+        let currentCountCategory = sortedColumns[0]?.category || 'Unkategorisiert';
+        sortedColumns.forEach(column => {
             const ccell = document.createElement('td');
-            ccell.className = ' font-weight-bold';
+            ccell.className = 'font-weight-bold';
+
+            // Check if this is the start of a new category
+            const colCategory = column.category || 'Unkategorisiert';
+            if (colCategory !== currentCountCategory) {
+                ccell.classList.add('category-start');
+                currentCountCategory = colCategory;
+            }
+
             if (column.type === 'boolean') {
                 ccell.textContent = String(trueCounts[column.id] || 0);
             } else {

@@ -1175,6 +1175,7 @@ class PaedDiaryController extends Controller
                         'id' => $c->id,
                         'name' => $c->name,
                         'type' => $c->type,
+                        'category' => $c->category,
                         'deactivated_from' => $deactivated,
                         'active' => $isActive
                     ];
@@ -1293,6 +1294,7 @@ class PaedDiaryController extends Controller
                     'id' => $c->id,
                     'name' => $c->name,
                     'type' => $c->type,
+                    'category' => $c->category,
                     'deactivated_from' => $deactivated,
                     'active' => $isActive
                 ];

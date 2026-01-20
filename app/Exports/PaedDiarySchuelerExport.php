@@ -52,6 +52,8 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     protected $schueler;
     protected $entries;
     protected $columns;
+    protected $sortedColumns; // Spalten sortiert nach Kategorien
+    protected $columnsByCategory; // Gruppierung nach Kategorien
     protected $columnValues;
     protected $dateFrom;
     protected $dateTo;
@@ -64,6 +66,38 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
         $this->columnValues = $columnValues;
         $this->dateFrom = $dateFrom;
         $this->dateTo = $dateTo;
+
+        // Gruppiere Spalten nach Kategorien und sortiere
+        $this->groupAndSortColumns();
+    }
+
+    protected function groupAndSortColumns()
+    {
+        $grouped = [];
+        foreach ($this->columns as $column) {
+            $category = $column['category'] ?? 'Unkategorisiert';
+            if (!isset($grouped[$category])) {
+                $grouped[$category] = [];
+            }
+            $grouped[$category][] = $column;
+        }
+
+        // Sortiere Kategorien (Unkategorisiert am Ende)
+        uksort($grouped, function($a, $b) {
+            if ($a === 'Unkategorisiert') return 1;
+            if ($b === 'Unkategorisiert') return -1;
+            return strcoll($a, $b);
+        });
+
+        $this->columnsByCategory = $grouped;
+
+        // Erstelle flaches Array mit sortierten Spalten
+        $this->sortedColumns = [];
+        foreach ($grouped as $columns) {
+            foreach ($columns as $column) {
+                $this->sortedColumns[] = $column;
+            }
+        }
     }
 
     public function array(): array
@@ -92,8 +126,8 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
                     'Autor' => '',
                 ];
 
-                // Spalten-Werte hinzufügen
-                foreach ($this->columns as $column) {
+                // Spalten-Werte hinzufügen (verwende sortierte Spalten)
+                foreach ($this->sortedColumns as $column) {
                     $columnId = $column['id'];
                     $columnName = $column['name'];
 
@@ -132,7 +166,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
                     // Spalten-Werte hinzufügen (nur bei erstem Eintrag des Tages)
                     if ($index === 0) {
-                        foreach ($this->columns as $column) {
+                        foreach ($this->sortedColumns as $column) {
                             $columnId = $column['id'];
                             $columnName = $column['name'];
 
@@ -160,7 +194,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
                         }
                     } else {
                         // Leere Spalten für weitere Einträge des gleichen Tages
-                        foreach ($this->columns as $column) {
+                        foreach ($this->sortedColumns as $column) {
                             $row[$column['name']] = '';
                         }
                     }
@@ -177,7 +211,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     {
         $headings = ['Datum', 'Notizen', 'Autor'];
 
-        foreach ($this->columns as $column) {
+        foreach ($this->sortedColumns as $column) {
             $headings[] = $column['name'];
         }
 
@@ -199,7 +233,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
         // Dynamische Breite für Spalten
         $letter = 'D';
-        foreach ($this->columns as $column) {
+        foreach ($this->sortedColumns as $column) {
             $widths[$letter] = 12;
             $letter++;
         }
@@ -209,7 +243,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
     public function styles(Worksheet $sheet)
     {
-        // Titel-Zeile hinzufügen
+        // Titel-Zeile hinzufügen (3 Zeilen)
         $sheet->insertNewRowBefore(1, 3);
         $sheet->setCellValue('A1', 'Pädagogisches Tagebuch');
         $stageName = $this->schueler->grading_stage?->name ?? '-';
@@ -228,9 +262,64 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
             'font' => ['size' => 16],
         ]);
 
-        // Header-Styling (jetzt in Zeile 4)
-        $lastColumn = chr(67 + count($this->columns)); // C + Anzahl Spalten
+        // Kategorien-Header-Zeile hinzufügen (jetzt in Zeile 4)
+        $sheet->insertNewRowBefore(4, 1);
+
+        // "Datum" Zelle über beide Header-Zeilen mergen
+        $sheet->mergeCells('A4:A5');
+        $sheet->setCellValue('A4', 'Datum');
+        $sheet->mergeCells('B4:B5');
+        $sheet->setCellValue('B4', 'Notizen');
+        $sheet->mergeCells('C4:C5');
+        $sheet->setCellValue('C4', 'Autor');
+
+        // Kategorien-Header mit Merges für Spalten-Gruppen
+        $currentColumn = 68; // ASCII für 'D'
+        $categoryBoundaries = []; // Speichere Grenzen zwischen Kategorien
+
+        foreach ($this->columnsByCategory as $category => $columns) {
+            $startCol = chr($currentColumn);
+            $endCol = chr($currentColumn + count($columns) - 1);
+
+            // Merge cells für Kategorie
+            if (count($columns) > 1) {
+                $sheet->mergeCells("{$startCol}4:{$endCol}4");
+            }
+            $sheet->setCellValue("{$startCol}4", $category);
+
+            // Speichere die rechte Grenze dieser Kategorie (außer für die letzte)
+            if ($currentColumn > 68) {
+                $categoryBoundaries[] = chr($currentColumn - 1);
+            }
+
+            $currentColumn += count($columns);
+        }
+
+        // Kategorie-Header-Styling (Zeile 4)
+        $lastColumn = chr(67 + count($this->sortedColumns)); // C + Anzahl Spalten
         $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '2C5F8D'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+            ],
+        ]);
+
+        // Spalten-Header-Styling (Zeile 5)
+        $sheet->getStyle("A5:{$lastColumn}5")->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -246,15 +335,15 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
+                    'color' => ['rgb' => 'FFFFFF'], // Weiß statt Schwarz
                 ],
             ],
         ]);
 
         // Daten-Styling
-        $lastRow = count($this->array()) + 4;
-        if ($lastRow > 4) {
-            $sheet->getStyle("A5:{$lastColumn}{$lastRow}")->applyFromArray([
+        $lastRow = count($this->array()) + 5; // +5 wegen Titel (3) + Kategorie-Header (1) + Spalten-Header (1)
+        if ($lastRow > 5) {
+            $sheet->getStyle("A6:{$lastColumn}{$lastRow}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
@@ -268,7 +357,32 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
             ]);
 
             // Datum-Spalte zentrieren
-            $sheet->getStyle("A5:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("A6:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Optische Trennung zwischen Kategorien: Dickere vertikale Borders
+        foreach ($categoryBoundaries as $boundaryCol) {
+            // Trennlinie von Zeile 4 bis zur letzten Datenzeile
+            $sheet->getStyle("{$boundaryCol}4:{$boundaryCol}{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'right' => [
+                        'borderStyle' => Border::BORDER_MEDIUM,
+                        'color' => ['rgb' => 'CCCCCC'], // Hellgrau statt Dunkelblau
+                    ],
+                ],
+            ]);
+        }
+
+        // Auch die Trennung zwischen "Autor" und der ersten Spalte
+        if (count($this->sortedColumns) > 0) {
+            $sheet->getStyle("C4:C{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'right' => [
+                        'borderStyle' => Border::BORDER_MEDIUM,
+                        'color' => ['rgb' => 'CCCCCC'], // Hellgrau statt Dunkelblau
+                    ],
+                ],
+            ]);
         }
 
         return [];
