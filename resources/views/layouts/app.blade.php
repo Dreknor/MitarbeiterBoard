@@ -154,7 +154,7 @@
                         <li class="@if(request()->segment(1)=="paed-diary") active @endif">
                             <a href="{{url('/paed-diary')}}">
                                 <i class="fas fa-book"></i>
-                                <p>Päd. Tagebuch</p>
+                                <p>Päd. Dokumentation</p>
                             </a>
                         </li>
                         <li class="@if(request()->segment(1)=="display-week") active @endif">

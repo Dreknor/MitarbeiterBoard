@@ -201,7 +201,7 @@
             <div class="card mb-3">
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
                     <div class="d-flex align-items-center flex-wrap">
-                        <h5 class="mb-0 mr-3">Pädagogisches Tagebuch</h5>
+                        <h5 class="mb-0 mr-3">Pädagogische Dokumentation</h5>
                         <div class="form-inline mr-3">
                             <label class="mr-2 mb-0">Klasse</label>
                             <select id="klasseSelect" class="form-control form-control-sm">
