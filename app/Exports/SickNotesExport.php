@@ -25,6 +25,13 @@ class SickNotesExport implements FromCollection, WithHeadings, WithMapping, With
     {
         $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
 
+        // Prüfung, ob es ein Karenztag ist (für Auswertung "Kurze Krankmeldung ohne Schein")
+        $isKarenztag = $row->reason === 'krank'
+            && $row->days >= 1
+            && $row->days <= 2
+            && is_null($row->sick_note_date)
+            && !$row->sick_note_required;
+
         return [
             ++$this->rows,
             $row->user->name,
@@ -34,6 +41,7 @@ class SickNotesExport implements FromCollection, WithHeadings, WithMapping, With
             $row->days,
             $row->sick_note_date ? $row->sick_note_date->format('d.m.Y') :
                 (($row->sick_note_required or $row->days >= $sickNoteDaysThreshold) ? 'Benötigt' : '-'),
+            $isKarenztag ? 'Ja' : 'Nein',
         ];
     }
 
@@ -46,7 +54,8 @@ class SickNotesExport implements FromCollection, WithHeadings, WithMapping, With
             'Von',
             'Bis',
             'Dauer (Tage)',
-            'Krankenschein'
+            'Krankenschein',
+            'Karenztag'
         ];
     }
 

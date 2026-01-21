@@ -101,6 +101,7 @@
                                         </a>
                                     </th>
                                     <th>Krankenschein</th>
+                                    <th>Karenztag</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -133,6 +134,23 @@
                                                         Krankenschein benötigt
                                                     </div>
                                                 @endif
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @php
+                                                // Prüfung, ob es ein Karenztag ist (für Auswertung "Kurze Krankmeldung ohne Schein")
+                                                $isKarenztag = $absence->reason === 'krank'
+                                                    && $absence->days >= 1
+                                                    && $absence->days <= 2
+                                                    && is_null($absence->sick_note_date)
+                                                    && !$absence->sick_note_required;
+                                            @endphp
+                                            @if($isKarenztag)
+                                                <span class="badge bg-info text-dark" title="Wird in der Auswertung 'Kurze Krankmeldungen ohne Schein' erfasst">
+                                                    <i class="fa fa-check-circle"></i> Ja
+                                                </span>
+                                            @else
+                                                <span class="text-muted">-</span>
                                             @endif
                                         </td>
                                         <td>

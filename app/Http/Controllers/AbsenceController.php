@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\AbsenceExport;
+use App\Exports\ShortSickNotesWithoutCertificateExport;
 use App\Exports\SickNotesCompleteExport;
 use App\Exports\SickNotesByUserExport;
 use App\Exports\SickNotesExport;
@@ -581,10 +582,43 @@ class AbsenceController extends Controller
             ]);
         }
 
+        // Berechnung für kurze Krankmeldungen ohne Schein (1-2 Tage, nur "krank", ohne Schein)
+        $shortSickNotesQuery = Absence::whereDate('start', '>=', Carbon::now()->subYear())
+            ->where('reason', 'krank')  // Nur "krank", nicht "Kind krank"
+            ->whereNull('sick_note_date')  // Ohne Krankenschein
+            ->where('sick_note_required', false)  // Krankenschein nicht erforderlich
+            ->with('user')
+            ->get();
+
+        // Filterung nach Dauer (1-2 Tage) auf Collection-Ebene, da 'days' ein berechnetes Attribut ist
+        $shortSickNotesFiltered = $shortSickNotesQuery->filter(function($absence) {
+            return $absence->days >= 1 && $absence->days <= 2;
+        });
+
+        // Gruppierung nach Mitarbeiter
+        $shortSickNotesGrouped = $shortSickNotesFiltered->groupBy('users_id');
+        $shortSickNotesData = new Collection();
+
+        foreach ($shortSickNotesGrouped as $userId => $userAbsences) {
+            $totalDays = $userAbsences->sum('days');
+            $count = $userAbsences->count();
+            $userName = $userAbsences->first()->user->name;
+
+            $shortSickNotesData->add([
+                'user_id' => $userId,
+                'user' => $userName,
+                'count' => $count,
+                'total_days' => $totalDays,
+            ]);
+        }
+
+        // Sortierung nach Summe der Tage (absteigend)
+        $shortSickNotesData = $shortSickNotesData->sortByDesc('total_days')->values();
+
         $filename = 'Krankmeldungen_' . Carbon::now()->format('Y-m-d') . '.xlsx';
 
         return Excel::download(
-            new SickNotesCompleteExport($absences, $users->sortBy('user')),
+            new SickNotesCompleteExport($absences, $users->sortBy('user'), $shortSickNotesData),
             $filename
         );
     }
