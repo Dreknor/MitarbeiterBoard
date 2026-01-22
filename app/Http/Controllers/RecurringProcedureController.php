@@ -16,6 +16,11 @@ use Illuminate\Support\Facades\Mail;
 
 class RecurringProcedureController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage procedures');
+    }
+
     /**
      * Display a listing of the resource.
      */

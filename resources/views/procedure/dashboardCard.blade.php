@@ -1,4 +1,4 @@
-@if(auth()->user()->can('view procedures'))
+@if(auth()->user()->can('manage procedures') || auth()->user()->can('view assigned procedures'))
     <div class="row mt-2">
         <div class="col-12 mt-2">
             <div class="card">

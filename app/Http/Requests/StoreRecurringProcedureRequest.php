@@ -11,7 +11,7 @@ class StoreRecurringProcedureRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('view procedures');
+        return auth()->user()->can('manage procedures');
     }
 
     /**

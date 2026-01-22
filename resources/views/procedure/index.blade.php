@@ -28,18 +28,19 @@
                 <div class="container-fluid">
                     <div class="row">
                         <div class="col">
-                            @if($categories != null and count($categories)>0)
-                                <div class=" pull-right">
-                                    <a href="{{url('procedure/template#create')}}" class="btn btn-outline-info">
-                                        <i class="fas fa-folder-plus"></i>
-                                        <div class="d-none d-sm-inline-block">
-                                            Vorlage anlegen
-                                        </div>
-                                    </a>
+                            @can('manage procedures')
+                                @if($categories != null and count($categories)>0)
+                                    <div class=" pull-right">
+                                        <a href="{{url('procedure/template#create')}}" class="btn btn-outline-info">
+                                            <i class="fas fa-folder-plus"></i>
+                                            <div class="d-none d-sm-inline-block">
+                                                Vorlage anlegen
+                                            </div>
+                                        </a>
 
-                                </div>
-                            @endif
-
+                                    </div>
+                                @endif
+                            @endcan
                         </div>
                     </div>
                 </div>
@@ -53,11 +54,13 @@
                     @foreach($procedures as $procedure)
                         <li class="list-group-item">
                             {{$procedure->name}}
-                            <div class="pull-right ml-4">
-                                <a href="{{url('procedure/'.$procedure->id.'/ends')}}" class="card-link text-danger" title="Prozess beenden">
-                                    <i class="far fa-times-circle"></i>
-                                </a>
-                            </div>
+                            @can('manage procedures')
+                                <div class="pull-right ml-4">
+                                    <a href="{{url('procedure/'.$procedure->id.'/ends')}}" class="card-link text-danger" title="Prozess beenden">
+                                        <i class="far fa-times-circle"></i>
+                                    </a>
+                                </div>
+                            @endcan
                             <div class="pull-right ml-2">
                                 <a href="{{url('procedure/'.$procedure->id.'/start')}}" class="card-link">
                                     <i class="fas fa-eye"></i>

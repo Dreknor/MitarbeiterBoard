@@ -99,7 +99,7 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
-        if (auth()->user()->can('view procedures')) {
+        if (auth()->user()->can('manage procedures') || auth()->user()->can('view assigned procedures')) {
             $positions = $request->input('positions');
             $user->positions()->sync($positions);
 

@@ -5,13 +5,15 @@
                 <div class="card-header">
                     <h6>
                         {{$step->name}}
-                        <div class="pull-right">
-                            <small>
-                                <a href="{{url('procedure/step/'.$step->id."/edit")}}">
-                                    <i class="fas fa-pen"></i>
-                                </a>
-                            </small>
-                        </div>
+                        @if($canEdit ?? false)
+                            <div class="pull-right">
+                                <small>
+                                    <a href="{{url('procedure/step/'.$step->id."/edit")}}">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                </small>
+                            </div>
+                        @endif
                     </h6>
                     <p class="small">
                         @if($step->parent != "")
@@ -46,14 +48,16 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer text-center">
-                    <div class="btn btn-sm btn-outline-success newStep" data-parent="{{$step->id}}"  data-target="#stepModal"  data-toggle="modal">
-                        <i class="fas fa-plus" data-parent="{{$step->id}}"></i> <i class="fas fa-arrow-down" data-parent="{{$step->id}}"></i>
+                @if($canEdit ?? false)
+                    <div class="card-footer text-center">
+                        <div class="btn btn-sm btn-outline-success newStep" data-parent="{{$step->id}}"  data-target="#stepModal"  data-toggle="modal">
+                            <i class="fas fa-plus" data-parent="{{$step->id}}"></i> <i class="fas fa-arrow-down" data-parent="{{$step->id}}"></i>
+                        </div>
+                        <div class="btn btn-sm btn-outline-info newStep" data-parent="{{$step->parent}}"  data-target="#stepModal"  data-toggle="modal">
+                            <i class="fas fa-plus" data-parent="{{$step->parent}}"></i> <i class="fas fa-arrow-right" data-parent="{{$step->parent}}"></i>
+                        </div>
                     </div>
-                    <div class="btn btn-sm btn-outline-info newStep" data-parent="{{$step->parent}}"  data-target="#stepModal"  data-toggle="modal">
-                        <i class="fas fa-plus" data-parent="{{$step->parent}}"></i> <i class="fas fa-arrow-right" data-parent="{{$step->parent}}"></i>
-                    </div>
-                </div>
+                @endif
             </div>
         </div>
     </div>

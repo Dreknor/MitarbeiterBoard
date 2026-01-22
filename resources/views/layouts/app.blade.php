@@ -134,11 +134,18 @@
                         </li>
 
                     @endif
-                    @can('view procedures')
+                    @can('manage procedures')
                         <li class="@if(request()->segment(1)=="procedure") active @endif">
                             <a href="{{url('/procedure')}}" >
                                 <i class="fas fa-project-diagram"></i>
                                 <p>Prozesse</p>
+                            </a>
+                        </li>
+                    @elsecan('view assigned procedures')
+                        <li class="@if(request()->segment(1)=="procedure") active @endif">
+                            <a href="{{url('/procedure')}}" >
+                                <i class="fas fa-project-diagram"></i>
+                                <p>Meine Prozesse</p>
                             </a>
                         </li>
                     @endcan

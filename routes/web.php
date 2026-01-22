@@ -592,6 +592,7 @@ Route::group([
                     Route::get('{procedure}/start', [ProcedureController::class, 'start']);
                     Route::get('{procedure}/ends', [ProcedureController::class, 'endProcedure']);
                     Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
+                    Route::put('{procedure}/update', [ProcedureController::class, 'updateProcedure']);
                     Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
                     Route::delete('step/{step}/delete', [ProcedureController::class, 'destroy']);
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);

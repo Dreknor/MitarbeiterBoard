@@ -48,7 +48,7 @@
                                 @foreach($step->users as $user)
                                     <span class="d-inline-block ml-1">
                                         {{$user->name}}
-                                        @if($step->done == 0)
+                                        @if($step->done == 0 && ($canEdit ?? false))
                                             <a href="{{ url('procedure/step/'.$step->id.'/remove/'.$user->id) }}" class="text-danger ml-1" title="Person entfernen" aria-label="Person entfernen" onclick="return confirm('Person von dieser Aufgabe entfernen?');">
                                                 <i class="fas fa-user-minus" aria-hidden="true"></i>
                                             </a>
@@ -72,7 +72,7 @@
 
             <div class="mt-2 mt-md-0 d-flex align-items-center">
                 {{-- Aktionen: Löschen nur wenn keine Kinder und nicht erledigt --}}
-                @if(count($step->childs)<1 and !$step->done )
+                @if(count($step->childs)<1 and !$step->done and ($canEdit ?? false))
                     <form class="mr-2" action="{{url('procedure/step/'.$step->id."/delete")}}" method="post">
                         @csrf
                         @method('delete')
@@ -84,7 +84,7 @@
                 @endif
 
                 {{-- Person hinzufügen link (öffnet Modal) --}}
-                @if($step->done == 0)
+                @if($step->done == 0 && ($canEdit ?? false))
                     <a href="#" class="btn btn-sm btn-primary rounded-pill mr-2 addUser d-flex align-items-center" data-toggle="modal" data-target="#addUserModal" data-step="{{$step->id}}" title="Person hinzufügen" aria-label="Person zuweisen">
                         <i class="fas fa-user-plus mr-2" aria-hidden="true"></i>
                         <span class="d-none d-md-inline">Zuweisen</span>
@@ -100,7 +100,7 @@
                     }
                 @endphp
 
-                @if($step->users->contains(auth()->user()) and $step->done  == 0 and $step->endDate != null and $parentDone)
+                @if(($step->users->contains(auth()->user()) || ($canEdit ?? false)) and $step->done  == 0 and $step->endDate != null and $parentDone)
                     <form action="{{url('procedure/step/'.$step->id.'/done')}}" method="post" class="mr-2">
                         @csrf
                         @method('put')

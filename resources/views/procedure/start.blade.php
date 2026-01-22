@@ -5,37 +5,87 @@
         <a href="{{url('procedure')}}" class="btn btn-info">zurück</a>
         <div class="card">
             <div class="card-header">
-                <h6>
-                    {{$procedure->category->name}}: {{$procedure->name}}
-                </h6>
-                <p>
-                    <small>
-                        {{$procedure->description}}
-                    </small>
-                </p>
+                @if($procedure->started_at != null && ($canEdit ?? false))
+                    {{-- Bearbeitbarer Titel für gestartete Prozesse --}}
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1" id="procedure-header-display">
+                            <h6>
+                                {{$procedure->category->name}}: <span id="procedure-name-display">{{$procedure->name}}</span>
+                                <a href="#" class="ml-2 text-primary" id="edit-procedure-btn" title="Prozess bearbeiten">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </h6>
+                            <p>
+                                <small id="procedure-description-display">
+                                    {!! $procedure->description !!}
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Bearbeitungsformular (initial versteckt) --}}
+                    <div id="procedure-edit-form" style="display: none;">
+                        <form action="{{url('procedure/'.$procedure->id.'/update')}}" method="post">
+                            @csrf
+                            @method('PUT')
+                            <div class="form-group">
+                                <label for="edit-name">Prozessname:</label>
+                                <input type="text" class="form-control" id="edit-name" name="name" value="{{$procedure->name}}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-description">Beschreibung:</label>
+                                <textarea class="form-control" id="edit-description" name="description" rows="3">{{$procedure->description}}</textarea>
+                            </div>
+                            <div class="form-group mb-0">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-save"></i> Speichern
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="cancel-edit-btn">
+                                    <i class="fas fa-times"></i> Abbrechen
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                @else
+                    {{-- Normaler Titel für Templates oder Nutzer ohne Bearbeitungsrechte --}}
+                    <h6>
+                        {{$procedure->category->name}}: {{$procedure->name}}
+                    </h6>
+                    <p>
+                        <small>
+                            {{$procedure->description}}
+                        </small>
+                    </p>
+                @endif
             </div>
             @if($procedure->started_at == null)
-                <div class="card-body">
-                    <form action="{{url('procedure/'.$procedure->id.'/start')}}" method="post" class="form-horizontal">
-                        @csrf
-                        <div class="form-row">
-                            <label for="name">
-                                Bezeichnung des Prozesses:
-                            </label>
-                            <input type="text" name="name" id="name" placeholder="Bezeichnung für Prozess eingeben" class="form-control" required>
-                        </div>
-                        <div class="form-row">
-                            <label for="started_at">
-                                Prozess startet am:
-                            </label>
-                            <input type="date" required name="started_at" id="started_at" value="{{\Carbon\Carbon::now()->format('Y-m-d')}}" class="form-control">
-                        </div>
+                @if($canEdit ?? false)
+                    <div class="card-body">
+                        <form action="{{url('procedure/'.$procedure->id.'/start')}}" method="post" class="form-horizontal">
+                            @csrf
+                            <div class="form-row">
+                                <label for="name">
+                                    Bezeichnung des Prozesses:
+                                </label>
+                                <input type="text" name="name" id="name" placeholder="Bezeichnung für Prozess eingeben" class="form-control" required>
+                            </div>
+                            <div class="form-row">
+                                <label for="started_at">
+                                    Prozess startet am:
+                                </label>
+                                <input type="date" required name="started_at" id="started_at" value="{{\Carbon\Carbon::now()->format('Y-m-d')}}" class="form-control">
+                            </div>
 
-                        <button type="submit" class="btn btn-success">
-                                starten
-                            </button>
-                    </form>
-                </div>
+                            <button type="submit" class="btn btn-success">
+                                    starten
+                                </button>
+                        </form>
+                    </div>
+                @else
+                    <div class="card-body">
+                        <p class="text-muted">Dieser Prozess wurde noch nicht gestartet.</p>
+                    </div>
+                @endif
             @else
                 <div class="card-body border-top">
                     <div class="container-fluid">
@@ -43,7 +93,7 @@
                                 @if(count($procedure->steps->where('parent', null))>0)
                                     @each('procedure.stepStarted',$procedure->steps->where('parent', null), 'step')
                                 @elseif(count($procedure->steps)>0)
-                                    @if($procedure->started_at == null)
+                                    @if($procedure->started_at == null && ($canEdit ?? false))
                                         <div class="btn btn-sm btn-outline-success newStep" data-parent=""  data-target="#stepModal"  data-toggle="modal">
                                             <i class="fas fa-plus" data-parent=""></i> Schritt erstellen
                                         </div>
@@ -171,6 +221,21 @@
 
 @push('js')
     <script>
+        // Procedure Name/Description Edit Toggle
+        $(document).ready(function() {
+            $('#edit-procedure-btn').on('click', function(e) {
+                e.preventDefault();
+                $('#procedure-header-display').hide();
+                $('#procedure-edit-form').show();
+                $('#edit-name').focus();
+            });
+
+            $('#cancel-edit-btn').on('click', function() {
+                $('#procedure-edit-form').hide();
+                $('#procedure-header-display').show();
+            });
+        });
+
         $(document).on('click', '.addUser', function (e){
             // Verwende die data-Attribute des Buttons selbst; falls das eigentliche Ziel ein Kind-Element ist,
             // lese es von der nächsthöheren .addUser-Element.

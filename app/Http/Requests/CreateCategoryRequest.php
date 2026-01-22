@@ -13,7 +13,7 @@ class CreateCategoryRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('view procedures');
+        return auth()->user()->can('manage procedures');
     }
 
     /**

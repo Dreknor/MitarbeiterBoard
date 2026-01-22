@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Cache;
 
 class PositionsController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage procedures');
+    }
+
     public function store(CreatePositionRequest $request)
     {
         $position = new Positions($request->validated());

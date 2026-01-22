@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage procedures');
+    }
+
     public function store(CreateCategoryRequest $createCategoryRequest)
     {
         $category = new Procedure_Category($createCategoryRequest->validated());

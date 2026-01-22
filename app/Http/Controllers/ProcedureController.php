@@ -26,7 +26,67 @@ class ProcedureController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view procedures');
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+
+            // Entweder manage procedures ODER view assigned procedures
+            if (!$user->can('manage procedures') && !$user->can('view assigned procedures')) {
+                abort(403, 'Keine Berechtigung.');
+            }
+
+            return $next($request);
+        });
+    }
+
+    /**
+     * Prüft, ob der Nutzer Zugriff auf einen bestimmten Prozess hat
+     */
+    private function canAccessProcedure(Procedure $procedure, User $user = null): bool
+    {
+        $user = $user ?? auth()->user();
+
+        // Admins mit manage procedures haben immer Zugriff
+        if ($user->can('manage procedures')) {
+            return true;
+        }
+
+        // Nutzer ohne view assigned procedures haben keinen Zugriff
+        if (!$user->can('view assigned procedures')) {
+            return false;
+        }
+
+        // Prüfe ob Nutzer in einem Schritt des Prozesses zugewiesen ist
+        $hasAssignedStep = $procedure->steps()
+            ->whereHas('users', function ($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
+            ->exists();
+
+        if ($hasAssignedStep) {
+            return true;
+        }
+
+        // Prüfe ob Nutzer eine Position hat, die in einem Schritt verwendet wird
+        if ($user->position_id) {
+            $hasPositionStep = $procedure->steps()
+                ->where('position_id', $user->position_id)
+                ->exists();
+
+            if ($hasPositionStep) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Prüft, ob der Nutzer einen Prozess bearbeiten darf
+     */
+    private function canEditProcedure(Procedure $procedure = null, User $user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        return $user->can('manage procedures');
     }
 
 
@@ -56,6 +116,14 @@ class ProcedureController extends Controller
 
 
     public function destroy(Procedure_Step $step){
+        // Nur Admins können Schritte löschen
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Schritte zu löschen.'
+            ]);
+        }
+
         try {
             $step->users()->detach();
 
@@ -88,6 +156,11 @@ class ProcedureController extends Controller
 
     public function index_templates()
     {
+        // Nur Admins können Templates verwalten
+        if (!auth()->user()->can('manage procedures')) {
+            abort(403, 'Keine Berechtigung Vorlagen zu verwalten.');
+        }
+
         $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
 
         $caregories = Cache::remember('categories', 60 * 5, function () {
@@ -101,10 +174,36 @@ class ProcedureController extends Controller
     }
     public function index()
     {
-        $steps = auth()->user()->steps;
-        $steps = $steps->unique('procedure_id');
+        $user = auth()->user();
 
-        $procedures = Procedure::whereIn('id', $steps->pluck('procedure_id'))->whereNotNull('started_at')->whereNull('ended_at')->get();
+        if ($user->can('manage procedures')) {
+            // Admins sehen alle laufenden Prozesse
+            $procedures = Procedure::whereNotNull('started_at')
+                ->whereNull('ended_at')
+                ->get();
+        } else {
+            // Normale Nutzer sehen nur zugewiesene Prozesse
+            $steps = $user->steps;
+            $steps = $steps->unique('procedure_id');
+            $procedureIds = $steps->pluck('procedure_id');
+
+            // Zusätzlich Prozesse mit Steps für die Position des Nutzers
+            if ($user->position_id) {
+                $positionProcedureIds = Procedure_Step::where('position_id', $user->position_id)
+                    ->whereHas('procedure', function($query) {
+                        $query->whereNotNull('started_at')->whereNull('ended_at');
+                    })
+                    ->pluck('procedure_id')
+                    ->unique();
+
+                $procedureIds = $procedureIds->merge($positionProcedureIds)->unique();
+            }
+
+            $procedures = Procedure::whereIn('id', $procedureIds)
+                ->whereNotNull('started_at')
+                ->whereNull('ended_at')
+                ->get();
+        }
 
         $proceduresTemplate = Procedure::where('started_at', null)->with('category')->get();
 
@@ -121,6 +220,14 @@ class ProcedureController extends Controller
 
     public function storeTemplate(CreateProcedureTemplateRequest $request)
     {
+        // Nur Admins können Templates erstellen
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Vorlagen zu erstellen.'
+            ]);
+        }
+
         $template = new Procedure($request->validated());
         $template->author_id = auth()->id();
         $template->save();
@@ -135,11 +242,20 @@ class ProcedureController extends Controller
 
     public function edit($procedure)
     {
+        // Prozess direkt aus DB laden (kein Cache wegen häufigen Updates)
+        $procedure = Procedure::find($procedure);
+
+        if (!$procedure) {
+            abort(404);
+        }
+
+        // Zugriffskontrolle
+        if (!$this->canAccessProcedure($procedure)) {
+            abort(403, 'Keine Berechtigung diesen Prozess zu sehen.');
+        }
+
         $positions = Cache::remember('positions', 60 * 60, function () {
             return Positions::all();
-        });
-        $procedure = Cache::remember('procedure'.$procedure, 60 * 60, function () use ($procedure) {
-            return Procedure::find($procedure);
         });
 
         return view('procedure.edit', [
@@ -153,16 +269,26 @@ class ProcedureController extends Controller
                 'steps.childs.users'
             ),
             'positions'=>$positions,
+            'canEdit'=>$this->canEditProcedure($procedure),
         ]);
     }
 
     public function start($procedure)
     {
+        // Prozess direkt aus DB laden (kein Cache wegen häufigen Updates)
+        $procedure = Procedure::find($procedure);
+
+        if (!$procedure) {
+            abort(404);
+        }
+
+        // Zugriffskontrolle
+        if (!$this->canAccessProcedure($procedure)) {
+            abort(403, 'Keine Berechtigung diesen Prozess zu sehen.');
+        }
+
         $positions = Cache::remember('positions', 60 * 60, function () {
             return Positions::all();
-        });
-        $procedure = Cache::remember('procedure'.$procedure, 60 * 60, function () use ($procedure) {
-            return Procedure::find($procedure);
         });
 
         $users = User::all();
@@ -183,7 +309,7 @@ class ProcedureController extends Controller
             ),
             'positions'=>$positions,
             'users' => $users,
-
+            'canEdit'=>$this->canEditProcedure($procedure),
         ]);
     }
 
@@ -206,6 +332,14 @@ class ProcedureController extends Controller
 
     public function startNow(Request $request, Procedure $procedure)
     {
+        // Nur Admins können Prozesse starten
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Prozesse zu starten.'
+            ]);
+        }
+
         $startedProcedure = $procedure->replicate();
         $startedProcedure->name = $request->input('name');
         $startedProcedure->started_at = $request->input('started_at');
@@ -247,6 +381,14 @@ class ProcedureController extends Controller
 
     public function addStep(CreateStepRequest $request, Procedure $procedure)
     {
+        // Nur Admins können Schritte hinzufügen
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Schritte hinzuzufügen.'
+            ]);
+        }
+
         $step = new Procedure_Step($request->validated());
         $step->procedure_id = $procedure->id;
         $step->save();
@@ -259,6 +401,11 @@ class ProcedureController extends Controller
 
     public function editStep(Procedure_Step $step)
     {
+        // Nur Admins können Schritte bearbeiten
+        if (!auth()->user()->can('manage procedures')) {
+            abort(403, 'Keine Berechtigung Schritte zu bearbeiten.');
+        }
+
         $positions = Cache::remember('positions', 60 * 60, function () {
             return Positions::all();
         });
@@ -274,6 +421,14 @@ class ProcedureController extends Controller
 
     public function storeStep(EditStepRequest $request, Procedure_Step $step)
     {
+        // Nur Admins können Schritte speichern
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Schritte zu bearbeiten.'
+            ]);
+        }
+
         $step->update($request->validated());
 
         return redirect(url('procedure/'.$step->procedure_id.'/edit'));
@@ -281,7 +436,6 @@ class ProcedureController extends Controller
 
     public function done(Procedure_Step $step)
     {
-        // Autorisierungs-Check: nur zuständige Benutzer oder Administratoren mit 'edit procedures' dürfen markieren
         if (!auth()->check()) {
             return redirect()->back()->with([
                 'type' => 'danger',
@@ -290,12 +444,21 @@ class ProcedureController extends Controller
         }
 
         $currentUser = auth()->user();
-        // Verwende die geladene Collection, vermeidet direkte DB-Query und reduziert statische Analysewarnungen
-        $isAssigned = $step->users->contains('id', $currentUser->id);
-        if (!$isAssigned && !$currentUser->can('edit procedures')) {
+
+        // Prüfe ob Nutzer die Permission zum Abschließen hat
+        if (!$currentUser->can('complete own procedure steps') && !$currentUser->can('manage procedures')) {
             return redirect()->back()->with([
                 'type' => 'danger',
-                'Meldung' => 'Keine Berechtigung.'
+                'Meldung' => 'Keine Berechtigung Schritte abzuschließen.'
+            ]);
+        }
+
+        // Normale Nutzer dürfen nur ihre eigenen zugewiesenen Schritte abschließen
+        $isAssigned = $step->users->contains('id', $currentUser->id);
+        if (!$currentUser->can('manage procedures') && !$isAssigned) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Sie können nur Ihre eigenen zugewiesenen Schritte abschließen.'
             ]);
         }
 
@@ -337,6 +500,14 @@ class ProcedureController extends Controller
 
     public function removeUser(Procedure_Step $step, User $user)
     {
+        // Nur Admins können Benutzer entfernen
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Benutzer zu entfernen.'
+            ]);
+        }
+
         $step->users()->detach($user);
 
         return redirect()->back();
@@ -344,6 +515,14 @@ class ProcedureController extends Controller
 
     public function addUser(Request $request)
     {
+        // Nur Admins können Benutzer zuweisen
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Benutzer zuzuweisen.'
+            ]);
+        }
+
         $data = $request->validate([
             'step' => 'required|integer',
             'person_id' => 'required|integer'
@@ -446,6 +625,14 @@ class ProcedureController extends Controller
     }
 
     public function endProcedure(Procedure $procedure){
+        // Nur Admins können Prozesse beenden
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung Prozesse zu beenden.'
+            ]);
+        }
+
         $procedure->steps()->where('done', '=',0)->update(['done' => 1]);
         $procedure->update([
             'ended_at' => Carbon::now()
@@ -454,6 +641,30 @@ class ProcedureController extends Controller
         return redirect()->back()->with([
             'type' => 'warning',
             'Meldung' => 'Prozess'. $procedure->name.' wurde beendet'
+        ]);
+    }
+
+    public function updateProcedure(Request $request, Procedure $procedure)
+    {
+        // Nur Admins können Prozesse bearbeiten
+        if (!auth()->user()->can('manage procedures')) {
+            return redirect()->back()->with([
+                'type'=>'danger',
+                'Meldung'=> 'Keine Berechtigung den Prozess zu bearbeiten.'
+            ]);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        // Update durchführen
+        $procedure->update($validated);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Prozess wurde erfolgreich aktualisiert.'
         ]);
     }
 }
