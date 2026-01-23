@@ -1332,8 +1332,35 @@ class PaedDiaryController extends Controller
                 'created_at' => $t->created_at->format('d.m.Y H:i')
             ]);
 
+        // Graduierungsdokumentation Sessions für den Schüler laden
+        $gradingSessions = \App\Models\GradingDocumentationSession::where('klasse_id', $klasse->id)
+            ->where(function($q) use ($schueler) {
+                $q->where('schueler_id', $schueler->id)
+                  ->orWhere(function($q2) use ($schueler) {
+                      $q2->where('type', 'group')
+                         ->whereHas('studentAnswers', fn($q3) => $q3->where('schueler_id', $schueler->id));
+                  });
+            })
+            ->whereNotNull('completed_at')
+            ->whereBetween('completed_at', [$dateFrom, $dateTo->copy()->addDay()])
+            ->with([
+                'gradingSystem',
+                'gradingSystem.questions' => function($q) {
+                    $q->where('active', true)->orderBy('sort_order');
+                },
+                'user',
+                'studentAnswers' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id)->with('question');
+                },
+                'teacherAssessments' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id)->with('question');
+                }
+            ])
+            ->orderBy('completed_at', 'asc')
+            ->get();
+
         return Excel::download(
-            new PaedDiarySchuelerExport($schueler, $entries, $columns, $columnValues, $tasks, $dateFrom, $dateTo),
+            new PaedDiarySchuelerExport($schueler, $entries, $columns, $columnValues, $tasks, $gradingSessions, $dateFrom, $dateTo),
             'paed_tagebuch_' . $schueler->vorname . '_' . $schueler->nachname . '_' . $dateFrom->format('Ymd') . '_' . $dateTo->format('Ymd') . '.xlsx'
         );
     }

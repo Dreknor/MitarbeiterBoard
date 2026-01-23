@@ -24,16 +24,18 @@ class PaedDiarySchuelerExport implements WithMultipleSheets
     protected $columns;
     protected $columnValues;
     protected $tasks;
+    protected $gradingSessions;
     protected $dateFrom;
     protected $dateTo;
 
-    public function __construct(Schueler $schueler, $entries, $columns, $columnValues, $tasks, Carbon $dateFrom, Carbon $dateTo)
+    public function __construct(Schueler $schueler, $entries, $columns, $columnValues, $tasks, $gradingSessions, Carbon $dateFrom, Carbon $dateTo)
     {
         $this->schueler = $schueler;
         $this->entries = $entries;
         $this->columns = $columns;
         $this->columnValues = $columnValues;
         $this->tasks = $tasks;
+        $this->gradingSessions = $gradingSessions;
         $this->dateFrom = $dateFrom;
         $this->dateTo = $dateTo;
     }
@@ -43,6 +45,7 @@ class PaedDiarySchuelerExport implements WithMultipleSheets
         return [
             new SchuelerEntriesSheet($this->schueler, $this->entries, $this->columns, $this->columnValues, $this->dateFrom, $this->dateTo),
             new SchuelerTasksSheet($this->schueler, $this->tasks, $this->dateFrom, $this->dateTo),
+            new SchuelerGradingDocumentationSheet($this->schueler, $this->gradingSessions, $this->dateFrom, $this->dateTo),
         ];
     }
 }
@@ -510,3 +513,185 @@ class SchuelerTasksSheet implements FromArray, WithHeadings, WithStyles, WithCol
         return [];
     }
 }
+
+class SchuelerGradingDocumentationSheet implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+{
+    protected $schueler;
+    protected $gradingSessions;
+    protected $dateFrom;
+    protected $dateTo;
+
+    public function __construct(Schueler $schueler, $gradingSessions, Carbon $dateFrom, Carbon $dateTo)
+    {
+        $this->schueler = $schueler;
+        $this->gradingSessions = $gradingSessions;
+        $this->dateFrom = $dateFrom;
+        $this->dateTo = $dateTo;
+    }
+
+    public function array(): array
+    {
+        $data = [];
+
+        foreach ($this->gradingSessions as $session) {
+            $questions = $session->gradingSystem->questions ?? collect();
+
+            foreach ($questions as $question) {
+                // Finde Schüler-Antwort
+                $studentAnswer = $session->studentAnswers->firstWhere('question_id', $question->id);
+
+                // Finde Lehrer-Einschätzung
+                $teacherAssessment = $session->teacherAssessments->firstWhere('question_id', $question->id);
+
+                $row = [
+                    'Datum' => $session->completed_at?->format('d.m.Y H:i') ?? '-',
+                    'System' => $session->gradingSystem->name ?? '-',
+                    'Typ' => $session->type === 'group' ? 'Gruppe' : 'Einzeln',
+                    'Lehrer' => $session->user->name ?? '-',
+                    'Frage' => $question->question,
+                    'Selbsteinschätzung' => $studentAnswer ? $this->formatRating($studentAnswer->self_rating) : '-',
+                    'Lehrereinschätzung' => $teacherAssessment ? $this->formatRating($teacherAssessment->teacher_rating) : '-',
+                    'Kommentar' => $teacherAssessment?->comment ?? '',
+                ];
+
+                $data[] = $row;
+            }
+        }
+
+        if (empty($data)) {
+            // Wenn keine Daten vorhanden, füge eine leere Zeile hinzu
+            $data[] = [
+                'Datum' => '-',
+                'System' => '-',
+                'Typ' => '-',
+                'Lehrer' => '-',
+                'Frage' => 'Keine Dokumentation im ausgewählten Zeitraum',
+                'Selbsteinschätzung' => '-',
+                'Lehrereinschätzung' => '-',
+                'Kommentar' => '',
+            ];
+        }
+
+        return $data;
+    }
+
+    protected function formatRating($rating): string
+    {
+        if (is_null($rating)) {
+            return '-';
+        }
+
+        $ratings = [
+            1 => '1 - Trifft nicht zu',
+            2 => '2 - Trifft eher nicht zu',
+            3 => '3 - Teils/Teils',
+            4 => '4 - Trifft eher zu',
+            5 => '5 - Trifft voll zu',
+        ];
+
+        return $ratings[$rating] ?? (string)$rating;
+    }
+
+    public function headings(): array
+    {
+        return [
+            'Datum',
+            'System',
+            'Typ',
+            'Lehrer',
+            'Frage',
+            'Selbsteinschätzung',
+            'Lehrereinschätzung',
+            'Kommentar'
+        ];
+    }
+
+    public function title(): string
+    {
+        return 'Graduierungsdokumentation';
+    }
+
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 18, // Datum
+            'B' => 20, // System
+            'C' => 10, // Typ
+            'D' => 15, // Lehrer
+            'E' => 40, // Frage
+            'F' => 22, // Selbsteinschätzung
+            'G' => 22, // Lehrereinschätzung
+            'H' => 35, // Kommentar
+        ];
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        // Titel-Zeile hinzufügen
+        $sheet->insertNewRowBefore(1, 3);
+        $stageName = $this->schueler->grading_stage?->name ?? '-';
+        $sheet->setCellValue('A1', 'Graduierungsdokumentation');
+        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ') - Stufe: ' . $stageName);
+        $sheet->setCellValue('A3', 'Zeitraum: ' . $this->dateFrom->format('d.m.Y') . ' - ' . $this->dateTo->format('d.m.Y'));
+
+        // Titel-Styling
+        $sheet->getStyle('A1:A3')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 14,
+            ],
+        ]);
+
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['size' => 16],
+        ]);
+
+        // Header-Styling (jetzt in Zeile 4)
+        $sheet->getStyle('A4:H4')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4A90E2'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        // Daten-Styling
+        $lastRow = count($this->array()) + 4;
+        if ($lastRow > 4) {
+            $sheet->getStyle("A5:H{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'CCCCCC'],
+                    ],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_TOP,
+                    'wrapText' => true,
+                ],
+            ]);
+
+            // Datum-Spalte zentrieren
+            $sheet->getStyle("A5:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Typ-Spalte zentrieren
+            $sheet->getStyle("C5:C{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+
+        return [];
+    }
+}
+
