@@ -422,11 +422,10 @@ class RosterController extends Controller
 
         // Nachricht vorbereiten
         $message = sprintf(
-            "📅 **Neuer Dienstplan verfügbar**\n\nWoche vom %s bis %s\nAbteilung: %s\n\nErstellt von: %s",
+            "📅 **Neuer Dienstplan**\n\nWoche vom %s bis %s\n",
             $weekStart->format('d.m.Y'),
             $weekEnd->format('d.m.Y'),
-            $roster->department->name,
-            auth()->user()->name
+
         );
 
         // Datei zu Nextcloud hochladen und im Chat teilen
