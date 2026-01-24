@@ -12,6 +12,7 @@ use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Services\AutoRosterPlanner; // Import ergänzt
+use App\Services\NextcloudTalkService;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -392,6 +393,55 @@ class RosterController extends Controller
         Storage::delete('dienstplan.pdf');
 
         return redirectBack('success', 'E-Mails versandt');
+    }
+
+    public function sendRosterToNextcloudTalk(Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) {
+            return redirectBack('danger', 'Berechtigung fehlt');
+        }
+
+        $nextcloudService = new NextcloudTalkService();
+
+        if (!$nextcloudService->isEnabled()) {
+            return redirectBack('warning', 'Nextcloud Talk ist nicht aktiviert oder nicht konfiguriert');
+        }
+
+        $chatToken = config('nextcloud.roster_chat_token');
+
+        if (empty($chatToken)) {
+            return redirectBack('warning', 'Kein Nextcloud Talk Chat-Token konfiguriert');
+        }
+
+        // PDF erstellen
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $pdfPath = storage_path('app/dienstplan_' . $roster->id . '.pdf');
+        $this->createPDF($roster)->save($pdfPath);
+
+        // Nachricht vorbereiten
+        $message = sprintf(
+            "📅 **Neuer Dienstplan verfügbar**\n\nWoche vom %s bis %s\nAbteilung: %s\n\nErstellt von: %s",
+            $weekStart->format('d.m.Y'),
+            $weekEnd->format('d.m.Y'),
+            $roster->department->name,
+            auth()->user()->name
+        );
+
+        // Datei zu Nextcloud hochladen und im Chat teilen
+        $targetPath = '/Dienstpläne/' . $roster->start_date->format('Y_m_d') . '_dienstplan.pdf';
+        $success = $nextcloudService->uploadAndShare($chatToken, $pdfPath, $targetPath, $message);
+
+        // Lokale PDF löschen
+        if (file_exists($pdfPath)) {
+            unlink($pdfPath);
+        }
+
+        if ($success) {
+            return redirectBack('success', 'Dienstplan wurde erfolgreich an Nextcloud Talk gesendet');
+        } else {
+            return redirectBack('danger', 'Fehler beim Senden an Nextcloud Talk. Bitte Logs prüfen.');
+        }
     }
 
     public function exportPdfEmploye(Roster $roster, User $employe)

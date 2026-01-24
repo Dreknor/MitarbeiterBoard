@@ -252,6 +252,7 @@ Route::group([
                     Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
                     Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
                     Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
+                    Route::get('roster/{roster}/export/nextcloud', [RosterController::class, 'sendRosterToNextcloudTalk'])->name('roster.export.nextcloud');
                     Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
                     Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
                     Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');

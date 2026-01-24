@@ -185,6 +185,13 @@
                                                     <div @class(['col-auto'])>
                                                         <a href="{{route('roster.export.mail',[$roster->id])}}">E-Mail</a>
                                                     </div>
+                                                    @if(config('nextcloud.enabled'))
+                                                        <div @class(['col-auto'])>
+                                                            <a href="{{route('roster.export.nextcloud',[$roster->id])}}" title="An Nextcloud Talk senden">
+                                                                <i class="fas fa-comment"></i> Talk
+                                                            </a>
+                                                        </div>
+                                                    @endif
                                                 @endif
                                                 @if(!$roster->published)
                                                     <div @class(['col-auto'])>
