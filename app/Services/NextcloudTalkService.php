@@ -101,7 +101,7 @@ class NextcloudTalkService
      * Share a file to a Nextcloud Talk chat
      *
      * @param string $token The chat room token
-     * @param string $filePath The path to the file in Nextcloud
+     * @param string $filePath The path to the file in Nextcloud (e.g., '/Dienstpläne/plan.pdf')
      * @param string $message Optional message to send with the file
      * @return bool Success status
      */
@@ -112,37 +112,180 @@ class NextcloudTalkService
             return false;
         }
 
+        Log::info('Sharing file to Nextcloud Talk', [
+            'token' => $token,
+            'file_path' => $filePath,
+        ]);
+
+        // Method 1: Try the official share API with file object
+        $shareSuccess = $this->tryShareViaApi($token, $filePath, $message);
+
+        if ($shareSuccess) {
+            return true;
+        }
+
+        // Method 2: Fallback - send message with download link
+        Log::info('Using fallback: Sending file link via message');
+        return $this->shareFileAsLink($token, $filePath, $message);
+    }
+
+    /**
+     * Try to share file via Nextcloud Talk Share API
+     *
+     * @param string $token Chat token
+     * @param string $filePath File path
+     * @param string $message Message
+     * @return bool Success
+     */
+    protected function tryShareViaApi(string $token, string $filePath, string $message): bool
+    {
         try {
-            // First, share the file reference
-            $response = $this->client->post("/ocs/v2.php/apps/spreed/api/v1/chat/{$token}/share", [
+            // Get file info first
+            $fileId = $this->getFileId($filePath);
+
+            if (!$fileId) {
+                Log::debug('Could not get file ID, skipping API share attempt');
+                return false;
+            }
+
+            Log::debug('Attempting to share via API', ['file_id' => $fileId]);
+
+            // Try method 1: Share with referenceId
+            $webdavClient = new Client([
+                'base_uri' => $this->baseUrl,
+                'auth' => [$this->username, $this->password],
+                'headers' => [
+                    'OCS-APIRequest' => 'true',
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+                'verify' => false,
+                'http_errors' => false,
+            ]);
+
+            // Try posting with just the path (simplest approach)
+            $response = $webdavClient->post("/ocs/v2.php/apps/spreed/api/v1/chat/{$token}", [
                 'json' => [
-                    'path' => $filePath,
                     'message' => $message,
+                    'replyTo' => 0,
+                    'referenceId' => uniqid('file-', true),
+                    'actorDisplayName' => $this->username,
                 ],
             ]);
 
             $statusCode = $response->getStatusCode();
 
             if ($statusCode >= 200 && $statusCode < 300) {
-                Log::info('File successfully shared to Nextcloud Talk', [
-                    'token' => $token,
-                    'file_path' => $filePath,
+                Log::info('Message sent successfully via API');
+
+                // Now try to share the file object
+                $shareResponse = $webdavClient->post("/ocs/v2.php/apps/files_sharing/api/v1/shares", [
+                    'form_params' => [
+                        'path' => $filePath,
+                        'shareType' => 10, // TYPE_ROOM (Nextcloud Talk room)
+                        'shareWith' => $token,
+                    ],
                 ]);
-                return true;
+
+                if ($shareResponse->getStatusCode() >= 200 && $shareResponse->getStatusCode() < 300) {
+                    Log::info('File shared successfully via API', ['file_path' => $filePath]);
+                    return true;
+                }
+
+                Log::debug('File sharing failed, but message was sent', [
+                    'share_status' => $shareResponse->getStatusCode(),
+                ]);
             }
 
-            Log::error('Failed to share file to Nextcloud Talk', [
-                'status_code' => $statusCode,
-                'token' => $token,
-                'file_path' => $filePath,
-            ]);
             return false;
 
-        } catch (GuzzleException $e) {
-            Log::error('Nextcloud Talk file share error: ' . $e->getMessage(), [
-                'token' => $token,
+        } catch (\Exception $e) {
+            Log::debug('API share attempt failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get file ID from Nextcloud for a given path
+     *
+     * @param string $filePath Path to file in Nextcloud
+     * @return string|null File ID or null if not found
+     */
+    protected function getFileId(string $filePath): ?string
+    {
+        try {
+            $webdavClient = new Client([
+                'base_uri' => $this->baseUrl,
+                'auth' => [$this->username, $this->password],
+                'verify' => false,
+                'http_errors' => false,
+            ]);
+
+            $normalizedPath = trim($filePath, '/');
+            $response = $webdavClient->request('PROPFIND', "/remote.php/dav/files/{$this->username}/{$normalizedPath}", [
+                'headers' => [
+                    'Depth' => '0',
+                ],
+                'body' => '<?xml version="1.0"?>
+                    <d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+                        <d:prop>
+                            <oc:fileid />
+                        </d:prop>
+                    </d:propfind>',
+            ]);
+
+            if ($response->getStatusCode() == 207) {
+                $body = $response->getBody()->getContents();
+
+                // Parse XML response to get file ID
+                if (preg_match('/<oc:fileid>(\d+)<\/oc:fileid>/', $body, $matches)) {
+                    Log::debug('Found file ID', ['file_id' => $matches[1], 'path' => $filePath]);
+                    return $matches[1];
+                }
+            }
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::debug('Error getting file ID: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Share a file by sending a message with download link (fallback method)
+     *
+     * @param string $token Chat token
+     * @param string $filePath File path
+     * @param string $message Optional message
+     * @return bool Success status
+     */
+    protected function shareFileAsLink(string $token, string $filePath, string $message = ''): bool
+    {
+        try {
+            // Normalize path
+            $normalizedPath = trim($filePath, '/');
+
+            // Create WebDAV download link
+            $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
+            $downloadLink = "{$this->baseUrl}/remote.php/dav/files/{$this->username}/{$encodedPath}";
+
+            // Get filename
+            $filename = basename($filePath);
+
+            // Construct message with file info and download link
+            $fullMessage = $message . "\n\n📎 **Datei:** `{$filename}`\n📍 **Pfad:** `{$filePath}`\n\n⬇️ **Download:** {$downloadLink}";
+
+            Log::debug('Sending file as link message', [
                 'file_path' => $filePath,
-                'error' => $e->getMessage(),
+                'download_link' => $downloadLink,
+            ]);
+
+            return $this->sendMessage($token, $fullMessage);
+
+        } catch (\Exception $e) {
+            Log::error('Error sharing file as link: ' . $e->getMessage(), [
+                'file_path' => $filePath,
             ]);
             return false;
         }
