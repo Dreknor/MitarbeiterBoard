@@ -307,37 +307,63 @@ class NextcloudTalkService
         }
 
         try {
-            // Ensure target directory exists
-            $directory = dirname($targetPath);
-            if ($directory !== '/' && $directory !== '.') {
+            // Normalize target path (remove leading slash for internal use, keep it for sharing)
+            $normalizedPath = trim($targetPath, '/');
+            $shareablePath = '/' . $normalizedPath; // Path for sharing in Talk (with leading slash)
+
+            // Extract directory from normalized path
+            $directory = dirname($normalizedPath);
+
+            // Ensure target directory exists (only if not root)
+            if ($directory !== '.' && $directory !== '' && $directory !== '/') {
+                Log::debug('Ensuring directory exists', ['directory' => $directory]);
                 if (!$this->ensureDirectoryExists($directory)) {
                     Log::error('Failed to create target directory', ['directory' => $directory]);
                     return false;
                 }
             }
 
-            // Upload file to Nextcloud using WebDAV
+            // Upload file to Nextcloud using WebDAV (use normalized path without leading slash)
             $webdavClient = new Client([
                 'base_uri' => $this->baseUrl,
                 'auth' => [$this->username, $this->password],
                 'verify' => false,
             ]);
 
+            if (!file_exists($localFilePath)) {
+                Log::error('Local file does not exist', ['local_path' => $localFilePath]);
+                return false;
+            }
+
             $fileContent = file_get_contents($localFilePath);
-            $response = $webdavClient->put("/remote.php/dav/files/{$this->username}{$targetPath}", [
+            $uploadPath = "/remote.php/dav/files/{$this->username}/{$normalizedPath}";
+
+            Log::debug('Uploading file to Nextcloud', [
+                'local_path' => $localFilePath,
+                'upload_path' => $uploadPath,
+                'file_size' => strlen($fileContent),
+            ]);
+
+            $response = $webdavClient->put($uploadPath, [
                 'body' => $fileContent,
             ]);
 
-            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
-                Log::info('File uploaded to Nextcloud', ['path' => $targetPath]);
+            $statusCode = $response->getStatusCode();
 
-                // Now share the file in Talk
-                return $this->shareFile($token, $targetPath, $message);
+            if ($statusCode >= 200 && $statusCode < 300) {
+                Log::info('File uploaded to Nextcloud successfully', [
+                    'path' => $normalizedPath,
+                    'status_code' => $statusCode,
+                ]);
+
+                // Share the file in Talk (use path with leading slash)
+                return $this->shareFile($token, $shareablePath, $message);
             }
 
             Log::error('Failed to upload file to Nextcloud', [
-                'status_code' => $response->getStatusCode(),
-                'target_path' => $targetPath,
+                'status_code' => $statusCode,
+                'target_path' => $normalizedPath,
+                'upload_path' => $uploadPath,
             ]);
             return false;
 
@@ -349,8 +375,10 @@ class NextcloudTalkService
             ]);
             return false;
         } catch (\Exception $e) {
-            Log::error('Error reading local file: ' . $e->getMessage(), [
+            Log::error('Error in uploadAndShare: ' . $e->getMessage(), [
                 'local_path' => $localFilePath,
+                'target_path' => $targetPath,
+                'error' => $e->getMessage(),
             ]);
             return false;
         }
