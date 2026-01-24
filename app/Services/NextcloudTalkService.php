@@ -161,56 +161,83 @@ class NextcloudTalkService
                 'base_uri' => $this->baseUrl,
                 'auth' => [$this->username, $this->password],
                 'verify' => false,
+                'http_errors' => false, // Don't throw exceptions on HTTP errors
             ]);
 
-            // Check if directory exists using PROPFIND
-            try {
-                $response = $webdavClient->request('PROPFIND', "/remote.php/dav/files/{$this->username}{$directoryPath}", [
-                    'headers' => [
-                        'Depth' => '0',
-                    ],
-                ]);
+            // Normalize path
+            $directoryPath = '/' . trim($directoryPath, '/');
 
-                if ($response->getStatusCode() == 207) {
-                    // Directory exists
-                    Log::debug('Directory already exists', ['path' => $directoryPath]);
-                    return true;
-                }
-            } catch (GuzzleException $e) {
-                // Directory doesn't exist, create it
-                if ($e->getCode() == 404 || strpos($e->getMessage(), '404') !== false) {
-                    Log::info('Directory not found, creating it', ['path' => $directoryPath]);
+            // Check if directory already exists
+            $response = $webdavClient->request('PROPFIND', "/remote.php/dav/files/{$this->username}{$directoryPath}", [
+                'headers' => [
+                    'Depth' => '0',
+                ],
+            ]);
 
-                    // Create parent directories recursively if needed
-                    $pathParts = array_filter(explode('/', $directoryPath));
-                    $currentPath = '';
-
-                    foreach ($pathParts as $part) {
-                        $currentPath .= '/' . $part;
-
-                        try {
-                            $webdavClient->request('MKCOL', "/remote.php/dav/files/{$this->username}{$currentPath}");
-                            Log::info('Created directory', ['path' => $currentPath]);
-                        } catch (GuzzleException $mkcolException) {
-                            // Ignore if directory already exists (405 Method Not Allowed)
-                            if (strpos($mkcolException->getMessage(), '405') === false) {
-                                throw $mkcolException;
-                            }
-                        }
-                    }
-
-                    return true;
-                } else {
-                    throw $e;
-                }
+            if ($response->getStatusCode() == 207) {
+                // Directory exists
+                Log::debug('Directory already exists', ['path' => $directoryPath]);
+                return true;
             }
 
-            return true;
+            // Directory doesn't exist (404), create it recursively
+            if ($response->getStatusCode() == 404) {
+                Log::info('Directory not found, creating it recursively', ['path' => $directoryPath]);
 
-        } catch (GuzzleException $e) {
+                // Create parent directories recursively if needed
+                $pathParts = array_filter(explode('/', $directoryPath));
+                $currentPath = '';
+
+                foreach ($pathParts as $part) {
+                    $currentPath .= '/' . $part;
+
+                    // Check if this path segment exists
+                    $checkResponse = $webdavClient->request('PROPFIND', "/remote.php/dav/files/{$this->username}{$currentPath}", [
+                        'headers' => [
+                            'Depth' => '0',
+                        ],
+                    ]);
+
+                    if ($checkResponse->getStatusCode() == 207) {
+                        // Already exists, skip
+                        Log::debug('Path segment already exists', ['path' => $currentPath]);
+                        continue;
+                    }
+
+                    if ($checkResponse->getStatusCode() == 404) {
+                        // Create this directory
+                        $createResponse = $webdavClient->request('MKCOL', "/remote.php/dav/files/{$this->username}{$currentPath}");
+
+                        if ($createResponse->getStatusCode() == 201) {
+                            Log::info('Created directory', ['path' => $currentPath]);
+                        } elseif ($createResponse->getStatusCode() == 405) {
+                            // Method Not Allowed - directory already exists, that's fine
+                            Log::debug('Directory already exists (405)', ['path' => $currentPath]);
+                        } else {
+                            Log::error('Failed to create directory', [
+                                'path' => $currentPath,
+                                'status_code' => $createResponse->getStatusCode(),
+                                'response' => $createResponse->getBody()->getContents(),
+                            ]);
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            Log::error('Unexpected response when checking directory', [
+                'path' => $directoryPath,
+                'status_code' => $response->getStatusCode(),
+            ]);
+            return false;
+
+        } catch (\Exception $e) {
             Log::error('Failed to ensure directory exists: ' . $e->getMessage(), [
                 'directory_path' => $directoryPath,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
