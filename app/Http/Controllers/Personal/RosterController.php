@@ -17,6 +17,7 @@ use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -430,6 +431,14 @@ class RosterController extends Controller
 
         // Datei zu Nextcloud hochladen und im Chat teilen
         $targetPath = '/Dienstpläne/' . $roster->start_date->format('Y_m_d') . '_dienstplan.pdf';
+
+        Log::info('Attempting to upload roster to Nextcloud', [
+            'roster_id' => $roster->id,
+            'local_path' => $pdfPath,
+            'target_path' => $targetPath,
+            'chat_token' => substr($chatToken, 0, 8) . '...',
+        ]);
+
         $success = $nextcloudService->uploadAndShare($chatToken, $pdfPath, $targetPath, $message);
 
         // Lokale PDF löschen

@@ -149,6 +149,74 @@ class NextcloudTalkService
     }
 
     /**
+     * Create a directory in Nextcloud if it doesn't exist
+     *
+     * @param string $directoryPath Directory path in Nextcloud (e.g., '/Dienstpläne')
+     * @return bool Success status
+     */
+    protected function ensureDirectoryExists(string $directoryPath): bool
+    {
+        try {
+            $webdavClient = new Client([
+                'base_uri' => $this->baseUrl,
+                'auth' => [$this->username, $this->password],
+                'verify' => false,
+            ]);
+
+            // Check if directory exists using PROPFIND
+            try {
+                $response = $webdavClient->request('PROPFIND', "/remote.php/dav/files/{$this->username}{$directoryPath}", [
+                    'headers' => [
+                        'Depth' => '0',
+                    ],
+                ]);
+
+                if ($response->getStatusCode() == 207) {
+                    // Directory exists
+                    Log::debug('Directory already exists', ['path' => $directoryPath]);
+                    return true;
+                }
+            } catch (GuzzleException $e) {
+                // Directory doesn't exist, create it
+                if ($e->getCode() == 404 || strpos($e->getMessage(), '404') !== false) {
+                    Log::info('Directory not found, creating it', ['path' => $directoryPath]);
+
+                    // Create parent directories recursively if needed
+                    $pathParts = array_filter(explode('/', $directoryPath));
+                    $currentPath = '';
+
+                    foreach ($pathParts as $part) {
+                        $currentPath .= '/' . $part;
+
+                        try {
+                            $webdavClient->request('MKCOL', "/remote.php/dav/files/{$this->username}{$currentPath}");
+                            Log::info('Created directory', ['path' => $currentPath]);
+                        } catch (GuzzleException $mkcolException) {
+                            // Ignore if directory already exists (405 Method Not Allowed)
+                            if (strpos($mkcolException->getMessage(), '405') === false) {
+                                throw $mkcolException;
+                            }
+                        }
+                    }
+
+                    return true;
+                } else {
+                    throw $e;
+                }
+            }
+
+            return true;
+
+        } catch (GuzzleException $e) {
+            Log::error('Failed to ensure directory exists: ' . $e->getMessage(), [
+                'directory_path' => $directoryPath,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Upload a file to Nextcloud and share it in Talk
      *
      * @param string $token The chat room token
@@ -165,6 +233,15 @@ class NextcloudTalkService
         }
 
         try {
+            // Ensure target directory exists
+            $directory = dirname($targetPath);
+            if ($directory !== '/' && $directory !== '.') {
+                if (!$this->ensureDirectoryExists($directory)) {
+                    Log::error('Failed to create target directory', ['directory' => $directory]);
+                    return false;
+                }
+            }
+
             // Upload file to Nextcloud using WebDAV
             $webdavClient = new Client([
                 'base_uri' => $this->baseUrl,
