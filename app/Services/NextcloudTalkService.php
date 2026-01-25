@@ -274,7 +274,7 @@ class NextcloudTalkService
             $filename = basename($filePath);
 
             // Construct message with file info and download link
-            $fullMessage = $message . "\n\n📎 **Datei:** `{$filename}`\n📍 **Pfad:** `{$filePath}`\n\n⬇️ **Download:** {$downloadLink}";
+            $fullMessage = $message . "\n\n\n⬇️ **Download:** {$downloadLink}";
 
             Log::debug('Sending file as link message', [
                 'file_path' => $filePath,
