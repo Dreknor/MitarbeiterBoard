@@ -5,7 +5,7 @@
                 <div class="card-header">
                     <h6>
                         {{$step->name}}
-                        @if($canEdit ?? false)
+                        @can('manage procedures')
                             <div class="pull-right">
                                 <small>
                                     <a href="{{url('procedure/step/'.$step->id."/edit")}}">
@@ -13,7 +13,7 @@
                                     </a>
                                 </small>
                             </div>
-                        @endif
+                        @endcan
                     </h6>
                     <p class="small">
                         @if($step->parent != "")
@@ -48,7 +48,7 @@
                         </div>
                     </div>
                 </div>
-                @if($canEdit ?? false)
+                @can('manage procedures')
                     <div class="card-footer text-center">
                         <div class="btn btn-sm btn-outline-success newStep" data-parent="{{$step->id}}"  data-target="#stepModal"  data-toggle="modal">
                             <i class="fas fa-plus" data-parent="{{$step->id}}"></i> <i class="fas fa-arrow-down" data-parent="{{$step->id}}"></i>
@@ -57,7 +57,7 @@
                             <i class="fas fa-plus" data-parent="{{$step->parent}}"></i> <i class="fas fa-arrow-right" data-parent="{{$step->parent}}"></i>
                         </div>
                     </div>
-                @endif
+                @endcan
             </div>
         </div>
     </div>
