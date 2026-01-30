@@ -255,7 +255,7 @@
                                 <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
                                 <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
                                 <td>{{ $holiday->days }}</td>
-                                <td>{{ $holiday->approved_by ? \App\Models\User::find($holiday->approved_by)->name : '-' }}</td>
+                                <td>{{ optional($holiday->approved_by)->name ?? '-' }}</td>
                                 <td>{{ $holiday->approved_at ? $holiday->approved_at->format('d.m.Y') : '-' }}</td>
                             </tr>
                             @endforeach
