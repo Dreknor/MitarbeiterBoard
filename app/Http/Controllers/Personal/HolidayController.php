@@ -68,7 +68,14 @@ class HolidayController extends Controller
         }
         $users = collect([]);
         if (auth()->user()->can('approve holidays')){
-            $usersAll = User::permission('has holidays')->with('groups_rel')->get();
+            $usersAll = User::permission('has holidays')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
+                ->get();
 
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
@@ -81,7 +88,12 @@ class HolidayController extends Controller
 
             $usersAll = User::query()
                 ->permission('has holidays')
-                ->with('groups_rel')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
                 ->get();
 
             foreach ($usersAll as $user){

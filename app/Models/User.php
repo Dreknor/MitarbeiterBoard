@@ -318,6 +318,47 @@ class User extends Authenticatable implements HasMedia
         return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
     }
 
+    /**
+     * Berechnet den Resturlaub aus dem Vorjahr
+     * Wenn ein Timesheet vorhanden ist, wird der Wert daraus verwendet
+     * Andernfalls wird er aus den genehmigten Urlauben berechnet
+     *
+     * @param int $year Das Jahr, für das der Resturlaub berechnet werden soll
+     * @return int Der Resturlaub aus dem Vorjahr
+     */
+    public function getPreviousYearHolidayRest($year)
+    {
+        $previousYear = $year - 1;
+
+        // Prüfen ob ein Timesheet für Dezember des Vorjahres existiert
+        $lastTimesheet = $this->timesheets()
+            ->where('year', $previousYear)
+            ->where('month', 12)
+            ->first();
+
+        if ($lastTimesheet) {
+            // Wenn Timesheet vorhanden, verwende holidays_rest
+            return $lastTimesheet->holidays_rest ?? 0;
+        }
+
+        // Ansonsten: Berechne aus genehmigten Urlauben des Vorjahres
+        $startOfPreviousYear = Carbon::createFromDate($previousYear, 1, 1)->startOfYear();
+        $endOfPreviousYear = Carbon::createFromDate($previousYear, 12, 31)->endOfYear();
+
+        // Urlaubsanspruch für das Vorjahr
+        $totalClaim = $this->getHolidayClaim($startOfPreviousYear);
+
+        // Genommene Urlaube im Vorjahr (nur genehmigte)
+        $takenDays = $this->holidays()
+            ->where('approved', true)
+            ->where('rejected', false)
+            ->whereBetween('start_date', [$startOfPreviousYear, $endOfPreviousYear])
+            ->sum('days');
+
+        // Resturlaub = Anspruch - Genommene Tage
+        return $totalClaim - $takenDays;
+    }
+
     public function photo(){
 
         return Cache::remember('user_photo_'.$this->id, 60*60*24, function (){
