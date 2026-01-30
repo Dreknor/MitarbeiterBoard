@@ -31,6 +31,7 @@ class Holiday extends Model
         'end_date' => 'date',
         'approved' => 'boolean',
         'rejected' => 'boolean',
+        'approved_at' => 'datetime',
     ];
 
     public function employe()
