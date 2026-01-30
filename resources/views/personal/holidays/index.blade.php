@@ -19,17 +19,27 @@
             </div>
             <div class="col-md-6">
                 @include('personal.holidays.partials.holidays_overview')
+                @can('approve holidays')
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cog"></i> Verwaltung
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <a href="{{ url('holidays/manage') }}" class="btn btn-info btn-block btn-lg">
+                                <i class="fas fa-tasks"></i> Genehmigte Urlaube verwalten & löschen
+                            </a>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> Hier können Sie genehmigte Urlaube filtern und bei Bedarf löschen.
+                            </small>
+                        </div>
+                    </div>
+                @endcan
             </div>
         </div>
         @can('approve holidays')
             <div class="container mt-4">
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <a href="{{ url('holidays/manage') }}" class="btn btn-info">
-                            <i class="fas fa-tasks"></i> Genehmigte Urlaube verwalten
-                        </a>
-                    </div>
-                </div>
                 <div class="row">
                     <div class="col-sm-12 col-md-6">
                         <div class="card shadow-sm mb-4">

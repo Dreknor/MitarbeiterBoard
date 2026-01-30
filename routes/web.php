@@ -205,9 +205,10 @@ Route::group([
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
-                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
+                    // Spezifische Routen zuerst (vor parametrisierten Routen)
                     Route::get('holidays/manage', [HolidayController::class, 'manage'])->middleware(['permission:approve holidays']);
                     Route::post('holidays/manage/delete/{holiday}', [HolidayController::class, 'manageDelete'])->middleware(['permission:approve holidays']);
+                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
                     Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
 
