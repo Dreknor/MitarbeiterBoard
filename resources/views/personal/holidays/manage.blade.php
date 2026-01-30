@@ -73,6 +73,9 @@
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
                             <strong>{{ $holidays->total() }}</strong> genehmigte(r) Urlaub(e) gefunden
+                            <span class="d-block mt-1 small">
+                                <i class="fas fa-calendar"></i> Angezeigt werden nur Urlaube des Jahres {{ now()->year }} und {{ now()->year + 1 }}
+                            </span>
                         </div>
 
                         <!-- Urlaubstabelle -->

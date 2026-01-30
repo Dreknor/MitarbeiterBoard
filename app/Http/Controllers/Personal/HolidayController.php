@@ -440,10 +440,18 @@ class HolidayController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Query für genehmigte Urlaube
+        // Aktuelles Jahr und nächstes Jahr als Zeitraum
+        $currentYearStart = Carbon::now()->startOfYear();
+        $nextYearEnd = Carbon::now()->addYear()->endOfYear();
+
+        // Query für genehmigte Urlaube (nur aktuelles und nächstes Jahr)
         $query = Holiday::with(['employe', 'employe.groups_rel'])
             ->where('approved', true)
-            ->where('rejected', false);
+            ->where('rejected', false)
+            ->where(function($q) use ($currentYearStart, $nextYearEnd) {
+                $q->whereBetween('start_date', [$currentYearStart, $nextYearEnd])
+                  ->orWhereBetween('end_date', [$currentYearStart, $nextYearEnd]);
+            });
 
         // Filter nach Benutzer
         if ($request->has('user_id') && $request->user_id != '') {
