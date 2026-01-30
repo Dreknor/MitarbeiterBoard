@@ -425,4 +425,60 @@ class HolidayController extends Controller
 
         return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
     }
+
+    /**
+     * Zeigt die Verwaltungsseite für genehmigte Urlaube an
+     */
+    public function manage(Request $request)
+    {
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        // Alle Benutzer mit Urlaub-Berechtigung für den Filter
+        $users = User::permission('has holidays')
+            ->orderBy('name')
+            ->get();
+
+        // Query für genehmigte Urlaube
+        $query = Holiday::with(['employe', 'employe.groups_rel'])
+            ->where('approved', true)
+            ->where('rejected', false);
+
+        // Filter nach Benutzer
+        if ($request->has('user_id') && $request->user_id != '') {
+            $query->where('employe_id', $request->user_id);
+        }
+
+        // Filter für zukünftige Urlaube
+        if ($request->has('future_only') && $request->future_only == '1') {
+            $query->where('start_date', '>=', Carbon::now()->startOfDay());
+        }
+
+        $holidays = $query->orderBy('start_date', 'desc')->paginate(50);
+
+        return view('personal.holidays.manage', [
+            'holidays' => $holidays,
+            'users' => $users,
+            'selectedUserId' => $request->user_id ?? '',
+            'futureOnly' => $request->future_only ?? '0'
+        ]);
+    }
+
+    /**
+     * Löscht einen genehmigten Urlaub (auch wenn er in der Vergangenheit liegt)
+     */
+    public function manageDelete(Holiday $holiday)
+    {
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        $employeName = $holiday->employe ? $holiday->employe->name : 'Unbekannt';
+        $startDate = $holiday->start_date->format('d.m.Y');
+
+        $holiday->delete();
+
+        return redirectBack('success', "Urlaub von {$employeName} ab {$startDate} wurde erfolgreich gelöscht.");
+    }
 }

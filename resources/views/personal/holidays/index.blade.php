@@ -23,6 +23,13 @@
         </div>
         @can('approve holidays')
             <div class="container mt-4">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <a href="{{ url('holidays/manage') }}" class="btn btn-info">
+                            <i class="fas fa-tasks"></i> Genehmigte Urlaube verwalten
+                        </a>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-sm-12 col-md-6">
                         <div class="card shadow-sm mb-4">
