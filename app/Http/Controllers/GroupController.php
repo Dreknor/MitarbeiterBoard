@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GroupRequest;
 use App\Models\Group;
 use App\Models\Protocol;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -172,7 +173,14 @@ class GroupController extends Controller
         if (isset($user)) {
 
             $user->subscriptions()->where('subscriptionable_type', 'App\Models\Group')->where('subscriptionable_id', $group->id)->delete();
-            $user->tasks()->where('group_id', $group->id)->delete();
+
+            // Entferne Gruppentask-Zuordnungen des Users für Tasks dieser Gruppe
+            $groupTasks = Task::where('taskable_type', 'App\Models\Group')
+                ->where('taskable_id', $group->id)
+                ->where('completed', 0)
+                ->pluck('id');
+
+            $user->group_tasks()->whereIn('taskable_id', $groupTasks)->delete();
 
             $group->users()->detach($user);
 
