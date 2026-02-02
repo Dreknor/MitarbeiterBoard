@@ -345,8 +345,10 @@ class User extends Authenticatable implements HasMedia
         $startOfPreviousYear = Carbon::createFromDate($previousYear, 1, 1)->startOfYear();
         $endOfPreviousYear = Carbon::createFromDate($previousYear, 12, 31)->endOfYear();
 
-        // Urlaubsanspruch für das Vorjahr
-        $totalClaim = $this->getHolidayClaim($startOfPreviousYear);
+        // Prüfen ob überhaupt Arbeitszeitnachweise (Timesheets) für das Vorjahr existieren
+        $hasAnyTimesheet = $this->timesheets()
+            ->where('year', $previousYear)
+            ->exists();
 
         // Genommene Urlaube im Vorjahr (nur genehmigte)
         $takenDays = $this->holidays()
@@ -354,6 +356,15 @@ class User extends Authenticatable implements HasMedia
             ->where('rejected', false)
             ->whereBetween('start_date', [$startOfPreviousYear, $endOfPreviousYear])
             ->sum('days');
+
+        // Wenn kein Timesheet existiert UND keine genehmigten Urlaube im Vorjahr,
+        // gehen wir davon aus, dass kein Resturlaubsanspruch besteht
+        if (!$hasAnyTimesheet && $takenDays == 0) {
+            return 0;
+        }
+
+        // Urlaubsanspruch für das Vorjahr
+        $totalClaim = $this->getHolidayClaim($startOfPreviousYear);
 
         // Resturlaub = Anspruch - Genommene Tage
         return $totalClaim - $takenDays;
@@ -417,6 +428,18 @@ class User extends Authenticatable implements HasMedia
     public function subordinates()
     {
         return $this->hasMany(User::class, 'superior_id');
+    }
+
+    /**
+     * Prüft, ob der aktuelle Benutzer der Vorgesetzte eines anderen Benutzers ist
+     *
+     * @param int|User $user Die Benutzer-ID oder User-Instanz
+     * @return bool
+     */
+    public function isSupervisorOf($user)
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+        return $this->subordinates()->where('id', $userId)->exists();
     }
 
     public function meetingTasks()

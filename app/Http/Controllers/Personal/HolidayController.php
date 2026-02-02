@@ -52,7 +52,11 @@ class HolidayController extends Controller
                 ->orderBy('start_date')
                 ->get();
         }else{
-            $holidays = Holiday::where('employe_id', auth()->id())
+            // Supervisor kann seine eigenen Urlaube und die seiner Mitarbeiter sehen
+            $subordinateIds = auth()->user()->subordinates()->pluck('id')->toArray();
+            $employeeIds = array_merge([auth()->id()], $subordinateIds);
+
+            $holidays = Holiday::whereIn('employe_id', $employeeIds)
                 ->with(['employe.groups_rel'])
                 ->where(function($query) use ($startMonth, $endMonth) {
                     $query->whereBetween('start_date', [$startMonth, $endMonth])
@@ -105,7 +109,18 @@ class HolidayController extends Controller
 
             }
         } else {
-            $users = collect([auth()->user()]);
+            // Supervisor kann seine unterstellten Mitarbeiter sehen
+            $subordinates = auth()->user()->subordinates()
+                ->permission('has holidays')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
+                ->get();
+
+            $users = collect([auth()->user()])->merge($subordinates);
         }
 
         foreach ($holidays as $holiday){
@@ -155,8 +170,17 @@ class HolidayController extends Controller
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
-        if ($request->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        // Prüfen ob der Benutzer berechtigt ist, für diesen Mitarbeiter Urlaub zu erfassen
+        if ($request->employe_id != auth()->id()) {
+            $targetUser = User::find($request->employe_id);
+
+            // Erlaubt wenn: approve holidays Recht ODER Vorgesetzter des Mitarbeiters
+            $canCreateForEmployee = auth()->user()->can('approve holidays') ||
+                                   ($targetUser && auth()->user()->isSupervisorOf($targetUser));
+
+            if (!$canCreateForEmployee) {
+                return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+            }
         }
 
         if ($request->end_date < $request->start_date){

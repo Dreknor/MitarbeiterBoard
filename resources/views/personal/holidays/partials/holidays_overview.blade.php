@@ -65,13 +65,17 @@
         </table>
     </div>
 </div>
-@can('approve holidays')
+@if(auth()->user()->can('approve holidays') || $users->count() > 1)
 <div class="row">
     <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <h5>
-                    Urlaubstage
+                    @can('approve holidays')
+                        Urlaubstage
+                    @else
+                        Urlaubstage (Meine Mitarbeiter)
+                    @endcan
                 </h5>
             </div>
             <div class="card-body">
@@ -360,4 +364,4 @@
     </div>
 </div>
 @endforeach
-@endcan
+@endif
