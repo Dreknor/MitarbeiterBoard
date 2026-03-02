@@ -61,16 +61,24 @@
                                     </thead>
                                     <tbody>
                                     @forelse($unapproved as $holiday)
-                                        @if($holiday->employe)
-                                        <tr>
-                                            <td>{{ $holiday->employe->name }}</td>
+                                        <tr class="@if($holiday->employe->groups_rel) @foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach @endif">
+                                            <td>
+                                                @if($holiday->employe)
+                                                    {{ $holiday->employe->name }}
+                                                    @if($holiday->employe->trashed())
+                                                        <span class="badge badge-secondary ml-1" title="Mitarbeiter wurde gelöscht">gelöscht</span>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted">(Mitarbeiter nicht gefunden)</span>
+                                                @endif
+                                            </td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->days }}</td>
                                             <td>
-                                <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
-                                    {{ $holiday->approved ? 'genehmigt' : 'offen' }}
-                                </span>
+                                                <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
+                                                    {{ $holiday->approved ? 'genehmigt' : 'offen' }}
+                                                </span>
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#approveModal-{{ $holiday->id }}">
@@ -105,7 +113,7 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                        @endif
+
                                     @empty
                                         <tr>
                                             <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>
