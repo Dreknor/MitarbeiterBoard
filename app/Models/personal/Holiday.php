@@ -36,7 +36,7 @@ class Holiday extends Model
 
     public function employe()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function approved_by()
