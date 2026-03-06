@@ -51,6 +51,12 @@ class Klasse extends Model
         return $this->belongsToMany(PaedDiaryAppointment::class, 'paed_diary_appointment_klassen');
     }
 
+    // Neue Wochenplan-Relation (neues System)
+    public function wpPlaene()
+    {
+        return $this->hasMany(\App\Models\Wochenplan\WpPlan::class, 'klasse_id');
+    }
+
     public function getTextColorAttribute()
     {
         // Calculate the brightness of the background color

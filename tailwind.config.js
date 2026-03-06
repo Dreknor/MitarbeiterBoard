@@ -4,6 +4,8 @@ module.exports = {
     "./resources/views/diagnostics/**/*.blade.php",
     "./resources/js/diagnostics.js",
     "./resources/views/paedDiary/**/*.blade.php",
+    "./resources/views/wochenplan/**/*.blade.php",
+    "./resources/js/wochenplan.js",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {

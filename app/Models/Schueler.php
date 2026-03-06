@@ -49,6 +49,12 @@ class Schueler extends Model
         return $this->vorname.' '.$this->nachname;
     }
 
+    // Neue Wochenplan-Relation (neues System)
+    public function wpPlaene()
+    {
+        return $this->hasMany(\App\Models\Wochenplan\WpPlan::class, 'schueler_id');
+    }
+
     // Optionaler Accessor für Symbol (falls Stufe gesetzt)
     public function getStageSymbolAttribute(): ?string
     {

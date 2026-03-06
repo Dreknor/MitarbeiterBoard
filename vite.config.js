@@ -9,13 +9,17 @@ export default defineConfig({
             input: [
                 'resources/css/diagnostics.css',
                 'resources/js/diagnostics.js',
-                'resources/css/paed-diary.css'
+                'resources/css/paed-diary.css',
+                'resources/css/wochenplan.css',
+                'resources/js/wochenplan.js',
             ],
             refresh: [
                 'resources/views/diagnostics/**/*.blade.php',
                 'app/Http/Controllers/DiagnosticController.php',
                 'app/Http/Controllers/DiagnosticAdminController.php',
-                'resources/views/paedDiary/**/*.blade.php'
+                'resources/views/paedDiary/**/*.blade.php',
+                'resources/views/wochenplan/**/*.blade.php',
+                'app/Http/Controllers/Wochenplan/*.php',
             ],
         }),
     ],
@@ -25,4 +29,3 @@ export default defineConfig({
         },
     },
 });
-

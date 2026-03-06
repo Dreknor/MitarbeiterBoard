@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+.wp-container {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: #111827;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.wp-container *,
+.wp-container *::before,
+.wp-container *::after {
+    box-sizing: border-box;
+}
+
+@media print {
+    .no-print { display: none; }
+    .wp-container { padding: 0; margin: 0; }
+}
