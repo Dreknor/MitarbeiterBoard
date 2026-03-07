@@ -2,7 +2,7 @@
 namespace App\Http\Requests\Wochenplan;
 use Illuminate\Foundation\Http\FormRequest;
 class WpAufgabeRequest extends FormRequest {
-    public function authorize(): bool { return auth()->user()->can("create wochenplan"); }
+    public function authorize(): bool { return auth()->user()->canAny(["create wochenplan", "create Wochenplan"]); }
     public function rules(): array {
         return [
             "aufgabe"    => ["required", "string"],

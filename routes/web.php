@@ -56,6 +56,13 @@ use App\Http\Controllers\WikiController;
 use App\Http\Controllers\WochenplanController;
 use App\Http\Controllers\WPRowsController;
 use App\Http\Controllers\WpTaskController;
+use App\Http\Controllers\Wochenplan\WpPlanController;
+use App\Http\Controllers\Wochenplan\WpAufgabeController;
+use App\Http\Controllers\Wochenplan\WpExportController;
+use App\Http\Controllers\Wochenplan\WpVorlageController;
+use App\Http\Controllers\Wochenplan\WpFormatvorlageController;
+use App\Http\Controllers\Wochenplan\WpFachController;
+use App\Http\Controllers\Wochenplan\WpSyncController;
 use App\Http\Controllers\SchuelerController; // hinzugefügt
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -322,6 +329,84 @@ Route::group([
                     Route::get('wptask/{wptask}/edit', [WpTaskController::class, 'edit']);
                     Route::put('wptask/{wpTask}/edit', [WpTaskController::class, 'update']);
                     Route::get('wochenplan/{wochenplan}/export', [WochenplanController::class, 'export']);
+                });
+
+                // ─── Neues Wochenplan-System (/wp) ────────────────────────────────────────
+                Route::prefix('wp')->name('wp.')->group(function () {
+
+                    // Lesbar für view wochenplan UND create wochenplan (auch großes W für Rückwärtskompatibilität)
+                    Route::middleware('permission:view wochenplan|create wochenplan|create Wochenplan')->group(function () {
+                        Route::get('/', [WpPlanController::class, 'index'])->name('index');
+                        Route::get('/klasse/{klasse}', [WpPlanController::class, 'indexKlasse'])->name('index.klasse');
+                        // Export
+                        Route::prefix('export')->name('export.')->group(function () {
+                            Route::get('{wpPlan}/pdf', [WpExportController::class, 'pdf'])->name('pdf');
+                            Route::get('{wpPlan}/word', [WpExportController::class, 'word'])->name('word');
+                            Route::get('{wpPlan}/vorschau', [WpExportController::class, 'vorschau'])->name('vorschau');
+                        });
+                    });
+
+                    // Schreibzugriff (create wochenplan oder altes create Wochenplan)
+                    Route::middleware('permission:create wochenplan|create Wochenplan')->group(function () {
+                        Route::get('/create', [WpPlanController::class, 'create'])->name('create');
+                        Route::post('/', [WpPlanController::class, 'store'])->name('store');
+                        Route::get('/{wpPlan}/edit', [WpPlanController::class, 'edit'])->name('edit');
+                        Route::put('/{wpPlan}', [WpPlanController::class, 'update'])->name('update');
+                        Route::delete('/{wpPlan}', [WpPlanController::class, 'destroy'])->name('destroy');
+
+                        // Plan-Aktionen
+                        Route::post('/{wpPlan}/duplizieren', [WpPlanController::class, 'duplizieren'])->name('duplizieren');
+                        Route::get('/{wpPlan}/schuelerplan/create', [WpPlanController::class, 'createSchuelerplan'])->name('schuelerplan.create');
+                        Route::post('/{wpPlan}/schuelerplan', [WpPlanController::class, 'storeSchuelerplan'])->name('schuelerplan.store');
+
+                        // Fächer im Plan
+                        Route::post('/{wpPlan}/fach', [WpPlanController::class, 'addFach'])->name('fach.add');
+                        Route::delete('/fach/{wpPlanFach}', [WpPlanController::class, 'removeFach'])->name('fach.remove');
+                        Route::post('/fach/reorder', [WpPlanController::class, 'reorderFaecher'])->name('fach.reorder');
+
+                        // Aufgaben
+                        Route::post('/fach/{wpPlanFach}/aufgabe', [WpAufgabeController::class, 'store'])->name('aufgabe.store');
+                        Route::put('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'update'])->name('aufgabe.update');
+                        Route::delete('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'destroy'])->name('aufgabe.destroy');
+                        Route::post('/aufgabe/reorder', [WpAufgabeController::class, 'reorder'])->name('aufgabe.reorder');
+
+                        // Synchronisation
+                        Route::post('/{wpPlan}/sync/fach/{fachId}', [WpSyncController::class, 'syncFach'])->name('sync.fach');
+                        Route::post('/{wpPlan}/sync/all', [WpSyncController::class, 'syncAll'])->name('sync.all');
+
+                        // Medien (Arbeitsblätter)
+                        Route::post('/{wpPlan}/media', [WpPlanController::class, 'addMedia'])->name('media.add');
+                        Route::delete('/media/{media}', [WpPlanController::class, 'removeMedia'])->name('media.remove');
+
+                        // Vorlagen
+                        Route::prefix('vorlagen')->name('vorlagen.')->group(function () {
+                            Route::get('/', [WpVorlageController::class, 'index'])->name('index');
+                            Route::post('/{wpPlan}/speichern', [WpVorlageController::class, 'alsVorlageSpeichern'])->name('speichern');
+                            Route::post('/{wpPlan}/erstellen', [WpVorlageController::class, 'vonVorlageErstellen'])->name('erstellen');
+                            Route::delete('/{wpPlan}', [WpVorlageController::class, 'destroy'])->name('destroy');
+                        });
+                    });
+
+                    // Fächer-Katalog (manage wochenplan-faecher)
+                    Route::middleware('permission:manage wochenplan-faecher')
+                        ->prefix('faecher')->name('faecher.')->group(function () {
+                            Route::get('/', [WpFachController::class, 'index'])->name('index');
+                            Route::post('/', [WpFachController::class, 'store'])->name('store');
+                            Route::put('/{wpFach}', [WpFachController::class, 'update'])->name('update');
+                            Route::delete('/{wpFach}', [WpFachController::class, 'destroy'])->name('destroy');
+                        });
+
+                    // Formatvorlagen (manage wochenplan-formatvorlagen)
+                    Route::middleware('permission:manage wochenplan-formatvorlagen')
+                        ->prefix('formatvorlagen')->name('formatvorlagen.')->group(function () {
+                            Route::get('/', [WpFormatvorlageController::class, 'index'])->name('index');
+                            Route::get('/create', [WpFormatvorlageController::class, 'create'])->name('create');
+                            Route::post('/', [WpFormatvorlageController::class, 'store'])->name('store');
+                            Route::get('/{wpFormatvorlage}/edit', [WpFormatvorlageController::class, 'edit'])->name('edit');
+                            Route::put('/{wpFormatvorlage}', [WpFormatvorlageController::class, 'update'])->name('update');
+                            Route::delete('/{wpFormatvorlage}', [WpFormatvorlageController::class, 'destroy'])->name('destroy');
+                            Route::get('/{wpFormatvorlage}/vorschau', [WpFormatvorlageController::class, 'vorschau'])->name('vorschau');
+                        });
                 });
 
                 //Klassen

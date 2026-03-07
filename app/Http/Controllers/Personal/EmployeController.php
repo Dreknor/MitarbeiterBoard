@@ -186,6 +186,13 @@ class EmployeController extends Controller
             ]);
         }
 
+        // Atom-Feed URL speichern (leerer String = zurück zum Standard)
+        if ($request->has('atom_feed_url')) {
+            $employe->update([
+                'atom_feed_url' => $request->atom_feed_url ?: null
+            ]);
+        }
+
         return redirect()->back()->with([
             'type' => "success",
             'Meldung' => 'Daten aktualisiert.'

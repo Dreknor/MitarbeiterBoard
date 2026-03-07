@@ -35,6 +35,7 @@ class selfUpdateProfileRequest extends FormRequest
             'caldav_events' => 'nullable|boolean',
             'sozialversicherungsnummer' => 'nullable|string|max:255',
             'send_mails_if_absence' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
+            'atom_feed_url'         => ['nullable', 'url', 'max:500'],
         ];
     }
 }

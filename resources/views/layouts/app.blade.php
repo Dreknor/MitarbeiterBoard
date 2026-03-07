@@ -200,6 +200,57 @@
                             </div>
                         </li>
                     @endcan
+                    @canany(['view wochenplan', 'create wochenplan'])
+                        <li class="@if(request()->segment(1)=='wp') active @endif">
+                            <a data-toggle="collapse" href="#wochenplanNeu">
+                                <p>
+                                    <i class="fas fa-th-list"></i>
+                                    Wochenpläne <b class="caret"></b>
+                                </p>
+                            </a>
+                            <div class="collapse @if(request()->segment(1)=='wp') show @endif" id="wochenplanNeu">
+                                <ul class="nav pl-2">
+                                    <li class="@if(request()->segment(1)=='wp' && !request()->segment(2)) active @endif">
+                                        <a href="{{ route('wp.index') }}">
+                                            <i class="fas fa-list"></i>
+                                            <p>Übersicht</p>
+                                        </a>
+                                    </li>
+                                    @can('create wochenplan')
+                                        <li class="@if(request()->segment(1)=='wp' && request()->segment(2)=='create') active @endif">
+                                            <a href="{{ route('wp.create') }}">
+                                                <i class="fas fa-plus"></i>
+                                                <p>Neuer Plan</p>
+                                            </a>
+                                        </li>
+                                        <li class="@if(request()->segment(1)=='wp' && request()->segment(2)=='vorlagen') active @endif">
+                                            <a href="{{ route('wp.vorlagen.index') }}">
+                                                <i class="fas fa-copy"></i>
+                                                <p>Vorlagen</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                    @can('manage wochenplan-faecher')
+                                        <li class="@if(request()->segment(1)=='wp' && request()->segment(2)=='faecher') active @endif">
+                                            <a href="{{ route('wp.faecher.index') }}">
+                                                <i class="fas fa-tags"></i>
+                                                <p>Fächer</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                    @can('manage wochenplan-formatvorlagen')
+                                        <li class="@if(request()->segment(1)=='wp' && request()->segment(2)=='formatvorlagen') active @endif">
+                                            <a href="{{ route('wp.formatvorlagen.index') }}">
+                                                <i class="fas fa-palette"></i>
+                                                <p>Formatvorlagen</p>
+                                            </a>
+                                        </li>
+                                    @endcan
+                                </ul>
+                            </div>
+                        </li>
+                    @endcanany
+
                     @can('edit inventar')
                         <li class="@if(request()->segment(1)=="inventory" ) active  @endif">
                             <a data-toggle="collapse" href="#inventory">
