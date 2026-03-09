@@ -63,21 +63,37 @@
         </form>
 
         {{-- Tabs --}}
-        <div class="border-b border-gray-200 mb-4">
-            <nav class="-mb-px flex space-x-6">
-                <button @click="tab = 'aktuelle'"
-                        :class="tab === 'aktuelle' ? 'border-b-2 border-primary-600 text-primary-600 font-medium' : 'text-gray-500 hover:text-gray-700'"
-                        class="py-2 px-1 text-sm transition-colors">
-                    Alle Pläne ({{ $plaene->total() }})
-                </button>
-                @canany(['create wochenplan', 'create Wochenplan'])
-                <button @click="tab = 'vorlagen'"
-                        :class="tab === 'vorlagen' ? 'border-b-2 border-primary-600 text-primary-600 font-medium' : 'text-gray-500 hover:text-gray-700'"
-                        class="py-2 px-1 text-sm transition-colors">
-                    Vorlagen ({{ $vorlagen->count() }})
-                </button>
-                @endcanany
-            </nav>
+        <div class="flex items-center gap-2 mb-5">
+            <button @click="tab = 'aktuelle'"
+                    :class="tab === 'aktuelle'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Alle Pläne
+                <span :class="tab === 'aktuelle' ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'"
+                      class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold transition-colors">
+                    {{ $plaene->total() }}
+                </span>
+            </button>
+            @canany(['create wochenplan', 'create Wochenplan'])
+            <button @click="tab = 'vorlagen'"
+                    :class="tab === 'vorlagen'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+                </svg>
+                Vorlagen
+                <span :class="tab === 'vorlagen' ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'"
+                      class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold transition-colors">
+                    {{ $vorlagen->count() }}
+                </span>
+            </button>
+            @endcanany
         </div>
 
         {{-- Pläne Tab --}}

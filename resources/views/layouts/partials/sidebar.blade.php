@@ -7,7 +7,6 @@
     <div class="sidebar-logo">
         <a href="{{ config('app.url') }}" style="display:flex;align-items:center;gap:0.75rem;text-decoration:none;">
             <img src="{{ asset('img/'.config('app.logo')) }}" alt="Logo">
-            <span class="sidebar-logo-text">{{ env('APP_NAME') }}</span>
         </a>
         {{-- Mobile: Schließen-Button --}}
         <button id="sidebar-close-btn" class="md:hidden"

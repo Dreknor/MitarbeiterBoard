@@ -10,6 +10,25 @@
 @source "../views/layouts/**/*.blade.php";
 @source "../js/sidebar.js";
 
+/*
+ * ── Tailwind v4 @property Fix ────────────────────────────────────────────
+ * Tailwind v4 deklariert --tw-border-style mit initial-value: solid als
+ * globale @property. Das führt dazu, dass jedes Element mit einer
+ * border-width (z.B. durch Bootstrap) plötzlich einen sichtbaren Border
+ * bekommt, weil border-style: solid aus der CSS-Variable gezogen wird.
+ *
+ * Fix: Alle button-Elemente im App-Content-Bereich erhalten border: 0,
+ * sofern sie keine explizite Tailwind-Border-Utility-Klasse tragen.
+ * Buttons MIT gewolltem Border (z.B. class="border ...") werden davon
+ * nicht betroffen, da die Utility-Klasse specifischer ist.
+ */
+#tw-main button:not([class*="border"]),
+#tw-main input[type="button"]:not([class*="border"]),
+#tw-main input[type="submit"]:not([class*="border"]),
+#tw-main input[type="reset"]:not([class*="border"]) {
+    border-width: 0;
+}
+
 /* ── Sidebar-Schrift lokal begrenzen (nicht global auf body) ─────────────── */
 #tw-sidebar, #tw-topbar {
     font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;

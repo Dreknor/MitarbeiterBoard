@@ -3,6 +3,10 @@ import collapse from '@alpinejs/collapse';
 
 Alpine.plugin(collapse);
 
+// Alpine global verfügbar machen, damit andere Skripte (z.B. wochenplan.js)
+// über den alpine:init-Hook Komponenten registrieren können.
+window.Alpine = Alpine;
+
 // Sidebar-Toggle für Mobile
 document.addEventListener('DOMContentLoaded', function () {
     const sidebar   = document.getElementById('tw-sidebar');
@@ -32,6 +36,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// Alpine starten
-Alpine.start();
-
+// Alpine erst beim window-load starten, damit alle anderen deferred Vite-Module
+// (wochenplan.js, diagnostics.js etc.) ihre Alpine.data()-Komponenten
+// auf window.Alpine registriert haben, bevor Alpine den DOM initialisiert.
+window.addEventListener('load', () => {
+    Alpine.start();
+});
