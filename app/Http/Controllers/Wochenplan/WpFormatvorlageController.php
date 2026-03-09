@@ -217,6 +217,7 @@ class WpFormatvorlageController extends Controller
                 'logo_pfad'                => $request->input('logo_pfad'),
                 'freitext'                 => $request->input('header_freitext'),
                 'namenszeile_zeilenhoehe'  => (int) $request->input('namenszeile_zeilenhoehe', 0),
+                'namenszeile_abstand_oben' => (int) $request->input('namenszeile_abstand_oben', 4),
             ],
             'footer' => [
                 'zeige_selbsteinschaetzung' => $request->boolean('zeige_selbsteinschaetzung', true),

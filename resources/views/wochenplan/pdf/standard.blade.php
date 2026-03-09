@@ -27,7 +27,8 @@
     $colCheck = $config['spalten']['check'] ?? '5%';
     $colUnterschrift = $config['spalten']['unterschrift'] ?? '25%';
     $namenszeileHoehe = $config['header']['namenszeile_zeilenhoehe'] ?? 0;
-    $namenszeileStyle = $namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '';
+    $namenszeileAbstandOben = $config['header']['namenszeile_abstand_oben'] ?? 4;
+    $namenszeileStyle = ($namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '') . "margin-top:{$namenszeileAbstandOben}px;";
     // Smileys als base64-kodierte SVG-Data-URIs (DomPDF rendert kein inline SVG in Tabellen)
     $smileyGut  = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="13" cy="14" r="2" fill="#333"/><circle cx="23" cy="14" r="2" fill="#333"/><path d="M11 22 Q18 29 25 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
     $smileyOkay = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="13" cy="14" r="2" fill="#333"/><circle cx="23" cy="14" r="2" fill="#333"/><line x1="11" y1="24" x2="25" y2="24" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');

@@ -141,6 +141,14 @@
                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <p class="text-xs text-gray-400 mt-1">0 = automatisch, z.B. 20 für extra Schreibzeile</p>
         </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Namenszeile Abstand oben (px)</label>
+            <input type="number" name="namenszeile_abstand_oben"
+                   value="{{ old('namenszeile_abstand_oben', $cfg['header']['namenszeile_abstand_oben'] ?? 4) }}"
+                   min="0" max="60"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">Abstand zwischen Titel und Name-Zeile (Standard: 4)</p>
+        </div>
     </div>
 </div>
 

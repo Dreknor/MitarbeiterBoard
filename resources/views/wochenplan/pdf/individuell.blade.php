@@ -11,7 +11,8 @@
     $smallSize     = max(8, $baseSizePt - 1) . 'pt';
     $tinySize      = max(7, $baseSizePt - 2) . 'pt';
     $namenszeileHoehe = $config['header']['namenszeile_zeilenhoehe'] ?? 0;
-    $namenszeileStyle = $namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '';
+    $namenszeileAbstandOben = $config['header']['namenszeile_abstand_oben'] ?? 4;
+    $namenszeileStyle = ($namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '') . "margin-top:{$namenszeileAbstandOben}px;";
     $zeigeCheck        = $config['spalten']['zeige_check_spalte'] ?? true;
     $zeigeKontrolliert = $config['spalten']['zeige_kontrolliert_spalte'] ?? false;
     $zeigeUnterschrift = $config['spalten']['zeige_unterschrift_spalte'] ?? true;
@@ -112,7 +113,7 @@
         @if($plan->isSchuelerplan() && $plan->schueler)
             <div class="header-name">{{ $plan->schueler->vorname }} {{ $plan->schueler->nachname }}</div>
         @else
-            <div style="font-size:{{ $baseSizePt }}pt; margin-top:6px; {{ $namenszeileStyle }}">Name: ......................................</div>
+            <div style="font-size:{{ $baseSizePt }}pt; {{ $namenszeileStyle }}">Name: ......................................</div>
         @endif
         <div class="header-zeitraum">{{ $plan->zeitraum }}</div>
     @endif

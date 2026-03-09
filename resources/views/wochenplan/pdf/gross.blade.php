@@ -6,7 +6,8 @@
     $smallSize   = '14pt';
     $tinySize    = '12pt';
     $namenszeileHoehe = $config['header']['namenszeile_zeilenhoehe'] ?? 0;
-    $namenszeileStyle = $namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '';
+    $namenszeileAbstandOben = $config['header']['namenszeile_abstand_oben'] ?? 4;
+    $namenszeileStyle = ($namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '') . "margin-top:{$namenszeileAbstandOben}px;";
     $zeigeCheck        = $config['spalten']['zeige_check_spalte'] ?? true;
     $zeigeKontrolliert = $config['spalten']['zeige_kontrolliert_spalte'] ?? false;
     $zeigeUnterschrift = $config['spalten']['zeige_unterschrift_spalte'] ?? true;
