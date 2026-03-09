@@ -90,6 +90,7 @@
                 <option value="'Comic Sans MS', cursive"     {{ old('schriftart', $fv?->schriftart) === "'Comic Sans MS', cursive"     ? 'selected' : '' }}>Comic Sans</option>
                 <option value="'Times New Roman', serif"     {{ old('schriftart', $fv?->schriftart) === "'Times New Roman', serif"     ? 'selected' : '' }}>Times New Roman</option>
                 <option value="'Courier New', monospace"     {{ old('schriftart', $fv?->schriftart) === "'Courier New', monospace"     ? 'selected' : '' }}>Courier New</option>
+                <option value="OpenDyslexic"                 {{ old('schriftart', $fv?->schriftart) === 'OpenDyslexic'                 ? 'selected' : '' }}>OpenDyslexic (Legasthenie-Unterstützung)</option>
             </select>
         </div>
         <div>
@@ -109,7 +110,7 @@
 {{-- Abstände --}}
 <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
     <h2 class="text-sm font-semibold text-gray-700">Abstände</h2>
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-4 gap-4">
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Zwischen Fächern (mm)</label>
             <input type="number" name="abstand_faecher"
@@ -131,6 +132,14 @@
                    min="0" max="50"
                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <p class="text-xs text-gray-400 mt-1">0 = automatisch</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Namenszeile Mindesthöhe (mm)</label>
+            <input type="number" name="namenszeile_zeilenhoehe"
+                   value="{{ old('namenszeile_zeilenhoehe', $cfg['header']['namenszeile_zeilenhoehe'] ?? 0) }}"
+                   min="0" max="80"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">0 = automatisch, z.B. 20 für extra Schreibzeile</p>
         </div>
     </div>
 </div>

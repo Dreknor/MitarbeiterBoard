@@ -26,6 +26,12 @@
     $colAufgaben = $config['spalten']['aufgaben'] ?? '55%';
     $colCheck = $config['spalten']['check'] ?? '5%';
     $colUnterschrift = $config['spalten']['unterschrift'] ?? '25%';
+    $namenszeileHoehe = $config['header']['namenszeile_zeilenhoehe'] ?? 0;
+    $namenszeileStyle = $namenszeileHoehe > 0 ? "min-height:{$namenszeileHoehe}mm;" : '';
+    // Smileys als base64-kodierte SVG-Data-URIs (DomPDF rendert kein inline SVG in Tabellen)
+    $smileyGut  = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="13" cy="14" r="2" fill="#333"/><circle cx="23" cy="14" r="2" fill="#333"/><path d="M11 22 Q18 29 25 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
+    $smileyOkay = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="13" cy="14" r="2" fill="#333"/><circle cx="23" cy="14" r="2" fill="#333"/><line x1="11" y1="24" x2="25" y2="24" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
+    $smileySchw = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="13" cy="14" r="2" fill="#333"/><circle cx="23" cy="14" r="2" fill="#333"/><path d="M11 27 Q18 20 25 27" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
     // Spaltenanzahl dynamisch berechnen für colspan
     $colCount = 2
         + ($zeigeDauer ? 1 : 0)
@@ -60,18 +66,25 @@
         .header-freitext { margin-top: 2px; font-size: {{ $smallSize }}; color: #555; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th { background-color: #f0f0f0; border: 1px solid #666; padding: 4px 6px; text-align: left; font-weight: bold; font-size: {{ $smallSize }}; }
-        td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; }
-        .td-fach { font-weight: bold; vertical-align: middle; width: {{ $colFach }}; text-align: center; }
-        .td-aufgaben { width: {{ $colAufgaben }}; }
-        .td-check { width: {{ $colCheck }}; text-align: center; }
-        .td-unterschrift { width: {{ $colUnterschrift }}; }
-        .td-kontrolliert { width: 12%; }
+        th { background-color: #f0f0f0; border: 1px solid #666; padding: 4px 6px; text-align: left; font-weight: bold; font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }}; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+        td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; font-family: {{ $schriftartCss }}; word-wrap: break-word; overflow-wrap: break-word; }
+        .td-fach { font-weight: bold; vertical-align: middle; width: {{ $colFach }}; max-width: {{ $colFach }}; text-align: center; }
+        .td-aufgaben { width: {{ $colAufgaben }}; max-width: {{ $colAufgaben }}; }
+        .td-check { width: {{ $colCheck }}; max-width: {{ $colCheck }}; text-align: center; }
+        .td-unterschrift { width: {{ $colUnterschrift }}; max-width: {{ $colUnterschrift }}; }
+        .td-kontrolliert { width: 12%; max-width: 12%; }
 
         /* NotoSansSymbols2 für einfache Unicode-Symbole (☺ ☹ ✓ etc.) */
         @font-face {
             font-family: 'NotoSymbols';
-            src: url('{{ public_path('fonts/NotoSansSymbols2-Regular.ttf') }}') format('truetype');
+            src: url("{{ storage_path('fonts/NotoSansSymbols2-Regular.ttf') }}") format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        /* OpenDyslexic für Legasthenie-Unterstützung */
+        @font-face {
+            font-family: 'OpenDyslexic';
+            src: url("{{ storage_path('fonts/OpenDyslexic-Regular.otf') }}") format('opentype');
             font-weight: normal;
             font-style: normal;
         }
@@ -89,12 +102,7 @@
         .footer { margin-top: 12px; border-top: 1px solid #ccc; padding-top: 8px; }
         .selbsteinschaetzung { margin-bottom: 8px; }
         .selbsteinschaetzung-label { font-weight: bold; margin-bottom: 6px; }
-        .smileys { display: table; margin-top: 4px; border-collapse: separate; }
-        .smiley-item { display: table-cell; text-align: center; padding-right: 16px; vertical-align: top; }
         .smiley-face { width: 36px; height: 36px; margin: 0 auto 3px auto; }
-        .smiley-label { font-size: {{ $smallSize }}; text-align: center; }
-        .skala-container { display: table; margin-top: 4px; }
-        .skala-item { display: table-cell; width: 22px; height: 22px; border: 1px solid #666; text-align: center; vertical-align: middle; font-size: {{ $tinySize }}; }
         .footer-freitext { margin-top: 8px; font-size: {{ $smallSize }}; color: #555; }
 
         /* Tägliche Übungen */
@@ -112,7 +120,7 @@
     <div class="header-row">
         <div class="header-left">
             <div class="header-title">{{ $plan->name }} vom {{ $plan->zeitraum }}</div>
-            <div class="name-feld">
+            <div class="name-feld" style="{{ $namenszeileStyle }}">
                 @if($plan->isSchuelerplan() && $plan->schueler)
                     Name: {{ $plan->schueler->vorname }} {{ $plan->schueler->nachname }}
                 @elseif($config['header']['zeige_name_feld'] ?? true)
@@ -180,16 +188,16 @@
             <th class="td-fach">Fach</th>
             <th class="td-aufgaben">Aufgaben</th>
             @if($zeigeDauer)
-                <th style="width:10%">Dauer</th>
+                <th style="width:10%; max-width:10%; word-wrap:break-word; white-space:normal;">Dauer</th>
             @endif
             @if($zeigeCheck)
                 <th class="td-check">&#10003;</th>
             @endif
-            @if($zeigeUnterschrift)
-                <th class="td-unterschrift">Unterschrift</th>
-            @endif
             @if($zeigeKontrolliert)
                 <th class="td-kontrolliert">Kontrolliert</th>
+            @endif
+            @if($zeigeUnterschrift)
+                <th class="td-unterschrift">Unterschrift</th>
             @endif
         </tr>
     </thead>
@@ -224,11 +232,11 @@
                 @if($zeigeCheck)
                     <td class="td-check">&nbsp;</td>
                 @endif
-                @if($zeigeUnterschrift)
-                    <td class="td-unterschrift">&nbsp;</td>
-                @endif
                 @if($zeigeKontrolliert)
                     <td class="td-kontrolliert">&nbsp;</td>
+                @endif
+                @if($zeigeUnterschrift)
+                    <td class="td-unterschrift">&nbsp;</td>
                 @endif
             </tr>
         @empty
@@ -243,43 +251,36 @@
 
     @if($plan->selbsteinschaetzung > 0 && ($config['footer']['zeige_selbsteinschaetzung'] ?? true))
         <div class="selbsteinschaetzung">
-            <div class="selbsteinschaetzung-label">Selbsteinschätzung:</div>
+            <div class="selbsteinschaetzung-label">Wie hast du gearbeitet?</div>
             @if($plan->selbsteinschaetzung == 1)
-                <div class="smileys">
-                    <div class="smiley-item">
-                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
-                            <circle cx="13" cy="14" r="2" fill="#333"/>
-                            <circle cx="23" cy="14" r="2" fill="#333"/>
-                            <path d="M11 22 Q18 29 25 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <div class="smiley-label">gut</div>
-                    </div>
-                    <div class="smiley-item">
-                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
-                            <circle cx="13" cy="14" r="2" fill="#333"/>
-                            <circle cx="23" cy="14" r="2" fill="#333"/>
-                            <line x1="11" y1="24" x2="25" y2="24" stroke="#333" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <div class="smiley-label">okay</div>
-                    </div>
-                    <div class="smiley-item">
-                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
-                            <circle cx="13" cy="14" r="2" fill="#333"/>
-                            <circle cx="23" cy="14" r="2" fill="#333"/>
-                            <path d="M11 27 Q18 20 25 27" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <div class="smiley-label">schwierig</div>
-                    </div>
-                </div>
+            {{-- Smiley-Variante: 3 Spalten über volle Breite --}}
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #ccc; margin-top: 6px;">
+                <tr>
+                    <td style="width: 33.33%; text-align: center; padding: 8px 4px; border: 1px solid #ccc; vertical-align: middle;">
+                        <img src="{{ $smileyGut }}" width="36" height="36" alt=""><br>
+                        <span style="font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }};">gut</span>
+                    </td>
+                    <td style="width: 33.33%; text-align: center; padding: 8px 4px; border: 1px solid #ccc; vertical-align: middle;">
+                        <img src="{{ $smileyOkay }}" width="36" height="36" alt=""><br>
+                        <span style="font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }};">okay</span>
+                    </td>
+                    <td style="width: 33.33%; text-align: center; padding: 8px 4px; border: 1px solid #ccc; vertical-align: middle;">
+                        <img src="{{ $smileySchw }}" width="36" height="36" alt=""><br>
+                        <span style="font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }};">schwierig</span>
+                    </td>
+                </tr>
+            </table>
             @elseif($plan->selbsteinschaetzung == 2)
-                <div class="skala-container">
+            {{-- Skala-Variante: 10 Felder über volle Breite --}}
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #ccc; margin-top: 6px;">
+                <tr>
                     @for($i = 1; $i <= 10; $i++)
-                        <div class="skala-item">{{ $i }}</div>
+                    <td style="width: 10%; text-align: center; padding: 10px 2px; border: 1px solid #ccc; font-size: {{ $smallSize }};">
+                        {{ $i }}
+                    </td>
                     @endfor
-                </div>
+                </tr>
+            </table>
             @endif
         </div>
     @endif

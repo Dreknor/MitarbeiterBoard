@@ -31,6 +31,7 @@ class WpWordService
         $plan->load([
             'planFaecher.aufgaben',
             'planFaecher.fach',
+            'taeglicheUebungen',
             'klasse',
             'schueler',
             'formatvorlage',
@@ -132,6 +133,57 @@ class WpWordService
             );
         }
         $section->addText('');
+
+        // ─── Tägliche Übungen ─────────────────────────────────────────────────
+        if (!empty($plan->taegliche_uebungen_aktiv) && $plan->taeglicheUebungen->isNotEmpty()) {
+            $section->addText(
+                '✏ Tägliche Übungen',
+                ['name' => $schriftart, 'size' => $schriftgroesse, 'bold' => true],
+                ['spaceBefore' => 120, 'spaceAfter' => 60, 'borderBottom' => ['size' => 6, 'color' => '666666']]
+            );
+
+            // Wochentage im Planungszeitraum berechnen
+            $wordWochentage = [];
+            if ($plan->gueltig_von && $plan->gueltig_bis) {
+                $wordCur = $plan->gueltig_von->copy();
+                while ($wordCur->lte($plan->gueltig_bis)) {
+                    if ($wordCur->isWeekday()) {
+                        $wordWochentage[] = $wordCur->copy();
+                    }
+                    $wordCur->addDay();
+                }
+            }
+            $wordTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+            $dayCount = count($wordWochentage);
+
+            $uebungTable = $section->addTable([
+                'borderSize'  => 6,
+                'borderColor' => '888888',
+                'cellMargin'  => 80,
+            ]);
+
+            // Kopfzeile
+            $uebungTable->addRow(280);
+            $uebungTable->addCell(Converter::cmToTwip(7), ['bgColor' => 'E5E7EB'])
+                        ->addText('Übung', ['name' => $schriftart, 'size' => $schriftgroesse - 1, 'bold' => true]);
+            foreach ($wordWochentage as $idx => $wordTag) {
+                $tagLabel = ($wordTagNamen[$idx] ?? '') . "\n" . $wordTag->format('d.m.');
+                $uebungTable->addCell(Converter::cmToTwip(1.2), ['bgColor' => 'E5E7EB'])
+                            ->addText($tagLabel, ['name' => $schriftart, 'size' => max(7, $schriftgroesse - 2)], ['alignment' => Jc::CENTER]);
+            }
+
+            // Übungs-Zeilen
+            foreach ($plan->taeglicheUebungen as $uebung) {
+                $uebungTable->addRow(280);
+                $uebungTable->addCell(Converter::cmToTwip(7))
+                            ->addText(strip_tags($uebung->aufgabe ?? ''), ['name' => $schriftart, 'size' => $schriftgroesse]);
+                for ($d = 0; $d < $dayCount; $d++) {
+                    $uebungTable->addCell(Converter::cmToTwip(1.2));
+                }
+            }
+
+            $section->addText('');
+        }
 
         // ─── Tabelle ──────────────────────────────────────────────────────────
         $tableStyle = [

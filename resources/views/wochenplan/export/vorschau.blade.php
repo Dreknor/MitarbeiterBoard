@@ -231,9 +231,33 @@
                     <strong>Selbsteinschätzung:</strong>
                     @if($plan->selbsteinschaetzung == 1)
                         <div class="smileys" style="margin-top:6px">
-                            <div class="smiley-item"><div class="emoji">😊</div><div class="label">gut</div></div>
-                            <div class="smiley-item"><div class="emoji">😐</div><div class="label">okay</div></div>
-                            <div class="smiley-item"><div class="emoji">😕</div><div class="label">schwierig</div></div>
+                            <div class="smiley-item">
+                                <svg style="width:36px;height:36px;display:block;margin:0 auto 3px auto;" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                                    <circle cx="13" cy="14" r="2" fill="#333"/>
+                                    <circle cx="23" cy="14" r="2" fill="#333"/>
+                                    <path d="M11 22 Q18 29 25 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <div class="label">gut</div>
+                            </div>
+                            <div class="smiley-item">
+                                <svg style="width:36px;height:36px;display:block;margin:0 auto 3px auto;" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                                    <circle cx="13" cy="14" r="2" fill="#333"/>
+                                    <circle cx="23" cy="14" r="2" fill="#333"/>
+                                    <line x1="11" y1="24" x2="25" y2="24" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <div class="label">okay</div>
+                            </div>
+                            <div class="smiley-item">
+                                <svg style="width:36px;height:36px;display:block;margin:0 auto 3px auto;" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                                    <circle cx="13" cy="14" r="2" fill="#333"/>
+                                    <circle cx="23" cy="14" r="2" fill="#333"/>
+                                    <path d="M11 27 Q18 20 25 27" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <div class="label">schwierig</div>
+                            </div>
                         </div>
                     @elseif($plan->selbsteinschaetzung == 2)
                         <div class="skala-container" style="margin-top:6px">

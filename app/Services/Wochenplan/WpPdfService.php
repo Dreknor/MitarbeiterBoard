@@ -56,6 +56,15 @@ class WpPdfService
             );
         }
 
+        // OpenDyslexic für Legasthenie-Unterstützung registrieren
+        $openDyslexicPath = storage_path('fonts/OpenDyslexic-Regular.otf');
+        if (file_exists($openDyslexicPath)) {
+            $fontMetrics->registerFont(
+                ['family' => 'OpenDyslexic', 'style' => 'normal', 'weight' => 'normal'],
+                $openDyslexicPath
+            );
+        }
+
         return $pdf;
     }
 
