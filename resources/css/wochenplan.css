@@ -1,7 +1,8 @@
-@import "tailwindcss";
+/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
 
 /* ── Alpine.js: x-cloak verhindert Flash of Unstyled Content ────────────── */
-/* Direkt im CSS (kein Tailwind-Utility) – bleibt immer im Build */
 [x-cloak] { display: none !important; }
 
 @layer utilities {

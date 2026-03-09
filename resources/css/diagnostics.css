@@ -1,9 +1,9 @@
-/* Import Tailwind CSS - Preflight is disabled in tailwind.config.js */
-/* This prevents Tailwind from resetting Bootstrap styles */
-@import "tailwindcss";
+/* Tailwind v4: Preflight (CSS-Reset) NICHT laden – Bootstrap bleibt für
+   Bootstrap-Komponenten auf der Seite zuständig. Nur Utilities laden. */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
 
 /* Scope all Tailwind styles to diagnostic wrapper only */
-/* This is configured in tailwind.config.js with important: '.diagnostic-wrapper' */
 .diagnostic-wrapper {
     /* All Tailwind utilities will only work inside this wrapper */
 }

@@ -7,6 +7,8 @@ export default defineConfig({
         tailwindcss(),
         laravel({
             input: [
+                'resources/css/sidebar.css',
+                'resources/js/sidebar.js',
                 'resources/css/diagnostics.css',
                 'resources/js/diagnostics.js',
                 'resources/css/paed-diary.css',
@@ -14,6 +16,7 @@ export default defineConfig({
                 'resources/js/wochenplan.js',
             ],
             refresh: [
+                'resources/views/layouts/**/*.blade.php',
                 'resources/views/diagnostics/**/*.blade.php',
                 'app/Http/Controllers/DiagnosticController.php',
                 'app/Http/Controllers/DiagnosticAdminController.php',

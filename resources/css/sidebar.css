@@ -1,0 +1,385 @@
+/* Tailwind v4: Preflight (CSS-Reset) NICHT laden – Bootstrap bleibt für den
+   Content-Bereich zuständig. Nur Theme-Definitionen und Utilities laden. */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* ── Alpine.js: x-cloak verhindert Flash of Unstyled Content ────────────── */
+[x-cloak] { display: none !important; }
+
+/* ── Tailwind v4: Quell-Dateien angeben ─────────────────────────────────── */
+@source "../views/layouts/**/*.blade.php";
+@source "../js/sidebar.js";
+
+/* ── Sidebar-Schrift lokal begrenzen (nicht global auf body) ─────────────── */
+#tw-sidebar, #tw-topbar {
+    font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Sidebar CSS-Variablen ──────────────────────────────────────────────── */
+:root {
+    --sidebar-width: 260px;
+    --sidebar-bg: #1a2035;
+    --sidebar-bg-hover: rgba(255,255,255,0.08);
+    --sidebar-bg-active: rgba(255,255,255,0.15);
+    --sidebar-text: rgba(255,255,255,0.75);
+    --sidebar-text-active: #ffffff;
+    --sidebar-accent: #ef4444;
+    --sidebar-border: rgba(255,255,255,0.12);
+    --topbar-height: 60px;
+}
+
+/* ── Layout-Wrapper ──────────────────────────────────────────────────────── */
+#app-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+#tw-sidebar {
+    width: var(--sidebar-width);
+    min-height: 100vh;
+    background-color: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 40;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: transform 0.3s ease;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+#tw-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+#tw-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+#tw-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+}
+
+/* Mobile: Sidebar standardmäßig versteckt */
+@media (max-width: 767px) {
+    #tw-sidebar {
+        transform: translateX(-100%);
+    }
+    #tw-sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+}
+
+/* ── Sidebar Logo ─────────────────────────────────────────────────────────── */
+.sidebar-logo {
+    padding: 1.25rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--sidebar-border);
+    flex-shrink: 0;
+}
+
+.sidebar-logo img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.sidebar-logo-text {
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Navigationsbereich ──────────────────────────────────────────────────── */
+.sidebar-nav {
+    flex: 1;
+    padding: 0.75rem 0;
+    overflow-y: auto;
+}
+
+/* ── Bereich-Trenner / Abschnitts-Label ─────────────────────────────────── */
+.sidebar-section-label {
+    padding: 1rem 1rem 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+}
+
+.sidebar-divider {
+    height: 1px;
+    background-color: var(--sidebar-border);
+    margin: 0.5rem 0.75rem;
+}
+
+/* ── Einfacher Menü-Link ─────────────────────────────────────────────────── */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    margin: 0.125rem 0.5rem;
+    border-radius: 0.5rem;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 400;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.sidebar-link:hover {
+    background-color: var(--sidebar-bg-hover);
+    color: var(--sidebar-text-active);
+    text-decoration: none;
+}
+
+.sidebar-link.active {
+    background-color: var(--sidebar-bg-active);
+    color: var(--sidebar-text-active);
+    font-weight: 600;
+    border-left: 3px solid var(--sidebar-accent);
+    padding-left: calc(1rem - 3px);
+}
+
+.sidebar-link i, .sidebar-link svg {
+    width: 1.1rem;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+/* ── Untermenü-Toggle-Button ─────────────────────────────────────────────── */
+.sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    margin: 0.125rem 0.5rem;
+    border-radius: 0.5rem;
+    color: var(--sidebar-text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: calc(100% - 1rem);
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 400;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-toggle:hover {
+    background-color: var(--sidebar-bg-hover);
+    color: var(--sidebar-text-active);
+}
+
+.sidebar-toggle.active-parent {
+    color: var(--sidebar-text-active);
+    background-color: var(--sidebar-bg-hover);
+}
+
+.sidebar-toggle i.toggle-icon {
+    width: 1.1rem;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.sidebar-toggle .toggle-label {
+    flex: 1;
+}
+
+.sidebar-toggle .toggle-arrow {
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+    opacity: 0.6;
+}
+
+.sidebar-toggle[aria-expanded="true"] .toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* ── Untermenü ───────────────────────────────────────────────────────────── */
+.sidebar-submenu {
+    overflow: hidden;
+    padding-bottom: 0.25rem;
+}
+
+.sidebar-submenu .sidebar-link {
+    padding-left: 2.75rem;
+    margin-left: 0.5rem;
+    font-size: 0.825rem;
+}
+
+.sidebar-submenu .sidebar-link.active {
+    padding-left: calc(2.75rem - 3px);
+}
+
+/* ── Unter-Untermenü (Beratungen > Gruppe) ───────────────────────────────── */
+.sidebar-sub-submenu .sidebar-link {
+    padding-left: 3.75rem;
+    font-size: 0.8rem;
+}
+.sidebar-sub-submenu .sidebar-link.active {
+    padding-left: calc(3.75rem - 3px);
+}
+.sidebar-sub-submenu .sidebar-toggle {
+    padding-left: 2.75rem;
+    font-size: 0.825rem;
+}
+
+/* ── Hauptinhalt ─────────────────────────────────────────────────────────── */
+#tw-main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 767px) {
+    #tw-main {
+        margin-left: 0;
+    }
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+#tw-topbar {
+    height: var(--topbar-height);
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+    gap: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+#tw-topbar .topbar-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    flex: 1;
+}
+
+/* ── User-Dropdown in Topbar ─────────────────────────────────────────────── */
+.topbar-user-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+}
+
+.topbar-user-btn:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.topbar-dropdown {
+    position: absolute;
+    right: 1rem;
+    top: calc(var(--topbar-height) - 4px);
+    width: 200px;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border: 1px solid rgba(0,0,0,0.08);
+    z-index: 50;
+    overflow: hidden;
+}
+
+.topbar-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    color: #374151;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background-color 0.1s ease;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.topbar-dropdown-item:hover {
+    background-color: #f3f4f6;
+    text-decoration: none;
+    color: #111827;
+}
+
+.topbar-dropdown-divider {
+    height: 1px;
+    background-color: #f3f4f6;
+    margin: 0.25rem 0;
+}
+
+/* ── Mobile Overlay ──────────────────────────────────────────────────────── */
+#sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 39;
+}
+
+#sidebar-overlay.active {
+    display: block;
+}
+
+/* ── Flash-Alerts modernisiert ───────────────────────────────────────────── */
+.tw-alert {
+    padding: 0.875rem 1.25rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.tw-alert-info    { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+.tw-alert-success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #15803d; }
+.tw-alert-warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+.tw-alert-danger  { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+.tw-alert-close {
+    margin-left: auto;
+    opacity: 0.5;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    color: inherit;
+}
+.tw-alert-close:hover { opacity: 1; }
+

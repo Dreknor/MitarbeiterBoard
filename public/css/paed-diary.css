@@ -1,27 +1,26 @@
 /* Paed-Diary: Sidebar ausblenden und Main-Panel auf Vollbreite setzen */
-/* Wird nur auf der Route /paed-diary per Blade eingebunden */
+/* Neues Layout: Tailwind-Sidebar (#tw-sidebar) + (#tw-main) */
 
-/* Standard: keine globale Änderung an Sidebar - nur wenn body.paed-hide-sidebar gesetzt ist */
-body.paed-hide-sidebar .sidebar {
-  display: none !important;
+/* Sidebar verstecken wenn body.paed-hide-sidebar gesetzt */
+body.paed-hide-sidebar #tw-sidebar {
+  transform: translateX(-100%) !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
-/* Main-Panel füllt die komplette Breite wenn Sidebar versteckt ist */
-body.paed-hide-sidebar .main-panel {
+/* Main füllt die komplette Breite */
+body.paed-hide-sidebar #tw-main {
   margin-left: 0 !important;
   width: 100% !important;
 }
 
-/* Navbar korrekt ausrichten (paper-dashboard verwendet position absolute) */
-.navbar.navbar-absolute {
-  left: 0 !important;
-  right: 0 !important;
+/* Sanfte Transition für #tw-main beim Ein-/Ausblenden */
+#tw-main {
+  transition: margin-left 0.3s ease, width 0.3s ease;
 }
 
-/* Kleinere Anpassungen für Inhaltspadding */
-.content {
+/* Inhalts-Padding anpassen */
+#tw-content {
   padding-left: 15px !important;
   padding-right: 15px !important;
 }

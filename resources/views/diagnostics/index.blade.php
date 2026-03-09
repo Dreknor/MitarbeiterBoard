@@ -6,7 +6,7 @@
 
 @section('content')
 <div class="diagnostic-wrapper">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-2 py-6">
         <!-- Header Section -->
         <div class="mb-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
