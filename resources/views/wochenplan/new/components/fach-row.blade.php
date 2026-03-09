@@ -1,4 +1,4 @@
-﻿﻿{{-- Fach-Block mit Aufgabenliste --}}
+﻿﻿﻿{{-- Fach-Block mit Aufgabenliste --}}
 <div class="bg-white rounded-lg border border-gray-200 mb-4" data-sortable-fach
      x-data="{ open: true, confirmSync: false }">
     {{-- Fach-Header --}}
@@ -19,36 +19,42 @@
         <div class="flex items-center gap-1" @click.stop>
             {{-- Sync-Button (nur fuer Kinderplaene mit Elternplan) --}}
             @if($plan->isSchuelerplan() && $plan->parent_plan_id)
-                <button @click="confirmSync = true"
+                <button @click.stop="confirmSync = true"
                         class="inline-flex items-center px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                         title="Aufgaben vom Klassenplan synchronisieren">
                     🔄 Sync
                 </button>
-                {{-- Bestaetigung --}}
-                <div x-show="confirmSync" x-cloak
-                     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4" @click.stop>
-                        <h3 class="font-semibold text-gray-900 mb-2">Fach synchronisieren?</h3>
-                        <p class="text-sm text-gray-600 mb-4">
-                            Alle bestehenden Aufgaben in <strong>„{{ $planFach->display_name }}"</strong> werden durch
-                            die aktuellen Aufgaben des Klassenplans ersetzt.
-                            <strong class="text-red-600">Diese Aktion kann nicht rueckgaengig gemacht werden.</strong>
-                        </p>
-                        <div class="flex gap-2 justify-end">
-                            <button @click="confirmSync = false"
-                                    class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
-                                Abbrechen
-                            </button>
-                            <form action="{{ route('wp.sync.fach', [$plan, $planFach->wp_fach_id]) }}" method="POST">
-                                @csrf
-                                <button type="submit"
-                                        class="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                                    Synchronisieren
+
+                {{-- Modal via x-teleport direkt am body rendern --}}
+                <template x-teleport="body">
+                    <div x-show="confirmSync"
+                         x-cloak
+                         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                         @click.self="confirmSync = false">
+                        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+                            <h3 class="font-semibold text-gray-900 mb-2">Fach synchronisieren?</h3>
+                            <p class="text-sm text-gray-600 mb-4">
+                                Alle bestehenden Aufgaben in <strong>„{{ $planFach->display_name }}"</strong> werden durch
+                                die aktuellen Aufgaben des Klassenplans ersetzt.
+                                <strong class="text-red-600">Diese Aktion kann nicht rückgängig gemacht werden.</strong>
+                            </p>
+                            <div class="flex gap-2 justify-end">
+                                <button type="button"
+                                        @click="confirmSync = false"
+                                        class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                                    Abbrechen
                                 </button>
-                            </form>
+                                <form action="{{ route('wp.sync.fach', [$plan, $planFach->wp_fach_id]) }}" method="POST">
+                                    @csrf
+                                    <button type="submit"
+                                            class="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                        Synchronisieren
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </template>
             @endif
             @canany(['create wochenplan', 'create Wochenplan'])
                 {{-- Fach entfernen --}}

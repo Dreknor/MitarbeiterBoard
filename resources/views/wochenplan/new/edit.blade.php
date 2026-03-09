@@ -228,30 +228,35 @@
                 </button>
             </div>
 
-            {{-- Bestätigungs-Dialog --}}
-            <div x-show="confirmSyncAll" x-cloak
-                 class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
-                    <h3 class="font-semibold text-gray-900 mb-2">Alle Fächer synchronisieren?</h3>
-                    <p class="text-sm text-gray-600 mb-4">
-                        Alle Aufgaben in diesem Kinderplan werden durch die aktuellen Aufgaben des Klassenplans ersetzt.
-                        <strong>Diese Aktion kann nicht rückgängig gemacht werden.</strong>
-                    </p>
-                    <div class="flex gap-2 justify-end">
-                        <button @click="confirmSyncAll = false"
-                                class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
-                            Abbrechen
-                        </button>
-                        <form action="{{ route('wp.sync.all', $wpPlan) }}" method="POST">
-                            @csrf
-                            <button type="submit"
-                                    class="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                                Synchronisieren
+            {{-- Bestätigungs-Dialog via x-teleport --}}
+            <template x-teleport="body">
+                <div x-show="confirmSyncAll"
+                     x-cloak
+                     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                     @click.self="confirmSyncAll = false">
+                    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+                        <h3 class="font-semibold text-gray-900 mb-2">Alle Fächer synchronisieren?</h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Alle Aufgaben in diesem Kinderplan werden durch die aktuellen Aufgaben des Klassenplans ersetzt.
+                            <strong>Diese Aktion kann nicht rückgängig gemacht werden.</strong>
+                        </p>
+                        <div class="flex gap-2 justify-end">
+                            <button type="button"
+                                    @click="confirmSyncAll = false"
+                                    class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                                Abbrechen
                             </button>
-                        </form>
+                            <form action="{{ route('wp.sync.all', $wpPlan) }}" method="POST">
+                                @csrf
+                                <button type="submit"
+                                        class="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    Synchronisieren
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </template>
         </div>
     @endif
 
