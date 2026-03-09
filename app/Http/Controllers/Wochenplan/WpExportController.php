@@ -30,6 +30,7 @@ class WpExportController extends Controller
         $wpPlan->load([
             'planFaecher.aufgaben',
             'planFaecher.fach',
+            'taeglicheUebungen',
             'klasse',
             'schueler',
             'formatvorlage',

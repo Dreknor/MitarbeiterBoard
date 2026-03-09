@@ -63,6 +63,7 @@ use App\Http\Controllers\Wochenplan\WpVorlageController;
 use App\Http\Controllers\Wochenplan\WpFormatvorlageController;
 use App\Http\Controllers\Wochenplan\WpFachController;
 use App\Http\Controllers\Wochenplan\WpSyncController;
+use App\Http\Controllers\Wochenplan\WpTaeglicheUebungController;
 use App\Http\Controllers\SchuelerController; // hinzugefügt
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -369,6 +370,12 @@ Route::group([
                         Route::put('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'update'])->name('aufgabe.update');
                         Route::delete('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'destroy'])->name('aufgabe.destroy');
                         Route::post('/aufgabe/reorder', [WpAufgabeController::class, 'reorder'])->name('aufgabe.reorder');
+
+                        // Tägliche Übungen
+                        Route::post('/{wpPlan}/taegliche-uebungen/toggle', [WpTaeglicheUebungController::class, 'toggle'])->name('taegliche-uebungen.toggle');
+                        Route::post('/{wpPlan}/taegliche-uebungen', [WpTaeglicheUebungController::class, 'store'])->name('taegliche-uebungen.store');
+                        Route::put('/taegliche-uebungen/{wpTaeglicheUebung}', [WpTaeglicheUebungController::class, 'update'])->name('taegliche-uebungen.update');
+                        Route::delete('/taegliche-uebungen/{wpTaeglicheUebung}', [WpTaeglicheUebungController::class, 'destroy'])->name('taegliche-uebungen.destroy');
 
                         // Synchronisation
                         Route::post('/{wpPlan}/sync/fach/{fachId}', [WpSyncController::class, 'syncFach'])->name('sync.fach');

@@ -99,6 +99,7 @@ class WpPlanController extends Controller
         $wpPlan->load([
             'planFaecher.aufgaben',
             'planFaecher.fach',
+            'taeglicheUebungen',
             'klasse',
             'schueler',
             'kinderPlaene.schueler',

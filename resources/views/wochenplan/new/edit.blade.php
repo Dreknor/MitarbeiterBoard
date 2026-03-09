@@ -304,6 +304,27 @@
         </div>
     @endif
 
+    {{-- TÄGLICHE ÜBUNGEN (optional, oberhalb der Fächer) --}}
+    @if($wpPlan->taegliche_uebungen_aktiv)
+        @include('wochenplan.new.components.taegliche-uebungen', ['wpPlan' => $wpPlan])
+    @else
+        @canany(['create wochenplan', 'create Wochenplan'])
+            <div class="mb-4">
+                <form method="POST" action="{{ route('wp.taegliche-uebungen.toggle', $wpPlan) }}">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-3 py-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Tägliche Übungen aktivieren
+                    </button>
+                </form>
+            </div>
+        @endcanany
+    @endif
+
     {{-- FÄCHER MIT AUFGABEN --}}
     <div class="mb-4">
         <h2 class="text-base font-semibold text-gray-700 mb-3">Fächer & Aufgaben</h2>

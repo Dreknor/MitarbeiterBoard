@@ -92,6 +92,14 @@
         .skala-container { display: flex; gap: 4px; }
         .skala-item { width: 22px; height: 22px; border: 1px solid #666; text-align: center; line-height: 20px; font-size: {{ $schriftGroesseMinusZwei }}; }
         .footer-freitext { margin-top: 8px; font-size: {{ $schriftGroesseMinusZwei }}; color: #555; }
+
+        /* Tägliche Übungen */
+        .taegl-uebungen { margin-bottom: 12px; }
+        .taegl-uebungen-title { font-weight: bold; font-size: {{ $schriftgroesse }}; border-bottom: 1px solid #666; padding-bottom: 4px; margin-bottom: 6px; }
+        .taegl-table { width: 100%; border-collapse: collapse; margin-top: 0; }
+        .taegl-table th, .taegl-table td { border: 1px solid #888; padding: 4px 6px; text-align: center; font-size: {{ $schriftGroesseMinusEins }}; }
+        .taegl-table th:first-child, .taegl-table td:first-child { text-align: left; font-weight: bold; }
+        .taegl-check-cell { width: 38px; min-width: 34px; }
         @media print {
             .no-print { display: none !important; }
             body { background: white; padding: 0; }
@@ -130,6 +138,47 @@
                 @endif
             </div>
         </div>
+
+        {{-- Tägliche Übungen --}}
+        @if($plan->taegliche_uebungen_aktiv && isset($plan->taeglicheUebungen) && $plan->taeglicheUebungen->isNotEmpty())
+        @php
+            $vorschauWochentage = [];
+            if ($plan->gueltig_von && $plan->gueltig_bis) {
+                $vorschauCur = $plan->gueltig_von->copy();
+                while ($vorschauCur->lte($plan->gueltig_bis)) {
+                    if ($vorschauCur->isWeekday()) { $vorschauWochentage[] = $vorschauCur->copy(); }
+                    $vorschauCur->addDay();
+                }
+            }
+            $vorschauTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+        @endphp
+        <div class="taegl-uebungen">
+            <div class="taegl-uebungen-title">✏️ Tägliche Übungen</div>
+            <table class="taegl-table">
+                <thead>
+                    <tr>
+                        <th>Übung</th>
+                        @foreach($vorschauWochentage as $vorschauTag)
+                            <th class="taegl-check-cell">
+                                {{ $vorschauTagNamen[($vorschauTag->dayOfWeek + 6) % 7] ?? '' }}<br>
+                                <span style="font-weight:normal;font-size:smaller;">{{ $vorschauTag->format('d.m.') }}</span>
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($plan->taeglicheUebungen as $vorschauUebung)
+                        <tr>
+                            <td>{{ $vorschauUebung->aufgabe }}</td>
+                            @foreach($vorschauWochentage as $vorschauTag)
+                                <td class="taegl-check-cell">&nbsp;</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
 
         {{-- Fächer-Tabelle --}}
         <table>

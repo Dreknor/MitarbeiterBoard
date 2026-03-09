@@ -10,8 +10,9 @@ class WpPlanRequest extends FormRequest {
             "gueltig_bis"         => ["required", "date", "after_or_equal:gueltig_von"],
             "klasse_id"           => ["nullable", "exists:klassen,id"],
             "schueler_id"         => ["nullable", "exists:schueler,id"],
-            "selbsteinschaetzung" => ["required", "integer", "in:0,1,2"],
-            "formatvorlage_id"    => ["nullable", "exists:wp_formatvorlagen,id"],
+            "selbsteinschaetzung"      => ["required", "integer", "in:0,1,2"],
+            "taegliche_uebungen_aktiv" => ["sometimes", "boolean"],
+            "formatvorlage_id"         => ["nullable", "exists:wp_formatvorlagen,id"],
             "is_vorlage"          => ["sometimes", "boolean"],
             "vorlage_name"        => ["nullable", "required_if:is_vorlage,true", "string", "max:255"],
         ];

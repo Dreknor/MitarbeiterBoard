@@ -15,14 +15,15 @@ class WpPlan extends Model implements HasMedia
         'name', 'gueltig_von', 'gueltig_bis',
         'klasse_id', 'schueler_id', 'parent_plan_id',
         'vorlage_id', 'formatvorlage_id',
-        'selbsteinschaetzung', 'is_vorlage', 'vorlage_name',
+        'selbsteinschaetzung', 'taegliche_uebungen_aktiv', 'is_vorlage', 'vorlage_name',
         'created_by',
     ];
     protected $casts = [
-        'gueltig_von'         => 'date',
-        'gueltig_bis'         => 'date',
-        'selbsteinschaetzung' => 'integer',
-        'is_vorlage'          => 'boolean',
+        'gueltig_von'                => 'date',
+        'gueltig_bis'                => 'date',
+        'selbsteinschaetzung'        => 'integer',
+        'taegliche_uebungen_aktiv'   => 'boolean',
+        'is_vorlage'                 => 'boolean',
     ];
     // ─── Scopes ──────────────────────────────────────────────────────────────
     public function scopeKlassenplaene($query)
@@ -75,6 +76,10 @@ class WpPlan extends Model implements HasMedia
     public function planFaecher()
     {
         return $this->hasMany(WpPlanFach::class, 'wp_plan_id')->orderBy('sort_order');
+    }
+    public function taeglicheUebungen()
+    {
+        return $this->hasMany(WpTaeglicheUebung::class, 'wp_plan_id')->orderBy('sort_order');
     }
     public function aufgaben()
     {
@@ -155,6 +160,13 @@ class WpPlan extends Model implements HasMedia
                 $neueAufgabe->synced_from_id  = null;
                 $neueAufgabe->save();
             }
+        }
+        // Tägliche Übungen kopieren
+        $this->load('taeglicheUebungen');
+        foreach ($this->taeglicheUebungen as $uebung) {
+            $neueUebung = $uebung->replicate(['deleted_at', 'created_at', 'updated_at']);
+            $neueUebung->wp_plan_id = $neuerPlan->id;
+            $neueUebung->save();
         }
         return $neuerPlan;
     }

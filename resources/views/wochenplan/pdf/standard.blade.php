@@ -87,6 +87,14 @@
         .skala-container { display: table; margin-top: 4px; }
         .skala-item { display: table-cell; width: 20px; height: 20px; border: 1px solid #666; text-align: center; font-size: {{ $tinySize }}; }
         .footer-freitext { margin-top: 8px; font-size: {{ $smallSize }}; color: #555; }
+
+        /* Tägliche Übungen */
+        .taegl-uebungen { margin-bottom: 10px; }
+        .taegl-uebungen-title { font-weight: bold; font-size: {{ $schriftgroesse }}; border-bottom: 1px solid #666; padding-bottom: 3px; margin-bottom: 5px; }
+        .taegl-table { width: 100%; border-collapse: collapse; }
+        .taegl-table th, .taegl-table td { border: 1px solid #888; padding: 3px 5px; text-align: center; font-size: {{ $smallSize }}; }
+        .taegl-table th:first-child, .taegl-table td:first-child { text-align: left; font-weight: bold; }
+        .taegl-check-cell { width: 30px; min-width: 28px; }
     </style>
 </head>
 <body>
@@ -113,6 +121,49 @@
         @endif
     </div>
 </div>
+
+@if($plan->taegliche_uebungen_aktiv && $plan->taeglicheUebungen->isNotEmpty())
+@php
+    // Wochentage im Planungszeitraum berechnen
+    $pdfWochentage = [];
+    if ($plan->gueltig_von && $plan->gueltig_bis) {
+        $cur = $plan->gueltig_von->copy();
+        while ($cur->lte($plan->gueltig_bis)) {
+            if ($cur->isWeekday()) {
+                $pdfWochentage[] = $cur->copy();
+            }
+            $cur->addDay();
+        }
+    }
+    $pdfTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+@endphp
+<div class="taegl-uebungen">
+    <div class="taegl-uebungen-title">✏️ Tägliche Übungen</div>
+    <table class="taegl-table">
+        <thead>
+            <tr>
+                <th>Übung</th>
+                @foreach($pdfWochentage as $pdfTag)
+                    <th class="taegl-check-cell">
+                        {{ $pdfTagNamen[($pdfTag->dayOfWeek + 6) % 7] ?? '' }}<br>
+                        <span style="font-weight:normal;font-size:smaller;">{{ $pdfTag->format('d.m.') }}</span>
+                    </th>
+                @endforeach
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($plan->taeglicheUebungen as $uebung)
+                <tr>
+                    <td>{{ $uebung->aufgabe }}</td>
+                    @foreach($pdfWochentage as $pdfTag)
+                        <td class="taegl-check-cell">&nbsp;</td>
+                    @endforeach
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
 
 <table>
     <thead>

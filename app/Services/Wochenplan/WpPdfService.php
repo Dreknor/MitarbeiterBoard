@@ -17,6 +17,7 @@ class WpPdfService
         $plan->load([
             'planFaecher.aufgaben',
             'planFaecher.fach',
+            'taeglicheUebungen',
             'klasse',
             'schueler',
             'formatvorlage',
