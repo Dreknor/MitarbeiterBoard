@@ -25,6 +25,11 @@
         + ($zeigeCheck ? 1 : 0)
         + ($zeigeUnterschrift ? 1 : 0)
         + ($zeigeKontrolliert ? 1 : 0);
+    $colKontrolliert = $config['spalten']['kontrolliert'] ?? '12%';
+    $labelUnterschrift = ($config['spalten']['label_trennung_unterschrift'] ?? false) ? 'Unter-schrift' : 'Unterschrift';
+    $labelKontrolliert = ($config['spalten']['label_trennung_kontrolliert'] ?? false) ? 'Kon-trolliert' : 'Kontrolliert';
+    $checkSvg = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,7 6,11 12,3" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    $bleistiftSvg = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path d="M2 10 L9 3 L11 5 L4 12 Z" fill="#333"/><path d="M9 3 L11 1 L13 3 L11 5 Z" fill="#555"/><path d="M2 10 L1 13 L4 12 Z" fill="#222"/></svg>');
     // Smileys als base64-kodierte SVG-Data-URIs
     $smileyGut  = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="14" cy="15" r="2" fill="#333"/><circle cx="26" cy="15" r="2" fill="#333"/><path d="M12 25 Q20 33 28 25" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
     $smileyOkay = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/><circle cx="14" cy="15" r="2" fill="#333"/><circle cx="26" cy="15" r="2" fill="#333"/><line x1="12" y1="28" x2="28" y2="28" stroke="#333" stroke-width="2" stroke-linecap="round"/></svg>');
@@ -66,15 +71,15 @@
         .header-title  { font-size: {{ $titleSize }}; font-weight: bold; }
         .header-name   { font-size: {{ $nameSize }}; font-weight: bold; margin-top: 6px; color: #222; }
         .header-zeitraum { font-size: {{ $baseSizePt }}pt; color: #555; margin-top: 3px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 6px; }
         th { background-color: #e8e8e8; border: 1px solid #555; padding: 4px 8px;
-             text-align: left; font-weight: bold; font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }}; }
-        td { border: 1px solid #888; padding: 5px 8px; vertical-align: top; font-family: {{ $schriftartCss }}; }
+             text-align: left; font-weight: bold; font-size: {{ $smallSize }}; font-family: {{ $schriftartCss }}; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; overflow: hidden; }
+        td { border: 1px solid #888; padding: 5px 8px; vertical-align: top; font-family: {{ $schriftartCss }}; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; overflow: hidden; }
         .td-fach     { font-weight: bold; width: {{ $colFach }}; vertical-align: middle; text-align: center; }
         .td-aufgaben { width: {{ $colAufgaben }}; }
         .td-check    { width: {{ $colCheck }}; text-align: center; }
         .td-unterschrift { width: {{ $colUnterschrift }}; }
-        .td-kontrolliert { width: 12%; }
+        .td-kontrolliert { width: {{ $colKontrolliert }}; }
         .aufgabe-zeile { padding: 2px 0; border-bottom: 1px dotted #ccc; font-size: {{ $baseSizePt }}pt; }
         .aufgabe-zeile:last-child { border-bottom: none; }
         .dauer { color: #666; font-size: {{ $smallSize }}; margin-left: 4px; }
@@ -90,7 +95,7 @@
         /* Tägliche Übungen */
         .taegl-uebungen { margin-bottom: 10px; }
         .taegl-uebungen-title { font-weight: bold; font-size: {{ $baseSizePt }}pt; border-bottom: 1px solid #666; padding-bottom: 3px; margin-bottom: 5px; }
-        .taegl-table { width: 100%; border-collapse: collapse; }
+        .taegl-table { width: 100%; table-layout: auto; border-collapse: collapse; }
         .taegl-table th, .taegl-table td { border: 1px solid #888; padding: 3px 5px; text-align: center; font-size: {{ $smallSize }}; }
         .taegl-table th:first-child, .taegl-table td:first-child { text-align: left; font-weight: bold; }
         .taegl-check-cell { width: 30px; min-width: 28px; }
@@ -127,7 +132,7 @@
     $indivTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
 @endphp
 <div class="taegl-uebungen">
-    <div class="taegl-uebungen-title">&#x270F; Tägliche Übungen</div>
+    <div class="taegl-uebungen-title"><img src="{{ $bleistiftSvg }}" width="13" height="13" alt="" style="vertical-align:middle;margin-right:3px;"> Tägliche Übungen</div>
     <table class="taegl-table">
         <thead>
             <tr>
@@ -155,21 +160,29 @@
 @endif
 
 <table>
+    <colgroup>
+        <col style="width: {{ $colFach }}">
+        <col style="width: {{ $colAufgaben }}">
+        @if($zeigeKontrolliert) <col style="width: {{ $colKontrolliert }}"> @endif
+        @if($zeigeCheck) <col style="width: {{ $colCheck }}"> @endif
+        @if($zeigeKontrolliert) <col style="width: {{ $colKontrolliert }}"> @endif
+        @if($zeigeUnterschrift) <col style="width: {{ $colUnterschrift }}"> @endif
+    </colgroup>
     <thead>
         <tr>
             <th class="td-fach">Fach</th>
             <th class="td-aufgaben">Meine Aufgaben</th>
             @if($zeigeDauer)
-                <th style="width:10%;">Dauer</th>
+                <th>Dauer</th>
             @endif
             @if($zeigeCheck)
-                <th class="td-check">&#10003;</th>
+                <th class="td-check"><img src="{{ $checkSvg }}" width="14" height="14" alt="ok"></th>
             @endif
             @if($zeigeKontrolliert)
-                <th class="td-kontrolliert">Kontrolliert</th>
+                <th class="td-kontrolliert">{{ $labelKontrolliert }}</th>
             @endif
             @if($zeigeUnterschrift)
-                <th class="td-unterschrift">Unterschrift</th>
+                <th class="td-unterschrift">{{ $labelUnterschrift }}</th>
             @endif
         </tr>
     </thead>

@@ -89,7 +89,7 @@
                             <span class="text-gray-400 text-xs w-4 flex-shrink-0">{{ $loop->iteration }}.</span>
                             <span class="text-sm text-gray-800 flex-1" x-text="text"></span>
                             @canany(['create wochenplan', 'create Wochenplan'])
-                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <div class="flex gap-1 flex-shrink-0">
                                     <button type="button" @click="editing = true"
                                             class="text-xs text-blue-600 hover:text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-50">
                                         ✏️

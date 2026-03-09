@@ -34,6 +34,9 @@
                 + ($zeigeCheck ? 1 : 0)
                 + ($zeigeUnterschrift ? 1 : 0)
                 + ($zeigeKontrolliert ? 1 : 0);
+            $colKontrolliert = $config['spalten']['kontrolliert'] ?? '12%';
+            $labelUnterschrift = ($config['spalten']['label_trennung_unterschrift'] ?? false) ? 'Unter-schrift' : 'Unterschrift';
+            $labelKontrolliert = ($config['spalten']['label_trennung_kontrolliert'] ?? false) ? 'Kon-trolliert' : 'Kontrolliert';
         @endphp
 
         * { box-sizing: border-box; }
@@ -68,14 +71,14 @@
         .name-feld { margin-top: 4px; font-size: {{ $schriftgroesse }}; }
         .header-freitext { margin-top: 2px; font-size: {{ $schriftGroesseMinusZwei }}; color: #555; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f0f0f0; border: 1px solid #666; padding: 5px 7px; text-align: left; font-weight: bold; font-size: {{ $schriftGroesseMinusEins }}; }
-        td { border: 1px solid #888; padding: 5px 7px; vertical-align: top; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f0f0f0; border: 1px solid #666; padding: 5px 7px; text-align: left; font-weight: bold; font-size: {{ $schriftGroesseMinusEins }}; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; overflow: hidden; }
+        td { border: 1px solid #888; padding: 5px 7px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; overflow: hidden; }
         .td-fach { font-weight: bold; vertical-align: middle; width: {{ $colFach }}; text-align: center; }
         .td-aufgaben { width: {{ $colAufgaben }}; }
         .td-check { width: {{ $colCheck }}; text-align: center; }
         .td-unterschrift { width: {{ $colUnterschrift }}; }
-        .td-kontrolliert { width: 12%; }
+        .td-kontrolliert { width: 12%; max-width: 12%; word-break: break-word; }
 
         .wp-fach-symbol { display: inline-block; vertical-align: middle; margin-right: 0.2em; }
         .fach-row-gap td { padding-bottom: {{ $abstandFaecher }}; }
@@ -96,7 +99,7 @@
         /* Tägliche Übungen */
         .taegl-uebungen { margin-bottom: 12px; }
         .taegl-uebungen-title { font-weight: bold; font-size: {{ $schriftgroesse }}; border-bottom: 1px solid #666; padding-bottom: 4px; margin-bottom: 6px; }
-        .taegl-table { width: 100%; border-collapse: collapse; margin-top: 0; }
+        .taegl-table { width: 100%; table-layout: auto; border-collapse: collapse; margin-top: 0; }
         .taegl-table th, .taegl-table td { border: 1px solid #888; padding: 4px 6px; text-align: center; font-size: {{ $schriftGroesseMinusEins }}; }
         .taegl-table th:first-child, .taegl-table td:first-child { text-align: left; font-weight: bold; }
         .taegl-check-cell { width: 38px; min-width: 34px; }
@@ -182,14 +185,22 @@
 
         {{-- Fächer-Tabelle --}}
         <table>
+            <colgroup>
+                <col style="width: {{ $colFach }}">
+                <col style="width: {{ $colAufgaben }}">
+                @if($zeigeDauer) <col style="width: 10%"> @endif
+                @if($zeigeCheck) <col style="width: {{ $colCheck }}"> @endif
+                @if($zeigeUnterschrift) <col style="width: {{ $colUnterschrift }}"> @endif
+                @if($zeigeKontrolliert) <col style="width: {{ $colKontrolliert }}"> @endif
+            </colgroup>
             <thead>
                 <tr>
                     <th class="td-fach">Fach</th>
                     <th class="td-aufgaben">Aufgaben</th>
-                    @if($zeigeDauer) <th style="width:10%">Dauer</th> @endif
+                    @if($zeigeDauer) <th>Dauer</th> @endif
                     @if($zeigeCheck) <th class="td-check">✓</th> @endif
-                    @if($zeigeUnterschrift) <th class="td-unterschrift">Unterschrift</th> @endif
-                    @if($zeigeKontrolliert) <th class="td-kontrolliert">Kontrolliert</th> @endif
+                    @if($zeigeUnterschrift) <th class="td-unterschrift">{{ $labelUnterschrift }}</th> @endif
+                    @if($zeigeKontrolliert) <th class="td-kontrolliert">{{ $labelKontrolliert }}</th> @endif
                 </tr>
             </thead>
             <tbody>
