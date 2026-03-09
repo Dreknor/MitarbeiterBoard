@@ -29,6 +29,11 @@
             $colAufgaben = $config['spalten']['aufgaben'] ?? '55%';
             $colCheck = $config['spalten']['check'] ?? '5%';
             $colUnterschrift = $config['spalten']['unterschrift'] ?? '25%';
+            $colCount = 2
+                + ($zeigeDauer ? 1 : 0)
+                + ($zeigeCheck ? 1 : 0)
+                + ($zeigeUnterschrift ? 1 : 0)
+                + ($zeigeKontrolliert ? 1 : 0);
         @endphp
 
         * { box-sizing: border-box; }
@@ -165,7 +170,7 @@
                         @if($zeigeKontrolliert) <td class="td-kontrolliert">&nbsp;</td> @endif
                     </tr>
                 @empty
-                    <tr><td colspan="4" style="text-align:center;color:#888;padding:14px;">Keine Fächer vorhanden.</td></tr>
+                    <tr><td colspan="{{ $colCount }}" style="text-align:center;color:#888;padding:14px;">Keine Fächer vorhanden.</td></tr>
                 @endforelse
             </tbody>
         </table>

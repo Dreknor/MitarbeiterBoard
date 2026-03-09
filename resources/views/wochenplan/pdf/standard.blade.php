@@ -26,6 +26,12 @@
     $colAufgaben = $config['spalten']['aufgaben'] ?? '55%';
     $colCheck = $config['spalten']['check'] ?? '5%';
     $colUnterschrift = $config['spalten']['unterschrift'] ?? '25%';
+    // Spaltenanzahl dynamisch berechnen für colspan
+    $colCount = 2
+        + ($zeigeDauer ? 1 : 0)
+        + ($zeigeCheck ? 1 : 0)
+        + ($zeigeUnterschrift ? 1 : 0)
+        + ($zeigeKontrolliert ? 1 : 0);
 @endphp
 <!DOCTYPE html>
 <html lang="de">
@@ -167,7 +173,7 @@
             </tr>
         @empty
             <tr>
-                <td colspan="4" style="text-align:center;color:#888;padding:12px;">Keine Fächer vorhanden.</td>
+                <td colspan="{{ $colCount }}" style="text-align:center;color:#888;padding:12px;">Keine Fächer vorhanden.</td>
             </tr>
         @endforelse
     </tbody>

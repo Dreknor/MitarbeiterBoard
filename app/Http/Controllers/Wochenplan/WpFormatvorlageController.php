@@ -90,15 +90,7 @@ class WpFormatvorlageController extends Controller
 
     public function vorschau(WpFormatvorlage $wpFormatvorlage)
     {
-        // Dummy-Plan für Vorschau (nicht in DB)
-        $plan = new WpPlan([
-            'name'                => 'Beispiel-Wochenplan',
-            'gueltig_von'         => now(),
-            'gueltig_bis'         => now()->addDays(4),
-            'selbsteinschaetzung' => 1,
-            'klasse_id'           => null,
-            'schueler_id'         => null,
-        ]);
+        $plan = $this->dummyPlan();
 
         $template = $wpFormatvorlage->blade_template ?? 'wochenplan.pdf.standard';
 
@@ -115,7 +107,9 @@ class WpFormatvorlageController extends Controller
      */
     public function vorschauHtml(Request $request)
     {
-        $configData = $request->input('config', []);
+        // Der Request enthält Formularfelder flach (name, schriftgroesse, col_fach …).
+        // buildLayoutConfig erwartet einen Request, also übergeben wir ihn direkt.
+        $configData = $this->buildLayoutConfig($request);
 
         $fv = new WpFormatvorlage([
             'name'           => 'Vorschau',
@@ -125,13 +119,7 @@ class WpFormatvorlageController extends Controller
             'blade_template' => $request->input('blade_template', 'wochenplan.pdf.standard'),
         ]);
 
-        $plan = new WpPlan([
-            'name'                => 'Beispiel-Wochenplan',
-            'gueltig_von'         => now(),
-            'gueltig_bis'         => now()->addDays(4),
-            'selbsteinschaetzung' => 1,
-        ]);
-
+        $plan     = $this->dummyPlan();
         $template = $fv->blade_template ?? 'wochenplan.pdf.standard';
 
         return view($template, [
@@ -140,6 +128,49 @@ class WpFormatvorlageController extends Controller
             'config'        => $configData,
             'vorschau'      => true,
         ]);
+    }
+
+    /**
+     * Erzeugt einen Dummy-Plan mit Beispiel-Fächern und Aufgaben für die Vorschau.
+     */
+    private function dummyPlan(): WpPlan
+    {
+        $plan = new WpPlan([
+            'name'                => 'Beispiel-Wochenplan',
+            'gueltig_von'         => now(),
+            'gueltig_bis'         => now()->addDays(4),
+            'selbsteinschaetzung' => 1,
+            'klasse_id'           => null,
+            'schueler_id'         => null,
+        ]);
+
+        // Dummy-Fächer mit Aufgaben als Plain-Objekte
+        $faecher = collect([
+            ['name' => 'Deutsch',  'symbol' => '📖', 'aufgaben' => ['Seite 12 lesen', 'Diktat üben', 'Aufsatz schreiben']],
+            ['name' => 'Mathe',    'symbol' => '🔢', 'aufgaben' => ['Aufgaben S. 34',  '10 Rechenaufgaben']],
+            ['name' => 'Sachkunde','symbol' => '🌍', 'aufgaben' => ['Referat vorbereiten']],
+        ])->map(function ($data) {
+            $aufgaben = collect($data['aufgaben'])->map(fn($text) => (object)[
+                'aufgabe' => $text,
+                'dauer'   => '',
+            ]);
+
+            $fach = (object)[
+                'name'        => $data['name'],
+                'symbol_html' => '<span style="font-size:1.1em;margin-right:3px">' . $data['symbol'] . '</span>',
+            ];
+
+            return (object)[
+                'display_name' => $data['name'],
+                'fach'         => $fach,
+                'aufgaben'     => $aufgaben,
+            ];
+        });
+
+        // planFaecher als eager-geladene Relation simulieren
+        $plan->setRelation('planFaecher', $faecher);
+
+        return $plan;
     }
 
     private function buildLayoutConfig($request): array
