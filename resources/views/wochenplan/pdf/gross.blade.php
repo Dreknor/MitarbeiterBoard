@@ -13,6 +13,13 @@
     <title>{{ $plan->name }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* NotoSansSymbols2 für Unicode-Symbole */
+        @font-face {
+            font-family: 'NotoSymbols';
+            src: url('{{ public_path('fonts/NotoSansSymbols2-Regular.ttf') }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
         body {
             font-family: {{ $schriftartCss }};
             font-size: {{ $baseSizePt }}pt;
@@ -32,10 +39,11 @@
         .aufgabe-zeile { padding: 4px 0; border-bottom: 1px dotted #aaa; font-size: {{ $baseSizePt }}pt; }
         .aufgabe-zeile:last-child { border-bottom: none; }
         .footer { margin-top: 20px; border-top: 2px solid #aaa; padding-top: 12px; }
-        .selbsteinschaetzung-label { font-weight: bold; font-size: {{ $baseSizePt }}pt; margin-bottom: 6px; }
-        .smileys { display: table; margin-top: 6px; }
-        .smiley-item { display: table-cell; text-align: center; padding-right: 20px; font-size: 24pt; }
-        .smiley-label { font-size: {{ $smallSize }}; }
+        .selbsteinschaetzung-label { font-weight: bold; font-size: {{ $baseSizePt }}pt; margin-bottom: 8px; }
+        .smileys { display: table; margin-top: 6px; border-collapse: separate; }
+        .smiley-item { display: table-cell; text-align: center; padding-right: 24px; vertical-align: top; }
+        .smiley-face { width: 48px; height: 48px; margin: 0 auto 4px auto; }
+        .smiley-label { font-size: {{ $smallSize }}; text-align: center; }
     </style>
 </head>
 <body>
@@ -94,9 +102,33 @@
     <div class="footer">
         <div class="selbsteinschaetzung-label">Selbsteinschätzung:</div>
         <div class="smileys">
-            <div class="smiley-item">&#9786;<div class="smiley-label">gut</div></div>
-            <div class="smiley-item">&#128528;<div class="smiley-label">okay</div></div>
-            <div class="smiley-item">&#128533;<div class="smiley-label">schwierig</div></div>
+            <div class="smiley-item">
+                <svg class="smiley-face" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="21" fill="#fff9c4" stroke="#f9a825" stroke-width="2.5"/>
+                    <circle cx="17" cy="18" r="2.5" fill="#333"/>
+                    <circle cx="31" cy="18" r="2.5" fill="#333"/>
+                    <path d="M14 29 Q24 38 34 29" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="smiley-label">gut</div>
+            </div>
+            <div class="smiley-item">
+                <svg class="smiley-face" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="21" fill="#fff9c4" stroke="#f9a825" stroke-width="2.5"/>
+                    <circle cx="17" cy="18" r="2.5" fill="#333"/>
+                    <circle cx="31" cy="18" r="2.5" fill="#333"/>
+                    <line x1="14" y1="32" x2="34" y2="32" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="smiley-label">okay</div>
+            </div>
+            <div class="smiley-item">
+                <svg class="smiley-face" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="21" fill="#fff9c4" stroke="#f9a825" stroke-width="2.5"/>
+                    <circle cx="17" cy="18" r="2.5" fill="#333"/>
+                    <circle cx="31" cy="18" r="2.5" fill="#333"/>
+                    <path d="M14 36 Q24 27 34 36" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="smiley-label">schwierig</div>
+            </div>
         </div>
     </div>
 @endif

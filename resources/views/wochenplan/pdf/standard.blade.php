@@ -68,9 +68,17 @@
         .td-unterschrift { width: {{ $colUnterschrift }}; }
         .td-kontrolliert { width: 12%; }
 
+        /* NotoSansSymbols2 für einfache Unicode-Symbole (☺ ☹ ✓ etc.) */
+        @font-face {
+            font-family: 'NotoSymbols';
+            src: url('{{ public_path('fonts/NotoSansSymbols2-Regular.ttf') }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         /* Fach-Symbol */
-        .wp-fach-symbol { margin-right: 3px; }
-        .wp-fach-symbol--emoji { font-size: {{ $schriftgroesse }}; }
+        .wp-fach-symbol { margin-right: 3px; font-family: 'NotoSymbols', Arial, sans-serif; }
+        .wp-fach-symbol--emoji { font-size: {{ $schriftgroesse }}; font-family: 'NotoSymbols', Arial, sans-serif; }
 
         /* Abstände */
         .fach-row-gap { margin-bottom: {{ $abstandFaecher }}; }
@@ -80,12 +88,13 @@
 
         .footer { margin-top: 12px; border-top: 1px solid #ccc; padding-top: 8px; }
         .selbsteinschaetzung { margin-bottom: 8px; }
-        .selbsteinschaetzung-label { font-weight: bold; margin-bottom: 4px; }
-        .smileys { display: table; margin-top: 4px; }
-        .smiley-item { display: table-cell; text-align: center; padding-right: 12px; font-size: 18pt; }
-        .smiley-label { font-size: {{ $smallSize }}; }
+        .selbsteinschaetzung-label { font-weight: bold; margin-bottom: 6px; }
+        .smileys { display: table; margin-top: 4px; border-collapse: separate; }
+        .smiley-item { display: table-cell; text-align: center; padding-right: 16px; vertical-align: top; }
+        .smiley-face { width: 36px; height: 36px; margin: 0 auto 3px auto; }
+        .smiley-label { font-size: {{ $smallSize }}; text-align: center; }
         .skala-container { display: table; margin-top: 4px; }
-        .skala-item { display: table-cell; width: 20px; height: 20px; border: 1px solid #666; text-align: center; font-size: {{ $tinySize }}; }
+        .skala-item { display: table-cell; width: 22px; height: 22px; border: 1px solid #666; text-align: center; vertical-align: middle; font-size: {{ $tinySize }}; }
         .footer-freitext { margin-top: 8px; font-size: {{ $smallSize }}; color: #555; }
 
         /* Tägliche Übungen */
@@ -138,7 +147,7 @@
     $pdfTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
 @endphp
 <div class="taegl-uebungen">
-    <div class="taegl-uebungen-title">✏️ Tägliche Übungen</div>
+    <div class="taegl-uebungen-title">&#x270F; Tägliche Übungen</div>
     <table class="taegl-table">
         <thead>
             <tr>
@@ -188,8 +197,8 @@
         @forelse($plan->planFaecher as $planFach)
             <tr class="fach-row-gap">
                 <td class="td-fach">
-                    @if($planFach->fach && $planFach->fach->symbol_html)
-                        {!! $planFach->fach->symbol_html !!}<br>
+                    @if($planFach->fach && $planFach->fach->pdf_symbol_html)
+                        {!! $planFach->fach->pdf_symbol_html !!}<br>
                     @endif
                     {{ $planFach->display_name }}
                 </td>
@@ -237,9 +246,33 @@
             <div class="selbsteinschaetzung-label">Selbsteinschätzung:</div>
             @if($plan->selbsteinschaetzung == 1)
                 <div class="smileys">
-                    <div class="smiley-item">&#9786; <div class="smiley-label">gut</div></div>
-                    <div class="smiley-item">&#128528; <div class="smiley-label">okay</div></div>
-                    <div class="smiley-item">&#128533; <div class="smiley-label">schwierig</div></div>
+                    <div class="smiley-item">
+                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                            <circle cx="13" cy="14" r="2" fill="#333"/>
+                            <circle cx="23" cy="14" r="2" fill="#333"/>
+                            <path d="M11 22 Q18 29 25 22" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div class="smiley-label">gut</div>
+                    </div>
+                    <div class="smiley-item">
+                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                            <circle cx="13" cy="14" r="2" fill="#333"/>
+                            <circle cx="23" cy="14" r="2" fill="#333"/>
+                            <line x1="11" y1="24" x2="25" y2="24" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div class="smiley-label">okay</div>
+                    </div>
+                    <div class="smiley-item">
+                        <svg class="smiley-face" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="18" cy="18" r="16" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                            <circle cx="13" cy="14" r="2" fill="#333"/>
+                            <circle cx="23" cy="14" r="2" fill="#333"/>
+                            <path d="M11 27 Q18 20 25 27" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div class="smiley-label">schwierig</div>
+                    </div>
                 </div>
             @elseif($plan->selbsteinschaetzung == 2)
                 <div class="skala-container">

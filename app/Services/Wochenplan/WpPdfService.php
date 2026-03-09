@@ -29,20 +29,32 @@ class WpPdfService
         // Blade-Template aus Formatvorlage, Fallback auf Standard
         $template = $formatvorlage->blade_template ?? 'wochenplan.pdf.standard';
 
+        // Seitenformat und Ränder aus Config
+        $papierGroesse    = strtolower($config['papier']['groesse']    ?? 'A4');
+        $papierAusrichtung = $config['papier']['ausrichtung'] ?? 'portrait';
+
         $pdf = Pdf::loadView($template, [
             'plan'          => $plan,
             'formatvorlage' => $formatvorlage,
             'config'        => $config,
         ]);
 
-        // Seitenformat und Ränder aus Config
-        $papierGroesse    = strtolower($config['papier']['groesse']    ?? 'A4');
-        $papierAusrichtung = $config['papier']['ausrichtung'] ?? 'portrait';
         $pdf->setPaper($papierGroesse, $papierAusrichtung);
 
-        // Margins aus Config (in mm), Fallback auf Standardwerte
-        $margins = $config['seitenraender'] ?? ['oben' => 15, 'rechts' => 15, 'unten' => 15, 'links' => 15];
-        $pdf->getDomPDF()->set_option('defaultPaperSize', 'A4');
+        $dompdf = $pdf->getDomPDF();
+        $dompdf->set_option('defaultPaperSize', 'A4');
+        // Lokale Fonts über Dateipfad laden erlauben (isRemoteEnabled ermöglicht file://-Zugriff)
+        $dompdf->set_option('isRemoteEnabled', true);
+
+        // NotoSansSymbols2 für Emoji/Symbol-Rendering registrieren
+        $fontMetrics = $dompdf->getFontMetrics();
+        $fontPath = storage_path('fonts/NotoSansSymbols2-Regular.ttf');
+        if (file_exists($fontPath)) {
+            $fontMetrics->registerFont(
+                ['family' => 'NotoSymbols', 'style' => 'normal', 'weight' => 'normal'],
+                $fontPath
+            );
+        }
 
         return $pdf;
     }

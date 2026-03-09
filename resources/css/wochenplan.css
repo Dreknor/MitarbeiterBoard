@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* ── Alpine.js: x-cloak verhindert Flash of Unstyled Content ────────────── */
+/* Direkt im CSS (kein Tailwind-Utility) – bleibt immer im Build */
+[x-cloak] { display: none !important; }
+
+@layer utilities {
+    /* Zusätzlich als Utility damit Tailwind es nicht entfernt */
+    .\[x-cloak\] { display: none !important; }
+}
+
 /* ── Tailwind v4: Quell-Dateien angeben ─────────────────────────────────── */
 @source "../views/wochenplan/**/*.blade.php";
 @source "../js/wochenplan.js";

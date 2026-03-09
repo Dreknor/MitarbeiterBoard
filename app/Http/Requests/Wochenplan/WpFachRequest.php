@@ -20,6 +20,7 @@ class WpFachRequest extends FormRequest
             'symbol_typ'   => ['sometimes', 'nullable', 'in:emoji,svg,bild,keine'],
             'symbol_wert'  => ['sometimes', 'nullable', 'string', 'max:500'],
             'symbol_farbe' => ['sometimes', 'nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'symbol_bild'  => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
     }
 }

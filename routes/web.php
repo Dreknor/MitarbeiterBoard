@@ -399,7 +399,7 @@ Route::group([
                         ->prefix('faecher')->name('faecher.')->group(function () {
                             Route::get('/', [WpFachController::class, 'index'])->name('index');
                             Route::post('/', [WpFachController::class, 'store'])->name('store');
-                            Route::put('/{wpFach}', [WpFachController::class, 'update'])->name('update');
+                            Route::post('/{wpFach}', [WpFachController::class, 'update'])->name('update');
                             Route::delete('/{wpFach}', [WpFachController::class, 'destroy'])->name('destroy');
                         });
 

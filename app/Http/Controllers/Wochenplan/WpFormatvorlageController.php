@@ -156,8 +156,9 @@ class WpFormatvorlageController extends Controller
             ]);
 
             $fach = (object)[
-                'name'        => $data['name'],
-                'symbol_html' => '<span style="font-size:1.1em;margin-right:3px">' . $data['symbol'] . '</span>',
+                'name'            => $data['name'],
+                'symbol_html'     => '<span style="font-size:1.1em;margin-right:3px">' . $data['symbol'] . '</span>',
+                'pdf_symbol_html' => '<span style="font-size:1.1em;margin-right:3px;font-family:\'NotoSymbols\',Arial,sans-serif;">' . $data['symbol'] . '</span>',
             ];
 
             return (object)[

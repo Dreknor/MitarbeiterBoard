@@ -18,6 +18,13 @@
     <title>{{ $plan->name }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* NotoSansSymbols2 für Unicode-Symbole */
+        @font-face {
+            font-family: 'NotoSymbols';
+            src: url('{{ public_path('fonts/NotoSansSymbols2-Regular.ttf') }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
         body {
             font-family: {{ $schriftartCss }};
             font-size: {{ $baseSizePt }}pt;
@@ -44,10 +51,11 @@
         .aufgabe-zeile:last-child { border-bottom: none; }
         .dauer { color: #666; font-size: {{ $smallSize }}; margin-left: 4px; }
         .footer { margin-top: 14px; }
-        .selbsteinschaetzung-label { font-weight: bold; margin-bottom: 4px; }
-        .smileys { display: table; margin-top: 4px; }
-        .smiley-item { display: table-cell; text-align: center; padding-right: 14px; font-size: 18pt; }
-        .smiley-label { font-size: {{ $tinySize }}; }
+        .selbsteinschaetzung-label { font-weight: bold; margin-bottom: 6px; }
+        .smileys { display: table; margin-top: 4px; border-collapse: separate; }
+        .smiley-item { display: table-cell; text-align: center; padding-right: 16px; vertical-align: top; }
+        .smiley-face { width: 40px; height: 40px; margin: 0 auto 3px auto; }
+        .smiley-label { font-size: {{ $tinySize }}; text-align: center; }
         .unterschrift-zeilen { display: table; width: 100%; margin-top: 14px; }
         .unterschrift-zeile { display: table-cell; padding-right: 20px; }
         .unterschrift-linie { border-bottom: 1px solid #000; height: 20px; }
@@ -130,9 +138,33 @@
         @if($plan->selbsteinschaetzung == 1)
             <div class="selbsteinschaetzung-label">Wie war meine Woche?</div>
             <div class="smileys">
-                <div class="smiley-item">&#9786;<div class="smiley-label">super!</div></div>
-                <div class="smiley-item">&#128528;<div class="smiley-label">okay</div></div>
-                <div class="smiley-item">&#128533;<div class="smiley-label">schwer</div></div>
+                <div class="smiley-item">
+                    <svg class="smiley-face" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                        <circle cx="14" cy="15" r="2" fill="#333"/>
+                        <circle cx="26" cy="15" r="2" fill="#333"/>
+                        <path d="M12 25 Q20 33 28 25" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="smiley-label">super!</div>
+                </div>
+                <div class="smiley-item">
+                    <svg class="smiley-face" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                        <circle cx="14" cy="15" r="2" fill="#333"/>
+                        <circle cx="26" cy="15" r="2" fill="#333"/>
+                        <line x1="12" y1="28" x2="28" y2="28" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="smiley-label">okay</div>
+                </div>
+                <div class="smiley-item">
+                    <svg class="smiley-face" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" fill="#fff9c4" stroke="#f9a825" stroke-width="2"/>
+                        <circle cx="14" cy="15" r="2" fill="#333"/>
+                        <circle cx="26" cy="15" r="2" fill="#333"/>
+                        <path d="M12 32 Q20 24 28 32" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="smiley-label">schwer</div>
+                </div>
             </div>
         @endif
         @if($config['footer']['zeige_unterschrift'] ?? true)
