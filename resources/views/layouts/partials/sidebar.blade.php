@@ -41,15 +41,7 @@
                     </a>
                 @endcan
 
-                {{-- Raumplan --}}
-                @can('view roomBooking')
-                    <a href="{{ url('rooms/rooms') }}"
-                       class="sidebar-link @if(request()->segment(1) == 'rooms') active @endif">
-                        <i class="fa fa-calendar-alt"></i>
-                        <span>Raumplan</span>
-                    </a>
-                @endcan
-
+                <div class="sidebar-section-label">Pädagogik</div>
 
                 {{-- Päd. Dokumentation / Wochenübersicht --}}
                 @can('view paed diary')
@@ -65,63 +57,53 @@
                     </a>
                 @endcan
 
-                {{-- ── PERSONAL (Untermenü) ────────────────────────────── --}}
-                @canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays'])
-                    @php
-                        $personalActive = in_array(request()->segment(1), ['roster', 'timesheets', 'employes', 'holidays']);
-                    @endphp
-                    <div x-data="{ open: {{ $personalActive ? 'true' : 'false' }} }">
-                        <button class="sidebar-toggle @if($personalActive) active-parent @endif"
+                {{-- ── WOCHENPLÄNE (Untermenü) ─────────────────────────── --}}
+                @canany(['view wochenplan', 'create wochenplan'])
+                    @php $wpActive = request()->segment(1) == 'wp'; @endphp
+                    <div x-data="{ open: {{ $wpActive ? 'true' : 'false' }} }">
+                        <button class="sidebar-toggle @if($wpActive) active-parent @endif"
                                 @click="open = !open"
                                 :aria-expanded="open.toString()">
-                            <i class="fas fa-user-friends toggle-icon"></i>
-                            <span class="toggle-label">Personal</span>
+                            <i class="fas fa-th-list toggle-icon"></i>
+                            <span class="toggle-label">Wochenpläne</span>
                             <i class="fas fa-chevron-down toggle-arrow"></i>
                         </button>
                         <div class="sidebar-submenu" x-show="open" x-collapse>
-                            <a href="{{ route('employes.self') }}"
-                               class="sidebar-link @if(request()->segment(1) == 'employes' && request()->segment(2) == 'self') active @endif">
-                                <i class="fas fa-user"></i>
-                                <span>Eigene Daten</span>
+                            <a href="{{ route('wp.index') }}"
+                               class="sidebar-link @if($wpActive && !request()->segment(2)) active @endif">
+                                <i class="fas fa-list"></i>
+                                <span>Übersicht</span>
                             </a>
-                            @can('create roster')
-                                <a href="{{ route('roster.index') }}"
-                                   class="sidebar-link @if(request()->segment(1) == 'roster') active @endif">
-                                    <i class="fas fa-columns"></i>
-                                    <span>Dienstpläne</span>
+                            @can('create wochenplan')
+                                <a href="{{ route('wp.create') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'create') active @endif">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Neuer Plan</span>
+                                </a>
+                                <a href="{{ route('wp.vorlagen.index') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'vorlagen') active @endif">
+                                    <i class="fas fa-copy"></i>
+                                    <span>Vorlagen</span>
                                 </a>
                             @endcan
-                            @can('edit employe')
-                                <a href="{{ route('employes.index') }}"
-                                   class="sidebar-link @if(Route::currentRouteName() == 'employes.index' || Route::currentRouteName() == 'employes.show') active @endif">
-                                    <i class="fas fa-users"></i>
-                                    <span>Personal Übersicht</span>
+                            @can('manage wochenplan-faecher')
+                                <a href="{{ route('wp.faecher.index') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'faecher') active @endif">
+                                    <i class="fas fa-tags"></i>
+                                    <span>Fächer</span>
                                 </a>
                             @endcan
-                            @can('lock timesheets')
-                                <a href="{{ url('timesheets/select/employe') }}"
-                                   class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) != auth()->id() && request()->segment(2) != 'import') active @endif">
-                                    <i class="fas fa-clock"></i>
-                                    <span>Arbeitszeitnachweise</span>
+                            @can('manage wochenplan-formatvorlagen')
+                                <a href="{{ route('wp.formatvorlagen.index') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'formatvorlagen') active @endif">
+                                    <i class="fas fa-palette"></i>
+                                    <span>Formatvorlagen</span>
                                 </a>
                             @endcan
-                            @can('has timesheet')
-                                <a href="{{ url('timesheets/'.auth()->id()) }}"
-                                   class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) == auth()->id()) active @endif">
-                                    <i class="fas fa-file-alt"></i>
-                                    <span>Meine Zeitnachweise</span>
-                                </a>
-                            @endcan
-                            @canany(['has holidays', 'approve holidays'])
-                                <a href="{{ route('holidays.index') }}"
-                                   class="sidebar-link @if(request()->segment(1) == 'holidays') active @endif">
-                                    <i class="fas fa-umbrella-beach"></i>
-                                    <span>Urlaub</span>
-                                </a>
-                            @endcanany
                         </div>
                     </div>
                 @endcanany
+
 
                 {{-- ── DIAGNOSEBÖGEN (Untermenü) ───────────────────────── --}}
                 @can('view diagnostics')
@@ -150,6 +132,9 @@
                         </div>
                     </div>
                 @endcan
+
+                <div class="sidebar-section-label">Organisation</div>
+
                 {{-- ── BERATUNGEN (dynamisch nach Gruppen) ────────────── --}}
                 @php
                     $beratungSegments = ['themes', 'meetings', 'memory', 'archive', 'search', 'export'];
@@ -240,52 +225,73 @@
                     </div>
                 </div>
 
-                {{-- ── WOCHENPLÄNE (Untermenü) ─────────────────────────── --}}
-                @canany(['view wochenplan', 'create wochenplan'])
-                    @php $wpActive = request()->segment(1) == 'wp'; @endphp
-                    <div x-data="{ open: {{ $wpActive ? 'true' : 'false' }} }">
-                        <button class="sidebar-toggle @if($wpActive) active-parent @endif"
+                {{-- ── PERSONAL (Untermenü) ────────────────────────────── --}}
+                @canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays'])
+                    @php
+                        $personalActive = in_array(request()->segment(1), ['roster', 'timesheets', 'employes', 'holidays']);
+                    @endphp
+                    <div x-data="{ open: {{ $personalActive ? 'true' : 'false' }} }">
+                        <button class="sidebar-toggle @if($personalActive) active-parent @endif"
                                 @click="open = !open"
                                 :aria-expanded="open.toString()">
-                            <i class="fas fa-th-list toggle-icon"></i>
-                            <span class="toggle-label">Wochenpläne</span>
+                            <i class="fas fa-user-friends toggle-icon"></i>
+                            <span class="toggle-label">Personal</span>
                             <i class="fas fa-chevron-down toggle-arrow"></i>
                         </button>
                         <div class="sidebar-submenu" x-show="open" x-collapse>
-                            <a href="{{ route('wp.index') }}"
-                               class="sidebar-link @if($wpActive && !request()->segment(2)) active @endif">
-                                <i class="fas fa-list"></i>
-                                <span>Übersicht</span>
+                            <a href="{{ route('employes.self') }}"
+                               class="sidebar-link @if(request()->segment(1) == 'employes' && request()->segment(2) == 'self') active @endif">
+                                <i class="fas fa-user"></i>
+                                <span>Eigene Daten</span>
                             </a>
-                            @can('create wochenplan')
-                                <a href="{{ route('wp.create') }}"
-                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'create') active @endif">
-                                    <i class="fas fa-plus"></i>
-                                    <span>Neuer Plan</span>
-                                </a>
-                                <a href="{{ route('wp.vorlagen.index') }}"
-                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'vorlagen') active @endif">
-                                    <i class="fas fa-copy"></i>
-                                    <span>Vorlagen</span>
+                            @can('create roster')
+                                <a href="{{ route('roster.index') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'roster') active @endif">
+                                    <i class="fas fa-columns"></i>
+                                    <span>Dienstpläne</span>
                                 </a>
                             @endcan
-                            @can('manage wochenplan-faecher')
-                                <a href="{{ route('wp.faecher.index') }}"
-                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'faecher') active @endif">
-                                    <i class="fas fa-tags"></i>
-                                    <span>Fächer</span>
+                            @can('edit employe')
+                                <a href="{{ route('employes.index') }}"
+                                   class="sidebar-link @if(Route::currentRouteName() == 'employes.index' || Route::currentRouteName() == 'employes.show') active @endif">
+                                    <i class="fas fa-users"></i>
+                                    <span>Personal Übersicht</span>
                                 </a>
                             @endcan
-                            @can('manage wochenplan-formatvorlagen')
-                                <a href="{{ route('wp.formatvorlagen.index') }}"
-                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'formatvorlagen') active @endif">
-                                    <i class="fas fa-palette"></i>
-                                    <span>Formatvorlagen</span>
+                            @can('lock timesheets')
+                                <a href="{{ url('timesheets/select/employe') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) != auth()->id() && request()->segment(2) != 'import') active @endif">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Arbeitszeitnachweise</span>
                                 </a>
                             @endcan
+                            @can('has timesheet')
+                                <a href="{{ url('timesheets/'.auth()->id()) }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) == auth()->id()) active @endif">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Meine Zeitnachweise</span>
+                                </a>
+                            @endcan
+                            @canany(['has holidays', 'approve holidays'])
+                                <a href="{{ route('holidays.index') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'holidays') active @endif">
+                                    <i class="fas fa-umbrella-beach"></i>
+                                    <span>Urlaub</span>
+                                </a>
+                            @endcanany
                         </div>
                     </div>
                 @endcanany
+
+                {{-- Raumplan --}}
+                @can('view roomBooking')
+                    <a href="{{ url('rooms/rooms') }}"
+                       class="sidebar-link @if(request()->segment(1) == 'rooms') active @endif">
+                        <i class="fa fa-calendar-alt"></i>
+                        <span>Raumplan</span>
+                    </a>
+                @endcan
+
 
                 {{-- ── TICKETSYSTEM (Untermenü) ────────────────────────── --}}
                 @can('view tickets')
