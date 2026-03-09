@@ -9,10 +9,17 @@
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
-        Zurück zum Klassenplan
+        Zurück zum Plan
     </a>
     <h1 class="text-xl font-bold text-gray-900 mb-1">Individuellen Kinderplan erstellen</h1>
     <p class="text-sm text-gray-500 mb-6">Basiert auf: <strong>{{ $wpPlan->name }}</strong></p>
+
+    @if(!$wpPlan->klasse)
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+            ⚠️ Dieser Plan ist keiner Klasse zugeordnet. Wähle Schüler/innen aus allen verfügbaren Klassen.
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('wp.schuelerplan.store', $wpPlan) }}"
           class="bg-white rounded-lg border border-gray-200 p-5 space-y-5">
         @csrf
@@ -25,29 +32,97 @@
             @error('schueler_ids')
                 <p class="text-red-600 text-xs mb-2">{{ $message }}</p>
             @enderror
-            <div class="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-72 overflow-y-auto">
-                @forelse($schueler as $s)
-                    @php $vorhanden = in_array($s->id, $bereitsVorhanden); @endphp
-                    <label class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 {{ $vorhanden ? 'opacity-60' : '' }}">
-                        <input type="checkbox" name="schueler_ids[]" value="{{ $s->id }}"
-                               class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                               {{ $vorhanden ? '' : '' }}>
-                        <div class="flex-1 min-w-0">
-                            <span class="text-sm font-medium text-gray-900">
-                                {{ $s->nachname }}, {{ $s->vorname }}
-                            </span>
-                            @if($vorhanden)
-                                <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
-                                    Plan bereits vorhanden
+
+            {{-- Alle auswählen / Alle abwählen --}}
+            <div class="flex gap-3 mb-2">
+                <button type="button" onclick="document.querySelectorAll('input[name=\'schueler_ids[]\']:not([disabled])').forEach(cb => cb.checked = true)"
+                        class="text-xs text-primary-600 hover:underline">Alle auswählen</button>
+                <button type="button" onclick="document.querySelectorAll('input[name=\'schueler_ids[]\']').forEach(cb => cb.checked = false)"
+                        class="text-xs text-gray-500 hover:underline">Alle abwählen</button>
+            </div>
+
+            <div class="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                @if($wpPlan->klasse)
+                    {{-- Plan hat Klasse: Schüler direkt anzeigen --}}
+                    @forelse($schueler as $s)
+                        @php $vorhanden = in_array($s->id, $bereitsVorhanden); @endphp
+                        <label class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 {{ $vorhanden ? 'opacity-60' : '' }}">
+                            <input type="checkbox" name="schueler_ids[]" value="{{ $s->id }}"
+                                   class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm font-medium text-gray-900">
+                                    {{ $s->nachname }}, {{ $s->vorname }}
                                 </span>
-                            @endif
+                                @if($vorhanden)
+                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
+                                        Plan bereits vorhanden
+                                    </span>
+                                @endif
+                            </div>
+                        </label>
+                    @empty
+                        <p class="px-4 py-6 text-sm text-gray-400 text-center">
+                            Keine Schüler/innen in dieser Klasse gefunden.
+                        </p>
+                    @endforelse
+                @else
+                    {{-- Plan ohne Klasse: Schüler nach Klasse gruppiert --}}
+                    @forelse($klassen ?? [] as $klasse)
+                        @php
+                            $klasseSchueler = $schueler->where('klasse_id', $klasse->id)->values();
+                        @endphp
+                        @if($klasseSchueler->count() > 0)
+                            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    {{ $klasse->name }}
+                                </span>
+                            </div>
+                            @foreach($klasseSchueler as $s)
+                                @php $vorhanden = in_array($s->id, $bereitsVorhanden); @endphp
+                                <label class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 {{ $vorhanden ? 'opacity-60' : '' }}">
+                                    <input type="checkbox" name="schueler_ids[]" value="{{ $s->id }}"
+                                           class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                    <div class="flex-1 min-w-0">
+                                        <span class="text-sm font-medium text-gray-900">
+                                            {{ $s->nachname }}, {{ $s->vorname }}
+                                        </span>
+                                        @if($vorhanden)
+                                            <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
+                                                Plan bereits vorhanden
+                                            </span>
+                                        @endif
+                                    </div>
+                                </label>
+                            @endforeach
+                        @endif
+                    @empty
+                        <p class="px-4 py-6 text-sm text-gray-400 text-center">
+                            Keine Schüler/innen gefunden.
+                        </p>
+                    @endforelse
+                    @if(($schueler->whereNull('klasse_id')->count() ?? 0) > 0)
+                        <div class="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ohne Klasse</span>
                         </div>
-                    </label>
-                @empty
-                    <p class="px-4 py-6 text-sm text-gray-400 text-center">
-                        Keine Schüler/innen in dieser Klasse gefunden.
-                    </p>
-                @endforelse
+                        @foreach($schueler->whereNull('klasse_id') as $s)
+                            @php $vorhanden = in_array($s->id, $bereitsVorhanden); @endphp
+                            <label class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 {{ $vorhanden ? 'opacity-60' : '' }}">
+                                <input type="checkbox" name="schueler_ids[]" value="{{ $s->id }}"
+                                       class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-medium text-gray-900">
+                                        {{ $s->nachname }}, {{ $s->vorname }}
+                                    </span>
+                                    @if($vorhanden)
+                                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
+                                            Plan bereits vorhanden
+                                        </span>
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    @endif
+                @endif
             </div>
         </div>
         {{-- Formatvorlage --}}
@@ -78,3 +153,4 @@
 @push('js')
     @vite('resources/js/wochenplan.js')
 @endpush
+

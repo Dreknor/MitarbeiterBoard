@@ -27,8 +27,7 @@ class WpPlan extends Model implements HasMedia
     // ─── Scopes ──────────────────────────────────────────────────────────────
     public function scopeKlassenplaene($query)
     {
-        return $query->whereNotNull('klasse_id')
-                     ->whereNull('schueler_id')
+        return $query->whereNull('schueler_id')
                      ->where('is_vorlage', false);
     }
     public function scopeSchuelerplaene($query)
@@ -98,7 +97,8 @@ class WpPlan extends Model implements HasMedia
     {
         if ($this->is_vorlage) return 'Vorlage';
         if ($this->schueler_id) return 'Individuell';
-        return 'Klassenplan';
+        if ($this->klasse_id) return 'Klassenplan';
+        return 'Allgemeiner Plan';
     }
     public function getZeitraumAttribute(): string
     {
@@ -109,7 +109,9 @@ class WpPlan extends Model implements HasMedia
     // ─── Helper ───────────────────────────────────────────────────────────────
     public function isKlassenplan(): bool
     {
-        return $this->klasse_id !== null && $this->schueler_id === null;
+        // Ein Plan gilt als Basis für Schülerpläne, wenn er kein Schülerplan
+        // und keine Vorlage ist (unabhängig davon, ob eine Klasse gesetzt ist).
+        return $this->schueler_id === null && !$this->is_vorlage;
     }
     public function isSchuelerplan(): bool
     {

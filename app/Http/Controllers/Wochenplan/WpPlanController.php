@@ -141,19 +141,30 @@ class WpPlanController extends Controller
 
     public function createSchuelerplan(WpPlan $wpPlan)
     {
-        if (!$wpPlan->isKlassenplan()) {
+        if ($wpPlan->isVorlage()) {
             return redirect()->back()->with([
                 'type'    => 'warning',
-                'Meldung' => 'Kinderpläne können nur von Klassenplänen erstellt werden.',
+                'Meldung' => 'Von einer Vorlage können keine Kinderpläne erstellt werden.',
             ]);
         }
 
-        $schueler        = $wpPlan->klasse->schueler()->orderBy('nachname')->orderBy('vorname')->get();
-        $formatvorlagen  = WpFormatvorlage::orderBy('name')->get();
+        if ($wpPlan->klasse) {
+            // Nur Schüler der zugeordneten Klasse anzeigen
+            $schueler = $wpPlan->klasse->schueler()
+                ->orderBy('nachname')->orderBy('vorname')->get();
+            $klassen = null;
+        } else {
+            // Plan ohne Klasse: alle Schüler aller Klassen anzeigen (gruppiert)
+            $schueler = Schueler::with('klasse')
+                ->orderBy('nachname')->orderBy('vorname')->get();
+            $klassen = Klasse::orderBy('name')->get();
+        }
+
+        $formatvorlagen   = WpFormatvorlage::orderBy('name')->get();
         $bereitsVorhanden = $wpPlan->kinderPlaene()->pluck('schueler_id')->toArray();
 
         return view('wochenplan.new.schuelerplan.create', compact(
-            'wpPlan', 'schueler', 'formatvorlagen', 'bereitsVorhanden'
+            'wpPlan', 'schueler', 'formatvorlagen', 'bereitsVorhanden', 'klassen'
         ));
     }
 

@@ -5,7 +5,7 @@
     <div class="flex items-start justify-between gap-2">
         <div>
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                {{ $plan->is_vorlage ? 'bg-purple-100 text-purple-700' : ($plan->isSchuelerplan() ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700') }}">
+                {{ $plan->is_vorlage ? 'bg-purple-100 text-purple-700' : ($plan->isSchuelerplan() ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700') }}">
                 {{ $plan->typ }}
             </span>
             <h3 class="font-semibold text-gray-900 text-sm mt-1 leading-tight">{{ $plan->name }}</h3>
