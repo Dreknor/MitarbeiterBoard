@@ -48,14 +48,20 @@ class WpWordService
 
         // Spaltenbreiten (cm)
         $spalten   = $config['spalten'] ?? [];
-        $hasDauer  = !empty($spalten['dauer_breite']) || false;
 
         // Spaltenbreiten in cm
         $colFach         = $spalten['fach_breite'] ?? 3.5;
-        $colAufgaben     = $spalten['aufgaben_breite'] ?? ($hasDauer ? 8.5 : 9.0);
+        $hasDauer        = !empty($spalten['zeige_dauer']) || !empty($spalten['dauer_breite']);
         $colDauer        = $spalten['dauer_breite'] ?? 0;
-        $colCheck        = 1.0;
-        $colUnterschrift = $spalten['unterschrift_breite'] ?? 3.5;
+        $colCheck        = ($spalten['zeige_check_spalte'] ?? true) ? 1.2 : 0;
+        $hasKontrolliert = $spalten['zeige_kontrolliert_spalte'] ?? false;
+        $colKontrolliert = $hasKontrolliert ? 2.5 : 0;
+        $hasUnterschrift = $spalten['zeige_unterschrift_spalte'] ?? true;
+        $colUnterschrift = $hasUnterschrift ? ($spalten['unterschrift_breite'] ?? 3.5) : 0;
+        // Aufgaben-Breite: Rest der verfügbaren Breite
+        $colAufgaben = $spalten['aufgaben_breite'] ?? (
+            $hasDauer ? 8.0 : (10.5 - $colUnterschrift - ($hasKontrolliert ? 2.5 : 0))
+        );
 
         // ─── PhpWord Instanz ──────────────────────────────────────────────────
         $phpWord = new PhpWord();
@@ -162,10 +168,18 @@ class WpWordService
             $table->addCell(Converter::cmToTwip($colDauer), $headerCellStyle)
                   ->addText('Dauer', $headerFontStyle, $headerParaStyle);
         }
-        $table->addCell(Converter::cmToTwip($colCheck), $headerCellStyle)
-              ->addText('✓', $headerFontStyle, $headerParaStyle);
-        $table->addCell(Converter::cmToTwip($colUnterschrift), $headerCellStyle)
-              ->addText('Unterschrift', $headerFontStyle, $headerParaStyle);
+        if ($colCheck > 0) {
+            $table->addCell(Converter::cmToTwip($colCheck), $headerCellStyle)
+                  ->addText('✓', $headerFontStyle, $headerParaStyle);
+        }
+        if ($hasUnterschrift) {
+            $table->addCell(Converter::cmToTwip($colUnterschrift), $headerCellStyle)
+                  ->addText('Unterschrift', $headerFontStyle, $headerParaStyle);
+        }
+        if ($hasKontrolliert) {
+            $table->addCell(Converter::cmToTwip($colKontrolliert), $headerCellStyle)
+                  ->addText('Kontrolliert', $headerFontStyle, $headerParaStyle);
+        }
 
         // Fach-Zeilen
         $fachFontStyle = [
@@ -204,8 +218,15 @@ class WpWordService
                 if ($hasDauer) {
                     $table->addCell(Converter::cmToTwip($colDauer));
                 }
-                $table->addCell(Converter::cmToTwip($colCheck));
-                $table->addCell(Converter::cmToTwip($colUnterschrift));
+                if ($colCheck > 0) {
+                    $table->addCell(Converter::cmToTwip($colCheck));
+                }
+                if ($hasUnterschrift) {
+                    $table->addCell(Converter::cmToTwip($colUnterschrift));
+                }
+                if ($hasKontrolliert) {
+                    $table->addCell(Converter::cmToTwip($colKontrolliert));
+                }
                 continue;
             }
 
@@ -234,10 +255,19 @@ class WpWordService
             }
 
             // Haken-Zelle
-            $table->addCell(Converter::cmToTwip($colCheck));
+            if ($colCheck > 0) {
+                $table->addCell(Converter::cmToTwip($colCheck));
+            }
 
             // Unterschrift-Zelle
-            $table->addCell(Converter::cmToTwip($colUnterschrift));
+            if ($hasUnterschrift) {
+                $table->addCell(Converter::cmToTwip($colUnterschrift));
+            }
+
+            // Kontrolliert-Zelle
+            if ($hasKontrolliert) {
+                $table->addCell(Converter::cmToTwip($colKontrolliert));
+            }
         }
 
         $section->addText('');
@@ -276,15 +306,6 @@ class WpWordService
             }
         }
 
-        // ─── Unterschriftszeilen ──────────────────────────────────────────────
-        if (!empty($config['unterschrift'])) {
-            $section->addText('');
-            $section->addText(
-                'Unterschrift Lehrer: ................................................................',
-                ['name' => $schriftart, 'size' => $schriftgroesse],
-                ['spaceBefore' => 200]
-            );
-        }
 
         // ─── Datei speichern ──────────────────────────────────────────────────
         $filename = $this->filename($plan);

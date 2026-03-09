@@ -343,35 +343,61 @@
         <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">📎 Arbeitsblätter</h3>
 
-            @if($wpPlan->media->count() > 0)
-                <div class="space-y-2 mb-3">
+            @if($wpPlan->getMedia('arbeitsblaetter')->count() > 0)
+                <ul class="space-y-2 mb-4">
                     @foreach($wpPlan->getMedia('arbeitsblaetter') as $media)
-                        <div class="flex items-center justify-between text-sm">
-                            <a href="{{ $media->getUrl() }}" target="_blank" class="text-primary-600 hover:underline">
-                                {{ $media->file_name }}
-                            </a>
+                        <li class="flex items-center justify-between bg-gray-50 rounded border border-gray-200 px-3 py-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="flex-shrink-0">
+                                    @if(str_contains($media->mime_type, 'pdf'))📄
+                                    @elseif(str_contains($media->mime_type, 'image'))🖼️
+                                    @else📎
+                                    @endif
+                                </span>
+                                <a href="{{ $media->getUrl() }}" target="_blank"
+                                   class="text-sm text-primary-600 hover:underline truncate">
+                                    {{ $media->file_name }}
+                                </a>
+                                <span class="text-xs text-gray-400 flex-shrink-0">
+                                    ({{ $media->size >= 1048576
+                                        ? number_format($media->size / 1048576, 1) . ' MB'
+                                        : number_format($media->size / 1024, 0) . ' KB' }})
+                                </span>
+                            </div>
                             @canany(['create wochenplan', 'create Wochenplan'])
-                                <form method="POST" action="{{ route('wp.media.remove', $media) }}">
+                                <form method="POST" action="{{ route('wp.media.remove', $media) }}"
+                                      onsubmit="return confirm('Datei wirklich entfernen?')" class="ml-3 flex-shrink-0">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-500 hover:text-red-700">Entfernen</button>
+                                    <button type="submit" class="text-sm text-red-500 hover:text-red-700" title="Entfernen">🗑️</button>
                                 </form>
                             @endcanany
-                        </div>
+                        </li>
                     @endforeach
-                </div>
+                </ul>
+            @else
+                <p class="text-sm text-gray-400 mb-4">Keine Arbeitsblätter angehängt.</p>
             @endif
 
             @canany(['create wochenplan', 'create Wochenplan'])
+                @if($errors->has('files') || $errors->has('files.*'))
+                    <div class="mb-2 text-xs text-red-600">
+                        @foreach($errors->get('files.*') as $msgs)
+                            @foreach($msgs as $msg)<div>{{ $msg }}</div>@endforeach
+                        @endforeach
+                    </div>
+                @endif
                 <form method="POST" action="{{ route('wp.media.add', $wpPlan) }}" enctype="multipart/form-data"
                       class="flex items-center gap-3">
                     @csrf
-                    <input type="file" name="file" accept=".pdf,.doc,.docx,.jpg,.png"
-                           class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
+                    <input type="file" name="files[]" multiple
+                           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.odt"
+                           class="text-sm text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
                     <button type="submit"
-                            class="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-md hover:bg-gray-200">
+                            class="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700">
                         Hochladen
                     </button>
                 </form>
+                <p class="text-xs text-gray-400 mt-1">Erlaubt: PDF, Bilder, Word, ODT · Max. 10 MB pro Datei · Mehrere Dateien wählbar</p>
             @endcanany
         </div>
     @endif

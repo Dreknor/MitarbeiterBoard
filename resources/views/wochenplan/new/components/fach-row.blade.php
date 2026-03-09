@@ -1,4 +1,4 @@
-﻿{{-- Fach-Block mit Aufgabenliste --}}
+﻿﻿{{-- Fach-Block mit Aufgabenliste --}}
 <div class="bg-white rounded-lg border border-gray-200 mb-4" data-sortable-fach
      x-data="{ open: true, confirmSync: false }">
     {{-- Fach-Header --}}
@@ -8,7 +8,12 @@
             <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
-            <h3 class="font-semibold text-gray-800 text-sm">{{ $planFach->display_name }}</h3>
+            <h3 class="font-semibold text-gray-800 text-sm">
+                @if($planFach->fach && $planFach->fach->symbol_html)
+                    {!! $planFach->fach->symbol_html !!}
+                @endif
+                {{ $planFach->display_name }}
+            </h3>
             <span class="text-xs text-gray-400">({{ $planFach->aufgaben->count() }} Aufgaben)</span>
         </div>
         <div class="flex items-center gap-1" @click.stop>

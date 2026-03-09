@@ -232,13 +232,19 @@ class WpPlanController extends Controller
 
     public function addMedia(Request $request, WpPlan $wpPlan)
     {
-        $request->validate(['file' => 'required|file|mimes:pdf,doc,docx,jpg,png|max:10240']);
+        $request->validate([
+            'files'   => 'required|array|min:1',
+            'files.*' => 'file|mimes:pdf,jpg,jpeg,png,doc,docx,odt|max:10240',
+        ]);
 
-        $wpPlan->addMedia($request->file('file'))
-            ->toMediaCollection('arbeitsblaetter');
+        $count = 0;
+        foreach ($request->file('files') as $file) {
+            $wpPlan->addMedia($file)->toMediaCollection('arbeitsblaetter');
+            $count++;
+        }
 
         return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Datei wurde hochgeladen.']);
+            ->with(['type' => 'success', 'Meldung' => $count . ' Datei(en) hochgeladen.']);
     }
 
     public function removeMedia(Media $media)

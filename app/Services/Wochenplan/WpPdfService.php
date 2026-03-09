@@ -34,8 +34,10 @@ class WpPdfService
             'config'        => $config,
         ]);
 
-        // Seitenformat und Ränder
-        $pdf->setPaper('A4', 'portrait');
+        // Seitenformat und Ränder aus Config
+        $papierGroesse    = strtolower($config['papier']['groesse']    ?? 'A4');
+        $papierAusrichtung = $config['papier']['ausrichtung'] ?? 'portrait';
+        $pdf->setPaper($papierGroesse, $papierAusrichtung);
 
         // Margins aus Config (in mm), Fallback auf Standardwerte
         $margins = $config['seitenraender'] ?? ['oben' => 15, 'rechts' => 15, 'unten' => 15, 'links' => 15];

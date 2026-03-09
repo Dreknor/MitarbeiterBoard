@@ -1,5 +1,7 @@
 @php
-    $baseSizePt = match($formatvorlage->schriftgroesse ?? 'normal') {
+    // Schriftgröße: custom pt-Wert hat Vorrang vor Enum
+    $customPt = $config['typografie']['schriftgroesse_pt'] ?? null;
+    $baseSizePt = $customPt ?: match($formatvorlage->schriftgroesse ?? 'normal') {
         'gross'      => 14,
         'sehr_gross' => 18,
         default      => 11,
@@ -11,6 +13,19 @@
     $klasseSize = ($baseSizePt + 1) . 'pt';
     $smallSize = max(8, $baseSizePt - 1) . 'pt';
     $tinySize = max(7, $baseSizePt - 2) . 'pt';
+    $zeilenabstand = $config['typografie']['zeilenabstand'] ?? 1.4;
+    $abstandFaecher = ($config['abstände']['zwischen_fächern'] ?? 5) . 'mm';
+    $abstandAufgaben = ($config['abstände']['zwischen_aufgaben'] ?? 2) . 'mm';
+    $minZeilenhoehe = ($config['abstände']['min_fach_zeilenhoehe'] ?? 0);
+    $minZeilenhoeheStr = $minZeilenhoehe > 0 ? $minZeilenhoehe . 'mm' : 'auto';
+    $zeigeCheck = $config['spalten']['zeige_check_spalte'] ?? true;
+    $zeigeKontrolliert = $config['spalten']['zeige_kontrolliert_spalte'] ?? false;
+    $zeigeUnterschrift = $config['spalten']['zeige_unterschrift_spalte'] ?? true;
+    $zeigeDauer = $config['spalten']['zeige_dauer'] ?? false;
+    $colFach = $config['spalten']['fach'] ?? '15%';
+    $colAufgaben = $config['spalten']['aufgaben'] ?? '55%';
+    $colCheck = $config['spalten']['check'] ?? '5%';
+    $colUnterschrift = $config['spalten']['unterschrift'] ?? '25%';
 @endphp
 <!DOCTYPE html>
 <html lang="de">
@@ -23,6 +38,7 @@
         body {
             font-family: {{ $schriftartCss }};
             font-size: {{ $schriftgroesse }};
+            line-height: {{ $zeilenabstand }};
             color: #000;
             padding: {{ $margins['oben'] ?? 15 }}mm {{ $margins['rechts'] ?? 15 }}mm {{ $margins['unten'] ?? 15 }}mm {{ $margins['links'] ?? 15 }}mm;
         }
@@ -35,16 +51,24 @@
         .header-right { display: table-cell; text-align: right; vertical-align: top; }
         .header-klasse { font-weight: bold; font-size: {{ $klasseSize }}; }
         .name-feld { margin-top: 4px; font-size: {{ $schriftgroesse }}; }
+        .header-freitext { margin-top: 2px; font-size: {{ $smallSize }}; color: #555; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         th { background-color: #f0f0f0; border: 1px solid #666; padding: 4px 6px; text-align: left; font-weight: bold; font-size: {{ $smallSize }}; }
         td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; }
-        .td-fach { font-weight: bold; vertical-align: middle; width: {{ $config['spalten']['fach'] ?? '15%' }}; text-align: center; }
-        .td-aufgaben { width: {{ $config['spalten']['aufgaben'] ?? '55%' }}; }
-        .td-check { width: {{ $config['spalten']['check'] ?? '5%' }}; text-align: center; }
-        .td-unterschrift { width: {{ $config['spalten']['unterschrift'] ?? '25%' }}; }
+        .td-fach { font-weight: bold; vertical-align: middle; width: {{ $colFach }}; text-align: center; }
+        .td-aufgaben { width: {{ $colAufgaben }}; }
+        .td-check { width: {{ $colCheck }}; text-align: center; }
+        .td-unterschrift { width: {{ $colUnterschrift }}; }
+        .td-kontrolliert { width: 12%; }
 
-        .aufgabe-zeile { padding: 2px 0; border-bottom: 1px dotted #ccc; }
+        /* Fach-Symbol */
+        .wp-fach-symbol { margin-right: 3px; }
+        .wp-fach-symbol--emoji { font-size: {{ $schriftgroesse }}; }
+
+        /* Abstände */
+        .fach-row-gap { margin-bottom: {{ $abstandFaecher }}; }
+        .aufgabe-zeile { padding-bottom: {{ $abstandAufgaben }}; border-bottom: 1px dotted #ccc; min-height: {{ $minZeilenhoeheStr }}; }
         .aufgabe-zeile:last-child { border-bottom: none; }
         .dauer { color: #555; font-size: {{ $smallSize }}; margin-left: 4px; }
 
@@ -56,10 +80,7 @@
         .smiley-label { font-size: {{ $smallSize }}; }
         .skala-container { display: table; margin-top: 4px; }
         .skala-item { display: table-cell; width: 20px; height: 20px; border: 1px solid #666; text-align: center; font-size: {{ $tinySize }}; }
-        .unterschrift-zeilen { display: table; width: 100%; margin-top: 10px; }
-        .unterschrift-zeile { display: table-cell; padding-right: 20px; }
-        .unterschrift-linie { border-bottom: 1px solid #000; margin-bottom: 2px; height: 20px; }
-        .unterschrift-text { font-size: {{ $tinySize }}; color: #555; }
+        .footer-freitext { margin-top: 8px; font-size: {{ $smallSize }}; color: #555; }
     </style>
 </head>
 <body>
@@ -75,8 +96,11 @@
                     Name: ..............................
                 @endif
             </div>
+            @if(!empty($config['header']['freitext']))
+                <div class="header-freitext">{{ $config['header']['freitext'] }}</div>
+            @endif
         </div>
-        @if($plan->klasse)
+        @if($plan->klasse && ($config['header']['zeige_klasse'] ?? true))
             <div class="header-right">
                 <div class="header-klasse">{{ $plan->klasse->name }}</div>
             </div>
@@ -89,22 +113,34 @@
         <tr>
             <th class="td-fach">Fach</th>
             <th class="td-aufgaben">Aufgaben</th>
-            @if($config['spalten']['zeige_dauer'] ?? false)
+            @if($zeigeDauer)
                 <th style="width:10%">Dauer</th>
             @endif
-            <th class="td-check">&#10003;</th>
-            <th class="td-unterschrift">Unterschrift</th>
+            @if($zeigeCheck)
+                <th class="td-check">&#10003;</th>
+            @endif
+            @if($zeigeUnterschrift)
+                <th class="td-unterschrift">Unterschrift</th>
+            @endif
+            @if($zeigeKontrolliert)
+                <th class="td-kontrolliert">Kontrolliert</th>
+            @endif
         </tr>
     </thead>
     <tbody>
         @forelse($plan->planFaecher as $planFach)
-            <tr>
-                <td class="td-fach">{{ $planFach->display_name }}</td>
+            <tr class="fach-row-gap">
+                <td class="td-fach">
+                    @if($planFach->fach && $planFach->fach->symbol_html)
+                        {!! $planFach->fach->symbol_html !!}<br>
+                    @endif
+                    {{ $planFach->display_name }}
+                </td>
                 <td class="td-aufgaben">
                     @forelse($planFach->aufgaben as $aufgabe)
                         <div class="aufgabe-zeile">
                             {{ $aufgabe->aufgabe }}
-                            @if($aufgabe->dauer)
+                            @if($aufgabe->dauer && !$zeigeDauer)
                                 <span class="dauer">({{ $aufgabe->dauer }})</span>
                             @endif
                         </div>
@@ -112,11 +148,22 @@
                         &nbsp;
                     @endforelse
                 </td>
-                @if($config['spalten']['zeige_dauer'] ?? false)
-                    <td>&nbsp;</td>
+                @if($zeigeDauer)
+                    <td>
+                        @foreach($planFach->aufgaben as $aufgabe)
+                            <div class="aufgabe-zeile">{{ $aufgabe->dauer }}</div>
+                        @endforeach
+                    </td>
                 @endif
-                <td class="td-check">&nbsp;</td>
-                <td class="td-unterschrift">&nbsp;</td>
+                @if($zeigeCheck)
+                    <td class="td-check">&nbsp;</td>
+                @endif
+                @if($zeigeUnterschrift)
+                    <td class="td-unterschrift">&nbsp;</td>
+                @endif
+                @if($zeigeKontrolliert)
+                    <td class="td-kontrolliert">&nbsp;</td>
+                @endif
             </tr>
         @empty
             <tr>
@@ -147,22 +194,12 @@
         </div>
     @endif
 
-    @if($config['footer']['zeige_unterschrift'] ?? true)
-        <div class="unterschrift-zeilen">
-            <div class="unterschrift-zeile">
-                <div class="unterschrift-linie">&nbsp;</div>
-                <div class="unterschrift-text">Unterschrift Lehrkraft</div>
-            </div>
-            <div class="unterschrift-zeile">
-                <div class="unterschrift-linie">&nbsp;</div>
-                <div class="unterschrift-text">Unterschrift Eltern</div>
-            </div>
-        </div>
+    @if(!empty($config['footer']['freitext']))
+        <div class="footer-freitext">{{ $config['footer']['freitext'] }}</div>
     @endif
 
 </div>
 
 </body>
 </html>
-
 

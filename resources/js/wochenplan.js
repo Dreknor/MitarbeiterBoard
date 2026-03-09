@@ -176,6 +176,74 @@ Alpine.data('confirmAction', () => ({
     }
 }));
 
+/**
+ * Formatvorlagen-Editor mit Live-Vorschau
+ * Verwendung: <div x-data="formatvorlageEditor()">
+ *   <form id="wp-formatvorlage-form" data-preview-url="...">...</form>
+ *   <iframe id="wp-formatvorlage-preview">...</iframe>
+ * </div>
+ */
+Alpine.data('formatvorlageEditor', () => ({
+    previewLoading: false,
+
+    init() {
+        // Initiale Vorschau laden sobald das Create-Formular bereit ist
+        // (beim Edit ist bereits eine src gesetzt, daher nur ohne src laden)
+        this.$nextTick(() => {
+            const frame = document.getElementById('wp-formatvorlage-preview');
+            if (frame && !frame.getAttribute('src')) {
+                this.updatePreview();
+            }
+        });
+    },
+
+    getForm() {
+        return document.getElementById('wp-formatvorlage-form')
+            || (this.$el.tagName === 'FORM' ? this.$el : this.$el.querySelector('form'));
+    },
+
+    async updatePreview() {
+        const form = this.getForm();
+        if (!form) return;
+
+        const previewUrl = form.dataset.previewUrl;
+        if (!previewUrl) return;
+
+        const previewFrame = document.getElementById('wp-formatvorlage-preview');
+        if (!previewFrame) return;
+
+        this.previewLoading = true;
+
+        const formData = new FormData(form);
+        // FormData in plain object umwandeln (Checkboxen werden nur gesendet wenn gecheckt)
+        const config = {};
+        for (const [key, value] of formData.entries()) {
+            config[key] = value;
+        }
+
+        try {
+            const response = await fetch(previewUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify(config),
+            });
+
+            if (response.ok) {
+                previewFrame.srcdoc = await response.text();
+                // src entfernen damit srcdoc aktiv ist
+                previewFrame.removeAttribute('src');
+            }
+        } catch (err) {
+            console.error('Preview update failed:', err);
+        } finally {
+            this.previewLoading = false;
+        }
+    }
+}));
+
 // Alpine starten
 Alpine.start();
 

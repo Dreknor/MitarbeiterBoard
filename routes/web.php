@@ -406,6 +406,7 @@ Route::group([
                             Route::put('/{wpFormatvorlage}', [WpFormatvorlageController::class, 'update'])->name('update');
                             Route::delete('/{wpFormatvorlage}', [WpFormatvorlageController::class, 'destroy'])->name('destroy');
                             Route::get('/{wpFormatvorlage}/vorschau', [WpFormatvorlageController::class, 'vorschau'])->name('vorschau');
+                            Route::post('/vorschau-html', [WpFormatvorlageController::class, 'vorschauHtml'])->name('vorschau-html');
                         });
                 });
 
