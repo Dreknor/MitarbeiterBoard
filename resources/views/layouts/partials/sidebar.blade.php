@@ -5,12 +5,12 @@
 
     {{-- Logo / Branding --}}
     <div class="sidebar-logo">
-        <a href="{{ config('app.url') }}" style="display:flex;align-items:center;gap:0.75rem;text-decoration:none;">
-            <img src="{{ asset('img/'.config('app.logo')) }}" alt="Logo">
+        <a href="{{ config('app.url') }}" style="display:flex;align-items:center;justify-content:center;text-decoration:none;width:100%;">
+            <img src="{{ asset('img/'.config('app.logo')) }}" alt="{{ env('APP_NAME') }}" style="width:100%;max-width:180px;height:auto;object-fit:contain;">
         </a>
         {{-- Mobile: Schließen-Button --}}
-        <button id="sidebar-close-btn" class="md:hidden"
-                style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:1.25rem;padding:0.25rem;"
+        <button id="sidebar-close-btn"
+                style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:1.25rem;padding:0.25rem;"
                 aria-label="Sidebar schließen">
             <i class="fas fa-times"></i>
         </button>

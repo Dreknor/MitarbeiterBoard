@@ -11,6 +11,14 @@
         <i class="fas fa-bars"></i>
     </button>
 
+    {{-- Desktop: Sidebar wieder einblenden (nur sichtbar wenn eingeklappt) --}}
+    <button id="sidebar-reopen-btn"
+            style="background:none;border:none;cursor:pointer;color:#374151;font-size:1.25rem;padding:0.25rem 0.5rem;align-items:center;gap:0.4rem;"
+            title="Menü einblenden"
+            aria-label="Menü einblenden">
+        <i class="fas fa-bars"></i>
+    </button>
+
     {{-- Seitentitel / App-Name --}}
     <span class="topbar-title">
         @hasSection('site-title')

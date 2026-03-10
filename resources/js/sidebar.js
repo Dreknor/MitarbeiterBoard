@@ -9,28 +9,39 @@ window.Alpine = Alpine;
 
 // Sidebar-Toggle für Mobile
 document.addEventListener('DOMContentLoaded', function () {
-    const sidebar   = document.getElementById('tw-sidebar');
-    const overlay   = document.getElementById('sidebar-overlay');
-    const openBtn   = document.getElementById('sidebar-open-btn');
-    const closeBtn  = document.getElementById('sidebar-close-btn');
+    const sidebar     = document.getElementById('tw-sidebar');
+    const overlay     = document.getElementById('sidebar-overlay');
+    const openBtn     = document.getElementById('sidebar-open-btn');
+    const closeBtn    = document.getElementById('sidebar-close-btn');
+    const reopenBtn   = document.getElementById('sidebar-reopen-btn');
+
+    const isMobile = () => window.innerWidth < 768;
 
     function openSidebar() {
-        if (sidebar)  sidebar.classList.add('sidebar-open');
-        if (overlay)  overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        if (isMobile()) {
+            sidebar?.classList.add('sidebar-open');
+            overlay?.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.classList.remove('sidebar-collapsed');
+        }
     }
 
     function closeSidebar() {
-        if (sidebar)  sidebar.classList.remove('sidebar-open');
-        if (overlay)  overlay.classList.remove('active');
-        document.body.style.overflow = '';
+        if (isMobile()) {
+            sidebar?.classList.remove('sidebar-open');
+            overlay?.classList.remove('active');
+            document.body.style.overflow = '';
+        } else {
+            document.body.classList.add('sidebar-collapsed');
+        }
     }
 
-    if (openBtn)  openBtn.addEventListener('click', openSidebar);
-    if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
-    if (overlay)  overlay.addEventListener('click', closeSidebar);
+    if (openBtn)    openBtn.addEventListener('click', openSidebar);
+    if (reopenBtn)  reopenBtn.addEventListener('click', openSidebar);
+    if (closeBtn)   closeBtn.addEventListener('click', closeSidebar);
+    if (overlay)    overlay.addEventListener('click', closeSidebar);
 
-    // Escape-Taste schließt Sidebar
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeSidebar();
     });
