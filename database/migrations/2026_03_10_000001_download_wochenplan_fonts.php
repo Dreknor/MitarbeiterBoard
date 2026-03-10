@@ -18,7 +18,9 @@ return new class extends Migration
      * Format: 'Dateiname' => 'Download-URL'
      */
     private array $fonts = [
-        'NotoSansSymbols2-Regular.ttf' => 'https://github.com/googlefonts/noto-fonts/raw/main/fonts/NotoSansSymbols2/NotoSansSymbols2-Regular.ttf',
+        // google/fonts repo (offizieller Google-Fonts-GitHub-Mirror)
+        'NotoSansSymbols2-Regular.ttf' => 'https://github.com/google/fonts/raw/main/ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf',
+        // OpenDyslexic (antijingoist/opendyslexic auf GitHub)
         'OpenDyslexic-Regular.otf'     => 'https://raw.githubusercontent.com/antijingoist/opendyslexic/main/compiled/OpenDyslexic-Regular.otf',
     ];
 
