@@ -142,6 +142,23 @@ class WpWordService
                 ['spaceBefore' => 120, 'spaceAfter' => 60, 'borderBottom' => ['size' => 6, 'color' => '666666']]
             );
 
+            // Konfiguration aus Formatvorlage
+            $tuCfg = $config['taegliche_uebungen'] ?? [];
+            $tuLayout       = $tuCfg['layout'] ?? 'horizontal';
+            $tuSizeDatum    = isset($tuCfg['schriftgroesse_datum_pt'])     ? (int) $tuCfg['schriftgroesse_datum_pt']    : max(7, $schriftgroesse - 2);
+            $tuSizeAufgaben = isset($tuCfg['schriftgroesse_aufgaben_pt'])  ? (int) $tuCfg['schriftgroesse_aufgaben_pt'] : $schriftgroesse;
+            $tuSizeWochentag= isset($tuCfg['schriftgroesse_wochentag_pt']) ? (int) $tuCfg['schriftgroesse_wochentag_pt']: max(7, $schriftgroesse - 1);
+            $tuMaxTage      = (int) ($tuCfg['max_tage_pro_tabelle'] ?? 0);
+
+            // Aufgaben-Spalte-Breite: „Xcm" → float, alles andere → Fallback
+            $tuAufgabenBreiteRaw = $tuCfg['aufgaben_spalte_breite'] ?? 'auto';
+            if ($tuAufgabenBreiteRaw !== 'auto' && preg_match('/^([\d.]+)\s*cm$/i', $tuAufgabenBreiteRaw, $m)) {
+                $tuAufgabenBreiteCm = (float) $m[1];
+            } else {
+                // Vertikal: Datum-Spalte schmaler (3 cm), Horizontal: breite Aufgaben-Spalte (7 cm)
+                $tuAufgabenBreiteCm = $tuLayout === 'vertikal' ? 3.0 : 7.0;
+            }
+
             // Wochentage im Planungszeitraum berechnen
             $wordWochentage = [];
             if ($plan->gueltig_von && $plan->gueltig_bis) {
@@ -154,35 +171,177 @@ class WpWordService
                 }
             }
             $wordTagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
-            $dayCount = count($wordWochentage);
 
-            $uebungTable = $section->addTable([
-                'borderSize'  => 6,
-                'borderColor' => '888888',
-                'cellMargin'  => 80,
-            ]);
+            // Tage in Gruppen aufteilen
+            $wordTagesGruppen = ($tuMaxTage > 0 && count($wordWochentage) > $tuMaxTage)
+                ? array_chunk($wordWochentage, $tuMaxTage)
+                : [$wordWochentage];
 
-            // Kopfzeile
-            $uebungTable->addRow(280);
-            $uebungTable->addCell(Converter::cmToTwip(7), ['bgColor' => 'E5E7EB'])
-                        ->addText('Übung', ['name' => $schriftart, 'size' => $schriftgroesse - 1, 'bold' => true]);
-            foreach ($wordWochentage as $idx => $wordTag) {
-                $tagLabel = ($wordTagNamen[$idx] ?? '') . "\n" . $wordTag->format('d.m.');
-                $uebungTable->addCell(Converter::cmToTwip(1.2), ['bgColor' => 'E5E7EB'])
-                            ->addText($tagLabel, ['name' => $schriftart, 'size' => max(7, $schriftgroesse - 2)], ['alignment' => Jc::CENTER]);
-            }
+            // Verfügbare Textbreite für gleichmäßige Übungs-Spalten berechnen
+            $sectionStyleObj   = $section->getStyle();
+            $verfuegbareTwips  = $sectionStyleObj->getPageSizeW()
+                               - $sectionStyleObj->getMarginLeft()
+                               - $sectionStyleObj->getMarginRight();
+            $uebungCount = $plan->taeglicheUebungen->count();
 
-            // Übungs-Zeilen
-            foreach ($plan->taeglicheUebungen as $uebung) {
-                $uebungTable->addRow(280);
-                $uebungTable->addCell(Converter::cmToTwip(7))
-                            ->addText(strip_tags($uebung->aufgabe ?? ''), ['name' => $schriftart, 'size' => $schriftgroesse]);
-                for ($d = 0; $d < $dayCount; $d++) {
-                    $uebungTable->addCell(Converter::cmToTwip(1.2));
+            // Nummernsymbole ①②③… für kompakte Spaltenköpfe
+            $wwNummern = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+            // Legende vor der Tabelle (für vertikal & wochenweise)
+            if (in_array($tuLayout, ['vertikal', 'wochenweise'])) {
+                $legendeText = '';
+                foreach ($plan->taeglicheUebungen as $idx => $uebung) {
+                    $legendeText .= ($wwNummern[$idx] ?? ($idx + 1) . '.') . ' '
+                                  . strip_tags($uebung->aufgabe ?? '') . '   ';
                 }
+                $section->addText(
+                    trim($legendeText),
+                    ['name' => $schriftart, 'size' => $tuSizeAufgaben],
+                    ['spaceBefore' => 60, 'spaceAfter' => 80]
+                );
             }
 
-            $section->addText('');
+            foreach ($wordTagesGruppen as $gruppeIdx => $wordGruppe) {
+                $dayCount = count($wordGruppe);
+
+                $uebungTable = $section->addTable([
+                    'borderSize'  => 6,
+                    'borderColor' => '888888',
+                    'cellMargin'  => 80,
+                ]);
+
+                if ($tuLayout === 'vertikal') {
+                    // ── VERTIKAL ──
+                    $datumTwip   = Converter::cmToTwip($tuAufgabenBreiteCm);
+                    $uebungTwips = $uebungCount > 0
+                        ? (int) (($verfuegbareTwips - $datumTwip) / $uebungCount)
+                        : Converter::cmToTwip(2.5);
+
+                    $uebungTable->addRow(280);
+                    $uebungTable->addCell($datumTwip, ['bgColor' => 'E5E7EB'])
+                                ->addText('Datum', ['name' => $schriftart, 'size' => $tuSizeWochentag, 'bold' => true]);
+                    foreach ($plan->taeglicheUebungen as $idx => $uebung) {
+                        $nummer = $wwNummern[$idx] ?? (($idx + 1) . '.');
+                        $uebungTable->addCell($uebungTwips, ['bgColor' => 'E5E7EB'])
+                                    ->addText(
+                                        $nummer,
+                                        ['name' => $schriftart, 'size' => $tuSizeAufgaben, 'bold' => true],
+                                        ['alignment' => Jc::CENTER]
+                                    );
+                    }
+
+                    foreach ($wordGruppe as $wordTag) {
+                        $tagKuerzel = $wordTagNamen[$wordTag->dayOfWeek !== 0 ? ($wordTag->dayOfWeek - 1) : 4] ?? '';
+                        $tagLabel   = $tagKuerzel . ' ' . $wordTag->format('d.m.');
+                        $uebungTable->addRow(280);
+                        $uebungTable->addCell($datumTwip)
+                                    ->addText($tagLabel, ['name' => $schriftart, 'size' => $tuSizeDatum, 'bold' => true]);
+                        for ($u = 0; $u < $uebungCount; $u++) {
+                            $uebungTable->addCell($uebungTwips);
+                        }
+                    }
+
+                } elseif ($tuLayout === 'wochenweise') {
+                    // ── WOCHENWEISE: Eine Tabelle, Wochentage als Spaltengruppen, Aufgaben-Nummern als Unter-Spalten ──
+                    $wwWochenMap = [];
+                    foreach ($wordGruppe as $wordTag) {
+                        $wkKey = $wordTag->format('o-W');
+                        $dow   = $wordTag->dayOfWeek !== 0 ? ($wordTag->dayOfWeek - 1) : 4;
+                        $wwWochenMap[$wkKey][$dow] = $wordTag;
+                    }
+                    ksort($wwWochenMap);
+                    $wwWochenListe = array_values($wwWochenMap);
+                    $wwVorhandDow  = [];
+                    foreach ($wwWochenMap as $wDays) {
+                        foreach (array_keys($wDays) as $d) { $wwVorhandDow[$d] = true; }
+                    }
+                    ksort($wwVorhandDow);
+                    $wwDowListe = array_keys($wwVorhandDow);
+                    $wwDowCount = count($wwDowListe);
+                    $wwTagVoll  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+
+                    // Wochenspalte: mindestens 2.5 cm (≈15% bei A4)
+                    $wwWocheTwip  = Converter::cmToTwip(max(2.5, $tuAufgabenBreiteCm));
+                    // Rest gleichmäßig auf (Tage × Aufgaben) Spalten
+                    $wwGesamtSpal = $wwDowCount * $uebungCount;
+                    $wwZellTwip   = $wwGesamtSpal > 0
+                        ? (int) (($verfuegbareTwips - $wwWocheTwip) / $wwGesamtSpal)
+                        : Converter::cmToTwip(1.0);
+
+                    // ── Kopfzeile 1: Wochentag-Namen (merged über $uebungCount Spalten) ──
+                    $uebungTable->addRow(280);
+                    $uebungTable->addCell($wwWocheTwip, ['bgColor' => 'E5E7EB'])->addText('');
+                    foreach ($wwDowListe as $dow) {
+                        $uebungTable->addCell($wwZellTwip * $uebungCount, [
+                            'bgColor'  => 'E5E7EB',
+                            'gridSpan' => $uebungCount,
+                        ])->addText(
+                            $wwTagVoll[$dow] ?? '',
+                            ['name' => $schriftart, 'size' => $tuSizeWochentag, 'bold' => true],
+                            ['alignment' => Jc::CENTER]
+                        );
+                    }
+
+                    // ── Kopfzeile 2: Aufgaben-Nummern (kompakt, für jeden Tag wiederholt) ──
+                    $uebungTable->addRow(240);
+                    $uebungTable->addCell($wwWocheTwip, ['bgColor' => 'E5E7EB'])->addText('');
+                    foreach ($wwDowListe as $dow) {
+                        foreach ($plan->taeglicheUebungen as $idx => $uebung) {
+                            $nummer = $wwNummern[$idx] ?? (($idx + 1) . '.');
+                            $uebungTable->addCell($wwZellTwip, ['bgColor' => 'E5E7EB'])
+                                        ->addText(
+                                            $nummer,
+                                            ['name' => $schriftart, 'size' => $tuSizeDatum, 'bold' => true],
+                                            ['alignment' => Jc::CENTER]
+                                        );
+                        }
+                    }
+
+                    // ── Daten-Zeilen: eine Zeile pro Woche ──
+                    foreach ($wwWochenListe as $wIdx => $wDays) {
+                        $uebungTable->addRow(280);
+                        $uebungTable->addCell($wwWocheTwip)
+                                    ->addText(
+                                        'Woche ' . ($wIdx + 1),
+                                        ['name' => $schriftart, 'size' => $tuSizeWochentag, 'bold' => true]
+                                    );
+                        foreach ($wwDowListe as $dow) {
+                            foreach ($plan->taeglicheUebungen as $uebung) {
+                                if (isset($wDays[$dow])) {
+                                    $uebungTable->addCell($wwZellTwip);
+                                } else {
+                                    $uebungTable->addCell($wwZellTwip, ['bgColor' => 'F0F0F0'])
+                                                ->addText('–', ['name' => $schriftart, 'size' => $tuSizeDatum], ['alignment' => Jc::CENTER]);
+                                }
+                            }
+                        }
+                    }
+                    // Keine addText('') nötig – wird am Ende des äußeren foreach gemacht
+
+                } else {
+                    // ── HORIZONTAL ──
+                    $uebungTable->addRow(280);
+                    $uebungTable->addCell(Converter::cmToTwip($tuAufgabenBreiteCm), ['bgColor' => 'E5E7EB'])
+                                ->addText('Übung', ['name' => $schriftart, 'size' => $tuSizeAufgaben, 'bold' => true]);
+                    foreach ($wordGruppe as $wordTag) {
+                        $tagKuerzel = $wordTagNamen[$wordTag->dayOfWeek !== 0 ? ($wordTag->dayOfWeek - 1) : 4] ?? '';
+                        $tagLabel   = $tagKuerzel . "\n" . $wordTag->format('d.m.');
+                        $uebungTable->addCell(Converter::cmToTwip(1.2), ['bgColor' => 'E5E7EB'])
+                                    ->addText($tagLabel, ['name' => $schriftart, 'size' => $tuSizeDatum], ['alignment' => Jc::CENTER]);
+                    }
+
+                    foreach ($plan->taeglicheUebungen as $uebung) {
+                        $uebungTable->addRow(280);
+                        $uebungTable->addCell(Converter::cmToTwip($tuAufgabenBreiteCm))
+                                    ->addText(strip_tags($uebung->aufgabe ?? ''), ['name' => $schriftart, 'size' => $tuSizeAufgaben]);
+                        for ($d = 0; $d < $dayCount; $d++) {
+                            $uebungTable->addCell(Converter::cmToTwip(1.2));
+                        }
+                    }
+                }
+
+                $section->addText('');
+            }
         }
 
         // ─── Tabelle ──────────────────────────────────────────────────────────

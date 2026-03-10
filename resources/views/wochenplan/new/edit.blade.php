@@ -7,13 +7,6 @@
 @section('content')
 <div class="wp-container p-4">
 
-    {{-- Flash-Meldungen --}}
-    @if(session('Meldung'))
-        <div class="mb-4 px-4 py-3 rounded-lg {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200' }}">
-            {{ session('Meldung') }}
-        </div>
-    @endif
-
     {{-- Zurück-Link --}}
     @if($wpPlan->isSchuelerplan() && $wpPlan->parentPlan)
         <a href="{{ route('wp.edit', $wpPlan->parentPlan) }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-2">

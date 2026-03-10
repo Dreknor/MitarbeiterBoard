@@ -244,6 +244,104 @@
     </div>
 </div>
 
+{{-- Tägliche Übungen --}}
+<div class="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+    <h2 class="text-sm font-semibold text-gray-700">Tägliche Übungen</h2>
+
+    {{-- Layout-Auswahl --}}
+    <div>
+        <label class="block text-xs font-medium text-gray-700 mb-2">Darstellungsform</label>
+        <div class="grid grid-cols-3 gap-3">
+            @php $tuLayout = old('tu_layout', $cfg['taegliche_uebungen']['layout'] ?? 'horizontal'); @endphp
+            <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer {{ $tuLayout === 'horizontal' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50' }}">
+                <input type="radio" name="tu_layout" value="horizontal" {{ $tuLayout === 'horizontal' ? 'checked' : '' }} class="mt-0.5 text-primary-600">
+                <div>
+                    <div class="text-sm font-medium text-gray-800">Horizontal <span class="text-xs text-gray-400">(Standard)</span></div>
+                    <div class="text-xs text-gray-500 mt-0.5">Übungen als Zeilen, Tage als Spalten. Gut für kurze Pläne (≤ 10 Tage).</div>
+                    <div class="mt-1.5 font-mono text-[9px] text-gray-400 leading-tight">
+                        Übung&nbsp;&nbsp;| Mo | Di | Mi<br>
+                        Lesen&nbsp;&nbsp;&nbsp;| □ &nbsp;| □ &nbsp;| □<br>
+                        Rechnen | □ &nbsp;| □ &nbsp;| □
+                    </div>
+                </div>
+            </label>
+            <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer {{ $tuLayout === 'vertikal' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50' }}">
+                <input type="radio" name="tu_layout" value="vertikal" {{ $tuLayout === 'vertikal' ? 'checked' : '' }} class="mt-0.5 text-primary-600">
+                <div>
+                    <div class="text-sm font-medium text-gray-800">Vertikal <span class="text-xs text-green-600 font-medium">empfohlen bei &gt; 10 Tagen</span></div>
+                    <div class="text-xs text-gray-500 mt-0.5">Tage als Zeilen, Übungen als Spalten. Skaliert für beliebig viele Tage ohne Breitenproblem.</div>
+                    <div class="mt-1.5 font-mono text-[9px] text-gray-400 leading-tight">
+                        Datum&nbsp;&nbsp; | Lesen | Rechnen<br>
+                        Mo 09.03. | □ &nbsp;&nbsp;&nbsp;&nbsp;| □<br>
+                        Di 10.03. | □ &nbsp;&nbsp;&nbsp;&nbsp;| □
+                    </div>
+                </div>
+            </label>
+            <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer {{ $tuLayout === 'wochenweise' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50' }}">
+                <input type="radio" name="tu_layout" value="wochenweise" {{ $tuLayout === 'wochenweise' ? 'checked' : '' }} class="mt-0.5 text-primary-600">
+                <div>
+                    <div class="text-sm font-medium text-gray-800">Wochenweise <span class="text-xs text-green-600 font-medium">kompakteste Form</span></div>
+                    <div class="text-xs text-gray-500 mt-0.5">Wochen als Zeilen, Wochentage als Spalten mit Unter-Spalten pro Übung. Ohne Datumsangaben.</div>
+                    <div class="mt-1.5 font-mono text-[9px] text-gray-400 leading-tight">
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Montag &nbsp;&nbsp;| Dienstag<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| L&nbsp;R&nbsp;&nbsp;| L&nbsp;R<br>
+                        Woche 1 | □ □ | □ □<br>
+                        Woche 2 | □ □ | □ □
+                    </div>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Schriftgröße Wochentag (pt)</label>
+            <input type="number" name="tu_schriftgroesse_wochentag_pt"
+                   value="{{ old('tu_schriftgroesse_wochentag_pt', $cfg['taegliche_uebungen']['schriftgroesse_wochentag_pt'] ?? '') }}"
+                   placeholder="Leer = Standard"
+                   min="6" max="36"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">Kopfzeile: Mo, Di, Mi …</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Schriftgröße Datum (pt)</label>
+            <input type="number" name="tu_schriftgroesse_datum_pt"
+                   value="{{ old('tu_schriftgroesse_datum_pt', $cfg['taegliche_uebungen']['schriftgroesse_datum_pt'] ?? '') }}"
+                   placeholder="Leer = Standard"
+                   min="6" max="36"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">Datumszeile: 09.03., 10.03. …</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Schriftgröße Aufgaben (pt)</label>
+            <input type="number" name="tu_schriftgroesse_aufgaben_pt"
+                   value="{{ old('tu_schriftgroesse_aufgaben_pt', $cfg['taegliche_uebungen']['schriftgroesse_aufgaben_pt'] ?? '') }}"
+                   placeholder="Leer = Standard"
+                   min="6" max="36"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">Aufgabentexte in der Tabelle</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Max. Tage pro Tabelle</label>
+            <input type="number" name="tu_max_tage_pro_tabelle"
+                   value="{{ old('tu_max_tage_pro_tabelle', $cfg['taegliche_uebungen']['max_tage_pro_tabelle'] ?? 0) }}"
+                   min="0" max="30"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">0 = alle Tage in einer Tabelle. Bei längeren Plänen z.B. 10, damit bei 15 Werktagen zwei Tabellen entstehen.</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Breite Aufgaben-Spalte</label>
+            <input type="text" name="tu_aufgaben_spalte_breite"
+                   value="{{ old('tu_aufgaben_spalte_breite', $cfg['taegliche_uebungen']['aufgaben_spalte_breite'] ?? '') }}"
+                   placeholder="auto (z.B. 40% oder 8cm)"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <p class="text-xs text-gray-400 mt-1">Nur bei horizontalem Layout. PDF: %-Wert (z.B. <code>40%</code>). Word: cm-Wert (z.B. <code>7cm</code>). Leer = automatisch.</p>
+        </div>
+    </div>
+</div>
+
 {{-- Standard --}}
 <div class="bg-white rounded-lg border border-gray-200 p-4">
     <label class="flex items-center gap-2 text-sm cursor-pointer">

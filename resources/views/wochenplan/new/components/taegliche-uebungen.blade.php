@@ -16,6 +16,10 @@
         }
     }
     $tagNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+
+    // Layout aus Formatvorlage lesen (horizontal = Standard)
+    $tuCfgWeb  = $wpPlan->getEffectiveFormatvorlage()?->layout_config['taegliche_uebungen'] ?? [];
+    $tuLayoutWeb = $tuCfgWeb['layout'] ?? 'horizontal';
 @endphp
 
 <div class="bg-white rounded-lg border border-blue-200 mb-4"
@@ -136,32 +140,150 @@
 
             {{-- Abhak-Tabelle pro Tag --}}
             @if(count($wochentage) > 0)
+                @php
+                    $wwNummern = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+                    // Kalenderwochen für wochenweise-Layout berechnen
+                    if ($tuLayoutWeb === 'wochenweise') {
+                        $wwWochenMap = [];
+                        foreach ($wochentage as $tag) {
+                            $wkKey = $tag->format('o-W');
+                            $dow   = ($tag->dayOfWeek + 6) % 7; // 0=Mo…4=Fr
+                            $wwWochenMap[$wkKey][$dow] = $tag;
+                        }
+                        ksort($wwWochenMap);
+                        $wwWochenListe = array_values($wwWochenMap);
+                        $wwVorhandDow  = [];
+                        foreach ($wwWochenMap as $wDays) {
+                            foreach (array_keys($wDays) as $d) { $wwVorhandDow[$d] = true; }
+                        }
+                        ksort($wwVorhandDow);
+                        $wwDowListe  = array_keys($wwVorhandDow);
+                        $wwTagVoll   = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+                    }
+                @endphp
+
+                {{-- Legende (für vertikal & wochenweise): jede Aufgabe eine eigene Zeile --}}
+                @if($tuLayoutWeb === 'vertikal' || $tuLayoutWeb === 'wochenweise')
+                    <div class="mb-2 space-y-0.5">
+                        @foreach($wpPlan->taeglicheUebungen as $uebungLegende)
+                            <div class="text-xs text-gray-700">
+                                <span class="font-bold text-blue-700 mr-1">{{ $wwNummern[$loop->index] ?? ($loop->iteration . '.') }}</span>{{ $uebungLegende->aufgabe }}
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 <div class="overflow-x-auto">
-                    <table class="text-xs border-collapse w-full">
-                        <thead>
-                            <tr>
-                                <th class="text-left font-medium text-gray-600 pr-3 py-1 whitespace-nowrap">Übung</th>
-                                @foreach($wochentage as $tag)
-                                    <th class="text-center font-medium text-gray-600 px-2 py-1 whitespace-nowrap min-w-[3rem]">
-                                        <div>{{ $tagNamen[($tag->dayOfWeek + 6) % 7] ?? '?' }}</div>
-                                        <div class="text-gray-400 font-normal">{{ $tag->format('d.m.') }}</div>
-                                    </th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($wpPlan->taeglicheUebungen as $uebung)
-                                <tr class="{{ $loop->even ? 'bg-blue-50/40' : '' }}">
-                                    <td class="pr-3 py-1.5 text-gray-700 font-medium">{{ $uebung->aufgabe }}</td>
-                                    @foreach($wochentage as $tag)
-                                        <td class="text-center px-2 py-1.5">
-                                            <div class="w-6 h-6 border border-gray-400 rounded mx-auto bg-white"></div>
-                                        </td>
+
+                    @if($tuLayoutWeb === 'wochenweise')
+                        {{-- ── WOCHENWEISE: Eine Tabelle, Wochentage als Spaltengruppen, Nummern als Unter-Spalten ── --}}
+                        <table class="text-xs border-collapse w-full">
+                            <thead>
+                                {{-- Zeile 1: Wochentag-Namen --}}
+                                <tr>
+                                    <th class="border border-gray-300 bg-gray-50 w-16"></th>
+                                    @foreach($wwDowListe as $dow)
+                                        <th colspan="{{ $wpPlan->taeglicheUebungen->count() }}"
+                                            class="text-center font-semibold text-gray-700 px-1 py-1 border border-gray-300 bg-gray-50">
+                                            {{ $wwTagVoll[$dow] ?? '' }}
+                                        </th>
                                     @endforeach
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                {{-- Zeile 2: Aufgaben-Nummern kompakt --}}
+                                <tr>
+                                    <th class="border border-gray-300 bg-gray-50"></th>
+                                    @foreach($wwDowListe as $dow)
+                                        @foreach($wpPlan->taeglicheUebungen as $uebungKopf)
+                                            <th class="text-center font-bold text-blue-700 px-0.5 py-0.5 border border-gray-300 bg-gray-50 text-[10px] min-w-[1.2rem]">
+                                                {{ $wwNummern[$loop->index] ?? ($loop->iteration . '.') }}
+                                            </th>
+                                        @endforeach
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($wwWochenListe as $wIdx => $wDays)
+                                    <tr class="{{ $wIdx % 2 === 1 ? 'bg-blue-50/30' : '' }}">
+                                        <td class="pr-2 py-1.5 font-medium text-gray-700 whitespace-nowrap border border-gray-300 text-[11px]">
+                                            Woche {{ $wIdx + 1 }}
+                                        </td>
+                                        @foreach($wwDowListe as $dow)
+                                            @foreach($wpPlan->taeglicheUebungen as $uebungZelle)
+                                                @if(isset($wDays[$dow]))
+                                                    <td class="text-center px-0.5 py-1 border border-gray-300">
+                                                        <div class="w-4 h-4 border border-gray-400 rounded mx-auto bg-white"></div>
+                                                    </td>
+                                                @else
+                                                    <td class="text-center px-0.5 py-1 border border-gray-300 bg-gray-100 text-gray-400 text-[9px]">–</td>
+                                                @endif
+                                            @endforeach
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
+                    @elseif($tuLayoutWeb === 'vertikal')
+                        {{-- ── VERTIKAL: Tage als Zeilen, Nummern als Spalten ── --}}
+                        <table class="text-xs border-collapse w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left font-medium text-gray-600 pr-3 py-1 whitespace-nowrap w-24">Datum</th>
+                                    @foreach($wpPlan->taeglicheUebungen as $uebungKopf)
+                                        <th class="text-center font-bold text-blue-700 px-2 py-1 min-w-[2rem]">
+                                            {{ $wwNummern[$loop->index] ?? ($loop->iteration . '.') }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($wochentage as $tag)
+                                    <tr class="{{ $loop->even ? 'bg-blue-50/40' : '' }}">
+                                        <td class="pr-3 py-1.5 text-gray-700 font-medium whitespace-nowrap">
+                                            {{ $tagNamen[($tag->dayOfWeek + 6) % 7] ?? '?' }}
+                                            <span class="text-gray-400 font-normal">{{ $tag->format('d.m.') }}</span>
+                                        </td>
+                                        @foreach($wpPlan->taeglicheUebungen as $uebungZelle)
+                                            <td class="text-center px-2 py-1.5">
+                                                <div class="w-6 h-6 border border-gray-400 rounded mx-auto bg-white"></div>
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
+                    @else
+                        {{-- ── HORIZONTAL: Übungen mit Nummer als Zeilen, Tage als Spalten ── --}}
+                        <table class="text-xs border-collapse w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left font-medium text-gray-600 pr-3 py-1 whitespace-nowrap">Übung</th>
+                                    @foreach($wochentage as $tag)
+                                        <th class="text-center font-medium text-gray-600 px-2 py-1 whitespace-nowrap min-w-[3rem]">
+                                            <div>{{ $tagNamen[($tag->dayOfWeek + 6) % 7] ?? '?' }}</div>
+                                            <div class="text-gray-400 font-normal">{{ $tag->format('d.m.') }}</div>
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($wpPlan->taeglicheUebungen as $uebung)
+                                    <tr class="{{ $loop->even ? 'bg-blue-50/40' : '' }}">
+                                        <td class="pr-3 py-1.5 text-gray-700">
+                                            <span class="font-bold text-blue-700 mr-1">{{ $wwNummern[$loop->index] ?? ($loop->iteration . '.') }}</span>{{ $uebung->aufgabe }}
+                                        </td>
+                                        @foreach($wochentage as $tag)
+                                            <td class="text-center px-2 py-1.5">
+                                                <div class="w-6 h-6 border border-gray-400 rounded mx-auto bg-white"></div>
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
+
                 </div>
                 <p class="text-xs text-gray-400 mt-2">Die Tabelle dient zum Abhaken beim Ausdrucken.</p>
             @endif

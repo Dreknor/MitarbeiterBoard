@@ -59,6 +59,14 @@
                        class="inline-flex items-center px-3 py-1.5 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100">
                         👁️ Vorschau
                     </a>
+                    <form method="POST" action="{{ route('wp.formatvorlagen.kopieren', $fv) }}">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
+                                title="Kopie dieser Formatvorlage erstellen">
+                            📋 Kopieren
+                        </button>
+                    </form>
                     @if($fv->plaene_count === 0 && !$fv->is_default)
                         <form method="POST" action="{{ route('wp.formatvorlagen.destroy', $fv) }}"
                               onsubmit="return confirm('Formatvorlage wirklich löschen?')" class="ml-auto">

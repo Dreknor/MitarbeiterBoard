@@ -414,6 +414,7 @@ Route::group([
                             Route::delete('/{wpFormatvorlage}', [WpFormatvorlageController::class, 'destroy'])->name('destroy');
                             Route::get('/{wpFormatvorlage}/vorschau', [WpFormatvorlageController::class, 'vorschau'])->name('vorschau');
                             Route::post('/vorschau-html', [WpFormatvorlageController::class, 'vorschauHtml'])->name('vorschau-html');
+                            Route::post('/{wpFormatvorlage}/kopieren', [WpFormatvorlageController::class, 'kopieren'])->name('kopieren');
                         });
                 });
 

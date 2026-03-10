@@ -73,6 +73,18 @@ class WpFormatvorlageController extends Controller
             ->with(['type' => 'success', 'Meldung' => 'Formatvorlage wurde gespeichert.']);
     }
 
+    public function kopieren(WpFormatvorlage $wpFormatvorlage)
+    {
+        $kopie = $wpFormatvorlage->replicate();
+        $kopie->name       = 'Kopie von ' . $wpFormatvorlage->name;
+        $kopie->is_default = false;
+        $kopie->created_by = auth()->id();
+        $kopie->save();
+
+        return redirect()->route('wp.formatvorlagen.edit', $kopie)
+            ->with(['type' => 'success', 'Meldung' => 'Formatvorlage wurde kopiert. Bitte Namen und Einstellungen anpassen.']);
+    }
+
     public function destroy(WpFormatvorlage $wpFormatvorlage)
     {
         if ($wpFormatvorlage->plaene()->exists()) {
@@ -136,12 +148,13 @@ class WpFormatvorlageController extends Controller
     private function dummyPlan(): WpPlan
     {
         $plan = new WpPlan([
-            'name'                => 'Beispiel-Wochenplan',
-            'gueltig_von'         => now(),
-            'gueltig_bis'         => now()->addDays(4),
-            'selbsteinschaetzung' => 1,
-            'klasse_id'           => null,
-            'schueler_id'         => null,
+            'name'                        => 'Beispiel-Wochenplan',
+            'gueltig_von'                 => now()->startOfWeek(),
+            'gueltig_bis'                 => now()->startOfWeek()->addDays(13),
+            'selbsteinschaetzung'         => 1,
+            'klasse_id'                   => null,
+            'schueler_id'                 => null,
+            'taegliche_uebungen_aktiv'    => true,
         ]);
 
         // Dummy-Fächer mit Aufgaben als Plain-Objekte
@@ -170,6 +183,14 @@ class WpFormatvorlageController extends Controller
 
         // planFaecher als eager-geladene Relation simulieren
         $plan->setRelation('planFaecher', $faecher);
+
+        // Dummy Tägliche Übungen
+        $taeglicheUebungen = collect([
+            (object)['aufgabe' => '10 min lesen'],
+            (object)['aufgabe' => '5 min Kopfrechnen'],
+            (object)['aufgabe' => 'Schreibübung Seite 3'],
+        ]);
+        $plan->setRelation('taeglicheUebungen', $taeglicheUebungen);
 
         return $plan;
     }
@@ -222,6 +243,20 @@ class WpFormatvorlageController extends Controller
             'footer' => [
                 'zeige_selbsteinschaetzung' => $request->boolean('zeige_selbsteinschaetzung', true),
                 'freitext'                  => $request->input('footer_freitext'),
+            ],
+            'taegliche_uebungen' => [
+                'layout'                      => $request->input('tu_layout', 'horizontal'),
+                'schriftgroesse_datum_pt'     => $request->filled('tu_schriftgroesse_datum_pt')
+                    ? (int) $request->input('tu_schriftgroesse_datum_pt')
+                    : null,
+                'schriftgroesse_aufgaben_pt'  => $request->filled('tu_schriftgroesse_aufgaben_pt')
+                    ? (int) $request->input('tu_schriftgroesse_aufgaben_pt')
+                    : null,
+                'schriftgroesse_wochentag_pt' => $request->filled('tu_schriftgroesse_wochentag_pt')
+                    ? (int) $request->input('tu_schriftgroesse_wochentag_pt')
+                    : null,
+                'max_tage_pro_tabelle'        => (int) $request->input('tu_max_tage_pro_tabelle', 0),
+                'aufgaben_spalte_breite'      => $request->input('tu_aufgaben_spalte_breite') ?: 'auto',
             ],
         ];
     }

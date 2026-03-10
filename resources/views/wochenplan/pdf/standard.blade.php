@@ -42,6 +42,14 @@
     $colKontrolliert = $config['spalten']['kontrolliert'] ?? '12%';
     $labelUnterschrift = ($config['spalten']['label_trennung_unterschrift'] ?? false) ? 'Unter-schrift' : 'Unterschrift';
     $labelKontrolliert = ($config['spalten']['label_trennung_kontrolliert'] ?? false) ? 'Kon-trolliert' : 'Kontrolliert';
+    // Tägliche Übungen: Konfiguration
+    $tuCfg = $config['taegliche_uebungen'] ?? [];
+    $tuSizeWochentag  = isset($tuCfg['schriftgroesse_wochentag_pt']) ? ($tuCfg['schriftgroesse_wochentag_pt'] . 'pt') : $smallSize;
+    $tuSizeDatum      = isset($tuCfg['schriftgroesse_datum_pt'])     ? ($tuCfg['schriftgroesse_datum_pt'] . 'pt')     : $tinySize;
+    $tuSizeAufgaben   = isset($tuCfg['schriftgroesse_aufgaben_pt'])  ? ($tuCfg['schriftgroesse_aufgaben_pt'] . 'pt')  : $smallSize;
+    $tuMaxTage        = (int) ($tuCfg['max_tage_pro_tabelle'] ?? 0);
+    $tuAufgabenBreite = ($tuCfg['aufgaben_spalte_breite'] ?? 'auto') !== 'auto' ? $tuCfg['aufgaben_spalte_breite'] : null;
+    $tuLayout         = $tuCfg['layout'] ?? 'horizontal';
     // Häkchen als base64-SVG (DomPDF kann Unicode-Symbole ohne eingebettete Schriftart nicht rendern)
     $checkSvg   = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,7 6,11 12,3" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     $bleistiftSvg = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path d="M2 10 L9 3 L11 5 L4 12 Z" fill="#333"/><path d="M9 3 L11 1 L13 3 L11 5 Z" fill="#555"/><path d="M2 10 L1 13 L4 12 Z" fill="#222"/></svg>');
@@ -163,29 +171,189 @@
 @endphp
 <div class="taegl-uebungen">
     <div class="taegl-uebungen-title"><img src="{{ $bleistiftSvg }}" width="13" height="13" alt="" style="vertical-align:middle;margin-right:3px;"> Tägliche Übungen</div>
-    <table class="taegl-table">
-        <thead>
-            <tr>
-                <th>Übung</th>
-                @foreach($pdfWochentage as $pdfTag)
-                    <th class="taegl-check-cell">
-                        {{ $pdfTagNamen[($pdfTag->dayOfWeek + 6) % 7] ?? '' }}<br>
-                        <span style="font-weight:normal;font-size:smaller;">{{ $pdfTag->format('d.m.') }}</span>
-                    </th>
-                @endforeach
-            </tr>
-        </thead>
-        <tbody>
+
+    @php
+        // Layout-Zweig vorab bestimmen, damit keine @elseif nach @endforeach nötig sind
+        $pdfLayoutVertikal    = ($tuLayout === 'vertikal');
+        $pdfLayoutWochenweise = ($tuLayout === 'wochenweise');
+        $pdfLayoutHorizontal  = !$pdfLayoutVertikal && !$pdfLayoutWochenweise;
+        // Nummernsymbole: einfache ASCII-Darstellung für DomPDF-Kompatibilität
+        $pdfNummern = ['[1]','[2]','[3]','[4]','[5]','[6]','[7]','[8]','[9]','[10]'];
+    @endphp
+
+    {{-- Legende: Aufgaben nummeriert, jede in eigener Zeile --}}
+    @if($pdfLayoutVertikal || $pdfLayoutWochenweise)
+        <div style="margin-bottom:6px;">
             @foreach($plan->taeglicheUebungen as $uebung)
+                <div style="font-size:{{ $tuSizeAufgaben }}; margin-bottom:2px;">
+                    <b>{{ $pdfNummern[$loop->index] ?? ($loop->iteration . '.') }}</b>
+                    {{ $uebung->aufgabe }}
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- ══ VERTIKAL: Tage als Zeilen, Nummern als Spalten ══ --}}
+    @if($pdfLayoutVertikal)
+        @php
+            $pdfTagesGruppenV = ($tuMaxTage > 0 && count($pdfWochentage) > $tuMaxTage)
+                ? array_chunk($pdfWochentage, $tuMaxTage)
+                : [$pdfWochentage];
+        @endphp
+        @foreach($pdfTagesGruppenV as $pdfGruppeIdx => $pdfGruppe)
+            @if($pdfGruppeIdx > 0)<div style="margin-top:6px;"></div>@endif
+            <table class="taegl-table" style="margin-bottom:4px; table-layout: fixed;">
+                <colgroup>
+                    <col style="width: {{ $tuAufgabenBreite ?: '28%' }}">
+                    @foreach($plan->taeglicheUebungen as $uebung)
+                        <col>
+                    @endforeach
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th style="font-size:{{ $tuSizeWochentag }};">Datum</th>
+                        @foreach($plan->taeglicheUebungen as $uebung)
+                            <th style="font-size:{{ $tuSizeAufgaben }}; text-align:center;">
+                                {{ $pdfNummern[$loop->index] ?? ($loop->iteration . '.') }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($pdfGruppe as $pdfTag)
+                        <tr>
+                            <td style="font-size:{{ $tuSizeDatum }}; white-space:nowrap;">
+                                <b>{{ $pdfTagNamen[($pdfTag->dayOfWeek + 6) % 7] ?? '' }}</b>
+                                {{ $pdfTag->format('d.m.') }}
+                            </td>
+                            @foreach($plan->taeglicheUebungen as $uebung)
+                                <td class="taegl-check-cell">&nbsp;</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endforeach
+    @endif
+
+    {{-- ══ WOCHENWEISE: Eine Tabelle, Wochentage als Spaltengruppen, Aufgaben als Unter-Spalten ══ --}}
+    @if($pdfLayoutWochenweise)
+        @php
+            $pdfWochenMap = [];
+            foreach ($pdfWochentage as $pdfTag) {
+                $wkKey = $pdfTag->format('o-W');
+                $dow   = ($pdfTag->dayOfWeek + 6) % 7;
+                $pdfWochenMap[$wkKey][$dow] = $pdfTag;
+            }
+            ksort($pdfWochenMap);
+            $pdfWochenListe   = array_values($pdfWochenMap);
+            $pdfUebungen      = $plan->taeglicheUebungen;
+            $pdfUebungCount   = $pdfUebungen->count();
+            $pdfTagVolleNamen = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+            $pdfVorhandDow    = [];
+            foreach ($pdfWochenMap as $wDays) {
+                foreach (array_keys($wDays) as $d) { $pdfVorhandDow[$d] = true; }
+            }
+            ksort($pdfVorhandDow);
+            $pdfDowListe    = array_keys($pdfVorhandDow);
+            // Wochenspalte: konfigurierter Wert oder mindestens 20%
+            $pdfWocheSpalte = ($tuAufgabenBreite && intval($tuAufgabenBreite) >= 15)
+                ? $tuAufgabenBreite
+                : '20%';
+        @endphp
+        <table class="taegl-table" style="margin-bottom:4px; table-layout: fixed;">
+            <colgroup>
+                <col style="width:{{ $pdfWocheSpalte }}; min-width:{{ $pdfWocheSpalte }};">
+                @foreach($pdfDowListe as $dow)
+                    @foreach($pdfUebungen as $u)
+                        <col>
+                    @endforeach
+                @endforeach
+            </colgroup>
+            <thead>
+                {{-- Zeile 1: Wochentag-Namen, überspannen je $pdfUebungCount Spalten --}}
                 <tr>
-                    <td>{{ $uebung->aufgabe }}</td>
-                    @foreach($pdfWochentage as $pdfTag)
-                        <td class="taegl-check-cell">&nbsp;</td>
+                    <th style="font-size:{{ $tuSizeWochentag }}; width:{{ $pdfWocheSpalte }}; min-width:{{ $pdfWocheSpalte }};"></th>
+                    @foreach($pdfDowListe as $dow)
+                        <th colspan="{{ $pdfUebungCount }}"
+                            style="font-size:{{ $tuSizeWochentag }}; text-align:center; border-bottom:1px solid #aaa;">
+                            {{ $pdfTagVolleNamen[$dow] ?? '' }}
+                        </th>
                     @endforeach
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+                {{-- Zeile 2: Aufgaben-Nummern (kompakt) --}}
+                <tr>
+                    <th style="font-size:{{ $tuSizeWochentag }}; width:{{ $pdfWocheSpalte }}; min-width:{{ $pdfWocheSpalte }};"></th>
+                    @foreach($pdfDowListe as $dow)
+                        @foreach($pdfUebungen as $uebung)
+                            <th style="font-size:{{ $tuSizeDatum }}; text-align:center; font-weight:bold; padding:2px 1px;">
+                                {{ $pdfNummern[$loop->index] ?? ($loop->iteration . '.') }}
+                            </th>
+                        @endforeach
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($pdfWochenListe as $wIdx => $wDays)
+                    <tr style="{{ $wIdx % 2 === 1 ? 'background:#f5f5f0;' : '' }}">
+                        <td style="font-size:{{ $tuSizeWochentag }}; font-weight:bold; white-space:nowrap; width:{{ $pdfWocheSpalte }}; min-width:{{ $pdfWocheSpalte }};">
+                            Woche {{ $wIdx + 1 }}
+                        </td>
+                        @foreach($pdfDowListe as $dow)
+                            @if(isset($wDays[$dow]))
+                                @foreach($pdfUebungen as $uebung)
+                                    <td style="padding:2px 1px; text-align:center;">&nbsp;</td>
+                                @endforeach
+                            @else
+                                @foreach($pdfUebungen as $uebung)
+                                    <td style="padding:2px 1px; text-align:center; background:#f0f0f0; color:#aaa;">-</td>
+                                @endforeach
+                            @endif
+                        @endforeach
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    {{-- ══ HORIZONTAL: Übungen als Zeilen, Tage als Spalten ══ --}}
+    @if($pdfLayoutHorizontal)
+        @php
+            $pdfTagesGruppen = ($tuMaxTage > 0 && count($pdfWochentage) > $tuMaxTage)
+                ? array_chunk($pdfWochentage, $tuMaxTage)
+                : [$pdfWochentage];
+        @endphp
+        @foreach($pdfTagesGruppen as $pdfGruppeIdx => $pdfGruppe)
+            @if($pdfGruppeIdx > 0)<div style="margin-top:6px;"></div>@endif
+            <table class="taegl-table" style="margin-bottom:4px;">
+                <thead>
+                    <tr>
+                        <th{{ $tuAufgabenBreite ? ' style="width:' . $tuAufgabenBreite . '"' : '' }}>Übung</th>
+                        @foreach($pdfGruppe as $pdfTag)
+                            <th class="taegl-check-cell" style="font-size:{{ $tuSizeWochentag }};">
+                                {{ $pdfTagNamen[($pdfTag->dayOfWeek + 6) % 7] ?? '' }}<br>
+                                <span style="font-weight:normal;font-size:{{ $tuSizeDatum }};">{{ $pdfTag->format('d.m.') }}</span>
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($plan->taeglicheUebungen as $uebung)
+                        <tr>
+                            <td style="font-size:{{ $tuSizeAufgaben }};">
+                                <b>{{ $pdfNummern[$loop->index] ?? ($loop->iteration . '.') }}</b>
+                                {{ $uebung->aufgabe }}
+                            </td>
+                            @foreach($pdfGruppe as $pdfTag)
+                                <td class="taegl-check-cell">&nbsp;</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endforeach
+    @endif
+
 </div>
 @endif
 
