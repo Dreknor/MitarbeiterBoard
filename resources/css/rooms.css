@@ -1,0 +1,43 @@
+/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* Scope all Tailwind styles to rooms-wrapper only */
+.rooms-wrapper {
+    /* All Tailwind utilities work inside this wrapper */
+}
+
+/* Alpine.js Cloak */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Smooth transitions */
+.rooms-wrapper * {
+    transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Booking cell hover */
+.booking-cell:hover {
+    filter: brightness(1.05);
+    cursor: pointer;
+}
+
+/* Scrollbar styling for week table */
+.week-table-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+.week-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.week-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+}
+.week-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+

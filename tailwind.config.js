@@ -6,6 +6,8 @@ module.exports = {
     "./resources/views/paedDiary/**/*.blade.php",
     "./resources/views/wochenplan/**/*.blade.php",
     "./resources/js/wochenplan.js",
+    "./resources/views/rooms/**/*.blade.php",
+    "./resources/css/rooms.css",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {
