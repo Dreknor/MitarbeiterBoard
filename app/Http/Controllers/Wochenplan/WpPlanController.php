@@ -17,7 +17,7 @@ class WpPlanController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WpPlan::with(['klasse', 'schueler', 'planFaecher', 'kinderPlaene'])
+        $query = WpPlan::with(['klasse', 'schueler', 'planFaecher', 'kinderPlaene', 'media'])
             ->where('is_vorlage', false);
 
         // Filter
@@ -38,7 +38,7 @@ class WpPlanController extends Controller
         $plaene   = $query->orderByDesc('gueltig_von')->paginate(12)->withQueryString();
         $klassen  = Klasse::orderBy('name')->get();
         $vorlagen = WpPlan::vorlagen()
-            ->with(['planFaecher', 'kinderPlaene'])
+            ->with(['planFaecher', 'kinderPlaene', 'media'])
             ->orderBy('name')
             ->get();
 
@@ -265,5 +265,30 @@ class WpPlanController extends Controller
 
         return redirect()->back()
             ->with(['type' => 'success', 'Meldung' => 'Datei wurde entfernt.']);
+    }
+
+    /**
+     * Synchronisiert Arbeitsblätter vom Eltern-Klassenplan.
+     * Eigene Dateien des Kinderplans bleiben erhalten.
+     */
+    public function syncMedia(WpPlan $wpPlan)
+    {
+        if (!$wpPlan->parent_plan_id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Dieser Plan hat keinen Elternplan zum Synchronisieren.',
+            ]);
+        }
+
+        $wpPlan->syncMediaVonParent();
+
+        $syncCount = $wpPlan->getMedia('arbeitsblaetter')
+            ->filter(fn($m) => $m->getCustomProperty('synced_from_plan_id') !== null)
+            ->count();
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => $syncCount . ' Arbeitsblatt(blätter) vom Klassenplan synchronisiert.',
+        ]);
     }
 }

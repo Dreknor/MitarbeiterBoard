@@ -3,6 +3,7 @@
 namespace App\Services\Wochenplan;
 
 use App\Models\Wochenplan\WpPlan;
+use App\Services\Wochenplan\WpPdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 
@@ -82,6 +83,69 @@ class WpPdfService
     public function download(WpPlan $plan): Response
     {
         return $this->generate($plan)->download($this->filename($plan));
+    }
+
+    /**
+     * Streamt die PDF mit angehängten Arbeitsblättern.
+     */
+    public function streamWithAttachments(WpPlan $plan): \Symfony\Component\HttpFoundation\Response
+    {
+        $mergeService = app(WpPdfMergeService::class);
+
+        // 1. Wochenplan-PDF als temporäre Datei
+        $tempDir = storage_path('app/temp');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempPdfPath = $tempDir . '/' . uniqid('wp_') . '.pdf';
+        file_put_contents($tempPdfPath, $this->generate($plan)->output());
+
+        // 2. Arbeitsblätter anhängen
+        $plan->load('media');
+        $finalPdfPath = $mergeService->mergeWithAttachments($tempPdfPath, $plan);
+
+        // 3. Streamen
+        $filename = $this->filename($plan);
+        $content  = file_get_contents($finalPdfPath);
+
+        // Aufräumen
+        @unlink($tempPdfPath);
+        if ($finalPdfPath !== $tempPdfPath) {
+            @unlink($finalPdfPath);
+        }
+
+        return response($content, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
+    }
+
+    /**
+     * Download der PDF mit angehängten Arbeitsblättern.
+     */
+    public function downloadWithAttachments(WpPlan $plan): \Symfony\Component\HttpFoundation\Response
+    {
+        $mergeService = app(WpPdfMergeService::class);
+
+        $tempDir = storage_path('app/temp');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempPdfPath = $tempDir . '/' . uniqid('wp_') . '.pdf';
+        file_put_contents($tempPdfPath, $this->generate($plan)->output());
+
+        $plan->load('media');
+        $finalPdfPath = $mergeService->mergeWithAttachments($tempPdfPath, $plan);
+
+        $filename = $this->filename($plan);
+
+        // Wochenplan-Temp aufräumen
+        @unlink($tempPdfPath);
+
+        // Download, danach merged-PDF löschen
+        return response()->download($finalPdfPath, $filename)->deleteFileAfterSend(true);
     }
 
     /**

@@ -54,6 +54,11 @@
         @if($plan->kinderPlaene->count() > 0)
             <span>{{ $plan->kinderPlaene->count() }} Kinderpläne</span>
         @endif
+        @if($plan->media->count() > 0)
+            <span class="flex items-center gap-0.5">
+                📎 {{ $plan->media->count() }} {{ $plan->media->count() === 1 ? 'Datei' : 'Dateien' }}
+            </span>
+        @endif
     </div>
 
     {{-- Aktions-Buttons --}}

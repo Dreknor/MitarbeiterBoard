@@ -384,6 +384,7 @@ Route::group([
                         // Medien (Arbeitsblätter)
                         Route::post('/{wpPlan}/media', [WpPlanController::class, 'addMedia'])->name('media.add');
                         Route::delete('/media/{media}', [WpPlanController::class, 'removeMedia'])->name('media.remove');
+                        Route::post('/{wpPlan}/media/sync', [WpPlanController::class, 'syncMedia'])->name('media.sync');
 
                         // Vorlagen
                         Route::prefix('vorlagen')->name('vorlagen.')->group(function () {

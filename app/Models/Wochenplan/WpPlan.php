@@ -175,7 +175,7 @@ class WpPlan extends Model implements HasMedia
      */
     public function erstelleSchuelerplan(Schueler $schueler, ?int $formatvorlageId = null): self
     {
-        return $this->duplizieren([
+        $neuerPlan = $this->duplizieren([
             'klasse_id'        => null,
             'schueler_id'      => $schueler->id,
             'parent_plan_id'   => $this->id,
@@ -184,6 +184,46 @@ class WpPlan extends Model implements HasMedia
             'formatvorlage_id' => $formatvorlageId,
             'name'             => $this->name . ' – ' . $schueler->vorname . ' ' . $schueler->nachname,
         ]);
+
+        // Arbeitsblätter vom Klassenplan synchronisieren
+        $neuerPlan->syncMediaVonParent();
+
+        return $neuerPlan;
+    }
+
+    /**
+     * Synchronisiert alle Arbeitsblätter vom Parent-Plan (Klassenplan).
+     *
+     * - Bestehende synchronisierte Dateien werden entfernt und neu kopiert
+     * - Eigene (manuell hinzugefügte) Dateien bleiben erhalten
+     * - Jede synchronisierte Datei erhält Custom Properties zur Nachverfolgbarkeit
+     */
+    public function syncMediaVonParent(): void
+    {
+        if (!$this->parent_plan_id) return;
+
+        $parentPlan = $this->parentPlan;
+        if (!$parentPlan) return;
+
+        // 1. Bestehende synchronisierte Dateien entfernen (eigene behalten!)
+        $this->getMedia('arbeitsblaetter')
+            ->filter(fn($media) => $media->getCustomProperty('synced_from_plan_id') !== null)
+            ->each(fn($media) => $media->delete());
+
+        // 2. Alle Dateien vom Parent-Plan kopieren
+        foreach ($parentPlan->getMedia('arbeitsblaetter') as $parentMedia) {
+            // Physische Datei kopieren und als neues Medium registrieren
+            $this->addMedia($parentMedia->getPath())
+                ->preservingOriginal()  // Original-Datei nicht löschen!
+                ->withCustomProperties([
+                    'synced_from_plan_id'  => $parentPlan->id,
+                    'synced_from_media_id' => $parentMedia->id,
+                    'synced_at'            => now()->toIso8601String(),
+                ])
+                ->usingName($parentMedia->name)
+                ->usingFileName($parentMedia->file_name)
+                ->toMediaCollection('arbeitsblaetter');
+        }
     }
     /**
      * Synchronisiert die Aufgaben eines bestimmten Fachs vom Parent-Plan.

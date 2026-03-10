@@ -143,10 +143,38 @@
     @canany(['create wochenplan', 'create Wochenplan'])
         <div class="flex flex-wrap gap-2 mb-4">
             {{-- Export --}}
-            <a href="{{ route('wp.export.pdf', $wpPlan) }}" target="_blank"
-               class="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
-                📄 PDF
-            </a>
+            @if($wpPlan->getMedia('arbeitsblaetter')->count() > 0)
+                <div x-data="{ openPdf: false }" class="relative inline-block">
+                    <div class="inline-flex rounded-md shadow-sm">
+                        <a href="{{ route('wp.export.pdf', $wpPlan) }}" target="_blank"
+                           class="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-l-md hover:bg-red-700">
+                            📄 PDF (mit {{ $wpPlan->getMedia('arbeitsblaetter')->count() }} {{ $wpPlan->getMedia('arbeitsblaetter')->count() === 1 ? 'Anhang' : 'Anhängen' }})
+                        </a>
+                        <button @click="openPdf = !openPdf" type="button"
+                                class="inline-flex items-center px-2 py-2 bg-red-700 text-white text-sm rounded-r-md hover:bg-red-800 border-l border-red-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div x-show="openPdf" @click.away="openPdf = false" x-transition
+                         class="absolute left-0 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                        <a href="{{ route('wp.export.pdf', $wpPlan) }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md">
+                            📄 PDF mit Arbeitsblättern
+                        </a>
+                        <a href="{{ route('wp.export.pdf', [$wpPlan, 'attachments' => 0]) }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md">
+                            📄 PDF ohne Arbeitsblätter
+                        </a>
+                    </div>
+                </div>
+            @else
+                <a href="{{ route('wp.export.pdf', $wpPlan) }}" target="_blank"
+                   class="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
+                    📄 PDF
+                </a>
+            @endif
             <a href="{{ route('wp.export.word', $wpPlan) }}"
                class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                 📝 Word
@@ -360,22 +388,56 @@
     {{-- Arbeitsblätter --}}
     @if($wpPlan->media->count() > 0 || auth()->user()->canAny(['create wochenplan', 'create Wochenplan']))
         <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-            <h3 class="text-sm font-semibold text-gray-700 mb-3">📎 Arbeitsblätter</h3>
+            {{-- Arbeitsblätter-Header mit Sync-Button --}}
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">📎 Arbeitsblätter</h3>
+
+                {{-- Sync-Button nur bei Kinderplänen mit Elternplan --}}
+                @if($wpPlan->parent_plan_id)
+                    @canany(['create wochenplan', 'create Wochenplan'])
+                        <form method="POST" action="{{ route('wp.media.sync', $wpPlan) }}">
+                            @csrf
+                            <button type="submit"
+                                    class="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                                    onclick="return confirm('Synchronisierte Dateien vom Klassenplan aktualisieren?\n\nEigene Dateien bleiben erhalten.\nBereits synchronisierte Dateien werden durch die aktuelle Version ersetzt.')">
+                                🔄 Dateien vom Klassenplan sync
+                            </button>
+                        </form>
+                    @endcanany
+                @endif
+            </div>
 
             @if($wpPlan->getMedia('arbeitsblaetter')->count() > 0)
                 <ul class="space-y-2 mb-4">
                     @foreach($wpPlan->getMedia('arbeitsblaetter') as $media)
                         <li class="flex items-center justify-between bg-gray-50 rounded border border-gray-200 px-3 py-2">
                             <div class="flex items-center gap-2 min-w-0">
+                                {{-- Datei-Icon --}}
                                 <span class="flex-shrink-0">
                                     @if(str_contains($media->mime_type, 'pdf'))📄
                                     @elseif(str_contains($media->mime_type, 'image'))🖼️
+                                    @elseif(str_contains($media->mime_type, 'word'))📝
                                     @else📎
                                     @endif
                                 </span>
+
+                                {{-- Sync-Badge --}}
+                                @if($media->getCustomProperty('synced_from_plan_id'))
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 flex-shrink-0"
+                                          title="Synchronisiert am {{ \Carbon\Carbon::parse($media->getCustomProperty('synced_at'))->format('d.m.Y H:i') }}">
+                                        🔗 sync
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-600 flex-shrink-0"
+                                          title="Eigene Datei">
+                                        ✨ eigene
+                                    </span>
+                                @endif
+
+                                {{-- Dateiname + Größe --}}
                                 <a href="{{ $media->getUrl() }}" target="_blank"
                                    class="text-sm text-primary-600 hover:underline truncate">
-                                    {{ $media->file_name }}
+                                    {{ $media->name ?? $media->file_name }}
                                 </a>
                                 <span class="text-xs text-gray-400 flex-shrink-0">
                                     ({{ $media->size >= 1048576

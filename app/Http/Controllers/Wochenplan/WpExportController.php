@@ -15,8 +15,15 @@ class WpExportController extends Controller
         private WpWordService $wordService,
     ) {}
 
-    public function pdf(WpPlan $wpPlan)
+    public function pdf(WpPlan $wpPlan, Request $request)
     {
+        // Query-Parameter ?attachments=0 erlaubt PDF ohne Anhänge
+        $withAttachments = $request->boolean('attachments', true);
+
+        if ($withAttachments && $wpPlan->getMedia('arbeitsblaetter')->isNotEmpty()) {
+            return $this->pdfService->streamWithAttachments($wpPlan);
+        }
+
         return $this->pdfService->stream($wpPlan);
     }
 
