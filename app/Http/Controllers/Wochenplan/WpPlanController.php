@@ -12,6 +12,8 @@ use App\Models\Wochenplan\WpFormatvorlage;
 use App\Models\Wochenplan\WpPlan;
 use App\Models\Wochenplan\WpPlanFach;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use League\CommonMark\CommonMarkConverter;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WpPlanController extends Controller
@@ -53,6 +55,20 @@ class WpPlanController extends Controller
     public function indexKlasse(Klasse $klasse, Request $request)
     {
         return $this->index($request->merge(['klasse_id' => $klasse->id]));
+    }
+
+    public function hilfe()
+    {
+        $html = Cache::remember('wp.hilfe.html', now()->addHours(24), function () {
+            $markdown  = file_get_contents(base_path('docs/anleitung-wochenplansystem.md'));
+            $converter = new CommonMarkConverter([
+                'html_input'         => 'strip',
+                'allow_unsafe_links' => false,
+            ]);
+            return $converter->convert($markdown)->getContent();
+        });
+
+        return view('wochenplan.new.hilfe', compact('html'));
     }
 
     public function create()

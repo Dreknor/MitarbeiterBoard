@@ -248,6 +248,13 @@
                     🗑️ Löschen
                 </button>
             </form>
+
+            {{-- Hilfe --}}
+            <a href="{{ route('wp.hilfe') }}"
+               class="inline-flex items-center px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-100 transition-colors"
+               title="Hilfe & Anleitung">
+                ❓ Hilfe
+            </a>
         </div>
     @endcanany
 

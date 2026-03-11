@@ -339,6 +339,7 @@ Route::group([
                     Route::middleware('permission:view wochenplan|create wochenplan|create Wochenplan')->group(function () {
                         Route::get('/', [WpPlanController::class, 'index'])->name('index');
                         Route::get('/klasse/{klasse}', [WpPlanController::class, 'indexKlasse'])->name('index.klasse');
+                        Route::get('/hilfe', [WpPlanController::class, 'hilfe'])->name('hilfe');
                         // Export
                         Route::prefix('export')->name('export.')->group(function () {
                             Route::get('{wpPlan}/pdf', [WpExportController::class, 'pdf'])->name('pdf');

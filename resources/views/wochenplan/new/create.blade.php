@@ -8,12 +8,19 @@
 <div class="wp-container p-4 max-w-2xl mx-auto">
 
     {{-- Zurück-Link --}}
-    <a href="{{ route('wp.index') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-        Zurück zur Übersicht
-    </a>
+    <div class="flex items-center justify-between mb-4">
+        <a href="{{ route('wp.index') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Zurück zur Übersicht
+        </a>
+        <a href="{{ route('wp.hilfe') }}"
+           class="inline-flex items-center px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+           title="Hilfe & Anleitung">
+            ❓ Hilfe
+        </a>
+    </div>
 
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Neuer Wochenplan</h1>
 
