@@ -46,6 +46,9 @@ class Kernel extends ConsoleKernel
 
         // Cleanup expired grading tokens
         $schedule->command('grading:cleanup-tokens')->daily();
+
+        // VP-Raumbuchungen aufräumen (älter als X Tage, konfigurierbar via settings)
+        $schedule->command('room-bookings:cleanup-vp')->weekly();
     }
 
     /**

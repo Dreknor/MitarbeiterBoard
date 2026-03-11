@@ -13,6 +13,7 @@
         <tr>
             <th class="w-50">Klasse</th>
             <th class="w-25">Kürzel</th>
+            <th class="w-25">VP-Status</th>
             <th colspan="2" class="w-25">Action</th>
         </tr>
         </thead>
@@ -21,6 +22,17 @@
             <tr style="background-color: {{$klasse->color}}">
                 <td>{{ $klasse->name }}</td>
                 <td>{{ $klasse->kuerzel }}</td>
+                <td>
+                    @if($klasse->show_vertretungen)
+                        <span class="badge badge-success" title="Vertretungen öffentlich sichtbar">
+                            <i class="fa fa-eye"></i> VP
+                        </span>
+                    @else
+                        <span class="badge badge-secondary" title="Nur Raumbuchungen, kein öffentlicher VP">
+                            <i class="fa fa-eye-slash"></i> nur Räume
+                        </span>
+                    @endif
+                </td>
                 <td>
                     <a href="{{url('klassen/'.$klasse->id.'/edit')}}" class="btn btn-primary btn-sm">edit</a>
                 </td>

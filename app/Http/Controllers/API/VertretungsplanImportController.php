@@ -9,9 +9,11 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vertretung;
 use App\Models\VertretungsplanAbsence;
+use App\Services\RoomBookingFromVpService;
 use App\Support\Collection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VertretungsplanImportController extends Controller
@@ -72,15 +74,38 @@ class VertretungsplanImportController extends Controller
             'dailynews_created' => 0,
             'vertretungen_created' => 0,
             'vertretungen_updated' => 0,
+            'vertretungen_skipped_hidden' => 0,
             'missing_classes' => [],
             'missing_teachers' => [],
         ];
         $hadError = false;
 
+        // Raumintegration: Service für diesen Import-Lauf
+        $roomService = new RoomBookingFromVpService();
+
         foreach ($vertretungsplan as $day){
             try {
                 $summary['days_processed']++;
                 $date = isset($day->Kopf->Datum) ? Carbon::createFromFormat('d.m.Y', $day->Kopf->Datum) : null;
+
+                // A/B-Woche für diesen Tag ermitteln (für Raumintegration)
+                $vpWeek = $date ? \App\Models\VertretungsplanWeek::where('week', $date->copy()->startOfWeek())->first() : null;
+                $week   = $vpWeek?->type;
+
+                // Idempotenz: VP-Raumbuchungen für diesen Tag zurücksetzen
+                if ($date) {
+                    try {
+                        DB::transaction(function () use ($roomService, $date) {
+                            $roomService->clearVpBookingsForDate($date);
+                        });
+                    } catch (\Throwable $e) {
+                        Log::warning('VP-Raum: clearVpBookingsForDate fehlgeschlagen', [
+                            'date'  => $date->format('d.m.Y'),
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
                 // Abwesenheiten
                 if (isset($day->Kopf->Kopfinfo->AbwesendeLehrer)) {
                     try {
@@ -119,12 +144,12 @@ class VertretungsplanImportController extends Controller
                     try {
                         foreach ($day->Aktionen as $aktion){
                             $summary['actions_total']++;
-                            $aktion= (object) $aktion;
+                            $aktion = (object) $aktion;
                             if (isset($aktion->InfoK)){
                                 $nachricht = new DailyNews([
                                     'date_start' => $date,
-                                    'date_end' => $date,
-                                    'news' => $aktion->InfoK,
+                                    'date_end'   => $date,
+                                    'news'       => $aktion->InfoK,
                                 ]);
                                 $nachricht->save();
                                 $summary['dailynews_created']++;
@@ -154,7 +179,7 @@ class VertretungsplanImportController extends Controller
                             $type = '';
                             switch ($aktion->Ak_Art){
                                 case 'Änd.':
-                                case 'Ã„nd.': // mögliches Encoding
+                                case 'Ã„nd.':
                                     if (isset($aktion->Ak_Fach, $aktion->Ak_VFach) && $aktion->Ak_Fach != $aktion->Ak_VFach){
                                         $type = 'Vertretung (fachfremd)';
                                     } else {
@@ -165,20 +190,36 @@ class VertretungsplanImportController extends Controller
                                     $type = 'Ausfall';
                                     break;
                             }
-                            if ($klassen->count()>0){
+
+                            // ── Raumbuchungen verarbeiten ────────────────────────────────
+                            // AUSSERHALB der $klassen-Schleife: Raum-Verarbeitung ist
+                            // unabhängig von show_vertretungen und wird immer ausgeführt.
+                            if ($date) {
+                                $roomService->processAktion($aktion, $date, $week);
+                            }
+
+                            // ── Vertretungs-Einträge erstellen ─────────────────────────
+                            if ($klassen->count() > 0){
                                 foreach ($klassen as $klasse) {
+
+                                    // Nur wenn Klasse öffentlich angezeigt wird
+                                    if (!$klasse->show_vertretungen) {
+                                        $summary['vertretungen_skipped_hidden']++;
+                                        continue;
+                                    }
+
                                     $vertretung = Vertretung::query()
                                         ->where('klassen_id', $klasse->id)
                                         ->where('date', $date ? $date->format('Y-m-d') : null)
                                         ->where('stunde', $aktion->Ak_StundeVon)
                                         ->first();
                                     $payload = [
-                                        'users_id' => $lehrer?->id,
-                                        'Doppelstunde' =>  (isset($aktion->Ak_Doppelstunde) || (isset($aktion->Ak_StundenAnz) && $aktion->Ak_StundenAnz == 2)) ? true : false,
-                                        'altFach' => $aktion->Ak_Fach ?? null,
-                                        'neuFach' => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach !== '') ? $aktion->Ak_VFach : 'Ausfall',
-                                        'type' => $type,
-                                        'comment' => (isset($aktion->Raeume[0], $aktion->VRaeume[0]) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0]  : null,
+                                        'users_id'    => $lehrer?->id,
+                                        'Doppelstunde' => (isset($aktion->Ak_Doppelstunde) || (isset($aktion->Ak_StundenAnz) && $aktion->Ak_StundenAnz == 2)) ? true : false,
+                                        'altFach'     => $aktion->Ak_Fach ?? null,
+                                        'neuFach'     => (isset($aktion->Ak_VFach) && $aktion->Ak_VFach !== '') ? $aktion->Ak_VFach : 'Ausfall',
+                                        'type'        => $type,
+                                        'comment'     => (isset($aktion->Raeume[0], $aktion->VRaeume[0]) && $aktion->Raeume[0] != $aktion->VRaeume[0]) ? 'Raum: '.$aktion->VRaeume[0] : null,
                                     ];
                                     if ($vertretung) {
                                         $vertretung->update($payload);
@@ -186,10 +227,10 @@ class VertretungsplanImportController extends Controller
                                     } else {
                                         $vertretung = new Vertretung(array_merge($payload,[
                                             'klassen_id' => $klasse->id,
-                                            'date' => $date,
-                                            'stunde' => $aktion->Ak_StundeVon ?? null,
+                                            'date'       => $date,
+                                            'stunde'     => $aktion->Ak_StundeVon ?? null,
                                             'created_at' => Carbon::now(),
-                                            'akt_id' => $aktion->Ak_Id ?? null,
+                                            'akt_id'     => $aktion->Ak_Id ?? null,
                                         ]));
                                         $vertretung->save();
                                         $summary['vertretungen_created']++;
@@ -200,7 +241,7 @@ class VertretungsplanImportController extends Controller
                     } catch (\Exception $e) {
                         $hadError = true;
                         Log::error('Vertretungsplan: Error while parsing Aktionen',[
-                            'date' => $date,
+                            'date'      => $date,
                             'exception' => $e->getMessage(),
                         ]);
                     }
@@ -214,16 +255,19 @@ class VertretungsplanImportController extends Controller
             }
         }
 
+        // Raum-Summary zusammenführen
+        $roomSummary = $roomService->getSummary();
+        $summary     = array_merge($summary, $roomSummary);
+
         // Konsolidiertes Logging bei Erfolg
         if (!$hadError) {
-            // Duplikate bereinigen
             $summary['missing_teachers'] = array_values(array_unique($summary['missing_teachers']));
-            $summary['missing_classes'] = array_values(array_unique($summary['missing_classes']));
+            $summary['missing_classes']  = array_values(array_unique($summary['missing_classes']));
             Log::info('Vertretungsplan Import Summary', $summary);
         }
 
         return response()->json([
-            'status' => $hadError ? 'completed_with_errors' : 'ok',
+            'status'  => $hadError ? 'completed_with_errors' : 'ok',
             'summary' => $summary,
         ]);
     }

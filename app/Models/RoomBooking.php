@@ -13,13 +13,35 @@ class RoomBooking extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'weekday', 'date', 'start', 'end', 'room_id', 'users_id', 'name', 'week', 'is_recurring', 'booking_date'
+        'weekday', 'date', 'start', 'end', 'room_id', 'users_id', 'name', 'week', 'is_recurring', 'booking_date',
+        'source', 'source_id', 'cancelled',
     ];
 
     protected $casts = [
         'is_recurring' => 'boolean',
         'booking_date' => 'datetime',
+        'cancelled'    => 'boolean',
     ];
+
+    // ── Scopes ────────────────────────────────────────────────────────────────
+
+    /** Nur aktive (nicht stornierte) Buchungen */
+    public function scopeActive($query)
+    {
+        return $query->where('cancelled', false);
+    }
+
+    /** Nur VP-Buchungen (Quelle: Vertretungsplan-API) */
+    public function scopeFromVertretungsplan($query)
+    {
+        return $query->where('source', 'indiware_vp');
+    }
+
+    /** Nur Stornierungseinträge (Raum durch VP freigegeben) */
+    public function scopeCancelledByVp($query)
+    {
+        return $query->where('cancelled', true)->where('source', 'indiware_vp');
+    }
 
     public function user(){
         return $this->belongsTo(User::class, 'users_id');

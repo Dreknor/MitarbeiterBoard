@@ -11,8 +11,18 @@ class Klasse extends Model
 
     protected $table = 'klassen';
 
-    protected $visible = ['name', 'kuerzel', 'color'];
-    protected $fillable = ['name', 'kuerzel', 'grading_system_id', 'color'];
+    protected $visible = ['name', 'kuerzel', 'color', 'show_vertretungen'];
+    protected $fillable = ['name', 'kuerzel', 'grading_system_id', 'color', 'show_vertretungen'];
+
+    protected $casts = [
+        'show_vertretungen' => 'boolean',
+    ];
+
+    /** Scope: Nur Klassen mit aktivem öffentlichem Vertretungsplan */
+    public function scopeWithPublicVertretungen($query)
+    {
+        return $query->where('show_vertretungen', true);
+    }
 
     public function wochenplaene(){
         return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);

@@ -32,7 +32,19 @@ class Room extends Model
            return $this->bookings;
         });
 
-        $booking = $bookings->filter(function ($booking) use ($weekday, $time, $week, $date){
+        // VP-Stornierungen für dieses Datum vorab aus der gecachten Collection filtern
+        $vpCancellations = $date
+            ? $bookings->filter(fn($b) => $b->cancelled && $b->source === 'indiware_vp'
+                && $b->booking_date && $b->booking_date->isSameDay($date))
+            : collect();
+
+        $booking = $bookings->filter(function ($booking) use ($weekday, $time, $week, $date, $vpCancellations){
+
+            // Stornierte Buchungen nie als "belegt" werten
+            if ($booking->cancelled) {
+                return false;
+            }
+
             // Wenn Datum angegeben ist, prüfe individuelle Buchungen
             if ($date && !$booking->is_recurring && $booking->booking_date) {
                 if (!$booking->booking_date->isSameDay($date)) {
@@ -48,6 +60,15 @@ class Room extends Model
             if (Carbon::parse($time)->betweenIncluded($start, $end) && Carbon::parse($time) != $end) {
                 // Prüfe Woche für wiederkehrende Buchungen
                 if ($booking->is_recurring && ($booking->week == null || $week == $booking->week)) {
+                    // Bei konkretem Datum: Prüfen ob VP diese Stunde storniert hat
+                    if ($date && $vpCancellations->isNotEmpty()) {
+                        $isCancelledByVp = $vpCancellations->first(function ($c) use ($start, $end) {
+                            return Carbon::parse($c->start)->eq($start) || Carbon::parse($c->end)->eq($end);
+                        });
+                        if ($isCancelledByVp) {
+                            return false;
+                        }
+                    }
                     return true;
                 }
                 // Individuelle Buchungen
@@ -70,7 +91,9 @@ class Room extends Model
         $startTime = Carbon::parse($start);
         $endTime = Carbon::parse($end);
 
-        $query = $this->bookings()->where('id', '!=', $excludeBookingId ?? 0);
+        $query = $this->bookings()
+            ->where('id', '!=', $excludeBookingId ?? 0)
+            ->where('cancelled', false); // Stornierungen nie als Konflikt werten
 
         if ($date) {
             // Prüfe individuelle Buchungen für dieses Datum

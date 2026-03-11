@@ -251,6 +251,15 @@
                     <span class="flex items-center gap-1.5">
                         <span class="w-3 h-3 rounded-sm bg-teal-300 inline-block"></span> Einzeltermin (vergangen)
                     </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm bg-amber-500 inline-block"></span> Vertretungsplan
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm bg-green-400 inline-block" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.4) 2px, rgba(255,255,255,0.4) 4px);"></span> Raum frei durch VP
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm bg-red-500 inline-block"></span> VP-Konflikt
+                    </span>
                 </div>
             </div>
         </div>
@@ -375,19 +384,40 @@
                         const cell     = document.createElement('td');
                         cell.rowSpan   = duration;
 
-                        // Farbgebung
-                        let bg, ring;
-                        if (!booking.is_recurring) {
-                            bg   = isPast ? 'bg-teal-100 text-teal-800' : 'bg-teal-500 text-white';
-                            ring = 'ring-1 ring-teal-400';
+                        // Farbgebung nach Buchungstyp (source/cancelled)
+                        let bg, ring, cellTitle;
+                        const source    = booking.source || 'manual';
+                        const cancelled = booking.cancelled || false;
+
+                        if (source === 'indiware_vp') {
+                            if (cancelled) {
+                                // Stornierung durch VP (Raum frei)
+                                bg        = 'bg-green-100 text-green-800';
+                                ring      = 'ring-1 ring-green-400';
+                                cellTitle = 'Raum frei durch Vertretungsplan';
+                                cell.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(74,222,128,0.2) 3px, rgba(74,222,128,0.2) 6px)';
+                            } else {
+                                // VP-Buchung (z.B. Vertretung, Neu, Verlegt)
+                                bg        = isPast ? 'bg-amber-100 text-amber-800' : 'bg-amber-500 text-white';
+                                ring      = 'ring-1 ring-amber-400';
+                                cellTitle = 'Vertretungsplan-Buchung';
+                            }
+                        } else if (!booking.is_recurring) {
+                            bg        = isPast ? 'bg-teal-100 text-teal-800' : 'bg-teal-500 text-white';
+                            ring      = 'ring-1 ring-teal-400';
+                            cellTitle = '';
                         } else {
-                            bg   = isPast ? 'bg-blue-100 text-blue-700' : 'bg-blue-500 text-white';
-                            ring = 'ring-1 ring-blue-400';
+                            bg        = isPast ? 'bg-blue-100 text-blue-700' : 'bg-blue-500 text-white';
+                            ring      = 'ring-1 ring-blue-400';
+                            cellTitle = '';
                         }
 
                         cell.className = `booking-cell px-1 py-0.5 align-top ${bg} ${ring} rounded-sm`;
-                        cell.style.cursor = 'pointer';
-                        cell.onclick = () => { window.location.href = `${editUrl}/${booking.id}`; };
+                        cell.style.cursor = source === 'indiware_vp' ? 'default' : 'pointer';
+                        if (cellTitle) cell.title = cellTitle;
+                        if (source !== 'indiware_vp') {
+                            cell.onclick = () => { window.location.href = `${editUrl}/${booking.id}`; };
+                        }
 
                         const nameDiv = document.createElement('div');
                         nameDiv.style.cssText = 'font-size:0.7rem; font-weight:600; line-height:1.2; word-break:break-word;';

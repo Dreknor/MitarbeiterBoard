@@ -19,7 +19,7 @@ class VertretungsplanController extends Controller
      * @return array
      */
 
-    public function make($gruppen = null, $ausblenden = false){
+    public function make($gruppen = null, $ausblenden = false, bool $publicOnly = false){
         if ($gruppen != null){
             $gruppen_arr = explode('/', $gruppen);
             $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
@@ -34,10 +34,18 @@ class VertretungsplanController extends Controller
                     $gruppen_arr[$key] = $gruppe;
                 }
 
-                $klassen = Klasse::whereIn('name',$gruppen_arr)->get();
+                $query = Klasse::whereIn('name',$gruppen_arr);
+                if ($publicOnly) {
+                    $query->withPublicVertretungen();
+                }
+                $klassen = $query->get();
             }
         } else {
-            $klassen=Klasse::all();
+            $query = Klasse::query();
+            if ($publicOnly) {
+                $query->withPublicVertretungen();
+            }
+            $klassen = $query->get();
         }
 
         $klassen= $klassen->pluck('id');
@@ -115,7 +123,8 @@ class VertretungsplanController extends Controller
 
     public function allowAllIndex($key){
         if ($key == env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY')){
-            return response()->view('vertretungsplan.index',$this->make())
+            // publicOnly=true: nur Klassen mit show_vertretungen=true anzeigen
+            return response()->view('vertretungsplan.index',$this->make(null, false, true))
                 ->header('Content-Security-Policy', '*')
                 ->header('X-Frame-Options', 'allow-from *');
         }

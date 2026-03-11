@@ -128,19 +128,21 @@ class RoomController extends Controller
         // Formatiere Buchungen für JavaScript
         $bookingsFormatted = $bookings->map(function($booking) use ($startOfWeek, $endOfWeek, $week) {
             $result = [
-                'id' => $booking->id,
-                'name' => $booking->name,
-                'start' => $booking->start,
-                'end' => $booking->end,
+                'id'           => $booking->id,
+                'name'         => $booking->name,
+                'start'        => $booking->start,
+                'end'          => $booking->end,
                 'is_recurring' => $booking->is_recurring,
-                'weekday' => $booking->weekday,
-                'week' => $booking->week,
-                'author' => $booking->user?->name ?? 'Unbekannt',
+                'weekday'      => $booking->weekday,
+                'week'         => $booking->week,
+                'author'       => $booking->user?->name ?? 'Unbekannt',
+                'source'       => $booking->source ?? 'manual',
+                'cancelled'    => (bool) ($booking->cancelled ?? false),
             ];
 
             // Für individuelle Buchungen: Berechne Wochentag
             if (!$booking->is_recurring && $booking->booking_date) {
-                $result['date'] = $booking->booking_date->format('Y-m-d');
+                $result['date']    = $booking->booking_date->format('Y-m-d');
                 $result['weekday'] = $booking->booking_date->dayOfWeek;
             }
 

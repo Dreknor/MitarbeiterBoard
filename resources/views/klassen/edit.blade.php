@@ -65,6 +65,30 @@
                                     @enderror
                                     <small class="text-muted">Wenn ein System gewählt wird, können Klassenstufen verwendet werden.</small>
                                 </div>
+
+                                {{-- Vertretungsplan-Sichtbarkeit --}}
+                                <div class="col-md-4 col-sm-12 mb-3">
+                                    <div class="form-group">
+                                        <label class="d-block">Vertretungsplan</label>
+                                        <div class="custom-control custom-switch mt-1">
+                                            <input type="hidden" name="show_vertretungen" value="0">
+                                            <input type="checkbox"
+                                                   class="custom-control-input"
+                                                   id="show_vertretungen"
+                                                   name="show_vertretungen"
+                                                   value="1"
+                                                   {{ $klasse->show_vertretungen ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="show_vertretungen">
+                                                Vertretungen öffentlich anzeigen
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">
+                                            <strong>Aktiv:</strong> Vertretungen erscheinen auf dem öffentlichen VP und werden ans ElternInfoBoard gesendet.<br>
+                                            <strong>Inaktiv:</strong> Es werden nur Raumbuchungen verarbeitet – keine öffentliche Anzeige.
+                                        </small>
+                                    </div>
+                                </div>
+
                             </div>
                             <div class="form-row">
                                  <div class="col-md-4 col-sm-12">

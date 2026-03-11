@@ -88,10 +88,11 @@ class KlasseController extends Controller
             'kuerzel' => ['required', 'unique:klassen,kuerzel,'.$klassen->id, 'max:255'],
             'paed_user_ids' => ['nullable','array'],
             'paed_user_ids.*' => ['integer','exists:users,id'],
-            'paed_group_ids' => ['nullable','array'], // neu: Gruppen IDs
+            'paed_group_ids' => ['nullable','array'],
             'paed_group_ids.*' => ['integer','exists:groups,id'],
             'grading_system_id' => ['nullable','integer','exists:grading_systems,id'],
-            'color' => 'nullable|string|max:7'
+            'color' => 'nullable|string|max:7',
+            'show_vertretungen' => ['nullable', 'boolean'],
         ]);
 
         // Remember previous grading_system to detect changes
@@ -101,10 +102,11 @@ class KlasseController extends Controller
         try {
             // Klasse updaten (nur erlaubte Felder)
             $klassen->update([
-                'name' => $validatedData['name'],
-                'kuerzel' => $validatedData['kuerzel'],
-                'grading_system_id' => $validatedData['grading_system_id'] ?? null,
-                'color' => $validatedData['color'] ?? null,
+                'name'               => $validatedData['name'],
+                'kuerzel'            => $validatedData['kuerzel'],
+                'grading_system_id'  => $validatedData['grading_system_id'] ?? null,
+                'color'              => $validatedData['color'] ?? null,
+                'show_vertretungen'  => $request->boolean('show_vertretungen'),
             ]);
 
             // Nutzer IDs aus Formular
