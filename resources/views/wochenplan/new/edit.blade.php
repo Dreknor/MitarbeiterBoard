@@ -385,6 +385,15 @@
         </div>
     @endcanany
 
+    {{-- Offene Tagebuch-Aufgaben (nur bei Schülerplänen mit offenen Aufgaben) --}}
+    @if($wpPlan->isSchuelerplan())
+        @include('wochenplan.new.components.diary-tasks-panel', [
+            'diaryTasks'  => $diaryTasks ?? collect(),
+            'plan'        => $wpPlan,
+            'planFaecher' => $wpPlan->planFaecher,
+        ])
+    @endif
+
     {{-- Arbeitsblätter --}}
     @if($wpPlan->media->count() > 0 || auth()->user()->canAny(['create wochenplan', 'create Wochenplan']))
         <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">

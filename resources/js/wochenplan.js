@@ -244,6 +244,43 @@ function registerWochenplanComponents(Alpine) {
             }
         }
     }));
+
+    /**
+     * Tagebuch-Aufgaben Panel – Modal für Übernahme in Wochenplan
+     * Verwendung: <div x-data="diaryTasksPanel()">
+     */
+    Alpine.data('diaryTasksPanel', () => ({
+        modal: {
+            open: false,
+            taskId: null,
+            aufgabe: '',
+            description: '',
+        },
+        selectedFachId: '',
+
+        openModal(taskId, title, description) {
+            this.modal.taskId      = taskId;
+            this.modal.aufgabe     = title;
+            this.modal.description = description || '';
+            this.selectedFachId    = '';
+            this.modal.open        = true;
+
+            this.$nextTick(() => {
+                // Fokus auf das Aufgabentext-Feld setzen
+                this.$refs.modalForm?.querySelector('[name="aufgabe"]')?.focus();
+            });
+        },
+
+        submitForm() {
+            if (!this.selectedFachId) return;
+
+            const form = this.$refs.modalForm;
+            // Ziel-URL mit der gewählten Fach-ID
+            form.action = `/wp/aufgabe/aus-tagebuch/${this.selectedFachId}`;
+            form.removeAttribute('x-on:submit.prevent');
+            form.submit();
+        },
+    }));
 }
 
 // Komponenten direkt registrieren.

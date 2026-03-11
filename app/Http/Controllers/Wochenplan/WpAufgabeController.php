@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Wochenplan;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Wochenplan\WpAufgabeRequest;
+use App\Models\PaedDiaryTask;
 use App\Models\Wochenplan\WpAufgabe;
 use App\Models\Wochenplan\WpPlanFach;
 use Illuminate\Http\Request;
@@ -56,5 +57,42 @@ class WpAufgabeController extends Controller
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Übernimmt eine offene Tagebuch-Aufgabe als WP-Aufgabe in ein bestimmtes Fach.
+     *
+     * POST /wp/aufgabe/aus-tagebuch/{wpPlanFach}
+     */
+    public function storeFromDiaryTask(Request $request, WpPlanFach $wpPlanFach)
+    {
+        $data = $request->validate([
+            'diary_task_id' => ['required', 'integer', 'exists:paed_diary_tasks,id'],
+            'aufgabe'       => ['required', 'string', 'max:1000'],
+            'dauer'         => ['nullable', 'string', 'max:50'],
+        ]);
+
+        // Sicherheitsprüfung: Tagebuch-Aufgabe gehört zum gleichen Schüler
+        $diaryTask = PaedDiaryTask::findOrFail($data['diary_task_id']);
+        $plan = $wpPlanFach->plan;
+
+        if (!$plan->isSchuelerplan() || $plan->schueler_id !== $diaryTask->schueler_id) {
+            abort(403, 'Die Tagebuch-Aufgabe gehört nicht zum Schüler dieses Plans.');
+        }
+
+        $maxOrder = $wpPlanFach->aufgaben()->max('sort_order') ?? 0;
+
+        WpAufgabe::create([
+            'wp_plan_fach_id' => $wpPlanFach->id,
+            'aufgabe'         => $data['aufgabe'],
+            'dauer'           => $data['dauer'] ?? null,
+            'sort_order'      => $maxOrder + 1,
+            'synced_from_id'  => null,
+        ]);
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Aufgabe aus dem Tagebuch wurde übernommen.',
+        ]);
     }
 }

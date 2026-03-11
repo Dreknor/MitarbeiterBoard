@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Wochenplan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Wochenplan\WpPlanRequest;
 use App\Models\Klasse;
+use App\Models\PaedDiaryTask;
 use App\Models\Schueler;
 use App\Models\Wochenplan\WpFach;
 use App\Models\Wochenplan\WpFormatvorlage;
@@ -110,7 +111,18 @@ class WpPlanController extends Controller
         $alleFaecher    = WpFach::ordered()->get();
         $formatvorlagen = WpFormatvorlage::orderBy('name')->get();
 
-        return view('wochenplan.new.edit', compact('wpPlan', 'alleFaecher', 'formatvorlagen'));
+        // Offene Tagebuch-Aufgaben für Schülerpläne laden
+        $diaryTasks = collect();
+        if ($wpPlan->isSchuelerplan() && $wpPlan->schueler_id) {
+            $diaryTasks = PaedDiaryTask::open()
+                ->where('schueler_id', $wpPlan->schueler_id)
+                ->orderByDesc('highlighted')
+                ->orderByRaw('due_date IS NULL, due_date ASC')
+                ->orderByDesc('created_at')
+                ->get();
+        }
+
+        return view('wochenplan.new.edit', compact('wpPlan', 'alleFaecher', 'formatvorlagen', 'diaryTasks'));
     }
 
     public function update(WpPlanRequest $request, WpPlan $wpPlan)

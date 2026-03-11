@@ -367,9 +367,10 @@ Route::group([
 
                         // Aufgaben
                         Route::post('/fach/{wpPlanFach}/aufgabe', [WpAufgabeController::class, 'store'])->name('aufgabe.store');
+                        Route::post('/aufgabe/aus-tagebuch/{wpPlanFach}', [WpAufgabeController::class, 'storeFromDiaryTask'])->name('aufgabe.from-diary');
+                        Route::post('/aufgabe/reorder', [WpAufgabeController::class, 'reorder'])->name('aufgabe.reorder');
                         Route::put('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'update'])->name('aufgabe.update');
                         Route::delete('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'destroy'])->name('aufgabe.destroy');
-                        Route::post('/aufgabe/reorder', [WpAufgabeController::class, 'reorder'])->name('aufgabe.reorder');
 
                         // Tägliche Übungen
                         Route::post('/{wpPlan}/taegliche-uebungen/toggle', [WpTaeglicheUebungController::class, 'toggle'])->name('taegliche-uebungen.toggle');
