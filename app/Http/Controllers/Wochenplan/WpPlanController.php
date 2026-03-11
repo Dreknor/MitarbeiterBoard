@@ -122,7 +122,9 @@ class WpPlanController extends Controller
                 ->get();
         }
 
-        return view('wochenplan.new.edit', compact('wpPlan', 'alleFaecher', 'formatvorlagen', 'diaryTasks'));
+        $klassen = Klasse::orderBy('name')->get();
+
+        return view('wochenplan.new.edit', compact('wpPlan', 'alleFaecher', 'formatvorlagen', 'diaryTasks', 'klassen'));
     }
 
     public function update(WpPlanRequest $request, WpPlan $wpPlan)

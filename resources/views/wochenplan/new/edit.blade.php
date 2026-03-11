@@ -120,9 +120,24 @@
                                 @endforeach
                             </select>
                         </div>
+                        {{-- Klasse (nur bei Klassenplan editierbar) --}}
+                        @if(!$wpPlan->isSchuelerplan())
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Klasse</label>
+                                <select name="klasse_id"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                                    <option value="">— Keine Klasse —</option>
+                                    @foreach($klassen as $klasse)
+                                        <option value="{{ $klasse->id }}" {{ old('klasse_id', $wpPlan->klasse_id) == $klasse->id ? 'selected' : '' }}>
+                                            {{ $klasse->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="klasse_id" value="{{ $wpPlan->klasse_id }}">
+                        @endif
                     </div>
-                    {{-- Versteckte Felder für Validierung --}}
-                    <input type="hidden" name="klasse_id" value="{{ $wpPlan->klasse_id }}">
                     <input type="hidden" name="schueler_id" value="{{ $wpPlan->schueler_id }}">
                     <div class="flex gap-2 mt-4">
                         <button type="submit"
