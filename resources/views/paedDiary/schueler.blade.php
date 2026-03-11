@@ -160,66 +160,68 @@
 
             <!-- Daten-Anzeige -->
             <div id="dataSection" class="hidden">
-                        <!-- Moderne Tab-Navigation -->
-                        <div class="mb-6">
+                        <!-- Moderne Tab-Navigation mit Alpine.js -->
+                        <div class="mb-6" x-data="{ activeTab: 'entries' }" id="tabContainer">
                             <div class="border-b border-gray-200">
                                 <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="viewTabs" role="tablist">
                                     <li class="mr-2" role="presentation">
-                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-blue-600 rounded-t-lg text-blue-600 active group"
-                                                id="entries-tab"
-                                                data-toggle="tab"
-                                                href="#entries"
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'entries' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'entries'"
                                                 role="tab"
-                                                aria-selected="true">
+                                                :aria-selected="activeTab === 'entries'">
                                             <i class="fas fa-file-alt"></i>
                                             <span>Einträge</span>
-                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-600" id="entriesBadge">0</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'entries' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="entriesBadge">0</span>
                                         </button>
                                     </li>
                                     <li class="mr-2" role="presentation">
-                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
-                                                id="tasks-tab"
-                                                data-toggle="tab"
-                                                href="#tasks"
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'tasks' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'tasks'"
                                                 role="tab"
-                                                aria-selected="false">
+                                                :aria-selected="activeTab === 'tasks'">
                                             <i class="fas fa-tasks"></i>
                                             <span>Aufgaben</span>
-                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600" id="tasksBadge">0</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'tasks' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="tasksBadge">0</span>
                                         </button>
                                     </li>
                                     <li class="mr-2" role="presentation">
-                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
-                                                id="columns-tab"
-                                                data-toggle="tab"
-                                                href="#columns"
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'columns' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'columns'"
                                                 role="tab"
-                                                aria-selected="false">
+                                                :aria-selected="activeTab === 'columns'">
                                             <i class="fas fa-columns"></i>
                                             <span>Spalten</span>
-                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600" id="columnsBadge">0</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'columns' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="columnsBadge">0</span>
                                         </button>
                                     </li>
                                     <li class="mr-2" role="presentation">
-                                        <button class="inline-flex items-center gap-2 p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 group"
-                                                id="graduations-tab"
-                                                data-toggle="tab"
-                                                href="#graduations"
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'graduations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'graduations'"
                                                 role="tab"
-                                                aria-selected="false">
+                                                :aria-selected="activeTab === 'graduations'">
                                             <i class="fas fa-graduation-cap"></i>
                                             <span>Dokumentation</span>
-                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">{{ $gradingSessions->count() }}</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'graduations' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'">{{ $gradingSessions->count() }}</span>
                                         </button>
                                     </li>
                                 </ul>
                             </div>
-                        </div>
 
                         <!-- Tab Content Container -->
-                        <div class="tab-content" id="viewTabContent">
+                        <div id="viewTabContent">
                             <!-- Einträge Tab -->
-                            <div class="tab-pane fade show active" id="entries" role="tabpanel" aria-labelledby="entries-tab">
+                            <div x-show="activeTab === 'entries'" id="entries" role="tabpanel">
                                 <!-- Filter für Einträge -->
                                 <div class="bg-gray-50 rounded-lg p-4 mb-4">
                                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
@@ -283,7 +285,7 @@
                             </div>
 
                             <!-- Aufgaben Tab -->
-                            <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+                            <div x-show="activeTab === 'tasks'" id="tasks" role="tabpanel">
                                 <div class="bg-white rounded-lg shadow overflow-hidden">
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full divide-y divide-gray-200" id="tasksTable">
@@ -304,7 +306,7 @@
                             </div>
 
                             <!-- Spalten Tab -->
-                            <div class="tab-pane fade" id="columns" role="tabpanel" aria-labelledby="columns-tab">
+                            <div x-show="activeTab === 'columns'" id="columns" role="tabpanel">
                                 <div class="bg-white rounded-lg shadow overflow-hidden">
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full divide-y divide-gray-200" id="columnsTable">
@@ -324,9 +326,9 @@
                             </div>
 
                             <!-- Graduierungen Tab -->
-                            <div class="tab-pane fade" id="graduations" role="tabpanel" aria-labelledby="graduations-tab">
+                            <div x-show="activeTab === 'graduations'" id="graduations" role="tabpanel">
                                 @if($gradingSessions->isEmpty())
-                                    <div class="alert alert-info">
+                                    <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
                                         <i class="fas fa-info-circle"></i> Für diesen Schüler liegen noch keine Graduierungs-Dokumentationen vor.
                                     </div>
                                 @else
@@ -429,21 +431,33 @@
                                     <h6 class="mb-3 font-semibold text-gray-700"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
                                     <div class="space-y-2" id="documentationAccordion">
                                         @foreach($gradingSessions as $session)
-                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                                                <div class="bg-gray-100 px-4 py-3" id="heading{{ $session->id }}">
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden" x-data="{ open: false }">
+                                                <div class="bg-gray-100 px-4 py-3">
                                                     <h6 class="mb-0">
-                                                        <button class="w-full text-left font-medium text-gray-700 hover:text-blue-600 transition-colors" type="button" data-toggle="collapse"
-                                                                data-target="#collapse{{ $session->id }}" aria-expanded="false">
-                                                            <i class="fas fa-calendar-alt"></i>
-                                                            {{ $session->completed_at->format('d.m.Y H:i') }} Uhr
-                                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 ml-2">{{ $session->gradingSystem->name }}</span>
-                                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-800 ml-1">
-                                                                {{ $session->isGroupSession() ? 'Gruppe' : 'Einzeln' }}
+                                                        <button class="w-full text-left font-medium transition-colors flex items-center justify-between"
+                                                                :class="open ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'"
+                                                                type="button"
+                                                                @click="open = !open"
+                                                                :aria-expanded="open">
+                                                            <span>
+                                                                <i class="fas fa-calendar-alt mr-1"></i>
+                                                                {{ $session->completed_at->format('d.m.Y H:i') }} Uhr
+                                                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 ml-2">{{ $session->gradingSystem->name }}</span>
+                                                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-800 ml-1">
+                                                                    {{ $session->isGroupSession() ? 'Gruppe' : 'Einzeln' }}
+                                                                </span>
                                                             </span>
+                                                            <i class="fas transition-transform duration-200" :class="open ? 'fa-chevron-up text-blue-600' : 'fa-chevron-down text-gray-500'"></i>
                                                         </button>
                                                     </h6>
                                                 </div>
-                                                <div id="collapse{{ $session->id }}" class="collapse" data-parent="#documentationAccordion">
+                                                <div x-show="open"
+                                                     x-transition:enter="transition ease-out duration-200"
+                                                     x-transition:enter-start="opacity-0 -translate-y-2"
+                                                     x-transition:enter-end="opacity-100 translate-y-0"
+                                                     x-transition:leave="transition ease-in duration-150"
+                                                     x-transition:leave-start="opacity-100 translate-y-0"
+                                                     x-transition:leave-end="opacity-0 -translate-y-2">
                                                     <div class="p-4">
                                                         <p class="text-gray-600 mb-3">
                                                             <strong>Lehrer:</strong> {{ $session->user->name }}
@@ -646,14 +660,6 @@
     -webkit-overflow-scrolling: touch;
 }
 
-/* Tab-Pane Animation */
-.tab-pane {
-    display: none;
-}
-.tab-pane.show.active {
-    display: block;
-    animation: fadeIn 0.2s ease-in;
-}
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
@@ -661,7 +667,7 @@
 }
 
 /* Tab-Button Übergangseffekte */
-[data-toggle="tab"] {
+.tab-btn {
     transition: all 0.2s ease-in-out;
 }
 
@@ -678,28 +684,8 @@
     border-color: #60a5fa;
 }
 
-/* Collapse Funktionalität mit Transition */
-.collapse {
-    display: none;
-    transition: all 0.3s ease-in-out;
-}
-
-.collapse.show {
-    display: block;
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        max-height: 0;
-        overflow: hidden;
-    }
-    to {
-        opacity: 1;
-        max-height: 2000px;
-    }
-}
+/* Accordion-Transition via Alpine.js x-transition */
+[x-cloak] { display: none !important; }
 
 /* Kategorie-Header Styling */
 #columnsTable thead tr:first-child th {
@@ -733,15 +719,6 @@
 #columnsTable th.category-start,
 #columnsTable td.category-start {
     border-left: 2px solid #2c5f8d !important;
-}
-
-/* Collapse Funktionalität */
-.collapse {
-    display: none;
-}
-
-.collapse.show {
-    display: block;
 }
 
 /* Badge Styles für Tailwind-Kompatibilität */
@@ -852,12 +829,12 @@
     }
 
     /* Kompaktere Tab-Navigation */
-    [data-toggle="tab"] {
+    .tab-btn {
         padding: 0.75rem 1rem !important;
         font-size: 0.875rem;
     }
 
-    [data-toggle="tab"] span:not([id$="Badge"]) {
+    .tab-btn span:not([id$="Badge"]) {
         display: none;
     }
 
@@ -892,7 +869,7 @@
 /* Touch-Optimierung für iPads */
 @media (hover: none) and (pointer: coarse) {
     /* Größere Touch-Targets */
-    button, a, [data-toggle="tab"], [data-toggle="collapse"] {
+    button, a, .tab-btn {
         min-height: 44px;
         min-width: 44px;
     }
@@ -1781,120 +1758,11 @@
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
 
-    // Tab-Funktionalität (ersetzt Bootstrap-Tabs)
-    function initTabs() {
-        const tabButtons = document.querySelectorAll('[data-toggle="tab"]');
+    // Tabs und Collapse werden durch Alpine.js gesteuert (x-data/x-show/@click)
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
+    // Initialisiere Tabs beim Laden (legacy-Kompatibilität für Badge-Updates via JS)
+    // Die Tab-Umschaltung übernimmt Alpine.js, aber Badge-Werte werden weiterhin per JS gesetzt.
 
-                const targetId = this.getAttribute('href');
-                const targetPane = document.querySelector(targetId);
-
-                if (!targetPane) return;
-
-                // Alle Tabs deaktivieren
-                tabButtons.forEach(btn => {
-                    btn.classList.remove('border-blue-600', 'text-blue-600', 'active');
-                    btn.classList.add('border-transparent', 'text-gray-500');
-                    btn.setAttribute('aria-selected', 'false');
-                    // Badge Farbe zurücksetzen
-                    const badge = btn.querySelector('span[id$="Badge"]');
-                    if (badge && badge.id !== 'entriesBadge' && badge.id !== 'tasksBadge' && badge.id !== 'columnsBadge') {
-                        badge.classList.remove('bg-blue-100', 'text-blue-600');
-                        badge.classList.add('bg-gray-200', 'text-gray-600');
-                    }
-                });
-
-                // Alle Tab-Panes verstecken
-                document.querySelectorAll('.tab-pane').forEach(pane => {
-                    pane.classList.remove('show', 'active');
-                });
-
-                // Aktiven Tab aktivieren
-                this.classList.remove('border-transparent', 'text-gray-500');
-                this.classList.add('border-blue-600', 'text-blue-600', 'active');
-                this.setAttribute('aria-selected', 'true');
-
-                // Badge Farbe aktualisieren
-                const activeBadge = this.querySelector('span[id$="Badge"]');
-                if (activeBadge) {
-                    activeBadge.classList.remove('bg-gray-200', 'text-gray-600');
-                    activeBadge.classList.add('bg-blue-100', 'text-blue-600');
-                }
-
-                // Ziel-Pane anzeigen
-                targetPane.classList.add('show', 'active');
-            });
-        });
-    }
-
-    // Initialisiere Tabs beim Laden
-    initTabs();
-
-    // Initialisiere Collapse-Funktionalität für Accordion mit Event-Delegation
-    function initCollapse() {
-        // Event-Delegation auf document-level um sicherzustellen, dass alle Elemente erfasst werden
-        document.addEventListener('click', function(e) {
-            // Prüfe ob ein collapse-button oder dessen Kind-Element geklickt wurde
-            const button = e.target.closest('[data-toggle="collapse"]');
-
-            if (!button) return;
-
-            // Verhindere Standard-Verhalten und Event-Propagation
-            e.preventDefault();
-            e.stopPropagation();
-
-            const targetId = button.getAttribute('data-target');
-            const targetElement = document.querySelector(targetId);
-
-            if (!targetElement) {
-                console.error('Collapse target not found:', targetId);
-                return;
-            }
-
-            // Toggle collapse
-            const isCurrentlyOpen = targetElement.classList.contains('show');
-
-            if (isCurrentlyOpen) {
-                // Schließen
-                targetElement.classList.remove('show');
-                button.setAttribute('aria-expanded', 'false');
-                button.classList.remove('text-blue-600');
-                button.classList.add('text-gray-700');
-            } else {
-                // Optional: Schließe andere Items im selben Accordion
-                const parent = button.getAttribute('data-parent');
-                if (parent) {
-                    const parentElement = document.querySelector(parent);
-                    if (parentElement) {
-                        const siblings = parentElement.querySelectorAll('.collapse.show');
-                        siblings.forEach(sibling => {
-                            if (sibling !== targetElement) {
-                                sibling.classList.remove('show');
-                                const siblingButton = document.querySelector(`[data-target="#${sibling.id}"]`);
-                                if (siblingButton) {
-                                    siblingButton.setAttribute('aria-expanded', 'false');
-                                    siblingButton.classList.remove('text-blue-600');
-                                    siblingButton.classList.add('text-gray-700');
-                                }
-                            }
-                        });
-                    }
-                }
-
-                // Öffnen
-                targetElement.classList.add('show');
-                button.setAttribute('aria-expanded', 'true');
-                button.classList.remove('text-gray-700');
-                button.classList.add('text-blue-600');
-            }
-        });
-    }
-
-    // Initialisiere Collapse beim Laden
-    initCollapse();
 })();
 </script>
 @endpush

@@ -1332,7 +1332,7 @@ class PaedDiaryController extends Controller
                 'created_at' => $t->created_at->format('d.m.Y H:i')
             ]);
 
-        // Graduierungsdokumentation Sessions für den Schüler laden
+        // Graduierungsdokumentation Sessions für den Schüler laden (alle, ohne Datumsfilter)
         $gradingSessions = \App\Models\GradingDocumentationSession::where('klasse_id', $klasse->id)
             ->where(function($q) use ($schueler) {
                 $q->where('schueler_id', $schueler->id)
@@ -1342,7 +1342,6 @@ class PaedDiaryController extends Controller
                   });
             })
             ->whereNotNull('completed_at')
-            ->whereBetween('completed_at', [$dateFrom, $dateTo->copy()->addDay()])
             ->with([
                 'gradingSystem',
                 'gradingSystem.questions' => function($q) {
