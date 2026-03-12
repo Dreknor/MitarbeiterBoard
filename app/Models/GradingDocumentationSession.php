@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class GradingDocumentationSession extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'klasse_id',
         'grading_system_id',

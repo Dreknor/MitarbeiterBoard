@@ -10,5 +10,5 @@ class Setting extends Model
     use HasFactory;
 
     protected $visible = ['module', 'setting_name', 'type', 'value', 'description', 'setting'];
-    protected $fillable = ['value'];
+    protected $fillable = ['module', 'setting', 'setting_name', 'type', 'value', 'description'];
 }

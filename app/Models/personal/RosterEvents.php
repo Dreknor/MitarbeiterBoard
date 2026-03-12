@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class RosterEvents extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
 

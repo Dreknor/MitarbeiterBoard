@@ -20,7 +20,7 @@ class CreateEmployesTable extends Migration
             $table->string('geburtsname')->nullable();
             $table->string('vorname')->nullable();
             $table->date('geburtstag')->nullable();
-            $table->set('geschlecht', ['männlich', 'weiblich','anderes']);
+            $table->string('geschlecht')->nullable()->default('männlich'); // set() ist nur MySQL; string für SQLite-Kompatibilität
             $table->string('sozialversicherungsnummer')->nullable();
             $table->string('geburtsort')->nullable();
             $table->string('staatsangehoerigkeit')->default('deutsch');

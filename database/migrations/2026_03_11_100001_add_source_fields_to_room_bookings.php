@@ -2,24 +2,29 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        // Schritt 1: FK droppen, users_id nullable machen, FK neu setzen
-        Schema::table('room_bookings', function (Blueprint $table) {
-            $table->dropForeign(['users_id']);
-        });
+        // Schritt 1: FK droppen (nur MySQL/MariaDB), users_id nullable machen, FK neu setzen
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('room_bookings', function (Blueprint $table) {
+                $table->dropForeign(['users_id']);
+            });
+        }
 
         Schema::table('room_bookings', function (Blueprint $table) {
             $table->unsignedBigInteger('users_id')->nullable()->change();
         });
 
-        Schema::table('room_bookings', function (Blueprint $table) {
-            $table->foreign('users_id')->references('id')->on('users')->nullOnDelete();
-        });
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('room_bookings', function (Blueprint $table) {
+                $table->foreign('users_id')->references('id')->on('users')->nullOnDelete();
+            });
+        }
 
         // Schritt 2: Neue Felder ergänzen
         Schema::table('room_bookings', function (Blueprint $table) {

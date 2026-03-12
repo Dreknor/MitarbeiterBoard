@@ -14,6 +14,7 @@ use App\Models\personal\WorkingTime;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
@@ -30,6 +31,7 @@ use Staudenmeir\EloquentHasManyDeep\HasRelationships;
  */
 class User extends Authenticatable implements HasMedia
 {
+    use HasFactory;
     use Notifiable;
     use HasRoles;
     use HasPushSubscriptions;
@@ -235,7 +237,7 @@ class User extends Authenticatable implements HasMedia
 
     public function roster_events()
     {
-        return $this->hasMany(RosterEvents::class);
+        return $this->hasMany(RosterEvents::class, 'employe_id');
     }
 
     public function employments()

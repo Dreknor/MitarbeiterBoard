@@ -9,12 +9,14 @@ use App\Models\personal\RosterCheck;
 use App\Models\personal\RosterTaskRequirement;
 use App\Models\Subscription;
 use DateTime;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
 
 class Group extends Model
 {
+    use HasFactory;
     use HasRelationships;
     use SoftDeletes;
 

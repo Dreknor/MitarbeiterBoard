@@ -1,8 +1,10 @@
 <?php
 namespace App\Models\Wochenplan;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 class WpPlanFach extends Model
 {
+    use HasFactory;
     protected $table = 'wp_plan_faecher';
     protected $fillable = ['wp_plan_id', 'wp_fach_id', 'custom_name', 'sort_order'];
     public function plan() { return $this->belongsTo(WpPlan::class, 'wp_plan_id'); }

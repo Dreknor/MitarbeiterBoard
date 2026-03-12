@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Mail\newProtocolForTask;
 use App\Mail\NewThemeMail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Theme extends Model implements HasMedia
 {
+    use HasFactory;
     use InteractsWithMedia;
 
     protected $fillable = ['memory','duration', 'theme', 'information', 'goal', 'type_id', 'completed', 'creator_id', 'group_id', 'created_at', 'updated_at', 'date', 'assigned_to'];

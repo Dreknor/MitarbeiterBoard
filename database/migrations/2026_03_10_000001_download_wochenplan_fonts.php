@@ -26,6 +26,12 @@ return new class extends Migration
 
     public function up(): void
     {
+        // In der Testumgebung keine externen Downloads durchführen
+        if (app()->environment('testing')) {
+            Log::info('[FontMigration] Test-Umgebung erkannt – Font-Download übersprungen.');
+            return;
+        }
+
         $fontDir = storage_path('fonts');
 
         // Verzeichnis anlegen, falls nicht vorhanden

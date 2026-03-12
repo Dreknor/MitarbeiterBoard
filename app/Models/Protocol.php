@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Mail\newProtocolForTask;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Mail;
@@ -12,6 +13,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Auditable
 {
+    use HasFactory;
     use InteractsWithMedia;
     use SoftDeletes;
     use \OwenIt\Auditing\Auditable;

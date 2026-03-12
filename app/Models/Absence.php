@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 
 class Absence extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];

@@ -10,6 +10,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Post extends Model implements HasMedia
 {
+    use HasFactory;
     use SoftDeletes;
     use InteractsWithMedia;
 

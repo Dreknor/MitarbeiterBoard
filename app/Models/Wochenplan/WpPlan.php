@@ -3,13 +3,14 @@ namespace App\Models\Wochenplan;
 use App\Models\Klasse;
 use App\Models\Schueler;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 class WpPlan extends Model implements HasMedia
 {
-    use SoftDeletes, InteractsWithMedia;
+    use HasFactory, SoftDeletes, InteractsWithMedia;
     protected $table = 'wp_plaene';
     protected $fillable = [
         'name', 'gueltig_von', 'gueltig_bis',

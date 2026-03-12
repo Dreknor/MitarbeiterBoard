@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VertretungsplanAbsence extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $fillable = [

@@ -1,11 +1,12 @@
 <?php
 namespace App\Models\Wochenplan;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 class WpFormatvorlage extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $table = 'wp_formatvorlagen';
     protected $fillable = [
         'name', 'beschreibung', 'schriftgroesse', 'schriftart',

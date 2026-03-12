@@ -16,6 +16,8 @@ final class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // Die Startseite leitet nicht authentifizierte Nutzer zum Login weiter
+        $response->assertStatus(302);
+        $response->assertRedirect('/login');
     }
 }

@@ -1,8 +1,10 @@
 <?php
 namespace App\Models\Wochenplan;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 class WpFach extends Model
 {
+    use HasFactory;
     protected $table = 'wp_faecher';
     protected $fillable = ['name', 'sort_order', 'is_default', 'symbol_typ', 'symbol_wert', 'symbol_farbe'];
     protected $casts = ['is_default' => 'boolean', 'sort_order' => 'integer'];
