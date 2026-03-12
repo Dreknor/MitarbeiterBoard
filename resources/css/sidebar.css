@@ -6,6 +6,19 @@
 /* ── Alpine.js: x-cloak verhindert Flash of Unstyled Content ────────────── */
 [x-cloak] { display: none !important; }
 
+/* ── Tailwind v4 / Bootstrap Collapse Fix ───────────────────────────────── *
+ * Tailwind v4 generiert in @layer utilities: .collapse { visibility: collapse }
+ * Bootstrap nutzt dieselbe Klasse .collapse für sein Collapse-Plugin.
+ * Bootstrap setzt die visibility-Eigenschaft nie explizit, daher greift
+ * Tailwinds Regel – auch wenn .show die Box einblendet – und macht den Inhalt
+ * unsichtbar (visibility:collapse ≈ visibility:hidden für Non-Table-Elemente).
+ * Fix: visibility auf visible zurücksetzen (unlayered → schlägt @layer utilities).
+ * ──────────────────────────────────────────────────────────���──────────────── */
+#tw-main .collapse,
+#tw-main .collapsing {
+    visibility: visible;
+}
+
 /* ── Tailwind v4: Quell-Dateien angeben ─────────────────────────────────── */
 @source "../views/layouts/**/*.blade.php";
 @source "../js/sidebar.js";
