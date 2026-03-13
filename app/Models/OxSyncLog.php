@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OxSyncLog extends Model
 {
+    use HasFactory;
     protected $table = 'ox_sync_log';
 
     protected $fillable = [
@@ -33,4 +35,5 @@ class OxSyncLog extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
+
 
