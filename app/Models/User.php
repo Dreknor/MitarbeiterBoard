@@ -45,7 +45,7 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
         'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'

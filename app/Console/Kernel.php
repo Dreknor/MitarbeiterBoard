@@ -49,6 +49,31 @@ class Kernel extends ConsoleKernel
 
         // VP-Raumbuchungen aufräumen (älter als X Tage, konfigurierbar via settings)
         $schedule->command('room-bookings:cleanup-vp')->weekly();
+
+        // Kalender-Synchronisation (OX CalDAV)
+        $syncInterval = (int) (\App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'calendar_sync_interval')
+            ->value('value') ?? 15);
+
+        $schedule->command('ox:sync-calendars')
+            ->cron("*/{$syncInterval} * * * *")
+            ->withoutOverlapping(30) // Max. Lock-Zeit: 30 Minuten
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/ox-sync.log'));
+
+        // Kalender Sync-Log-Bereinigung (täglich um 03:00)
+        $schedule->call(function () {
+            $aufbewahrungTage = (int) (\App\Models\Setting::where('module', 'Kalender')
+                ->where('setting', 'calendar_log_aufbewahrung_tage')
+                ->value('value') ?? 90);
+
+            $deleted = \App\Models\OxSyncLog::where('created_at', '<', now()->subDays($aufbewahrungTage))
+                ->delete(); // Hart löschen (kein SoftDeletes)
+
+            if ($deleted > 0) {
+                \Illuminate\Support\Facades\Log::info("Kalender: {$deleted} alte Sync-Logs gelöscht (>{$aufbewahrungTage} Tage)");
+            }
+        })->dailyAt('03:00')->name('calendar-log-cleanup');
     }
 
     /**

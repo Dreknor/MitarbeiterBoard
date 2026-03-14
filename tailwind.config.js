@@ -8,6 +8,8 @@ module.exports = {
     "./resources/js/wochenplan.js",
     "./resources/views/rooms/**/*.blade.php",
     "./resources/css/rooms.css",
+    "./resources/views/calendar/**/*.blade.php",
+    "./resources/js/calendar.js",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {

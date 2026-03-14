@@ -10,6 +10,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\OxTermin;
 use App\Models\OxSyncLog;
 
+/**
+ * OxCalendar – Lokale Repräsentation eines OX-CalDAV-Kalenders.
+ *
+ * @property int         $id
+ * @property string      $ox_calendar_id         CalDAV-Pfad / URL
+ * @property string      $name
+ * @property string      $farbe                  Hex-Farbcode (#RRGGBB)
+ * @property string|null $beschreibung
+ * @property bool        $sichtbar
+ * @property bool        $schreibbar
+ * @property string|null $sync_token
+ * @property \Carbon\Carbon|null $letzte_synchronisation
+ * @property \Carbon\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\OxTermin> $termine
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\OxSyncLog> $syncLogs
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Group> $groups
+ * @property-read int|null $termine_count
+ */
 class OxCalendar extends Model
 {
     use HasFactory, SoftDeletes;

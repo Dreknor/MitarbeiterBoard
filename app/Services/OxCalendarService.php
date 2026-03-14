@@ -14,6 +14,22 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Sabre\VObject\Reader;
 
+/**
+ * Service für die CalDAV-Kommunikation mit Open-Xchange.
+ *
+ * Verantwortlich für:
+ * - Synchronisation von OX-Kalendern in die lokale Cache-Schicht (syncAll / syncCalendar)
+ * - Bidirektionale Terminerstellung (MB → OX): createTermin, updateTermin, deleteTermin
+ * - iCal-Parsing und -Erstellung via sabre/vobject
+ * - Fehler-Erkennung und Admin-Benachrichtigung (checkConsecutiveErrors)
+ *
+ * Konfiguration: config/ox-calendar.php (.env-Variablen: OX_CALDAV_URL, OX_CALDAV_USER, …)
+ * Modelle:       OxCalendar, OxTermin, OxTerminTeilnehmer, OxSyncLog
+ *
+ * @see \App\Console\Commands\OxSyncCalendars
+ * @see \App\Http\Controllers\CalendarController
+ * @see \App\Http\Controllers\CalendarAdminController
+ */
 class OxCalendarService
 {
     // ========================================================================
@@ -43,29 +59,50 @@ class OxCalendarService
         }
 
         try {
-            $response = $this->httpClient()->send('PROPFIND', config('ox-calendar.url'), [
-                'headers' => [
-                    'Depth'        => '0',
-                    'Content-Type' => 'application/xml; charset=utf-8',
-                ],
-                'body' => '<?xml version="1.0" encoding="utf-8"?>
-                    <d:propfind xmlns:d="DAV:">
-                        <d:prop>
-                            <d:displayname/>
-                        </d:prop>
-                    </d:propfind>',
-            ]);
+            $response = $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->send('PROPFIND', config('ox-calendar.url'), [
+                    'headers' => [
+                        'Depth'        => '0',
+                        'Content-Type' => 'application/xml; charset=utf-8',
+                    ],
+                    'body' => '<?xml version="1.0" encoding="utf-8"?>
+                        <d:propfind xmlns:d="DAV:">
+                            <d:prop>
+                                <d:displayname/>
+                                <d:current-user-principal/>
+                            </d:prop>
+                        </d:propfind>',
+                ]);
+
+            $davHeader = $response->header('DAV');
+            $status    = $response->status();
+
+            if ($status === 207 || !empty($davHeader)) {
+                return [
+                    'success'    => true,
+                    'message'    => 'CalDAV-Verbindung erfolgreich.',
+                    'status'     => $status,
+                    'dav_header' => $davHeader ?: '(nicht gesetzt)',
+                ];
+            }
 
             if ($response->successful()) {
-                return ['success' => true, 'message' => 'Verbindung erfolgreich.', 'status' => $response->status()];
+                return [
+                    'success'    => false,
+                    'message'    => 'Server erreichbar (HTTP ' . $status . '), aber kein CalDAV erkannt '
+                        . '(kein DAV-Header, kein HTTP-207). Prüfe ob CalDAV konfiguriert ist.',
+                    'status'     => $status,
+                    'dav_header' => $davHeader ?: '(nicht gesetzt)',
+                ];
             }
 
             return [
                 'success' => false,
-                'message' => 'Server antwortete mit Status ' . $response->status(),
-                'status'  => $response->status(),
+                'message' => 'Server antwortete mit HTTP ' . $status,
+                'status'  => $status,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => 'Verbindungsfehler: ' . $e->getMessage()];
         }
     }
@@ -175,41 +212,51 @@ class OxCalendarService
     /**
      * XML-Response eines PROPFIND/REPORT parsen.
      * Extrahiert Event-URLs, ETags und ggf. neuen sync-token.
+     * Nutzt DOMDocument/DOMXPath für robuste Namespace-Behandlung
+     * (SimpleXML scheitert bei Default-Namespaces wie `xmlns="DAV:"`).
      *
      * @return array{responses: array<array{href: string, etag: string|null, status: int}>, sync_token: string|null}
      */
     protected function parsePropfindResponse(string $xmlBody): array
     {
-        $xml = simplexml_load_string($xmlBody);
-        if ($xml === false) {
+        $dom = new \DOMDocument();
+        $prev = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xmlBody);
+        libxml_clear_errors();
+        libxml_use_internal_errors($prev);
+
+        if (!$loaded) {
             throw new \RuntimeException('Ungültige XML-Antwort vom CalDAV-Server');
         }
 
-        $xml->registerXPathNamespace('d', 'DAV:');
-        $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('d',  'DAV:');
+        $xpath->registerNamespace('cs', 'http://calendarserver.org/ns/');
+        $xpath->registerNamespace('c',  'urn:ietf:params:xml:ns:caldav');
 
         $responses = [];
-        foreach ($xml->xpath('//d:response') as $response) {
-            $hrefNodes = $response->xpath('d:href');
-            $href      = !empty($hrefNodes) ? (string) $hrefNodes[0] : '';
 
-            $etagNodes = $response->xpath('d:propstat/d:prop/d:getetag');
-            $etag      = !empty($etagNodes) ? (string) $etagNodes[0] : null;
+        foreach ($xpath->query('//*[local-name()="response"]') as $responseNode) {
+            // href
+            $hrefNodes = $xpath->query('*[local-name()="href"]', $responseNode);
+            $href      = $hrefNodes->length > 0 ? trim($hrefNodes->item(0)->textContent) : '';
 
-            // Status aus propstat oder direkt unter response (z.B. 404 bei Löschungen)
-            $statusCode       = 200;
-            $propstatStatus   = $response->xpath('d:propstat/d:status');
-            $directStatus     = $response->xpath('d:status');
-
-            if (!empty($propstatStatus)) {
-                preg_match('/(\d{3})/', (string) $propstatStatus[0], $matches);
-                $statusCode = (int) ($matches[1] ?? 200);
-            } elseif (!empty($directStatus)) {
-                preg_match('/(\d{3})/', (string) $directStatus[0], $matches);
-                $statusCode = (int) ($matches[1] ?? 200);
+            // etag
+            $etagNodes = $xpath->query('.//*[local-name()="getetag"]', $responseNode);
+            $etag      = $etagNodes->length > 0 ? trim($etagNodes->item(0)->textContent) : null;
+            if ($etag !== null) {
+                $etag = trim($etag, '"');
             }
 
-            // Nur .ics-Dateien berücksichtigen (keine Verzeichnisse)
+            // HTTP-Status
+            $statusCode     = 200;
+            $statusNodes    = $xpath->query('.//*[local-name()="status"]', $responseNode);
+            if ($statusNodes->length > 0) {
+                preg_match('/(\d{3})/', $statusNodes->item(0)->textContent, $m);
+                $statusCode = (int) ($m[1] ?? 200);
+            }
+
+            // Nur .ics-Dateien (keine Verzeichnisse)
             if (str_ends_with($href, '.ics')) {
                 $responses[] = [
                     'href'   => $href,
@@ -219,13 +266,15 @@ class OxCalendarService
             }
         }
 
-        // Sync-Token extrahieren
-        $syncTokenNodes = $xml->xpath('//d:sync-token');
-        $newSyncToken   = !empty($syncTokenNodes) ? (string) $syncTokenNodes[0] : null;
+        // sync-token extrahieren
+        $syncTokenNodes = $xpath->query('//*[local-name()="sync-token"]');
+        $newSyncToken   = $syncTokenNodes->length > 0
+            ? trim($syncTokenNodes->item(0)->textContent)
+            : null;
 
         return [
             'responses'  => $responses,
-            'sync_token' => $newSyncToken,
+            'sync_token' => $newSyncToken ?: null,
         ];
     }
 
@@ -382,8 +431,116 @@ class OxCalendarService
     }
 
     // ========================================================================
+    // Öffentliche Test-/Diagnose-Methoden
+    // ========================================================================
+
+    /**
+     * PROPFIND-Probe auf eine beliebige CalDAV-URL.
+     * Liefert Event-Liste und sync-token für Diagnosezwecke zurück,
+     * ohne etwas in der DB zu speichern.
+     *
+     * @param string $url Vollständige CalDAV-URL (z. B. https://…/dav/caldav/…)
+     *
+     * @return array{
+     *   success: bool,
+     *   message: string,
+     *   events: array,
+     *   sync_token: string|null,
+     *   status?: int,
+     * }
+     */
+    public function probeCalendarUrl(string $url): array
+    {
+        $diagnostics = [];
+
+        // ── Stufe 1: OPTIONS ─────────────────────────────────────────────
+        try {
+            $optResp = $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->send('OPTIONS', $url, []);
+            $diagnostics['options_status']  = $optResp->status();
+            $diagnostics['allowed_methods'] = $optResp->header('Allow') ?: '(nicht zurückgegeben)';
+            $diagnostics['dav_header']      = $optResp->header('DAV')   ?: '(nicht gesetzt)';
+        } catch (\Throwable $e) {
+            $diagnostics['options_error'] = $e->getMessage();
+        }
+
+        // ── Stufe 2: PROPFIND Depth:0 (Ressource existiert?) ─────────────
+        try {
+            $depth0Resp = $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->send('PROPFIND', $url, [
+                    'headers' => [
+                        'Depth'        => '0',
+                        'Content-Type' => 'application/xml; charset=utf-8',
+                    ],
+                    'body' => '<?xml version="1.0" encoding="utf-8"?>
+                        <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
+                            <d:prop>
+                                <d:displayname/>
+                                <d:resourcetype/>
+                                <cs:getctag/>
+                                <d:sync-token/>
+                            </d:prop>
+                        </d:propfind>',
+                ]);
+            $diagnostics['propfind_depth0_status'] = $depth0Resp->status();
+            $body = $depth0Resp->body();
+            $diagnostics['propfind_depth0_body']   = substr($body, 0, 1000);
+
+            if (preg_match('/<[^:>]*:?displayname[^>]*>([^<]*)</', $body, $m) && trim($m[1]) !== '') {
+                $diagnostics['displayname'] = trim($m[1]);
+            }
+            if (preg_match('/<[^:>]*:?getctag[^>]*>([^<]*)</', $body, $m)) {
+                $diagnostics['ctag'] = trim($m[1]);
+            }
+            if (preg_match('/<[^:>]*:?sync-token[^>]*>([^<]*)</', $body, $m)) {
+                $diagnostics['sync_token_raw'] = trim($m[1]);
+            }
+        } catch (\Throwable $e) {
+            $diagnostics['propfind_depth0_error'] = $e->getMessage();
+        }
+
+        // ── Stufe 3: PROPFIND Depth:1 (Events listen) ────────────────────
+        try {
+            $response = $this->propfind($url);
+
+            return [
+                'success'     => true,
+                'message'     => count($response['responses']) . ' Event(s) gefunden.',
+                'events'      => $response['responses'],
+                'sync_token'  => $response['sync_token'],
+                'diagnostics' => $diagnostics,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success'     => false,
+                'message'     => $e->getMessage(),
+                'events'      => [],
+                'sync_token'  => null,
+                'diagnostics' => $diagnostics,
+            ];
+        }
+    }
+
+    // ========================================================================
     // Cache-Invalidierung
     // ========================================================================
+
+    /**
+     * Einzelnes Event von einer CalDAV-URL laden (öffentlicher Wrapper für Diagnose).
+     *
+     * @return array{success: bool, body: string, message: string}
+     */
+    public function fetchEventFromUrl(string $url): array
+    {
+        try {
+            $body = $this->getEvent($url);
+            return ['success' => true, 'body' => $body, 'message' => 'OK'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'body' => '', 'message' => $e->getMessage()];
+        }
+    }
 
     /**
      * Events-Cache invalidieren.
@@ -502,6 +659,15 @@ class OxCalendarService
             return [];
         }
 
+        $syncEnabled = \App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'calendar_sync_enabled')
+            ->value('value') ?? '1';
+
+        if ($syncEnabled !== '1') {
+            Log::info('Kalender-Sync übersprungen: Über Settings deaktiviert');
+            return [];
+        }
+
         $calendars = OxCalendar::where('sichtbar', true)->get();
         $results   = [];
 
@@ -509,7 +675,53 @@ class OxCalendarService
             $results[$calendar->name] = $this->syncCalendar($calendar);
         }
 
+        // Prüfe auf aufeinanderfolgende Fehler und benachrichtige Admins
+        $this->checkConsecutiveErrors();
+
         return $results;
+    }
+
+    /**
+     * Prüft ob 3+ aufeinanderfolgende Sync-Fehler vorliegen und benachrichtigt Admins.
+     * Spam-Schutz: Maximal eine Notification pro Stunde.
+     */
+    protected function checkConsecutiveErrors(): void
+    {
+        // Letzte 3 Sync-Abschlüsse prüfen (sync_complete oder error)
+        $recentLogs = OxSyncLog::whereIn('aktion', ['sync_complete', 'error'])
+            ->orderByDesc('created_at')
+            ->limit(3)
+            ->pluck('aktion')
+            ->toArray();
+
+        // Wenn alle 3 letzten Einträge Fehler sind
+        if (count($recentLogs) >= 3 && count(array_unique($recentLogs)) === 1 && $recentLogs[0] === 'error') {
+            $letzterFehler = OxSyncLog::where('aktion', 'error')
+                ->orderByDesc('created_at')
+                ->first();
+
+            $fehlerDetails = $letzterFehler->details['message'] ?? 'Unbekannter Fehler';
+
+            // Spam-Schutz: Nur einmal pro Stunde benachrichtigen
+            $letzteNotification = Cache::get('calendar_sync_error_notified');
+            if ($letzteNotification) {
+                return;
+            }
+
+            // Admins mit 'manage calendar'-Berechtigung benachrichtigen
+            $admins = \App\Models\User::permission('manage calendar')->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\SyncFailedNotification(
+                    count($recentLogs),
+                    $fehlerDetails
+                ));
+            }
+
+            // Cooldown: 1 Stunde
+            Cache::put('calendar_sync_error_notified', true, 3600);
+
+            Log::warning('Kalender: 3+ Sync-Fehler hintereinander – Admins benachrichtigt');
+        }
     }
 
     /**
@@ -654,9 +866,13 @@ class OxCalendarService
                 'exdates'      => $parsed['exdates'],
                 'status'       => $parsed['status'],
                 'raw_ical'     => $icalData,
-                'deleted_at'   => null, // Restore bei Re-Sync
             ]
         );
+
+        // Soft-deleted Termin bei Re-Sync wiederherstellen
+        if ($termin->trashed()) {
+            $termin->restore();
+        }
 
         // Teilnehmer synchronisieren
         $this->syncTeilnehmer($termin, $icalData);
@@ -693,26 +909,385 @@ class OxCalendarService
 
     /**
      * Volle CalDAV-URL eines Kalenders bauen.
+     * Falls ox_calendar_id bereits eine absolute URL ist, direkt zurückgeben.
      */
     protected function buildCalendarUrl(OxCalendar $calendar): string
     {
+        if (str_starts_with($calendar->ox_calendar_id, 'http')) {
+            return $calendar->ox_calendar_id;
+        }
+
         return rtrim(config('ox-calendar.url'), '/') . '/' . ltrim($calendar->ox_calendar_id, '/');
     }
 
     /**
      * Volle CalDAV-URL eines Events bauen.
-     * href kann absolut oder relativ sein.
+     * href kann absolut (http/https), absoluter Pfad (/) oder relativ sein.
      */
     protected function buildEventUrl(OxCalendar $calendar, string $href): string
     {
         if (str_starts_with($href, 'http')) {
             return $href;
         }
-        return rtrim(config('ox-calendar.url'), '/') . '/' . ltrim($href, '/');
+
+        $calendarUrl = $this->buildCalendarUrl($calendar);
+        $parsed      = parse_url($calendarUrl);
+        $origin      = $parsed['scheme'] . '://' . $parsed['host'];
+        if (!empty($parsed['port'])) {
+            $origin .= ':' . $parsed['port'];
+        }
+
+        // Absoluter Pfad (z.B. /dav/caldav/...)
+        if (str_starts_with($href, '/')) {
+            return $origin . $href;
+        }
+
+        // Relativer Pfad → relativ zur Kalender-Collection
+        return rtrim($calendarUrl, '/') . '/' . $href;
+    }
+
+    // ========================================================================
+    // CRUD-Operationen
+    // ========================================================================
+
+    /**
+     * Neuen Termin erstellen und nach OX schreiben.
+     *
+     * @param OxCalendar $calendar Zielkalender
+     * @param array $data Termin-Daten (titel, beschreibung, ort, beginn, ende, ganztaegig, rrule)
+     * @return OxTermin Lokaler Cache-Eintrag
+     * @throws \RuntimeException Bei CalDAV-Fehler
+     */
+    public function createTermin(OxCalendar $calendar, array $data): OxTermin
+    {
+        // UID generieren
+        $uid = \Illuminate\Support\Str::uuid() . '@mitarbeiterboard';
+
+        // iCal bauen
+        $icalData = $this->buildIcal(array_merge($data, ['uid' => $uid]));
+
+        // CalDAV-URL für neues Event
+        // Nur den Dateinamen als relativen href übergeben – buildEventUrl hängt ihn
+        // an die vollständige Kalender-Collection-URL an. Den ox_href als absoluten
+        // Pfad speichern, damit er mit PROPFIND-Antworten übereinstimmt.
+        $eventFilename = $uid . '.ics';
+        $eventUrl      = $this->buildEventUrl($calendar, $eventFilename);
+        $eventHref     = parse_url($eventUrl, PHP_URL_PATH); // z.B. /caldav/…/uuid.ics
+
+        // CalDAV PUT
+        $response = $this->putEvent($eventUrl, $icalData);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException(
+                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
+            );
+        }
+
+        // ETag aus Response extrahieren
+        $etag = $response->header('ETag');
+
+        // Lokalen Cache-Eintrag erstellen
+        $termin = OxTermin::create([
+            'ox_calendar_id' => $calendar->id,
+            'ox_uid'         => $uid,
+            'ox_etag'        => $etag,
+            'ox_href'        => $eventHref,
+            'titel'          => $data['titel'],
+            'beschreibung'   => $data['beschreibung'] ?? null,
+            'ort'            => $data['ort'] ?? null,
+            'beginn'         => $data['beginn'],
+            'ende'           => $data['ende'],
+            'timezone'       => 'Europe/Berlin',
+            'ganztaegig'     => $data['ganztaegig'] ?? false,
+            'rrule'          => $data['rrule'] ?? null,
+            'exdates'        => null,
+            'status'         => 'CONFIRMED',
+            'erstellt_von'   => auth()->id(),
+            'raw_ical'       => $icalData,
+        ]);
+
+        // Audit-Log
+        OxSyncLog::create([
+            'ox_calendar_id' => $calendar->id,
+            'aktion'         => 'create',
+            'details'        => [
+                'titel'  => $termin->titel,
+                'beginn' => $termin->beginn->toIso8601String(),
+                'ende'   => $termin->ende->toIso8601String(),
+                'ox_uid' => $termin->ox_uid,
+            ],
+            'user_id'    => auth()->id(),
+            'ip_adresse' => request()->ip(),
+        ]);
+
+        // Cache invalidieren
+        $this->invalidateEventsCache($calendar->id);
+
+        return $termin;
+    }
+
+    /**
+     * Bestehenden Termin aktualisieren und nach OX schreiben.
+     * Nutzt raw_ical für verlustfreien Round-Trip.
+     *
+     * @throws \RuntimeException Bei CalDAV-Fehler oder ETag-Mismatch
+     */
+    public function updateTermin(OxTermin $termin, array $data): OxTermin
+    {
+        // iCal bauen (basierend auf raw_ical wenn vorhanden, sonst neu)
+        $icalData = $termin->raw_ical
+            ? $this->updateExistingIcal($termin->raw_ical, $data)
+            : $this->buildIcal(array_merge($data, ['uid' => $termin->ox_uid]));
+
+        $eventUrl = $this->buildEventUrl($termin->kalender, $termin->ox_href);
+
+        // CalDAV PUT mit If-Match (ETag-Prüfung)
+        $response = $this->putEvent($eventUrl, $icalData, $termin->ox_etag);
+
+        if ($response->status() === 412) {
+            // ETag-Mismatch: Termin wurde in OX geändert
+            throw new \RuntimeException(
+                'Termin wurde zwischenzeitlich in OX geändert. Bitte neu laden.'
+            );
+        }
+
+        if (!$response->successful()) {
+            throw new \RuntimeException(
+                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
+            );
+        }
+
+        // Lokalen Cache aktualisieren
+        $termin->update([
+            'ox_etag'      => $response->header('ETag'),
+            'titel'        => $data['titel'],
+            'beschreibung' => $data['beschreibung'] ?? null,
+            'ort'          => $data['ort'] ?? null,
+            'beginn'       => $data['beginn'],
+            'ende'         => $data['ende'],
+            'ganztaegig'   => $data['ganztaegig'] ?? false,
+            'rrule'        => $data['rrule'] ?? null,
+            'raw_ical'     => $icalData,
+        ]);
+
+        // Audit-Log
+        OxSyncLog::create([
+            'ox_calendar_id' => $termin->ox_calendar_id,
+            'aktion'         => 'update',
+            'details'        => [
+                'titel'      => $termin->titel,
+                'ox_uid'     => $termin->ox_uid,
+                'aenderungen' => array_keys($data),
+            ],
+            'user_id'    => auth()->id(),
+            'ip_adresse' => request()->ip(),
+        ]);
+
+        $this->invalidateEventsCache($termin->ox_calendar_id);
+
+        return $termin;
+    }
+
+    /**
+     * Termin in OX löschen und lokal soft-deleten.
+     */
+    public function deleteTermin(OxTermin $termin): bool
+    {
+        $eventUrl = $this->buildEventUrl($termin->kalender, $termin->ox_href);
+
+        $response = $this->deleteEvent($eventUrl);
+
+        if (!$response->successful() && $response->status() !== 404) {
+            throw new \RuntimeException(
+                'CalDAV DELETE fehlgeschlagen: HTTP ' . $response->status()
+            );
+        }
+
+        // Audit-Log
+        OxSyncLog::create([
+            'ox_calendar_id' => $termin->ox_calendar_id,
+            'aktion'         => 'delete',
+            'details'        => [
+                'titel'  => $termin->titel,
+                'ox_uid' => $termin->ox_uid,
+            ],
+            'user_id'    => auth()->id(),
+            'ip_adresse' => request()->ip(),
+        ]);
+
+        $termin->delete(); // SoftDelete
+
+        $this->invalidateEventsCache($termin->ox_calendar_id);
+
+        return true;
+    }
+
+    /**
+     * Termin-Daten in iCal-String konvertieren.
+     * Nutzt sabre/vobject Builder (kein manuelles String-Building).
+     */
+    protected function buildIcal(array $data): string
+    {
+        $vcalendar           = new \Sabre\VObject\Component\VCalendar();
+        $vcalendar->PRODID   = '-//MitarbeiterBoard//Kalender//DE';
+        $vcalendar->VERSION  = '2.0';
+
+        $veventData = [
+            'UID'     => $data['uid'],
+            'SUMMARY' => $data['titel'],
+            'DTSTAMP' => new \DateTime('now', new \DateTimeZone('UTC')),
+        ];
+
+        // Datum/Zeit
+        if (!empty($data['ganztaegig'])) {
+            $veventData['DTSTART'] = new \DateTime($data['beginn']);
+            $veventData['DTEND']   = new \DateTime($data['ende']);
+        } else {
+            $veventData['DTSTART'] = new \DateTime($data['beginn'], new \DateTimeZone('Europe/Berlin'));
+            $veventData['DTEND']   = new \DateTime($data['ende'], new \DateTimeZone('Europe/Berlin'));
+        }
+
+        $vevent = $vcalendar->add('VEVENT', $veventData);
+
+        if (!empty($data['ganztaegig'])) {
+            $vevent->DTSTART['VALUE'] = 'DATE';
+            $vevent->DTEND['VALUE']   = 'DATE';
+        }
+
+        if (!empty($data['beschreibung'])) {
+            $vevent->DESCRIPTION = $data['beschreibung'];
+        }
+
+        if (!empty($data['ort'])) {
+            $vevent->LOCATION = $data['ort'];
+        }
+
+        $vevent->STATUS = 'CONFIRMED';
+
+        // RRULE
+        if (!empty($data['rrule'])) {
+            $vevent->RRULE = $data['rrule'];
+        }
+
+        return $vcalendar->serialize();
+    }
+
+    /**
+     * RRULE-String aus UI-Auswahl generieren (RFC 5545).
+     *
+     * @param array $recurrence {
+     *   frequency: 'DAILY'|'WEEKLY'|'MONTHLY'|'YEARLY',
+     *   interval: int (default 1),
+     *   byDay: ?array (z.B. ['MO', 'WE', 'FR']),
+     *   until: ?string (Datum, Format Y-m-d),
+     *   count: ?int,
+     * }
+     * @return string RRULE-String (z.B. "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10")
+     */
+    public function buildRrule(array $recurrence): string
+    {
+        $parts = [];
+
+        $parts[] = 'FREQ=' . strtoupper($recurrence['frequency']);
+
+        if (isset($recurrence['interval']) && $recurrence['interval'] > 1) {
+            $parts[] = 'INTERVAL=' . (int) $recurrence['interval'];
+        }
+
+        if (!empty($recurrence['byDay'])) {
+            $parts[] = 'BYDAY=' . implode(',', array_map('strtoupper', $recurrence['byDay']));
+        }
+
+        if (!empty($recurrence['until'])) {
+            $until   = \Carbon\Carbon::parse($recurrence['until'])->format('Ymd\THis\Z');
+            $parts[] = 'UNTIL=' . $until;
+        } elseif (!empty($recurrence['count'])) {
+            $parts[] = 'COUNT=' . (int) $recurrence['count'];
+        }
+
+        return implode(';', $parts);
+    }
+
+    /**
+     * Bestehendes iCal aktualisieren (Round-Trip: X-Properties bleiben erhalten).
+     */
+    protected function updateExistingIcal(string $rawIcal, array $data): string
+    {
+        $vcalendar = \Sabre\VObject\Reader::read($rawIcal);
+        $vevent    = $vcalendar->VEVENT;
+
+        $vevent->SUMMARY = $data['titel'];
+
+        if (!empty($data['beschreibung'])) {
+            $vevent->DESCRIPTION = $data['beschreibung'];
+        } else {
+            unset($vevent->DESCRIPTION);
+        }
+
+        if (!empty($data['ort'])) {
+            $vevent->LOCATION = $data['ort'];
+        } else {
+            unset($vevent->LOCATION);
+        }
+
+        // Datum/Zeit aktualisieren
+        $vevent->DTSTART = new \DateTime($data['beginn'], new \DateTimeZone('Europe/Berlin'));
+        $vevent->DTEND   = new \DateTime($data['ende'], new \DateTimeZone('Europe/Berlin'));
+
+        if (!empty($data['ganztaegig'])) {
+            $vevent->DTSTART['VALUE'] = 'DATE';
+            $vevent->DTEND['VALUE']   = 'DATE';
+        }
+
+        if (!empty($data['rrule'])) {
+            $vevent->RRULE = $data['rrule'];
+        } else {
+            unset($vevent->RRULE);
+        }
+
+        $vevent->{'LAST-MODIFIED'} = new \DateTime('now', new \DateTimeZone('UTC'));
+
+        return $vcalendar->serialize();
+    }
+
+    /**
+     * CalDAV PUT – Event erstellen/aktualisieren.
+     */
+    protected function putEvent(string $url, string $icalData, ?string $etag = null): \Illuminate\Http\Client\Response
+    {
+        $headers = [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+        ];
+
+        if ($etag) {
+            $headers['If-Match'] = $etag;
+        }
+
+        try {
+            return $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->withHeaders($headers)
+                ->send('PUT', $url, [
+                    'body' => $icalData,
+                ]);
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            return $e->response;
+        }
+    }
+
+    /**
+     * CalDAV DELETE – Event löschen.
+     */
+    protected function deleteEvent(string $url): \Illuminate\Http\Client\Response
+    {
+        try {
+            return $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->delete($url);
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            return $e->response;
+        }
     }
 }
-
-
-
 
 

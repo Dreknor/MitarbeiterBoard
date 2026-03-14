@@ -282,6 +282,41 @@
                     </div>
                 @endcanany
 
+                {{-- Kalender (OX-Integration) --}}
+                @canany(['view calendar', 'manage calendar'])
+                    @php $calendarActive = request()->segment(1) == 'calendar'; @endphp
+                    <div x-data="{ open: {{ $calendarActive ? 'true' : 'false' }} }">
+                        <button class="sidebar-toggle @if($calendarActive) active-parent @endif"
+                                @click="open = !open"
+                                :aria-expanded="open.toString()">
+                            <i class="fa fa-calendar-alt toggle-icon"></i>
+                            <span class="toggle-label">Kalender</span>
+                            <i class="fas fa-chevron-down toggle-arrow"></i>
+                        </button>
+                        <div class="sidebar-submenu" x-show="open" x-collapse>
+                            @can('view calendar')
+                                <a href="{{ route('calendar.index') }}"
+                                   class="sidebar-link @if($calendarActive && request()->segment(2) !== 'admin') active @endif">
+                                    <i class="fa fa-calendar-alt"></i>
+                                    <span>Kalenderansicht</span>
+                                </a>
+                            @endcan
+                            @can('manage calendar')
+                                <a href="{{ route('calendar.admin') }}"
+                                   class="sidebar-link @if($calendarActive && request()->segment(2) == 'admin') active @endif">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Verwaltung</span>
+                                </a>
+                                <a href="{{ route('calendar.admin.logs') }}"
+                                   class="sidebar-link @if($calendarActive && request()->segment(2) == 'admin' && request()->segment(3) == 'logs') active @endif">
+                                    <i class="fas fa-list-alt"></i>
+                                    <span>Sync-Logs</span>
+                                </a>
+                            @endcan
+                        </div>
+                    </div>
+                @endcanany
+
                 {{-- Raumplan --}}
                 @can('view roomBooking')
                     <a href="{{ url('rooms/rooms') }}"

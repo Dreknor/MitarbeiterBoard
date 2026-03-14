@@ -9,6 +9,31 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\OxTerminTeilnehmer;
 
+/**
+ * OxTermin – Lokal gecachter Kalender-Termin aus OX.
+ *
+ * @property int         $id
+ * @property int         $ox_calendar_id
+ * @property string      $ox_uid             iCal UID
+ * @property string|null $ox_etag
+ * @property string|null $ox_href
+ * @property string      $titel
+ * @property string|null $beschreibung
+ * @property string|null $ort
+ * @property \Carbon\Carbon $beginn
+ * @property \Carbon\Carbon $ende
+ * @property string|null $timezone
+ * @property bool        $ganztaegig
+ * @property string|null $rrule
+ * @property array|null  $exdates
+ * @property string|null $status
+ * @property int|null    $erstellt_von
+ * @property string|null $raw_ical
+ * @property \Carbon\Carbon|null $deleted_at
+ * @property-read \App\Models\OxCalendar $kalender
+ * @property-read \App\Models\User|null $ersteller
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\OxTerminTeilnehmer> $teilnehmer
+ */
 class OxTermin extends Model
 {
     use HasFactory, SoftDeletes;

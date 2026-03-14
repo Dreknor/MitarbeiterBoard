@@ -33,5 +33,6 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('rooms.rooms.freeRoomsCard', \App\View\Composers\RoomsComposer::class);
         View::composer('ticketsystem.dashboardCard', \App\View\Composers\TicketsCardComposer::class); // Ticketsystem Card
         View::composer('atom-feed.dashboardCard', \App\View\Composers\AtomFeedComposer::class);
+        View::composer('calendar.dashboardCard', \App\View\Composers\CalendarComposer::class);
     }
 }
