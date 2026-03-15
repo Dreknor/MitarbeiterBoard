@@ -1,0 +1,122 @@
+/* Tailwind v4: Preflight (CSS-Reset) NICHT laden – Bootstrap bleibt für den
+   Content-Bereich zuständig. Nur Theme-Definitionen und Utilities laden.
+   (Gleiche Strategie wie sidebar.css) */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* Tailwind scannt diese Dateien für Klassen-Erkennung */
+@source "../views/calendar/**/*.blade.php";
+@source "../views/layouts/partials/sidebar.blade.php";
+
+/*
+ * Kalender-Modul – Tailwind-Basis + FullCalendar-Overrides
+ * Tailwind-Preflight ist global deaktiviert (Bootstrap-Compat).
+ * Nur Stile, die sich nicht per Utility-Klassen abbilden lassen.
+ */
+
+/* ── FullCalendar: Bootstrap-Konflikte + Brand-Styles ─────────────────────── */
+.cal-fc .fc {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.875rem;
+}
+.cal-fc .fc .fc-toolbar-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: #111827;
+}
+.cal-fc .fc .fc-button {
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.3rem 0.65rem;
+    box-shadow: none;
+    transition: background-color 0.15s;
+}
+.cal-fc .fc .fc-button-primary             { background-color: #3b82f6; border-color: #3b82f6; }
+.cal-fc .fc .fc-button-primary:hover        { background-color: #2563eb; border-color: #2563eb; }
+.cal-fc .fc .fc-button-primary:not(:disabled).fc-button-active,
+.cal-fc .fc .fc-button-primary:not(:disabled):active {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+.cal-fc .fc .fc-button-primary:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+}
+.cal-fc .fc .fc-event {
+    border-radius: 3px;
+    padding: 1px 4px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+}
+.cal-fc .fc .fc-event:hover { opacity: 0.88; }
+.cal-fc .fc .fc-day-today   { background-color: #eff6ff !important; }
+.cal-fc .fc .fc-col-header-cell-cushion,
+.cal-fc .fc .fc-daygrid-day-number,
+.cal-fc .fc .fc-list-event-title a {
+    color: #374151;
+    text-decoration: none;
+}
+
+/* ── Modal-Backdrop: über Bootstrap (z-index > 1050) ─────────────────────── */
+.cal-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    z-index: 1055;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+/* ── Druck ────────────────────────────────────────────────────────────────── */
+@media print {
+    .no-print { display: none !important; }
+}
+
+/* ── Drag-and-Drop  ──────────────────────────────────────────────── */
+
+/* Wiederkehrende Termine (RRULE): kein Drag-Cursor, kein Resize-Handle */
+.fc-event-no-drag {
+    cursor: default !important;
+}
+.fc-event-no-drag .fc-event-resizer {
+    display: none !important;
+}
+
+/* ── Terminauswahl im Kalender (TODO 31) ──────────────────────────────────── */
+
+/* Ausgewählter Zeitbereich hervorheben */
+.cal-fc .fc .fc-highlight {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border: 1px dashed rgba(59, 130, 246, 0.5);
+}
+
+/* Crosshair-Cursor beim Ziehen für User mit Erstell-Berechtigung */
+.cal-fc .fc-timegrid-slot,
+.cal-fc .fc-daygrid-day {
+    cursor: crosshair;
+}
+
+/* Kein Crosshair wenn User keine Erstell-Rechte hat */
+.calendar-no-create .cal-fc .fc-timegrid-slot,
+.calendar-no-create .cal-fc .fc-daygrid-day {
+    cursor: default;
+}
+
+/* ── Farbwähler in der Filter-Sidebar (TODO 29) ────────────────────────────── */
+.calendar-color-input {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+}
+.calendar-color-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.calendar-color-input::-webkit-color-swatch {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+

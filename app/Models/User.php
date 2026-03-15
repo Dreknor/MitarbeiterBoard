@@ -45,7 +45,7 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
         'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
@@ -57,7 +57,7 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'calendar_token',
     ];
 
     /**
@@ -457,6 +457,26 @@ class User extends Authenticatable implements HasMedia
     public function paed_diary_class_groups()
     {
         return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
+    }
+
+    // ── Kalender-Modul ────────────────────────────────────────────────────
+
+    /**
+     * User-spezifische iCal-Feeds (TODO 30).
+     */
+    public function icalFeeds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserIcalFeed::class);
+    }
+
+    /**
+     * Benutzerdefinierte Kalenderfarben – Hybrid localStorage/DB (TODO 29).
+     */
+    public function calendarColors(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(OxCalendar::class, 'user_calendar_colors')
+            ->withPivot('farbe')
+            ->withTimestamps();
     }
 
 }

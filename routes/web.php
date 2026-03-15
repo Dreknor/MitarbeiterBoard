@@ -925,3 +925,86 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
 // Public room calendar feed (token protected)
 Route::get('/rooms/{room}/calendar/{token}.ics', [RoomCalendarController::class, 'feed'])->name('rooms.calendar.feed');
 
+// ============================================================
+// Kalender-Modul (OX-Integration)
+// ============================================================
+Route::prefix('calendar')->middleware(['auth'])->group(function () {
+    // Lesen
+    Route::middleware('permission:view calendar')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CalendarController::class, 'index'])
+            ->name('calendar.index');
+        Route::get('/events', [\App\Http\Controllers\CalendarController::class, 'events'])
+            ->name('calendar.events');
+        Route::get('/termin/{termin}', [\App\Http\Controllers\CalendarController::class, 'show'])
+            ->name('calendar.show');
+        Route::get('/suche', [\App\Http\Controllers\CalendarController::class, 'search'])
+            ->name('calendar.search');
+        Route::post('/feed/token', [\App\Http\Controllers\CalendarController::class, 'generateFeedToken'])
+            ->name('calendar.feed.token');
+
+        // iCal-Feed-Verwaltung – User-spezifisch (TODO 30)
+        Route::post('/ical-feeds', [\App\Http\Controllers\CalendarController::class, 'storeIcalFeed'])
+            ->name('calendar.ical.store');
+        Route::put('/ical-feeds/{feed}', [\App\Http\Controllers\CalendarController::class, 'updateIcalFeed'])
+            ->name('calendar.ical.update');
+        Route::delete('/ical-feeds/{feed}', [\App\Http\Controllers\CalendarController::class, 'destroyIcalFeed'])
+            ->name('calendar.ical.destroy');
+
+        // Kalenderfarben – Hybrid DB/localStorage (TODO 29)
+        Route::get('/farben', [\App\Http\Controllers\CalendarController::class, 'getColors'])
+            ->name('calendar.colors.index');
+        Route::put('/farben', [\App\Http\Controllers\CalendarController::class, 'saveColors'])
+            ->name('calendar.colors.save');
+        Route::delete('/farben/{oxCalendar}', [\App\Http\Controllers\CalendarController::class, 'resetColor'])
+            ->name('calendar.colors.reset');
+
+        // PDF-Export (TODO 28) – /export-pdf (nicht /export/pdf, da {groupname}/export/{date?} vorher matcht)
+        Route::get('/export-pdf', [\App\Http\Controllers\CalendarController::class, 'exportPdf'])
+            ->name('calendar.export.pdf');
+    });
+
+    // Schreiben (create calendar events)
+    Route::middleware('permission:create calendar events')->group(function () {
+        Route::post('/termine', [\App\Http\Controllers\CalendarController::class, 'store'])
+            ->name('calendar.store')
+            ->middleware('throttle:calendar-write');
+    });
+
+    // Bearbeiten/Löschen (edit calendar events)
+    Route::middleware('permission:edit calendar events')->group(function () {
+        Route::put('/termine/{termin}', [\App\Http\Controllers\CalendarController::class, 'update'])
+            ->name('calendar.update')
+            ->middleware('throttle:calendar-write');
+        Route::patch('/termine/{termin}/verschieben', [\App\Http\Controllers\CalendarController::class, 'move'])
+            ->name('calendar.move')
+            ->middleware('throttle:calendar-write');
+        Route::delete('/termine/{termin}', [\App\Http\Controllers\CalendarController::class, 'destroy'])
+            ->name('calendar.destroy')
+            ->middleware('throttle:calendar-write');
+    });
+
+    // Admin (Kalender-Verwaltung)
+    Route::prefix('admin')->middleware('permission:manage calendar')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CalendarAdminController::class, 'index'])
+            ->name('calendar.admin');
+        Route::post('/kalender', [\App\Http\Controllers\CalendarAdminController::class, 'storeKalender'])
+            ->name('calendar.admin.store');
+        Route::put('/kalender/{kalender}', [\App\Http\Controllers\CalendarAdminController::class, 'updateKalender'])
+            ->name('calendar.admin.update');
+        Route::delete('/kalender/{kalender}', [\App\Http\Controllers\CalendarAdminController::class, 'destroyKalender'])
+            ->name('calendar.admin.destroy');
+        Route::post('/kalender/{kalender}/gruppen', [\App\Http\Controllers\CalendarAdminController::class, 'updateGruppen'])
+            ->name('calendar.admin.gruppen');
+        Route::post('/sync', [\App\Http\Controllers\CalendarAdminController::class, 'triggerSync'])
+            ->name('calendar.admin.sync');
+        Route::get('/logs', [\App\Http\Controllers\CalendarAdminController::class, 'logs'])
+            ->name('calendar.admin.logs');
+        Route::get('/health.json', [\App\Http\Controllers\CalendarAdminController::class, 'health'])
+            ->name('calendar.admin.health');
+    });
+});
+
+// iCal-Feed (Token-geschützt, KEIN Auth-Middleware) – wird in TODO 12 ergänzt
+Route::get('/calendar/feed/{token}.ics', [\App\Http\Controllers\CalendarController::class, 'feed'])
+    ->name('calendar.feed');
+

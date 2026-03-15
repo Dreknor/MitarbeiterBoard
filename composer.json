@@ -31,6 +31,7 @@
         "owen-it/laravel-auditing": "^13.6",
         "phpoffice/phpword": "^1.0",
         "ryangjchandler/blade-cache-directive": "^0.3.1",
+        "sabre/vobject": "4.5",
         "sentry/sentry-laravel": "^3.0",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
