@@ -277,6 +277,53 @@ class CalendarController extends Controller
     }
 
     // =========================================================================
+    // Öffentlicher iCal-Feed (Token-geschützt)
+    // =========================================================================
+
+    /**
+     * Persönlichen iCal-Feed ausgeben (token-geschützt, kein Auth-Middleware).
+     */
+    public function feed(string $token)
+    {
+        $setting = \App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'like', 'feed_token_%')
+            ->where('value', $token)
+            ->first();
+
+        abort_if(!$setting, 404, 'Ungültiger Feed-Token.');
+
+        $userId = (int) str_replace('feed_token_', '', $setting->setting);
+        $user   = \App\Models\User::findOrFail($userId);
+
+        $kalender = $this->sichtbareKalender($user);
+
+        $termine = OxTermin::whereIn('ox_calendar_id', $kalender->pluck('id'))
+            ->where('beginn', '>=', now()->subYear())
+            ->where('beginn', '<=', now()->addYear())
+            ->orderBy('beginn')
+            ->get();
+
+        $lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ESZ Radebeul//Kalender//DE", "CALSCALE:GREGORIAN"];
+        foreach ($termine as $t) {
+            $lines[] = "BEGIN:VEVENT";
+            $lines[] = "UID:" . ($t->ox_uid ?: "termin-{$t->id}@esz-radebeul.de");
+            $lines[] = "SUMMARY:" . str_replace(["\r", "\n"], " ", $t->titel ?? '');
+            $lines[] = "DTSTART:" . $t->beginn->utc()->format('Ymd\THis\Z');
+            $lines[] = "DTEND:"   . $t->ende->utc()->format('Ymd\THis\Z');
+            if ($t->ort)          $lines[] = "LOCATION:" . str_replace(["\r", "\n"], " ", $t->ort);
+            if ($t->beschreibung) $lines[] = "DESCRIPTION:" . str_replace(["\r", "\n"], " ", $t->beschreibung);
+            if ($t->rrule)        $lines[] = "RRULE:" . $t->rrule;
+            $lines[] = "END:VEVENT";
+        }
+        $lines[] = "END:VCALENDAR";
+
+        return response(implode("\r\n", $lines), 200, [
+            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Disposition' => 'inline; filename="kalender.ics"',
+        ]);
+    }
+
+    // =========================================================================
     // Termin-Suche
     // =========================================================================
 
