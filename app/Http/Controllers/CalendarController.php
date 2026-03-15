@@ -277,6 +277,270 @@ class CalendarController extends Controller
     }
 
     // =========================================================================
+    // Termin-Suche
+    // =========================================================================
+
+    /**
+     * Volltext-Suche über Termine (für die Sidebar-Suchleiste).
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $q    = trim($request->query('q', ''));
+        $user = auth()->user();
+
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
+
+        $treffer = OxTermin::whereIn('ox_calendar_id', $sichtbareIds)
+            ->where(function ($query) use ($q) {
+                $query->where('titel', 'like', "%{$q}%")
+                    ->orWhere('ort', 'like', "%{$q}%")
+                    ->orWhere('beschreibung', 'like', "%{$q}%");
+            })
+            ->with('kalender')
+            ->orderBy('beginn', 'desc')
+            ->limit(20)
+            ->get();
+
+        return response()->json($treffer->map(fn ($t) => [
+            'id'        => $t->id,
+            'titel'     => $t->titel,
+            'ort'       => $t->ort,
+            'beginn'    => $t->beginn->timezone('Europe/Berlin')->format('d.m.Y H:i'),
+            'beginn_raw' => $t->beginn->toIso8601String(),
+            'kalender'  => ['id' => $t->ox_calendar_id, 'name' => $t->kalender?->name, 'farbe' => $t->kalender?->farbe],
+        ]));
+    }
+
+    // =========================================================================
+    // iCal-Feed-Verwaltung
+    // =========================================================================
+
+    /**
+     * Persönlichen Feed-Token generieren / erneuern.
+     */
+    public function generateFeedToken(Request $request)
+    {
+        $user  = auth()->user();
+        $token = bin2hex(random_bytes(32));
+
+        \App\Models\Setting::updateOrCreate(
+            ['module' => 'Kalender', 'setting' => 'feed_token_' . $user->id],
+            ['value'  => $token]
+        );
+
+        return redirectBack('Feed-Token wurde generiert.', 'success');
+    }
+
+    /**
+     * iCal-Feed abonnieren.
+     */
+    public function storeIcalFeed(Request $request)
+    {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'url'   => 'required|url|max:2000',
+            'farbe' => 'nullable|string|max:7',
+        ]);
+
+        auth()->user()->icalFeeds()->create([
+            'name'  => $validated['name'],
+            'url'   => $validated['url'],
+            'farbe' => $validated['farbe'] ?? '#6366f1',
+            'aktiv' => true,
+        ]);
+
+        return redirectBack('Feed wurde abonniert.', 'success');
+    }
+
+    /**
+     * iCal-Feed aktualisieren.
+     */
+    public function updateIcalFeed(Request $request, \App\Models\UserIcalFeed $feed)
+    {
+        abort_if($feed->user_id !== auth()->id(), 403);
+
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'url'   => 'required|url|max:2000',
+            'farbe' => 'nullable|string|max:7',
+            'aktiv' => 'boolean',
+        ]);
+
+        $feed->update($validated);
+
+        return redirectBack('Feed wurde aktualisiert.', 'success');
+    }
+
+    /**
+     * iCal-Feed entfernen.
+     */
+    public function destroyIcalFeed(\App\Models\UserIcalFeed $feed)
+    {
+        abort_if($feed->user_id !== auth()->id(), 403);
+        $feed->delete();
+
+        return redirectBack('Feed wurde entfernt.', 'success');
+    }
+
+    // =========================================================================
+    // Benutzer-spezifische Kalenderfarben
+    // =========================================================================
+
+    public function getColors(): JsonResponse
+    {
+        $userId = auth()->id();
+        $colors = \App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'like', "user_color_{$userId}_%")
+            ->pluck('value', 'setting')
+            ->mapWithKeys(fn ($v, $k) => [str_replace("user_color_{$userId}_", '', $k) => $v]);
+
+        return response()->json($colors);
+    }
+
+    public function saveColors(Request $request): JsonResponse
+    {
+        $userId = auth()->id();
+        $colors = $request->validate(['colors' => 'required|array'])['colors'];
+
+        foreach ($colors as $calId => $color) {
+            \App\Models\Setting::updateOrCreate(
+                ['module' => 'Kalender', 'setting' => "user_color_{$userId}_{$calId}"],
+                ['value'  => $color]
+            );
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function resetColor(OxCalendar $oxCalendar): JsonResponse
+    {
+        $userId = auth()->id();
+        \App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', "user_color_{$userId}_{$oxCalendar->id}")
+            ->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    // =========================================================================
+    // Termin-CRUD (Schreiben)
+    // =========================================================================
+
+    /**
+     * Neuen Termin anlegen.
+     */
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'ox_calendar_id' => 'required|integer|exists:ox_calendars,id',
+            'titel'          => 'required|string|max:255',
+            'beginn'         => 'required|date',
+            'ende'           => 'required|date|after_or_equal:beginn',
+            'ort'            => 'nullable|string|max:255',
+            'beschreibung'   => 'nullable|string|max:5000',
+            'ganztaegig'     => 'boolean',
+            'rrule'          => 'nullable|string|max:500',
+        ]);
+
+        $kalender = OxCalendar::findOrFail($validated['ox_calendar_id']);
+
+        if (!$this->canWriteCalendar($user, $kalender)) {
+            abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
+        }
+
+        $termin = OxTermin::create(array_merge($validated, [
+            'ersteller_id' => $user->id,
+            'ganztaegig'   => $request->boolean('ganztaegig'),
+        ]));
+
+        return redirectBack('Termin "' . $termin->titel . '" wurde angelegt.', 'success');
+    }
+
+    /**
+     * Termin aktualisieren (mit Optimistic Locking via expected_updated_at).
+     */
+    public function update(Request $request, OxTermin $termin)
+    {
+        $user = auth()->user();
+        $termin->load('kalender');
+
+        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+            abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
+        }
+
+        // Optimistic Locking
+        if ($request->filled('expected_updated_at')
+            && $termin->updated_at->toIso8601String() !== $request->input('expected_updated_at')) {
+            return redirectBack(
+                'Der Termin wurde zwischenzeitlich geändert. Bitte neu laden.',
+                'danger'
+            );
+        }
+
+        $validated = $request->validate([
+            'titel'        => 'required|string|max:255',
+            'beginn'       => 'required|date',
+            'ende'         => 'required|date|after_or_equal:beginn',
+            'ort'          => 'nullable|string|max:255',
+            'beschreibung' => 'nullable|string|max:5000',
+            'ganztaegig'   => 'boolean',
+            'rrule'        => 'nullable|string|max:500',
+        ]);
+
+        $termin->update(array_merge($validated, [
+            'ganztaegig' => $request->boolean('ganztaegig'),
+        ]));
+
+        return redirectBack('Termin "' . $termin->titel . '" wurde aktualisiert.', 'success');
+    }
+
+    /**
+     * Termin verschieben (Drag & Drop, AJAX PATCH).
+     */
+    public function move(Request $request, OxTermin $termin): JsonResponse
+    {
+        $user = auth()->user();
+        $termin->load('kalender');
+
+        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'beginn' => 'required|date',
+            'ende'   => 'required|date|after_or_equal:beginn',
+        ]);
+
+        $termin->update($validated);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Termin löschen.
+     */
+    public function destroy(OxTermin $termin)
+    {
+        $user = auth()->user();
+        $termin->load('kalender');
+
+        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+            abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
+        }
+
+        $titel = $termin->titel;
+        $termin->delete();
+
+        return redirectBack('Termin "' . $titel . '" wurde gelöscht.', 'success');
+    }
+
+    // =========================================================================
     // Hilfsmethoden
     // =========================================================================
 
