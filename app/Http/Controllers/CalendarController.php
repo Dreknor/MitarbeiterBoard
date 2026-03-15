@@ -238,7 +238,7 @@ class CalendarController extends Controller
                     'titel'      => $t->titel,
                     'ort'        => $t->ort,
                     'kalender'   => $t->kalender,
-                ]);
+                ])->toBase();
 
             // RRULE-Vorkommen des Tages
             $tagRrule = $expandierteTermine
