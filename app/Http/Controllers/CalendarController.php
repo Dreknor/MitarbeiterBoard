@@ -36,10 +36,12 @@ class CalendarController extends Controller
         });
 
         return view('calendar.index', [
-            'kalender'           => $kalender,
+            'kalender'            => $kalender,
             'schreibbareKalender' => $schreibbareKalender,
-            'defaultView'        => $defaultView,
-            'canCreate'          => $user->can('create calendar events') && $schreibbareKalender->isNotEmpty(),
+            'defaultView'         => $defaultView,
+            'canCreate'           => $user->can('create calendar events') && $schreibbareKalender->isNotEmpty(),
+            'canEdit'             => $schreibbareKalender->isNotEmpty(),
+            'userColors'          => [],
         ]);
     }
 
