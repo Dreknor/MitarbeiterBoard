@@ -2,13 +2,17 @@
 
 namespace App\View\Composers;
 
-use App\Models\OxCalendar;
 use App\Models\OxSyncLog;
 use App\Models\OxTermin;
+use App\Services\OxCalendarService;
 use Illuminate\View\View;
 
 class CalendarComposer
 {
+    public function __construct(
+        protected OxCalendarService $calendarService
+    ) {}
+
     public function compose(View $view): void
     {
         $user = auth()->user();
@@ -19,31 +23,55 @@ class CalendarComposer
             return;
         }
 
-        // Sichtbare Kalender-IDs ermitteln (gleiche Logik wie CalendarController)
-        $sichtbareKalenderIds = OxCalendar::where('sichtbar', true)
-            ->with('groups')
-            ->get()
-            ->filter(function (OxCalendar $calendar) use ($user) {
-                if ($user->can('manage calendar')) {
-                    return true;
-                }
-                if ($calendar->groups->isEmpty()) {
-                    return true;
-                }
-                $calendarGroupIds = $calendar->groups->pluck('id');
-                $userGroupIds = $user->groups_rel()->pluck('groups.id');
-                return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
-            })
+        // Sichtbare Kalender-IDs über zentrale Service-Methode (kein duplizierter Code)
+        $sichtbareKalenderIds = $this->calendarService
+            ->sichtbareKalender($user)
             ->pluck('id');
 
-        // Nächste 5 anstehende Termine
-        $naechsteTermine = OxTermin::whereIn('ox_calendar_id', $sichtbareKalenderIds)
+        // Einfache (nicht-wiederkehrende) Termine
+        $einfacheTermine = OxTermin::whereIn('ox_calendar_id', $sichtbareKalenderIds)
             ->where('beginn', '>=', now())
-            ->whereNull('rrule') // Einfache Termine (RRULE-Expansion wäre zu aufwändig für Dashboard)
+            ->whereNull('rrule')
             ->with('kalender')
             ->orderBy('beginn')
             ->limit(5)
             ->get();
+
+        // Wiederkehrende Termine serverseitig expandieren (nächste 30 Tage) – TODO 25
+        $rruleTermine = OxTermin::whereIn('ox_calendar_id', $sichtbareKalenderIds)
+            ->whereNotNull('rrule')
+            ->with('kalender')
+            ->get();
+
+        $expandierteTermine = collect();
+        foreach ($rruleTermine as $termin) {
+            $occurrences = $this->calendarService->expandRruleTermine(
+                $termin,
+                now(),
+                now()->addDays(30)
+            );
+            foreach ($occurrences as $occ) {
+                if ($occ['beginn']->gte(now())) {
+                    $expandierteTermine->push((object) [
+                        'id'          => $termin->id,
+                        'titel'       => $termin->titel,
+                        'beginn'      => $occ['beginn'],
+                        'ende'        => $occ['ende'],
+                        'ganztaegig'  => $termin->ganztaegig,
+                        'ort'         => $termin->ort,
+                        'beschreibung' => $termin->beschreibung,
+                        'kalender'    => $termin->kalender,
+                    ]);
+                }
+            }
+        }
+
+        // Zusammenführen, nach Beginn sortieren, Top 5
+        $naechsteTermine = $einfacheTermine
+            ->concat($expandierteTermine)
+            ->sortBy('beginn')
+            ->take(5)
+            ->values();
 
         // Sync-Status für Admins
         $syncStatus = null;
@@ -57,9 +85,9 @@ class CalendarComposer
                 ->count();
 
             $syncStatus = [
-                'fehler_24h'      => $aufeinanderfolgendeFehler,
-                'letzter_fehler'  => $letzterFehler,
-                'zeige_warnung'   => $aufeinanderfolgendeFehler >= 3,
+                'fehler_24h'     => $aufeinanderfolgendeFehler,
+                'letzter_fehler' => $letzterFehler,
+                'zeige_warnung'  => $aufeinanderfolgendeFehler >= 3,
             ];
         }
 
@@ -67,4 +95,3 @@ class CalendarComposer
         $view->with('syncStatus', $syncStatus);
     }
 }
-

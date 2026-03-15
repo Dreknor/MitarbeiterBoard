@@ -73,3 +73,50 @@
 @media print {
     .no-print { display: none !important; }
 }
+
+/* ── Drag-and-Drop  ──────────────────────────────────────────────── */
+
+/* Wiederkehrende Termine (RRULE): kein Drag-Cursor, kein Resize-Handle */
+.fc-event-no-drag {
+    cursor: default !important;
+}
+.fc-event-no-drag .fc-event-resizer {
+    display: none !important;
+}
+
+/* ── Terminauswahl im Kalender (TODO 31) ──────────────────────────────────── */
+
+/* Ausgewählter Zeitbereich hervorheben */
+.cal-fc .fc .fc-highlight {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border: 1px dashed rgba(59, 130, 246, 0.5);
+}
+
+/* Crosshair-Cursor beim Ziehen für User mit Erstell-Berechtigung */
+.cal-fc .fc-timegrid-slot,
+.cal-fc .fc-daygrid-day {
+    cursor: crosshair;
+}
+
+/* Kein Crosshair wenn User keine Erstell-Rechte hat */
+.calendar-no-create .cal-fc .fc-timegrid-slot,
+.calendar-no-create .cal-fc .fc-daygrid-day {
+    cursor: default;
+}
+
+/* ── Farbwähler in der Filter-Sidebar (TODO 29) ────────────────────────────── */
+.calendar-color-input {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+}
+.calendar-color-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.calendar-color-input::-webkit-color-swatch {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+

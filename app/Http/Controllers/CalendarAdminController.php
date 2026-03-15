@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Group;
 use App\Models\OxCalendar;
 use App\Models\OxSyncLog;
+use App\Models\OxTermin;
 use App\Services\OxCalendarService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -172,6 +174,92 @@ class CalendarAdminController extends Controller
             'selectedKalender' => $request->kalender,
             'selectedAktion'   => $request->aktion,
         ]);
+    }
+
+    /**
+     * Health-Check-Endpoint für externes Monitoring (TODO 26).
+     *
+     * Liefert JSON mit Kalender-Modulstatus.
+     * HTTP 200 = gesund, HTTP 503 = kritisches Problem.
+     *
+     * @see routes/web.php: GET /calendar/admin/health.json
+     */
+    public function health(): JsonResponse
+    {
+        $service = app(OxCalendarService::class);
+        $checks  = [];
+        $healthy = true;
+
+        // 1. Modul aktiviert?
+        $checks['modul_aktiviert'] = $service->isEnabled();
+        if (!$checks['modul_aktiviert']) {
+            $healthy = false;
+        }
+
+        // 2. OX-Verbindung testen
+        if ($service->isEnabled()) {
+            $connection = $service->testConnection();
+            $checks['ox_erreichbar'] = $connection['success'];
+            $checks['ox_status']     = $connection['status'] ?? null;
+            $checks['ox_message']    = $connection['message'];
+            if (!$connection['success']) {
+                $healthy = false;
+            }
+        } else {
+            $checks['ox_erreichbar'] = false;
+            $checks['ox_status']     = null;
+            $checks['ox_message']    = 'Modul deaktiviert';
+        }
+
+        // 3. Letzte erfolgreiche Synchronisation
+        $letzterSync = OxSyncLog::where('aktion', 'sync_complete')
+            ->latest()
+            ->first();
+        $checks['letzter_sync']       = $letzterSync?->created_at?->toIso8601String();
+        $checks['sync_alter_minuten'] = $letzterSync
+            ? (int) now()->diffInMinutes($letzterSync->created_at)
+            : null;
+
+        // Sync älter als 1 Stunde → Warnung
+        $checks['sync_veraltet'] = !$letzterSync
+            || now()->diffInMinutes($letzterSync->created_at) > 60;
+
+        // 4. Fehlerrate letzte 24h
+        $fehler24h = OxSyncLog::where('aktion', 'error')
+            ->where('created_at', '>=', now()->subDay())
+            ->count();
+        $checks['fehler_24h'] = $fehler24h;
+
+        // Aufeinanderfolgende Fehler (letzte 5 Einträge)
+        $letzte5 = OxSyncLog::whereIn('aktion', ['sync_complete', 'error'])
+            ->latest()
+            ->limit(5)
+            ->pluck('aktion');
+
+        $consecutiveErrors = 0;
+        foreach ($letzte5 as $aktion) {
+            if ($aktion === 'error') {
+                $consecutiveErrors++;
+            } else {
+                break;
+            }
+        }
+        $checks['aufeinanderfolgende_fehler'] = $consecutiveErrors;
+
+        if ($consecutiveErrors >= 3) {
+            $healthy = false;
+        }
+
+        // 5. Datenbank-Statistiken
+        $checks['kalender_aktiv']  = OxCalendar::where('sichtbar', true)->count();
+        $checks['kalender_gesamt'] = OxCalendar::withTrashed()->count();
+        $checks['termine_gesamt']  = OxTermin::count();
+
+        // 6. Gesamtergebnis
+        $checks['status']    = $healthy ? 'healthy' : 'unhealthy';
+        $checks['timestamp'] = now()->toIso8601String();
+
+        return response()->json($checks, $healthy ? 200 : 503);
     }
 }
 

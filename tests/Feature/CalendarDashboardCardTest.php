@@ -100,6 +100,28 @@ class CalendarDashboardCardTest extends TestCase
         $view = $this->view('calendar.dashboardCard');
         $view->assertDontSee('alle Termine anzeigen');
     }
+
+    public function test_dashboard_card_zeigt_rrule_termin_mit_ort(): void
+    {
+        $this->actingAsWithPermission('view calendar');
+        $calendar = OxCalendar::factory()->create();
+
+        // Wöchentlicher Termin ab heute – muss auf der Card erscheinen
+        OxTermin::factory()->create([
+            'ox_calendar_id' => $calendar->id,
+            'titel'          => 'Wöchentliche Besprechung',
+            'ort'            => 'Raum 101',
+            'beginn'         => now()->addDays(1)->setTime(9, 0),
+            'ende'           => now()->addDays(1)->setTime(10, 0),
+            'rrule'          => 'FREQ=WEEKLY;BYDAY=MO;COUNT=4',
+            'raw_ical'       => null,
+        ]);
+
+        // Darf keinen stdClass::$ort Fehler werfen
+        $view = $this->view('calendar.dashboardCard');
+        $view->assertSee('Wöchentliche Besprechung');
+        $view->assertSee('Raum 101');
+    }
 }
 
 

@@ -459,4 +459,24 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
     }
 
+    // ── Kalender-Modul ────────────────────────────────────────────────────
+
+    /**
+     * User-spezifische iCal-Feeds (TODO 30).
+     */
+    public function icalFeeds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserIcalFeed::class);
+    }
+
+    /**
+     * Benutzerdefinierte Kalenderfarben – Hybrid localStorage/DB (TODO 29).
+     */
+    public function calendarColors(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(OxCalendar::class, 'user_calendar_colors')
+            ->withPivot('farbe')
+            ->withTimestamps();
+    }
+
 }

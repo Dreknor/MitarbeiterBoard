@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Exceptions\CtagNotSupportedException;
+use App\Exceptions\SyncTokenExpiredException;
 use App\Exceptions\SyncTokenNotSupportedException;
 use App\Models\OxCalendar;
 use App\Models\OxSyncLog;
 use App\Models\OxTermin;
 use App\Models\OxTerminTeilnehmer;
+use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -108,6 +111,107 @@ class OxCalendarService
     }
 
     // ========================================================================
+    // Berechtigungs-Hilfsmethoden (zentrale Quelle der Wahrheit)
+    // ========================================================================
+
+    /**
+     * Sichtbare Kalender für einen User ermitteln.
+     *
+     * Regelwerk:
+     * 1. Admin (manage calendar) → alle sichtbaren Kalender
+     * 2. Kalender ohne Gruppen  → öffentlich (view calendar reicht)
+     * 3. Kalender mit Gruppen   → User muss in mindestens einer Gruppe sein
+     *
+     * @param  User  $user
+     * @return Collection<int, OxCalendar>
+     */
+    public function sichtbareKalender(User $user): Collection
+    {
+        return OxCalendar::where('sichtbar', true)
+            ->with('groups')
+            ->get()
+            ->filter(function (OxCalendar $calendar) use ($user): bool {
+                if ($user->can('manage calendar')) {
+                    return true;
+                }
+
+                if ($calendar->groups->isEmpty()) {
+                    return $user->can('view calendar');
+                }
+
+                $calendarGroupIds = $calendar->groups->pluck('id');
+                $userGroupIds     = $user->groups_rel()->pluck('groups.id');
+
+                return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
+            });
+    }
+
+    /**
+     * Prüft ob ein User in einen bestimmten Kalender schreiben darf.
+     *
+     * @param  User        $user
+     * @param  OxCalendar  $calendar
+     * @return bool
+     */
+    public function canWriteCalendar(User $user, OxCalendar $calendar): bool
+    {
+        if (!$user->can('create calendar events') || !$calendar->schreibbar) {
+            return false;
+        }
+
+        if ($user->can('manage calendar')) {
+            return true;
+        }
+
+        // Kalender ohne Gruppen → öffentlich schreibbar
+        if ($calendar->groups->isEmpty()) {
+            return true;
+        }
+
+        // User muss in mindestens einer Gruppe sein, die für diesen Kalender schreibbar ist
+        $userGroupIds = $user->groups_rel()->pluck('groups.id');
+
+        return $calendar->groups()
+            ->whereIn('groups.id', $userGroupIds)
+            ->wherePivot('schreibbar', true)
+            ->exists();
+    }
+
+    /**
+     * Prüft ob ein User einen Termin bearbeiten/verschieben/löschen darf.
+     *
+     * Analog zu canWriteCalendar(), aber für edit-Operationen (edit calendar events).
+     * Wird für update(), move() und destroy() genutzt.
+     *
+     * @param  User        $user
+     * @param  OxCalendar  $calendar
+     * @return bool
+     */
+    public function canEditTermin(User $user, OxCalendar $calendar): bool
+    {
+        if (!$user->can('edit calendar events') || !$calendar->schreibbar) {
+            return false;
+        }
+
+        if ($user->can('manage calendar')) {
+            return true;
+        }
+
+        // Kalender ohne Gruppen → öffentlich bearbeitbar
+        if ($calendar->groups->isEmpty()) {
+            return true;
+        }
+
+        // User muss in mindestens einer Gruppe sein, die für diesen Kalender schreibbar ist
+        $userGroupIds = $user->groups_rel()->pluck('groups.id');
+
+        return $calendar->groups()
+            ->whereIn('groups.id', $userGroupIds)
+            ->wherePivot('schreibbar', true)
+            ->exists();
+    }
+
+    // ========================================================================
     // CalDAV HTTP-Kommunikation
     // ========================================================================
 
@@ -121,7 +225,11 @@ class OxCalendarService
                 config('ox-calendar.password')
             )
             ->timeout(config('ox-calendar.timeout', 30))
-            ->retry(3, 200)
+            // Nur echte Netzwerkfehler (ConnectionException) werden wiederholt.
+            // HTTP-Fehler (4xx/5xx) werden sofort zurückgegeben – nie erneut versucht.
+            // Begründung: retry(n, sleep, null, true) ruft $response->throw() für 4xx auf,
+            // was die Fake-HTTP-Sequenz in Tests verbraucht und unsere Status-Prüfungen umgeht.
+            ->retry(3, 200, fn ($exception) => $exception instanceof \Illuminate\Http\Client\ConnectionException, false)
             ->withOptions([
                 'verify' => config('ox-calendar.verify_ssl', true),
             ]);
@@ -152,20 +260,39 @@ class OxCalendarService
             $headers['Depth'] = '1';
         }
 
-        $response = $this->httpClient()->send($method, $url, [
-            'headers' => $headers,
-            'body'    => $body,
-        ]);
+        // retry() mit throw=true (Default) wirft RequestException für 4xx/5xx,
+        // bevor unser Status-Check greifen kann → als Response behandeln.
+        try {
+            $response = $this->httpClient()->send($method, $url, [
+                'headers' => $headers,
+                'body'    => $body,
+            ]);
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            $response = $e->response;
+        }
 
-        if ($isSyncToken && in_array($response->status(), [501, 403], true)) {
-            throw new SyncTokenNotSupportedException(
-                'Server unterstützt sync-token nicht (Status: ' . $response->status() . ')'
-            );
+        if ($isSyncToken) {
+            $status       = $response->status();
+            $responseBody = $response->body();
+
+            // RFC 6578: 403 + <valid-sync-token> → Token abgelaufen/ungültig
+            if ($status === 403 && str_contains($responseBody, 'valid-sync-token')) {
+                throw new SyncTokenExpiredException(
+                    'Sync-Token abgelaufen (HTTP 403 valid-sync-token): ' . $responseBody
+                );
+            }
+
+            // 501 oder sonstiger 403 → Server unterstützt sync-token nicht
+            if (in_array($status, [501, 403], true)) {
+                throw new SyncTokenNotSupportedException(
+                    'Server unterstützt sync-token nicht (Status: ' . $status . ')'
+                );
+            }
         }
 
         if (!$response->successful() && $response->status() !== 207) {
             throw new \RuntimeException(
-                'CalDAV-Anfrage fehlgeschlagen (Status: ' . $response->status() . ')'
+                'CalDAV-Anfrage fehlgeschlagen (Status: ' . $response->status() . '): ' . $response->body()
             );
         }
 
@@ -574,6 +701,91 @@ class OxCalendarService
     }
 
     // ========================================================================
+    // RRULE-Expansion (TODO 25)
+    // ========================================================================
+
+    /**
+     * Expandiert wiederkehrende Termine (RRULE) serverseitig in Einzeltermine.
+     *
+     * Nutzt sabre/vobject expand() auf dem gespeicherten raw_ical.
+     * Fallback: Wenn kein raw_ical vorhanden, wird aus den DB-Feldern ein minimales VCALENDAR gebaut.
+     *
+     * @param  OxTermin  $termin      Termin mit RRULE
+     * @param  \Carbon\Carbon  $rangeStart  Anfang des Zeitfensters
+     * @param  \Carbon\Carbon  $rangeEnd    Ende des Zeitfensters
+     * @return array{beginn: \Carbon\Carbon, ende: \Carbon\Carbon}[]
+     */
+    public function expandRruleTermine(OxTermin $termin, \Carbon\Carbon $rangeStart, \Carbon\Carbon $rangeEnd): array
+    {
+        if (!$termin->rrule) {
+            return [];
+        }
+
+        $cacheKey = $this->eventsCacheKey(
+            'rrule_' . $termin->id . '_' . $rangeStart->format('Ymd') . '_' . $rangeEnd->format('Ymd')
+        );
+
+        return Cache::remember($cacheKey, 300, function () use ($termin, $rangeStart, $rangeEnd) {
+            try {
+                // VCALENDAR aufbauen – bevorzugt aus raw_ical
+                if ($termin->raw_ical) {
+                    $vcalendar = Reader::read($termin->raw_ical);
+                } else {
+                    // Minimales VCALENDAR aus DB-Feldern aufbauen
+                    $vcalendar = new \Sabre\VObject\Component\VCalendar();
+                    $vevent = $vcalendar->add('VEVENT', [
+                        'UID'     => $termin->ox_uid,
+                        'SUMMARY' => $termin->titel,
+                        'DTSTART' => \DateTimeImmutable::createFromMutable(
+                            $termin->beginn->toDateTime()
+                        ),
+                        'DTEND'   => \DateTimeImmutable::createFromMutable(
+                            $termin->ende->toDateTime()
+                        ),
+                    ]);
+                    $vevent->add('RRULE', $termin->rrule);
+
+                    if ($termin->exdates) {
+                        foreach ($termin->exdates as $exdate) {
+                            $vevent->add('EXDATE', $exdate);
+                        }
+                    }
+                }
+
+                // sabre/vobject expand()
+                $expandedCalendar = $vcalendar->expand(
+                    new \DateTimeImmutable($rangeStart->format('Y-m-d\TH:i:sP')),
+                    new \DateTimeImmutable($rangeEnd->format('Y-m-d\TH:i:sP'))
+                );
+            } catch (\Throwable $e) {
+                Log::warning('RRULE-Expansion fehlgeschlagen für Termin ' . $termin->id, [
+                    'error' => $e->getMessage(),
+                    'rrule' => $termin->rrule,
+                ]);
+                return [];
+            }
+
+            $occurrences = [];
+            foreach ($expandedCalendar->VEVENT ?? [] as $vevent) {
+                try {
+                    $occurrences[] = [
+                        'beginn' => \Carbon\Carbon::parse(
+                            $vevent->DTSTART->getDateTime()->format('c')
+                        ),
+                        'ende' => \Carbon\Carbon::parse(
+                            $vevent->DTEND->getDateTime()->format('c')
+                        ),
+                    ];
+                } catch (\Throwable $e) {
+                    Log::warning('VEVENT-Parsing fehlgeschlagen', ['error' => $e->getMessage()]);
+                }
+            }
+
+            return $occurrences;
+        });
+    }
+
+    // ========================================================================
     // Sync-Logik
     // ========================================================================
 
@@ -754,11 +966,23 @@ class OxCalendarService
     protected function resolveChanges(OxCalendar $calendar): array
     {
         // Strategie 1: sync-token (Delta-Sync, RFC 6578)
-        if ($calendar->sync_token) {
+        // Nur mit echtem CalDAV-sync-token – ctag-Pseudowerte ('ctag:...') überspringen.
+        if ($calendar->sync_token && !str_starts_with($calendar->sync_token, 'ctag:')) {
             try {
                 return $this->syncViaSyncToken($calendar);
+            } catch (SyncTokenExpiredException $e) {
+                // Token abgelaufen (403 valid-sync-token) → löschen, Full-Sync
+                $calendar->update(['sync_token' => null]);
+                Log::info('sync-token abgelaufen, gelöscht – Fallback auf ctag', [
+                    'calendar' => $calendar->name,
+                    'reason'   => $e->getMessage(),
+                ]);
             } catch (SyncTokenNotSupportedException $e) {
-                Log::info('sync-token nicht unterstützt, Fallback auf ctag', ['calendar' => $calendar->name]);
+                // Server unterstützt sync-token nicht (501) → löschen, nie wieder versuchen
+                $calendar->update(['sync_token' => null]);
+                Log::info('sync-token nicht unterstützt, gelöscht – Fallback auf ctag', [
+                    'calendar' => $calendar->name,
+                ]);
             }
         }
 
@@ -1348,6 +1572,98 @@ class OxCalendarService
         } catch (\Illuminate\Http\Client\RequestException $e) {
             return $e->response;
         }
+    }
+
+    // ========================================================================
+    // iCal-Feed (TODO 30)
+    // ========================================================================
+
+    /**
+     * Ruft einen externen iCal-Feed ab und parst die Termine.
+     *
+     * Ergebnisse werden 10 Minuten gecacht. RRULE-Events werden über sabre/vobject
+     * serverseitig auf den angefragten Zeitraum expandiert.
+     *
+     * @param  \App\Models\UserIcalFeed  $feed
+     * @param  string  $start  ISO-Datum (YYYY-MM-DD)
+     * @param  string  $end    ISO-Datum (YYYY-MM-DD)
+     * @return array  FullCalendar-kompatible Event-Arrays
+     */
+    public function fetchIcalFeed(\App\Models\UserIcalFeed $feed, string $start, string $end): array
+    {
+        $cacheKey = $this->eventsCacheKey("ical_feed_{$feed->id}_{$start}_{$end}");
+
+        return Cache::remember($cacheKey, 600, function () use ($feed, $start, $end) {
+            try {
+                $response = Http::timeout(10)
+                    ->withOptions(['http_errors' => false])
+                    ->get($feed->url);
+
+                if (!$response->successful()) {
+                    $feed->update(['fehler_meldung' => "HTTP {$response->status()}"]);
+                    return [];
+                }
+
+                $vcalendar = Reader::read($response->body());
+                $feed->update([
+                    'letzter_abruf'  => now(),
+                    'fehler_meldung' => null,
+                ]);
+
+                $events = [];
+                $rangeStart = new \DateTimeImmutable($start);
+                $rangeEnd   = new \DateTimeImmutable($end);
+
+                // RRULE-Events serverseitig expandieren
+                try {
+                    $expanded = $vcalendar->expand($rangeStart, $rangeEnd);
+                } catch (\Exception $e) {
+                    $expanded = $vcalendar;
+                }
+
+                foreach ($expanded->VEVENT ?? [] as $vevent) {
+                    $dtstart = $vevent->DTSTART?->getDateTime();
+                    $dtend   = $vevent->DTEND?->getDateTime() ?? $dtstart;
+
+                    if (!$dtstart) {
+                        continue;
+                    }
+
+                    // Nur Events im Zeitfenster
+                    if ($dtend < $rangeStart || $dtstart > $rangeEnd) {
+                        continue;
+                    }
+
+                    $uid = (string) ($vevent->UID ?? uniqid('ical_', true));
+
+                    $events[] = [
+                        'id'     => 'ical_' . $feed->id . '_' . md5($uid),
+                        'title'  => (string) ($vevent->SUMMARY ?? 'Ohne Titel'),
+                        'start'  => $dtstart->format('c'),
+                        'end'    => $dtend->format('c'),
+                        'allDay' => !$vevent->DTSTART->hasTime(),
+                        'color'  => $feed->farbe,
+                        'extendedProps' => [
+                            'source'       => 'ical_feed',
+                            'feedId'       => $feed->id,
+                            'feedName'     => $feed->name,
+                            'ort'          => (string) ($vevent->LOCATION ?? ''),
+                            'beschreibung' => (string) ($vevent->DESCRIPTION ?? ''),
+                        ],
+                    ];
+                }
+
+                return $events;
+
+            } catch (\Exception $e) {
+                Log::warning("iCal-Feed abrufen fehlgeschlagen: Feed #{$feed->id}", [
+                    'error' => $e->getMessage(),
+                    'url'   => $feed->url,
+                ]);
+                $feed->update(['fehler_meldung' => $e->getMessage()]);
+                return [];
+            }
+        });
     }
 }
 

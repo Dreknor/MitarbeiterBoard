@@ -4,23 +4,93 @@
               max-md:absolute max-md:top-0 max-md:left-0 max-md:z-[100] max-md:w-[200px]
               max-md:h-full max-md:rounded-none max-md:shadow-lg max-md:bg-white max-md:mr-0">
 
+    {{-- ─── Termin-Suche (TODO 27) ────────────────────────────────────────── --}}
+    <div class="mb-3">
+        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            🔍 Termin suchen
+        </label>
+        <input type="text"
+               x-model="searchQuery"
+               @input.debounce.300ms="performSearch()"
+               @keydown.escape="clearSearch()"
+               placeholder="Titel, Ort, Beschreibung…"
+               class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm
+                      focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white">
+
+        {{-- Lade-Indikator --}}
+        <div x-show="searchLoading" x-cloak class="mt-1 text-[11px] text-gray-400 italic">
+            Suche…
+        </div>
+
+        {{-- Ergebnisliste --}}
+        <div x-show="searchResults.length > 0" x-cloak
+             class="mt-1.5 max-h-64 overflow-y-auto rounded border border-gray-200 bg-white shadow-sm">
+            <template x-for="result in searchResults" :key="result.id">
+                <button type="button"
+                        @click="goToSearchResult(result)"
+                        class="w-full text-left px-2 py-1.5 hover:bg-blue-50 transition-colors
+                               text-sm border-b border-gray-100 last:border-0">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full flex-shrink-0"
+                              :style="`background-color: ${result.kalender.farbe}`"></span>
+                        <span class="font-medium text-gray-800 truncate" x-text="result.titel"></span>
+                    </div>
+                    <div class="text-[11px] text-gray-500 ml-3.5" x-text="result.beginn"></div>
+                    <div x-show="result.ort"
+                         class="text-[11px] text-gray-400 ml-3.5 truncate"
+                         x-text="result.ort"></div>
+                </button>
+            </template>
+        </div>
+
+        {{-- Keine Ergebnisse --}}
+        <div x-show="searchQuery.length >= 2 && searchResults.length === 0 && !searchLoading"
+             x-cloak
+             class="mt-1.5 text-[11px] text-gray-400 italic">
+            Keine Termine gefunden.
+        </div>
+    </div>
+
     <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide pb-2 mb-2 border-b border-gray-200">
         Kalender
     </p>
 
     <div class="flex flex-col gap-0.5">
         <template x-for="cal in allCalendars" :key="cal.id">
-            <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
-                          select-none font-normal m-0">
-                <input type="checkbox"
-                       :value="cal.id"
-                       :checked="activeCalendars.includes(parseInt(cal.id))"
-                       @change="toggleCalendar(cal.id)"
-                       class="rounded cursor-pointer accent-blue-500 w-[14px] h-[14px] shrink-0 m-0">
-                <span class="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
-                      :style="'background-color: ' + cal.farbe"></span>
-                <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
-            </label>
+            <div class="flex items-center gap-1.5 py-0.5 group">
+                {{-- Checkbox + Farbpunkt + Name --}}
+                <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
+                              select-none font-normal m-0 flex-1 min-w-0">
+                    <input type="checkbox"
+                           :value="cal.id"
+                           :checked="activeCalendars.includes(parseInt(cal.id))"
+                           @change="toggleCalendar(cal.id)"
+                           class="rounded cursor-pointer accent-blue-500 w-[14px] h-[14px] shrink-0 m-0">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
+                          :style="'background-color: ' + getEffectiveColor(cal.id)"></span>
+                    <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
+                </label>
+
+                {{-- Farbwähler (sichtbar bei Hover) – TODO 29 --}}
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 flex items-center gap-0.5">
+                    <input type="color"
+                           :value="getEffectiveColor(cal.id)"
+                           @input.debounce.500ms="setCustomColor(cal.id, $event.target.value)"
+                           class="calendar-color-input w-5 h-5 rounded cursor-pointer border border-gray-300"
+                           title="Farbe anpassen">
+                    {{-- Reset-Button (nur wenn eigene Farbe gesetzt) --}}
+                    <button x-show="customColors[String(cal.id)]"
+                            x-cloak
+                            @click="resetCustomColor(cal.id)"
+                            class="text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5"
+                            title="Farbe zurücksetzen">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </template>
     </div>
 
@@ -99,6 +169,50 @@
                 </form>
             @endif
         </div>
+    </div>
+
+    {{-- ─── Meine iCal-Feeds (TODO 30) ──────────────────────────────────── --}}
+    <div class="mt-3 pt-2.5 border-t border-gray-200">
+        <div class="flex items-center justify-between mb-1.5">
+            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                📡 Meine Feeds
+            </p>
+            <button type="button"
+                    @click="showIcalFeedModal = true"
+                    class="text-[11px] text-blue-600 hover:text-blue-800 hover:underline">
+                + Hinzufügen
+            </button>
+        </div>
+
+        @forelse(auth()->user()->icalFeeds as $feed)
+            <div class="flex items-center gap-2 py-0.5 group">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style="background-color: {{ $feed->farbe }}"></span>
+                <span class="text-sm text-gray-700 truncate flex-1
+                             {{ $feed->aktiv ? '' : 'line-through text-gray-400' }}">
+                    {{ $feed->name }}
+                </span>
+                @if($feed->fehler_meldung)
+                    <span class="text-red-500 text-xs" title="{{ $feed->fehler_meldung }}">⚠️</span>
+                @endif
+                <form action="{{ route('calendar.ical.destroy', $feed) }}" method="POST"
+                      class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            onclick="return confirm('Feed &quot;{{ addslashes($feed->name) }}&quot; entfernen?')"
+                            class="text-gray-400 hover:text-red-500 p-0.5"
+                            title="Feed entfernen">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        @empty
+            <p class="text-[11px] text-gray-400 italic">Noch keine Feeds abonniert.</p>
+        @endforelse
     </div>
 
     @can('manage calendar')

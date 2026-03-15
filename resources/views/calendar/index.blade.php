@@ -4,16 +4,22 @@
     @vite('resources/css/calendar.css')
 @endpush
 
+@push('js')
+    @vite('resources/js/calendar.js')
+@endpush
+
 @section('content')
 @php
     $aeltesteSync = $kalender->min('letzte_synchronisation');
     $syncVeraltet = $aeltesteSync && \Carbon\Carbon::parse($aeltesteSync)->lt(now()->subHour());
 @endphp
-<div class="px-4 py-4"
+<div class="px-4 py-4 {{ $canCreate ? '' : 'calendar-no-create' }}"
      x-data="calendarApp"
      data-calendars='{!! json_encode($kalender->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'farbe' => $c->farbe]), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'
      data-default-view="{{ $defaultView }}"
-     data-can-create="{{ $canCreate ? 'true' : 'false' }}">
+     data-can-create="{{ $canCreate ? 'true' : 'false' }}"
+     data-can-edit="{{ $canEdit ? 'true' : 'false' }}"
+     data-user-colors='{!! json_encode($userColors, JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'>
 
     {{-- ─── Seiten-Header ─────────────────────────────────────────────── --}}
     <div class="flex items-center justify-between mb-4">
@@ -32,6 +38,18 @@
         </div>
 
         <div class="flex items-center gap-2">
+            {{-- PDF-Export (TODO 28) --}}
+            @can('view calendar')
+                <a :href="`/calendar/export/pdf?date=${currentWeekDate()}`"
+                   class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-green-50 border border-gray-300 hover:border-green-300 text-gray-600 hover:text-green-700 text-sm rounded-md transition-colors"
+                   title="Wochenansicht als PDF herunterladen">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    PDF
+                </a>
+            @endcan
             @can('manage calendar')
                 <a href="{{ route('calendar.admin') }}"
                    class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-amber-50 border border-gray-300 hover:border-amber-300 text-gray-600 hover:text-amber-700 text-sm rounded-md transition-colors"
@@ -56,7 +74,7 @@
                     </button>
                 @else
                     <span class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-200 text-gray-500 text-sm font-medium rounded-md cursor-not-allowed"
-                          title="Kein schreibbarer Kalender verfügbar. Bitte einen Kalender mit Schreibzugriff zuweisen.">
+                          title="Kein schreibbarer Kalender verfügbar.">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
@@ -93,6 +111,7 @@
 
     {{-- Modals --}}
     @include('calendar.partials.terminModal')
+    @include('calendar.partials.icalFeedModal')
     @can('create calendar events')
         @include('calendar.partials.terminForm')
     @endcan
@@ -100,7 +119,6 @@
 @endsection
 
 @push('js')
-    @vite('resources/js/calendar.js')
     <script>
         function copyFeedUrl() {
             const input = document.getElementById('ical-feed-url');
@@ -110,10 +128,7 @@
                 const original = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
                 setTimeout(() => { btn.innerHTML = original; }, 2000);
-            }).catch(() => {
-                input.select();
-                document.execCommand('copy');
-            });
+            }).catch(() => { input.select(); document.execCommand('copy'); });
         }
     </script>
 @endpush

@@ -69,4 +69,14 @@ class OxCalendar extends Model
             ->withPivot('schreibbar')
             ->withTimestamps();
     }
+
+    /**
+     * User-spezifische Farbüberschreibungen (TODO 29).
+     */
+    public function userColors(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_calendar_colors')
+            ->withPivot('farbe')
+            ->withTimestamps();
+    }
 }

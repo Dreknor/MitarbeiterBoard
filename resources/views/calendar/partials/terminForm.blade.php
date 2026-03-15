@@ -8,20 +8,20 @@
     <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6"
          @click.stop
          x-data="terminForm()"
-         x-effect="syncFromParent($root.editingEvent)">
+         x-effect="syncFromParent(editingEvent)">
 
         <form :action="formAction" method="POST" @submit.prevent="prepareAndSubmit">
             @csrf
 
-            <template x-if="$root.editingEvent">
+            <template x-if="editingEvent">
                 <input type="hidden" name="_method" value="PUT">
             </template>
 
             <div class="flex justify-between items-start mb-4">
                 <h2 class="text-lg font-semibold text-gray-900"
-                    x-text="$root.editingEvent ? 'Termin bearbeiten' : 'Neuen Termin erstellen'"></h2>
+                    x-text="editingEvent ? 'Termin bearbeiten' : 'Neuen Termin erstellen'"></h2>
                 <button type="button"
-                        @click="$root.showCreateModal = false; $root.editingEvent = null"
+                        @click="showCreateModal = false; editingEvent = null"
                         class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
 
@@ -171,8 +171,8 @@
 
             {{-- Hidden: RRULE + expected_updated_at --}}
             <input type="hidden" name="rrule" :value="formData.rrule">
-            <template x-if="$root.editingEvent">
-                <input type="hidden" name="expected_updated_at" :value="$root.editingEvent && $root.editingEvent.updated_at">
+            <template x-if="editingEvent">
+                <input type="hidden" name="expected_updated_at" :value="editingEvent && editingEvent.updated_at">
             </template>
 
             {{-- Validierungs-Fehler --}}
@@ -189,7 +189,7 @@
             {{-- Buttons --}}
             <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
                 <button type="button"
-                        @click="$root.showCreateModal = false; $root.editingEvent = null"
+                        @click="showCreateModal = false; editingEvent = null"
                         class="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md">
                     Abbrechen
                 </button>

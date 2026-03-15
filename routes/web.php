@@ -921,8 +921,30 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
             ->name('calendar.events');
         Route::get('/termin/{termin}', [\App\Http\Controllers\CalendarController::class, 'show'])
             ->name('calendar.show');
+        Route::get('/suche', [\App\Http\Controllers\CalendarController::class, 'search'])
+            ->name('calendar.search');
         Route::post('/feed/token', [\App\Http\Controllers\CalendarController::class, 'generateFeedToken'])
             ->name('calendar.feed.token');
+
+        // iCal-Feed-Verwaltung – User-spezifisch (TODO 30)
+        Route::post('/ical-feeds', [\App\Http\Controllers\CalendarController::class, 'storeIcalFeed'])
+            ->name('calendar.ical.store');
+        Route::put('/ical-feeds/{feed}', [\App\Http\Controllers\CalendarController::class, 'updateIcalFeed'])
+            ->name('calendar.ical.update');
+        Route::delete('/ical-feeds/{feed}', [\App\Http\Controllers\CalendarController::class, 'destroyIcalFeed'])
+            ->name('calendar.ical.destroy');
+
+        // Kalenderfarben – Hybrid DB/localStorage (TODO 29)
+        Route::get('/farben', [\App\Http\Controllers\CalendarController::class, 'getColors'])
+            ->name('calendar.colors.index');
+        Route::put('/farben', [\App\Http\Controllers\CalendarController::class, 'saveColors'])
+            ->name('calendar.colors.save');
+        Route::delete('/farben/{oxCalendar}', [\App\Http\Controllers\CalendarController::class, 'resetColor'])
+            ->name('calendar.colors.reset');
+
+        // PDF-Export (TODO 28)
+        Route::get('/export/pdf', [\App\Http\Controllers\CalendarController::class, 'exportPdf'])
+            ->name('calendar.export.pdf');
     });
 
     // Schreiben (create calendar events)
@@ -936,6 +958,9 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
     Route::middleware('permission:edit calendar events')->group(function () {
         Route::put('/termine/{termin}', [\App\Http\Controllers\CalendarController::class, 'update'])
             ->name('calendar.update')
+            ->middleware('throttle:calendar-write');
+        Route::patch('/termine/{termin}/verschieben', [\App\Http\Controllers\CalendarController::class, 'move'])
+            ->name('calendar.move')
             ->middleware('throttle:calendar-write');
         Route::delete('/termine/{termin}', [\App\Http\Controllers\CalendarController::class, 'destroy'])
             ->name('calendar.destroy')
@@ -958,6 +983,8 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
             ->name('calendar.admin.sync');
         Route::get('/logs', [\App\Http\Controllers\CalendarAdminController::class, 'logs'])
             ->name('calendar.admin.logs');
+        Route::get('/health.json', [\App\Http\Controllers\CalendarAdminController::class, 'health'])
+            ->name('calendar.admin.health');
     });
 });
 
