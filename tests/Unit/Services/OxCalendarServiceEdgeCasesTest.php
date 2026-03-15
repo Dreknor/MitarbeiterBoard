@@ -129,13 +129,13 @@ class OxCalendarServiceEdgeCasesTest extends TestCase
         $termin   = OxTermin::factory()->create([
             'ox_calendar_id' => $calendar->id,
             'ox_uid'         => 'restored@ox.example.com',
-            'ox_href'        => '/cal1/restored.ics',
+            'ox_href'        => '/caldav/cal1/restored.ics',
         ]);
         $termin->delete(); // Soft-Delete
 
         $propfindXml = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">'
             . '<d:response>'
-            . '<d:href>/cal1/restored.ics</d:href>'
+            . '<d:href>/caldav/cal1/restored.ics</d:href>'
             . '<d:propstat><d:prop><d:getetag>"new-etag"</d:getetag></d:prop>'
             . '<d:status>HTTP/1.1 200 OK</d:status></d:propstat>'
             . '</d:response></d:multistatus>';
