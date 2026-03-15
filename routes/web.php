@@ -906,21 +906,6 @@ Route::group([
     });
 
 
-// ============================================================
-// Kalender-Modul (OX-Integration)
-// ============================================================
-Route::prefix('calendar')->middleware(['auth'])->group(function () {
-    Route::middleware('permission:view calendar')->group(function () {
-        Route::get('/', [\App\Http\Controllers\CalendarController::class, 'index'])
-            ->name('calendar.index');
-        Route::get('/events', [\App\Http\Controllers\CalendarController::class, 'events'])
-            ->name('calendar.events');
-        Route::get('/termin/{termin}', [\App\Http\Controllers\CalendarController::class, 'show'])
-            ->name('calendar.show');
-        Route::get('/export/pdf', [\App\Http\Controllers\CalendarController::class, 'exportPdf'])
-            ->name('calendar.export.pdf');
-    });
-});
 
 // Public room calendar feed (token protected)
 Route::get('/rooms/{room}/calendar/{token}.ics', [RoomCalendarController::class, 'feed'])->name('rooms.calendar.feed');
