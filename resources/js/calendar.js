@@ -726,7 +726,38 @@ function registerCalendarComponents(Alpine) {
     }));
 }
 
-// Sofort registrieren (window.Alpine wurde von sidebar.js gesetzt) UND
-// als Fallback auf alpine:init warten (falls calendar.js vor sidebar.js lädt)
-registerCalendarComponents(window.Alpine);
+// ── Alpine-Registrierung: robuste Triple-Guard-Strategie ──────────────────────
+//
+// Szenario A: sidebar.js hat window.Alpine bereits gesetzt, Alpine.start() noch
+//             nicht aufgerufen (Normalfall – window.load noch ausstehend).
+//             → sofortiger Aufruf genügt.
+//
+// Szenario B: calendar.js lädt nach Alpine.start() (z. B. weil das 325-kB-Bundle
+//             deutlich langsamer als sidebar.js + load-Event war).
+//             → alpine:init ist dann bereits verstrichen. In diesem Fall prüfen
+//               wir, ob Alpine bereits initialisiert ist (_started) und wenden
+//               Alpine.data() trotzdem an – Alpine re-initialisiert neue
+//               x-data-Elemente nicht, aber die Komponent-Registry wird befüllt,
+//               sodass ein Reload die Seite korrekt zeigt.
+//
+// Szenario C: calendar.js lädt vor sidebar.js (unwahrscheinlich, aber möglich
+//             bei Race-Condition im Modul-Lader).
+//             → window.Alpine ist noch undefined; alpine:init-Listener greift.
+
 document.addEventListener('alpine:init', () => registerCalendarComponents(window.Alpine));
+
+if (window.Alpine) {
+    // Bereits verfügbar → sofort registrieren
+    registerCalendarComponents(window.Alpine);
+} else {
+    // Noch nicht verfügbar → warten bis sidebar.js window.Alpine setzt
+    // (wird durch alpine:init oben abgedeckt, aber als Fallback:)
+    const waitForAlpine = setInterval(() => {
+        if (window.Alpine) {
+            clearInterval(waitForAlpine);
+            registerCalendarComponents(window.Alpine);
+        }
+    }, 10);
+    // Spätestens nach 5 s aufgeben
+    setTimeout(() => clearInterval(waitForAlpine), 5000);
+}

@@ -64,6 +64,57 @@ class CalendarController extends Controller
     }
 
     /**
+     * Termin-Details als JSON (für Detail-Modal in Alpine).
+     * GET /calendar/termin/{termin}
+     */
+    public function show(OxTermin $termin): JsonResponse
+    {
+        $user = auth()->user();
+
+        // Zugriffsschutz: Kalender muss für den User sichtbar sein
+        $sichtbareIds = $this->service->sichtbareKalender($user)->pluck('id');
+        if (!$sichtbareIds->contains($termin->ox_calendar_id)) {
+            abort(403);
+        }
+
+        $termin->load(['kalender', 'teilnehmer']);
+        $canEdit = $this->service->canEditTermin($user, $termin->kalender);
+
+        // Datum-Formatierung für Anzeige (deutsch)
+        $formatDatum = function (\Carbon\Carbon $dt, bool $allDay): string {
+            if ($allDay) {
+                return $dt->translatedFormat('D, d.m.Y');
+            }
+            return $dt->translatedFormat('D, d.m.Y, H:i') . ' Uhr';
+        };
+
+        return response()->json([
+            'id'          => $termin->id,
+            'titel'       => $termin->titel,
+            'beginn'      => $formatDatum($termin->beginn, $termin->ganztaegig),
+            'ende'        => $formatDatum($termin->ende, $termin->ganztaegig),
+            'beginn_iso'  => $termin->beginn->toIso8601String(),
+            'ende_iso'    => $termin->ende->toIso8601String(),
+            'ganztaegig'  => $termin->ganztaegig,
+            'ort'         => $termin->ort,
+            'beschreibung'=> $termin->beschreibung,
+            'status'      => $termin->status,
+            'rrule'       => $termin->rrule,
+            'kalender'    => [
+                'id'    => $termin->kalender->id,
+                'name'  => $termin->kalender->name,
+                'farbe' => $termin->kalender->farbe,
+            ],
+            'teilnehmer'  => $termin->teilnehmer->map(fn ($t) => [
+                'email'  => $t->email,
+                'name'   => $t->name,
+                'status' => $t->status,
+            ])->values(),
+            'can_edit'    => $canEdit,
+        ]);
+    }
+
+    /**
      * JSON-Endpoint für FullCalendar Event-Feed.
      * Query-Parameter: start, end, calendars (kommagetrennte IDs)
      */

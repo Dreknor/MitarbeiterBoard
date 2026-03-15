@@ -40,7 +40,7 @@
         <div class="flex items-center gap-2">
             {{-- PDF-Export (TODO 28) --}}
             @can('view calendar')
-                <a :href="`/calendar/export/pdf?date=${currentWeekDate()}`"
+                <a :href="`/calendar/export-pdf?date=${currentWeekDate()}`"
                    class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-green-50 border border-gray-300 hover:border-green-300 text-gray-600 hover:text-green-700 text-sm rounded-md transition-colors"
                    title="Wochenansicht als PDF herunterladen">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
