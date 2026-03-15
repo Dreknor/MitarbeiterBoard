@@ -942,8 +942,8 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
         Route::delete('/farben/{oxCalendar}', [\App\Http\Controllers\CalendarController::class, 'resetColor'])
             ->name('calendar.colors.reset');
 
-        // PDF-Export (TODO 28)
-        Route::get('/export/pdf', [\App\Http\Controllers\CalendarController::class, 'exportPdf'])
+        // PDF-Export (TODO 28) – /export-pdf (nicht /export/pdf, da {groupname}/export/{date?} vorher matcht)
+        Route::get('/export-pdf', [\App\Http\Controllers\CalendarController::class, 'exportPdf'])
             ->name('calendar.export.pdf');
     });
 

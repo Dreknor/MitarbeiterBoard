@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Unit-Tests für die User-Kalenderfarben-Relation (TODO 29).
+ *  Unit-Tests für die User-Kalenderfarben-Relation.
  */
 class UserCalendarColorsTest extends TestCase
 {

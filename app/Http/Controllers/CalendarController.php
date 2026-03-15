@@ -606,8 +606,6 @@ class CalendarController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        return response('PDF-TEST-OK', 200, ['Content-Type' => 'application/pdf']);
-        try {
         $user = auth()->user();
 
         $date = $request->query('date')
@@ -628,7 +626,6 @@ class CalendarController extends Controller
             ->where(function ($q) use ($date, $weekEnd) {
                 $q->whereBetween('beginn', [$date, $weekEnd])
                   ->orWhere(function ($inner) use ($date, $weekEnd) {
-                      // Mehrtägige Termine
                       $inner->where('beginn', '<=', $weekEnd)
                             ->where('ende', '>=', $date);
                   });
@@ -638,7 +635,6 @@ class CalendarController extends Controller
             ->orderBy('beginn')
             ->get();
 
-        // Nach Wochentag gruppieren
         $tage = collect();
         for ($d = $date->copy(); $d->lte($weekEnd); $d->addDay()) {
             $tagTermine = $termine->filter(fn ($t) => $t->beginn->isSameDay($d));
@@ -661,9 +657,6 @@ class CalendarController extends Controller
         $filename = 'Kalender_KW' . $date->isoWeek() . '_' . $date->format('Y') . '.pdf';
 
         return $pdf->download($filename);
-        } catch (\Throwable $e) {
-            throw $e; // re-throw for debugging
-        }
     }
 
     // ========================================================================
