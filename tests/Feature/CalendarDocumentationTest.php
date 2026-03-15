@@ -11,6 +11,8 @@ use Tests\TestCase;
  */
 class CalendarDocumentationTest extends TestCase
 {
+    private string $wikiTitle = 'Kalender';
+
     public function test_Wiki_Eintrag_fuer_Kalender_Modul_existiert(): void
     {
         if (!Schema::hasTable('wiki_sites')) {
@@ -18,8 +20,8 @@ class CalendarDocumentationTest extends TestCase
         }
 
         $this->assertTrue(
-            DB::table('wiki_sites')->where('title', 'Kalender-Modul')->exists(),
-            'Wiki-Eintrag "Kalender-Modul" wurde nicht gefunden.'
+            DB::table('wiki_sites')->where('title', $this->wikiTitle)->exists(),
+            "Wiki-Eintrag \"{$this->wikiTitle}\" wurde nicht gefunden."
         );
     }
 
@@ -29,7 +31,7 @@ class CalendarDocumentationTest extends TestCase
             $this->markTestSkipped('wiki_sites Tabelle existiert nicht');
         }
 
-        $text = DB::table('wiki_sites')->where('title', 'Kalender-Modul')->value('text');
+        $text = DB::table('wiki_sites')->where('title', $this->wikiTitle)->value('text');
 
         $this->assertNotNull($text);
         $this->assertStringContainsString('iCal', $text);

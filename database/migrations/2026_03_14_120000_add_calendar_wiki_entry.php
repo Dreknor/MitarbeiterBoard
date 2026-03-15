@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private string $title = 'MitarbeiterBoard: Kalender';
+    private string $title = 'Kalender';
 
     public function up(): void
     {

@@ -544,11 +544,33 @@ class OxCalendarService
 
     /**
      * Events-Cache invalidieren.
+     *
+     * Gezieltes Löschen aller calendar_events_*-Keys.
+     * KEIN Cache::flush() – das würde den gesamten App-Cache löschen
+     * (settings(), Spatie-Permission-Cache, etc.).
      */
     public function invalidateEventsCache(?int $calendarId = null): void
     {
-        Cache::flush();
-        Log::debug('Kalender-Cache invalidiert', ['calendar_id' => $calendarId]);
+        // Tag-basierte Invalidierung: Alle Keys mit dem Tag 'calendar_events' löschen.
+        // Falls der Cache-Driver keine Tags unterstützt (z.B. file/database),
+        // wird ein Versions-Zähler hochgesetzt, der alle alten Keys ungültig macht.
+        $versionKey = 'calendar_events_version';
+        $currentVersion = (int) Cache::get($versionKey, 0);
+        Cache::forever($versionKey, $currentVersion + 1);
+
+        Log::debug('Kalender-Cache invalidiert (Version ' . ($currentVersion + 1) . ')', [
+            'calendar_id' => $calendarId,
+        ]);
+    }
+
+    /**
+     * Versionierten Cache-Key für Events generieren.
+     * Ändert sich bei jeder Invalidierung, sodass alte Keys automatisch verfallen.
+     */
+    public function eventsCacheKey(string $suffix): string
+    {
+        $version = (int) Cache::get('calendar_events_version', 0);
+        return 'calendar_events_v' . $version . '_' . $suffix;
     }
 
     // ========================================================================
@@ -781,17 +803,56 @@ class OxCalendarService
 
     /**
      * Full-Sync mit ctag-Vergleich.
-     * Alle Events aus dem Kalender als "geändert" markieren.
+     * Prüft ob ctag verfügbar ist. Falls nicht → CtagNotSupportedException.
+     * Falls ctag verfügbar und unverändert → keine Änderungen nötig.
+     * Falls ctag geändert oder erstmalig → alle Events als "geändert" markieren.
      */
     protected function syncViaCtag(OxCalendar $calendar): array
     {
         $calendarUrl = $this->buildCalendarUrl($calendar);
-        $response    = $this->propfind($calendarUrl);
+
+        // Depth:0-PROPFIND für ctag-Abfrage
+        $ctagResponse = $this->httpClient()
+            ->withOptions(['http_errors' => false])
+            ->send('PROPFIND', $calendarUrl, [
+                'headers' => [
+                    'Depth'        => '0',
+                    'Content-Type' => 'application/xml; charset=utf-8',
+                ],
+                'body' => '<?xml version="1.0" encoding="utf-8"?>
+                    <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
+                        <d:prop>
+                            <cs:getctag/>
+                        </d:prop>
+                    </d:propfind>',
+            ]);
+
+        $ctagBody = $ctagResponse->body();
+
+        // ctag aus Response extrahieren
+        if (!preg_match('/<[^:>]*:?getctag[^>]*>([^<]+)</', $ctagBody, $matches)) {
+            throw new CtagNotSupportedException('Server liefert kein ctag');
+        }
+
+        $remoteCtag = trim($matches[1]);
+
+        // ctag vergleichen: Wenn unverändert, keine Sync nötig
+        if ($calendar->sync_token && $calendar->sync_token === 'ctag:' . $remoteCtag) {
+            return [
+                'changed'    => [],
+                'deleted'    => [],
+                'sync_token' => 'ctag:' . $remoteCtag,
+                'method'     => 'ctag',
+            ];
+        }
+
+        // ctag geändert → Full-Sync aller Events
+        $response = $this->propfind($calendarUrl);
 
         return [
             'changed'    => $response['responses'],
             'deleted'    => [],
-            'sync_token' => $response['sync_token'],
+            'sync_token' => 'ctag:' . $remoteCtag,
             'method'     => 'ctag',
         ];
     }

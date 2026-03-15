@@ -63,8 +63,9 @@ class CalendarController extends Controller
             return response()->json([]);
         }
 
-        // Cache-Key basiert auf Zeitraum + User-ID + aktive Kalender
-        $cacheKey = 'calendar_events_' . md5($start . $end . $user->id . ($calendarsParam ?? 'all'));
+        // Cache-Key basiert auf Zeitraum + User-ID + aktive Kalender (versioniert)
+        $service = app(OxCalendarService::class);
+        $cacheKey = $service->eventsCacheKey(md5($start . $end . $user->id . ($calendarsParam ?? 'all')));
 
         $events = Cache::remember($cacheKey, 300, function () use ($user, $start, $end, $calendarsParam) {
             // Sichtbare Kalender-IDs ermitteln
