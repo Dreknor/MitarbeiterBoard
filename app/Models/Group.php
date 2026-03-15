@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use DateTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
 
@@ -176,5 +177,11 @@ class Group extends Model
         return $employes->unique('id');
     }
 
+    public function oxCalendars(): BelongsToMany
+    {
+        return $this->belongsToMany(OxCalendar::class, 'ox_calendar_group')
+            ->withPivot('schreibbar')
+            ->withTimestamps();
+    }
 
 }

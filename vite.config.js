@@ -15,6 +15,8 @@ export default defineConfig({
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',
+                'resources/css/calendar.css',
+                'resources/js/calendar.js',
             ],
             refresh: [
                 'resources/views/layouts/**/*.blade.php',
@@ -26,6 +28,9 @@ export default defineConfig({
                 'app/Http/Controllers/Wochenplan/*.php',
                 'resources/views/rooms/**/*.blade.php',
                 'app/Http/Controllers/RoomController.php',
+                'resources/views/calendar/**/*.blade.php',
+                'app/Http/Controllers/CalendarController.php',
+                'app/Http/Controllers/CalendarAdminController.php',
             ],
         }),
     ],

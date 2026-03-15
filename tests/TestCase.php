@@ -46,4 +46,23 @@ abstract class TestCase extends BaseTestCase
 
         return $user;
     }
+
+    /**
+     * Erstellt einen User mit den angegebenen Permissions, ohne ihn einzuloggen.
+     * Nützlich für Tests mit mehreren Usern.
+     */
+    protected function createUserWithPermission(string ...$permissions): User
+    {
+        $user = User::factory()->create();
+
+        foreach ($permissions as $perm) {
+            Permission::findOrCreate($perm);
+        }
+
+        $user->givePermissionTo($permissions);
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        return $user;
+    }
 }
