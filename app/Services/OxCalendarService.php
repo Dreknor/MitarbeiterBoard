@@ -412,8 +412,9 @@ class OxCalendarService
     /**
      * iCal-String parsen und Termin-Daten extrahieren.
      *
-     * Zeitzonen: DTSTART/DTEND werden nach UTC konvertiert.
-     * Ganztägige Termine: DATE-Werte → beginn/ende = 00:00:00 UTC.
+     * Zeitzonen: DTSTART/DTEND werden in die App-Zeitzone (config('app.timezone'))
+     * konvertiert, damit Laravels datetime-Cast die gespeicherten Werte konsistent
+     * liest. Ganztägige Termine: DATE-Werte → beginn/ende = 00:00:00 App-Timezone.
      *
      * @param string $icalData Roher iCal-String
      *
@@ -458,12 +459,15 @@ class OxCalendarService
             }
         }
 
-        // Beginn/Ende in UTC konvertieren
+        // Beginn/Ende in App-Zeitzone konvertieren.
+        // Laravels datetime-Cast interpretiert DB-Strings mit config('app.timezone'),
+        // daher müssen die gespeicherten Werte in derselben Zeitzone vorliegen.
+        $appTz  = new \DateTimeZone(config('app.timezone', 'Europe/Berlin'));
         $beginn = $dtstart
-            ? $dtstart->getDateTime()->setTimezone(new \DateTimeZone('UTC'))
+            ? $dtstart->getDateTime()->setTimezone($appTz)
             : null;
         $ende = $dtend
-            ? $dtend->getDateTime()->setTimezone(new \DateTimeZone('UTC'))
+            ? $dtend->getDateTime()->setTimezone($appTz)
             : null;
 
         // RRULE extrahieren

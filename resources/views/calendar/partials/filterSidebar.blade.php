@@ -57,7 +57,7 @@
 
     <div class="flex flex-col gap-0.5">
         <template x-for="cal in allCalendars" :key="cal.id">
-            <div class="flex items-center gap-1.5 py-0.5 group">
+            <div class="flex items-center gap-1.5 py-0.5">
                 {{-- Checkbox + Farbpunkt + Name --}}
                 <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
                               select-none font-normal m-0 flex-1 min-w-0">
@@ -71,13 +71,13 @@
                     <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
                 </label>
 
-                {{-- Farbwähler (sichtbar bei Hover) – TODO 29 --}}
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 flex items-center gap-0.5">
+                {{-- Farbwähler – immer sichtbar  --}}
+                <div class="flex-shrink-0 flex items-center gap-0.5">
                     <input type="color"
                            :value="getEffectiveColor(cal.id)"
                            @input.debounce.500ms="setCustomColor(cal.id, $event.target.value)"
-                           class="calendar-color-input w-5 h-5 rounded cursor-pointer border border-gray-300"
-                           title="Farbe anpassen">
+                           class="calendar-color-input w-4 h-4 rounded cursor-pointer"
+                           title="Kalenderfarbe anpassen">
                     {{-- Reset-Button (nur wenn eigene Farbe gesetzt) --}}
                     <button x-show="customColors[String(cal.id)]"
                             x-cloak

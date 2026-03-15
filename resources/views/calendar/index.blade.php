@@ -123,12 +123,27 @@
         function copyFeedUrl() {
             const input = document.getElementById('ical-feed-url');
             if (!input) return;
-            navigator.clipboard.writeText(input.value).then(() => {
+
+            const showSuccess = () => {
                 const btn = input.nextElementSibling;
+                if (!btn) return;
                 const original = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
                 setTimeout(() => { btn.innerHTML = original; }, 2000);
-            }).catch(() => { input.select(); document.execCommand('copy'); });
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                // Secure context (HTTPS / localhost): moderne Clipboard-API
+                navigator.clipboard.writeText(input.value)
+                    .then(showSuccess)
+                    .catch(() => { input.select(); document.execCommand('copy'); showSuccess(); });
+            } else {
+                // Fallback für HTTP-Kontext (execCommand)
+                input.select();
+                input.setSelectionRange(0, 99999); // Mobile
+                try { document.execCommand('copy'); } catch (_) {}
+                showSuccess();
+            }
         }
     </script>
 @endpush

@@ -101,10 +101,10 @@ class OxCalendarServiceEdgeCasesTest extends TestCase
         $this->assertSame('Ohne Titel', $result['titel']);
     }
 
-    public function test_parseIcal_konvertiert_verschiedene_Zeitzonen_nach_UTC(): void
+    public function test_parseIcal_konvertiert_verschiedene_Zeitzonen_in_App_Zeitzone(): void
     {
         // Event in US/Eastern – am 2026-03-15 ist EDT aktiv (UTC-4)
-        // 09:00 EDT = 13:00 UTC
+        // 09:00 EDT = 13:00 UTC = 14:00 CET (Europe/Berlin, UTC+1)
         $ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
             . "BEGIN:VEVENT\r\n"
             . "UID:tz-test@ox\r\n"
@@ -117,8 +117,8 @@ class OxCalendarServiceEdgeCasesTest extends TestCase
         $result  = $service->parseIcal($ical);
 
         $this->assertSame('US/Eastern', $result['timezone']);
-        // UTC ist 4 Stunden vor EDT → 09:00 EDT = 13:00 UTC
-        $this->assertStringContainsString('13:00:00', $result['beginn']);
+        // Europe/Berlin ist CET (UTC+1) am 15.03.2026 → 09:00 EDT (UTC-4) = 14:00 CET
+        $this->assertStringContainsString('14:00:00', $result['beginn']);
     }
 
     // ─── Sync Edge Cases ─────────────────────────────────────────────────────

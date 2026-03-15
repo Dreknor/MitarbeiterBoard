@@ -63,7 +63,7 @@ class OxCalendarServiceIcalRoundtripTest extends TestCase
 
     public function test_Ganztaegiger_Termin_hat_korrekte_Zeiten_in_DB(): void
     {
-        // Mit UTC-Timezone: DATE 20260318 → 2026-03-18 00:00:00 UTC
+        // DATE 20260318 → 2026-03-18 00:00:00 (App-Zeitzone, kein Uhrzeit-Anteil bei ganztägig)
         $ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
             . "BEGIN:VEVENT\r\n"
             . "UID:allday@ox\r\n"

@@ -217,7 +217,7 @@ class CalendarController extends Controller
 
                     // Clientseitige Expansion: RRULE an FullCalendar-Plugin übergeben
                     $baseEvent['editable'] = false; // Kein Drag-and-Drop für Wiederholungen
-                    $baseEvent['rrule'] = 'DTSTART:' . $termin->beginn->format('Ymd\THis\Z') . "\nRRULE:" . $termin->rrule;
+                    $baseEvent['rrule'] = 'DTSTART:' . $termin->beginn->clone()->setTimezone('UTC')->format('Ymd\THis\Z') . "\nRRULE:" . $termin->rrule;
 
                     if ($termin->exdates) {
                         $baseEvent['exdate'] = $termin->exdates;
