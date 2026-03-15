@@ -22,12 +22,13 @@ class CalendarPdfExportTest extends TestCase
     public function test_debug_auth_state(): void
     {
         $user = $this->actingAsWithPermission('view calendar');
+        $url  = route('calendar.export.pdf', ['date' => now()->format('Y-m-d')]);
+        $this->assertEquals('/calendar/export/pdf', parse_url($url, PHP_URL_PATH),
+            'Route URL ist: ' . $url);
 
-        // NUR PDF Route ohne vorherigen Index-Aufruf
-        $response = $this->get('/calendar/export/pdf');
+        $response = $this->get($url);
         $this->assertEquals(200, $response->status(),
-            'PDF Redirect zu: ' . $response->headers->get('Location') .
-            ' | Headers: ' . json_encode(array_keys($response->headers->all())));
+            'Redirect zu: ' . $response->headers->get('Location'));
     }
 
     public function test_pdf_export_liefert_pdf_content_type(): void
@@ -112,6 +113,7 @@ class CalendarPdfExportTest extends TestCase
         $this->assertStringContainsString('KW' . $kw, $disposition);
     }
 }
+
 
 
 
