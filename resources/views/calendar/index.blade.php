@@ -12,10 +12,24 @@
 @php
     $aeltesteSync = $kalender->min('letzte_synchronisation');
     $syncVeraltet = $aeltesteSync && \Carbon\Carbon::parse($aeltesteSync)->lt(now()->subHour());
+
+    // Alle Kalender für das Frontend: OxCalendar + aktive iCal-Feeds
+    $alleKalenderFrontend = $kalender->map(fn($c) => [
+        'id'    => $c->id,
+        'name'  => $c->name,
+        'farbe' => $c->farbe,
+        'typ'   => 'ox',
+    ])->concat($icalFeeds->map(fn($f) => [
+        'id'         => 'ical_' . $f->id,
+        'name'       => $f->name,
+        'farbe'      => $f->farbe ?? '#6366f1',
+        'typ'        => 'ical',
+        'delete_url' => route('calendar.ical.destroy', $f),
+    ]))->values();
 @endphp
 <div class="px-4 py-4 {{ $canCreate ? '' : 'calendar-no-create' }}"
      x-data="calendarApp"
-     data-calendars='{!! json_encode($kalender->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'farbe' => $c->farbe]), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'
+     data-calendars='{!! json_encode($alleKalenderFrontend, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'
      data-default-view="{{ $defaultView }}"
      data-can-create="{{ $canCreate ? 'true' : 'false' }}"
      data-can-edit="{{ $canEdit ? 'true' : 'false' }}"

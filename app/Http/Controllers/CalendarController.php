@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OxCalendar;
 use App\Models\OxTermin;
 use App\Models\User;
+use App\Models\UserIcalFeed;
 use App\Services\OxCalendarService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -12,7 +13,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Sabre\VObject\Reader;
 
 class CalendarController extends Controller
@@ -35,8 +38,12 @@ class CalendarController extends Controller
             return $this->canWriteCalendar($user, $cal);
         });
 
+        // Persönliche iCal-Feeds des Users
+        $icalFeeds = $user->icalFeeds()->where('aktiv', true)->get();
+
         return view('calendar.index', [
             'kalender'            => $kalender,
+            'icalFeeds'           => $icalFeeds,
             'schreibbareKalender' => $schreibbareKalender,
             'defaultView'         => $defaultView,
             'canCreate'           => $user->can('create calendar events') && $schreibbareKalender->isNotEmpty(),
@@ -60,15 +67,29 @@ class CalendarController extends Controller
         }
 
         $calendarsParam = $request->query('calendars', '');
-        $cacheKey = 'calendar_events_' . md5($start . $end . $user->id . $calendarsParam);
+        $allParams      = $calendarsParam !== '' ? explode(',', $calendarsParam) : [];
 
-        $events = Cache::remember($cacheKey, 300, function () use ($user, $start, $end, $calendarsParam) {
+        // ── IDs trennen: OxCalendar-IDs (numerisch) vs. iCal-Feed-IDs (ical_X) ──
+        $oxIds   = collect($allParams)
+            ->filter(fn ($id) => !Str::startsWith(trim($id), 'ical_'))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter()
+            ->values();
+
+        $icalIds = collect($allParams)
+            ->filter(fn ($id) => Str::startsWith(trim($id), 'ical_'))
+            ->map(fn ($id) => (int) Str::after(trim($id), 'ical_'))
+            ->filter()
+            ->values();
+
+        // ── OxTermin-Events (gecacht) ────────────────────────────────────────────
+        $oxCacheKey = 'calendar_events_' . md5($start . $end . $user->id . $oxIds->sort()->join(','));
+
+        $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds) {
             $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
 
-            if (!empty($calendarsParam)) {
-                $filterIds = collect(explode(',', $calendarsParam))
-                    ->map(fn ($id) => (int) $id)
-                    ->intersect($sichtbareIds);
+            if ($oxIds->isNotEmpty()) {
+                $filterIds = $oxIds->intersect($sichtbareIds);
             } else {
                 $filterIds = $sichtbareIds;
             }
@@ -113,7 +134,28 @@ class CalendarController extends Controller
             })->values();
         });
 
-        return response()->json($events);
+        // ── iCal-Feed-Events ─────────────────────────────────────────────────────
+        $icalEvents = collect();
+
+        if ($icalIds->isNotEmpty()) {
+            // Nur eigene, aktive Feeds des Users laden
+            $feeds = UserIcalFeed::whereIn('id', $icalIds)
+                ->where('user_id', $user->id)
+                ->where('aktiv', true)
+                ->get();
+
+            foreach ($feeds as $feed) {
+                $icalEvents = $icalEvents->concat($this->fetchIcalFeedEvents($feed, $start, $end));
+            }
+        } elseif ($calendarsParam === '') {
+            // Kein Filter angegeben → alle aktiven eigenen Feeds einbeziehen
+            $feeds = UserIcalFeed::where('user_id', $user->id)->where('aktiv', true)->get();
+            foreach ($feeds as $feed) {
+                $icalEvents = $icalEvents->concat($this->fetchIcalFeedEvents($feed, $start, $end));
+            }
+        }
+
+        return response()->json($oxEvents->concat($icalEvents)->values());
     }
 
     /**
@@ -590,6 +632,90 @@ class CalendarController extends Controller
     // =========================================================================
     // Hilfsmethoden
     // =========================================================================
+
+    /**
+     * Lädt einen externen iCal-Feed (gecacht, 5 min), parst ihn mit sabre/vobject
+     * und gibt alle Termine im angegebenen Zeitfenster als FullCalendar-Event-Array zurück.
+     */
+    protected function fetchIcalFeedEvents(UserIcalFeed $feed, string $start, string $end): Collection
+    {
+        // Cache-Key enthält Feed-ID + URL-Hash → bei URL-Änderung automatisch invalidiert
+        $cacheKey = 'ical_feed_raw_' . $feed->id . '_' . substr(md5($feed->url), 0, 8);
+
+        $icalData = Cache::remember($cacheKey, 300, function () use ($feed) {
+            try {
+                $response = Http::timeout(15)
+                    ->withHeaders(['Accept' => 'text/calendar, application/octet-stream, */*'])
+                    ->get($feed->url);
+
+                if ($response->successful()) {
+                    $feed->updateQuietly(['letzter_abruf' => now(), 'fehler_meldung' => null]);
+                    return $response->body();
+                }
+
+                $feed->updateQuietly(['fehler_meldung' => 'HTTP ' . $response->status()]);
+                return null;
+            } catch (\Exception $e) {
+                $feed->updateQuietly(['fehler_meldung' => Str::limit($e->getMessage(), 200)]);
+                return null;
+            }
+        });
+
+        if (!$icalData) {
+            return collect();
+        }
+
+        try {
+            $vcalendar = Reader::read($icalData);
+
+            $startDt = new \DateTimeImmutable($start);
+            $endDt   = new \DateTimeImmutable($end);
+            $expanded = $vcalendar->expand($startDt, $endDt);
+
+            $events = collect();
+
+            foreach ($expanded->VEVENT ?? [] as $vevent) {
+                try {
+                    $beginn = Carbon::parse($vevent->DTSTART->getDateTime()->format('c'));
+                    $ende   = isset($vevent->DTEND)
+                        ? Carbon::parse($vevent->DTEND->getDateTime()->format('c'))
+                        : $beginn->copy()->addHour();
+
+                    // Ganztags-Erkennung: DATE-Typ hat kein 'T' im String-Wert
+                    $rawDtstart = (string) $vevent->DTSTART;
+                    $allDay     = !str_contains($rawDtstart, 'T');
+
+                    $uid = isset($vevent->UID) ? (string) $vevent->UID : uniqid('', true);
+
+                    $events->push([
+                        'id'     => 'ical_' . $feed->id . '_' . substr(md5($uid), 0, 12),
+                        'title'  => isset($vevent->SUMMARY) ? (string) $vevent->SUMMARY : 'Termin',
+                        'start'  => $beginn->toIso8601String(),
+                        'end'    => $ende->toIso8601String(),
+                        'allDay' => $allDay,
+                        'color'  => $feed->farbe ?? '#6366f1',
+                        'extendedProps' => [
+                            'calendarId'   => 'ical_' . $feed->id,
+                            'calendarName' => $feed->name,
+                            'ort'          => isset($vevent->LOCATION) ? (string) $vevent->LOCATION : '',
+                            'beschreibung' => isset($vevent->DESCRIPTION) ? (string) $vevent->DESCRIPTION : '',
+                            'isIcalFeed'   => true,
+                        ],
+                    ]);
+                } catch (\Exception $e) {
+                    // Einzelnes defektes Vorkommen überspringen
+                }
+            }
+
+            return $events;
+        } catch (\Exception $e) {
+            Log::warning('iCal-Feed-Parsing fehlgeschlagen für Feed #' . $feed->id, [
+                'error' => $e->getMessage(),
+                'url'   => $feed->url,
+            ]);
+            return collect();
+        }
+    }
 
     /**
      * Expandiert einen RRULE-Termin mit sabre/vobject und gibt alle Vorkommen

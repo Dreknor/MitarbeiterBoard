@@ -1,10 +1,24 @@
-import Alpine from 'alpinejs';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import rrulePlugin from '@fullcalendar/rrule';
+
+/**
+ * ============================================================
+ * Kalender Alpine.js Komponenten
+ * ============================================================
+ * Alpine wird bereits durch sidebar.js (im globalen Layout) geladen
+ * und gestartet. Hier registrieren wir nur die Kalender-spezifischen
+ * Komponenten über window.Alpine – KEIN eigener Import, KEIN Alpine.start()!
+ * ============================================================
+ */
+function registerCalendarComponents(Alpine) {
+    if (!Alpine) {
+        console.error('Kalender: Alpine nicht verfügbar!');
+        return;
+    }
 
 // ─── Haupt-Komponente ──────────────────────────────────────────────────────────
 Alpine.data('calendarApp', () => ({
@@ -266,6 +280,29 @@ Alpine.data('calendarApp', () => ({
     get canCreate() {
         return this.$el.dataset.canCreate === 'true';
     },
+
+    // ─── iCal-Feed löschen (AJAX DELETE) ──────────────────────────────
+    async deleteIcalFeed(deleteUrl, feedName) {
+        if (!confirm(`Feed "${feedName}" wirklich entfernen?`)) return;
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const resp = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (resp.ok) {
+                window.location.reload();
+            } else {
+                alert('Fehler beim Entfernen des Feeds.');
+            }
+        } catch (e) {
+            alert('Verbindungsfehler beim Entfernen des Feeds.');
+        }
+    },
 }));
 
 // ─── terminForm-Komponente (TODO 17) ──────────────────────────────────────────
@@ -356,5 +393,12 @@ Alpine.data('terminForm', () => ({
     },
 }));
 
-Alpine.start();
+} // end registerCalendarComponents
 
+// Komponenten direkt registrieren – kein eigenes Alpine.start()!
+if (window.Alpine) {
+    registerCalendarComponents(window.Alpine);
+} else {
+    // Fallback: auf alpine:init warten (sidebar.js startet Alpine verzögert via window.load)
+    document.addEventListener('alpine:init', () => registerCalendarComponents(window.Alpine));
+}

@@ -57,18 +57,22 @@
 
     <div class="flex flex-col gap-0.5">
         <template x-for="cal in allCalendars" :key="cal.id">
-            <div class="flex items-center gap-1.5 py-0.5">
+            <div class="group flex items-center gap-1.5 py-0.5">
                 {{-- Checkbox + Farbpunkt + Name --}}
                 <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
                               select-none font-normal m-0 flex-1 min-w-0">
                     <input type="checkbox"
                            :value="cal.id"
-                           :checked="activeCalendars.includes(parseInt(cal.id))"
+                           :checked="activeCalendars.includes(cal.id)"
                            @change="toggleCalendar(cal.id)"
                            class="rounded cursor-pointer accent-blue-500 w-[14px] h-[14px] shrink-0 m-0">
                     <span class="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
                           :style="'background-color: ' + getEffectiveColor(cal.id)"></span>
                     <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
+                    {{-- iCal-Feed-Indikator --}}
+                    <span x-show="cal.typ === 'ical'"
+                          class="text-[10px] text-indigo-400 shrink-0"
+                          title="Externer iCal-Feed">📡</span>
                 </label>
 
                 {{-- Farbwähler – immer sichtbar  --}}
@@ -90,6 +94,19 @@
                         </svg>
                     </button>
                 </div>
+
+                {{-- iCal-Feed löschen (nur für Feeds, per Hover sichtbar) --}}
+                <template x-if="cal.typ === 'ical'">
+                    <button @click="deleteIcalFeed(cal.delete_url, cal.name)"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity
+                                   text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5"
+                            title="Feed entfernen">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </template>
             </div>
         </template>
     </div>
@@ -171,7 +188,7 @@
         </div>
     </div>
 
-    {{-- ─── Meine iCal-Feeds (TODO 30) ──────────────────────────────────── --}}
+    {{-- ─── Meine iCal-Feeds ──────────────────────────────────────────────── --}}
     <div class="mt-3 pt-2.5 border-t border-gray-200">
         <div class="flex items-center justify-between mb-1.5">
             <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
@@ -183,36 +200,9 @@
                 + Hinzufügen
             </button>
         </div>
-
-        @forelse(auth()->user()->icalFeeds as $feed)
-            <div class="flex items-center gap-2 py-0.5 group">
-                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style="background-color: {{ $feed->farbe }}"></span>
-                <span class="text-sm text-gray-700 truncate flex-1
-                             {{ $feed->aktiv ? '' : 'line-through text-gray-400' }}">
-                    {{ $feed->name }}
-                </span>
-                @if($feed->fehler_meldung)
-                    <span class="text-red-500 text-xs" title="{{ $feed->fehler_meldung }}">⚠️</span>
-                @endif
-                <form action="{{ route('calendar.ical.destroy', $feed) }}" method="POST"
-                      class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit"
-                            onclick="return confirm('Feed &quot;{{ addslashes($feed->name) }}&quot; entfernen?')"
-                            class="text-gray-400 hover:text-red-500 p-0.5"
-                            title="Feed entfernen">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </form>
-            </div>
-        @empty
-            <p class="text-[11px] text-gray-400 italic">Noch keine Feeds abonniert.</p>
-        @endforelse
+        <p class="text-[11px] text-gray-400 italic leading-tight">
+            Abonnierte Feeds erscheinen in der Kalenderliste oben.
+        </p>
     </div>
 
     @can('manage calendar')
