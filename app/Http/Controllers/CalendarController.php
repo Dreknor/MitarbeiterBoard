@@ -795,7 +795,7 @@ class CalendarController extends Controller
                 }
 
                 $calendarGroupIds = $calendar->groups->pluck('id');
-                $userGroupIds     = $user->groups()->pluck('groups.id');
+                $userGroupIds     = $user->groups()->pluck('id');
                 return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
             });
     }
@@ -817,7 +817,7 @@ class CalendarController extends Controller
             return true;
         }
 
-        $userGroupIds = $user->groups()->pluck('groups.id');
+        $userGroupIds = $user->groups()->pluck('id');
         return $calendar->groups()
             ->wherePivot('schreibbar', true)
             ->whereIn('groups.id', $userGroupIds)
