@@ -191,6 +191,38 @@ Alpine.data('calendarApp', () => ({
 
     // ─── Termin-Detail-Modal ───────────────────────────────────────────
     showEventDetail(event) {
+        // iCal-Feed-Termine haben keine DB-ID → direkt aus FullCalendar-Event-Objekt aufbauen
+        if (event.extendedProps.isIcalFeed) {
+            const feed = this.allCalendars.find(c => String(c.id) === String(event.extendedProps.calendarId));
+            const fmtDatum = (dt, allDay) => {
+                if (!dt) return '';
+                const datOpt = { day: '2-digit', month: '2-digit', year: 'numeric' };
+                const timeOpt = { hour: '2-digit', minute: '2-digit' };
+                if (allDay) return dt.toLocaleDateString('de-DE', datOpt);
+                return dt.toLocaleDateString('de-DE', datOpt) + ' ' + dt.toLocaleTimeString('de-DE', timeOpt);
+            };
+            this.selectedEvent = {
+                titel:        event.title || '(Ohne Titel)',
+                beginn:       fmtDatum(event.start, event.allDay),
+                ende:         fmtDatum(event.end, event.allDay),
+                ganztaegig:   event.allDay,
+                ort:          event.extendedProps.ort || '',
+                beschreibung: event.extendedProps.beschreibung || '',
+                status:       null,
+                rrule:        null,
+                kalender:     {
+                    id:    event.extendedProps.calendarId,
+                    name:  event.extendedProps.calendarName || '',
+                    farbe: feed?.farbe || '#6366f1',
+                },
+                teilnehmer:   [],
+                can_edit:     false,
+            };
+            this.showModal = true;
+            return;
+        }
+
+        // OxTermin → per API laden
         fetch(`/calendar/termin/${event.extendedProps.terminId}`)
             .then(r => r.json())
             .then(data => {

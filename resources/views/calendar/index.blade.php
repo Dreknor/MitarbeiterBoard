@@ -25,6 +25,7 @@
         'farbe'      => $f->farbe ?? '#6366f1',
         'typ'        => 'ical',
         'delete_url' => route('calendar.ical.destroy', $f),
+        'fehler'     => $f->fehler_meldung,
     ]))->values();
 @endphp
 <div class="px-4 py-4 {{ $canCreate ? '' : 'calendar-no-create' }}"

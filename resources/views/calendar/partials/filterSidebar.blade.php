@@ -56,7 +56,7 @@
     </p>
 
     <div class="flex flex-col gap-0.5">
-        <template x-for="cal in allCalendars" :key="cal.id">
+        <template x-for="cal in allCalendars.filter(c => c.typ !== 'ical')" :key="cal.id">
             <div class="group flex items-center gap-1.5 py-0.5">
                 {{-- Checkbox + Farbpunkt + Name --}}
                 <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
@@ -69,20 +69,15 @@
                     <span class="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
                           :style="'background-color: ' + getEffectiveColor(cal.id)"></span>
                     <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
-                    {{-- iCal-Feed-Indikator --}}
-                    <span x-show="cal.typ === 'ical'"
-                          class="text-[10px] text-indigo-400 shrink-0"
-                          title="Externer iCal-Feed">📡</span>
                 </label>
 
-                {{-- Farbwähler – immer sichtbar  --}}
+                {{-- Farbwähler --}}
                 <div class="flex-shrink-0 flex items-center gap-0.5">
                     <input type="color"
                            :value="getEffectiveColor(cal.id)"
                            @input.debounce.500ms="setCustomColor(cal.id, $event.target.value)"
                            class="calendar-color-input w-4 h-4 rounded cursor-pointer"
                            title="Kalenderfarbe anpassen">
-                    {{-- Reset-Button (nur wenn eigene Farbe gesetzt) --}}
                     <button x-show="customColors[String(cal.id)]"
                             x-cloak
                             @click="resetCustomColor(cal.id)"
@@ -94,19 +89,6 @@
                         </svg>
                     </button>
                 </div>
-
-                {{-- iCal-Feed löschen (nur für Feeds, per Hover sichtbar) --}}
-                <template x-if="cal.typ === 'ical'">
-                    <button @click="deleteIcalFeed(cal.delete_url, cal.name)"
-                            class="opacity-0 group-hover:opacity-100 transition-opacity
-                                   text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5"
-                            title="Feed entfernen">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </template>
             </div>
         </template>
     </div>
@@ -200,9 +182,62 @@
                 + Hinzufügen
             </button>
         </div>
-        <p class="text-[11px] text-gray-400 italic leading-tight">
-            Abonnierte Feeds erscheinen in der Kalenderliste oben.
-        </p>
+
+        <div class="flex flex-col gap-0.5">
+            <template x-for="cal in allCalendars.filter(c => c.typ === 'ical')" :key="cal.id">
+                <div class="group flex items-center gap-1.5 py-0.5">
+                    <label class="flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100
+                                  select-none font-normal m-0 flex-1 min-w-0">
+                        <input type="checkbox"
+                               :value="cal.id"
+                               :checked="activeCalendars.includes(cal.id)"
+                               @change="toggleCalendar(cal.id)"
+                               class="rounded cursor-pointer accent-blue-500 w-[14px] h-[14px] shrink-0 m-0">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
+                              :style="'background-color: ' + getEffectiveColor(cal.id)"></span>
+                        <span class="text-sm text-gray-700 truncate flex-1" x-text="cal.name"></span>
+                        <span x-show="cal.fehler"
+                              x-cloak
+                              class="text-red-400 text-xs shrink-0"
+                              :title="cal.fehler">⚠️</span>
+                    </label>
+
+                    {{-- Farbwähler --}}
+                    <div class="flex-shrink-0 flex items-center gap-0.5">
+                        <input type="color"
+                               :value="getEffectiveColor(cal.id)"
+                               @input.debounce.500ms="setCustomColor(cal.id, $event.target.value)"
+                               class="calendar-color-input w-4 h-4 rounded cursor-pointer"
+                               title="Kalenderfarbe anpassen">
+                        <button x-show="customColors[String(cal.id)]"
+                                x-cloak
+                                @click="resetCustomColor(cal.id)"
+                                class="text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5"
+                                title="Farbe zurücksetzen">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    {{-- Löschen --}}
+                    <button @click="deleteIcalFeed(cal.delete_url, cal.name)"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity
+                                   text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5"
+                            title="Feed entfernen">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </template>
+
+            <template x-if="allCalendars.filter(c => c.typ === 'ical').length === 0">
+                <p class="text-[11px] text-gray-400 italic">Noch keine Feeds abonniert.</p>
+            </template>
+        </div>
     </div>
 
     @can('manage calendar')
