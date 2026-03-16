@@ -6,8 +6,8 @@ use App\Models\LessonTime;
 use App\Models\Room;
 use App\Models\RoomBooking;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class RoomBookingFromVpService
@@ -20,8 +20,9 @@ class RoomBookingFromVpService
         'missing_rooms'           => [],
     ];
 
-    /** Gecachte Raumliste für diese Service-Instanz (verhindert N+1) */
     private ?array $roomCache = null;
+
+    private ?Collection $lessonTimeCache = null;
 
     public function getSummary(): array
     {
@@ -29,14 +30,14 @@ class RoomBookingFromVpService
     }
 
     /**
-     * Entfernt alle VP-Buchungen für ein bestimmtes Datum.
-     * Wichtig für Idempotenz: vor Neuimport aufräumen.
+     * TODO-3A: Entfernt alle VP-Buchungen für ein bestimmtes Datum (forceDelete für Idempotenz).
      */
     public function clearVpBookingsForDate(Carbon $date): int
     {
-        return RoomBooking::fromVertretungsplan()
+        return RoomBooking::withTrashed()
+            ->fromVertretungsplan()
             ->whereDate('booking_date', $date)
-            ->delete(); // SoftDelete – kein forceDelete für Nachvollziehbarkeit
+            ->forceDelete();
     }
 
     /**
@@ -68,7 +69,7 @@ class RoomBookingFromVpService
                     $this->handleNeu($aktion, $date, $stundenAnz, $week);
                     break;
                 default:
-                    Log::info("VP-Raum: Unbekannte/nicht unterstützte Aktionsart '{$art}' (Ak_Id: ".($aktion->Ak_Id ?? 'n/a').")");
+                    Log::info("VP-Raum: Unbekannte/nicht unterstützte Aktionsart '{$art}' (Ak_Id: " . ($aktion->Ak_Id ?? 'n/a') . ")");
                     $this->summary['room_bookings_skipped']++;
             }
         } catch (\Throwable $e) {
@@ -101,29 +102,26 @@ class RoomBookingFromVpService
             return;
         }
 
-        $times = LessonTime::resolveTimeRange($aktion->Ak_StundeVon, $stundenAnz, $week);
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
         }
 
-        RoomBooking::updateOrCreate(
-            [
-                'source'    => 'indiware_vp',
-                'source_id' => ($aktion->Ak_Id ?? md5($raumKuerzel . $date->format('Ymd') . $aktion->Ak_StundeVon)) . '_cancel',
-            ],
-            [
-                'room_id'      => $room->id,
-                'start'        => $times['start'],
-                'end'          => $times['end'],
-                'name'         => '⊘ Ausfall: ' . ($aktion->Ak_Fach ?? '?'),
-                'booking_date' => $date,
-                'is_recurring' => false,
-                'cancelled'    => true,
-                'weekday'      => $date->dayOfWeek,
-                'users_id'     => null,
-            ]
-        );
+        // TODO-3B: create() statt updateOrCreate()
+        RoomBooking::create([
+            'source'       => 'indiware_vp',
+            'source_id'    => ($aktion->Ak_Id ?? md5($raumKuerzel . $date->format('Ymd') . $aktion->Ak_StundeVon)) . '_cancel',
+            'room_id'      => $room->id,
+            'start'        => $times['start'],
+            'end'          => $times['end'],
+            'name'         => '⊘ Ausfall: ' . ($aktion->Ak_Fach ?? '?'),
+            'booking_date' => $date,
+            'is_recurring' => false,
+            'cancelled'    => true,
+            'weekday'      => $date->dayOfWeek,
+            'users_id'     => null,
+        ]);
 
         $this->invalidateRoomCache($room);
         $this->summary['room_bookings_cancelled']++;
@@ -138,7 +136,12 @@ class RoomBookingFromVpService
         $raumAlt = $aktion->Raeume[0] ?? null;
         $raumNeu = $aktion->VRaeume[0] ?? $raumAlt;
 
-        $times = LessonTime::resolveTimeRange($aktion->Ak_StundeVon, $stundenAnz, $week);
+        if (!$raumAlt && !$raumNeu) {
+            $this->summary['room_bookings_skipped']++;
+            return;
+        }
+
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -148,23 +151,19 @@ class RoomBookingFromVpService
         if ($raumAlt && $raumNeu && $raumAlt !== $raumNeu) {
             $roomAlt = $this->findRoom($raumAlt);
             if ($roomAlt) {
-                RoomBooking::updateOrCreate(
-                    [
-                        'source'    => 'indiware_vp',
-                        'source_id' => ($aktion->Ak_Id ?? md5($raumAlt . $date->format('Ymd'))) . '_cancel',
-                    ],
-                    [
-                        'room_id'      => $roomAlt->id,
-                        'start'        => $times['start'],
-                        'end'          => $times['end'],
-                        'name'         => '⊘ VP-Raumwechsel',
-                        'booking_date' => $date,
-                        'is_recurring' => false,
-                        'cancelled'    => true,
-                        'weekday'      => $date->dayOfWeek,
-                        'users_id'     => null,
-                    ]
-                );
+                RoomBooking::create([
+                    'source'       => 'indiware_vp',
+                    'source_id'    => ($aktion->Ak_Id ?? md5($raumAlt . $date->format('Ymd'))) . '_cancel',
+                    'room_id'      => $roomAlt->id,
+                    'start'        => $times['start'],
+                    'end'          => $times['end'],
+                    'name'         => '⊘ VP-Raumwechsel',
+                    'booking_date' => $date,
+                    'is_recurring' => false,
+                    'cancelled'    => true,
+                    'weekday'      => $date->dayOfWeek,
+                    'users_id'     => null,
+                ]);
                 $this->invalidateRoomCache($roomAlt);
                 $this->summary['room_bookings_cancelled']++;
             }
@@ -187,23 +186,19 @@ class RoomBookingFromVpService
                     $this->recordConflict($roomNeu, $date, $times, $conflict, $aktion);
                 }
 
-                RoomBooking::updateOrCreate(
-                    [
-                        'source'    => 'indiware_vp',
-                        'source_id' => (string) ($aktion->Ak_Id ?? md5($raumNeu . $date->format('Ymd') . $aktion->Ak_StundeVon)),
-                    ],
-                    [
-                        'room_id'      => $roomNeu->id,
-                        'start'        => $times['start'],
-                        'end'          => $times['end'],
-                        'name'         => "VP: {$fach}" . ($klassen ? " ({$klassen})" : ''),
-                        'booking_date' => $date,
-                        'is_recurring' => false,
-                        'cancelled'    => false,
-                        'weekday'      => $date->dayOfWeek,
-                        'users_id'     => null,
-                    ]
-                );
+                RoomBooking::create([
+                    'source'       => 'indiware_vp',
+                    'source_id'    => (string) ($aktion->Ak_Id ?? md5($raumNeu . $date->format('Ymd') . $aktion->Ak_StundeVon)),
+                    'room_id'      => $roomNeu->id,
+                    'start'        => $times['start'],
+                    'end'          => $times['end'],
+                    'name'         => "VP: {$fach}" . ($klassen ? " ({$klassen})" : ''),
+                    'booking_date' => $date,
+                    'is_recurring' => false,
+                    'cancelled'    => false,
+                    'weekday'      => $date->dayOfWeek,
+                    'users_id'     => null,
+                ]);
                 $this->invalidateRoomCache($roomNeu);
                 $this->summary['room_bookings_created']++;
             }
@@ -216,7 +211,7 @@ class RoomBookingFromVpService
      */
     private function handleVerlegung(object $aktion, Carbon $date, int $stundenAnz, ?string $week): void
     {
-        $times = LessonTime::resolveTimeRange($aktion->Ak_StundeVon, $stundenAnz, $week);
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -231,23 +226,19 @@ class RoomBookingFromVpService
                 : $date;
 
             if ($roomAlt) {
-                RoomBooking::updateOrCreate(
-                    [
-                        'source'    => 'indiware_vp',
-                        'source_id' => ($aktion->Ak_Id ?? md5($raumAlt . $datumVon->format('Ymd'))) . '_cancel',
-                    ],
-                    [
-                        'room_id'      => $roomAlt->id,
-                        'start'        => $times['start'],
-                        'end'          => $times['end'],
-                        'name'         => '⊘ Verlegt',
-                        'booking_date' => $datumVon,
-                        'is_recurring' => false,
-                        'cancelled'    => true,
-                        'weekday'      => $datumVon->dayOfWeek,
-                        'users_id'     => null,
-                    ]
-                );
+                RoomBooking::create([
+                    'source'       => 'indiware_vp',
+                    'source_id'    => ($aktion->Ak_Id ?? md5($raumAlt . $datumVon->format('Ymd'))) . '_cancel',
+                    'room_id'      => $roomAlt->id,
+                    'start'        => $times['start'],
+                    'end'          => $times['end'],
+                    'name'         => '⊘ Verlegt',
+                    'booking_date' => $datumVon,
+                    'is_recurring' => false,
+                    'cancelled'    => true,
+                    'weekday'      => $datumVon->dayOfWeek,
+                    'users_id'     => null,
+                ]);
                 $this->invalidateRoomCache($roomAlt);
                 $this->summary['room_bookings_cancelled']++;
             }
@@ -256,32 +247,28 @@ class RoomBookingFromVpService
         // Zieldatum/-stunde belegen
         $raumNeu = $aktion->VRaeume[0] ?? $raumAlt;
         if ($raumNeu && isset($aktion->Ak_DatumNach)) {
-            $roomNeu     = $this->findRoom($raumNeu);
-            $datumNach   = Carbon::createFromFormat('d.m.Y', $aktion->Ak_DatumNach);
-            $stundeNach  = $aktion->Ak_StundeNach ?? $aktion->Ak_StundeVon;
-            $timesNach   = LessonTime::resolveTimeRange((int) $stundeNach, $stundenAnz, $week);
+            $roomNeu    = $this->findRoom($raumNeu);
+            $datumNach  = Carbon::createFromFormat('d.m.Y', $aktion->Ak_DatumNach);
+            $stundeNach = $aktion->Ak_StundeNach ?? $aktion->Ak_StundeVon;
+            $timesNach  = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week);
 
             if ($roomNeu && $timesNach) {
                 $fach    = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
                 $klassen = implode(', ', $aktion->Klassen ?? []);
 
-                RoomBooking::updateOrCreate(
-                    [
-                        'source'    => 'indiware_vp',
-                        'source_id' => (string) ($aktion->Ak_Id ?? md5($raumNeu . $datumNach->format('Ymd') . $stundeNach)),
-                    ],
-                    [
-                        'room_id'      => $roomNeu->id,
-                        'start'        => $timesNach['start'],
-                        'end'          => $timesNach['end'],
-                        'name'         => "VP (verl.): {$fach}" . ($klassen ? " ({$klassen})" : ''),
-                        'booking_date' => $datumNach,
-                        'is_recurring' => false,
-                        'cancelled'    => false,
-                        'weekday'      => $datumNach->dayOfWeek,
-                        'users_id'     => null,
-                    ]
-                );
+                RoomBooking::create([
+                    'source'       => 'indiware_vp',
+                    'source_id'    => (string) ($aktion->Ak_Id ?? md5($raumNeu . $datumNach->format('Ymd') . $stundeNach)),
+                    'room_id'      => $roomNeu->id,
+                    'start'        => $timesNach['start'],
+                    'end'          => $timesNach['end'],
+                    'name'         => "VP (verl.): {$fach}" . ($klassen ? " ({$klassen})" : ''),
+                    'booking_date' => $datumNach,
+                    'is_recurring' => false,
+                    'cancelled'    => false,
+                    'weekday'      => $datumNach->dayOfWeek,
+                    'users_id'     => null,
+                ]);
                 $this->invalidateRoomCache($roomNeu);
                 $this->summary['room_bookings_created']++;
             }
@@ -305,7 +292,7 @@ class RoomBookingFromVpService
         }
 
         $stundeNach = $aktion->Ak_StundeNach ?? $aktion->Ak_StundeVon;
-        $times      = LessonTime::resolveTimeRange((int) $stundeNach, $stundenAnz, $week);
+        $times      = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -314,23 +301,19 @@ class RoomBookingFromVpService
         $fach    = $aktion->Ak_Fach ?? '?';
         $klassen = implode(', ', $aktion->Klassen ?? []);
 
-        RoomBooking::updateOrCreate(
-            [
-                'source'    => 'indiware_vp',
-                'source_id' => (string) ($aktion->Ak_Id ?? md5($raumNeu . $date->format('Ymd') . $stundeNach)),
-            ],
-            [
-                'room_id'      => $room->id,
-                'start'        => $times['start'],
-                'end'          => $times['end'],
-                'name'         => "VP (neu): {$fach}" . ($klassen ? " ({$klassen})" : ''),
-                'booking_date' => $date,
-                'is_recurring' => false,
-                'cancelled'    => false,
-                'weekday'      => $date->dayOfWeek,
-                'users_id'     => null,
-            ]
-        );
+        RoomBooking::create([
+            'source'       => 'indiware_vp',
+            'source_id'    => (string) ($aktion->Ak_Id ?? md5($raumNeu . $date->format('Ymd') . $stundeNach)),
+            'room_id'      => $room->id,
+            'start'        => $times['start'],
+            'end'          => $times['end'],
+            'name'         => "VP (neu): {$fach}" . ($klassen ? " ({$klassen})" : ''),
+            'booking_date' => $date,
+            'is_recurring' => false,
+            'cancelled'    => false,
+            'weekday'      => $date->dayOfWeek,
+            'users_id'     => null,
+        ]);
         $this->invalidateRoomCache($room);
         $this->summary['room_bookings_created']++;
     }
@@ -338,21 +321,16 @@ class RoomBookingFromVpService
     // ─── Hilfsmethoden ───────────────────────────────────────────────────────
 
     /**
-     * Sucht einen Raum anhand des Indiware-Kürzels.
-     * Nutzt einen In-Memory-Cache um wiederholte DB-Abfragen zu vermeiden.
+     * Nutzt einen In-Memory-Cache mit nur 1 DB-Query (statt 3).
      */
     private function findRoom(string $kuerzel): ?Room
     {
         if ($this->roomCache === null) {
-            $this->roomCache = Room::whereNotNull('indiware_shortname')
-                ->orWhereNotNull('room_number')
-                ->get()
-                ->keyBy(fn($r) => $r->indiware_shortname ?: $r->room_number)
-                ->toArray();
-            // Zweiten Index für room_number aufbauen
-            $byNumber = Room::whereNotNull('room_number')->get()->keyBy('room_number');
-            $byShortname = Room::whereNotNull('indiware_shortname')->get()->keyBy('indiware_shortname');
-            $this->roomCache = ['by_shortname' => $byShortname, 'by_number' => $byNumber];
+            $allRooms = Room::all();
+            $this->roomCache = [
+                'by_shortname' => $allRooms->whereNotNull('indiware_shortname')->keyBy('indiware_shortname'),
+                'by_number'    => $allRooms->whereNotNull('room_number')->keyBy('room_number'),
+            ];
         }
 
         $room = $this->roomCache['by_shortname'][$kuerzel]
@@ -360,11 +338,48 @@ class RoomBookingFromVpService
             ?? null;
 
         if (!$room) {
-            $this->summary['missing_rooms'][] = $kuerzel;
-            $this->summary['missing_rooms'] = array_values(array_unique($this->summary['missing_rooms']));
+            if (!in_array($kuerzel, $this->summary['missing_rooms'])) {
+                $this->summary['missing_rooms'][] = $kuerzel;
+            }
+            $this->summary['room_bookings_skipped']++;
         }
 
         return $room;
+    }
+
+    /**
+     * Spezifische Woche (A/B) hat Vorrang vor generischem Eintrag (week=null).
+     */
+    private function resolveTimeRangeCached(int $period, int $count = 1, ?string $week = null): ?array
+    {
+        if ($this->lessonTimeCache === null) {
+            $this->lessonTimeCache = LessonTime::all();
+        }
+
+        $startLesson = $this->lessonTimeCache
+            ->where('period', $period)
+            ->sortBy(fn($lt) => $lt->week === null ? 1 : 0) // spezifische Woche zuerst
+            ->first(fn($lt) => $lt->week === $week || $lt->week === null);
+
+        if (!$startLesson) {
+            Log::warning("LessonTime: Keine Zeitangabe für Stunde {$period} (Woche: {$week})");
+            return null;
+        }
+
+        if ($count <= 1) {
+            return ['start' => $startLesson->start, 'end' => $startLesson->end];
+        }
+
+        $endPeriodNum = $period + $count - 1;
+        $endLesson    = $this->lessonTimeCache
+            ->where('period', $endPeriodNum)
+            ->sortBy(fn($lt) => $lt->week === null ? 1 : 0)
+            ->first(fn($lt) => $lt->week === $week || $lt->week === null);
+
+        return [
+            'start' => $startLesson->start,
+            'end'   => $endLesson ? $endLesson->end : $startLesson->end,
+        ];
     }
 
     private function invalidateRoomCache(Room $room): void
@@ -385,9 +400,6 @@ class RoomBookingFromVpService
         $this->summary['room_conflicts'][] = $conflictData;
 
         Log::warning('VP-Raum: Raumkonflikt erkannt', $conflictData);
-
-        // Optional: Admin-Benachrichtigung bei Konflikten (via settings 'vp_room_notify_conflicts')
-        // Erweiterungspunkt: Notification::route(...)->notify(new VpRoomConflictNotification($conflictData));
     }
 }
 

@@ -100,14 +100,17 @@ class KlasseController extends Controller
 
         DB::beginTransaction();
         try {
-            // Klasse updaten (nur erlaubte Felder)
-            $klassen->update([
-                'name'               => $validatedData['name'],
-                'kuerzel'            => $validatedData['kuerzel'],
-                'grading_system_id'  => $validatedData['grading_system_id'] ?? null,
-                'color'              => $validatedData['color'] ?? null,
-                'show_vertretungen'  => $request->boolean('show_vertretungen'),
-            ]);
+            $updateData = [
+                'name'              => $validatedData['name'],
+                'kuerzel'           => $validatedData['kuerzel'],
+                'grading_system_id' => $validatedData['grading_system_id'] ?? null,
+                'color'             => $validatedData['color'] ?? null,
+            ];
+            // show_vertretungen nur ändern wenn Berechtigung vorhanden
+            if (array_key_exists('show_vertretungen', $validatedData) && auth()->user()->can('edit klassen vertretungen')) {
+                $updateData['show_vertretungen'] = (bool) $validatedData['show_vertretungen'];
+            }
+            $klassen->update($updateData);
 
             // Nutzer IDs aus Formular
             $explicitUserIds = $validatedData['paed_user_ids'] ?? [];

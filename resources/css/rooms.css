@@ -41,3 +41,28 @@
     background: #64748b;
 }
 
+
+/** Vertretungsplan-Buchung (orange) */
+.booking-vp {
+    background-color: #f59e0b;
+    color: #000;
+}
+
+/** VP-Stornierung / Raum frei durch Vertretungsplan (grün gestreift) */
+.booking-vp-cancelled {
+    background: repeating-linear-gradient(
+        45deg,
+        #d1fae5,
+        #d1fae5 5px,
+        #a7f3d0 5px,
+        #a7f3d0 10px
+    );
+    color: #065f46;
+}
+
+/** VP-Buchung mit Konflikt mit manueller Buchung (rot) */
+.booking-conflict {
+    background-color: #ef4444;
+    color: #fff;
+}
+

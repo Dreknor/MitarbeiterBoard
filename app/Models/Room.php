@@ -63,7 +63,7 @@ class Room extends Model
                     // Bei konkretem Datum: Prüfen ob VP diese Stunde storniert hat
                     if ($date && $vpCancellations->isNotEmpty()) {
                         $isCancelledByVp = $vpCancellations->first(function ($c) use ($start, $end) {
-                            return Carbon::parse($c->start)->eq($start) || Carbon::parse($c->end)->eq($end);
+                            return Carbon::parse($c->start)->eq($start) && Carbon::parse($c->end)->eq($end);
                         });
                         if ($isCancelledByVp) {
                             return false;

@@ -15,5 +15,6 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import']);
+Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import'])
+    ->middleware('throttle:10,1');
 

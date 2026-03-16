@@ -61,6 +61,8 @@ return [
     'short_teachers_name' => env('SHORT_TEACHERS_NAME', '5'),
     'vertretungsplan_api_key' => env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY'),
 
+    'vertretungsplan_allowed_ips' => env('VP_ALLOWED_IPS', ''),
+
     //Schuljahresbeginn
     'schuljahresbeginn' => (\Carbon\Carbon::now()->month >= 8) ? \Carbon\Carbon::parse(\Carbon\Carbon::now()->year.'-08-01') : \Carbon\Carbon::parse(\Carbon\Carbon::now()->subYear()->year.'-08-01'),
 
