@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Exception;
@@ -193,10 +193,8 @@ class PaedDiaryController extends Controller
 
         // Spalten aller Klassen vereinigt
         $columns = PaedDiaryColumn::whereIn('klasse_id', $klassen->pluck('id'))
-            ->when(Schema::hasColumn('paed_diary_columns', 'deactivated_from'), function ($q) use ($weekStart) {
-                $q->where(function ($qq) use ($weekStart) {
-                    $qq->whereNull('deactivated_from')->orWhere('deactivated_from', '>', $weekStart->toDateString());
-                });
+            ->where(function ($q) use ($weekStart) {
+                $q->whereNull('deactivated_from')->orWhere('deactivated_from', '>', $weekStart->toDateString());
             })
             ->orderBy('klasse_id')->orderBy('sort_order')->get();
 
@@ -294,16 +292,11 @@ class PaedDiaryController extends Controller
         // Kategorien (global + user-spezifisch)
         $categories = [];
         try{
-            if(Schema::hasTable('paed_diary_categories')){
-                $categories = PaedDiaryCategory::where(function($q) use ($user){ $q->whereNull('user_id')->orWhere('user_id', $user->id); })->orderBy('name')->get()->map(fn($c)=>['id'=>$c->id,'name'=>$c->name]);
-            }
+            $categories = PaedDiaryCategory::where(function($q) use ($user){ $q->whereNull('user_id')->orWhere('user_id', $user->id); })->orderBy('name')->get()->map(fn($c)=>['id'=>$c->id,'name'=>$c->name]);
         }catch(\Throwable $_){ $categories = []; }
 
         // Benutzereinstellung für Kategorieanzeige
-        $showColumnCategories = false;
-        if (Schema::hasColumn('users', 'show_column_categories')) {
-            $showColumnCategories = (bool) $user->show_column_categories;
-        }
+        $showColumnCategories = (bool) $user->show_column_categories;
 
         return response()->json([
             'is_group' => $isGroup,
@@ -320,9 +313,8 @@ class PaedDiaryController extends Controller
             'entries' => $entryData,
             'open_entries' => $openEntries,
             'columns' => $columns->map(fn($c) => [
-                'id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'type' => $c->type, 'klasse_id' => $c->klasse_id, 'deactivated_from' => Schema::hasColumn('paed_diary_columns', 'deactivated_from') ? $c->deactivated_from?->toDateString() : null,
-                // category only if column exists in table
-                'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($c->category ?? null) : null
+                'id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'type' => $c->type, 'klasse_id' => $c->klasse_id, 'deactivated_from' => $c->deactivated_from?->toDateString(),
+                'category' => $c->category ?? null
             ]),
             'column_values' => $valuesGrouped,
             'tasks' => $tasks,
@@ -668,10 +660,10 @@ class PaedDiaryController extends Controller
                 $slug = $this->generateUniqueSlug($baseSlug, $klasse->id);
                 $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
                 $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
-                if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
+                if ($category) $colData['category'] = $category;
                 $col = PaedDiaryColumn::create($colData);
                 $this->forgetWeekCache($klasse->id, Carbon::now());
-                $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name, 'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($col->category ?? null) : null];
+                $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name, 'category' => $col->category ?? null];
             }
             return response()->json(['success' => true, 'columns' => $created]);
         }
@@ -680,10 +672,10 @@ class PaedDiaryController extends Controller
         $slug = $this->generateUniqueSlug($baseSlug, $klasse->id);
         $sort = (int)PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
         $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
-        if (Schema::hasColumn('paed_diary_columns', 'category') && $category) $colData['category'] = $category;
+        if ($category) $colData['category'] = $category;
         $col = PaedDiaryColumn::create($colData);
         $this->forgetWeekCache($klasse->id, Carbon::now());
-        return response()->json(['success' => true, 'column' => ['id' => $col->id, 'name' => $col->name, 'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($col->category ?? null) : null]]);
+        return response()->json(['success' => true, 'column' => ['id' => $col->id, 'name' => $col->name, 'category' => $col->category ?? null]]);
     }
 
     /**
@@ -696,9 +688,6 @@ class PaedDiaryController extends Controller
         ]);
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
-        if (!Schema::hasColumn('paed_diary_columns', 'category')) {
-            return response()->json(['message' => 'Category support not available'], 400);
-        }
         $column->category = $data['category'] ?? null;
         $column->save();
         $this->forgetWeekCache($klasse->id, Carbon::now());
@@ -969,24 +958,21 @@ class PaedDiaryController extends Controller
             abort(403);
         }
         $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
-        $weekStart = null;
         try {
-            if (Schema::hasColumn('paed_diary_columns', 'deactivated_from')) {
-                $weekStart = $request->filled('week_start')
-                    ? Carbon::parse($request->week_start)->startOfWeek()
-                    : Carbon::now()->startOfWeek();
+            $weekStart = $request->filled('week_start')
+                ? Carbon::parse($request->week_start)->startOfWeek()
+                : Carbon::now()->startOfWeek();
 
-                // Soft deactivate: Set deactivated_from if not already set or earlier than weekStart
-                if (is_null($column->deactivated_from) || $column->deactivated_from->gt($weekStart)) {
-                    $column->deactivated_from = $weekStart->toDateString();
-                    $column->save();
-                }
-
-                // Clear cache for the class and week
-                $this->forgetWeekCache($klasse->id, $weekStart);
-
-                return response()->json(['success' => true]);
+            // Soft deactivate: Set deactivated_from if not already set or earlier than weekStart
+            if (is_null($column->deactivated_from) || $column->deactivated_from->gt($weekStart)) {
+                $column->deactivated_from = $weekStart->toDateString();
+                $column->save();
             }
+
+            // Clear cache for the class and week
+            $this->forgetWeekCache($klasse->id, $weekStart);
+
+            return response()->json(['success' => true]);
         } catch (Exception $e) {
             // Log the error for debugging
             Log::error('Error in destroyColumn: ' . $e->getMessage());
@@ -1014,7 +1000,7 @@ class PaedDiaryController extends Controller
             'type' => $c->type,
             'sort_order' => $c->sort_order,
             'deactivated_from' => $c->deactivated_from?->toDateString(),
-            'category' => Schema::hasColumn('paed_diary_columns', 'category') ? ($c->category ?? null) : null
+            'category' => $c->category ?? null
         ]);
         return response()->json(['columns' => $cols]);
     }
@@ -2049,10 +2035,8 @@ class PaedDiaryController extends Controller
         // Alle Einträge mit dieser Kategorie auf null setzen
         PaedDiaryEntry::where('category_id', $category->id)->update(['category_id' => null]);
 
-        // Spalten mit dieser Kategorie leeren (falls category-Feld existiert)
-        if (Schema::hasColumn('paed_diary_columns', 'category')) {
-            PaedDiaryColumn::where('category', $category->name)->update(['category' => null]);
-        }
+        // Spalten mit dieser Kategorie leeren
+        PaedDiaryColumn::where('category', $category->name)->update(['category' => null]);
 
         $category->delete();
 
@@ -2074,18 +2058,13 @@ class PaedDiaryController extends Controller
 
             $user = Auth::user();
 
-            if (Schema::hasColumn('users', 'show_column_categories')) {
-                $user->show_column_categories = $data['show_column_categories'];
-                $user->save();
+            $user->show_column_categories = $data['show_column_categories'];
+            $user->save();
 
-                return response()->json([
-                    'success' => true,
-                    'show_column_categories' => $user->show_column_categories
-                ]);
-            }
-
-            Log::warning('show_column_categories column does not exist in users table');
-            return response()->json(['message' => 'Einstellung nicht verfügbar'], 400);
+            return response()->json([
+                'success' => true,
+                'show_column_categories' => $user->show_column_categories
+            ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed for updateShowCategoriesSetting', [
                 'errors' => $e->errors(),
