@@ -419,12 +419,9 @@ class RoomController extends Controller
             ]);
         }
 
-        $rooms = collect([]);
-
         if ($request->create_rooms == true){
             foreach ($raeume['raeume'] as $raum){
-
-                $room = Room::firstOrCreate(
+                Room::firstOrCreate(
                     [
                         'room_number' => $raum['ra_kurzform'],
                     ],
@@ -434,13 +431,14 @@ class RoomController extends Controller
                         'bookable' => true,
                     ]
                 );
-
-                $rooms->push($room);
             }
-
         }
 
-        //$rooms = Room::whereIn('room_number', array_column($raeume['raeume'], 'ra_kurzform'))->orWhereIn('indiware_shortname', array_column($raeume['raeume'], 'ra_kurzform'))->get();
+        // Räume aus DB laden – unabhängig davon, ob neue Räume erstellt wurden
+        $raumKuerzel = array_column($raeume['raeume'], 'ra_kurzform');
+        $rooms = Room::whereIn('room_number', $raumKuerzel)
+            ->orWhereIn('indiware_shortname', $raumKuerzel)
+            ->get();
 
         if ($request->deletePlan == true){
             foreach ($rooms as $room){
@@ -500,35 +498,54 @@ class RoomController extends Controller
 
         foreach ($plan['plan'] as $key => $pl) {
 
-            if ($pl['raum'] == null){
+            if ($pl['raum'] == null || $pl['raum'] === ''){
                 continue;
             }
 
-            $room = $rooms->filter(function ($room) use ($pl){
-                return $room->room_number == $pl['raum'] or $room->indiware_shortname == $pl['raum'];
-            })->first();
+            $room = $rooms->first(function ($room) use ($pl){
+                return $room->room_number == $pl['raum'] || $room->indiware_shortname == $pl['raum'];
+            });
 
             if ($room == null){
                 continue;
             }
 
-            if (isset($zeiten[$pl['stunde']]['woche'])){
-                $woche = $zeiten[$pl['stunde']]['woche'];
-            } else {
-                $woche = 1;
+            // Buchungs-Woche (A/B) aus Plan-Eintrag bestimmen
+            $buchungsWoche = null;
+            if ($pl['woche'] !== '' && $pl['woche'] !== null){
+                $buchungsWoche = $pl['woche'] == 1 ? 'A' : 'B';
             }
 
+            // Passende Startzeit aus Zeitraster ermitteln (zuerst passende Woche, dann Fallback)
+            $zeitrasterWoche = ($pl['woche'] !== '' && $pl['woche'] !== null) ? $pl['woche'] : 1;
+            $start = null;
             foreach ($zeiten as $zeit){
-                if ($zeit['stunde'] == $pl['stunde']-1 and $zeit['woche'] == $woche){
+                if ($zeit['stunde'] == $pl['stunde'] && $zeit['woche'] == $zeitrasterWoche){
                     $start = Carbon::parse($zeit['zeit']);
+                    break;
                 }
             }
-
-            unset($woche);
+            // Fallback: beliebige Woche für diese Stunde
+            if ($start === null){
+                foreach ($zeiten as $zeit){
+                    if ($zeit['stunde'] == $pl['stunde']){
+                        $start = Carbon::parse($zeit['zeit']);
+                        break;
+                    }
+                }
+            }
+            if ($start === null){
+                $fehler[] = 'Kein Zeitraster-Eintrag für Stunde ' . $pl['stunde'];
+                continue;
+            }
 
             $end = $start->copy()->addMinutes(45);
 
             $unterricht_key = array_search($pl['id'], array_column($plan['unterricht'], 'id'));
+
+            if ($unterricht_key === false){
+                continue;
+            }
 
             $vergeben = RoomBooking::query()
                 ->where('room_id', $room->id)
@@ -537,15 +554,15 @@ class RoomController extends Controller
                     $query->whereBetween('start', [$start->format('H:i'), $end->format('H:i')]);
                     $query->orWhereBetween('end', [$start->format('H:i'), $end->format('H:i')]);
                 })
-                ->where('week', $pl['woche'])
+                ->where('week', $buchungsWoche)
                 ->count();
 
             if ($vergeben > 0){
                 $fehler[] = 'Raum '.$room->name.' ist bereits belegt: '.$start->format('H:i').' - '.$end->format('H:i').' am Tag '.$pl['tag'];
             } else {
-
-                if ($pl['woche'] != null){
-                    $woche = $pl['woche'] == 1 ? 'A' : 'B';
+                $klasse = $plan['unterricht'][$unterricht_key]['klasse'] ?? '';
+                if (is_array($klasse)){
+                    $klasse = implode(', ', $klasse);
                 }
 
                 $booking[] = [
@@ -554,8 +571,8 @@ class RoomController extends Controller
                     'end' => $end->format('H:i'),
                     'users_id' => auth()->id(),
                     'room_id' => $room->id,
-                    'name' => $plan['unterricht'][$unterricht_key]['fach'] . ' ' . $plan['unterricht'][$unterricht_key]['klasse'],
-                    'week' => isset($woche) ? $woche : null,
+                    'name' => trim(($plan['unterricht'][$unterricht_key]['fach'] ?? '') . ' ' . $klasse),
+                    'week' => $buchungsWoche,
                     'is_recurring' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
