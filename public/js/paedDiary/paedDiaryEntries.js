@@ -452,7 +452,8 @@ function initializeEntriesModule(options){
             return;
         }
 
-        // Editor opening
+        // Editor opening – nicht auslösen bei Abwesenheits-Toggle
+        if(e.target.closest('.absence-toggle')) return;
         if(e.target.closest('.entry-item')){
             const entry = e.target.closest('.entry-item'); populateForEdit(entry); return;
         }
