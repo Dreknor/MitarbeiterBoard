@@ -692,11 +692,12 @@ class PaedDiaryController extends Controller
             'datum'       => ['required', 'date'],
         ]);
 
-        $existing = PaedDiarySchuelerAbsence::where([
-            'schueler_id' => $request->schueler_id,
-            'klasse_id'   => $request->klasse_id,
-            'datum'       => Carbon::parse($request->datum)->toDateString(),
-        ])->first();
+        $datumString = Carbon::parse($request->datum)->toDateString();
+
+        $existing = PaedDiarySchuelerAbsence::where('schueler_id', $request->schueler_id)
+            ->where('klasse_id', $request->klasse_id)
+            ->whereDate('datum', $datumString)
+            ->first();
 
         if ($existing) {
             $removedEntryIds = $this->removeAbsencePauses($existing);
@@ -713,7 +714,7 @@ class PaedDiaryController extends Controller
         $absence = PaedDiarySchuelerAbsence::create([
             'schueler_id' => $request->schueler_id,
             'klasse_id'   => $request->klasse_id,
-            'datum'       => Carbon::parse($request->datum)->toDateString(),
+            'datum'       => $datumString,
             'marked_by'   => Auth::id(),
         ]);
 
@@ -737,7 +738,7 @@ class PaedDiaryController extends Controller
 
         $openEntries = PaedDiaryEntry::where('klasse_id', $absence->klasse_id)
             ->whereNull('completed_at')
-            ->where('datum', '<=', $datumStr)
+            ->whereDate('datum', '<=', $datumStr)
             ->whereHas('schueler', fn ($q) => $q->where('schueler.id', $absence->schueler_id))
             ->pluck('id');
 
@@ -773,13 +774,13 @@ class PaedDiaryController extends Controller
 
         $removedEntryIds = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
             ->where('schueler_id', $absence->schueler_id)
-            ->where('date', $datumStr)
+            ->whereDate('date', $datumStr)
             ->pluck('paed_diary_entry_id')
             ->toArray();
 
         PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
             ->where('schueler_id', $absence->schueler_id)
-            ->where('date', $datumStr)
+            ->whereDate('date', $datumStr)
             ->delete();
 
         return $removedEntryIds;

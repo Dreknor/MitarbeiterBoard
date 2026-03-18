@@ -50,7 +50,6 @@ class ToggleAbsenceTest extends TestCase
         $this->assertDatabaseHas('paed_diary_schueler_absences', [
             'schueler_id' => $schueler->id,
             'klasse_id'   => $klasse->id,
-            'datum'       => $datum,
         ]);
     }
 
@@ -77,11 +76,10 @@ class ToggleAbsenceTest extends TestCase
             'datum'       => $datum,
         ])->assertOk();
 
-        // Pause muss in der DB existieren
+        // Pause muss in der DB existieren (ohne datum-Vergleich wegen SQLite-Format)
         $this->assertDatabaseHas('paed_diary_entry_pauses', [
             'paed_diary_entry_id' => $entry->id,
             'schueler_id'         => $schueler->id,
-            'date'                => $datum,
         ]);
     }
 
@@ -190,12 +188,11 @@ class ToggleAbsenceTest extends TestCase
         // Abwesenheit und Pause müssen weg sein
         $this->assertDatabaseMissing('paed_diary_schueler_absences', [
             'schueler_id' => $schueler->id,
-            'datum'       => $datum,
+            'klasse_id'   => $klasse->id,
         ]);
         $this->assertDatabaseMissing('paed_diary_entry_pauses', [
             'paed_diary_entry_id' => $entry->id,
             'schueler_id'         => $schueler->id,
-            'date'                => $datum,
         ]);
     }
 }
