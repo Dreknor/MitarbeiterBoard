@@ -19,15 +19,9 @@ function initializeColumnsModule(dependencies) {
     const addColumnForm = document.getElementById('addColumnForm');
     const diaryBody = document.getElementById('diaryBody');
 
-    // Kategorien-Verwaltung Elemente
-    const categoriesList = document.getElementById('categoriesList');
-    const categoriesFeedback = document.getElementById('categoriesFeedback');
-    const showCategoriesToggle = document.getElementById('showCategoriesToggle');
-
     let columnsAllCache = [];
     let debounceTimers = {};
     let showDeactivatedColumns = false;
-    let categoriesCache = [];
 
     function setColumnsFeedback(msg, type = 'info') {
         if (!columnsFeedback) return;
@@ -40,161 +34,6 @@ function initializeColumnsModule(dependencies) {
         columnsFeedback.innerHTML = `<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`;
     }
 
-    function setCategoriesFeedback(msg, type = 'info') {
-        if (!categoriesFeedback) return;
-        const colors = {
-            info: '#17a2b8',
-            success: '#28a745',
-            warning: '#ffc107',
-            danger: '#dc3545'
-        };
-        categoriesFeedback.innerHTML = `<span style="color:${colors[type]||'#6c757d'}">${escapeHtml(msg)}</span>`;
-    }
-
-    // Kategorien laden
-    function loadCategories() {
-        fetch('paed-diary/categories', {
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(r => {
-            if (!r.ok) throw new Error('Failed');
-            return r.json();
-        })
-        .then(data => {
-            categoriesCache = data.categories || [];
-            renderCategoriesList();
-        })
-        .catch(() => setCategoriesFeedback('Fehler beim Laden der Kategorien', 'danger'));
-    }
-
-    // Kategorien-Liste rendern
-    function renderCategoriesList() {
-        if (!categoriesList) return;
-        if (!categoriesCache.length) {
-            categoriesList.innerHTML = '<span class="text-muted small">Keine Kategorien vorhanden</span>';
-            return;
-        }
-
-        categoriesList.innerHTML = categoriesCache.map(cat => {
-            if (!cat.can_edit) {
-                return `<div class="badge badge-secondary mr-1 mb-1">${escapeHtml(cat.name)} <span class="small">(global)</span></div>`;
-            }
-            return `<div class="badge badge-primary mr-1 mb-1 d-inline-flex align-items-center">
-                <span class="category-name" data-id="${cat.id}">${escapeHtml(cat.name)}</span>
-                <button type="button" class="btn btn-link btn-sm p-0 ml-1 rename-category" data-id="${cat.id}" title="Umbenennen" style="font-size:0.7rem;"><i class="fas fa-edit"></i></button>
-                <button type="button" class="btn btn-link btn-sm p-0 ml-1 delete-category" data-id="${cat.id}" title="Löschen" style="font-size:0.7rem;color:#dc3545;"><i class="fas fa-trash"></i></button>
-            </div>`;
-        }).join('');
-    }
-
-    // Kategorie umbenennen
-    function renameCategory(categoryId) {
-        const cat = categoriesCache.find(c => String(c.id) === String(categoryId));
-        if (!cat) return;
-
-        const newName = prompt('Neuer Name für Kategorie:', cat.name);
-        if (!newName || newName.trim() === '' || newName === cat.name) return;
-
-        fetch(`paed-diary/categories/${categoryId}/rename`, {
-            method: 'PUT',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name: newName.trim() })
-        })
-        .then(r => {
-            if (!r.ok) throw new Error('Failed');
-            return r.json();
-        })
-        .then(j => {
-            if (j.success) {
-                setCategoriesFeedback('Kategorie umbenannt', 'success');
-                loadCategories();
-                loadAllColumns();
-                loadWeek();
-            } else {
-                setCategoriesFeedback(j.message || 'Fehler beim Umbenennen', 'danger');
-            }
-        })
-        .catch(() => setCategoriesFeedback('Fehler beim Umbenennen', 'danger'));
-    }
-
-    // Kategorie löschen
-    function deleteCategory(categoryId) {
-        const cat = categoriesCache.find(c => String(c.id) === String(categoryId));
-        if (!cat) return;
-
-        if (!confirm(`Kategorie "${cat.name}" wirklich löschen?\n\nAlle Einträge und Spalten mit dieser Kategorie werden auf "keine Kategorie" gesetzt.`)) return;
-
-        fetch(`paed-diary/categories/${categoryId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json'
-            }
-        })
-        .then(r => {
-            if (!r.ok) throw new Error('Failed');
-            return r.json();
-        })
-        .then(j => {
-            if (j.success) {
-                setCategoriesFeedback('Kategorie gelöscht', 'success');
-                loadCategories();
-                loadAllColumns();
-                loadWeek();
-            } else {
-                setCategoriesFeedback(j.message || 'Fehler beim Löschen', 'danger');
-            }
-        })
-        .catch(() => setCategoriesFeedback('Fehler beim Löschen', 'danger'));
-    }
-
-    // Toggle für Kategorieanzeige
-    if (showCategoriesToggle) {
-        showCategoriesToggle.addEventListener('change', function() {
-            const showCategories = this.checked;
-
-            fetch('paed-diary/settings/show-categories', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrf,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ show_column_categories: showCategories })
-            })
-            .then(r => {
-                if (!r.ok) throw new Error('Failed');
-                return r.json();
-            })
-            .then(j => {
-                if (j.success) {
-                    setCategoriesFeedback(showCategories ? 'Kategorien werden angezeigt' : 'Kategorien ausgeblendet', 'success');
-                    loadWeek(); // Reload to apply the setting
-                }
-            })
-            .catch(() => setCategoriesFeedback('Fehler beim Speichern', 'danger'));
-        });
-    }
-
-    // Event-Listener für Kategorien-Aktionen
-    if (categoriesList) {
-        categoriesList.addEventListener('click', e => {
-            const renameBtn = e.target.closest('.rename-category');
-            const deleteBtn = e.target.closest('.delete-category');
-
-            if (renameBtn) {
-                const id = renameBtn.dataset.id;
-                renameCategory(id);
-            } else if (deleteBtn) {
-                const id = deleteBtn.dataset.id;
-                deleteCategory(id);
-            }
-        });
-    }
 
     function loadAllColumns() {
         if (groupSelect.value) {
@@ -228,14 +67,14 @@ function initializeColumnsModule(dependencies) {
             sel = document.createElement('select');
             sel.name = 'category_select';
             sel.className = 'form-control form-control-sm mr-1 mb-1';
-            sel.innerHTML = '<option value="">-- Kategorie (neu oder wählen) --</option>';
+            sel.innerHTML = '<option value="">-- Spaltengruppe (neu oder wählen) --</option>';
             addColumnForm.insertBefore(sel, addColumnForm.children[1]);
         }
         if (!newInput) {
             newInput = document.createElement('input');
             newInput.type = 'text';
             newInput.name = 'new_category';
-            newInput.placeholder = 'Neue Kategorie (optional)';
+            newInput.placeholder = 'Neue Spaltengruppe (optional)';
             newInput.className = 'form-control form-control-sm mr-1 mb-1';
             addColumnForm.insertBefore(newInput, addColumnForm.children[2]);
         }
@@ -350,12 +189,6 @@ function initializeColumnsModule(dependencies) {
             columnsCardWrapper.classList.toggle('d-none');
             if (!columnsCardWrapper.classList.contains('d-none')) {
                 loadAllColumns();
-                loadCategories();
-                // Setze Toggle-Status basierend auf Cache
-                const cache = dependencies.getCache();
-                if (showCategoriesToggle) {
-                    showCategoriesToggle.checked = cache.show_column_categories === true;
-                }
             }
         });
     }
@@ -426,7 +259,7 @@ function initializeColumnsModule(dependencies) {
                 })
             }).then(r => r.json()).then(j => {
                 if (j.success) {
-                    setColumnsFeedback('Kategorie aktualisiert', 'success');
+                    setColumnsFeedback('Spaltengruppe aktualisiert', 'success');
                     loadAllColumns();
                 } else {
                     setColumnsFeedback(j.message || 'Fehler', 'danger');

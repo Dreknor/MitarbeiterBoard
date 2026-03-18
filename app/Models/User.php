@@ -479,4 +479,19 @@ class User extends Authenticatable implements HasMedia
             ->withTimestamps();
     }
 
+    // ── PaedDiary-Modul ───────────────────────────────────────────────────
+
+    /**
+     * Ausgeblendete PaedDiary-Notizkategorien des Users.
+     */
+    public function hiddenPaedDiaryCategories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            PaedDiaryCategory::class,
+            'paed_diary_user_hidden_categories',
+            'user_id',
+            'paed_diary_category_id'
+        );
+    }
+
 }

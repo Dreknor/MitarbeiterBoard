@@ -60,4 +60,10 @@ class Schueler extends Model
     {
         return $this->grading_stage?->symbol ?? null;
     }
+
+    // PaedDiary-Abwesenheiten
+    public function paedDiaryAbsences()
+    {
+        return $this->hasMany(\App\Models\PaedDiarySchuelerAbsence::class);
+    }
 }

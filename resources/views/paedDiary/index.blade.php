@@ -117,14 +117,14 @@
                         </div>
                         <div class="form-row">
                             <div class="col-md-6 mb-2">
-                                <label class="small mb-1" for="noteCategory">Kategorie</label>
+                                <label class="small mb-1" for="noteCategory">Notizkategorie</label>
                                 <select name="category_id" id="noteCategory" class="form-control form-control-sm">
                                     <option value="">-- Keine --</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
-                                <label class="small mb-1" for="noteNewCategory">Neue Kategorie (optional)</label>
-                                <input type="text" name="new_category" id="noteNewCategory" class="form-control form-control-sm" placeholder="Neue Kategorie eingeben (wird priorisiert)">
+                                <label class="small mb-1" for="noteNewCategory">Neue Notizkategorie (optional)</label>
+                                <input type="text" name="new_category" id="noteNewCategory" class="form-control form-control-sm" placeholder="Neue Notizkategorie (wird priorisiert)">
                             </div>
                         </div>
                         <div class="row">
@@ -165,18 +165,6 @@
                 <div class="card-body py-2">
                     <div id="columnsFeedback" class="mb-2 small"></div>
 
-                    <!-- Kategorien-Verwaltung Bereich -->
-                    <div class="mb-3 border-bottom pb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 small font-weight-bold">Kategorien verwalten</h6>
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="showCategoriesToggle">
-                                <label class="custom-control-label small" for="showCategoriesToggle">Kategorien in Wochenansicht anzeigen</label>
-                            </div>
-                        </div>
-                        <div id="categoriesList" class="mb-2"></div>
-                        <div id="categoriesFeedback" class="small text-muted"></div>
-                    </div>
 
                     <!-- Spalten-Verwaltung Bereich -->
                     <h6 class="mb-2 small font-weight-bold">Spalten verwalten</h6>
@@ -187,7 +175,7 @@
                         <select name="category_select" class="form-control form-control-sm mr-1 mb-1">
                             <option value="">-- Keine / Neue --</option>
                         </select>
-                        <input type="text" name="new_category" class="form-control form-control-sm mr-1 mb-1" placeholder="Neue Kategorie (optional)" />
+                        <input type="text" name="new_category" class="form-control form-control-sm mr-1 mb-1" placeholder="Neue Spaltengruppe (optional)" />
                         <select name="type" class="form-control form-control-sm mr-1 mb-1">
                             <option value="boolean">Ja/Nein</option>
                         </select>
@@ -234,9 +222,23 @@
                                 <span class="paused-toggle-text small">Pausierte</span>
                             </label>
                         </div>
+                        <!-- Kategorie-Überschriften: Dropdown mit Ein-/Ausblend-Toggles -->
+                        <div class="dropdown ml-3">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    title="Notizkategorien ein-/ausblenden">
+                                <i class="fas fa-tag"></i> Notizkategorien
+                            </button>
+                            <div class="dropdown-menu py-2" id="categoryToggles" style="min-width:200px;">
+                                <!-- Wird per JS dynamisch befüllt -->
+                            </div>
+                        </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center">
                         <button class="btn btn-sm btn-outline-secondary mb-1 mr-2" id="manageColumnsBtn" title="Spalten verwalten"><i class="fas fa-columns"></i> Spalten</button>
+                        <a href="{{ route('paedDiary.categories.manage') }}" class="btn btn-sm btn-outline-secondary mb-1 mr-2" title="Notizkategorien &amp; Spaltengruppen verwalten">
+                            <i class="fas fa-tags"></i> Notizkategorien &amp; Gruppen
+                        </a>
                         <a href="{{ route('gradingDocumentation.index') }}" class="btn btn-sm btn-outline-primary mb-1 mr-2" title="Graduierungssystem-Dokumentation">
                             <i class="fas fa-clipboard-check"></i> Dokumentation
                         </a>

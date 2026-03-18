@@ -1,11 +1,12 @@
 <?php
 namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaedDiaryTask extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $fillable=['klasse_id','schueler_id','title','description','due_date','status','highlighted','created_by','closed_at'];
     protected $casts=['due_date'=>'date','closed_at'=>'datetime'];
     public function klasse(){return $this->belongsTo(Klasse::class);}

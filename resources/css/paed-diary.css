@@ -2,6 +2,10 @@
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
 
+/* ── Quell-Dateien für Tailwind-Klassen-Scan ────────────────────────────── */
+@source "../views/paedDiary/**/*.blade.php";
+@source "../../public/js/paedDiary/categories.js";
+
 [x-cloak] { display: none !important; }
 
 /* ── Sidebar beim Päd. Tagebuch automatisch ausblenden ──────────────────── */
@@ -51,7 +55,32 @@ body.paed-hide-sidebar #sidebar-open-btn {
 .paed-toggle-btn[data-state="visible"]::after { content: "✕"; font-size: 18px; }
 .paed-toggle-btn[data-state="hidden"]::after  { content: "☰"; font-size: 18px; }
 
-/* ── Diary-Tabelle ──────────────────────────────────────────────────────── */
+/* ── Abwesenheits-Toggle ────────────────────────────────────────────────── */
+.absence-toggle {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s;
+}
+.absence-toggle:hover { opacity: 1; }
+.diary-btn-absent {
+    background-color: #f8d7da !important;
+    opacity: 1 !important;
+    color: #842029 !important;
+}
+td.absent-cell {
+    background-color: #fff5f5 !important;
+}
+.absent-banner {
+    clear: both;
+}
+
+
 .open-entry-large {
     font-size: 1.05rem !important;
     line-height: 1.35 !important;

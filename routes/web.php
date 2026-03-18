@@ -756,39 +756,58 @@ Route::group([
                     Route::post('paed-diary/entry/{entry}/pause-day', [\App\Http\Controllers\PaedDiaryController::class, 'pauseEntryDay'])->name('paedDiary.entry.pause');
                     Route::post('paed-diary/entry/{entry}/unpause-day', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseEntryDay'])->name('paedDiary.entry.unpause');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyEntry'])->name('paedDiary.entry.destroy');
-                    Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryController::class, 'storeColumn'])->name('paedDiary.column.store');
-                    Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
-                    Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryController::class, 'storeColumnValue'])->name('paedDiary.column.value');
+
+                    // Spalten-Verwaltung → PaedDiaryColumnController (TODO 16)
+                    Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumn'])->name('paedDiary.column.store');
+                    Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
+                    Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumnValue'])->name('paedDiary.column.value');
+                    Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
+                    Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryColumnController::class, 'restoreColumn'])->name('paedDiary.column.restore');
+                    Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
+
                     Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:manage grading systems')->name('paedDiary.changeStage');
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
-                    Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryController::class, 'storeTask'])->name('paedDiary.task.store');
-                    Route::put('paed-diary/task/{task}', [\App\Http\Controllers\PaedDiaryController::class, 'updateTask'])->name('paedDiary.task.update');
-                    Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryController::class, 'closeTask'])->name('paedDiary.task.close');
-                    Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryController::class, 'columnsAll'])->name('paedDiary.columns.all');
-                    // Kategorie-Update für einzelne Spalten
-                    Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
-                    Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryController::class, 'restoreColumn'])->name('paedDiary.column.restore');
-                    Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportExcel'])->name('paedDiary.export.excel');
 
-                    // Kategorieverwaltung
-                    Route::get('paed-diary/categories', [\App\Http\Controllers\PaedDiaryController::class, 'getCategories'])->name('paedDiary.categories.index');
-                    Route::put('paed-diary/categories/{category}/rename', [\App\Http\Controllers\PaedDiaryController::class, 'renameCategory'])->name('paedDiary.categories.rename');
-                    Route::delete('paed-diary/categories/{category}', [\App\Http\Controllers\PaedDiaryController::class, 'deleteCategory'])->name('paedDiary.categories.delete');
+                    // Aufgaben → PaedDiaryTaskController (TODO 16)
+                    Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryTaskController::class, 'store'])->name('paedDiary.task.store');
+                    Route::put('paed-diary/task/{task}', [\App\Http\Controllers\PaedDiaryTaskController::class, 'updateTask'])->name('paedDiary.task.update');
+                    Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryTaskController::class, 'closeTask'])->name('paedDiary.task.close');
+
+                    Route::get('export/paed-diary/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportExcel'])->name('paedDiary.export.excel');
+                    Route::post('paed-diary/absence', [\App\Http\Controllers\PaedDiaryController::class, 'toggleAbsence'])->name('paedDiary.absence.toggle');
+
+                    // Kategorieverwaltung – neuer PaedDiaryCategoryController
+                    // Spezifische Routen MÜSSEN vor parametrisierten stehen
+                    Route::get('paed-diary/categories/manage', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'manageView'])->name('paedDiary.categories.manage');
+                    Route::get('paed-diary/categories/hidden', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'getHiddenCategories'])->name('paedDiary.categories.hidden');
+                    Route::get('paed-diary/categories', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'getCategories'])->name('paedDiary.categories.index');
+                    Route::post('paed-diary/categories', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'storeCategory'])->name('paedDiary.categories.store');
+                    Route::put('paed-diary/categories/{category}/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameCategory'])->name('paedDiary.categories.rename');
+                    Route::delete('paed-diary/categories/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'deleteCategory'])->name('paedDiary.categories.delete');
+                    Route::post('paed-diary/categories/{category}/toggle-hidden', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'toggleHidden'])->name('paedDiary.categories.toggleHidden');
+                    Route::get('paed-diary/column-groups', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'getColumnGroups'])->name('paedDiary.columnGroups.index');
+                    // Globale Kategorien + Spaltengruppen-Rename brauchen zusätzliche Permission
+                    Route::middleware(['permission:manage global paed diary categories'])->group(function () {
+                        Route::post('paed-diary/categories/global', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'storeGlobalCategory'])->name('paedDiary.categories.storeGlobal');
+                        Route::put('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'updateGlobalCategory'])->name('paedDiary.categories.updateGlobal');
+                        Route::delete('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'deleteGlobalCategory'])->name('paedDiary.categories.deleteGlobal');
+                        Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
+                    });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
 
-                    // Neue Gruppen-Routen
-                    Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'classGroups'])->name('paedDiary.classGroups.index');
-                    Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryController::class, 'storeClassGroup'])->name('paedDiary.classGroups.store');
-                    Route::put('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class, 'updateClassGroup'])->name('paedDiary.classGroups.update');
-                    Route::delete('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyClassGroup'])->name('paedDiary.classGroups.destroy');
+                    // Klassen-Gruppen → PaedDiaryClassGroupController (TODO 16)
+                    Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'index'])->name('paedDiary.classGroups.index');
+                    Route::post('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'store'])->name('paedDiary.classGroups.store');
+                    Route::put('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'update'])->name('paedDiary.classGroups.update');
+                    Route::delete('paed-diary/class-groups/{group}', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'destroy'])->name('paedDiary.classGroups.destroy');
 
-                    // Termine-Routen
-                    Route::get('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryController::class, 'appointments'])->name('paedDiary.appointments.index');
-                    Route::post('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryController::class, 'storeAppointment'])->name('paedDiary.appointments.store');
-                    Route::put('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryController::class, 'updateAppointment'])->name('paedDiary.appointments.update');
-                    Route::post('paed-diary/appointments/{appointment}/toggle-pause', [\App\Http\Controllers\PaedDiaryController::class, 'toggleAppointmentPause'])->name('paedDiary.appointments.togglePause');
-                    Route::delete('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyAppointment'])->name('paedDiary.appointments.destroy');
+                    // Termine → PaedDiaryAppointmentController (TODO 16)
+                    Route::get('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryAppointmentController::class, 'index'])->name('paedDiary.appointments.index');
+                    Route::post('paed-diary/appointments', [\App\Http\Controllers\PaedDiaryAppointmentController::class, 'store'])->name('paedDiary.appointments.store');
+                    Route::put('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryAppointmentController::class, 'update'])->name('paedDiary.appointments.update');
+                    Route::post('paed-diary/appointments/{appointment}/toggle-pause', [\App\Http\Controllers\PaedDiaryAppointmentController::class, 'togglePause'])->name('paedDiary.appointments.togglePause');
+                    Route::delete('paed-diary/appointments/{appointment}', [\App\Http\Controllers\PaedDiaryAppointmentController::class, 'destroy'])->name('paedDiary.appointments.destroy');
 
 
                     // Admin: Verwaltung der Graduierungssysteme und Stufen

@@ -1,11 +1,13 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\PaedDiaryColumnValue; // Import ergänzt
 
 class PaedDiaryColumn extends Model
 {
+    use HasFactory;
     protected $fillable=['klasse_id','name','slug','type','sort_order','active','deactivated_from','category'];
     protected $casts = [
         'deactivated_from' => 'date'

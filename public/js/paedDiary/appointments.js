@@ -108,7 +108,7 @@ function initializeAppointmentsModule(dependencies) {
     function renderAppointments() {
         const localCache = getCache();
         // Zuerst alle bestehenden Termine-Anzeigen entfernen
-        document.querySelectorAll('.day-appointments, .student-appointments').forEach(el => el.remove());
+        document.querySelectorAll('.day-appointments, .student-appointments, .student-class-appointments').forEach(el => el.remove());
 
         localCache.days.forEach(day => {
             const dayAppointments = localCache.appointments.filter(app => app.date === day.date);
@@ -165,6 +165,50 @@ function initializeAppointmentsModule(dependencies) {
                         appointmentsDiv.appendChild(appointmentSpan);
                     });
                     dayHeader.appendChild(appointmentsDiv);
+
+                    // NEU (TODO 15): Klassen-Termine auch in jede Schüler-Zelle des Tages einfügen
+                    const klassenIds = classGroupAppointments.flatMap(a =>
+                        Array.isArray(a.klassen) ? a.klassen.map(k => k.id) : []
+                    );
+                    const studentCells = document.querySelectorAll(`td[data-date="${day.date}"]`);
+                    studentCells.forEach(cell => {
+                        const stuId    = cell.dataset.stu;
+                        const klasseId = cell.dataset.klasse || (localCache.schueler || []).find(s => String(s.id) === String(stuId))?.klasse_id;
+                        if (!stuId) return;
+                        // Nur Zellen der betroffenen Klassen befüllen
+                        const relevantApts = classGroupAppointments.filter(a =>
+                            !Array.isArray(a.klassen) || a.klassen.length === 0 ||
+                            (klasseId && a.klassen.some(k => String(k.id) === String(klasseId)))
+                        );
+                        if (!relevantApts.length) return;
+
+                        let stuClassAptDiv = cell.querySelector('.student-class-appointments');
+                        if (!stuClassAptDiv) {
+                            stuClassAptDiv = document.createElement('div');
+                            stuClassAptDiv.className = 'student-class-appointments';
+                            stuClassAptDiv.style.fontSize = '0.6rem';
+                            const colInputsRow = cell.querySelector('.col-inputs-row');
+                            if (colInputsRow) {
+                                cell.insertBefore(stuClassAptDiv, colInputsRow);
+                            } else {
+                                cell.appendChild(stuClassAptDiv);
+                            }
+                        }
+
+                        relevantApts.forEach(appointment => {
+                            const span = document.createElement('div');
+                            span.className = 'appointment-item bg-warning text-dark px-1 mb-1 rounded';
+                            span.style.cssText = 'font-size:0.6rem;opacity:0.8;border-left:2px solid #ffc107;cursor:pointer;';
+                            span.title = appointment.description || appointment.title;
+                            let timeText = '';
+                            if (appointment.start_time) {
+                                timeText = formatTime(appointment.start_time) + ' ';
+                            }
+                            span.innerHTML = timeText + escapeHtml(trimText(appointment.title, 18));
+                            span.addEventListener('click', () => editAppointment(appointment));
+                            stuClassAptDiv.appendChild(span);
+                        });
+                    });
                 }
 
                 individualAppointments.forEach(appointment => {
@@ -398,6 +442,7 @@ function initializeAppointmentsModule(dependencies) {
     // --- Öffentliche API ---
     return {
         loadAppointments,
+        renderAppointments,
         updateAppointmentSchuelerList
     };
 }

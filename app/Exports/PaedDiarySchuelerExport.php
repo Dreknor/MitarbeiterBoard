@@ -124,9 +124,11 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
             if ($dayEntries->isEmpty()) {
                 // Leere Zeile für Tage ohne Einträge
                 $row = [
-                    'Datum' => $date->format('d.m.Y'),
-                    'Notizen' => '',
-                    'Autor' => '',
+                    'Datum'     => $date->format('d.m.Y'),
+                    'Kategorie' => '',
+                    'Notizen'   => '',
+                    'Autor'     => '',
+                    'Status'    => '',
                 ];
 
                 // Spalten-Werte hinzufügen (verwende sortierte Spalten)
@@ -162,9 +164,11 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
                 // Eine Zeile pro Eintrag
                 foreach ($dayEntries as $index => $entry) {
                     $row = [
-                        'Datum' => $date->format('d.m.Y'),
-                        'Notizen' => $entry['content'] ?? '',
-                        'Autor' => $entry['user'] ?? '',
+                        'Datum'     => $date->format('d.m.Y'),
+                        'Kategorie' => $entry['category'] ?? '',
+                        'Notizen'   => $entry['content'] ?? '',
+                        'Autor'     => $entry['user'] ?? '',
+                        'Status'    => !empty($entry['completed_at']) ? 'Erledigt' : 'Offen',
                     ];
 
                     // Spalten-Werte hinzufügen (nur bei erstem Eintrag des Tages)
@@ -212,7 +216,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
     public function headings(): array
     {
-        $headings = ['Datum', 'Notizen', 'Autor'];
+        $headings = ['Datum', 'Kategorie', 'Notizen', 'Autor', 'Status'];
 
         foreach ($this->sortedColumns as $column) {
             $headings[] = $column['name'];
@@ -230,12 +234,14 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     {
         $widths = [
             'A' => 12, // Datum
-            'B' => 50, // Notizen
-            'C' => 15, // Autor
+            'B' => 20, // Kategorie
+            'C' => 50, // Notizen
+            'D' => 15, // Autor
+            'E' => 12, // Status
         ];
 
-        // Dynamische Breite für Spalten
-        $letter = 'D';
+        // Dynamische Breite für Spalten (ab F)
+        $letter = 'F';
         foreach ($this->sortedColumns as $column) {
             $widths[$letter] = 12;
             $letter++;

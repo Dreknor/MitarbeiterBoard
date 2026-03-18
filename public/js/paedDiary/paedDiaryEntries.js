@@ -29,13 +29,31 @@ function initializeEntriesModule(options){
         trimText,
         loadWeek,
         saveColumnValue, // optional function from columns module
-        // optional category elements
         noteCategory,
-        noteNewCategory
+        noteNewCategory,
+        categoryTogglesContainer,
+        renderAppointments
     } = options;
 
     let debounceTimers = {};
     let pauseMap = {};
+    let absenceMap = {}; // [schueler_id][date] = true
+
+    // UI-Präferenzen: werden im localStorage gespeichert, damit sie seitenübergreifend erhalten bleiben
+    // hideAllCategoryHeadings: globaler Schalter – blendet ALLE Kategorieüberschriften aus
+    // filterUncategorized:     Filter  – blendet Einträge ohne Kategorie aus
+    let hideAllCategoryHeadings = (localStorage.getItem('paedDiary_hideAllHeadings') === '1');
+    let filterUncategorized     = (localStorage.getItem('paedDiary_filterUncategorized') === '1');
+
+    /**
+     * Rendert die Tabelle neu und injiziert danach Termine wieder in den DOM.
+     * Wird von allen internen Toggle-Handlern genutzt, die render() direkt aufrufen
+     * (ohne den äußeren render()-Wrapper aus paedDiary.js, der appointmentsModule.loadAppointments enthält).
+     */
+    function renderWithAppointments(){
+        render();
+        if(typeof renderAppointments === 'function') renderAppointments();
+    }
 
     function rebuildPauseMap(){
         pauseMap = {};
@@ -47,6 +65,20 @@ function initializeEntriesModule(options){
             pauseMap[p.entry_id][p.schueler_id][p.date] = true;
         });
     }
+
+    function rebuildAbsenceMap(){
+        absenceMap = {};
+        const cache = getCache();
+        if(!cache || !cache.absences) return;
+        cache.absences.forEach(a=>{
+            if(!absenceMap[a.schueler_id]) absenceMap[a.schueler_id] = {};
+            absenceMap[a.schueler_id][a.datum] = true;
+        });
+    }
+
+    function isAbsent(schuelerId, date){
+        return !!(absenceMap[schuelerId] && absenceMap[schuelerId][date]);
+    }
     function isPaused(entryId, stuId, date){
         const entryMap = pauseMap[entryId]; if(!entryMap) return false; const stuMap = entryMap[stuId]; if(!stuMap) return false; return !!stuMap[date];
     }
@@ -55,6 +87,10 @@ function initializeEntriesModule(options){
         const cache = getCache();
         const m={};
         if(!cache || !cache.entries) return m;
+
+        // Filter-Sets aus Cache + localStorage
+        const hiddenCatIds = new Set((cache.hidden_category_ids || []).map(id => Number(id)));
+
         const weekDates = (cache.days||[]).map(d=>d.date);
         if(!weekDates.length) return m;
         const weekStartStr = weekDates[0];
@@ -64,6 +100,11 @@ function initializeEntriesModule(options){
         const today = new Date(); today.setHours(0,0,0,0);
 
         (cache.entries||[]).forEach(e=>{
+            // Kategoriefilter: Einträge ausgeblendeter Kategorien ausblenden
+            if(e.category_id && hiddenCatIds.has(Number(e.category_id))) return;
+            // Filter "Ohne Kategorie": Einträge ohne category_id ausblenden wenn aktiv
+            if(!e.category_id && filterUncategorized) return;
+
             const entryStartDate = new Date(e.date+'T00:00:00');
             const isCompleted = !!e.completed_at;
             if(isCompleted){
@@ -99,10 +140,143 @@ function initializeEntriesModule(options){
         return ((r*299)+(g*587)+(b*114))/1000;
     }
 
+    /**
+     * Rendert den Inhalt des Kategorie-Dropdowns:
+     *  1. Hinweistext zum Verhalten
+     *  2. Globaler Schalter "Überschriften anzeigen" → blendet ALLE Kategorieüberschriften aus/ein
+     *  3. Trennlinie + Abschnitt "Einträge filtern"
+     *  4. Pro Kategorie ein Filter-Toggle → blendet Einträge dieser Kategorie aus
+     *  5. Filter-Toggle "Ohne Kategorie" → blendet Einträge ohne Kategorie aus
+     */
+    function renderCategoryToggles(){
+        if(!categoryTogglesContainer) return;
+        const cache = getCache();
+        const categories = cache.categories || [];
+        const hiddenIds = new Set((cache.hidden_category_ids || []).map(id => Number(id)));
+
+
+        // ── Globaler Überschriften-Toggle ────────────────────────────────────
+        let html =
+            `<div class="px-3 pt-2 mb-1">`+
+            `<div class="custom-control custom-switch">`+
+            `<input type="checkbox" class="custom-control-input" id="showAllHeadingsToggle"`+
+            `${hideAllCategoryHeadings ? '' : ' checked'}>`+
+            `<label class="custom-control-label small font-weight-bold" for="showAllHeadingsToggle">`+
+            `Überschriften anzeigen</label>`+
+            `</div>`+
+            `</div>`;
+
+        // ── Trennlinie + Abschnittsüberschrift ───────────────────────────────
+        html += `<div class="dropdown-divider my-2"></div>`;
+        html +=
+            `<div class="px-3 mb-1">`+
+            `<small class="text-muted text-uppercase" style="font-size:.65rem;letter-spacing:.05em;">`+
+            `Einträge filtern</small>`+
+            `</div>`;
+
+        // ── Pro-Kategorie-Filter-Toggles ─────────────────────────────────────
+        if(categories.length){
+            categories.forEach(cat => {
+                const isVisible = !hiddenIds.has(Number(cat.id));
+                html +=
+                    `<div class="px-3 mb-1">`+
+                    `<div class="custom-control custom-switch">`+
+                    `<input type="checkbox" class="custom-control-input category-filter-toggle"`+
+                    ` id="catFilter_${cat.id}" data-category-id="${cat.id}"${isVisible ? ' checked' : ''}>`+
+                    `<label class="custom-control-label small" for="catFilter_${cat.id}">`+
+                    `${escapeHtml(cat.name)}</label>`+
+                    `</div>`+
+                    `</div>`;
+            });
+        } else {
+            html += `<div class="px-3 mb-1"><small class="text-muted">Keine Kategorien vorhanden</small></div>`;
+        }
+
+        // ── Filter "Ohne Kategorie" ──────────────────────────────────────────
+        html +=
+            `<div class="px-3 mb-2">`+
+            `<div class="custom-control custom-switch">`+
+            `<input type="checkbox" class="custom-control-input" id="filterUncategorizedToggle"`+
+            `${filterUncategorized ? '' : ' checked'}>`+
+            `<label class="custom-control-label small" for="filterUncategorizedToggle">`+
+            `Ohne Kategorie</label>`+
+            `</div>`+
+            `</div>`;
+
+        categoryTogglesContainer.innerHTML = html;
+    }
+
+    // Dropdown bleibt offen beim Klicken auf Toggle-Schalter (Bootstrap 4 würde es sonst schließen)
+    if(categoryTogglesContainer){
+        categoryTogglesContainer.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
+
+    // ── Globaler Überschriften-Toggle ────────────────────────────────────────
+    document.addEventListener('change', function(e){
+        if(e.target.id !== 'showAllHeadingsToggle') return;
+        hideAllCategoryHeadings = !e.target.checked; // checked = Überschriften anzeigen
+        localStorage.setItem('paedDiary_hideAllHeadings', hideAllCategoryHeadings ? '1' : '0');
+        renderWithAppointments();
+    });
+
+    // ── Filter "Ohne Kategorie" ──────────────────────────────────────────────
+    document.addEventListener('change', function(e){
+        if(e.target.id !== 'filterUncategorizedToggle') return;
+        filterUncategorized = !e.target.checked; // checked = Einträge sichtbar
+        localStorage.setItem('paedDiary_filterUncategorized', filterUncategorized ? '1' : '0');
+        renderWithAppointments();
+    });
+
+    // ── Pro-Kategorie-Eintragsfilter (server-persistiert) ────────────────────
+    document.addEventListener('change', function(e){
+        const toggle = e.target.closest('.category-filter-toggle');
+        if(!toggle) return;
+        const catId = toggle.dataset.categoryId;
+        if(!catId) return;
+
+        const cache = getCache();
+        cache.hidden_category_ids = (cache.hidden_category_ids || []).map(Number);
+        const id = Number(catId);
+        const isNowHidden = !toggle.checked;
+
+        // Optimistisches UI-Update: Cache sofort anpassen und neu rendern
+        if(isNowHidden){
+            if(!cache.hidden_category_ids.includes(id)) cache.hidden_category_ids.push(id);
+        } else {
+            cache.hidden_category_ids = cache.hidden_category_ids.filter(x => x !== id);
+        }
+        renderWithAppointments();
+
+        // Persistieren via AJAX
+        fetch(`paed-diary/categories/${catId}/toggle-hidden`, {
+            method: 'POST',
+            headers: {'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}
+        }).then(r => r.json()).then(j => {
+            if(!j.success){
+                // Revert bei Fehler
+                if(isNowHidden){
+                    cache.hidden_category_ids = cache.hidden_category_ids.filter(x => x !== id);
+                } else {
+                    if(!cache.hidden_category_ids.includes(id)) cache.hidden_category_ids.push(id);
+                }
+                renderWithAppointments();
+            }
+        }).catch(() => {
+            // Revert bei Netzwerkfehler
+            if(isNowHidden){
+                cache.hidden_category_ids = cache.hidden_category_ids.filter(x => x !== id);
+            } else {
+                if(!cache.hidden_category_ids.includes(id)) cache.hidden_category_ids.push(id);
+            }
+            renderWithAppointments();
+        });
+    });
+
     function render(){
         const cache = getCache();
         if(!cache) return;
         rebuildPauseMap();
+        rebuildAbsenceMap();
         // populate category select if present
         try{
             if(noteCategory && cache.categories){
@@ -187,8 +361,10 @@ function initializeEntriesModule(options){
                 let entriesHtml = '';
                 order.forEach((catKey, idx)=>{
                     const catLabel = catKey ? catKey : 'Ohne Kategorie';
-                    // category header with subtle separator
-                    entriesHtml += `<div class="entry-category-header">${escapeHtml(catLabel)}</div>`;
+                    // Überschrift anzeigen, wenn globaler "Überschriften ausblenden"-Schalter nicht aktiv
+                    if(!hideAllCategoryHeadings){
+                        entriesHtml += `<div class="entry-category-header">${escapeHtml(catLabel)}</div>`;
+                    }
                     entriesHtml += `<div class="category-entries">${groups[catKey].map(e => renderEntry(e)).join('')}</div>`;
                     // optional spacing between category groups
                     if(idx < order.length - 1) entriesHtml += `<div style="height:6px"></div>`;
@@ -209,10 +385,15 @@ function initializeEntriesModule(options){
                  }
                 const isToday = d.date === todayStr;
                 const ferienClass = isFerienTag ? ' ferien-cell' : '';
+                const absent = isAbsent(stu.id, d.date);
+                const absentClass = absent ? ' absent-cell' : '';
+                const absenceBtn = `<button type="button" class="absence-toggle diary-btn${absent?' diary-btn-absent':' diary-btn-present'}" data-stu="${stu.id}" data-klasse="${stu.klasse_id}" data-date="${d.date}" title="${absent?'Abwesenheit aufheben':'Als abwesend markieren'}">${absent?'🚫':'👤'}</button>`;
+                const absentBanner = absent ? `<div class="absent-banner text-danger" style="font-size:.68rem;font-weight:bold;padding:1px 2px;">🚫 Abwesend</div>` : '';
                 // pausedHtml rendered outside of .entry-list to avoid creating scrollbars inside the cell
-                row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}${ferienClass}" data-stu="${stu.id}" data-date="${d.date}">`+
-                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;" title="Neue Notiz erstellen"></div>`+
-                       `<div class="entry-list">${entriesHtml}</div>`+
+                row += `<td class="note-cell${taskStudentIds.has(stu.id)?' stu-has-task-cell':''}${isToday? ' today-cell':''}${ferienClass}${absentClass}" data-stu="${stu.id}" data-date="${d.date}">`+
+                       `<div class="entry-add-space" style="min-height:18px; cursor:pointer;" title="Neue Notiz erstellen"><div style="float:right">${absenceBtn}</div></div>`+
+                       `${absentBanner}`+
+                       `<div class="entry-list"${absent?' style="opacity:0.4"':''}>${entriesHtml}</div>`+
                        `<div class="paused-entries">${pausedHtml}</div>`+
                        `<div class="col-inputs-row"><div class="col-inputs">${renderColumnInputs(stu.id,d.date)}</div></div>`+
                        `</td>`;
@@ -226,6 +407,8 @@ function initializeEntriesModule(options){
         // student-checkboxes and tasks update (tasksModule provided by caller)
         if(typeof options.renderStudentCheckboxes === 'function') options.renderStudentCheckboxes();
         tasksModule && typeof tasksModule.updateTaskStudentSelect === 'function' && tasksModule.updateTaskStudentSelect();
+        // NEU (TODO 9): Kategorie-Toggles nach jedem Render neu zeichnen
+        renderCategoryToggles();
     }
 
     // Event handlers attached once
@@ -359,6 +542,73 @@ function initializeEntriesModule(options){
     if(noteClearBtn) noteClearBtn.addEventListener('click', ()=> populateForNew(null));
     if(noteEditorCancel) noteEditorCancel.addEventListener('click', hideEditor);
 
+    // ── Abwesenheits-Toggle ───────────────────────────────────────────────────
+    document.addEventListener('click', function(e){
+        const btn = e.target.closest('.absence-toggle');
+        if(!btn) return;
+        e.stopImmediatePropagation();
+        btn.disabled = true;
+        fetch('paed-diary/absence', {
+            method: 'POST',
+            headers: {'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json'},
+            body: JSON.stringify({
+                schueler_id: btn.dataset.stu,
+                klasse_id:   btn.dataset.klasse,
+                datum:       btn.dataset.date,
+            }),
+        })
+        .then(r => r.json())
+        .then(j => {
+            if(j.success){
+                const cache = getCache();
+                cache.absences = cache.absences || [];
+                cache.pauses   = cache.pauses   || [];
+                if(j.absent){
+                    // Abwesenheit eintragen
+                    cache.absences.push({id: null, schueler_id: parseInt(btn.dataset.stu), datum: btn.dataset.date});
+                    // Neu erzeugte Pausen aus der Server-Antwort in den Cache schreiben
+                    if(Array.isArray(j.pauses)){
+                        j.pauses.forEach(p => {
+                            const already = cache.pauses.some(cp =>
+                                cp.entry_id   === p.entry_id &&
+                                cp.schueler_id === p.schueler_id &&
+                                cp.date        === p.date
+                            );
+                            if(!already){
+                                cache.pauses.push({
+                                    entry_id:    p.entry_id,
+                                    schueler_id: p.schueler_id,
+                                    date:        p.date,
+                                });
+                            }
+                        });
+                    }
+                } else {
+                    // Abwesenheit entfernen
+                    cache.absences = cache.absences.filter(a =>
+                        !(String(a.schueler_id) === String(btn.dataset.stu) && a.datum === btn.dataset.date)
+                    );
+                    // Pausen des Schülers an diesem Tag aus dem Cache entfernen
+                    const stuId = parseInt(btn.dataset.stu);
+                    const date  = btn.dataset.date;
+                    const removedIds = Array.isArray(j.removed_entry_ids) ? j.removed_entry_ids : [];
+                    cache.pauses = cache.pauses.filter(p =>
+                        !(p.schueler_id === stuId && p.date === date &&
+                          (removedIds.length === 0 || removedIds.includes(p.entry_id)))
+                    );
+                }
+                rebuildAbsenceMap();
+                rebuildPauseMap();
+                render();
+                if(typeof renderAppointments === 'function') renderAppointments();
+            } else {
+                alert(j.message || 'Fehler beim Setzen der Abwesenheit');
+                btn.disabled = false;
+            }
+        })
+        .catch(() => { alert('Fehler beim Setzen der Abwesenheit'); btn.disabled = false; });
+    });
+
     // expose API
-    return { render, populateForNew, populateForEdit, showEditor, hideEditor, clearEditor, rebuildPauseMap, isPaused, getBrightness };
+    return { render, renderCategoryToggles, populateForNew, populateForEdit, showEditor, hideEditor, clearEditor, rebuildPauseMap, rebuildAbsenceMap, isPaused, isAbsent, getBrightness };
 }
