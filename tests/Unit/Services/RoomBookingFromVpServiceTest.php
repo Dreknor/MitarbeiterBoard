@@ -2,14 +2,17 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\Klasse;
 use App\Models\LessonTime;
 use App\Models\Room;
 use App\Models\RoomBooking;
 use App\Models\Setting;
+use App\Models\Zeitraster;
 use App\Services\RoomBookingFromVpService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class RoomBookingFromVpServiceTest extends TestCase
@@ -471,6 +474,134 @@ class RoomBookingFromVpServiceTest extends TestCase
         $this->assertEquals(1, RoomBooking::where('cancelled', false)->count());
         $this->assertEquals(0, RoomBooking::where('cancelled', true)->count());
         $this->assertEquals(1, $this->service->getSummary()['room_bookings_created']);
+    }
+
+    // ─── TODO-14: Zeitraster-spezifische Tests ───────────────────────────────
+
+    /**
+     * @test
+     * Klasse mit eigenem Zeitraster → zeitraster-spezifische LessonTime wird verwendet.
+     */
+    public function test_zeitraster_specific_times_used_for_booking(): void
+    {
+        $this->enableIntegration();
+
+        // Globale LessonTime (Fallback)
+        LessonTime::create(['period' => 1, 'start' => '07:30', 'end' => '08:15', 'week' => null, 'zeitraster_id' => null]);
+
+        // GS-Zeitraster mit eigener LessonTime
+        $gs = Zeitraster::create(['name' => 'GS', 'ist_standard' => false]);
+        LessonTime::create(['period' => 1, 'start' => '07:00', 'end' => '07:45', 'week' => null, 'zeitraster_id' => $gs->id]);
+
+        Klasse::factory()->create(['name' => '1a', 'kuerzel' => '1a', 'zeitraster_id' => $gs->id]);
+        $this->createRoom('R101', 'R101');
+
+        $aktion = $this->makeAktion([
+            'Ak_Art'       => 'Änd.',
+            'Ak_StundeVon' => 1,
+            'Klassen'      => ['1a'],
+            'Raeume'       => ['R101'],
+            'VRaeume'      => ['R101'],
+        ]);
+        $this->service->processAktion($aktion, Carbon::parse('2026-03-30'));
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('07:00', substr($booking->start, 0, 5));
+        $this->assertEquals('07:45', substr($booking->end, 0, 5));
+    }
+
+    /**
+     * @test
+     * Klasse ohne Zeitraster-Zuordnung → globale LessonTimes werden genutzt.
+     */
+    public function test_global_times_used_when_klasse_has_no_zeitraster(): void
+    {
+        $this->enableIntegration();
+
+        LessonTime::create(['period' => 1, 'start' => '07:30', 'end' => '08:15', 'week' => null, 'zeitraster_id' => null]);
+        Klasse::factory()->create(['name' => '5b', 'kuerzel' => '5b', 'zeitraster_id' => null]);
+        $this->createRoom('R202', 'R202');
+
+        $aktion = $this->makeAktion([
+            'Ak_Art'       => 'Änd.',
+            'Ak_StundeVon' => 1,
+            'Klassen'      => ['5b'],
+            'Raeume'       => ['R202'],
+            'VRaeume'      => ['R202'],
+        ]);
+        $this->service->processAktion($aktion, Carbon::parse('2026-03-30'));
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('07:30', substr($booking->start, 0, 5));
+        $this->assertEquals('08:15', substr($booking->end, 0, 5));
+    }
+
+    /**
+     * @test
+     * Bei 5 Aktionen mit gleicher Klasse: DB-Query für Klassen genau einmal (Cache-Test).
+     */
+    public function test_klassen_cache_single_db_query(): void
+    {
+        $this->enableIntegration();
+        LessonTime::create(['period' => 1, 'start' => '07:30', 'end' => '08:15', 'week' => null, 'zeitraster_id' => null]);
+        Klasse::factory()->create(['name' => '3a', 'kuerzel' => '3a', 'zeitraster_id' => null]);
+        $this->createRoom('R303', 'R303');
+
+        $queries = [];
+        DB::listen(function ($q) use (&$queries) {
+            $queries[] = $q->sql;
+        });
+
+        for ($i = 0; $i < 5; $i++) {
+            // Neuer Service-Instanz pro Aufruf würde Cache invalidieren –
+            // alle Aufrufe auf dieselbe Instanz testen den Cache
+            $aktion = $this->makeAktion([
+                'Ak_Art'       => 'Änd.',
+                'Ak_StundeVon' => 1,
+                'Klassen'      => ['3a'],
+                'Raeume'       => ['R303'],
+                'VRaeume'      => ['R303'],
+            ]);
+            $this->service->processAktion($aktion, Carbon::parse('2026-03-30')->addDays($i));
+        }
+
+        $klassenQueries = array_values(array_filter(
+            $queries,
+            fn ($sql) => str_contains(strtolower($sql), 'klassen')
+        ));
+
+        $this->assertCount(1, $klassenQueries, 'Klassen dürfen nur einmal aus der DB geladen werden');
+    }
+
+    /**
+     * @test
+     * Zwei Klassen mit verschiedenen Zeitrastern → Log::warning ausgelöst.
+     */
+    public function test_mixed_zeitraster_logs_warning(): void
+    {
+        $this->enableIntegration();
+        $gs = Zeitraster::create(['name' => 'GS', 'ist_standard' => false]);
+        $os = Zeitraster::create(['name' => 'OS', 'ist_standard' => false]);
+        LessonTime::create(['period' => 1, 'start' => '07:30', 'end' => '08:15', 'week' => null, 'zeitraster_id' => null]);
+        Klasse::factory()->create(['name' => '1a', 'kuerzel' => '1a', 'zeitraster_id' => $gs->id]);
+        Klasse::factory()->create(['name' => '5a', 'kuerzel' => '5a', 'zeitraster_id' => $os->id]);
+        $this->createRoom('R101', 'R101');
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn ($msg) => str_contains($msg, 'unterschiedlichen Zeitrastern'))
+            ->andReturn(null);
+
+        $aktion = $this->makeAktion([
+            'Ak_Art'       => 'Änd.',
+            'Ak_StundeVon' => 1,
+            'Klassen'      => ['1a', '5a'],
+            'Raeume'       => ['R101'],
+            'VRaeume'      => ['R101'],
+        ]);
+        $this->service->processAktion($aktion, Carbon::parse('2026-03-30'));
     }
 }
 

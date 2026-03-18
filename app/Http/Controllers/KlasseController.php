@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\GradingStage;
 use App\Models\PaedDiaryEntry;
 use App\Models\SchuelerGradingHistory;
+use App\Models\Zeitraster;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -72,11 +73,13 @@ class KlasseController extends Controller
         $paedUsers = User::permission('view paed diary')->orderBy('name')->get();
         $systems = \App\Models\GradingSystem::orderBy('name')->get();
         $groups = Group::orderBy('name')->get(); // Gruppen für Zuweisung laden
+        $zeitraster = Zeitraster::orderBy('name')->get(); // TODO-10: Zeitraster für Dropdown
         return response()->view('klassen.edit',[
-            'klasse' => $klasse,
-            'paedUsers' => $paedUsers
-            , 'systems' => $systems
-            , 'groups' => $groups // an View übergeben
+            'klasse'    => $klasse,
+            'paedUsers' => $paedUsers,
+            'systems'   => $systems,
+            'groups'    => $groups,
+            'zeitraster'=> $zeitraster, // TODO-10: an View übergeben
         ]);
     }
 
@@ -91,6 +94,7 @@ class KlasseController extends Controller
             'paed_group_ids' => ['nullable','array'],
             'paed_group_ids.*' => ['integer','exists:groups,id'],
             'grading_system_id' => ['nullable','integer','exists:grading_systems,id'],
+            'zeitraster_id' => ['nullable', 'integer', 'exists:zeitraster,id'], // TODO-10
             'color' => 'nullable|string|max:7',
             'show_vertretungen' => ['nullable', 'boolean'],
         ]);
@@ -105,6 +109,7 @@ class KlasseController extends Controller
                 'kuerzel'           => $validatedData['kuerzel'],
                 'grading_system_id' => $validatedData['grading_system_id'] ?? null,
                 'color'             => $validatedData['color'] ?? null,
+                'zeitraster_id'     => $validatedData['zeitraster_id'] ?? null, // TODO-10
             ];
             // show_vertretungen nur ändern wenn Berechtigung vorhanden
             if (array_key_exists('show_vertretungen', $validatedData) && auth()->user()->can('edit klassen vertretungen')) {

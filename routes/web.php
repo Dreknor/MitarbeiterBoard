@@ -433,6 +433,15 @@ Route::group([
                     Route::delete('schueler/{schueler}', [SchuelerController::class, 'destroy'])->name('schueler.destroy');
                 });
 
+                // Zeitraster-Verwaltung (TODO-10)
+                Route::middleware('permission:manage zeitraster')->group(function () {
+                    Route::resource('zeitraster', \App\Http\Controllers\ZeitrasterController::class)
+                        ->except('show');
+                    Route::post('zeitraster/{zeitraster}/standard',
+                        [\App\Http\Controllers\ZeitrasterController::class, 'markStandard'])
+                        ->name('zeitraster.markStandard');
+                });
+
                 //absences
                 Route::middleware(['permission:view absences'])->group(function () {
                     Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);

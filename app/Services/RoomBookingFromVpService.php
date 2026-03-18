@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Klasse;
 use App\Models\LessonTime;
 use App\Models\Room;
 use App\Models\RoomBooking;
+use App\Models\Zeitraster;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +25,9 @@ class RoomBookingFromVpService
     private ?array $roomCache = null;
 
     private ?Collection $lessonTimeCache = null;
+
+    /** TODO-6: Cache für alle Klassen (nach name + kuerzel) */
+    private ?array $klassenCache = null;
 
     public function getSummary(): array
     {
@@ -87,10 +92,11 @@ class RoomBookingFromVpService
 
     /**
      * Ausfall: Unterricht fällt aus → regulären Raum als frei markieren.
-     * Erstellt einen Stornierungseintrag (cancelled=true).
      */
     private function handleAusfall(object $aktion, Carbon $date, int $stundenAnz, ?string $week): void
     {
+        $zeitrasterId = $this->resolveZeitrasterId($aktion);
+
         $raumKuerzel = $aktion->Raeume[0] ?? null;
         if (!$raumKuerzel) {
             $this->summary['room_bookings_skipped']++;
@@ -102,7 +108,7 @@ class RoomBookingFromVpService
             return;
         }
 
-        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week, $zeitrasterId);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -133,6 +139,8 @@ class RoomBookingFromVpService
      */
     private function handleAenderung(object $aktion, Carbon $date, int $stundenAnz, ?string $week): void
     {
+        $zeitrasterId = $this->resolveZeitrasterId($aktion);
+
         $raumAlt = $aktion->Raeume[0] ?? null;
         $raumNeu = $aktion->VRaeume[0] ?? $raumAlt;
 
@@ -141,7 +149,7 @@ class RoomBookingFromVpService
             return;
         }
 
-        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week, $zeitrasterId);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -211,7 +219,9 @@ class RoomBookingFromVpService
      */
     private function handleVerlegung(object $aktion, Carbon $date, int $stundenAnz, ?string $week): void
     {
-        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week);
+        $zeitrasterId = $this->resolveZeitrasterId($aktion);
+
+        $times = $this->resolveTimeRangeCached($aktion->Ak_StundeVon, $stundenAnz, $week, $zeitrasterId);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -250,7 +260,7 @@ class RoomBookingFromVpService
             $roomNeu    = $this->findRoom($raumNeu);
             $datumNach  = Carbon::createFromFormat('d.m.Y', $aktion->Ak_DatumNach);
             $stundeNach = $aktion->Ak_StundeNach ?? $aktion->Ak_StundeVon;
-            $timesNach  = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week);
+            $timesNach  = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week, $zeitrasterId);
 
             if ($roomNeu && $timesNach) {
                 $fach    = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
@@ -280,6 +290,8 @@ class RoomBookingFromVpService
      */
     private function handleNeu(object $aktion, Carbon $date, int $stundenAnz, ?string $week): void
     {
+        $zeitrasterId = $this->resolveZeitrasterId($aktion);
+
         $raumNeu = $aktion->VRaeume[0] ?? ($aktion->Raeume[0] ?? null);
         if (!$raumNeu) {
             $this->summary['room_bookings_skipped']++;
@@ -292,7 +304,7 @@ class RoomBookingFromVpService
         }
 
         $stundeNach = $aktion->Ak_StundeNach ?? $aktion->Ak_StundeVon;
-        $times      = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week);
+        $times      = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week, $zeitrasterId);
         if (!$times) {
             $this->summary['room_bookings_skipped']++;
             return;
@@ -348,18 +360,75 @@ class RoomBookingFromVpService
     }
 
     /**
-     * Spezifische Woche (A/B) hat Vorrang vor generischem Eintrag (week=null).
+     * TODO-6: Sucht eine Klasse per name oder kuerzel.
+     * Nutzt einen In-Memory-Cache – nur 1 DB-Query für alle Aktionen.
      */
-    private function resolveTimeRangeCached(int $period, int $count = 1, ?string $week = null): ?array
+    private function findKlasse(string $kuerzel): ?Klasse
     {
-        if ($this->lessonTimeCache === null) {
-            $this->lessonTimeCache = LessonTime::all();
+        if ($this->klassenCache === null) {
+            $all = Klasse::select(['id', 'name', 'kuerzel', 'zeitraster_id'])->get();
+            $this->klassenCache = [
+                'by_name'    => $all->keyBy('name'),
+                'by_kuerzel' => $all->whereNotNull('kuerzel')->keyBy('kuerzel'),
+            ];
         }
 
-        $startLesson = $this->lessonTimeCache
+        return $this->klassenCache['by_name'][$kuerzel]
+            ?? $this->klassenCache['by_kuerzel'][$kuerzel]
+            ?? null;
+    }
+
+    /**
+     * TODO-6: Ermittelt die Zeitraster-ID für eine VP-Aktion anhand der Klassen-Kürzel.
+     * Bei Klassen mit unterschiedlichen Zeitrastern wird eine Warnung geloggt.
+     */
+    private function resolveZeitrasterId(object $aktion): ?int
+    {
+        $klassen = $aktion->Klassen ?? $aktion->VKlassen ?? [];
+        $gefundeneIds = [];
+
+        foreach ($klassen as $kuerzel) {
+            $klasse = $this->findKlasse($kuerzel);
+            if ($klasse) {
+                $id = $klasse->getEffectiveZeitrasterId();
+                if ($id) {
+                    $gefundeneIds[$id] = $kuerzel;
+                }
+            }
+        }
+
+        if (count($gefundeneIds) > 1) {
+            Log::warning('VP-Raum: Aktion enthält Klassen mit unterschiedlichen Zeitrastern', [
+                'ak_id'      => $aktion->Ak_Id ?? null,
+                'zeitraster' => $gefundeneIds,
+                'verwendet'  => array_key_first($gefundeneIds),
+            ]);
+        }
+
+        return array_key_first($gefundeneIds) ?? Zeitraster::getStandard()?->id;
+    }
+
+    /**
+     * TODO-7: Zeitraster-bewusster In-Memory-Cache für LessonTimes.
+     * Cache ist nach zeitraster_id partitioniert (groupBy).
+     * Null-Keys werden von groupBy() als '' gespeichert → globale Einträge.
+     */
+    private function resolveTimeRangeCached(
+        int $period, int $count = 1, ?string $week = null, ?int $zeitrasterId = null
+    ): ?array {
+        if ($this->lessonTimeCache === null) {
+            $this->lessonTimeCache = LessonTime::all()->groupBy('zeitraster_id');
+        }
+
+        // Pool für dieses Zeitraster; Fallback auf globale Einträge (zeitraster_id = null → key '')
+        $pool = $this->lessonTimeCache[$zeitrasterId]
+            ?? $this->lessonTimeCache['']
+            ?? collect();
+
+        $startLesson = $pool
             ->where('period', $period)
-            ->sortBy(fn($lt) => $lt->week === null ? 1 : 0) // spezifische Woche zuerst
-            ->first(fn($lt) => $lt->week === $week || $lt->week === null);
+            ->sortBy(fn ($lt) => $lt->week === null ? 1 : 0) // spezifische Woche zuerst
+            ->first(fn ($lt) => $lt->week === $week || $lt->week === null);
 
         if (!$startLesson) {
             Log::warning("LessonTime: Keine Zeitangabe für Stunde {$period} (Woche: {$week})");
@@ -371,10 +440,10 @@ class RoomBookingFromVpService
         }
 
         $endPeriodNum = $period + $count - 1;
-        $endLesson    = $this->lessonTimeCache
+        $endLesson    = $pool
             ->where('period', $endPeriodNum)
-            ->sortBy(fn($lt) => $lt->week === null ? 1 : 0)
-            ->first(fn($lt) => $lt->week === $week || $lt->week === null);
+            ->sortBy(fn ($lt) => $lt->week === null ? 1 : 0)
+            ->first(fn ($lt) => $lt->week === $week || $lt->week === null);
 
         return [
             'start' => $startLesson->start,
