@@ -46,7 +46,7 @@ class RoomBookingFromVpService
      */
     public function processAktion(object $aktion, Carbon $date, ?string $week = null): void
     {
-        if (!settings('vp_room_integration_enabled', true)) {
+        if (!(settings('vp_room_integration_enabled') ?? true)) {
             return;
         }
 
