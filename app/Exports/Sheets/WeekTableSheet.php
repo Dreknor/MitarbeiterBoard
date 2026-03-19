@@ -193,11 +193,11 @@ class WeekTableSheet implements FromArray, WithHeadings, WithStyles, WithColumnW
                         $cellLines[] = '[Termin] ' . ($time ? $time . ' ' : '') . $apt['title'];
                     }
 
-                    // Klassen-Termine auch in Schüler-Zellen (TODO 15)
+                    // Klassen-Termine auch in Schüler-Zellen
                     $classApts = $this->appointmentsByKlasseDate[$klasse->id][$dateStr]['class'] ?? [];
                     foreach ($classApts as $apt) {
                         $time        = $this->formatTime($apt['start_time']);
-                        $cellLines[] = '[Kl.-Termin] ' . ($time ? $time . ' ' : '') . $apt['title'];
+                        $cellLines[] = $apt['title'];
                     }
 
                     // Notizen (offen und abgeschlossen)
@@ -220,14 +220,13 @@ class WeekTableSheet implements FromArray, WithHeadings, WithStyles, WithColumnW
                             }
                         }
 
-                        $icon     = $isCompleted ? '✔' : '⏳';
+
                         $category = $entry->category?->name ?? '';
-                        $catPart  = $category ? " [{$category}]" : '';
                         $content  = $entry->content ?? '';
                         if (mb_strlen($content) > 200) {
                             $content = mb_substr($content, 0, 197) . '…';
                         }
-                        $cellLines[] = "{$icon}{$catPart} {$content}";
+                        $cellLines[] = "{$content}";
                     }
 
                     $stuRow[] = implode("\n", $cellLines);
