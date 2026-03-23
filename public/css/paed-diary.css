@@ -109,8 +109,8 @@ body.paed-hide-sidebar #tw-main {
 #diaryTable th.schueler_name_field,
 #diaryTable td.schueler_name_field,
 #diaryTable th.schueler_name_field a {
-  width: 200px !important;
-  max-width: 200px !important;
+  width: 130px !important;
+  max-width: 130px !important;
   white-space: normal !important;
   overflow-wrap: break-word;
   word-break: break-word;

@@ -107,8 +107,15 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     {
         $data = [];
 
-        // Gruppiere Einträge nach Datum
-        $entriesByDate = $this->entries->groupBy('date');
+        // Gruppierte Einträge nach ihrem Startdatum indexieren
+        $entriesByStartDate = collect();
+        foreach ($this->entries as $entry) {
+            $startDate = $entry['date_from'] ?? $entry['date'];
+            if (!$entriesByStartDate->has($startDate)) {
+                $entriesByStartDate[$startDate] = collect();
+            }
+            $entriesByStartDate[$startDate]->push($entry);
+        }
 
         // Erstelle eine Zeile für jeden Tag im Zeitraum
         $period = new \DatePeriod(
@@ -119,10 +126,10 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
         foreach ($period as $date) {
             $dateString = $date->format('Y-m-d');
-            $dayEntries = $entriesByDate->get($dateString, collect());
+            $dayEntries = $entriesByStartDate->get($dateString, collect());
 
             if ($dayEntries->isEmpty()) {
-                // Leere Zeile für Tage ohne Einträge
+                // Leere Zeile für Tage ohne (startende) Einträge – nur Spalten-Werte
                 $row = [
                     'Datum'     => $date->format('d.m.Y'),
                     'Kategorie' => '',
@@ -130,77 +137,33 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
                     'Autor'     => '',
                     'Status'    => '',
                 ];
-
-                // Spalten-Werte hinzufügen (verwende sortierte Spalten)
-                foreach ($this->sortedColumns as $column) {
-                    $columnId = $column['id'];
-                    $columnName = $column['name'];
-
-                    // Hole den Wert für diese Spalte an diesem Datum
-                    $value = '';
-
-                    // Suche sowohl nach reinem Datum als auch nach Datum mit Timestamp
-                    $searchKeys = [
-                        $dateString,  // "2025-08-20"
-                        $dateString . ' 00:00:00'  // "2025-08-20 00:00:00"
-                    ];
-
-                    foreach ($searchKeys as $searchKey) {
-                        if ($this->columnValues->has($searchKey)) {
-                            $dayValues = $this->columnValues->get($searchKey);
-                            if ($dayValues->has($columnId)) {
-                                $valueModel = $dayValues->get($columnId);
-                                $value = $valueModel->value ?? '';
-                                break; // Gefunden, stoppe die Suche
-                            }
-                        }
-                    }
-
-                    $row[$columnName] = $value;
-                }
-
+                $this->appendColumnValues($row, $dateString);
                 $data[] = $row;
             } else {
-                // Eine Zeile pro Eintrag
+                // Eine Zeile pro (gruppiertem) Eintrag
                 foreach ($dayEntries as $index => $entry) {
+                    $dateFrom = $entry['date_from'] ?? $entry['date'];
+                    $dateTo   = $entry['date_to'] ?? $entry['date'];
+
+                    // Datumsbereich formatieren
+                    if ($dateFrom !== $dateTo) {
+                        $datumLabel = Carbon::parse($dateFrom)->format('d.m.Y') . ' – ' . Carbon::parse($dateTo)->format('d.m.Y');
+                    } else {
+                        $datumLabel = $date->format('d.m.Y');
+                    }
+
                     $row = [
-                        'Datum'     => $date->format('d.m.Y'),
+                        'Datum'     => $datumLabel,
                         'Kategorie' => $entry['category'] ?? '',
                         'Notizen'   => $entry['content'] ?? '',
                         'Autor'     => $entry['user'] ?? '',
                         'Status'    => !empty($entry['completed_at']) ? 'Erledigt' : 'Offen',
                     ];
 
-                    // Spalten-Werte hinzufügen (nur bei erstem Eintrag des Tages)
+                    // Spalten-Werte nur beim ersten Eintrag des Tages
                     if ($index === 0) {
-                        foreach ($this->sortedColumns as $column) {
-                            $columnId = $column['id'];
-                            $columnName = $column['name'];
-
-                            // Hole den Wert für diese Spalte an diesem Datum
-                            $value = '';
-
-                            // Suche sowohl nach reinem Datum als auch nach Datum mit Timestamp
-                            $searchKeys = [
-                                $dateString,  // "2025-08-20"
-                                $dateString . ' 00:00:00'  // "2025-08-20 00:00:00"
-                            ];
-
-                            foreach ($searchKeys as $searchKey) {
-                                if ($this->columnValues->has($searchKey)) {
-                                    $dayValues = $this->columnValues->get($searchKey);
-                                    if ($dayValues->has($columnId)) {
-                                        $valueModel = $dayValues->get($columnId);
-                                        $value = $valueModel->value ?? '';
-                                        break; // Gefunden, stoppe die Suche
-                                    }
-                                }
-                            }
-
-                            $row[$columnName] = $value;
-                        }
+                        $this->appendColumnValues($row, $dateString);
                     } else {
-                        // Leere Spalten für weitere Einträge des gleichen Tages
                         foreach ($this->sortedColumns as $column) {
                             $row[$column['name']] = '';
                         }
@@ -212,6 +175,36 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
         }
 
         return $data;
+    }
+
+    /**
+     * Hängt die Spalten-Werte für ein bestimmtes Datum an die Zeile an.
+     */
+    protected function appendColumnValues(array &$row, string $dateString): void
+    {
+        foreach ($this->sortedColumns as $column) {
+            $columnId = $column['id'];
+            $columnName = $column['name'];
+            $value = '';
+
+            $searchKeys = [
+                $dateString,
+                $dateString . ' 00:00:00'
+            ];
+
+            foreach ($searchKeys as $searchKey) {
+                if ($this->columnValues->has($searchKey)) {
+                    $dayValues = $this->columnValues->get($searchKey);
+                    if ($dayValues->has($columnId)) {
+                        $valueModel = $dayValues->get($columnId);
+                        $value = $valueModel->value ?? '';
+                        break;
+                    }
+                }
+            }
+
+            $row[$columnName] = $value;
+        }
     }
 
     public function headings(): array
@@ -233,7 +226,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     public function columnWidths(): array
     {
         $widths = [
-            'A' => 12, // Datum
+            'A' => 22, // Datum (ggf. Bereich DD.MM.YYYY – DD.MM.YYYY)
             'B' => 20, // Kategorie
             'C' => 50, // Notizen
             'D' => 15, // Autor

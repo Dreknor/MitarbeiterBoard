@@ -25,7 +25,7 @@ export function registerStageDropdown(Alpine) {
                 return '<span class="badge badge-light" title="Stufe setzen">Stufe</span>';
             }
             if (stu.stage.image_url) {
-                return `<img src="${escapeHtml(stu.stage.image_url)}" alt="${escapeHtml(stu.stage.name)}" title="${escapeHtml(stu.stage.name)}" class="stage-image" style="width:20px;height:20px;object-fit:contain;">`;
+                return `<img src="${escapeHtml(stu.stage.image_url)}" alt="${escapeHtml(stu.stage.name)}" title="${escapeHtml(stu.stage.name)}" class="stage-image" style="width:28px;height:28px;object-fit:contain;">`;
             }
             if (stu.stage.symbol) {
                 return `<span class="badge badge-info" title="${escapeHtml(stu.stage.name)}">${escapeHtml(stu.stage.symbol)}</span>`;

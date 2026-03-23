@@ -98,7 +98,7 @@ td.absent-cell {
 
 .name_column,
 .schueler_name_field {
-    max-width: 180px;
+    max-width: 130px;
     white-space: normal !important;
     overflow-wrap: break-word;
     word-wrap: break-word;

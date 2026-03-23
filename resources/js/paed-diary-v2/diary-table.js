@@ -95,14 +95,65 @@ export function registerDiaryTable(Alpine) {
         },
 
         /**
-         * Hat der Schüler offene Aufgaben?
+         * Hat der Schüler offene Aufgaben oder Notizen?
          */
         hasTaskForStudent(stuId) {
             const store = this.$store.diary;
-            const hasTask = (store.tasks || []).some(t => t.schueler_id === stuId);
-            if (hasTask) return true;
-            // Auch offene Einträge prüfen
-            return (store.entries || []).some(e => !e.completed_at && (e.schueler_ids || []).includes(stuId));
+            if ((store.tasks || []).some(t => t.schueler_id === stuId)) return true;
+            return (store.open_entries || []).some(e => (e.schueler_ids || []).includes(stuId));
+        },
+
+        /**
+         * Offene Notizen (open_entries) für einen Schüler.
+         */
+        getOpenEntriesForStudent(stuId) {
+            const store = this.$store.diary;
+            return (store.open_entries || []).filter(e => (e.schueler_ids || []).includes(stuId));
+        },
+
+        /**
+         * Offene Aufgaben (tasks) für einen Schüler.
+         */
+        getOpenTasksForStudent(stuId) {
+            const store = this.$store.diary;
+            return (store.tasks || []).filter(t => t.schueler_id === stuId);
+        },
+
+        /**
+         * Offene Notiz aus der Namensspalte abschließen (wie v1 complete-entry-btn).
+         */
+        async completeOpenEntry(entryId) {
+            try {
+                const resp = await fetch(`/paed-diary/entry/${entryId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ completed_at: new Date().toISOString().slice(0, 10) })
+                });
+                const j = await resp.json();
+                if (j.success) this.$store.diary.loadWeek();
+            } catch (_) {
+                alert('Fehler beim Abschließen der Notiz');
+            }
+        },
+
+        /**
+         * Offene Aufgabe aus der Namensspalte ausblenden (wie v1 close-task-btn).
+         */
+        async closeOpenTask(taskId) {
+            try {
+                const resp = await fetch(`/paed-diary/task/${taskId}/close`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' }
+                });
+                const j = await resp.json();
+                if (j.success) this.$store.diary.loadWeek();
+            } catch (_) {
+                alert('Fehler beim Schließen der Aufgabe');
+            }
         },
 
         /**

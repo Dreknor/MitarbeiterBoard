@@ -43,52 +43,92 @@
 
                     {{-- Schülername --}}
                     <th class="align-top schueler_name_field" style="font-size:.72rem;">
-                        <a :href="'/paed-diary/schueler/' + stu.id"
-                           class="text-decoration-none"
-                           title="Detailansicht öffnen">
-                            <span x-text="stu.name"></span>
-                            <i class="fas fa-external-link-alt small ml-1"></i>
-                        </a>
-                        <span class="badge badge-light ml-1" x-text="getKlasseKuerzel(stu.klasse_id)"></span>
+                        <div class="d-flex align-items-start" style="gap:4px;">
+                            {{-- Stufen-Symbol (links, größer) --}}
+                            <span x-data="stageDropdown()" class="position-relative flex-shrink-0" style="cursor:pointer;">
+                                <span @click.stop="openDropdown(stu.id, stu.klasse_id)"
+                                      x-show="$store.diary.can_manage_grading"
+                                      x-html="stageHtml(stu)"></span>
+                                <span x-show="!$store.diary.can_manage_grading"
+                                      x-html="stageHtml(stu)"></span>
 
-                        {{-- Stufen-Symbol --}}
-                        <span x-data="stageDropdown()" class="ml-1 position-relative" style="cursor:pointer">
-                            <span @click.stop="openDropdown(stu.id, stu.klasse_id)"
-                                  x-show="$store.diary.can_manage_grading"
-                                  x-html="stageHtml(stu)"></span>
-                            <span x-show="!$store.diary.can_manage_grading"
-                                  x-html="stageHtml(stu)"></span>
-
-                            {{-- Stufen-Dropdown (inline) --}}
-                            <div x-show="dropdownOpen && dropdownStuId === stu.id"
-                                 x-cloak
-                                 @click.outside="closeDropdown()"
-                                 class="position-absolute bg-white border rounded shadow-sm p-1"
-                                 style="z-index:9999; min-width:140px; top:100%; left:0;">
-                                <div x-show="stageLoading" class="small text-muted p-1">Lade...</div>
-                                <template x-if="!stageLoading">
-                                    <div style="display:flex; flex-direction:column; gap:4px;">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary text-left"
-                                                @click="selectStage('')">
-                                            <span style="width:20px;display:inline-block;text-align:center;">—</span> Keine Stufe
-                                        </button>
-                                        <template x-for="stage in stages" :key="stage.id">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary text-left d-flex align-items-center"
-                                                    style="gap:8px"
-                                                    @click="selectStage(stage.id)">
-                                                <template x-if="stage.image_url">
-                                                    <img :src="stage.image_url" :alt="stage.name" style="width:20px;height:20px;object-fit:contain;">
-                                                </template>
-                                                <template x-if="!stage.image_url && stage.symbol">
-                                                    <span class="badge badge-info" x-text="stage.symbol"></span>
-                                                </template>
-                                                <span x-text="stage.name || stage.symbol || ('Stufe ' + stage.id)"></span>
+                                {{-- Stufen-Dropdown (inline) --}}
+                                <div x-show="dropdownOpen && dropdownStuId === stu.id"
+                                     x-cloak
+                                     @click.outside="closeDropdown()"
+                                     class="position-absolute bg-white border rounded shadow-sm p-1"
+                                     style="z-index:9999; min-width:140px; top:100%; left:0;">
+                                    <div x-show="stageLoading" class="small text-muted p-1">Lade...</div>
+                                    <template x-if="!stageLoading">
+                                        <div style="display:flex; flex-direction:column; gap:4px;">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary text-left"
+                                                    @click="selectStage('')">
+                                                <span style="width:20px;display:inline-block;text-align:center;">—</span> Keine Stufe
                                             </button>
-                                        </template>
-                                    </div>
-                                </template>
+                                            <template x-for="stage in stages" :key="stage.id">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary text-left d-flex align-items-center"
+                                                        style="gap:8px"
+                                                        @click="selectStage(stage.id)">
+                                                    <template x-if="stage.image_url">
+                                                        <img :src="stage.image_url" :alt="stage.name" style="width:20px;height:20px;object-fit:contain;">
+                                                    </template>
+                                                    <template x-if="!stage.image_url && stage.symbol">
+                                                        <span class="badge badge-info" x-text="stage.symbol"></span>
+                                                    </template>
+                                                    <span x-text="stage.name || stage.symbol || ('Stufe ' + stage.id)"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </span>
+
+                            {{-- Schülername --}}
+                            <div style="min-width:0;">
+                                <a :href="'/paed-diary/schueler/' + stu.id"
+                                   class="text-decoration-none"
+                                   title="Detailansicht öffnen">
+                                    <span x-text="stu.name"></span>
+                                </a>
                             </div>
-                        </span>
+                        </div>
+
+                        {{-- Offene Notizen – volle Spaltenbreite, blauer Hintergrund (wie Eintrag-Button) --}}
+                        <template x-for="entry in getOpenEntriesForStudent(stu.id)" :key="'oe-' + entry.id">
+                            <div class="d-flex justify-content-between align-items-start mb-1"
+                                 style="background:#dbeafe; border:1px solid #93c5fd; border-radius:4px; padding:2px 4px; margin-top:3px;">
+                                <div class="flex-grow-1" style="min-width:0;">
+                                    <i class="fas fa-comment-alt mr-1" style="color:#2563eb;"></i>
+                                    <span x-text="trimText(entry.content, 60)"></span>
+                                    <template x-if="entry.user">
+                                        <span class="text-muted small" x-text="'(' + entry.user + ')'"></span>
+                                    </template>
+                                </div>
+                                <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
+                                        title="Notiz abschließen"
+                                        @click.stop="completeOpenEntry(entry.id)">✔</button>
+                            </div>
+                        </template>
+
+                        {{-- Offene Aufgaben – volle Spaltenbreite, grüner Hintergrund (wie Aufgabe-Button) --}}
+                        <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'ot-' + task.id">
+                            <div class="d-flex justify-content-between align-items-start mb-1"
+                                 :style="task.highlighted
+                                     ? 'background:#fee2e2; border:1px solid #fca5a5; border-radius:4px; padding:2px 4px; margin-top:3px;'
+                                     : 'background:#d1fae5; border:1px solid #6ee7b7; border-radius:4px; padding:2px 4px; margin-top:3px;'">
+                                <div class="flex-grow-1" style="min-width:0;">
+                                    <i class="fas fa-tasks mr-1" :style="task.highlighted ? 'color:#dc2626;' : 'color:#059669;'"></i>
+                                    <span :class="task.highlighted ? 'font-weight-bold' : ''" x-text="task.title"></span>
+                                    <template x-if="task.due_date">
+                                        <span class="text-muted small ml-1"
+                                              x-text="'(' + (new Date(task.due_date) < new Date() ? 'Fällig: ' : '') + new Date(task.due_date).toLocaleDateString('de-DE') + ')'"></span>
+                                    </template>
+                                </div>
+                                <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
+                                        title="Aufgabe ausblenden"
+                                        @click.stop="closeOpenTask(task.id)">✕</button>
+                            </div>
+                        </template>
                     </th>
 
                     {{-- Tages-Zellen --}}

@@ -1318,8 +1318,11 @@ class PaedDiaryController extends Controller
                     'category' => ((is_object($e->category))? $e->category->name : ''),
                     'category_id' => $e->category_id,
                     'dossier_only' => $e->dossier_only,
-
+                    'completed_at' => $e->completed_at?->toDateString(),
                 ]);
+
+            // Aufeinanderfolgende Tage mit identischem Inhalt gruppieren
+            $entries = $this->groupConsecutiveEntries($entries);
 
             // Aktuelle Stage und Historie (mit Bild/Sort-Order und menschlichem Namen des Änderers)
             $schueler->load('grading_stage', 'grading_history.stage', 'grading_history.previous_stage', 'grading_history.changed_by_user');
@@ -1469,8 +1472,11 @@ class PaedDiaryController extends Controller
                 'formatted_date' => $e->datum->format('d.m.Y'),
                 'category'       => $e->category?->name ?? '',
                 'category_id'    => $e->category_id,
-                'completed_at'   => $e->completed_at,
+                'completed_at'   => $e->completed_at?->toDateString(),
             ]);
+
+        // Aufeinanderfolgende Tage mit identischem Inhalt gruppieren
+        $entries = $this->groupConsecutiveEntries($entries);
 
         // Spalten für die Klasse laden (transformiert)
         $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
@@ -1702,6 +1708,59 @@ class PaedDiaryController extends Controller
             ->get(['id', 'vorname', 'nachname', 'klasse_id']);
 
         return response()->json(['schueler' => $schueler]);
+    }
+
+    /**
+     * Gruppiert aufeinanderfolgende Einträge mit identischem Inhalt/Autor/Kategorie
+     * zu einem Eintrag mit date_from / date_to Zeitraum.
+     *
+     * Voraussetzung: $entries ist bereits nach datum sortiert.
+     *
+     * @param \Illuminate\Support\Collection $entries  Kollektion mit assoziativen Arrays (id, date, content, user, category, …)
+     * @return \Illuminate\Support\Collection
+     */
+    private function groupConsecutiveEntries($entries): \Illuminate\Support\Collection
+    {
+        if ($entries->isEmpty()) {
+            return collect();
+        }
+
+        $grouped = [];
+        $current = null;
+
+        foreach ($entries as $entry) {
+            $entryDate = $entry['date'];
+
+            // Gruppierungsschlüssel: Inhalt + Autor + Kategorie-ID
+            $key = ($entry['content'] ?? '') . '|' . ($entry['user'] ?? '') . '|' . ($entry['category_id'] ?? '');
+
+            if ($current !== null
+                && $current['_group_key'] === $key
+                && Carbon::parse($entryDate)->diffInDays(Carbon::parse($current['date_to'])) === 1
+            ) {
+                // Aufeinanderfolgende Tage → Gruppe erweitern
+                $current['date_to'] = $entryDate;
+            } else {
+                // Vorherige Gruppe abschließen
+                if ($current !== null) {
+                    unset($current['_group_key']);
+                    $grouped[] = $current;
+                }
+                // Neue Gruppe starten
+                $current = $entry;
+                $current['date_from'] = $entryDate;
+                $current['date_to'] = $entryDate;
+                $current['_group_key'] = $key;
+            }
+        }
+
+        // Letzte Gruppe abschließen
+        if ($current !== null) {
+            unset($current['_group_key']);
+            $grouped[] = $current;
+        }
+
+        return collect($grouped);
     }
 
     /**

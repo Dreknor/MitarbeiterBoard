@@ -1082,7 +1082,18 @@
         document.getElementById('entriesCount').textContent = filteredEntries.length;
         document.getElementById('tasksCount').textContent = (currentData.tasks || []).length;
 
-        const uniqueDays = new Set(filteredEntries.map(e => e.date));
+        const uniqueDays = new Set();
+        filteredEntries.forEach(e => {
+            const from = e.date_from || e.date;
+            const to = e.date_to || e.date;
+            // Alle Tage im Bereich sammeln
+            let d = new Date(from);
+            const end = new Date(to);
+            while (d <= end) {
+                uniqueDays.add(d.toISOString().split('T')[0]);
+                d.setDate(d.getDate() + 1);
+            }
+        });
         document.getElementById('daysWithEntriesCount').textContent = uniqueDays.size;
 
         // Update Badges
@@ -1129,7 +1140,7 @@
         }
     }
 
-    // Render Entries (zeigt Kategorie als Badge falls vorhanden)
+    // Render Entries (zeigt Kategorie als Badge falls vorhanden, Datumsbereich bei mehrtägigen Einträgen)
     function renderEntries(entries) {
         const tbody = document.getElementById('entriesTableBody');
         tbody.innerHTML = '';
@@ -1154,9 +1165,18 @@
                 if (cid && categoryMap.has(String(cid))) categoryName = categoryMap.get(String(cid));
             }
 
+            // Datumsbereich berechnen
+            const dateFrom = entry.date_from || entry.date;
+            const dateTo = entry.date_to || entry.date;
+            let datumHtml;
+            if (dateFrom !== dateTo) {
+                datumHtml = `<span title="Mehrtägiger Eintrag">${formatDisplayDate(dateFrom)}<br>– ${formatDisplayDate(dateTo)}</span>`;
+            } else {
+                datumHtml = formatDisplayDate(dateFrom);
+            }
 
             row.innerHTML = `
-                <td class="px-4 py-3 text-center whitespace-nowrap">${formatDisplayDate(entry.date)}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${datumHtml}</td>
                 <td class="px-4 py-3">${escapeHtml(entry.content)}</td>
                 <td class="px-4 py-3">${escapeHtml(categoryName)}</td>
                 <td class="px-4 py-3 text-center">${escapeHtml(entry.user || '')}</td>
