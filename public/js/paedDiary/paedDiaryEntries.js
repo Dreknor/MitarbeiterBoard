@@ -480,6 +480,13 @@ function initializeEntriesModule(options){
         try{ if(noteEditorCard && typeof noteEditorCard.scrollIntoView === 'function'){ noteEditorCard.scrollIntoView({behavior:'smooth', block:'center'}); } }catch(_){ }
     }
     function populateForEdit(entryEl){ if(!entryEl) return; const entryId = entryEl.dataset.entry; const cache = getCache(); const entryObj = (cache.entries||[]).find(e=> String(e.id)===String(entryId)); if(!entryObj) return; showEditor(); clearEditor(); noteEditorTitle.textContent='Notiz bearbeiten'; noteDeleteBtn.classList.remove('d-none'); noteEntryIdInput.value = entryId; const dateDisp = entryEl.dataset.dateDisplay || entryObj.date; if(dateDisp) noteDateInput.value = dateDisp; try{ noteContentInput.value = decodeURIComponent(entryEl.dataset.content||''); }catch(_){ noteContentInput.value = entryEl.dataset.content||''; } (entryObj.schueler_ids||[]).forEach(id=>{ const cb = document.getElementById('stu_chk_'+id); if(cb) cb.checked=true; });
+        // set completed and dossier_only checkboxes
+        try{
+            const completedCb = document.getElementById('noteCompleted');
+            if(completedCb) completedCb.checked = !!entryObj.completed_at;
+            const dossierCb = document.getElementById('dossier_only_input');
+            if(dossierCb) dossierCb.checked = !!entryObj.dossier_only;
+        }catch(_){ }
         // set category fields if present
         try{
             if(noteCategory){
@@ -510,8 +517,8 @@ function initializeEntriesModule(options){
          const completedCheckbox = document.getElementById('noteCompleted');
          if(completedCheckbox && !completedCheckbox.checked){ fd.delete('completed'); } else { fd.set('completed','1'); }
 
-         const dossier_onlyCheckbox = document.getElementById('noteCompleted');
-        if(dossier_onlyCheckbox && !dossier_onlyCheckbox.checked){ fd.delete('dossier_only'); } else { fd.set('dossier_only','1'); }
+         const dossier_onlyCheckbox = document.getElementById('dossier_only_input');
+        if(dossier_onlyCheckbox && !dossier_onlyCheckbox.checked){ fd.delete('dossier_only'); } else if(dossier_onlyCheckbox && dossier_onlyCheckbox.checked){ fd.set('dossier_only','1'); }
 
          const id = noteEntryIdInput.value;
          const url = id?`paed-diary/entry/${id}`:'paed-diary/entry';

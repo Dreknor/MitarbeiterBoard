@@ -1,0 +1,31 @@
+/* PaedDiary v2: Tailwind v4 – Preflight NICHT laden (Bootstrap bleibt erhalten) */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* ── Quell-Dateien für Tailwind-Klassen-Scan ────────────────────────────── */
+@source "../views/paedDiary/v2/**/*.blade.php";
+@source "../js/paed-diary-v2/**/*.js";
+
+[x-cloak] { display: none !important; }
+
+/* ── Floating Toggle-Button: in v2 nicht benötigt ──────────────────────
+
+   ───────────────────────────────────────────────────────────────────── */
+.paed-toggle-btn {
+    display: none !important;
+}
+
+/* ── Loading-Skeleton ──────────────────────────────────────────────────── */
+.diary-loading-skeleton {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    height: 1em;
+}
+
+@keyframes skeleton-pulse {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+

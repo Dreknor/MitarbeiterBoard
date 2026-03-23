@@ -753,8 +753,13 @@ Route::group([
 
                 // Pädagogisches Tagebuch
                 Route::middleware(['permission:view paed diary'])->group(function () {
-                    Route::get('paed-diary', [\App\Http\Controllers\PaedDiaryController::class, 'index'])->name('paedDiary.index');
-                    Route::get('paed-diary/week', [\App\Http\Controllers\PaedDiaryController::class, 'weekData'])->name('paedDiary.week');
+                    //V1 - view
+                    Route::get('paed-diary/v1', [\App\Http\Controllers\PaedDiaryController::class, 'index'])->name('paedDiary.v1.index');
+
+                    // v2: Blade + Alpine.js Frontend (parallel zum bestehenden)
+                    Route::get('paed-diary/', [\App\Http\Controllers\PaedDiaryController::class, 'indexV2'])->name('paedDiary.index');
+
+                   Route::get('paed-diary/week', [\App\Http\Controllers\PaedDiaryController::class, 'weekData'])->name('paedDiary.week');
                     Route::get('paed-diary/cell-entries', [\App\Http\Controllers\PaedDiaryController::class, 'cellEntries'])->name('paedDiary.cell');
                     Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerView'])->name('paedDiary.schueler.view');
                     Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerData'])->name('paedDiary.schueler.data');

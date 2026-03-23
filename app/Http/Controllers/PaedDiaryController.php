@@ -90,6 +90,56 @@ class PaedDiaryController extends Controller
     }
 
     /**
+     * Pädagogisches Tagebuch v2 (Blade + Alpine.js Frontend).
+     * Identische Datenvorbereitung wie index(), rendert aber die v2-View.
+     *
+     * @param Request $request
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     */
+    public function indexV2(Request $request)
+    {
+        $user = Auth::user();
+        $klassen = $user->paed_klassen()->withCount('schueler')->orderBy('name')->get();
+        if ($klassen->isEmpty()) {
+            return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Keine Klassen zugewiesen.']);
+        }
+
+        $groups = Auth::user()->paed_diary_class_groups()->with('klassen:id,name')->get();
+
+        $klasse = null;
+        $selectedGroup = null;
+
+        if ($request->filled('group')) {
+            $selectedGroup = $groups->firstWhere('id', (int)$request->get('group'));
+            if ($selectedGroup) {
+                $klasse = $klassen->firstWhere('id', $selectedGroup->klassen->first()?->id) ?? $klassen->first();
+            }
+        } elseif ($request->filled('klasse')) {
+            $klasse = $klassen->firstWhere('id', (int)$request->get('klasse'));
+        }
+
+        if (!$klasse && !$selectedGroup) {
+            if ($groups->isNotEmpty()) {
+                $selectedGroup = $groups->first();
+                $klasse = $klassen->firstWhere('id', $selectedGroup->klassen->first()?->id) ?? $klassen->first();
+            } else {
+                $klasse = $klassen->first();
+            }
+        }
+
+        if (!$klasse) {
+            $klasse = $klassen->first();
+        }
+
+        return view('paedDiary.v2.index', [
+            'klassen' => $klassen,
+            'klasse' => $klasse,
+            'groups' => $groups,
+            'selectedGroup' => $selectedGroup,
+        ]);
+    }
+
+    /**
      * Erzeugt einen Cache-Key für eine Klassen-Woche.
      *
      * @param int $klasseId
@@ -212,6 +262,7 @@ class PaedDiaryController extends Controller
             ->whereIn('klasse_id', $klassen->pluck('id'))
             ->where('datum', '<', $weekStart->toDateString())
             ->whereNull('completed_at')
+            ->where('dossier_only', false)
             ->get();
 
         // Beide Collections zusammenführen
@@ -250,13 +301,15 @@ class PaedDiaryController extends Controller
             'completed_at' => $e->completed_at,
             'klasse_id' => $e->klasse_id,
             'category_id' => $e->category_id,
-            'category' => (is_object($e->category)) ? $e->category->name : null
+            'category' => (is_object($e->category)) ? $e->category->name : null,
+            'dossier_only' => (bool) $e->dossier_only,
         ]);
 
         // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen)
         $allOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
             ->whereIn('klasse_id', $klassen->pluck('id'))
             ->whereNull('completed_at')
+            ->where('dossier_only', false)
             ->where('datum', '<=', $periodEnd->toDateString()) // Nur Notizen bis zum Ende der aktuellen Woche
             ->get();
         $openEntries = $allOpenEntries->map(fn($e) => [
@@ -503,6 +556,7 @@ class PaedDiaryController extends Controller
         if ($isGroup) {
             $group = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
+            $isDossierOnly = $request->has('dossier_only') ? true : false;
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 $schuelerIds = Schueler::whereIn('id', $validated['schueler_ids'])
                     ->where('klasse_id', $klasse->id)->pluck('id')->all();
@@ -512,8 +566,9 @@ class PaedDiaryController extends Controller
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => $request->has('completed') ? Carbon::now() : null,
-                    'category_id' => $categoryId
+                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
+                    'category_id' => $categoryId,
+                    'dossier_only' => $isDossierOnly,
                 ]);
                 $entry->schueler()->sync($schuelerIds);
                 $this->forgetWeekCache($klasse->id, $dateObj);
@@ -541,14 +596,15 @@ class PaedDiaryController extends Controller
 
         foreach ($byClass as $klasseId => $students) {
             try {
+                $isDossierOnly = $request->has('dossier_only') ? true : false;
                 $entry = PaedDiaryEntry::create([
                     'klasse_id' => $klasseId,
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => $request->has('completed') ? Carbon::now() : null,
+                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
                     'category_id' => $categoryId,
-                    'dossier_only' => $request->has('dossier_only') ? true : false,
+                    'dossier_only' => $isDossierOnly,
                 ]);
                 $entry->schueler()->sync($students->pluck('id')->all());
                 $this->forgetWeekCache($klasseId, $dateObj);
@@ -610,8 +666,9 @@ class PaedDiaryController extends Controller
         }
 
         $wasCompleted = (bool)$entry->completed_at;
+        $isDossierOnly = $request->has('dossier_only') ? true : false;
         $completedAt = $entry->completed_at;
-        if ($request->has('completed')) {
+        if ($isDossierOnly || $request->has('completed')) {
             if (!$entry->completed_at) {
                 $completedAt = \Carbon\Carbon::now();
             }
@@ -625,7 +682,7 @@ class PaedDiaryController extends Controller
                 'content' => trim($validated['content']),
                 'completed_at' => $completedAt,
                 'category_id' => $categoryId,
-                'dossier_only' => $request->has('dossier_only') ? true : false,
+                'dossier_only' => $isDossierOnly,
             ]);
             $entry->schueler()->sync($validSchueler);
             // Falls gerade von offen -> abgeschlossen gewechselt: Klon-Logik anwenden

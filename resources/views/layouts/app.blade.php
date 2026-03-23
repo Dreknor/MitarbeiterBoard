@@ -115,8 +115,8 @@
 @yield('js')
 @stack('js')
 
-{{-- Paed-Diary spezifisches JS nur auf dieser Route laden --}}
-@if(request()->segment(1) == 'paed-diary')
+{{-- Paed-Diary Floating-Sidebar-Toggle nur für v1 laden (v2 nutzt den Topbar-Button) --}}
+@if(request()->segment(1) == 'paed-diary' && request()->segment(2) == 'v1')
     <script src="{{ asset('js/paed-diary.js') }}"></script>
 @endif
 

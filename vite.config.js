@@ -12,6 +12,8 @@ export default defineConfig({
                 'resources/css/diagnostics.css',
                 'resources/js/diagnostics.js',
                 'resources/css/paed-diary.css',
+                'resources/css/paed-diary-v2.css',
+                'resources/js/paed-diary-v2.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',
