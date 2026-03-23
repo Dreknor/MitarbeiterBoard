@@ -44,6 +44,16 @@
                     {{-- Schülername --}}
                     <th class="align-top schueler_name_field" style="font-size:.72rem;">
                         <div class="d-flex align-items-start" style="gap:4px;">
+
+                            {{-- Schülername --}}
+                            <div style="min-width:0;">
+                                <a :href="'/paed-diary/schueler/' + stu.id"
+                                   class="text-decoration-none"
+                                   title="Detailansicht öffnen">
+                                    <span x-text="stu.name"></span>
+                                </a>
+                            </div>
+
                             {{-- Stufen-Symbol (links, größer) --}}
                             <span x-data="stageDropdown()" class="position-relative flex-shrink-0" style="cursor:pointer;">
                                 <span @click.stop="openDropdown(stu.id, stu.klasse_id)"
@@ -83,14 +93,6 @@
                                 </div>
                             </span>
 
-                            {{-- Schülername --}}
-                            <div style="min-width:0;">
-                                <a :href="'/paed-diary/schueler/' + stu.id"
-                                   class="text-decoration-none"
-                                   title="Detailansicht öffnen">
-                                    <span x-text="stu.name"></span>
-                                </a>
-                            </div>
                         </div>
 
                         {{-- Offene Notizen – volle Spaltenbreite, blauer Hintergrund (wie Eintrag-Button) --}}
