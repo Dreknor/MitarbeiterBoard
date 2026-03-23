@@ -37,6 +37,8 @@ export function registerDiaryStore(Alpine) {
 
         // ── UI-Toggles (komponentenübergreifend) ────────────────────
         showPaused: false,
+        hideAllCategoryHeadings: localStorage.getItem('paedDiary_hideAllHeadings') === '1',
+        filterUncategorized: localStorage.getItem('paedDiary_filterUncategorized') === '1',
 
         // ── Termine (separat geladen) ──────────────────────────────
         appointments: [],

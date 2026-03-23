@@ -131,7 +131,7 @@
                                 <template x-for="group in getGroupedEntries(stu.id, day.date)" :key="group.category">
                                     <div>
                                         {{-- Kategorie-Überschrift --}}
-                                        <template x-if="!hideAllCategoryHeadings">
+                                        <template x-if="!$store.diary.hideAllCategoryHeadings">
                                             <div class="entry-category-header"
                                                  x-text="group.category || 'Ohne Kategorie'"></div>
                                         </template>

@@ -14,11 +14,6 @@ import { formatDate, trimText, formatTime, escapeHtml, csrfToken, getBrightness 
 export function registerDiaryTable(Alpine) {
     Alpine.data('diaryTable', () => ({
 
-        /** Toggle: Alle Kategorieüberschriften ausblenden */
-        hideAllCategoryHeadings: localStorage.getItem('paedDiary_hideAllHeadings') === '1',
-
-        /** Toggle: Einträge ohne Kategorie ausblenden */
-        filterUncategorized: localStorage.getItem('paedDiary_filterUncategorized') === '1',
 
         // ── Einträge pro Zelle berechnen ───────────────────────────
 
@@ -38,7 +33,7 @@ export function registerDiaryTable(Alpine) {
             (store.entries || []).forEach(e => {
                 // Kategoriefilter
                 if (e.category_id && hiddenCatIds.has(Number(e.category_id))) return;
-                if (!e.category_id && this.filterUncategorized) return;
+                if (!e.category_id && store.filterUncategorized) return;
                 if (!(e.schueler_ids || []).includes(stuId)) return;
                 if (store.isPaused(e.id, stuId, date)) return;
 
@@ -290,13 +285,15 @@ export function registerDiaryTable(Alpine) {
         // ── Kategorie-Filter ───────────────────────────────────────
 
         toggleCategoryHeadings() {
-            this.hideAllCategoryHeadings = !this.hideAllCategoryHeadings;
-            localStorage.setItem('paedDiary_hideAllHeadings', this.hideAllCategoryHeadings ? '1' : '0');
+            const store = this.$store.diary;
+            store.hideAllCategoryHeadings = !store.hideAllCategoryHeadings;
+            localStorage.setItem('paedDiary_hideAllHeadings', store.hideAllCategoryHeadings ? '1' : '0');
         },
 
         toggleFilterUncategorized() {
-            this.filterUncategorized = !this.filterUncategorized;
-            localStorage.setItem('paedDiary_filterUncategorized', this.filterUncategorized ? '1' : '0');
+            const store = this.$store.diary;
+            store.filterUncategorized = !store.filterUncategorized;
+            localStorage.setItem('paedDiary_filterUncategorized', store.filterUncategorized ? '1' : '0');
         },
 
         async toggleCategoryHidden(catId) {
