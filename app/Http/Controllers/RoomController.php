@@ -130,6 +130,8 @@ class RoomController extends Controller
             $result = [
                 'id'           => $booking->id,
                 'name'         => $booking->name,
+                'klassen'      => $booking->klassen,
+                'lehrer'       => $booking->lehrer,
                 'start'        => $booking->start,
                 'end'          => $booking->end,
                 'is_recurring' => $booking->is_recurring,
@@ -442,7 +444,7 @@ class RoomController extends Controller
 
         if ($request->deletePlan == true){
             foreach ($rooms as $room){
-                $room->bookings()->whereNull('date')->orWhere('date', '<=', now())->delete();
+                $room->bookings()->fromIndiwareXml()->forceDelete();
             }
         }
 
@@ -488,11 +490,12 @@ class RoomController extends Controller
          */
 
         $plan = $xml->parse([
-            'unterricht' => ['uses' => 'unterricht.un[un_nummer>id,un_fach>fach,un_klasse>klasse]'],
+            'unterricht' => ['uses' => 'unterricht.un[un_nummer>id,un_fach>fach,un_klasse>klasse,un_lehrer>lehrer]'],
             'plan' => ['uses' => 'plan.pl[pl_nummer>id,pl_raum>raum,pl_woche>woche,pl_stunde>stunde,pl_tag>tag]'],
         ]);
 
         $booking = [];
+        $updatedIds = [];
 
         $fehler = [];
 
@@ -547,6 +550,21 @@ class RoomController extends Controller
                 continue;
             }
 
+            // Eindeutige source_id aus Plan-Daten generieren
+            $sourceId = "pl_{$pl['id']}_{$pl['tag']}_{$pl['stunde']}_{$pl['woche']}";
+
+            // Klassen- und Lehrer-Kürzel extrahieren
+            $klasse = $plan['unterricht'][$unterricht_key]['klasse'] ?? '';
+            if (is_array($klasse)){
+                $klasse = implode(', ', $klasse);
+            }
+
+            $lehrer = $plan['unterricht'][$unterricht_key]['lehrer'] ?? '';
+            if (is_array($lehrer)){
+                $lehrer = implode(', ', $lehrer);
+            }
+
+            // Prüfe auf Kollision nur mit NICHT-Indiware-XML-Buchungen (manuelle/VP-Buchungen bleiben geschützt)
             $vergeben = RoomBooking::query()
                 ->where('room_id', $room->id)
                 ->where('weekday', $pl['tag'])
@@ -555,32 +573,44 @@ class RoomController extends Controller
                     $query->orWhereBetween('end', [$start->format('H:i'), $end->format('H:i')]);
                 })
                 ->where('week', $buchungsWoche)
+                ->where('source', '!=', 'indiware_xml')
                 ->count();
 
             if ($vergeben > 0){
                 $fehler[] = 'Raum '.$room->name.' ist bereits belegt: '.$start->format('H:i').' - '.$end->format('H:i').' am Tag '.$pl['tag'];
             } else {
-                $klasse = $plan['unterricht'][$unterricht_key]['klasse'] ?? '';
-                if (is_array($klasse)){
-                    $klasse = implode(', ', $klasse);
-                }
+                $bookingRecord = RoomBooking::updateOrCreate(
+                    [
+                        'source'    => 'indiware_xml',
+                        'source_id' => $sourceId,
+                    ],
+                    [
+                        'weekday'      => $pl['tag'],
+                        'start'        => $start->format('H:i'),
+                        'end'          => $end->format('H:i'),
+                        'users_id'     => auth()->id(),
+                        'room_id'      => $room->id,
+                        'name'         => trim(($plan['unterricht'][$unterricht_key]['fach'] ?? '') . ' ' . $klasse),
+                        'klassen'      => $klasse ?: null,
+                        'lehrer'       => $lehrer ?: null,
+                        'week'         => $buchungsWoche,
+                        'is_recurring' => true,
+                    ]
+                );
 
-                $booking[] = [
-                    'weekday' => $pl['tag'],
-                    'start' => $start->format('H:i'),
-                    'end' => $end->format('H:i'),
-                    'users_id' => auth()->id(),
-                    'room_id' => $room->id,
-                    'name' => trim(($plan['unterricht'][$unterricht_key]['fach'] ?? '') . ' ' . $klasse),
-                    'week' => $buchungsWoche,
-                    'is_recurring' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+                $updatedIds[] = $bookingRecord->id;
+                $booking[] = $bookingRecord;
             }
         }
 
-        RoomBooking::insert($booking);
+        // Verwaiste Indiware-XML-Buchungen entfernen (waren im alten Plan, aber nicht mehr im neuen)
+        if (!$request->deletePlan) {
+            $roomIds = $rooms->pluck('id')->toArray();
+            $orphanCount = RoomBooking::fromIndiwareXml()
+                ->whereIn('room_id', $roomIds)
+                ->when(count($updatedIds) > 0, fn ($q) => $q->whereNotIn('id', $updatedIds))
+                ->forceDelete();
+        }
 
         $Meldung = "Import erfolgreich. ";
 
@@ -589,11 +619,14 @@ class RoomController extends Controller
         }
 
         if ($request->deletePlan == true){
-            $Meldung .= 'alter Plan gelöscht.';
+            $Meldung .= 'Alte Indiware-Buchungen gelöscht. ';
         }
 
-        $Meldung .= count($booking) . ' Buchungen importiert  ';
+        $Meldung .= count($booking) . ' Buchungen importiert/aktualisiert  ';
 
+        if (isset($orphanCount) && $orphanCount > 0) {
+            $Meldung .= '(' . $orphanCount . ' veraltete Einträge entfernt) ';
+        }
 
         return redirect()->back()->with([
             'type' => 'success',

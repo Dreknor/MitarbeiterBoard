@@ -2,6 +2,8 @@
     <p class="text-sm text-gray-600">
         Es besteht die Möglichkeit, einen Plan aus Indiware zu importieren. Dazu muss die <strong>Export-Gesamt XML-Datei</strong> aus Indiware ausgewählt werden.
         Voraussetzung ist, dass sowohl die Zeitraster als auch die Räume in Indiware angelegt und beim Export ausgewählt wurden.
+        <br><strong>Klassen und Lehrkräfte</strong> werden automatisch aus dem XML extrahiert und im Raumplan angezeigt.
+        Manuell eingetragene Buchungen bleiben beim Import erhalten – nur Indiware-Einträge werden aktualisiert.
     </p>
 
     <form action="{{ url('rooms/import') }}" method="post" enctype="multipart/form-data" class="space-y-4">
@@ -20,8 +22,8 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1" title="Soll der Plan vor dem Import geleert werden? Dies löscht alle vorhandenen Einträge.">
-                    Plan leeren vor Import?
+                <label class="block text-sm font-medium text-gray-700 mb-1" title="Sollen vor dem Import alle bisherigen Indiware-Buchungen gelöscht werden? Manuelle Buchungen bleiben erhalten.">
+                    Indiware-Plan leeren vor Import?
                     <svg class="w-3.5 h-3.5 inline text-gray-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>

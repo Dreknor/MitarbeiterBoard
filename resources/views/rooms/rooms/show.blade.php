@@ -255,6 +255,9 @@
                         <span class="w-3 h-3 rounded-sm bg-amber-500 inline-block"></span> Vertretungsplan
                     </span>
                     <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm bg-violet-500 inline-block"></span> Indiware Stundenplan
+                    </span>
+                    <span class="flex items-center gap-1.5">
                         <span class="w-3 h-3 rounded-sm bg-green-400 inline-block" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.4) 2px, rgba(255,255,255,0.4) 4px);"></span> Raum frei durch VP
                     </span>
                     <span class="flex items-center gap-1.5">
@@ -402,6 +405,11 @@
                                 ring      = 'ring-1 ring-amber-400';
                                 cellTitle = 'Vertretungsplan-Buchung';
                             }
+                        } else if (source === 'indiware_xml') {
+                            // Indiware Stundenplan-Import
+                            bg        = isPast ? 'bg-violet-100 text-violet-800' : 'bg-violet-500 text-white';
+                            ring      = 'ring-1 ring-violet-400';
+                            cellTitle = 'Indiware Stundenplan';
                         } else if (!booking.is_recurring) {
                             bg        = isPast ? 'bg-teal-100 text-teal-800' : 'bg-teal-500 text-white';
                             ring      = 'ring-1 ring-teal-400';
@@ -413,9 +421,9 @@
                         }
 
                         cell.className = `booking-cell px-1 py-0.5 align-top ${bg} ${ring} rounded-sm`;
-                        cell.style.cursor = source === 'indiware_vp' ? 'default' : 'pointer';
+                        cell.style.cursor = (source === 'indiware_vp' || source === 'indiware_xml') ? 'default' : 'pointer';
                         if (cellTitle) cell.title = cellTitle;
-                        if (source !== 'indiware_vp') {
+                        if (source !== 'indiware_vp' && source !== 'indiware_xml') {
                             cell.onclick = () => { window.location.href = `${editUrl}/${booking.id}`; };
                         }
 
@@ -423,6 +431,17 @@
                         nameDiv.style.cssText = 'font-size:0.7rem; font-weight:600; line-height:1.2; word-break:break-word;';
                         nameDiv.textContent = booking.name;
                         cell.appendChild(nameDiv);
+
+                        // Klassen & Lehrer anzeigen (falls vorhanden)
+                        if (booking.klassen || booking.lehrer) {
+                            const metaDiv = document.createElement('div');
+                            metaDiv.style.cssText = 'font-size:0.55rem; opacity:0.85; line-height:1.2; word-break:break-word;';
+                            const parts = [];
+                            if (booking.klassen) parts.push(booking.klassen);
+                            if (booking.lehrer) parts.push(booking.lehrer);
+                            metaDiv.textContent = parts.join(' · ');
+                            cell.appendChild(metaDiv);
+                        }
 
                         const timeSpan = document.createElement('div');
                         timeSpan.style.cssText = 'font-size:0.6rem; opacity:0.85;';

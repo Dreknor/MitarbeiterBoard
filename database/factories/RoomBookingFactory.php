@@ -21,6 +21,8 @@ class RoomBookingFactory extends Factory
             'room_id'      => Room::factory(),
             'users_id'     => User::factory(),
             'name'         => $this->faker->words(2, true),
+            'klassen'      => null,
+            'lehrer'       => null,
             'weekday'      => $weekday,
             'start'        => $start,
             'end'          => $end,
@@ -47,6 +49,17 @@ class RoomBookingFactory extends Factory
     public function cancelled(): static
     {
         return $this->state(fn () => ['cancelled' => true]);
+    }
+
+    /** Indiware-XML-Stundenplan-Buchung */
+    public function indiwareXml(): static
+    {
+        return $this->state(fn () => [
+            'source'    => 'indiware_xml',
+            'source_id' => 'pl_' . $this->faker->unique()->numberBetween(1, 9999) . '_1_1_1',
+            'klassen'   => $this->faker->randomElement(['5a', '6b', '7c, 8a']),
+            'lehrer'    => $this->faker->randomElement(['Mül', 'Sch', 'Fis']),
+        ]);
     }
 }
 

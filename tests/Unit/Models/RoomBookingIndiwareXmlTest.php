@@ -1,0 +1,160 @@
+<?php
+
+namespace Tests\Unit\Models;
+
+use App\Models\Room;
+use App\Models\RoomBooking;
+use Tests\TestCase;
+
+class RoomBookingIndiwareXmlTest extends TestCase
+{
+    /** @test */
+    public function klassen_und_lehrer_felder_sind_fillable()
+    {
+        $room = Room::factory()->create();
+        $user = $this->actingAsWithPermission('manage rooms');
+
+        $booking = RoomBooking::create([
+            'room_id'      => $room->id,
+            'users_id'     => $user->id,
+            'weekday'      => 1,
+            'start'        => '08:00',
+            'end'          => '08:45',
+            'name'         => 'Mathe 5a',
+            'klassen'      => '5a, 5b',
+            'lehrer'       => 'Mül',
+            'source'       => 'indiware_xml',
+            'source_id'    => 'pl_1_1_1_1',
+            'is_recurring' => true,
+        ]);
+
+        $this->assertDatabaseHas('room_bookings', [
+            'id'      => $booking->id,
+            'klassen' => '5a, 5b',
+            'lehrer'  => 'Mül',
+            'source'  => 'indiware_xml',
+        ]);
+    }
+
+    /** @test */
+    public function scope_from_indiware_xml_filtert_korrekt()
+    {
+        $room = Room::factory()->create();
+
+        RoomBooking::factory()->for($room)->create([
+            'source' => 'manual',
+            'start'  => '08:00',
+            'end'    => '08:45',
+        ]);
+        RoomBooking::factory()->for($room)->indiwareXml()->create([
+            'start' => '09:00',
+            'end'   => '09:45',
+        ]);
+        RoomBooking::factory()->for($room)->create([
+            'source' => 'indiware_vp',
+            'start'  => '10:00',
+            'end'    => '10:45',
+        ]);
+
+        $xmlBookings = RoomBooking::fromIndiwareXml()->get();
+
+        $this->assertCount(1, $xmlBookings);
+        $this->assertEquals('indiware_xml', $xmlBookings->first()->source);
+    }
+
+    /** @test */
+    public function update_or_create_aktualisiert_bestehende_indiware_buchung()
+    {
+        $room = Room::factory()->create();
+        $user = $this->actingAsWithPermission('manage rooms');
+
+        // Erste Buchung erstellen
+        $booking1 = RoomBooking::updateOrCreate(
+            ['source' => 'indiware_xml', 'source_id' => 'pl_100_1_1_1'],
+            [
+                'room_id'      => $room->id,
+                'users_id'     => $user->id,
+                'weekday'      => 1,
+                'start'        => '08:00',
+                'end'          => '08:45',
+                'name'         => 'Mathe 5a',
+                'klassen'      => '5a',
+                'lehrer'       => 'Mül',
+                'is_recurring' => true,
+            ]
+        );
+
+        // Gleiche source_id → Update statt Insert
+        $booking2 = RoomBooking::updateOrCreate(
+            ['source' => 'indiware_xml', 'source_id' => 'pl_100_1_1_1'],
+            [
+                'room_id'      => $room->id,
+                'users_id'     => $user->id,
+                'weekday'      => 1,
+                'start'        => '08:00',
+                'end'          => '08:45',
+                'name'         => 'Deutsch 5a',
+                'klassen'      => '5a',
+                'lehrer'       => 'Sch',
+                'is_recurring' => true,
+            ]
+        );
+
+        $this->assertEquals($booking1->id, $booking2->id);
+        $this->assertCount(1, RoomBooking::fromIndiwareXml()->get());
+
+        $booking2->refresh();
+        $this->assertEquals('Deutsch 5a', $booking2->name);
+        $this->assertEquals('Sch', $booking2->lehrer);
+    }
+
+    /** @test */
+    public function manuelle_buchungen_bleiben_bei_indiware_loeschung_erhalten()
+    {
+        $room = Room::factory()->create();
+
+        // Manuelle Buchung
+        $manual = RoomBooking::factory()->for($room)->create([
+            'source' => 'manual',
+            'name'   => 'AG Theater',
+            'start'  => '14:00',
+            'end'    => '15:00',
+        ]);
+
+        // Indiware-Buchung
+        $xml = RoomBooking::factory()->for($room)->indiwareXml()->create([
+            'start' => '08:00',
+            'end'   => '08:45',
+        ]);
+
+        // Nur Indiware-Buchungen löschen
+        $room->bookings()->fromIndiwareXml()->forceDelete();
+
+        $this->assertDatabaseHas('room_bookings', ['id' => $manual->id]);
+        $this->assertDatabaseMissing('room_bookings', ['id' => $xml->id]);
+    }
+
+    /** @test */
+    public function klassen_und_lehrer_koennen_null_sein()
+    {
+        $room = Room::factory()->create();
+        $user = $this->actingAsWithPermission('manage rooms');
+
+        $booking = RoomBooking::create([
+            'room_id'      => $room->id,
+            'users_id'     => $user->id,
+            'weekday'      => 2,
+            'start'        => '10:00',
+            'end'          => '10:45',
+            'name'         => 'Besprechung',
+            'klassen'      => null,
+            'lehrer'       => null,
+            'source'       => 'manual',
+            'is_recurring' => true,
+        ]);
+
+        $this->assertNull($booking->klassen);
+        $this->assertNull($booking->lehrer);
+    }
+}
+
