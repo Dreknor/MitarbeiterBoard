@@ -3,7 +3,7 @@
     Bootstrap-4-Modal für Aufgaben-CRUD
 --}}
 <div class="modal fade" id="taskModal" tabindex="-1" role="dialog" x-data="taskPanel()">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header py-2">
                 <h6 class="modal-title" x-text="editingTaskId ? 'Aufgabe bearbeiten' : 'Aufgabe erstellen'"></h6>
@@ -35,7 +35,7 @@
                     {{-- Schüler-Auswahl --}}
                     <div class="form-group mb-2">
                         <label class="small mb-1">Zuweisen an</label>
-                        <div class="border rounded p-2 bg-light" style="font-size:0.75rem; max-height:200px; overflow-y:auto;">
+                        <div class="border rounded p-2 bg-light" style="font-size:0.75rem; max-height:min(200px, 30vh); overflow-y:auto;">
                             <template x-for="klasse in $store.diary.klassen" :key="klasse.id">
                                 <div class="mb-2">
                                     <strong class="small d-block" x-text="klasse.name"></strong>
@@ -43,9 +43,8 @@
                                         <div class="form-check mb-1" style="display:flex; align-items:center;">
                                             <input type="checkbox" class="form-check-input task-stu-checkbox"
                                                    :value="String(stu.id)"
-                                                   x-model="taskFormSchuelerIds"
-                                                   style="display:inline-block;width:14px;height:14px;position:relative;">
-                                            <label class="form-check-label small" style="margin:0 0 0 .4rem;" x-text="stu.name"></label>
+                                                   x-model="taskFormSchuelerIds">
+                                            <label class="form-check-label small" style="margin:0;" x-text="stu.name"></label>
                                         </div>
                                     </template>
                                 </div>

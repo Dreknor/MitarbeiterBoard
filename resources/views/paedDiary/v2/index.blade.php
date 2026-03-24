@@ -55,12 +55,26 @@
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }
+/* Task-Modal: form als Flex-Container, damit modal-dialog-scrollable korrekt funktioniert */
+#taskModal .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+#taskStudents .form-check,
+#taskModal .form-check {
+    padding-left: 0 !important;
+}
 #taskStudents .form-check-input,
 #taskModal .form-check-input {
     display: inline-block !important;
     width: 14px !important;
     height: 14px !important;
+    margin-left: 0 !important;
     margin-right: 6px !important;
+    margin-top: 0 !important;
     vertical-align: middle !important;
     -webkit-appearance: checkbox !important;
     appearance: checkbox !important;
