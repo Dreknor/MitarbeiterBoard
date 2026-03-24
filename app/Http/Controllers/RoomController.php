@@ -533,11 +533,13 @@ class RoomController extends Controller
             }
 
             if (!$syncedZeitraster) {
-                $syncedZeitraster = Zeitraster::create([
-                    'name'         => $zeitrasterName,
-                    'beschreibung' => 'Automatisch importiert aus Indiware XML am ' . now()->format('d.m.Y H:i'),
-                    'ist_standard' => Zeitraster::count() === 0,
-                ]);
+                $syncedZeitraster = Zeitraster::firstOrCreate(
+                    ['name' => $zeitrasterName],
+                    [
+                        'beschreibung' => 'Automatisch importiert aus Indiware XML am ' . now()->format('d.m.Y H:i'),
+                        'ist_standard' => Zeitraster::count() === 0,
+                    ]
+                );
             }
 
             // Bestehende LessonTimes dieses Zeitrasters löschen
