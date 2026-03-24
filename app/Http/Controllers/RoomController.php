@@ -8,6 +8,8 @@ use App\Http\Requests\editRoomRequest;
 use App\Http\Requests\ImportRoomsRequest;
 use App\Models\Room;
 use App\Models\RoomBooking;
+use App\Models\LessonTime;
+use App\Models\Zeitraster;
 //use Barryvdh\DomPDF\Facade as PDF;
 use App\Models\Setting;
 use App\Models\VertretungsplanWeek;
@@ -494,6 +496,113 @@ class RoomController extends Controller
             'plan' => ['uses' => 'plan.pl[pl_nummer>id,pl_raum>raum,pl_woche>woche,pl_stunde>stunde,pl_tag>tag]'],
         ]);
 
+        // Stundenoffset zwischen Plan und Zeitraster erkennen
+        // Indiware kann unterschiedliche Stundennummern verwenden:
+        // z.B. Zeitraster: 1-6, Plan: 2-7 → Offset = 1
+        $zeitrasterStunden = array_unique(array_column($zeiten, 'stunde'));
+        $planStunden = array_unique(array_filter(array_column($plan['plan'], 'stunde'), fn ($s) => $s !== null && $s !== ''));
+        $stundenOffset = 0;
+        if (count($zeitrasterStunden) > 0 && count($planStunden) > 0) {
+            $minZeitraster = (int) min($zeitrasterStunden);
+            $minPlan = (int) min($planStunden);
+            if ($minPlan !== $minZeitraster) {
+                $stundenOffset = $minPlan - $minZeitraster;
+                Log::info("Indiware-Import: Stundenoffset erkannt (Plan min={$minPlan}, Zeitraster min={$minZeitraster}, Offset={$stundenOffset})");
+            }
+        }
+
+        /*
+         * Zeitraster in lesson_times synchronisieren
+         * Damit der Vertretungsplan-Import (Ak_StundeVon) die korrekten Uhrzeiten verwendet.
+         * Die period-Werte nutzen die Plan-Nummerierung (= Ak_StundeVon der VP-API).
+         */
+        $syncedZeitraster = null;
+        if ($request->input('sync_zeitraster')) {
+            // Schulname aus XML für Zeitraster-Bezeichnung
+            try {
+                $kopf = $xml->parse(['schulname' => ['uses' => 'kopf.schulname']]);
+                $planBezeichnung = $xml->parse(['p_bezeichnung' => ['uses' => 'plan.p_bezeichnung']]);
+                $zeitrasterName = ($kopf['schulname'] ?? 'Indiware') . ' – ' . ($planBezeichnung['p_bezeichnung'] ?? 'Import');
+            } catch (\Exception $e) {
+                $zeitrasterName = 'Indiware Import ' . now()->format('d.m.Y');
+            }
+
+            // Zeitraster-Record erstellen oder vorhandenen verwenden
+            if ($request->filled('zeitraster_id')) {
+                $syncedZeitraster = Zeitraster::find($request->zeitraster_id);
+            }
+
+            if (!$syncedZeitraster) {
+                $syncedZeitraster = Zeitraster::create([
+                    'name'         => $zeitrasterName,
+                    'beschreibung' => 'Automatisch importiert aus Indiware XML am ' . now()->format('d.m.Y H:i'),
+                    'ist_standard' => Zeitraster::count() === 0,
+                ]);
+            }
+
+            // Bestehende LessonTimes dieses Zeitrasters löschen
+            $syncedZeitraster->lessonTimes()->delete();
+
+            // Gruppierte Zeitraster-Einträge (pro Woche+Stunde deduplizieren)
+            $dauerstunde = 45; // Standard-Stundendauer
+            try {
+                $grunddaten = $xml->parse(['dauer' => ['uses' => 'grunddaten.g_dauerstunde']]);
+                if (!empty($grunddaten['dauer'])) {
+                    $dauerstunde = (int) $grunddaten['dauer'];
+                }
+            } catch (\Exception $e) {}
+
+            $importedPeriods = [];
+            foreach ($zeiten as $zeit) {
+                $zrStunde = (int) $zeit['stunde'];
+                $zrWoche  = $zeit['woche'];
+
+                // Plan-Stundennummer = Zeitraster-Stunde + Offset
+                $planPeriod = $zrStunde + $stundenOffset;
+
+                // A/B-Woche mappen (1→A, 2→B), null wenn nur 1 Woche
+                $wocheLetter = null;
+                if (count(array_unique(array_column($zeiten, 'woche'))) > 1) {
+                    $wocheLetter = $zrWoche == 1 ? 'A' : 'B';
+                }
+
+                // Duplikat-Check: Wenn beide Wochen identische Zeiten haben → nur einmal ohne Woche speichern
+                $dedupKey = $planPeriod . '_' . ($wocheLetter ?? '');
+                if (isset($importedPeriods[$dedupKey])) {
+                    continue;
+                }
+
+                $startTime = Carbon::parse($zeit['zeit']);
+                $endTime   = $startTime->copy()->addMinutes($dauerstunde);
+
+                LessonTime::create([
+                    'zeitraster_id' => $syncedZeitraster->id,
+                    'period'        => $planPeriod,
+                    'start'         => $startTime->format('H:i'),
+                    'end'           => $endTime->format('H:i'),
+                    'week'          => $wocheLetter,
+                ]);
+
+                $importedPeriods[$dedupKey] = true;
+            }
+
+            // Wenn A- und B-Wochen identische Zeiten haben → zu wochenunabhängig zusammenfassen
+            $lessonTimes = $syncedZeitraster->lessonTimes()->get();
+            $byPeriod = $lessonTimes->groupBy('period');
+            foreach ($byPeriod as $period => $entries) {
+                if ($entries->count() === 2) {
+                    $a = $entries->firstWhere('week', 'A');
+                    $b = $entries->firstWhere('week', 'B');
+                    if ($a && $b && $a->start === $b->start && $a->end === $b->end) {
+                        $b->delete();
+                        $a->update(['week' => null]);
+                    }
+                }
+            }
+
+            Log::info("Indiware-Import: Zeitraster '{$syncedZeitraster->name}' (ID: {$syncedZeitraster->id}) synchronisiert mit " . count($importedPeriods) . " Einträgen");
+        }
+
         $booking = [];
         $updatedIds = [];
 
@@ -519,11 +628,14 @@ class RoomController extends Controller
                 $buchungsWoche = $pl['woche'] == 1 ? 'A' : 'B';
             }
 
+            // Plan-Stunde auf Zeitraster-Stunde mappen (Offset berücksichtigen)
+            $mappedStunde = (int) $pl['stunde'] - $stundenOffset;
+
             // Passende Startzeit aus Zeitraster ermitteln (zuerst passende Woche, dann Fallback)
             $zeitrasterWoche = ($pl['woche'] !== '' && $pl['woche'] !== null) ? $pl['woche'] : 1;
             $start = null;
             foreach ($zeiten as $zeit){
-                if ($zeit['stunde'] == $pl['stunde'] && $zeit['woche'] == $zeitrasterWoche){
+                if ($zeit['stunde'] == $mappedStunde && $zeit['woche'] == $zeitrasterWoche){
                     $start = Carbon::parse($zeit['zeit']);
                     break;
                 }
@@ -531,14 +643,23 @@ class RoomController extends Controller
             // Fallback: beliebige Woche für diese Stunde
             if ($start === null){
                 foreach ($zeiten as $zeit){
-                    if ($zeit['stunde'] == $pl['stunde']){
+                    if ($zeit['stunde'] == $mappedStunde){
+                        $start = Carbon::parse($zeit['zeit']);
+                        break;
+                    }
+                }
+            }
+            // Letzter Fallback: ohne Offset versuchen (falls kein Offset nötig war)
+            if ($start === null && $stundenOffset !== 0){
+                foreach ($zeiten as $zeit){
+                    if ($zeit['stunde'] == $pl['stunde'] && $zeit['woche'] == $zeitrasterWoche){
                         $start = Carbon::parse($zeit['zeit']);
                         break;
                     }
                 }
             }
             if ($start === null){
-                $fehler[] = 'Kein Zeitraster-Eintrag für Stunde ' . $pl['stunde'];
+                $fehler[] = 'Kein Zeitraster-Eintrag für Stunde ' . $pl['stunde'] . ' (gemappt: ' . $mappedStunde . ')';
                 continue;
             }
 
@@ -626,6 +747,11 @@ class RoomController extends Controller
 
         if (isset($orphanCount) && $orphanCount > 0) {
             $Meldung .= '(' . $orphanCount . ' veraltete Einträge entfernt) ';
+        }
+
+        if ($syncedZeitraster) {
+            $syncedCount = $syncedZeitraster->lessonTimes()->count();
+            $Meldung .= "Zeitraster \"{$syncedZeitraster->name}\" synchronisiert ({$syncedCount} Stundenzeiten). ";
         }
 
         return redirect()->back()->with([
