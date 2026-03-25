@@ -266,9 +266,10 @@
                                 </div>
                             </div>
 
-                            {{-- Klassen-Termine in Schüler-Zelle --}}
+                            {{-- Klassen-Termine in Schüler-Zelle (bei Abwesenheit ausblenden) --}}
                             <template x-for="apt in getClassAppointmentsForStudent(stu.id, day.date)" :key="'cls-apt-' + apt.id">
                                 <div class="appointment-item bg-warning text-dark px-1 mb-1 rounded"
+                                     x-show="!$store.diary.isAbsent(stu.id, day.date)"
                                      style="font-size:0.6rem; opacity:0.8; border-left:2px solid #ffc107; cursor:pointer;"
                                      :title="apt.description || apt.title"
                                      @click.stop="$dispatch('edit-appointment', apt)">
@@ -276,9 +277,10 @@
                                 </div>
                             </template>
 
-                            {{-- Individuelle Schüler-Termine --}}
+                            {{-- Individuelle Schüler-Termine (bei Abwesenheit ausblenden) --}}
                             <template x-for="apt in getStudentAppointments(stu.id, day.date)" :key="'stu-apt-' + apt.id">
                                 <div class="appointment-item bg-info text-white px-1 mb-1 rounded"
+                                     x-show="!$store.diary.isAbsent(stu.id, day.date)"
                                      style="font-size:0.65rem; cursor:pointer"
                                      :title="apt.description || apt.title"
                                      @click.stop="$dispatch('edit-appointment', apt)">
