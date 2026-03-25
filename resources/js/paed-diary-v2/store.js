@@ -227,6 +227,34 @@ export function registerDiaryStore(Alpine) {
             this.selectedGroupId = groupId ? parseInt(groupId) : null;
             this.loadWeek();
         },
+
+        /**
+         * Spaltengruppen-Überschriften ein-/ausblenden (server-persistiert).
+         */
+        async toggleShowColumnCategories() {
+            const newVal = !this.show_column_categories;
+            // Optimistisches UI-Update
+            this.show_column_categories = newVal;
+
+            try {
+                const resp = await fetch('/paed-diary/settings/show-categories', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ show_column_categories: newVal })
+                });
+                const j = await resp.json();
+                if (!j.success) {
+                    // Revert bei Fehler
+                    this.show_column_categories = !newVal;
+                }
+            } catch (_) {
+                this.show_column_categories = !newVal;
+            }
+        },
     });
 }
 

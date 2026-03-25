@@ -100,11 +100,8 @@
                             <div class="d-flex justify-content-between align-items-start mb-1"
                                  style="background:#dbeafe; border:1px solid #93c5fd; border-radius:4px; padding:2px 4px; margin-top:3px;">
                                 <div class="flex-grow-1" style="min-width:0;">
-                                    <i class="fas fa-comment-alt mr-1" style="color:#2563eb;"></i>
                                     <span x-text="trimText(entry.content, 60)"></span>
-                                    <template x-if="entry.user">
-                                        <span class="text-muted small" x-text="'(' + entry.user + ')'"></span>
-                                    </template>
+
                                 </div>
                                 <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
                                         title="Notiz abschließen"
@@ -188,9 +185,7 @@
                                                             <span class="author" x-text="entry.user"></span>
                                                         </template>
                                                         <span class="text" x-text="trimText(entry.content, 120)"></span>
-                                                        <template x-if="!entry.completed_at && entry.virtual_date !== entry.date">
-                                                            <span class="badge badge-warning badge-pill ml-1" title="Fortlaufende offene Notiz">laufend</span>
-                                                        </template>
+
                                                     </div>
                                                     <div class="ml-1 d-flex">
                                                         <template x-if="!entry.completed_at">
@@ -233,28 +228,39 @@
                             {{-- Spalten-Inputs (bei Abwesenheit ausblenden) --}}
                             <div class="col-inputs-row" x-data="columnsManager()"
                                  x-show="!$store.diary.isAbsent(stu.id, day.date)">
-                                <div class="col-inputs">
-                                    <template x-for="col in getColumnsForStudent(stu)" :key="col.id">
-                                        <div>
-                                            {{-- Boolean-Button --}}
-                                            <template x-if="col.type === 'boolean'">
-                                                <button type="button"
-                                                        class="btn btn-xs bool-btn"
-                                                        :class="getColumnValue(col.id, stu.id, day.date) === '1' ? 'btn-success' : 'btn-outline-secondary'"
-                                                        @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
-                                                        :title="col.name"
-                                                        x-text="col.name">
-                                                </button>
-                                            </template>
-                                            {{-- Text-Input --}}
-                                            <template x-if="col.type !== 'boolean'">
-                                                <input type="text" maxlength="255"
-                                                       class="form-control form-control-sm col-val-input"
-                                                       :value="getColumnValue(col.id, stu.id, day.date)"
-                                                       @input.stop="debouncedSaveColumn(col.id, stu.id, day.date, $event.target.value)"
-                                                       :placeholder="col.name"
-                                                       :title="col.name">
-                                            </template>
+                                <div class="col-inputs" :class="$store.diary.show_column_categories ? 'col-inputs--grouped' : ''">
+                                    <template x-for="group in getGroupedColumnsForStudent(stu)" :key="group.category">
+                                        <div :class="$store.diary.show_column_categories ? 'col-cat-group' : 'col-cat-group--flat'">
+                                            {{-- Kategorie-Überschrift --}}
+                                            <div class="col-cat-label"
+                                                 x-show="$store.diary.show_column_categories"
+                                                 x-text="group.category || 'Unkategorisiert'"></div>
+                                            {{-- Spalten nebeneinander --}}
+                                            <div class="col-cat-items">
+                                                <template x-for="col in group.columns" :key="col.id">
+                                                    <div>
+                                                        {{-- Boolean-Button --}}
+                                                        <template x-if="col.type === 'boolean'">
+                                                            <button type="button"
+                                                                    class="btn btn-xs bool-btn"
+                                                                    :class="getColumnValue(col.id, stu.id, day.date) === '1' ? 'btn-success' : 'btn-outline-secondary'"
+                                                                    @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
+                                                                    :title="col.name"
+                                                                    x-text="col.name">
+                                                            </button>
+                                                        </template>
+                                                        {{-- Text-Input --}}
+                                                        <template x-if="col.type !== 'boolean'">
+                                                            <input type="text" maxlength="255"
+                                                                   class="form-control form-control-sm col-val-input"
+                                                                   :value="getColumnValue(col.id, stu.id, day.date)"
+                                                                   @input.stop="debouncedSaveColumn(col.id, stu.id, day.date, $event.target.value)"
+                                                                   :placeholder="col.name"
+                                                                   :title="col.name">
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
