@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use App\Models\OxTerminTeilnehmer;
 
 /**
@@ -65,6 +66,19 @@ class OxTermin extends Model
         'ganztaegig' => 'boolean',
         'exdates'    => 'array',
     ];
+
+    /**
+     * Automatisch eine iCal-UID generieren, wenn kein ox_uid angegeben wurde
+     * (z. B. bei lokal erstellten Terminen ohne OX-Sync).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (OxTermin $termin) {
+            if (empty($termin->ox_uid)) {
+                $termin->ox_uid = Str::uuid()->toString() . '@mitarbeiter.local';
+            }
+        });
+    }
 
     // --- Relationen ---
 

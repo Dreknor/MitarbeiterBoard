@@ -544,7 +544,7 @@ class CalendarController extends Controller
         }
 
         $termin = OxTermin::create(array_merge($validated, [
-            'ersteller_id' => $user->id,
+            'erstellt_von' => $user->id,
             'ganztaegig'   => $request->boolean('ganztaegig'),
         ]));
 
