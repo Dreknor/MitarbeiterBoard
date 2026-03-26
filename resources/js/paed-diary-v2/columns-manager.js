@@ -43,6 +43,31 @@ export function registerColumnsManager(Alpine) {
         },
 
         /**
+         * Gibt die Spalten gruppiert nach Kategorie zurück (für die Tabellenzellen).
+         * Format: [{ category: 'Name', columns: [...] }, ...]
+         */
+        getGroupedColumnsForStudent(stu) {
+            const cols = this.getColumnsForStudent(stu);
+            const byCat = {};
+            const order = [];
+            cols.forEach(col => {
+                const cat = col.category || '';
+                if (!(cat in byCat)) {
+                    byCat[cat] = [];
+                    order.push(cat);
+                }
+                byCat[cat].push(col);
+            });
+            // Sortieren: benannte Kategorien alphabetisch, '' (Unkategorisiert) am Ende
+            order.sort((a, b) => {
+                if (a === '') return 1;
+                if (b === '') return -1;
+                return a.localeCompare(b, 'de');
+            });
+            return order.map(cat => ({ category: cat, columns: byCat[cat] }));
+        },
+
+        /**
          * Gibt den aktuellen Wert einer Spalte für Schüler/Datum zurück.
          */
         getColumnValue(colId, stuId, date) {

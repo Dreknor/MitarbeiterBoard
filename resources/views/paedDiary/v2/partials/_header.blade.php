@@ -175,6 +175,19 @@
                            @change="toggleFilterUncategorized()">
                     <span class="text-xs text-gray-600">Ohne Kategorie</span>
                 </label>
+
+                {{-- ── Spaltengruppen anzeigen (server-persistiert) ── --}}
+                <div class="border-t border-gray-100 my-1"></div>
+                <div class="px-3 py-1">
+                    <span class="text-[0.6rem] font-semibold uppercase tracking-wider text-gray-400">Spaltengruppen</span>
+                </div>
+                <label class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                           style="width:14px;height:14px;"
+                           :checked="$store.diary.show_column_categories"
+                           @change="$store.diary.toggleShowColumnCategories()">
+                    <span class="text-xs font-semibold text-gray-700">Spaltengruppen-Überschriften</span>
+                </label>
             </div>
         </div>
 
