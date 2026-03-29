@@ -278,6 +278,13 @@
                                     <span>Urlaub</span>
                                 </a>
                             @endcanany
+                            @can('view hort planung')
+                                <a href="{{ route('hort-planung.index') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'hort' && request()->segment(2) == 'planning') active @endif">
+                                    <i class="fas fa-child"></i>
+                                    <span>Hort Planung</span>
+                                </a>
+                            @endcan
                         </div>
                     </div>
                 @endcanany

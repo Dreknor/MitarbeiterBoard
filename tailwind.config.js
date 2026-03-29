@@ -1,5 +1,5 @@
 module.exports = {
-  // Scan diagnostic and paedDiary files
+  // Scan diagnostic, paedDiary and hort-planung files
   content: [
     "./resources/views/diagnostics/**/*.blade.php",
     "./resources/js/diagnostics.js",
@@ -10,6 +10,7 @@ module.exports = {
     "./resources/css/rooms.css",
     "./resources/views/calendar/**/*.blade.php",
     "./resources/js/calendar.js",
+    "./resources/views/personal/hort_planung/**/*.blade.php",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {

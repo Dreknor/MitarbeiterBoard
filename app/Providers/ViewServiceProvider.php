@@ -34,5 +34,6 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('ticketsystem.dashboardCard', \App\View\Composers\TicketsCardComposer::class); // Ticketsystem Card
         View::composer('atom-feed.dashboardCard', \App\View\Composers\AtomFeedComposer::class);
         View::composer('calendar.dashboardCard', \App\View\Composers\CalendarComposer::class);
+        View::composer('personal.hort_planung.dashboardCard', \App\View\Composers\HortPlanungComposer::class);
     }
 }

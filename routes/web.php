@@ -25,6 +25,7 @@ use App\Http\Controllers\Personal\RosterEventsController;
 use App\Http\Controllers\Personal\RosterNewsController;
 use App\Http\Controllers\Personal\TimeRecordingController;
 use App\Http\Controllers\Personal\TimesheetController;
+use App\Http\Controllers\Personal\HortPlanungController;
 use App\Http\Controllers\Personal\WorkingTimeController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\PostsController;
@@ -295,8 +296,61 @@ Route::group([
                     Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy']);
                 });
 
+                // ── Hortstunden-Planung ───────────────────────────────────────────────
+                Route::prefix('hort-planung')->middleware('permission:view hort planung')->group(function () {
+                    Route::get('/', [HortPlanungController::class, 'index'])->name('hort-planung.index');
 
-                //Raumplan
+                    // ⚠ Statische Routen VOR der {planung}-Wildcard!
+                    Route::middleware('permission:manage hort planung')->group(function () {
+                        Route::get('/create', [HortPlanungController::class, 'create'])->name('hort-planung.create');
+                        Route::post('/', [HortPlanungController::class, 'store'])->name('hort-planung.store');
+                        Route::post('/import', [HortPlanungController::class, 'importExcel'])->name('hort-planung.import');
+                        Route::post('/import/parse', [HortPlanungController::class, 'importParse'])->name('hort-planung.importParse');
+                    });
+
+                    // Parametrisierte Lese-Routen
+                    Route::get('/{planung}', [HortPlanungController::class, 'show'])->name('hort-planung.show');
+                    Route::get('/{planung}/export', [HortPlanungController::class, 'export'])->name('hort-planung.export');
+                    Route::get('/{planung}/berechnungen', [HortPlanungController::class, 'berechnungen'])->name('hort-planung.berechnungen');
+                    Route::get('/{planung}/trend', [HortPlanungController::class, 'trend'])->name('hort-planung.trend');
+                    Route::get('/{planung}/rueckblick', [HortPlanungController::class, 'rueckblick'])->name('hort-planung.rueckblick');
+                    Route::get('/{planung}/vergleich/{other}', [HortPlanungController::class, 'vergleich'])->name('hort-planung.vergleich');
+
+                    // Schreib-Routen (manage-Permission)
+                    Route::middleware('permission:manage hort planung')->group(function () {
+                        Route::get('/{planung}/edit', [HortPlanungController::class, 'edit'])->name('hort-planung.edit');
+                        Route::put('/{planung}', [HortPlanungController::class, 'update'])->name('hort-planung.update');
+                        Route::delete('/{planung}', [HortPlanungController::class, 'destroy'])->name('hort-planung.destroy');
+                        Route::put('/{planung}/monat/{monat}', [HortPlanungController::class, 'updateMonat'])->name('hort-planung.updateMonat');
+                        Route::put('/{planung}/person/{person}', [HortPlanungController::class, 'updatePerson'])->name('hort-planung.updatePerson');
+                        Route::put('/{planung}/person/{user}/bulk', [HortPlanungController::class, 'bulkUpdatePerson'])->name('hort-planung.bulkUpdatePerson');
+                        Route::post('/{planung}/person', [HortPlanungController::class, 'addPerson'])->name('hort-planung.addPerson');
+                        Route::delete('/{planung}/person/{user}', [HortPlanungController::class, 'removePerson'])->name('hort-planung.removePerson');
+
+                        // Faktoren-CRUD
+                        Route::post('/{planung}/faktor', [HortPlanungController::class, 'storeFaktor'])->name('hort-planung.storeFaktor');
+                        Route::put('/{planung}/faktor/{faktor}', [HortPlanungController::class, 'updateFaktor'])->name('hort-planung.updateFaktor');
+                        Route::delete('/{planung}/faktor/{faktor}', [HortPlanungController::class, 'deleteFaktor'])->name('hort-planung.deleteFaktor');
+                        Route::post('/{planung}/faktor/{faktor}/wert', [HortPlanungController::class, 'storeFaktorWert'])->name('hort-planung.storeFaktorWert');
+                        Route::delete('/{planung}/faktor-wert/{wert}', [HortPlanungController::class, 'deleteFaktorWert'])->name('hort-planung.deleteFaktorWert');
+
+                        // Zusatzstunden-Typen-CRUD
+                        Route::post('/{planung}/zusatztyp', [HortPlanungController::class, 'storeZusatzTyp'])->name('hort-planung.storeZusatzTyp');
+                        Route::put('/{planung}/zusatztyp/{typ}', [HortPlanungController::class, 'updateZusatzTyp'])->name('hort-planung.updateZusatzTyp');
+                        Route::delete('/{planung}/zusatztyp/{typ}', [HortPlanungController::class, 'deleteZusatzTyp'])->name('hort-planung.deleteZusatzTyp');
+                        Route::put('/{planung}/monat/{monat}/zusatz/{typ}', [HortPlanungController::class, 'updateMonatZusatz'])->name('hort-planung.updateMonatZusatz');
+
+                        // Import / Sync / Szenarien
+                        Route::post('/{planung}/import-employments', [HortPlanungController::class, 'importEmployments'])->name('hort-planung.importEmployments');
+                        Route::post('/{planung}/sync-ist', [HortPlanungController::class, 'syncIstStunden'])->name('hort-planung.syncIstStunden');
+                        Route::post('/{planung}/sync-vertrag', [HortPlanungController::class, 'syncVertrag'])->name('hort-planung.syncVertrag');
+                        Route::post('/{planung}/duplicate', [HortPlanungController::class, 'duplicate'])->name('hort-planung.duplicate');
+                        Route::post('/{planung}/snapshot', [HortPlanungController::class, 'snapshot'])->name('hort-planung.snapshot');
+                        Route::get('/{planung}/snapshot/{snapshot}/export', [HortPlanungController::class, 'exportSnapshot'])->name('hort-planung.exportSnapshot');
+                        Route::post('/{planung}/snapshot/{snapshot}/restore', [HortPlanungController::class, 'restoreSnapshot'])->name('hort-planung.restoreSnapshot');
+                        Route::delete('/{planung}/snapshot/{snapshot}', [HortPlanungController::class, 'deleteSnapshot'])->name('hort-planung.deleteSnapshot');
+                    });
+                });
                 Route::prefix('rooms')->middleware('permission:view roomBooking')->group(function () {
                     Route::get('rooms/{room}/edit', [RoomController::class, 'edit'])->middleware('permission:manage rooms');
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);

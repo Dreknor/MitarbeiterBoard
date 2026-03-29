@@ -67,6 +67,7 @@ class OxTermin extends Model
         'exdates'    => 'array',
     ];
 
+    // --- Relationen ---
     /**
      * Automatisch eine iCal-UID generieren, wenn kein ox_uid angegeben wurde
      * (z. B. bei lokal erstellten Terminen ohne OX-Sync).
@@ -80,7 +81,6 @@ class OxTermin extends Model
         });
     }
 
-    // --- Relationen ---
 
     public function kalender(): BelongsTo
     {

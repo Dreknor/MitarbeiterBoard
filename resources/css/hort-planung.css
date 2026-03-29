@@ -1,0 +1,166 @@
+/* Tailwind v4 – scoped für hort-planung-wrapper (kein Preflight, Bootstrap bleibt aktiv) */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+.hort-planung-wrapper {
+    /* Scope: alle Tailwind Utilities wirken nur innerhalb dieses Wrappers */
+}
+
+[x-cloak] { display: none !important; }
+
+/* Smooth transitions */
+.hort-planung-wrapper * {
+    transition-property: background-color, border-color, color, box-shadow, opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Zustandsfarben Budget-Rest */
+.hort-planung-wrapper .budget-positiv  { @apply text-emerald-700 font-semibold; }
+.hort-planung-wrapper .budget-negativ  { @apply text-red-600 font-semibold; }
+.hort-planung-wrapper .diff-positiv    { @apply text-emerald-600; }
+.hort-planung-wrapper .diff-negativ    { @apply text-red-500; }
+
+/* Badge-Stile */
+.hort-planung-wrapper .badge-aktiv     { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800; }
+.hort-planung-wrapper .badge-planung   { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800; }
+.hort-planung-wrapper .badge-rueckblick { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800; }
+.hort-planung-wrapper .badge-kopie     { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700; }
+
+/* Karten-Hover */
+.hort-planung-wrapper .planning-card:hover {
+    @apply shadow-md border-blue-200;
+}
+
+/* Modal-Overlay */
+.hp-modal-overlay {
+    @apply fixed inset-0 bg-black/40 z-50 items-center justify-center;
+    display: none; /* Standard: versteckt – verhindert Konflikt mit Tailwind .hidden */
+}
+.hp-modal-overlay:not(.hidden) {
+    display: flex; /* Wird sichtbar, sobald JS die .hidden-Klasse entfernt */
+}
+.hp-modal-box {
+    @apply bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden;
+}
+
+/* ── Matrix-spezifische Styles ──────────────────────────────────────── */
+
+/* Äußerer Wrapper: overflow:clip statt overflow:hidden –
+   clip schneidet visuell ab (border-radius bleibt sichtbar), erstellt aber
+   KEINEN Scroll-Container, damit position:sticky durchgreifen kann. */
+.hp-matrix-outer-wrap {
+    overflow: clip;
+}
+
+/* Scroll-Container: nur horizontales Scrollen erlauben.
+   overflow-y: clip → kein Scroll-Container in Y-Richtung, daher referenziert
+   position:sticky;top auf die Seite (nicht den Container). Kein max-height,
+   die Tabelle wächst auf ihre natürliche Höhe. */
+.hp-matrix-scroll {
+    overflow-x: auto;
+    overflow-y: clip;
+}
+
+/* Sticky Tabellenkopf: direkt auf <th>-Elemente (nicht auf <thead>),
+   da position:sticky auf <thead> in manchen Browsern nicht zuverlässig greift.
+   top: var(--topbar-height) damit der Header unterhalb der Topbar klebt. */
+.hort-planung-wrapper .hp-matrix-table thead tr:first-child th {
+    position: sticky;
+    top: var(--topbar-height, 60px);
+    z-index: 20;
+}
+.hort-planung-wrapper .hp-matrix-table thead tr:nth-child(2) th {
+    position: sticky;
+    /* Topbar-Höhe + Höhe der ersten Kopfzeile (per Alpine gemessen → --hp-thead-r1-h) */
+    top: calc(var(--topbar-height, 60px) + var(--hp-thead-r1-h, 44px));
+    z-index: 20;
+}
+
+/* Editierbare Zellen */
+.hort-planung-wrapper .hp-editable {
+    @apply cursor-pointer select-none;
+}
+.hort-planung-wrapper .hp-editable:hover {
+    @apply bg-blue-50/60;
+}
+.hort-planung-wrapper .hp-editable input[type="number"] {
+    @apply w-16 border border-blue-400 rounded-md px-1 py-0.5 text-xs bg-white
+           focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none;
+    /* Spinner ausblenden (Firefox, Chrome) */
+    -moz-appearance: textfield;
+}
+.hort-planung-wrapper .hp-editable input[type="number"]::-webkit-inner-spin-button,
+.hort-planung-wrapper .hp-editable input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Lade-Spinner in Monatskopfzeile */
+.hort-planung-wrapper .hp-saving {
+    @apply opacity-60 pointer-events-none;
+}
+
+/* Sticky erste Spalte in Matrix-Tabelle */
+.hort-planung-wrapper .hp-matrix-table .hp-sticky {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    /* Optische Trennlinie zur scrollenden Tabelle */
+    box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.10);
+}
+/* Ecke oben links: muss über Kopfzeile UND erster Spalte liegen */
+.hort-planung-wrapper .hp-matrix-table thead .hp-sticky {
+    z-index: 30;
+}
+
+/* Opake Hintergründe für sticky erste Spalte –
+   verhindert, dass scrollende Zellen durch semi-transparente Farben scheinen. */
+.hort-planung-wrapper .hp-matrix-table .hp-row-parameter .hp-sticky {
+    background-color: #f0f9ff; /* sky-50 voll opak */
+}
+.hort-planung-wrapper .hp-matrix-table .hp-row-person-alt .hp-sticky {
+    background-color: #f8fafc; /* slate-50 voll opak */
+}
+.hort-planung-wrapper .hp-matrix-table .hp-row-summe .hp-sticky,
+.hort-planung-wrapper .hp-matrix-table .hp-row-gesetzl .hp-sticky {
+    background-color: #eff6ff; /* blue-50 */
+}
+.hort-planung-wrapper .hp-matrix-table .hp-row-ergebnis .hp-sticky {
+    background-color: #f9fafb; /* gray-50 */
+}
+
+/* Monat-Spalten-Trennlinie */
+.hort-planung-wrapper .hp-matrix-table td.hp-monat-end,
+.hort-planung-wrapper .hp-matrix-table th.hp-monat-end {
+    @apply border-r-2 border-gray-300;
+}
+
+/* Sektions-Farben für Tabellenzeilen */
+.hort-planung-wrapper .hp-row-parameter  { @apply bg-sky-50/70; }
+.hort-planung-wrapper .hp-row-person     { @apply bg-white; }
+.hort-planung-wrapper .hp-row-person-alt { @apply bg-slate-50/60; }
+.hort-planung-wrapper .hp-row-vertrag    { @apply bg-slate-100/40; }
+.hort-planung-wrapper .hp-row-summe      { @apply bg-blue-50/60 font-semibold; }
+.hort-planung-wrapper .hp-row-gesetzl    { @apply bg-amber-50/50; }
+.hort-planung-wrapper .hp-row-ergebnis   { @apply bg-gray-50/80; }
+
+/* Heute-Spalte hervorheben */
+.hort-planung-wrapper .hp-col-heute {
+    @apply bg-blue-50/40 outline outline-2 outline-blue-300 outline-offset-[-2px];
+}
+.hort-planung-wrapper thead th.hp-col-heute-th {
+    @apply bg-blue-100/60 text-blue-800;
+}
+
+/* Abwesenheits-Warnsymbol */
+.hort-planung-wrapper .hp-warning-badge {
+    @apply inline-flex items-center gap-0.5 text-[10px] bg-amber-100 text-amber-700
+           px-1.5 py-0.5 rounded-full font-medium ml-1;
+}
+
+/* Diff-Farben für Vergleich */
+.hort-planung-wrapper .hp-diff-pos  { @apply text-emerald-700 font-semibold; }
+.hort-planung-wrapper .hp-diff-neg  { @apply text-red-600 font-semibold; }
+.hort-planung-wrapper .hp-diff-zero { @apply text-gray-400; }
+

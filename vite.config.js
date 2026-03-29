@@ -19,6 +19,7 @@ export default defineConfig({
                 'resources/css/rooms.css',
                 'resources/css/calendar.css',
                 'resources/js/calendar.js',
+                'resources/css/hort-planung.css',
             ],
             refresh: [
                 'resources/views/layouts/**/*.blade.php',
@@ -33,6 +34,8 @@ export default defineConfig({
                 'resources/views/calendar/**/*.blade.php',
                 'app/Http/Controllers/CalendarController.php',
                 'app/Http/Controllers/CalendarAdminController.php',
+                'resources/views/personal/hort_planung/**/*.blade.php',
+                'app/Http/Controllers/Personal/HortPlanungController.php',
             ],
         }),
     ],
