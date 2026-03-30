@@ -954,8 +954,8 @@
                 <td data-mk="{{ $mk }}" class="px-2 py-2 text-center text-gray-400"></td>
                 <td data-mk="{{ $mk }}" class="px-2 py-2 text-center font-semibold border-r border-gray-200"
                     :class="{
-                        'diff-positiv': (berechnungen['{{ $mk }}']?.differenz_vz_sp2 ?? 0) >= 0,
-                        'diff-negativ': (berechnungen['{{ $mk }}']?.differenz_vz_sp2 ?? 0) < 0
+                        'sp2-gedeckt': (berechnungen['{{ $mk }}']?.differenz_vz_sp2 ?? 0) >= 0,
+                        'sp2-unterdeckung': (berechnungen['{{ $mk }}']?.differenz_vz_sp2 ?? 0) < 0
                     }">
                     <span x-text="fmtSign(berechnungen['{{ $mk }}']?.differenz_vz_sp2, 3)">
                         @php $dv = $initBerechnungen[$mk]['differenz_vz_sp2'] ?? null; @endphp
@@ -976,8 +976,8 @@
                 <td data-mk="{{ $mk }}" class="px-2 py-2 text-center text-gray-400"></td>
                 <td data-mk="{{ $mk }}" class="px-2 py-2 text-center font-semibold border-r border-gray-200"
                     :class="{
-                        'diff-positiv': (berechnungen['{{ $mk }}']?.differenz_stadt ?? 0) >= 0,
-                        'diff-negativ': (berechnungen['{{ $mk }}']?.differenz_stadt ?? 0) < 0
+                        'sp2-gedeckt': (berechnungen['{{ $mk }}']?.differenz_stadt ?? 0) >= 0,
+                        'sp2-unterdeckung': (berechnungen['{{ $mk }}']?.differenz_stadt ?? 0) < 0
                     }">
                     <span x-text="fmtSign(berechnungen['{{ $mk }}']?.differenz_stadt, 2)">
                         @php $ds = $initBerechnungen[$mk]['differenz_stadt'] ?? null; @endphp
@@ -999,9 +999,9 @@
                 <span><span class="budget-negativ">−Wert</span> = Überplanung (mehr Stunden vergeben als Budget)</span>
             </div>
             <div class="flex flex-wrap gap-x-5 gap-y-1 items-baseline mt-1">
-                <span class="font-semibold text-gray-600">📐 Diff. Stadt (SP2):</span>
-                <span><span class="diff-positiv">+Wert</span> = Stadt-Stunden über gesetzl. Minimum</span>
-                <span><span class="diff-negativ">−Wert</span> = Stadt-Stunden unter gesetzl. Minimum</span>
+                <span class="font-semibold text-gray-600">🏛 Diff. Stadt (SP2):</span>
+                <span><span class="sp2-gedeckt">+Wert</span> = Stadt-Maximum deckt gesetzl. Minimum (Puffer vorhanden)</span>
+                <span><span class="sp2-unterdeckung">−Wert</span> = Stadt-Maximum unter gesetzl. Minimum (Unterdeckung!)</span>
             </div>
             <div class="flex flex-wrap gap-x-5 gap-y-1 items-baseline mt-1">
                 <span><span class="inline-block px-1 rounded bg-amber-100 text-amber-800 font-medium">⚠ Vertrag</span> = SP1 weicht von Vertragsstunden ab – Vertragsanpassung prüfen</span>
@@ -1125,7 +1125,7 @@
                 <tbody>
                     <template x-for="p in sp2Perioden" :key="p.label">
                         <tr class="border-b border-gray-100 hover:bg-slate-50/30"
-                            :class="(p.diffStd < 0 || p.diffVz < 0) ? 'bg-red-50/30' : ''">
+                            :class="(p.diffStd < 0 || p.diffVz < 0) ? 'bg-orange-50/40' : ''">
                             <td class="px-4 py-2.5 font-semibold text-gray-700" x-text="'SJ\u00A0' + p.label"></td>
                             <td class="px-4 py-2.5 text-right text-gray-400 font-mono text-[10px]"
                                 x-text="p.anzahl + '\u00A0Mon.'"></td>
@@ -1135,10 +1135,10 @@
                             <td class="px-3 py-2.5 text-right text-amber-700"
                                 x-text="fmtNum(p.gesetzl, 2)"></td>
                             <td class="px-3 py-2.5 text-right font-bold"
-                                :class="p.diffStd >= 0 ? 'diff-positiv' : 'diff-negativ'"
+                                :class="p.diffStd >= 0 ? 'sp2-gedeckt' : 'sp2-unterdeckung'"
                                 :title="p.diffStd >= 0
-                                    ? 'SP2 ≥ gesetzl. Minimum ✓ (' + fmtNum(p.sumSp2,2) + ' h ≥ ' + fmtNum(p.gesetzl,2) + ' h)'
-                                    : 'SP2 unter gesetzl. Minimum! (' + fmtNum(p.sumSp2,2) + ' h < ' + fmtNum(p.gesetzl,2) + ' h)'"
+                                    ? 'Stadt-Maximum ≥ gesetzl. Minimum ✓ (' + fmtNum(p.sumSp2,2) + ' h ≥ ' + fmtNum(p.gesetzl,2) + ' h)'
+                                    : 'Stadt-Maximum unter gesetzl. Minimum! (' + fmtNum(p.sumSp2,2) + ' h < ' + fmtNum(p.gesetzl,2) + ' h)'"
                                 x-text="fmtSign(p.diffStd, 2)"></td>
                             {{-- VZÄ --}}
                             <td class="px-3 py-2.5 text-right text-slate-600 font-mono border-l border-gray-100"
@@ -1146,7 +1146,7 @@
                             <td class="px-3 py-2.5 text-right text-amber-700 font-mono"
                                 x-text="fmtNum(p.avgVzGesetzl, 3)"></td>
                             <td class="px-3 py-2.5 text-right font-semibold font-mono"
-                                :class="p.diffVz >= 0 ? 'diff-positiv' : 'diff-negativ'"
+                                :class="p.diffVz >= 0 ? 'sp2-gedeckt' : 'sp2-unterdeckung'"
                                 :title="p.diffVz >= 0
                                     ? 'VZÄ SP2 ≥ Mindest-VZÄ ✓ (' + fmtNum(p.avgVzSp2,3) + ' ≥ ' + fmtNum(p.avgVzGesetzl,3) + ')'
                                     : 'VZÄ SP2 unter Mindest-VZÄ! (' + fmtNum(p.avgVzSp2,3) + ' < ' + fmtNum(p.avgVzGesetzl,3) + ')'"
@@ -1166,8 +1166,8 @@
                     <span><strong class="text-slate-600">Ø VZÄ</strong> = Ø Vollzeitäquivalente je Monat · <strong class="text-amber-600">Ø VZÄ Min.</strong> = gesetzl. Mindest-VZÄ je Monat</span>
                 </div>
                 <div class="flex flex-wrap gap-x-5 gap-y-0.5 text-[10px]">
-                    <span><span class="diff-positiv font-semibold">+Δ</span> = SP2 über Minimum – Abrechnung deckt gesetzl. Anforderung</span>
-                    <span><span class="diff-negativ font-semibold">−Δ</span> = SP2 unter Minimum – gesetzliche Unterdeckung prüfen!</span>
+                    <span><span class="sp2-gedeckt font-semibold">+Δ</span> = Stadt-Maximum über Minimum – gesetzl. Anforderung gedeckt</span>
+                    <span><span class="sp2-unterdeckung font-semibold">−Δ</span> = Stadt-Maximum unter Minimum – gesetzliche Unterdeckung!</span>
                 </div>
             </div>
         </div>

@@ -17,11 +17,16 @@
     transition-duration: 150ms;
 }
 
-/* Zustandsfarben Budget-Rest */
+/* Zustandsfarben Budget-Rest (SP1 – Verein) */
 .hort-planung-wrapper .budget-positiv  { @apply text-emerald-700 font-semibold; }
 .hort-planung-wrapper .budget-negativ  { @apply text-red-600 font-semibold; }
 .hort-planung-wrapper .diff-positiv    { @apply text-emerald-600; }
 .hort-planung-wrapper .diff-negativ    { @apply text-red-500; }
+
+/* Zustandsfarben SP2 – Stadt (Deckel/Maximum)
+   Blau = Stadt deckt gesetzl. Minimum; Orange = Unterdeckung */
+.hort-planung-wrapper .sp2-gedeckt     { @apply text-blue-600 font-semibold; }
+.hort-planung-wrapper .sp2-unterdeckung { @apply text-orange-600 font-semibold; }
 
 /* Badge-Stile */
 .hort-planung-wrapper .badge-aktiv     { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800; }
