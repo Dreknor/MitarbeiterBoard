@@ -988,13 +988,21 @@
         </div>
 
         {{-- Farb-Legende --}}
-        <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50/80 flex flex-wrap gap-x-5 gap-y-1 text-[10px] text-gray-500">
-            <span><span class="budget-positiv">+Wert</span> = Budget-Rest positiv (noch verteilbare Stunden)</span>
-            <span><span class="budget-negativ">−Wert</span> = Überplanung (mehr Stunden als Budget)</span>
-            <span><span class="diff-positiv">+Wert</span> = Diff. Stadt positiv (Stadt zahlt mehr als Minimum)</span>
-            <span><span class="diff-negativ">−Wert</span> = Diff. Stadt negativ (unter gesetzlichem Minimum)</span>
-            <span><span class="inline-block px-1 rounded bg-amber-100 text-amber-800 font-medium">⚠ Vertrag</span> = SP1 weicht von Vertragsstunden ab – Vertragsanpassung prüfen</span>
-            @if($canManage)<span class="text-blue-500">· Zellen klicken zum Bearbeiten</span>@endif
+        <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50/80 text-[10px] text-gray-500">
+            <div class="flex flex-wrap gap-x-5 gap-y-1 items-baseline">
+                <span class="font-semibold text-gray-600">📊 Budget-Rest (SP1):</span>
+                <span><span class="budget-positiv">+Wert</span> = noch verteilbare Stunden vorhanden</span>
+                <span><span class="budget-negativ">−Wert</span> = Überplanung (mehr Stunden vergeben als Budget)</span>
+            </div>
+            <div class="flex flex-wrap gap-x-5 gap-y-1 items-baseline mt-1">
+                <span class="font-semibold text-gray-600">📐 Diff. Stadt (SP2):</span>
+                <span><span class="diff-positiv">+Wert</span> = Stadt-Stunden über gesetzl. Minimum</span>
+                <span><span class="diff-negativ">−Wert</span> = Stadt-Stunden unter gesetzl. Minimum</span>
+            </div>
+            <div class="flex flex-wrap gap-x-5 gap-y-1 items-baseline mt-1">
+                <span><span class="inline-block px-1 rounded bg-amber-100 text-amber-800 font-medium">⚠ Vertrag</span> = SP1 weicht von Vertragsstunden ab – Vertragsanpassung prüfen</span>
+                @if($canManage)<span class="text-blue-500">· Zellen klicken zum Bearbeiten</span>@endif
+            </div>
         </div>
     </div>
 
@@ -1080,7 +1088,7 @@
                     </tr>
                     {{-- Spaltenköpfe --}}
                     <tr class="bg-gray-50 border-b border-gray-200 text-gray-500">
-                        <th class="px-4 py-2 text-left font-semibold">Stadtjahr</th>
+                        <th class="px-4 py-2 text-left font-semibold">Kalenderjahr</th>
                         <th class="px-4 py-2 text-right font-semibold text-gray-400">Mon.</th>
                         {{-- Stunden-Gruppe --}}
                         <th class="px-3 py-2 text-right font-semibold text-slate-700 border-l border-gray-200"
