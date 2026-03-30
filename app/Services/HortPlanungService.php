@@ -108,8 +108,31 @@ class HortPlanungService
         $differenz_vz_sp2 = $summe_vz_sp2 - $summe_gesetz_vz;
 
         // Ist-Daten (für Rückblick)
-        $summe_vertrag = (float) $personen->sum('stunden_vertrag');
         $summe_ist     = (float) $personen->sum('stunden_ist');
+
+        // Vertragsstunden live aus Employment-Daten berechnen (identisch zur
+        // Einzelzeilen-Logik in show.blade.php), damit Σ Verträge mit den pro
+        // Person angezeigten Werten übereinstimmt – auch nach Vertragsänderungen.
+        $monatStart   = $monat->monat;
+        $departmentId = $planung->department_id;
+        $summe_vertrag = 0;
+
+        foreach ($personen as $person) {
+            $user = $person->relationLoaded('user') ? $person->user : $person->user;
+            if (!$user) continue;
+
+            $employments = $user->relationLoaded('employments')
+                ? $user->employments
+                : $user->employments()->get();
+
+            $summe_vertrag += (float) $employments
+                ->filter(fn($emp) =>
+                    $emp->department_id === $departmentId
+                    && $emp->start->startOfDay()->lessThanOrEqualTo($monatStart)
+                    && (is_null($emp->end) || $emp->end->greaterThanOrEqualTo($monatStart))
+                )
+                ->sum('hours');
+        }
 
         return [
             'summe_sp1'               => round($summe_sp1, 2),
