@@ -17,6 +17,7 @@ use App\Http\Requests\personal\UpdateHortPlanungMonatRequest;
 use App\Http\Requests\personal\UpdateHortPlanungPersonRequest;
 use App\Http\Requests\personal\UpdateHortPlanungRequest;
 use App\Exports\HortPlanungExport;
+use App\Exports\HortPlanungVertragsaenderungenExport;
 use App\Http\Requests\personal\UpdateHortZusatzTypRequest;
 use App\Imports\HortPlanungImport;
 use App\Models\Group;
@@ -972,6 +973,38 @@ class HortPlanungController extends Controller
             'monate',
             'berechnungenNachMonat'
         ));
+    }
+
+    // ── Vertragsänderungen ──────────────────────────────────────────────────
+
+    /**
+     * Übersicht aller zu ändernden Verträge (SP1/SP2-Übergänge).
+     */
+    public function vertragsaenderungen(HortPlanung $planung): View
+    {
+        $planung->load([
+            'faktoren.werte',
+            'monate.personen.user',
+            'monate.monatZusatzstunden.typ',
+            'department',
+        ]);
+
+        $aenderungen = $this->service->berechneVertragsaenderungen($planung);
+
+        return view('personal.hort_planung.vertragsaenderungen', compact(
+            'planung',
+            'aenderungen'
+        ));
+    }
+
+    /**
+     * Excel-Export der zu ändernden Verträge.
+     */
+    public function exportVertragsaenderungen(HortPlanung $planung): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $dateiname = 'Vertragsaenderungen_' . str_replace([' ', '/'], '_', $planung->name) . '_' . now()->format('Ymd') . '.xlsx';
+
+        return Excel::download(new HortPlanungVertragsaenderungenExport($planung, $this->service), $dateiname);
     }
 }
 

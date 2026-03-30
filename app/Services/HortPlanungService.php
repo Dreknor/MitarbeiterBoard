@@ -836,5 +836,125 @@ class HortPlanungService
             ]);
         }
     }
+
+    // ── §4.13 Vertragsänderungen berechnen ───────────────────────────────────
+
+    /**
+     * Ermittelt alle Vertragsänderungs-Zeitpunkte pro Person.
+     *
+     * Erkennt Übergänge: Wann ändert sich SP1 oder SP2 einer Person von einem
+     * Monat zum nächsten? SP1 und SP2 können sich unabhängig voneinander ändern,
+     * auch wenn die Gesamtsumme gleich bleibt → beide Werte werden einzeln
+     * verglichen.
+     *
+     * Pro Eintrag wird angegeben:
+     *   - SP1 (stunden_gesamt) und SP2 (stunden_stadt)
+     *   - vorheriger SP1-/SP2-Wert (aus dem Vormonat)
+     *   - Anteil Zusatzstunden (gleichmäßig auf aktive Personen verteilt)
+     *   - Gesamtwert SP1 (SP1 + Zusatzstunden-Anteil)
+     *   - aktueller Vertrag (stunden_vertrag)
+     *
+     * @param HortPlanung $planung
+     * @return Collection  Gruppiert nach user_id → Collection von Änderungs-Records
+     */
+    public function berechneVertragsaenderungen(HortPlanung $planung): Collection
+    {
+        $monate = $planung->monate->sortBy('monat')->values();
+
+        // Alle einzigartigen Personen ermitteln
+        $allePersonen = $monate
+            ->flatMap(fn($m) => $m->personen)
+            ->unique('user_id')
+            ->sortBy(fn($p) => $p->user?->name ?? 'zzz')
+            ->values();
+
+        // Personen-Daten indexiert nach Monat-Key + User-ID für O(1)-Zugriff
+        $personenIndex = [];
+        foreach ($monate as $monat) {
+            $mk = $monat->monat->format('Y-m');
+            foreach ($monat->personen as $person) {
+                $personenIndex[$mk . '_' . $person->user_id] = $person;
+            }
+        }
+
+        // Zusatzstunden pro Person pro Monat vorberechnen
+        $zusatzProPersonMonat = [];
+        foreach ($monate as $monat) {
+            $mk = $monat->monat->format('Y-m');
+            $aktive = $monat->personen->filter(fn($p) => ($p->stunden_gesamt ?? 0) > 0)->count();
+            $zusatzGesamt = $monat->summeZusatzstunden();
+            $zusatzProPersonMonat[$mk] = $aktive > 0 ? round($zusatzGesamt / $aktive, 2) : 0;
+        }
+
+        $aenderungen = collect();
+
+        foreach ($allePersonen as $person) {
+            $userId   = $person->user_id;
+            $userName = $person->user?->name ?? '–';
+
+            $vorherigerSP1 = null;
+            $vorherigerSP2 = null;
+
+            foreach ($monate as $monat) {
+                $mk = $monat->monat->format('Y-m');
+                $mp = $personenIndex[$mk . '_' . $userId] ?? null;
+
+                if (!$mp) {
+                    // Person in diesem Monat nicht vorhanden → Vorwerte zurücksetzen
+                    $vorherigerSP1 = null;
+                    $vorherigerSP2 = null;
+                    continue;
+                }
+
+                $sp1     = $mp->stunden_gesamt;
+                $sp2     = $mp->stunden_stadt;
+                $vertrag = $mp->stunden_vertrag;
+
+                if ($sp1 === null && $sp2 === null) {
+                    $vorherigerSP1 = null;
+                    $vorherigerSP2 = null;
+                    continue;
+                }
+
+                // Übergang erkennen: SP1 oder SP2 hat sich gegenüber Vormonat geändert
+                $sp1Geaendert = ($vorherigerSP1 === null && $sp1 !== null)
+                    || ($vorherigerSP1 !== null && $sp1 !== null && abs($sp1 - $vorherigerSP1) >= 0.01);
+                $sp2Geaendert = ($vorherigerSP2 === null && $sp2 !== null)
+                    || ($vorherigerSP2 !== null && $sp2 !== null && abs($sp2 - $vorherigerSP2) >= 0.01);
+
+                if ($sp1Geaendert || $sp2Geaendert) {
+                    $zusatz = ($sp1 ?? 0) > 0 ? ($zusatzProPersonMonat[$mk] ?? 0) : 0;
+
+                    $aenderungen->push([
+                        'user_id'          => $userId,
+                        'user_name'        => $userName,
+                        'monat'            => $monat->monat,
+                        'monat_label'      => $monat->monat->locale('de')->translatedFormat('F Y'),
+                        'sp1'              => $sp1 !== null ? round($sp1, 2) : null,
+                        'sp2'              => $sp2 !== null ? round($sp2, 2) : null,
+                        'sp1_vorher'       => $vorherigerSP1 !== null ? round($vorherigerSP1, 2) : null,
+                        'sp2_vorher'       => $vorherigerSP2 !== null ? round($vorherigerSP2, 2) : null,
+                        'zusatzstunden'    => $zusatz,
+                        'gesamtwert_sp1'   => round(($sp1 ?? 0) + $zusatz, 2),
+                        'vertrag'          => $vertrag !== null ? round($vertrag, 2) : null,
+                        'differenz'        => round(($sp1 ?? 0) - ($vertrag ?? 0), 2),
+                        'sp1_geaendert'    => $sp1Geaendert,
+                        'sp2_geaendert'    => $sp2Geaendert,
+                    ]);
+                }
+
+                $vorherigerSP1 = $sp1;
+                $vorherigerSP2 = $sp2;
+            }
+        }
+
+        // Gruppiert nach Person, sortiert nach Name → Monat
+        return $aenderungen
+            ->sortBy([
+                ['user_name', 'asc'],
+                ['monat', 'asc'],
+            ])
+            ->groupBy('user_id');
+    }
 }
 

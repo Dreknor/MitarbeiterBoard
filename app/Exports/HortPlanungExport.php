@@ -6,6 +6,7 @@ use App\Exports\Sheets\HortPlanungGrundarbeitszeitSheet;
 use App\Exports\Sheets\HortPlanungPlanungSheet;
 use App\Exports\Sheets\HortPlanungRueckblickSheet;
 use App\Exports\Sheets\HortPlanungSchluesselSheet;
+use App\Exports\Sheets\HortPlanungVertragsaenderungenSheet;
 use App\Models\personal\HortPlanung;
 use App\Services\HortPlanungService;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -45,6 +46,7 @@ class HortPlanungExport implements WithMultipleSheets
             new HortPlanungSchluesselSheet($this->planung),
             new HortPlanungGrundarbeitszeitSheet($this->planung, $this->service),
             new HortPlanungRueckblickSheet($this->planung, $this->service),
+            new HortPlanungVertragsaenderungenSheet($this->planung, $this->service),
         ];
     }
 }

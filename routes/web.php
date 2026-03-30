@@ -314,6 +314,8 @@ Route::group([
                     Route::get('/{planung}/berechnungen', [HortPlanungController::class, 'berechnungen'])->name('hort-planung.berechnungen');
                     Route::get('/{planung}/trend', [HortPlanungController::class, 'trend'])->name('hort-planung.trend');
                     Route::get('/{planung}/rueckblick', [HortPlanungController::class, 'rueckblick'])->name('hort-planung.rueckblick');
+                    Route::get('/{planung}/vertragsaenderungen', [HortPlanungController::class, 'vertragsaenderungen'])->name('hort-planung.vertragsaenderungen');
+                    Route::get('/{planung}/vertragsaenderungen/export', [HortPlanungController::class, 'exportVertragsaenderungen'])->name('hort-planung.exportVertragsaenderungen');
                     Route::get('/{planung}/vergleich/{other}', [HortPlanungController::class, 'vergleich'])->name('hort-planung.vergleich');
 
                     // Schreib-Routen (manage-Permission)
