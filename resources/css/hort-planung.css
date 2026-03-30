@@ -2,6 +2,8 @@
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
 
+@source "../views/personal/hort_planung/**/*.blade.php";
+
 .hort-planung-wrapper {
     /* Scope: alle Tailwind Utilities wirken nur innerhalb dieses Wrappers */
 }
@@ -53,27 +55,25 @@
     overflow: clip;
 }
 
-/* Scroll-Container: nur horizontales Scrollen erlauben.
-   overflow-y: clip → kein Scroll-Container in Y-Richtung, daher referenziert
-   position:sticky;top auf die Seite (nicht den Container). Kein max-height,
-   die Tabelle wächst auf ihre natürliche Höhe. */
+/* Scroll-Container: scrollt horizontal UND vertikal (max-height begrenzt auf Viewport).
+   position:sticky greift jetzt relativ zum Container – der Header klebt am oberen
+   Rand des Scroll-Bereichs, nicht am Viewport. */
 .hp-matrix-scroll {
-    overflow-x: auto;
-    overflow-y: clip;
+    overflow: auto;
+    max-height: calc(100vh - var(--topbar-height, 60px) - 20px);
 }
 
-/* Sticky Tabellenkopf: direkt auf <th>-Elemente (nicht auf <thead>),
-   da position:sticky auf <thead> in manchen Browsern nicht zuverlässig greift.
-   top: var(--topbar-height) damit der Header unterhalb der Topbar klebt. */
+/* Sticky Tabellenkopf: top ist relativ zum Scroll-Container (.hp-matrix-scroll),
+   da dieser overflow:auto hat und somit der Scroll-Kontext ist. */
 .hort-planung-wrapper .hp-matrix-table thead tr:first-child th {
     position: sticky;
-    top: var(--topbar-height, 60px);
+    top: 0;
     z-index: 20;
 }
 .hort-planung-wrapper .hp-matrix-table thead tr:nth-child(2) th {
     position: sticky;
-    /* Topbar-Höhe + Höhe der ersten Kopfzeile (per Alpine gemessen → --hp-thead-r1-h) */
-    top: calc(var(--topbar-height, 60px) + var(--hp-thead-r1-h, 44px));
+    /* Direkt unter der ersten Kopfzeile (Höhe per Alpine gemessen → --hp-thead-r1-h) */
+    top: var(--hp-thead-r1-h, 44px);
     z-index: 20;
 }
 

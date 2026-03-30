@@ -336,9 +336,8 @@
             <colgroup>
                 <col>{{-- Erste Spalte (sticky Label) --}}
                 @foreach($monatsListe as $m)
-                @php $mk = $m->monat->format('Y-m'); @endphp
-                <col data-mk="{{ $mk }}">{{-- SP1 --}}
-                <col data-mk="{{ $mk }}">{{-- SP2 --}}
+                <col>{{-- SP1 --}}
+                <col>{{-- SP2 --}}
                 @endforeach
             </colgroup>
 
