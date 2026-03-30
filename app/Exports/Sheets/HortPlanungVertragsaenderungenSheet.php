@@ -15,13 +15,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * „Vertragsänderungen"-Sheet: Wann müssen bei welcher Person die
  * vertraglich vereinbarten Stunden angepasst werden?
  *
- * Erkennt Übergänge: SP1 und/oder SP2 können sich unabhängig
- * voneinander ändern – beide Werte werden einzeln verglichen.
+ * Zusatzstunden = SP1 − SP2 (Stunden über den Stundenhort hinaus).
+ * Beispiel: SP2 = 22 h, SP1 = 29 h → Stundenhort 22 + 7 Zusatz = 29 h
  */
 class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
-    protected int $dataRows = 0;
-
     public function __construct(
         protected HortPlanung $planung,
         protected HortPlanungService $service
@@ -41,15 +39,13 @@ class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, With
         $rows[] = [
             'Person',
             'Ab Monat',
-            'SP1 vorher (h)',
-            'SP1 neu (h)',
-            'SP2 vorher (h)',
-            'SP2 neu (h)',
-            'Zusatzstd. (h)',
-            'Gesamt SP1 (h)',
-            'Vertrag (h)',
-            'Δ SP1–Vertrag (h)',
             'Geändert',
+            'Stundenhort SP2 (h)',
+            'Zusatzstunden (h)',
+            'Gesamt SP1 (h)',
+            'SP1 vorher (h)',
+            'SP2 vorher (h)',
+            'Vertrag (h)',
         ];
 
         $fmt = fn(?float $v): string =>
@@ -67,17 +63,14 @@ class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, With
                 $rows[] = [
                     $a['user_name'],
                     $a['monat_label'],
-                    $fmt($a['sp1_vorher']),
-                    $fmt($a['sp1']),
-                    $fmt($a['sp2_vorher']),
+                    $aenderungsTyp,
                     $fmt($a['sp2']),
                     $fmt($a['zusatzstunden']),
-                    $fmt($a['gesamtwert_sp1']),
+                    $fmt($a['sp1']),
+                    $fmt($a['sp1_vorher']),
+                    $fmt($a['sp2_vorher']),
                     $fmt($a['vertrag']),
-                    $fmt($a['differenz']),
-                    $aenderungsTyp,
                 ];
-                $this->dataRows++;
             }
         }
 
@@ -87,8 +80,7 @@ class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, With
     public function styles(Worksheet $sheet): array
     {
         return [
-            // Header-Zeile
-            'A1:K1' => [
+            'A1:I1' => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D97706']],
             ],
@@ -98,9 +90,9 @@ class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, With
     public function columnWidths(): array
     {
         return [
-            'A' => 24, 'B' => 18, 'C' => 14, 'D' => 14,
-            'E' => 14, 'F' => 14, 'G' => 14, 'H' => 16,
-            'I' => 14, 'J' => 18, 'K' => 12,
+            'A' => 24, 'B' => 18, 'C' => 12, 'D' => 20,
+            'E' => 18, 'F' => 16, 'G' => 16, 'H' => 16,
+            'I' => 14,
         ];
     }
 
@@ -109,4 +101,3 @@ class HortPlanungVertragsaenderungenSheet implements FromArray, WithStyles, With
         return 'Vertragsänderungen';
     }
 }
-

@@ -79,31 +79,38 @@
     @if(session('Meldung'))
     <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium
                 {{ session('type') === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                   (session('type') === 'warning' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
                    (session('type') === 'danger'  ? 'bg-red-50 text-red-800 border border-red-200' :
-                    'bg-blue-50 text-blue-800 border border-blue-200') }}"
+                    'bg-blue-50 text-blue-800 border border-blue-200')) }}"
          role="alert">
         {{ session('Meldung') }}
     </div>
     @endif
 
-    {{-- ── Legende ─────────────────────────────────────────────────────────── --}}
+    @if($errors->any())
+    <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 text-red-800 border border-red-200" role="alert">
+        @foreach($errors->all() as $error)
+            {{ $error }}<br>
+        @endforeach
+    </div>
+    @endif
+
+    {{-- ── Erklärung ───────────────────────────────────────────────────────── --}}
     <div class="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500 mb-3 px-1">
         <span class="flex items-center gap-1.5">
-            <span class="inline-block w-3 h-3 rounded-sm bg-blue-100 border border-blue-300"></span>
-            <strong class="text-gray-600">SP1</strong> – geplante Stunden (Verein)
-        </span>
-        <span class="flex items-center gap-1.5">
             <span class="inline-block w-3 h-3 rounded-sm bg-slate-100 border border-slate-300"></span>
-            <strong class="text-gray-600">SP2</strong> – Stadtstunden (Abrechnung)
+            <strong class="text-gray-600">Stundenhort (SP2)</strong> – Stadtstunden
         </span>
         <span class="flex items-center gap-1.5">
             <span class="inline-block w-3 h-3 rounded-sm bg-amber-100 border border-amber-300"></span>
-            <strong class="text-gray-600">Zusatz</strong> – Anteil Zusatzstunden pro Person
+            <strong class="text-gray-600">Zusatzstunden</strong> – SP1 − SP2
         </span>
         <span class="flex items-center gap-1.5">
-            <span class="inline-block w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-300"></span>
-            <strong class="text-gray-600">Gesamt SP1</strong> – SP1 + Zusatzstunden-Anteil
+            <span class="inline-block w-3 h-3 rounded-sm bg-blue-100 border border-blue-300"></span>
+            <strong class="text-gray-600">Gesamt SP1</strong> – Stundenhort + Zusatzstunden
         </span>
+        <span class="text-gray-400">·</span>
+        <span>Aufgelistet wird jeder Monat, in dem sich SP1 oder SP2 gegenüber dem Vormonat ändert.</span>
     </div>
 
     {{-- ── Leerzustand ─────────────────────────────────────────────────────── --}}
@@ -146,96 +153,96 @@
                 <thead>
                     <tr class="border-b-2 border-gray-200 bg-gray-50 text-gray-500">
                         <th class="px-4 py-2.5 text-left font-semibold">Ab Monat</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-blue-600">SP1 vorher</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-blue-700">SP1 neu</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-slate-600">SP2 vorher</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-slate-700">SP2 neu</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-amber-600">Zusatzstd.</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-emerald-700">Gesamt SP1</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-gray-600">Vertrag</th>
-                        <th class="px-3 py-2.5 text-right font-semibold text-amber-700">Δ SP1–Vertrag</th>
+                        <th class="px-3 py-2.5 text-center font-semibold">Änderung</th>
+                        <th class="px-3 py-2.5 text-right font-semibold text-slate-600">Stundenhort (SP2)</th>
+                        <th class="px-3 py-2.5 text-right font-semibold text-amber-600">Zusatzstunden</th>
+                        <th class="px-3 py-2.5 text-right font-semibold text-blue-700">Gesamt SP1</th>
+                        <th class="px-3 py-2.5 text-right font-semibold text-gray-500">Vertrag</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($personAenderungen as $idx => $a)
                     @php
                         $istVergangen = $a['monat']->lessThan(now()->startOfMonth());
-                        $hatVertragAbweichung = $a['vertrag'] !== null && abs($a['differenz']) >= 0.01;
+                        $sp1  = $a['sp1'];
+                        $sp2  = $a['sp2'];
+                        $zusatz = $a['zusatzstunden']; // = SP1 − SP2
                     @endphp
                     <tr class="{{ $idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }}
-                               {{ $istVergangen ? 'opacity-60' : '' }}
+                               {{ $istVergangen ? 'opacity-50' : '' }}
                                hover:bg-blue-50/30 border-b border-gray-100">
+
                         {{-- Ab Monat --}}
-                        <td class="px-4 py-2.5 font-medium text-gray-800">
+                        <td class="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">
                             {{ $a['monat_label'] }}
                             @if($istVergangen)
                                 <span class="ml-1 text-[10px] text-gray-400">(vergangen)</span>
                             @endif
+                        </td>
+
+                        {{-- Was hat sich geändert? --}}
+                        <td class="px-3 py-2.5 text-center whitespace-nowrap">
                             @if($a['sp1_geaendert'] && $a['sp2_geaendert'])
-                                <span class="ml-1 text-[10px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded">SP1+SP2</span>
+                                <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">SP1+SP2</span>
                             @elseif($a['sp1_geaendert'])
-                                <span class="ml-1 text-[10px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded">SP1</span>
+                                <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">SP1</span>
                             @elseif($a['sp2_geaendert'])
-                                <span class="ml-1 text-[10px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded">SP2</span>
+                                <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">SP2</span>
+                            @endif
+
+                            {{-- Kompakte Änderungsanzeige --}}
+                            <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">
+                                @if($a['sp1_geaendert'])
+                                    SP1: {{ $a['sp1_vorher'] !== null ? $fmt($a['sp1_vorher'], 1) : '–' }} → {{ $fmt($sp1, 1) }}
+                                    @if($a['sp1_vorher'] !== null && $sp1 !== null)
+                                        <span class="{{ ($sp1 - $a['sp1_vorher']) > 0 ? 'text-blue-500' : 'text-red-400' }}">
+                                            ({{ $fmtSign($sp1 - $a['sp1_vorher'], 1) }})
+                                        </span>
+                                    @endif
+                                    <br>
+                                @endif
+                                @if($a['sp2_geaendert'])
+                                    SP2: {{ $a['sp2_vorher'] !== null ? $fmt($a['sp2_vorher'], 1) : '–' }} → {{ $fmt($sp2, 1) }}
+                                    @if($a['sp2_vorher'] !== null && $sp2 !== null)
+                                        <span class="{{ ($sp2 - $a['sp2_vorher']) > 0 ? 'text-slate-500' : 'text-red-400' }}">
+                                            ({{ $fmtSign($sp2 - $a['sp2_vorher'], 1) }})
+                                        </span>
+                                    @endif
+                                @endif
+                            </div>
+                        </td>
+
+                        {{-- Stundenhort (SP2) --}}
+                        <td class="px-3 py-2.5 text-right text-slate-700 font-medium">
+                            {{ $sp2 !== null ? $fmt($sp2, 1) : '–' }}
+                        </td>
+
+                        {{-- Zusatzstunden = SP1 − SP2 --}}
+                        <td class="px-3 py-2.5 text-right font-semibold {{ $zusatz > 0.01 ? 'text-amber-600' : 'text-gray-400' }}">
+                            @if($zusatz > 0.01)
+                                +{{ $fmt($zusatz, 1) }}
+                            @elseif($zusatz < -0.01)
+                                {{ $fmt($zusatz, 1) }}
+                            @else
+                                –
                             @endif
                         </td>
 
-                        {{-- SP1 vorher --}}
-                        <td class="px-3 py-2.5 text-right text-gray-400">
-                            {{ $a['sp1_vorher'] !== null ? $fmt($a['sp1_vorher'], 1) : '–' }}
-                        </td>
-
-                        {{-- SP1 neu --}}
-                        <td class="px-3 py-2.5 text-right font-semibold {{ $a['sp1_geaendert'] ? 'text-blue-700' : 'text-gray-500' }}">
-                            {{ $a['sp1'] !== null ? $fmt($a['sp1'], 1) : '–' }}
-                            @if($a['sp1_geaendert'] && $a['sp1_vorher'] !== null && $a['sp1'] !== null)
-                                @php $diff = $a['sp1'] - $a['sp1_vorher']; @endphp
-                                <br>
-                                <span class="text-[10px] font-normal {{ $diff > 0 ? 'text-blue-400' : 'text-red-400' }}">
-                                    {{ $fmtSign($diff, 1) }}
-                                </span>
-                            @endif
-                        </td>
-
-                        {{-- SP2 vorher --}}
-                        <td class="px-3 py-2.5 text-right text-gray-400">
-                            {{ $a['sp2_vorher'] !== null ? $fmt($a['sp2_vorher'], 1) : '–' }}
-                        </td>
-
-                        {{-- SP2 neu --}}
-                        <td class="px-3 py-2.5 text-right font-semibold {{ $a['sp2_geaendert'] ? 'text-slate-700' : 'text-gray-500' }}">
-                            {{ $a['sp2'] !== null ? $fmt($a['sp2'], 1) : '–' }}
-                            @if($a['sp2_geaendert'] && $a['sp2_vorher'] !== null && $a['sp2'] !== null)
-                                @php $diff = $a['sp2'] - $a['sp2_vorher']; @endphp
-                                <br>
-                                <span class="text-[10px] font-normal {{ $diff > 0 ? 'text-slate-400' : 'text-red-400' }}">
-                                    {{ $fmtSign($diff, 1) }}
-                                </span>
-                            @endif
-                        </td>
-
-                        {{-- Zusatzstunden --}}
-                        <td class="px-3 py-2.5 text-right text-amber-600">
-                            {{ $fmt($a['zusatzstunden'], 1) }}
-                        </td>
-
-                        {{-- Gesamtwert SP1 --}}
-                        <td class="px-3 py-2.5 text-right font-semibold text-emerald-700">
-                            {{ $fmt($a['gesamtwert_sp1'], 1) }}
+                        {{-- Gesamt SP1 = SP2 + Zusatzstunden --}}
+                        <td class="px-3 py-2.5 text-right font-bold text-blue-700">
+                            {{ $sp1 !== null ? $fmt($sp1, 1) : '–' }}
                         </td>
 
                         {{-- Vertrag --}}
-                        <td class="px-3 py-2.5 text-right text-gray-600">
-                            {{ $a['vertrag'] !== null ? $fmt($a['vertrag'], 1) : '–' }}
-                        </td>
-
-                        {{-- Differenz SP1–Vertrag --}}
-                        <td class="px-3 py-2.5 text-right font-semibold
-                                   {{ $hatVertragAbweichung ? 'text-amber-700 bg-amber-50' : 'text-gray-400' }}">
+                        <td class="px-3 py-2.5 text-right text-gray-500">
                             @if($a['vertrag'] !== null)
-                                {{ $fmtSign($a['differenz'], 1) }}
-                                @if($hatVertragAbweichung)
-                                    <span class="ml-0.5 text-amber-500">⚠</span>
+                                {{ $fmt($a['vertrag'], 1) }}
+                                @php $vertragDiff = ($sp1 ?? 0) - $a['vertrag']; @endphp
+                                @if(abs($vertragDiff) >= 0.01)
+                                    <br>
+                                    <span class="text-[10px] text-amber-600 font-medium">
+                                        Δ {{ $fmtSign($vertragDiff, 1) }} ⚠
+                                    </span>
                                 @endif
                             @else
                                 –
@@ -269,14 +276,183 @@
                 </div>
                 <div class="text-center p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                     @php
-                        $abweichungen = $aenderungen->flatten(1)->filter(fn($a) => $a['vertrag'] !== null && abs($a['differenz']) >= 0.01)->count();
+                        $nurSp1 = $aenderungen->flatten(1)->filter(fn($a) => $a['sp1_geaendert'] && !$a['sp2_geaendert'])->count();
+                        $nurSp2 = $aenderungen->flatten(1)->filter(fn($a) => !$a['sp1_geaendert'] && $a['sp2_geaendert'])->count();
+                        $beide  = $aenderungen->flatten(1)->filter(fn($a) => $a['sp1_geaendert'] && $a['sp2_geaendert'])->count();
                     @endphp
-                    <div class="text-2xl font-bold text-emerald-700">{{ $abweichungen }}</div>
-                    <div class="text-xs text-emerald-600 mt-1">davon mit Vertrag-Abweichung</div>
+                    <div class="text-sm font-bold text-emerald-700">
+                        <span class="text-blue-600">{{ $nurSp1 }}× SP1</span>
+                        · <span class="text-slate-600">{{ $nurSp2 }}× SP2</span>
+                        · <span class="text-purple-600">{{ $beide }}× beide</span>
+                    </div>
+                    <div class="text-xs text-emerald-600 mt-1">Aufschlüsselung nach Änderungstyp</div>
                 </div>
             </div>
         </div>
     </div>
+
+    {{-- ── Anstellungen erstellen ──────────────────────────────────────────── --}}
+    @can('manage hort planung')
+    <div class="bg-white rounded-2xl border border-orange-200 shadow-sm overflow-hidden mt-6"
+         x-data="{ showVorschau: false }">
+        <div class="px-5 py-3.5 border-b border-orange-100 bg-orange-50">
+            <h3 class="text-sm font-semibold text-orange-800 flex items-center gap-2">
+                <span class="text-base">⚙️</span>
+                Befristete Anstellungen erstellen
+            </h3>
+            <p class="text-xs text-orange-600 mt-1">
+                Prüft pro Änderungsmonat die Summe <strong>aller aktiven Anstellungen</strong> (befristet + unbefristet).
+                Nur wenn SP1 davon abweicht, werden befristete Anstellungen erstellt:
+                <strong>SP2-Anpassung</strong> (Differenz bestehend → SP2) +
+                <strong>Zusatzstunden</strong> (SP1 − SP2).
+                Bestehende Anstellungen bleiben unverändert.
+            </p>
+        </div>
+
+        <div class="p-5">
+            {{-- Vorschau-Button --}}
+            <button @click="showVorschau = !showVorschau" type="button"
+                    class="text-xs text-orange-600 hover:text-orange-800 underline mb-4">
+                <span x-text="showVorschau ? '▼ Vorschau ausblenden' : '▶ Vorschau der zu erstellenden Anstellungen anzeigen'"></span>
+            </button>
+
+            {{-- Vorschau-Tabelle --}}
+            <div x-show="showVorschau" x-cloak class="mb-5">
+                @php
+                    $vorschauDaten = [];
+                    foreach ($aenderungen as $userId => $personAenderungen) {
+                        $liste = $personAenderungen->values()->all();
+
+                        foreach ($liste as $idx => $a) {
+                            $monatStart = $a['monat'];
+                            $sp1 = (float) ($a['sp1'] ?? 0);
+                            $sp2 = (float) ($a['sp2'] ?? 0);
+                            $zusatz = round($sp1 - $sp2, 2);
+
+                            $naechster = $liste[$idx + 1] ?? null;
+                            $bisLabel = $naechster
+                                ? $naechster['monat']->copy()->subDay()->format('d.m.Y')
+                                : '(befristet bis)';
+
+                            // Summe aller aktiven Anstellungen im Bereich zu diesem Monat
+                            $existierend = (float) \App\Models\personal\Employment
+                                ::where('employe_id', $userId)
+                                ->where('department_id', $planung->department_id)
+                                ->where('start', '<=', $monatStart)
+                                ->where(function ($q) use ($monatStart) {
+                                    $q->whereNull('end')->orWhere('end', '>=', $monatStart);
+                                })
+                                ->sum('hours');
+
+                            $gedeckt  = abs($sp1 - $existierend) < 0.01;
+                            $sp2Diff  = round($sp2 - $existierend, 2);
+
+                            $vorschauDaten[] = [
+                                'person'      => $a['user_name'],
+                                'ab'          => $monatStart->format('d.m.Y'),
+                                'bis'         => $bisLabel,
+                                'existierend' => $existierend,
+                                'sp2'         => $sp2,
+                                'sp2_diff'    => $sp2Diff,
+                                'zusatz'      => $zusatz,
+                                'sp1'         => $sp1,
+                                'gedeckt'     => $gedeckt,
+                            ];
+                        }
+                    }
+                @endphp
+                <div class="overflow-x-auto border border-orange-100 rounded-xl">
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-orange-50 border-b border-orange-200 text-orange-700">
+                                <th class="px-3 py-2 text-left font-semibold">Person</th>
+                                <th class="px-3 py-2 text-left font-semibold">Ab</th>
+                                <th class="px-3 py-2 text-left font-semibold">Bis</th>
+                                <th class="px-3 py-2 text-right font-semibold">Bestehend</th>
+                                <th class="px-3 py-2 text-right font-semibold">Ziel SP1</th>
+                                <th class="px-3 py-2 text-right font-semibold">→ Anst. SP2-Anp.</th>
+                                <th class="px-3 py-2 text-right font-semibold">→ Anst. Zusatzstd.</th>
+                                <th class="px-3 py-2 text-center font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($vorschauDaten as $v)
+                            <tr class="border-b border-gray-100 {{ $v['gedeckt'] ? 'opacity-40' : '' }}">
+                                <td class="px-3 py-2 font-medium text-gray-800">{{ $v['person'] }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $v['ab'] }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $v['bis'] }}</td>
+                                <td class="px-3 py-2 text-right text-gray-600">
+                                    {{ $v['existierend'] > 0 ? $fmt($v['existierend'], 1) . ' h' : '–' }}
+                                </td>
+                                <td class="px-3 py-2 text-right font-bold text-blue-700">{{ $fmt($v['sp1'], 1) }} h</td>
+                                <td class="px-3 py-2 text-right font-medium {{ !$v['gedeckt'] && abs($v['sp2_diff']) >= 0.01 ? 'text-orange-700' : 'text-gray-400' }}">
+                                    @if($v['gedeckt'])
+                                        –
+                                    @elseif(abs($v['sp2_diff']) >= 0.01)
+                                        {{ $v['sp2_diff'] > 0 ? '+' : '' }}{{ $fmt($v['sp2_diff'], 1) }} h
+                                    @else
+                                        –
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right font-medium {{ !$v['gedeckt'] && abs($v['zusatz']) >= 0.01 ? 'text-amber-600' : 'text-gray-400' }}">
+                                    @if($v['gedeckt'])
+                                        –
+                                    @elseif(abs($v['zusatz']) >= 0.01)
+                                        {{ $v['zusatz'] > 0 ? '+' : '' }}{{ $fmt($v['zusatz'], 1) }} h
+                                    @else
+                                        –
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    @if($v['gedeckt'])
+                                        <span class="text-emerald-600 text-[10px] font-medium">✓ gedeckt</span>
+                                    @else
+                                        <span class="text-orange-600 text-[10px] font-medium">neu</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @php $anzahlGedeckt = collect($vorschauDaten)->where('gedeckt', true)->count(); @endphp
+                @if($anzahlGedeckt > 0)
+                <p class="mt-2 text-[11px] text-emerald-600">
+                    ✓ {{ $anzahlGedeckt }} Änderung(en) bereits durch bestehende Anstellungen gedeckt – keine neuen Einträge nötig.
+                </p>
+                @endif
+            </div>
+
+            {{-- Formular --}}
+            <form method="POST" action="{{ route('hort-planung.applyVertragsaenderungen', $planung) }}"
+                  onsubmit="return confirm('Es werden befristete Anstellungen für {{ $anzahlPersonen }} Person(en) erstellt. Fortfahren?')">
+                @csrf
+                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div>
+                        <label for="befristet_bis" class="block text-xs font-medium text-gray-700 mb-1">
+                            Befristet bis
+                        </label>
+                        <input type="date" name="befristet_bis" id="befristet_bis"
+                               value="{{ old('befristet_bis') }}"
+                               min="{{ now()->addDay()->format('Y-m-d') }}"
+                               class="block w-full sm:w-48 px-3 py-2 text-sm border border-gray-300 rounded-lg
+                                      focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                               required>
+                    </div>
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700
+                                   text-white text-sm font-medium rounded-xl shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Anstellungen erstellen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endcan
 
     @endif
 

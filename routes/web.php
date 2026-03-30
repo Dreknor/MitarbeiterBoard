@@ -347,6 +347,7 @@ Route::group([
                         Route::post('/{planung}/sync-ist', [HortPlanungController::class, 'syncIstStunden'])->name('hort-planung.syncIstStunden');
                         Route::post('/{planung}/sync-vertrag', [HortPlanungController::class, 'syncVertrag'])->name('hort-planung.syncVertrag');
                         Route::post('/{planung}/duplicate', [HortPlanungController::class, 'duplicate'])->name('hort-planung.duplicate');
+                        Route::post('/{planung}/vertragsaenderungen/apply', [HortPlanungController::class, 'applyVertragsaenderungen'])->name('hort-planung.applyVertragsaenderungen');
                         Route::post('/{planung}/snapshot', [HortPlanungController::class, 'snapshot'])->name('hort-planung.snapshot');
                         Route::get('/{planung}/snapshot/{snapshot}/export', [HortPlanungController::class, 'exportSnapshot'])->name('hort-planung.exportSnapshot');
                         Route::post('/{planung}/snapshot/{snapshot}/restore', [HortPlanungController::class, 'restoreSnapshot'])->name('hort-planung.restoreSnapshot');

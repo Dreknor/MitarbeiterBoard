@@ -12,6 +12,7 @@ use App\Models\personal\HortPlanungMonat;
 use App\Models\personal\HortPlanungPerson;
 use App\Models\personal\HortPlanungSnapshot;
 use App\Models\personal\HortZusatzstundenTyp;
+use App\Models\personal\HourType;
 use App\Models\personal\Timesheet;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -847,12 +848,14 @@ class HortPlanungService
      * auch wenn die Gesamtsumme gleich bleibt → beide Werte werden einzeln
      * verglichen.
      *
-     * Pro Eintrag wird angegeben:
-     *   - SP1 (stunden_gesamt) und SP2 (stunden_stadt)
-     *   - vorheriger SP1-/SP2-Wert (aus dem Vormonat)
-     *   - Anteil Zusatzstunden (gleichmäßig auf aktive Personen verteilt)
-     *   - Gesamtwert SP1 (SP1 + Zusatzstunden-Anteil)
+     * Pro Eintrag wird direkt aus den Daten abgelesen (keine Berechnung):
+     *   - Stundenhort (SP2) – die mit der Stadt abgerechneten Stunden
+     *   - Zusatzstunden = SP1 − SP2 (die Stunden über den Stundenhort hinaus)
+     *   - Gesamt SP1 = SP2 + Zusatzstunden (= stunden_gesamt)
+     *   - vorherige SP1-/SP2-Werte (aus dem Vormonat) für Änderungsanzeige
      *   - aktueller Vertrag (stunden_vertrag)
+     *
+     * Beispiel: SP2 = 22 h, SP1 = 29 h → Stundenhort 22 h + 7 h Zusatz = 29 h
      *
      * @param HortPlanung $planung
      * @return Collection  Gruppiert nach user_id → Collection von Änderungs-Records
@@ -877,15 +880,6 @@ class HortPlanungService
             }
         }
 
-        // Zusatzstunden pro Person pro Monat vorberechnen
-        $zusatzProPersonMonat = [];
-        foreach ($monate as $monat) {
-            $mk = $monat->monat->format('Y-m');
-            $aktive = $monat->personen->filter(fn($p) => ($p->stunden_gesamt ?? 0) > 0)->count();
-            $zusatzGesamt = $monat->summeZusatzstunden();
-            $zusatzProPersonMonat[$mk] = $aktive > 0 ? round($zusatzGesamt / $aktive, 2) : 0;
-        }
-
         $aenderungen = collect();
 
         foreach ($allePersonen as $person) {
@@ -900,7 +894,6 @@ class HortPlanungService
                 $mp = $personenIndex[$mk . '_' . $userId] ?? null;
 
                 if (!$mp) {
-                    // Person in diesem Monat nicht vorhanden → Vorwerte zurücksetzen
                     $vorherigerSP1 = null;
                     $vorherigerSP2 = null;
                     continue;
@@ -923,7 +916,8 @@ class HortPlanungService
                     || ($vorherigerSP2 !== null && $sp2 !== null && abs($sp2 - $vorherigerSP2) >= 0.01);
 
                 if ($sp1Geaendert || $sp2Geaendert) {
-                    $zusatz = ($sp1 ?? 0) > 0 ? ($zusatzProPersonMonat[$mk] ?? 0) : 0;
+                    // Zusatzstunden = SP1 − SP2 (Stunden über den Stundenhort hinaus)
+                    $zusatz = round(($sp1 ?? 0) - ($sp2 ?? 0), 2);
 
                     $aenderungen->push([
                         'user_id'          => $userId,
@@ -935,9 +929,7 @@ class HortPlanungService
                         'sp1_vorher'       => $vorherigerSP1 !== null ? round($vorherigerSP1, 2) : null,
                         'sp2_vorher'       => $vorherigerSP2 !== null ? round($vorherigerSP2, 2) : null,
                         'zusatzstunden'    => $zusatz,
-                        'gesamtwert_sp1'   => round(($sp1 ?? 0) + $zusatz, 2),
                         'vertrag'          => $vertrag !== null ? round($vertrag, 2) : null,
-                        'differenz'        => round(($sp1 ?? 0) - ($vertrag ?? 0), 2),
                         'sp1_geaendert'    => $sp1Geaendert,
                         'sp2_geaendert'    => $sp2Geaendert,
                     ]);
@@ -955,6 +947,137 @@ class HortPlanungService
                 ['monat', 'asc'],
             ])
             ->groupBy('user_id');
+    }
+
+    // ── §4.14 Anstellungen aus Vertragsänderungen erstellen ──────────────────
+
+    /**
+     * Erstellt befristete Anstellungen aus den erkannten Vertragsänderungen.
+     *
+     * Pro Änderungsmonat werden ALLE aktiven Anstellungen (befristet UND
+     * unbefristet) im Bereich summiert. Nur wenn SP1 von dieser Summe
+     * abweicht, werden neue Anstellungen angelegt:
+     *
+     *   - SP2-Anpassung: Differenz SP2 − bestehende Stundensumme
+     *   - Zusatzstunden:  Differenz SP1 − SP2
+     *
+     * Bestehende Anstellungen (befristet oder unbefristet) bleiben unverändert.
+     * Wenn die bestehende Summe bereits SP1 entspricht → nichts zu tun.
+     *
+     * Beispiel: Bestehend 25 h (befristet), SP2 = 22 h, SP1 = 25 h
+     *   → 25 h bereits vorhanden = SP1 → keine neuen Anstellungen ✓
+     *
+     * Beispiel: Bestehend 25 h (unbefristet), SP2 = 22 h, SP1 = 29 h
+     *   → Anstellung 1: −3 h „SP2-Anpassung"  (22 − 25)
+     *   → Anstellung 2: +7 h „Zusatzstunden"   (29 − 22)
+     *   → Effektiv: 25 − 3 + 7 = 29 h = SP1 ✓
+     *
+     * @param HortPlanung $planung
+     * @param Carbon      $befristetBis  Ende-Datum für alle neuen Anstellungen
+     * @return array      ['erstellt' => int, 'hinweise' => string[]]
+     */
+    public function erstelleAnstellungenAusAenderungen(
+        HortPlanung $planung,
+        Carbon $befristetBis
+    ): array {
+        $aenderungen = $this->berechneVertragsaenderungen($planung);
+
+        $erstellt = 0;
+        $hinweise = [];
+
+        foreach ($aenderungen as $userId => $personAenderungen) {
+            $personName = $personAenderungen->first()['user_name'] ?? "ID $userId";
+
+            // hour_type_id ermitteln: aus Anstellung im Bereich, sonst global
+            $hourTypeId = Employment::where('employe_id', $userId)
+                ->where('department_id', $planung->department_id)
+                ->orderByDesc('start')
+                ->value('hour_type_id')
+                ?? Employment::where('employe_id', $userId)
+                    ->orderByDesc('start')
+                    ->value('hour_type_id')
+                ?? HourType::first()?->id;
+
+            if (!$hourTypeId) {
+                $hinweise[] = "$personName – kein Stundentyp gefunden, übersprungen";
+                continue;
+            }
+
+            $liste = $personAenderungen->values()->all();
+
+            foreach ($liste as $idx => $a) {
+                $start = $a['monat']; // Carbon – 1. des Monats
+
+                // Ende: Tag vor dem nächsten Übergang oder befristetBis
+                $naechster = $liste[$idx + 1] ?? null;
+                $end = $naechster
+                    ? $naechster['monat']->copy()->subDay()
+                    : $befristetBis;
+
+                if ($end->lessThan($start)) {
+                    continue;
+                }
+
+                $sp1 = (float) ($a['sp1'] ?? 0);
+                $sp2 = (float) ($a['sp2'] ?? 0);
+
+                // ── Summe ALLER aktiven Anstellungen (befristet + unbefristet)
+                //    im Bereich zum Zeitpunkt des Änderungsmonats ─────────────
+                $existierend = (float) Employment::where('employe_id', $userId)
+                    ->where('department_id', $planung->department_id)
+                    ->where('start', '<=', $start)
+                    ->where(function ($q) use ($start) {
+                        $q->whereNull('end')->orWhere('end', '>=', $start);
+                    })
+                    ->sum('hours');
+
+                // Wenn SP1 bereits durch bestehende Anstellungen gedeckt → nichts tun
+                if (abs($sp1 - $existierend) < 0.01) {
+                    continue;
+                }
+
+                // 1. SP2-Anpassung: Differenz bestehende Stunden → SP2
+                $sp2Diff = round($sp2 - $existierend, 2);
+
+                if (abs($sp2Diff) >= 0.01) {
+                    $comment = $existierend >= 0.01
+                        ? 'SP2-Anpassung (Hortplanung: ' . $planung->name . ')'
+                        : 'Stundenhort/SP2 (Hortplanung: ' . $planung->name . ')';
+
+                    Employment::create([
+                        'employe_id'    => $userId,
+                        'department_id' => $planung->department_id,
+                        'hour_type_id'  => $hourTypeId,
+                        'start'         => $start,
+                        'end'           => $end,
+                        'hours'         => $sp2Diff,
+                        'comment'       => $comment,
+                    ]);
+                    $erstellt++;
+                }
+
+                // 2. Zusatzstunden (SP1 − SP2)
+                $zusatz = round($sp1 - $sp2, 2);
+
+                if (abs($zusatz) >= 0.01) {
+                    Employment::create([
+                        'employe_id'    => $userId,
+                        'department_id' => $planung->department_id,
+                        'hour_type_id'  => $hourTypeId,
+                        'start'         => $start,
+                        'end'           => $end,
+                        'hours'         => $zusatz,
+                        'comment'       => 'Zusatzstunden (Hortplanung: ' . $planung->name . ')',
+                    ]);
+                    $erstellt++;
+                }
+            }
+        }
+
+        return [
+            'erstellt' => $erstellt,
+            'hinweise' => $hinweise,
+        ];
     }
 }
 

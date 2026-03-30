@@ -1006,5 +1006,39 @@ class HortPlanungController extends Controller
 
         return Excel::download(new HortPlanungVertragsaenderungenExport($planung, $this->service), $dateiname);
     }
+
+    /**
+     * Befristete Anstellungen aus Vertragsänderungen erstellen.
+     */
+    public function applyVertragsaenderungen(Request $request, HortPlanung $planung): RedirectResponse
+    {
+        $request->validate([
+            'befristet_bis' => 'required|date|after:today',
+        ], [
+            'befristet_bis.required' => 'Bitte ein Enddatum angeben.',
+            'befristet_bis.after'    => 'Das Enddatum muss in der Zukunft liegen.',
+        ]);
+
+        $planung->load([
+            'faktoren.werte',
+            'monate.personen.user',
+            'monate.monatZusatzstunden.typ',
+            'department',
+        ]);
+
+        $befristetBis = Carbon::parse($request->befristet_bis);
+        $ergebnis     = $this->service->erstelleAnstellungenAusAenderungen($planung, $befristetBis);
+
+        $meldung = $ergebnis['erstellt'] . ' Anstellung(en) wurden erstellt (befristet bis ' . $befristetBis->format('d.m.Y') . ').';
+
+        if (!empty($ergebnis['hinweise'])) {
+            $meldung .= ' Hinweise: ' . implode('; ', $ergebnis['hinweise']);
+        }
+
+        $type = empty($ergebnis['hinweise']) ? 'success' : 'warning';
+
+        return redirect()->to(route('hort-planung.vertragsaenderungen', $planung))
+            ->with(['type' => $type, 'Meldung' => $meldung]);
+    }
 }
 

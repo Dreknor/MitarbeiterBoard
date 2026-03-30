@@ -9,20 +9,20 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Excel-Export der zu ändernden Verträge einer Hortstunden-Planung.
  *
  * Zeigt pro Person alle Monate, in denen sich SP1 oder SP2 gegenüber
- * dem Vormonat ändert. Spalten: Person, Ab Monat, SP1 (vorher → neu),
- * SP2 (vorher → neu), Zusatzstunden-Anteil, Gesamtwert SP1, Vertrag, Differenz.
+ * dem Vormonat ändert. Zusatzstunden = SP1 − SP2 (Stunden über den
+ * Stundenhort hinaus).
+ *
+ * Beispiel: SP2 = 22 h, SP1 = 29 h → Stundenhort 22 h + 7 h Zusatz = 29 h
  */
 class HortPlanungVertragsaenderungenExport implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
-    protected int $headerRow = 1;
-    protected int $dataRows  = 0;
+    protected int $dataRows = 0;
 
     public function __construct(
         protected HortPlanung $planung,
@@ -50,14 +50,13 @@ class HortPlanungVertragsaenderungenExport implements FromArray, WithStyles, Wit
         $rows[] = [
             'Person',
             'Ab Monat',
-            'SP1 vorher (h)',
-            'SP1 neu (h)',
-            'SP2 vorher (h)',
-            'SP2 neu (h)',
-            'Zusatzstd. (h)',
+            'Geändert',
+            'Stundenhort SP2 (h)',
+            'Zusatzstunden (h)',
             'Gesamt SP1 (h)',
+            'SP1 vorher (h)',
+            'SP2 vorher (h)',
             'Vertrag (h)',
-            'Δ SP1–Vertrag (h)',
         ];
 
         $fmt = fn(?float $v): string =>
@@ -65,17 +64,23 @@ class HortPlanungVertragsaenderungenExport implements FromArray, WithStyles, Wit
 
         foreach ($aenderungen as $userId => $personAenderungen) {
             foreach ($personAenderungen as $a) {
+                $aenderungsTyp = match (true) {
+                    $a['sp1_geaendert'] && $a['sp2_geaendert'] => 'SP1+SP2',
+                    $a['sp1_geaendert']                         => 'SP1',
+                    $a['sp2_geaendert']                         => 'SP2',
+                    default                                     => '–',
+                };
+
                 $rows[] = [
                     $a['user_name'],
                     $a['monat_label'],
-                    $fmt($a['sp1_vorher']),
-                    $fmt($a['sp1']),
-                    $fmt($a['sp2_vorher']),
+                    $aenderungsTyp,
                     $fmt($a['sp2']),
                     $fmt($a['zusatzstunden']),
-                    $fmt($a['gesamtwert_sp1']),
+                    $fmt($a['sp1']),
+                    $fmt($a['sp1_vorher']),
+                    $fmt($a['sp2_vorher']),
                     $fmt($a['vertrag']),
-                    $fmt($a['differenz']),
                 ];
                 $this->dataRows++;
             }
@@ -86,33 +91,21 @@ class HortPlanungVertragsaenderungenExport implements FromArray, WithStyles, Wit
 
     public function styles(Worksheet $sheet): array
     {
-        $styles = [
+        return [
             // Header-Zeile
-            'A1:J1' => [
+            'A1:I1' => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D97706']],
             ],
         ];
-
-        // Datenzeilen: Differenz-Spalte (J) bedingt einfärben
-        for ($row = 2; $row <= $this->dataRows + 1; $row++) {
-            $val = $sheet->getCell("J{$row}")->getValue();
-            if ($val !== null && $val !== '–' && $val !== '0,00') {
-                $styles["J{$row}"] = [
-                    'font' => ['bold' => true, 'color' => ['rgb' => 'B45309']],
-                ];
-            }
-        }
-
-        return $styles;
     }
 
     public function columnWidths(): array
     {
         return [
-            'A' => 24, 'B' => 18, 'C' => 14, 'D' => 14,
-            'E' => 14, 'F' => 14, 'G' => 14, 'H' => 16,
-            'I' => 14, 'J' => 18,
+            'A' => 24, 'B' => 18, 'C' => 12, 'D' => 20,
+            'E' => 18, 'F' => 16, 'G' => 16, 'H' => 16,
+            'I' => 14,
         ];
     }
 
@@ -121,4 +114,3 @@ class HortPlanungVertragsaenderungenExport implements FromArray, WithStyles, Wit
         return 'Vertragsänderungen';
     }
 }
-
