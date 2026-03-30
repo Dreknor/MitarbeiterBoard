@@ -389,13 +389,17 @@
                 <td data-header-colspan
                     colspan="{{ 1 + $monatsListe->count() * 2 }}"
                     class="hp-sticky bg-gray-100 border-y border-gray-300 px-3 py-1 text-[10px] font-bold
-                           text-gray-600 uppercase tracking-widest">
-                    Parameter
+                           text-gray-600 uppercase tracking-widest cursor-pointer select-none hover:bg-gray-200/80"
+                    @click="showParameter = !showParameter">
+                    <span class="inline-flex items-center gap-1">
+                        <svg class="w-3 h-3 transition-transform duration-200" :class="showParameter ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        Parameter
+                    </span>
                 </td>
             </tr>
 
             {{-- Kinderanzahl --}}
-            <tr class="hp-row-parameter border-b border-gray-100">
+            <tr x-show="showParameter" x-cloak class="hp-row-parameter border-b border-gray-100">
                 <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px]">
                     <div class="flex items-center justify-between gap-1">
                         <span>Kinderanzahl
@@ -442,7 +446,7 @@
             </tr>
 
             {{-- Vollzeitstunden --}}
-            <tr class="hp-row-parameter border-b border-gray-100">
+            <tr x-show="showParameter" x-cloak class="hp-row-parameter border-b border-gray-100">
                 <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px]">
                     Vollzeitstunden
                     <span class="block text-[9px] text-gray-400 font-normal">Std./Woche Vollzeitstelle</span>
@@ -480,7 +484,7 @@
 
             {{-- Zusatzstunden je aktivem Typ --}}
             @foreach($aktiveZusatz as $typ)
-            <tr class="hp-row-parameter border-b border-gray-100">
+            <tr x-show="showParameter" x-cloak class="hp-row-parameter border-b border-gray-100">
                 <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px]">
                     {{ $typ->bezeichnung }}
                     <span class="block text-[9px] text-gray-400 font-normal font-mono">{{ $typ->kuerzel }}</span>
@@ -1341,6 +1345,9 @@ function hortMatrix(initData) {
 
         // ── Personen-Filter ──────────────────────────────────────────
         hideInaktivePersonen: false,
+
+        // ── Sektionen ein-/ausklappen ──────────────────────────────
+        showParameter: true,
 
         // ── UI-Zustand ───────────────────────────────────────────────
         editing: {},
