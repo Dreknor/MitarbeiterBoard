@@ -1125,7 +1125,7 @@
                 <tbody>
                     <template x-for="p in sp2Perioden" :key="p.label">
                         <tr class="border-b border-gray-100 hover:bg-slate-50/30"
-                            :class="(p.diffStd < 0 || p.diffVz < -0.001) ? 'bg-red-50/30' : ''">
+                            :class="(p.diffStd < 0 || p.diffVz < 0) ? 'bg-red-50/30' : ''">
                             <td class="px-4 py-2.5 font-semibold text-gray-700" x-text="'SJ\u00A0' + p.label"></td>
                             <td class="px-4 py-2.5 text-right text-gray-400 font-mono text-[10px]"
                                 x-text="p.anzahl + '\u00A0Mon.'"></td>
@@ -1146,8 +1146,8 @@
                             <td class="px-3 py-2.5 text-right text-amber-700 font-mono"
                                 x-text="fmtNum(p.avgVzGesetzl, 3)"></td>
                             <td class="px-3 py-2.5 text-right font-semibold font-mono"
-                                :class="p.diffVz >= -0.001 ? 'diff-positiv' : 'diff-negativ'"
-                                :title="p.diffVz >= -0.001
+                                :class="p.diffVz >= 0 ? 'diff-positiv' : 'diff-negativ'"
+                                :title="p.diffVz >= 0
                                     ? 'VZÄ SP2 ≥ Mindest-VZÄ ✓ (' + fmtNum(p.avgVzSp2,3) + ' ≥ ' + fmtNum(p.avgVzGesetzl,3) + ')'
                                     : 'VZÄ SP2 unter Mindest-VZÄ! (' + fmtNum(p.avgVzSp2,3) + ' < ' + fmtNum(p.avgVzGesetzl,3) + ')'"
                                 x-text="fmtSign(p.diffVz, 3)"></td>
@@ -1694,15 +1694,17 @@ function hortMatrix(initData) {
                         budget     += this.berechnungen[mk]?.budget_gesamt  ?? 0;
                         sumVertrag += this.berechnungen[mk]?.summe_vertrag  ?? 0;
                     });
-                    const rest      = budget - sumSp1;
-                    const abwVertrag = Math.round((sumSp1 - sumVertrag) * 100) / 100;
+                    const rSumSp1    = Math.round(sumSp1     * 100) / 100;
+                    const rBudget    = Math.round(budget      * 100) / 100;
+                    const rSumVertrag= Math.round(sumVertrag  * 100) / 100;
+                    const abwVertrag = Math.round((rSumSp1 - rSumVertrag) * 100) / 100;
                     return {
                         label,
                         anzahl:     mks.length,
-                        sumSp1:     Math.round(sumSp1     * 100) / 100,
-                        budget:     Math.round(budget      * 100) / 100,
-                        rest:       Math.round(rest        * 100) / 100,
-                        sumVertrag: Math.round(sumVertrag  * 100) / 100,
+                        sumSp1:     rSumSp1,
+                        budget:     rBudget,
+                        rest:       Math.round((rBudget - rSumSp1) * 100) / 100,
+                        sumVertrag: rSumVertrag,
                         abwVertrag,
                     };
                 });
@@ -1726,19 +1728,19 @@ function hortMatrix(initData) {
                         sumVzSp2     += this.berechnungen[mk]?.summe_vz_sp2             ?? 0;
                         sumVzGesetzl += this.berechnungen[mk]?.summe_gesetz_vz          ?? 0;
                     });
-                    const diffStd      = sumSp2 - gesetzl;
-                    const avgVzSp2     = mks.length > 0 ? sumVzSp2    / mks.length : 0;
-                    const avgVzGesetzl = mks.length > 0 ? sumVzGesetzl / mks.length : 0;
-                    const diffVz       = avgVzSp2 - avgVzGesetzl;
+                    const rSumSp2      = Math.round(sumSp2        * 100) / 100;
+                    const rGesetzl     = Math.round(gesetzl       * 100) / 100;
+                    const rAvgVzSp2    = Math.round((mks.length > 0 ? sumVzSp2    / mks.length : 0) * 1000) / 1000;
+                    const rAvgVzGesetzl= Math.round((mks.length > 0 ? sumVzGesetzl / mks.length : 0) * 1000) / 1000;
                     return {
                         label:         year,
                         anzahl:        mks.length,
-                        sumSp2:        Math.round(sumSp2        * 100) / 100,
-                        gesetzl:       Math.round(gesetzl        * 100) / 100,
-                        diffStd:       Math.round(diffStd        * 100) / 100,
-                        avgVzSp2:      Math.round(avgVzSp2      * 1000) / 1000,
-                        avgVzGesetzl:  Math.round(avgVzGesetzl  * 1000) / 1000,
-                        diffVz:        Math.round(diffVz        * 1000) / 1000,
+                        sumSp2:        rSumSp2,
+                        gesetzl:       rGesetzl,
+                        diffStd:       Math.round((rSumSp2 - rGesetzl) * 100) / 100,
+                        avgVzSp2:      rAvgVzSp2,
+                        avgVzGesetzl:  rAvgVzGesetzl,
+                        diffVz:        Math.round((rAvgVzSp2 - rAvgVzGesetzl) * 1000) / 1000,
                     };
                 });
         },
