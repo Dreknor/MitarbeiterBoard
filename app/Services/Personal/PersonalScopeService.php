@@ -25,7 +25,7 @@ class PersonalScopeService
         $user ??= auth()->user();
 
         if ($user->can('view personal_data:all')) {
-            return User::query();
+            return User::with('employe_data');
         }
 
         if ($user->can('view personal_data:department')) {
@@ -33,7 +33,7 @@ class PersonalScopeService
         }
 
         // Nur eigene Daten (self)
-        return User::where('id', $user->id);
+        return User::where('id', $user->id)->with('employe_data');
     }
 
     /**
@@ -91,7 +91,7 @@ class PersonalScopeService
         $groupIds = $user->groups_rel()->pluck('groups.id');
         $subordinateIds = $this->getSubordinateIds($user);
 
-        return User::where(function (Builder $q) use ($user, $groupIds, $subordinateIds) {
+        return User::with('employe_data')->where(function (Builder $q) use ($user, $groupIds, $subordinateIds) {
             $q->where('id', $user->id)
               ->orWhereIn('id', $subordinateIds)
               ->orWhereHas('employments', function (Builder $eq) use ($groupIds) {

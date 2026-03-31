@@ -21,6 +21,7 @@ class Consent extends Model implements Auditable
         'granted_at',
         'revoked_at',
         'granted_via',
+        'document_id',
     ];
 
     protected $casts = [
@@ -38,6 +39,11 @@ class Consent extends Model implements Auditable
     public function consentType(): BelongsTo
     {
         return $this->belongsTo(ConsentType::class);
+    }
+
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(PersonalDocument::class, 'document_id');
     }
 
     // --- Helpers ---

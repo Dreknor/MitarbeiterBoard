@@ -6,6 +6,8 @@ use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentStatusReason;
 use App\Enums\TerminationReason;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Personal\StoreContractRequest;
+use App\Http\Requests\Personal\UpdateContractRequest;
 use App\Models\personal\Employment;
 use App\Models\personal\SchoolType;
 use App\Models\personal\SalaryTable;
@@ -64,13 +66,12 @@ class ContractController extends Controller
     /**
      * Neue Anstellung speichern.
      */
-    public function store(Request $request, int $employe)
+    public function store(StoreContractRequest $request, int $employe)
     {
         $this->authorize('create', Employment::class);
         $employe = $this->scopeService->visibleEmployees()->findOrFail($employe);
 
-        $rules = $this->getValidationRules($request->input('employment_type'));
-        $data  = $request->validate($rules);
+        $data = $request->validated();
 
         // Befristungswarnung prüfen
         if (in_array($data['contract_type'] ?? '', ['befristet', 'befristet_sachgrund'])) {
@@ -122,12 +123,11 @@ class ContractController extends Controller
     /**
      * Anstellung aktualisieren.
      */
-    public function update(Request $request, Employment $employment)
+    public function update(UpdateContractRequest $request, Employment $employment)
     {
         $this->authorize('update', $employment);
 
-        $rules = $this->getValidationRules($request->input('employment_type', $employment->employment_type?->value));
-        $data  = $request->validate($rules);
+        $data = $request->validated();
 
         if (in_array($data['contract_type'] ?? '', ['befristet', 'befristet_sachgrund'])) {
             $warnung = $this->contractValidation->checkBefristungsketten($employment->employe_id, $employment->id);
@@ -187,40 +187,5 @@ class ContractController extends Controller
             ->with('type', 'warning');
     }
 
-    private function getValidationRules(string $employmentType = 'regulaer'): array
-    {
-        $rules = [
-            'employment_type'    => ['required', 'string'],
-            'contract_type'      => ['required', 'string'],
-            'start'              => ['required', 'date'],
-            'end'                => ['nullable', 'date', 'after_or_equal:start'],
-            'hours'              => ['required', 'numeric', 'min:1', 'max:168'],
-            'hour_type_id'       => ['nullable', 'integer', 'exists:hour_types,id'],
-            'department_id'      => ['nullable', 'integer', 'exists:groups,id'],
-            'probation_end'      => ['nullable', 'date'],
-            'notice_period'      => ['nullable', 'string', 'max:50'],
-            'comment'            => ['nullable', 'string', 'max:1000'],
-            'is_amendment'       => ['boolean'],
-            'amendment_description' => ['nullable', 'string', 'max:500'],
-            'is_internal_transfer' => ['boolean'],
-            // Gehalt (optional, nur wenn berechtigt)
-            'salary_group'       => ['nullable', 'string', 'max:20'],
-            'salary_level'       => ['nullable', 'string', 'max:20'],
-            'salary_table_id'    => ['nullable', 'integer', 'exists:pers_salary_tables,id'],
-        ];
-
-        // Lehrer-spezifische Felder
-        if ($employmentType === 'lehrer') {
-            $rules = array_merge($rules, [
-                'school_type_id'     => ['required', 'integer', 'exists:pers_school_types,id'],
-                'deputat_hours'      => ['required', 'numeric', 'min:0'],
-                'reduction_hours'    => ['nullable', 'numeric', 'min:0'],
-                'reduction_reason'   => ['nullable', 'string', 'max:200'],
-                'anrechnungsstunden' => ['nullable', 'numeric', 'min:0'],
-            ]);
-        }
-
-        return $rules;
-    }
 }
 

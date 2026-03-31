@@ -22,7 +22,7 @@
                     </p>
                     <p>
                         ({{(calculateWorkingTime($working_times->where('employe_id', $employe->id), $events->where('employe_id', $employe->id)))->format('%H:%I')}}
-                        /{{$employe->employments()->where('department_id', $department->id)->active()->get()->sum('percent')*40/100}}
+                        /{{ round($employe->employments()->where('department_id', $department->id)->active()->get()->sum('hours'), 2) }}
                         h)
                     </p>
                 </div>

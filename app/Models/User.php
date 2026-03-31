@@ -259,7 +259,9 @@ class User extends Authenticatable implements HasMedia
         });
 
         return $employments->filter(function ($item) use ($date, $end){
-                return $item->start->startOfDay()->lessThanOrEqualTo($date) and (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
+                return ($item->status === null || $item->status === \App\Enums\EmploymentStatus::Aktiv || $item->status?->value === 'aktiv')
+                    && $item->start->startOfDay()->lessThanOrEqualTo($date)
+                    && (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
         });
 
     }

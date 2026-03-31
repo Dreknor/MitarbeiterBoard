@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Personal;
 use App\Enums\TrainingStatus;
 use App\Enums\ParticipantStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Personal\StoreTrainingRequest;
+use App\Http\Requests\Personal\UpdateTrainingRequest;
 use App\Models\personal\Training;
 use App\Models\personal\TrainingParticipant;
 use App\Models\personal\QualificationType;
@@ -50,21 +52,10 @@ class TrainingController extends Controller
         return view('personal.trainings.create', compact('qualificationTypes'));
     }
 
-    public function store(Request $request)
+    public function store(StoreTrainingRequest $request)
     {
         $this->authorize('create', Training::class);
 
-        $request->validate([
-            'title'                 => 'required|string|max:255',
-            'description'           => 'nullable|string',
-            'provider'              => 'nullable|string|max:255',
-            'start_date'            => 'required|date',
-            'end_date'              => 'required|date|after_or_equal:start_date',
-            'location'              => 'nullable|string|max:255',
-            'cost'                  => 'nullable|numeric|min:0',
-            'max_participants'      => 'nullable|integer|min:1',
-            'qualification_type_id' => 'nullable|exists:pers_qualification_types,id',
-        ]);
 
         Training::create(array_merge($request->only([
             'title', 'description', 'provider', 'start_date', 'end_date',
@@ -85,22 +76,10 @@ class TrainingController extends Controller
         return view('personal.trainings.edit', compact('training', 'qualificationTypes'));
     }
 
-    public function update(Request $request, Training $training)
+    public function update(UpdateTrainingRequest $request, Training $training)
     {
         $this->authorize('update', $training);
 
-        $request->validate([
-            'title'                 => 'required|string|max:255',
-            'description'           => 'nullable|string',
-            'provider'              => 'nullable|string|max:255',
-            'start_date'            => 'required|date',
-            'end_date'              => 'required|date|after_or_equal:start_date',
-            'location'              => 'nullable|string|max:255',
-            'cost'                  => 'nullable|numeric|min:0',
-            'max_participants'      => 'nullable|integer|min:1',
-            'qualification_type_id' => 'nullable|exists:pers_qualification_types,id',
-            'status'                => 'required|in:geplant,bestaetigt,durchgefuehrt,abgesagt',
-        ]);
 
         $training->update($request->only([
             'title', 'description', 'provider', 'start_date', 'end_date',

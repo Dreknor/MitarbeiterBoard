@@ -35,7 +35,8 @@ return new class extends Migration
             // Neue Gehalt-Felder (ergänzt bestehende salary-Felder)
             $table->string('salary_group')->nullable()->after('hours');
             $table->string('salary_level')->nullable()->after('salary_group');
-            // salary_table_id FK wird in späterer Migration gesetzt wenn pers_salary_tables existiert
+            // salary_table_id als nullable Column – FK wird in späterer Migration gesetzt wenn pers_salary_tables existiert
+            $table->unsignedBigInteger('salary_table_id')->nullable()->after('salary_level');
 
             // Nachtrag / Versetzung
             $table->boolean('is_amendment')->default(false)->after('replaced_employment_id');
@@ -78,6 +79,7 @@ return new class extends Migration
                 'notice_period',
                 'salary_group',
                 'salary_level',
+                'salary_table_id',
                 'is_amendment',
                 'amendment_description',
                 'is_internal_transfer',

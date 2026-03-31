@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Personal\EmployeeSelfServiceResource;
 use App\Models\personal\Consent;
 use App\Models\personal\ConsentType;
+use App\Models\personal\PersonalDocument;
+use App\Models\personal\EmployeeQualification;
 
 class SelfServiceController extends Controller
 {
@@ -48,8 +50,13 @@ class SelfServiceController extends Controller
      */
     public function dokumente()
     {
+        $documents = PersonalDocument::where('employe_id', auth()->id())
+            ->with('documentType')
+            ->orderByDesc('created_at')
+            ->get();
+
         return view('personal.self-service.dokumente', [
-            'documents' => collect(), // Phase 2: Dokumentenmanagement
+            'documents' => $documents,
         ]);
     }
 
@@ -58,8 +65,13 @@ class SelfServiceController extends Controller
      */
     public function qualifikationen()
     {
+        $qualifikationen = EmployeeQualification::where('employe_id', auth()->id())
+            ->with('qualificationType')
+            ->orderBy('expiry_date')
+            ->get();
+
         return view('personal.self-service.qualifikationen', [
-            'qualifikationen' => collect(), // Phase 2: Qualifikationsverwaltung
+            'qualifikationen' => $qualifikationen,
         ]);
     }
 

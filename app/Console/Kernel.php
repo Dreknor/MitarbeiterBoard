@@ -91,12 +91,12 @@ class Kernel extends ConsoleKernel
         // Phase 2: Ablaufende Dokumente prüfen und Erinnerungen versenden (täglich um 07:15)
         $schedule->call(function () {
             app(\App\Services\Personal\PersonalDocumentService::class)->checkExpiringDocuments();
-        })->dailyAt('07:15')->name('personal-expiring-documents');
+        })->dailyAt('07:15')->name('personal-expiring-documents')->withoutOverlapping();
 
         // Phase 2: Ablaufende Qualifikationen prüfen und Erinnerungen versenden (täglich um 07:30)
         $schedule->call(function () {
             app(\App\Services\Personal\QualificationService::class)->checkExpiringQualifications();
-        })->dailyAt('07:30')->name('personal-expiring-qualifications');
+        })->dailyAt('07:30')->name('personal-expiring-qualifications')->withoutOverlapping();
     }
 
     /**

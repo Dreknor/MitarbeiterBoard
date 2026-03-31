@@ -102,21 +102,21 @@ class Employment extends Model implements Auditable
     // ---- Scopes ----
 
     /**
-     * WICHTIG: Scopet auf status = 'aktiv' (ersetzt alten end IS NULL Check).
-     * Die Datumsprüfung wird weiterhin unterstützt für abwärtskompatible Aufrufe.
+     * WICHTIG: Scopet auf status = 'aktiv' UND gültigen Zeitraum.
+     * Ohne Parameter wird gegen heute geprüft – abgelaufene Verträge werden ausgeschlossen.
      */
     public function scopeActive(Builder $query, DateTime $start = null, DateTime $end = null): Builder
     {
         $query->where('status', EmploymentStatus::Aktiv->value);
 
-        // Datums-Scope bleibt für Rückwärtskompatibilität erhalten
-        if ($start !== null) {
-            $end ??= $start;
-            $query->where('start', '<=', $end)
-                  ->where(function (Builder $q) use ($start) {
-                      $q->whereNull('end')->orWhere('end', '>=', $start);
-                  });
-        }
+        // Datum-Check immer anwenden (Default: heute)
+        $start ??= Carbon::now();
+        $end   ??= $start;
+
+        $query->where('start', '<=', $end)
+              ->where(function (Builder $q) use ($start) {
+                  $q->whereNull('end')->orWhere('end', '>=', $start);
+              });
 
         return $query;
     }

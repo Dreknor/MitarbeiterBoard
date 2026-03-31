@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Personal\StoreQualificationRequest;
 use App\Models\personal\EmployeeQualification;
 use App\Models\personal\QualificationType;
 use App\Models\User;
@@ -25,18 +26,11 @@ class QualificationController extends Controller
         return view('personal.qualifications.index', compact('employe', 'qualifications', 'missing', 'qualificationTypes'));
     }
 
-    public function store(Request $request, User $employe)
+    public function store(StoreQualificationRequest $request, User $employe)
     {
         $employe = app(PersonalScopeService::class)->visibleEmployees()->findOrFail($employe->id);
         $this->authorize('manage qualifications');
 
-        $request->validate([
-            'qualification_type_id' => 'required|exists:pers_qualification_types,id',
-            'acquired_date'         => 'required|date',
-            'expiry_date'           => 'nullable|date|after:acquired_date',
-            'document_id'           => 'nullable|exists:pers_documents,id',
-            'notes'                 => 'nullable|string|max:2000',
-        ]);
 
         $type       = QualificationType::findOrFail($request->qualification_type_id);
         $expiryDate = $request->expiry_date;

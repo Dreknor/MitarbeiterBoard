@@ -21,9 +21,11 @@ use App\Services\Personal\Contracts\NextcloudFileServiceInterface;
 
 // Models
 use App\Models\personal\Employment;
+use App\Models\personal\PersonalDocument;
 
 // Observers
 use App\Observers\Personal\EmploymentObserver;
+use App\Observers\Personal\PersonalDocumentObserver;
 
 class PersonalServiceProvider extends ServiceProvider
 {
@@ -51,6 +53,7 @@ class PersonalServiceProvider extends ServiceProvider
     {
         // Observer registrieren
         Employment::observe(EmploymentObserver::class);
+        PersonalDocument::observe(PersonalDocumentObserver::class);
     }
 }
 

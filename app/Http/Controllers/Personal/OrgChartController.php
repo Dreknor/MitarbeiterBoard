@@ -180,10 +180,10 @@ class OrgChartController extends Controller
             'users'      => $position->currentUsers->map(fn($u) => [
                 'id'     => $u->id,
                 'name'   => $u->name,
-                'avatar' => $u->profile_photo_url ?? null,
+                'avatar' => (method_exists($u, 'hasConsent') && $u->hasConsent('foto_organigramm'))
+                    ? ($u->profile_photo_url ?? null)
+                    : null,
                 'email'  => $u->email,
-                'hasConsent_foto_organigramm' => method_exists($u, 'hasConsent')
-                    ? $u->hasConsent('foto_organigramm') : false,
             ])->toArray(),
             'deputy' => $position->currentDeputy->map(fn($u) => [
                 'id'   => $u->id,
