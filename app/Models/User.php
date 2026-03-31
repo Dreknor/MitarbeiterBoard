@@ -494,4 +494,68 @@ class User extends Authenticatable implements HasMedia
         );
     }
 
+    // ── Personal-Modul (Phase 1) ──────────────────────────────────────────
+
+    /**
+     * DSGVO-Einwilligungen des Mitarbeiters.
+     */
+    public function consents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\Consent::class, 'employe_id');
+    }
+
+    /**
+     * Prüft ob der User eine aktive Einwilligung für den gegebenen Schlüssel hat.
+     * Verwendung: $user->hasConsent('foto_organigramm')
+     */
+    public function hasConsent(string $key): bool
+    {
+        return $this->consents()
+            ->whereHas('consentType', fn($q) => $q->where('key', $key))
+            ->whereNull('revoked_at')
+            ->exists();
+    }
+
+    /**
+     * Stellvertreter des Users (Abwesenheitsvertretung).
+     */
+    public function deputy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deputy_id');
+    }
+
+    // ── Personal-Modul (Phase 2) ──────────────────────────────────────────
+
+    /**
+     * Personalakte-Dokumente des Mitarbeiters.
+     */
+    public function personalDocuments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\PersonalDocument::class, 'employe_id');
+    }
+
+    /**
+     * Qualifikationen des Mitarbeiters.
+     */
+    public function qualifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\EmployeeQualification::class, 'employe_id');
+    }
+
+    /**
+     * Fortbildungs-Teilnahmen des Mitarbeiters.
+     */
+    public function trainingParticipations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\TrainingParticipant::class, 'employe_id');
+    }
+
+    /**
+     * Adresse des Mitarbeiters.
+     */
+    public function address(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\personal\Address::class, 'employe_id');
+    }
+
 }

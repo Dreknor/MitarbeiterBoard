@@ -14,6 +14,7 @@ use App\Services\Personal\PersonalReportService;
 use App\Services\Personal\BemService;
 use App\Services\Personal\PersonalRetentionService;
 use App\Services\Personal\PersonalAuditService;
+use App\Services\Personal\ContractValidationService;
 
 // Interfaces
 use App\Services\Personal\Contracts\NextcloudFileServiceInterface;
@@ -43,6 +44,7 @@ class PersonalServiceProvider extends ServiceProvider
         $this->app->singleton(BemService::class);
         $this->app->singleton(PersonalRetentionService::class);
         $this->app->singleton(PersonalAuditService::class);
+        $this->app->singleton(ContractValidationService::class);
     }
 
     public function boot(): void

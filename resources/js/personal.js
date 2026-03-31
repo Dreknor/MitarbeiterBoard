@@ -5,6 +5,9 @@
  */
 import Alpine from 'alpinejs';
 
+// Organigramm-Komponente
+import './personal/orgchart.js';
+
 // Gemeinsame Alpine-Komponente: Tab-Navigation
 Alpine.data('personalTabs', (defaultTab = null) => ({
     activeTab: defaultTab,

@@ -4,6 +4,7 @@ namespace App\Policies\Personal;
 
 use App\Models\personal\Employment;
 use App\Models\User;
+use App\Services\Personal\PersonalScopeService;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
@@ -21,8 +22,9 @@ class EmploymentPolicy
      */
     public function view(User $user, Employment $employment): bool
     {
-        // Stub – wird in Phase 1 über PersonalScopeService implementiert
-        return $user->can('view contracts');
+        if ($employment->employe_id === $user->id) return true;
+        return $user->can('view contracts')
+            && app(PersonalScopeService::class)->canAccess($user, $employment->employe);
     }
 
     /**
@@ -30,8 +32,8 @@ class EmploymentPolicy
      */
     public function update(User $user, Employment $employment): bool
     {
-        // Stub – wird in Phase 1 über PersonalScopeService implementiert
-        return $user->can('edit contracts');
+        return $user->can('edit contracts')
+            && app(PersonalScopeService::class)->canAccess($user, $employment->employe, 'edit');
     }
 
     /**
@@ -47,7 +49,8 @@ class EmploymentPolicy
      */
     public function delete(User $user, Employment $employment): bool
     {
-        return $user->can('edit contracts');
+        return $user->can('edit contracts')
+            && app(PersonalScopeService::class)->canAccess($user, $employment->employe, 'edit');
     }
 
     /**
@@ -55,7 +58,8 @@ class EmploymentPolicy
      */
     public function viewSalary(User $user, Employment $employment): bool
     {
-        return $user->can('view salary');
+        return $user->can('view salary')
+            && app(PersonalScopeService::class)->canAccess($user, $employment->employe);
     }
 
     /**
@@ -66,4 +70,3 @@ class EmploymentPolicy
         return $user->can('edit salary');
     }
 }
-

@@ -1088,3 +1088,167 @@ Route::get('/personal/test-ui', function () {
     return view('personal.test-ui');
 })->middleware('auth')->name('personal.test-ui');
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1: Self-Service-Portal (Mein Profil) – alle eingeloggten Mitarbeiter
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])
+    ->prefix('mein-profil')
+    ->name('self-service.')
+    ->group(function () {
+        Route::get('/',                [App\Http\Controllers\Personal\SelfServiceController::class, 'index'])        ->name('index');
+        Route::get('/vertraege',       [App\Http\Controllers\Personal\SelfServiceController::class, 'vertraege'])    ->name('vertraege');
+        Route::get('/dokumente',       [App\Http\Controllers\Personal\SelfServiceController::class, 'dokumente'])    ->name('dokumente');
+        Route::get('/qualifikationen', [App\Http\Controllers\Personal\SelfServiceController::class, 'qualifikationen'])->name('qualifikationen');
+        Route::get('/gespraeche',      [App\Http\Controllers\Personal\SelfServiceController::class, 'gespraeche'])   ->name('gespraeche');
+        Route::get('/einwilligungen',  [App\Http\Controllers\Personal\SelfServiceController::class, 'einwilligungen'])->name('einwilligungen');
+
+        // Einwilligungen (Self-Service)
+        Route::post('/einwilligungen/{type}/erteilen',   [App\Http\Controllers\Personal\ConsentController::class, 'grant'])  ->name('consents.grant');
+        Route::post('/einwilligungen/{type}/widerrufen', [App\Http\Controllers\Personal\ConsentController::class, 'revoke']) ->name('consents.revoke');
+
+        // Stundenzettel: Passwort-Bestätigung erforderlich
+        Route::middleware('password.confirm')->group(function () {
+            Route::get('/stundenzettel', [App\Http\Controllers\Personal\SelfServiceController::class, 'stundenzettel'])->name('stundenzettel');
+        });
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1: Vertragsmanagement
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view contracts', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        // Vertragsübersicht pro Mitarbeiter
+        Route::get('/mitarbeiter/{employe}/vertraege',    [App\Http\Controllers\Personal\ContractController::class, 'index'])  ->name('contracts.index');
+        Route::get('/mitarbeiter/{employe}/vertraege/neu',[App\Http\Controllers\Personal\ContractController::class, 'create']) ->name('contracts.create')
+            ->middleware('permission:edit contracts');
+        Route::post('/mitarbeiter/{employe}/vertraege',   [App\Http\Controllers\Personal\ContractController::class, 'store'])  ->name('contracts.store')
+            ->middleware('permission:edit contracts');
+        Route::get('/vertraege/{employment}/bearbeiten',  [App\Http\Controllers\Personal\ContractController::class, 'edit'])   ->name('contracts.edit')
+            ->middleware('permission:edit contracts');
+        Route::put('/vertraege/{employment}',             [App\Http\Controllers\Personal\ContractController::class, 'update']) ->name('contracts.update')
+            ->middleware('permission:edit contracts');
+        Route::patch('/vertraege/{employment}/ruhend',    [App\Http\Controllers\Personal\ContractController::class, 'setRuhend'])  ->name('contracts.setRuhend')
+            ->middleware('permission:edit contracts');
+        Route::patch('/vertraege/{employment}/aktiv',     [App\Http\Controllers\Personal\ContractController::class, 'setAktiv'])   ->name('contracts.setAktiv')
+            ->middleware('permission:edit contracts');
+        Route::patch('/vertraege/{employment}/beenden',   [App\Http\Controllers\Personal\ContractController::class, 'setBeendet'])->name('contracts.setBeendet')
+            ->middleware('permission:edit contracts');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1: Organigramm
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view orgchart', 'personal.audit'])
+    ->prefix('personal/orgchart')
+    ->name('personal.orgchart.')
+    ->group(function () {
+        Route::get('/',           [App\Http\Controllers\Personal\OrgChartController::class, 'index'])     ->name('index');
+        Route::get('/export/pdf', [App\Http\Controllers\Personal\OrgChartController::class, 'exportPdf'])->name('export.pdf')
+            ->middleware('permission:export orgchart');
+
+        // Stellen-CRUD (Personalleitung)
+        Route::middleware('permission:manage orgchart')->group(function () {
+            Route::get('/positions',              [App\Http\Controllers\Personal\OrgChartController::class, 'positionsIndex'])  ->name('positions.index');
+            Route::get('/positions/create',       [App\Http\Controllers\Personal\OrgChartController::class, 'positionsCreate']) ->name('positions.create');
+            Route::post('/positions',             [App\Http\Controllers\Personal\OrgChartController::class, 'positionsStore'])  ->name('positions.store');
+            Route::get('/positions/{position}/edit',   [App\Http\Controllers\Personal\OrgChartController::class, 'positionsEdit'])  ->name('positions.edit');
+            Route::put('/positions/{position}',        [App\Http\Controllers\Personal\OrgChartController::class, 'positionsUpdate'])->name('positions.update');
+            Route::delete('/positions/{position}',     [App\Http\Controllers\Personal\OrgChartController::class, 'positionsDestroy'])->name('positions.destroy');
+            Route::post('/positions/{position}/assign',[App\Http\Controllers\Personal\OrgChartController::class, 'positionsAssign'])->name('positions.assign');
+        });
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1: Einwilligungsverwaltung (Admin)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:manage personal_consents', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::get('/einwilligungen', [App\Http\Controllers\Personal\ConsentController::class, 'adminIndex'])->name('consents.admin');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2: Dokumentenmanagement (P2-01 + P2-02)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view personal_documents', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::get('/mitarbeiter/{employe}/dokumente', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'index'])
+            ->name('documents.index');
+        Route::get('/dokumente/{document}/download', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'download'])
+            ->name('documents.download');
+    });
+
+Route::middleware(['auth', 'permission:manage personal_documents', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::post('/mitarbeiter/{employe}/dokumente/hochladen', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'upload'])
+            ->name('documents.upload');
+        Route::post('/mitarbeiter/{employe}/dokumente/generieren', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'generate'])
+            ->name('documents.generate');
+        Route::delete('/dokumente/{document}', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'destroy'])
+            ->name('documents.destroy');
+        Route::get('/dokumente/sync-fehler', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'syncErrors'])
+            ->name('documents.sync-errors');
+        Route::post('/dokumente/{document}/sync-retry', [App\Http\Controllers\Personal\PersonalDocumentController::class, 'retrySync'])
+            ->name('documents.sync-retry');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2: Qualifikationsverwaltung (P2-03)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view qualifications', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::get('/mitarbeiter/{employe}/qualifikationen', [App\Http\Controllers\Personal\QualificationController::class, 'index'])
+            ->name('qualifications.index');
+        Route::get('/qualifikationen/matrix', [App\Http\Controllers\Personal\QualificationController::class, 'matrix'])
+            ->name('qualifications.matrix');
+    });
+
+Route::middleware(['auth', 'permission:manage qualifications', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::post('/mitarbeiter/{employe}/qualifikationen', [App\Http\Controllers\Personal\QualificationController::class, 'store'])
+            ->name('qualifications.store');
+        Route::delete('/qualifikationen/{qualification}', [App\Http\Controllers\Personal\QualificationController::class, 'destroy'])
+            ->name('qualifications.destroy');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2: Fortbildungen (P2-04)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view trainings', 'personal.audit'])
+    ->prefix('personal/fortbildungen')
+    ->name('personal.trainings.')
+    ->group(function () {
+        Route::get('/', [App\Http\Controllers\Personal\TrainingController::class, 'index'])->name('index');
+        Route::get('/{training}', [App\Http\Controllers\Personal\TrainingController::class, 'show'])->name('show');
+        Route::post('/{training}/anmelden', [App\Http\Controllers\Personal\TrainingController::class, 'register'])->name('register');
+        Route::post('/{training}/abmelden', [App\Http\Controllers\Personal\TrainingController::class, 'cancel'])->name('cancel');
+        Route::post('/{training}/teilnehmer/{employe}/bestaetigen', [App\Http\Controllers\Personal\TrainingController::class, 'approve'])
+            ->middleware('permission:approve trainings')
+            ->name('approve');
+        Route::post('/{training}/teilnehmer/{employe}/durchgefuehrt', [App\Http\Controllers\Personal\TrainingController::class, 'markCompleted'])
+            ->middleware('permission:manage trainings')
+            ->name('complete');
+    });
+
+Route::middleware(['auth', 'permission:manage trainings', 'personal.audit'])
+    ->prefix('personal/fortbildungen')
+    ->name('personal.trainings.')
+    ->group(function () {
+        Route::get('/neu/erstellen', [App\Http\Controllers\Personal\TrainingController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Personal\TrainingController::class, 'store'])->name('store');
+        Route::get('/{training}/bearbeiten', [App\Http\Controllers\Personal\TrainingController::class, 'edit'])->name('edit');
+        Route::put('/{training}', [App\Http\Controllers\Personal\TrainingController::class, 'update'])->name('update');
+        Route::delete('/{training}', [App\Http\Controllers\Personal\TrainingController::class, 'destroy'])->name('destroy');
+    });
+

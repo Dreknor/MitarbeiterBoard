@@ -3,26 +3,24 @@
 namespace App\Observers\Personal;
 
 use App\Models\personal\Employment;
+use App\Services\Personal\PersonalScopeService;
 
-/**
- * Observer für Employment-Model-Lifecycle.
- * Implementierung folgt in Phase 1 (P1-03).
- */
 class EmploymentObserver
 {
     public function created(Employment $employment): void
     {
-        // Stub – Implementierung folgt in Phase 1
+        // Scope-Cache invalidieren nach neuer Anstellung
+        app(PersonalScopeService::class)->invalidateCache($employment->employe);
     }
 
     public function updated(Employment $employment): void
     {
-        // Stub – Implementierung folgt in Phase 1
+        // Scope-Cache invalidieren bei Änderungen (z.B. department_id)
+        app(PersonalScopeService::class)->invalidateCache($employment->employe);
     }
 
     public function deleted(Employment $employment): void
     {
-        // Stub – Implementierung folgt in Phase 1
+        app(PersonalScopeService::class)->invalidateCache($employment->employe);
     }
 }
-
