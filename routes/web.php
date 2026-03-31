@@ -1083,3 +1083,8 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
 Route::get('/calendar/feed/{token}.ics', [\App\Http\Controllers\CalendarController::class, 'feed'])
     ->name('calendar.feed');
 
+// Personal-Modul: Temporäre Test-Route (Phase 0 – nach Verifizierung entfernen)
+Route::get('/personal/test-ui', function () {
+    return view('personal.test-ui');
+})->middleware('auth')->name('personal.test-ui');
+

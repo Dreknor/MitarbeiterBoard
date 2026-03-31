@@ -2,6 +2,11 @@
 
 namespace App\Models\personal;
 
+use App\Enums\ContractType;
+use App\Enums\EmploymentStatus;
+use App\Enums\EmploymentStatusReason;
+use App\Enums\EmploymentType;
+use App\Enums\TerminationReason;
 use App\Models\Group;
 use App\Models\User;
 use Carbon\Carbon;
@@ -16,14 +21,33 @@ class Employment extends Model
 {
     use HasFactory, InteractsWithMedia, SoftDeletes;
 
-    protected $fillable = ['employe_id', 'department_id', 'hour_type_id', 'start', 'end', 'hours', 'comment', 'salary_type', 'salary_table_id', 'salary', 'replaced_employment_id','media_id'];
+    protected $fillable = [
+        'employe_id', 'department_id', 'hour_type_id', 'start', 'end', 'hours', 'comment',
+        'salary_type', 'salary_table_id', 'salary', 'replaced_employment_id', 'media_id',
+        // Neue Personal-Felder (Phase 0)
+        'employment_type', 'contract_type', 'status', 'status_reason', 'termination_reason',
+        'probation_end', 'notice_period', 'salary_group', 'salary_level',
+        'is_amendment', 'amendment_description', 'is_internal_transfer',
+    ];
 
     protected $casts = [
-        'start' => 'date',
-        'end' => 'date',
+        'start'             => 'date',
+        'end'               => 'date',
+        'probation_end'     => 'date',
+        'employment_type'   => EmploymentType::class,
+        'contract_type'     => ContractType::class,
+        'status'            => EmploymentStatus::class,
+        'status_reason'     => EmploymentStatusReason::class,
+        'termination_reason' => TerminationReason::class,
+        'is_amendment'       => 'boolean',
+        'is_internal_transfer' => 'boolean',
     ];
 
     protected $with = ['hour_type'];
+
+    protected $attributes = [
+        'status' => 'aktiv',
+    ];
 
 
 

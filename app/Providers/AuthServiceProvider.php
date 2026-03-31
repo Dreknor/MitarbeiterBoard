@@ -18,6 +18,9 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\DiagnosticSession::class => \App\Policies\DiagnosticPolicy::class,
         \App\Models\DiagnosticArea::class => \App\Policies\DiagnosticAreaPolicy::class,
         \App\Models\GradingDocumentationSession::class => \App\Policies\GradingDocumentationSessionPolicy::class,
+
+        // Personal-Modul (Phase 0) – weitere Policies werden in späteren Phasen ergänzt
+        \App\Models\personal\Employment::class => \App\Policies\Personal\EmploymentPolicy::class,
     ];
 
     /**
