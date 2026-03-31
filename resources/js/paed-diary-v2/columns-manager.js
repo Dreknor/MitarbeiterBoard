@@ -11,8 +11,6 @@ import { csrfToken, escapeHtml } from './utils.js';
 
 export function registerColumnsManager(Alpine) {
     Alpine.data('columnsManager', () => ({
-        /** Spalten-Verwaltungscard sichtbar */
-        columnsCardOpen: false,
         /** Alle Spalten (inkl. deaktivierte), geladen via columnsAll */
         allColumns: [],
         /** Deaktivierte anzeigen */
@@ -27,6 +25,16 @@ export function registerColumnsManager(Alpine) {
         newColumnType: 'boolean',
         newColumnCategorySelect: '',
         newColumnNewCategory: '',
+
+        /**
+         * Initialisierung: Wenn die Spalten-Card geöffnet wird,
+         * lädt diese Instanz automatisch alle Spalten nach.
+         */
+        init() {
+            this.$watch('$store.diary.columnsCardOpen', (open) => {
+                if (open) this.loadAllColumns();
+            });
+        },
 
         // ── Spalten für die Tabellenzellen ─────────────────────────
 
@@ -144,8 +152,7 @@ export function registerColumnsManager(Alpine) {
         toggleColumnsCard() {
             const store = this.$store.diary;
             if (store.selectedGroupId) return; // Im Gruppenmodus deaktiviert
-            this.columnsCardOpen = !this.columnsCardOpen;
-            if (this.columnsCardOpen) this.loadAllColumns();
+            store.columnsCardOpen = !store.columnsCardOpen;
         },
 
         async loadAllColumns() {

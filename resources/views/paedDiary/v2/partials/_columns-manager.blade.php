@@ -2,11 +2,11 @@
     PaedDiary v2 – Spalten-Verwaltung Partial
     Card zum Verwalten der Zusatzspalten (Erstellen, Deaktivieren, Reaktivieren)
 --}}
-<div class="col-12 mb-3" x-data="columnsManager()" x-show="columnsCardOpen" x-cloak>
+<div class="col-12 mb-3" x-data="columnsManager()" x-show="$store.diary.columnsCardOpen" x-cloak>
     <div class="card shadow-sm">
         <div class="card-header py-2 d-flex justify-content-between align-items-center">
             <strong class="small mb-0">Spalten verwalten</strong>
-            <button class="btn btn-sm btn-outline-secondary" @click="columnsCardOpen = false" title="Schließen">✕</button>
+            <button class="btn btn-sm btn-outline-secondary" @click="$store.diary.columnsCardOpen = false" title="Schließen">✕</button>
         </div>
         <div class="card-body py-2">
             {{-- Feedback --}}

@@ -37,6 +37,7 @@ export function registerDiaryStore(Alpine) {
 
         // ── UI-Toggles (komponentenübergreifend) ────────────────────
         showPaused: false,
+        columnsCardOpen: false,
         hideAllCategoryHeadings: localStorage.getItem('paedDiary_hideAllHeadings') === '1',
         filterUncategorized: localStorage.getItem('paedDiary_filterUncategorized') === '1',
 
@@ -225,6 +226,7 @@ export function registerDiaryStore(Alpine) {
 
         changeGroup(groupId) {
             this.selectedGroupId = groupId ? parseInt(groupId) : null;
+            if (this.selectedGroupId) this.columnsCardOpen = false;
             this.loadWeek();
         },
 
