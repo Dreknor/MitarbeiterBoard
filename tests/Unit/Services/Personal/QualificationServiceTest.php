@@ -42,7 +42,7 @@ class QualificationServiceTest extends TestCase
         // Pflichtqualifikation nur für Lehrer
         $lehrerQual = QualificationType::factory()->create([
             'category'   => 'pflicht',
-            'applies_to' => json_encode(['lehrer']),
+            'applies_to' => ['lehrer'],
         ]);
 
         $missing = $this->service->getMissingRequired($employe);
@@ -71,7 +71,7 @@ class QualificationServiceTest extends TestCase
         // Pflichtqualifikation nur für Lehrer
         $lehrerQual = QualificationType::factory()->create([
             'category'   => 'pflicht',
-            'applies_to' => json_encode(['lehrer']),
+            'applies_to' => ['lehrer'],
         ]);
 
         $missing = $this->service->getMissingRequired($employe);

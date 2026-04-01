@@ -49,9 +49,17 @@
                         @foreach($employes as $employe)
                             <tr>
                                 <td>
-                                    <a href="{{url('/employes/').'/'.$employe->id}}">
+                                    @can('view personal_data')
+                                    <a href="{{ route('personal.personalakte.show', $employe->id) }}" title="Personalakte öffnen">
+                                        <i class="fa fa-folder-open"></i>
+                                    </a>
+                                    @endcan
+                                    @can('edit employe')
+                                    &nbsp;
+                                    <a href="{{url('/employes/').'/'.$employe->id}}" title="Stammdaten bearbeiten">
                                         <i class="fa fa-edit"></i>
                                     </a>
+                                    @endcan
                                 </td>
                                 <td>
                                     {{$employe->familienname}}

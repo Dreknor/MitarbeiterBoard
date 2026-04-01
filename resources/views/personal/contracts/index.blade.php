@@ -20,7 +20,7 @@
                 + Neue Anstellung
             </a>
             @endcan
-            <a href="{{ route('employes.show', $employe->id) }}"
+            <a href="{{ route('personal.personalakte.show', $employe->id) }}"
                class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
         </div>
     </div>
