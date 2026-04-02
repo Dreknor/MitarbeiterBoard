@@ -19,7 +19,7 @@
         <div class="flex gap-3">
             <a href="{{ route('personal.qualifications.matrix') }}"
                class="btn-personal-secondary text-sm">📊 Qualifikationsmatrix</a>
-            <a href="{{ route('employes.show', $employe->id) }}"
+            <a href="{{ route('personal.personalakte.show', $employe->id) }}"
                class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
         </div>
     </div>

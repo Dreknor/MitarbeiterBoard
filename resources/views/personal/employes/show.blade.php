@@ -567,11 +567,16 @@
                         <div class="card">
                             <div class="card-header border-bottom">
                                 <h5 class="card-title">
-                                    Dokumente
+                                    Neue Personalverwaltung
                                 </h5>
                             </div>
                             <div class="card-body">
-
+                                <p class="text-muted mb-3">Verträge, Dokumente und Qualifikationen sind in der neuen Personalverwaltung verfügbar.</p>
+                                @can('view personal_data')
+                                <a href="{{ route('personal.personalakte.show', $employe->id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fa fa-folder-open"></i> Personalakte öffnen
+                                </a>
+                                @endcan
                             </div>
                         </div>
                     </div>

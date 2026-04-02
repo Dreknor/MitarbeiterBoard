@@ -1089,6 +1089,17 @@ Route::get('/personal/test-ui', function () {
 })->middleware('auth')->name('personal.test-ui');
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Personalakte-Hub: Übersichtsseite je Mitarbeiter (alle Sub-Module)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view personal_data', 'personal.audit', 'throttle:30,1'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::get('/mitarbeiter/{employe}', [App\Http\Controllers\Personal\PersonalakteController::class, 'show'])
+            ->name('personalakte.show');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Phase 1: Self-Service-Portal (Mein Profil) – alle eingeloggten Mitarbeiter
 // ═══════════════════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])

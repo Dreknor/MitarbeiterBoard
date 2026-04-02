@@ -18,7 +18,7 @@
             <p class="text-gray-500 text-sm mt-1">{{ $employe->name }}</p>
         </div>
         <div class="flex gap-3">
-            <a href="{{ route('employes.show', $employe->id) }}"
+            <a href="{{ route('personal.personalakte.show', $employe->id) }}"
                class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
         </div>
     </div>

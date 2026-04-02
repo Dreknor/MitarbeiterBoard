@@ -198,7 +198,7 @@ class TrainingTest extends TestCase
             'employe_id'  => $employe->id,
         ]);
 
-        $this->actingAsWithPermission('manage trainings');
+        $this->actingAsWithPermission('view trainings', 'manage trainings');
 
         $this->post(route('personal.trainings.complete', [$training->id, $employe->id]));
 
