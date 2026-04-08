@@ -10,6 +10,7 @@ use App\Models\MeetingTask;
 use App\Models\Theme;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class MeetingController extends Controller
@@ -233,24 +234,68 @@ class MeetingController extends Controller
      */
     public function sendInvitation(Request $request, $groupname, $meetingId)
     {
-        $group = \App\Models\Group::where('name', $groupname)->firstOrFail();
+        $group   = \App\Models\Group::where('name', $groupname)->firstOrFail();
         $meeting = \App\Models\Meeting::with('themes')->findOrFail($meetingId);
         $message = $request->input('message');
-        $users = $group->users;
+        $users   = $group->users;
+
+        $gesendet    = 0;
+        $fehlerhaft  = [];
 
         foreach ($users as $user) {
-            Mail::to($user->email)->queue(new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name));
+            if (empty($user->email)) {
+                Log::warning('Meeting-Einladung: Kein E-Mail-Adresse für Benutzer', [
+                    'user_id'    => $user->id,
+                    'user_name'  => $user->name,
+                    'meeting_id' => $meeting->id,
+                ]);
+                $fehlerhaft[] = $user->name . ' (keine E-Mail-Adresse)';
+                continue;
+            }
+
+            try {
+                Mail::to($user->email)->queue(
+                    new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name)
+                );
+                $gesendet++;
+            } catch (\Throwable $e) {
+                Log::error('Meeting-Einladung: Fehler beim Einreihen der Mail', [
+                    'user_id'    => $user->id,
+                    'user_email' => $user->email,
+                    'meeting_id' => $meeting->id,
+                    'error'      => $e->getMessage(),
+                ]);
+                $fehlerhaft[] = $user->name . ' (' . $user->email . ')';
+            }
         }
 
-        // Historie speichern
-        $meeting->update([
-            'invitation_sent_at' => now(),
-            'invitation_sent_by' => auth()->id(),
-        ]);
+        // Historie nur speichern, wenn mindestens eine Mail eingereiht wurde
+        if ($gesendet > 0) {
+            $meeting->update([
+                'invitation_sent_at' => now(),
+                'invitation_sent_by' => auth()->id(),
+            ]);
+            Log::info('Meeting-Einladungen eingereiht', [
+                'meeting_id'    => $meeting->id,
+                'gesendet'      => $gesendet,
+                'fehlerhaft'    => count($fehlerhaft),
+                'versender_id'  => auth()->id(),
+            ]);
+        }
+
+        if (!empty($fehlerhaft)) {
+            $meldung = "Einladungen wurden an {$gesendet} Mitglieder eingereiht. "
+                . 'Folgende Empfänger konnten nicht berücksichtigt werden: '
+                . implode(', ', $fehlerhaft);
+            $typ = $gesendet > 0 ? 'warning' : 'danger';
+        } else {
+            $meldung = "Einladungen wurden an {$gesendet} Gruppenmitglieder eingereiht.";
+            $typ     = 'success';
+        }
 
         return redirect()->back()->with([
-            'type' => 'success',
-            'Meldung' => 'Einladungen wurden an alle Gruppenmitglieder versendet.'
+            'type'    => $typ,
+            'Meldung' => $meldung,
         ]);
     }
 

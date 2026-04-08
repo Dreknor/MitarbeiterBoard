@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Meeting extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'group_id',
@@ -20,6 +21,8 @@ class Meeting extends Model
         'cancelled',
         'cancelled_at',
         'cancelled_by',
+        'invitation_sent_at',
+        'invitation_sent_by',
     ];
 
     protected $casts = [
