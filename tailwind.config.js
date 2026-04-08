@@ -11,6 +11,10 @@ module.exports = {
     "./resources/views/calendar/**/*.blade.php",
     "./resources/js/calendar.js",
     "./resources/views/personal/hort_planung/**/*.blade.php",
+    // Personal-Modul (Phase 0)
+    "./resources/views/personal/**/*.blade.php",
+    "./resources/css/personal.css",
+    "./resources/js/personal.js",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {

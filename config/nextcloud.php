@@ -35,4 +35,21 @@ return [
     |
     */
     'enabled' => env('NEXTCLOUD_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nextcloud Personal – Personalakte-Dokumentenmanagement
+    |--------------------------------------------------------------------------
+    |
+    | Separate Konfiguration für die Personalakte-Integration.
+    | Alle Dateioperationen werden asynchron über Queue-Jobs abgewickelt.
+    |
+    */
+    'personal' => [
+        'url'       => env('NEXTCLOUD_PERSONAL_URL', env('NEXTCLOUD_URL', '')),
+        'username'  => env('NEXTCLOUD_PERSONAL_USERNAME', env('NEXTCLOUD_USERNAME', '')),
+        'password'  => env('NEXTCLOUD_PERSONAL_PASSWORD', env('NEXTCLOUD_PASSWORD', '')),
+        'enabled'   => env('NEXTCLOUD_PERSONAL_ENABLED', false),
+        'base_path' => env('NEXTCLOUD_PERSONAL_BASE_PATH', '/Personal'),
+    ],
 ];

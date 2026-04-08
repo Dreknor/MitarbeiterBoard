@@ -20,6 +20,10 @@ export default defineConfig({
                 'resources/css/calendar.css',
                 'resources/js/calendar.js',
                 'resources/css/hort-planung.css',
+
+                // Personal-Modul (Phase 0)
+                'resources/css/personal.css',
+                'resources/js/personal.js',
             ],
             refresh: [
                 'resources/views/layouts/**/*.blade.php',
@@ -36,6 +40,9 @@ export default defineConfig({
                 'app/Http/Controllers/CalendarAdminController.php',
                 'resources/views/personal/hort_planung/**/*.blade.php',
                 'app/Http/Controllers/Personal/HortPlanungController.php',
+                // Personal-Modul (Phase 0)
+                'resources/views/personal/**/*.blade.php',
+                'app/Http/Controllers/Personal/*.php',
             ],
         }),
     ],

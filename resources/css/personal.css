@@ -1,0 +1,84 @@
+/*
+ * Personal-Modul – Tailwind CSS v4
+ *
+ * Hinweis: Tailwind Preflight ist DISABLED (tailwind.config.js → corePlugins.preflight: false)
+ * um Konflikte mit Bootstrap 4 (Legacy) zu vermeiden.
+ *
+ * Alle Personal-Tailwind-Stile sind über .personal-wrapper gescopet.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/*
+ * Scope-Wrapper: Alle Personal-Views sind in <div class="personal-wrapper"> eingebettet.
+ * Tailwind-Utilities greifen nur innerhalb dieses Wrappers.
+ */
+.personal-wrapper {
+    /* Container-Reset, der Bootstrap-Stile überschreibt wo nötig */
+    box-sizing: border-box;
+}
+
+/* Alpine.js Cloak */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Statusfarben für Qualifikations-Ampel */
+.personal-wrapper .badge-green  { @apply bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
+.personal-wrapper .badge-yellow { @apply bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
+.personal-wrapper .badge-red    { @apply bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
+.personal-wrapper .badge-gray   { @apply bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
+
+/* Karten-Komponente (ersetzt Bootstrap .card) */
+.personal-wrapper .personal-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+}
+
+/* Tab-Navigation */
+.personal-wrapper .personal-tab {
+    @apply px-4 py-2 text-sm font-medium border-b-2 cursor-pointer transition-colors;
+}
+.personal-wrapper .personal-tab-active {
+    @apply border-blue-500 text-blue-600;
+}
+.personal-wrapper .personal-tab-inactive {
+    @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+}
+
+/* Primärer Button */
+.personal-wrapper .btn-personal-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+}
+
+/* Sekundärer Button */
+.personal-wrapper .btn-personal-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors;
+}
+
+/* Danger Button */
+.personal-wrapper .btn-personal-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+}
+
+/* Formular-Input */
+.personal-wrapper .input-personal {
+    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
+}
+
+/* Tabelle */
+.personal-wrapper .table-personal {
+    @apply w-full text-sm text-left text-gray-500;
+}
+.personal-wrapper .table-personal thead {
+    @apply text-xs text-gray-700 uppercase bg-gray-50;
+}
+.personal-wrapper .table-personal th {
+    @apply px-6 py-3;
+}
+.personal-wrapper .table-personal td {
+    @apply px-6 py-4;
+}
+.personal-wrapper .table-personal tbody tr {
+    @apply bg-white border-b hover:bg-gray-50;
+}
+

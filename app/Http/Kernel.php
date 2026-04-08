@@ -70,5 +70,6 @@ class Kernel extends HttpKernel
         'password_expired' => \App\Http\Middleware\PasswordExpired::class,
         'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+        'personal.audit' => \App\Http\Middleware\PersonalAuditMiddleware::class,
     ];
 }

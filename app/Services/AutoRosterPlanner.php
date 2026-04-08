@@ -53,11 +53,11 @@ class AutoRosterPlanner
         // Requirements jetzt nach WorkingTime->function (event_name Feld entspricht Funktionsnamen)
         $requirements = $roster->department->roster_task_requirements()->get()->keyBy(function($r){ return mb_strtolower($r->event_name); });
 
-        // Soll-Minuten pro Woche (percent * 40h)
+        // Soll-Minuten pro Woche (tatsächliche Vertragsstunden)
         $targetMinutes = [];
         foreach ($employes as $e) {
-            $percent = $e->employments()->where('department_id',$roster->department_id)->active()->get()->sum('percent');
-            $targetMinutes[$e->id] = (int) round(($percent * 40 / 100) * 60);
+            $hours = $e->employments()->where('department_id',$roster->department_id)->active()->get()->sum('hours');
+            $targetMinutes[$e->id] = (int) round($hours * 60);
         }
 
         // Geplante Minuten bisher
