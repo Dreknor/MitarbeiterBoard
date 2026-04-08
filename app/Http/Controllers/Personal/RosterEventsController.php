@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\CreateTaskRequest;
 use App\Http\Requests\personal\EditRosterEventRequest;
 use App\Http\Requests\personal\TrashRosterDayRequest;
+use App\Models\OxCalendar;
+use App\Models\OxTermin;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -217,5 +220,144 @@ class RosterEventsController extends Controller
         }
 
         return redirectBack('warning', 'Berechtigung.');
+    }
+
+    /**
+     * Vorschau: Zeigt Kalender-Termine der Roster-Woche zur Auswahl an.
+     */
+    public function importFromCalendarPreview(Request $request, Roster $roster)
+    {
+        $user      = auth()->user();
+        $kalender  = $this->sichtbareKalender($user);
+        $startDate = $roster->start_date->copy()->startOfDay();
+        $endDate   = $startDate->copy()->addDays(6)->endOfDay();
+
+        $selectedKalenderId = $request->filled('kalender_id')
+            ? (int) $request->kalender_id
+            : $kalender->first()?->id;
+
+        $termine = collect();
+        if ($selectedKalenderId && $kalender->pluck('id')->contains($selectedKalenderId)) {
+            $termine = OxTermin::where('ox_calendar_id', $selectedKalenderId)
+                ->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('beginn', [$startDate, $endDate])
+                      ->orWhere(function ($q2) use ($startDate, $endDate) {
+                          // Mehrtägige Termine die in die Woche hineinragen
+                          $q2->where('beginn', '<=', $endDate)
+                             ->where('ende', '>=', $startDate);
+                      });
+                })
+                ->whereNull('rrule') // Wiederholungstermine zunächst ausschließen
+                ->orderBy('beginn')
+                ->get();
+        }
+
+        // Bereits importierte ox_termin_ids für diesen Roster ermitteln
+        $bereitsImportiert = $roster->events()
+            ->whereNotNull('ox_termin_id')
+            ->pluck('ox_termin_id')
+            ->toArray();
+
+        return view('personal.rosters.import_calendar', compact(
+            'roster', 'kalender', 'termine', 'selectedKalenderId',
+            'startDate', 'endDate', 'bereitsImportiert'
+        ));
+    }
+
+    /**
+     * Import: Legt ausgewählte Kalender-Termine als nichtzugewiesene Dienstplan-Ereignisse an.
+     */
+    public function importFromCalendar(Request $request, Roster $roster)
+    {
+        $request->validate([
+            'ox_termin_ids'   => 'required|array|min:1',
+            'ox_termin_ids.*' => 'required|integer|exists:ox_termine,id',
+        ]);
+
+        $user      = auth()->user();
+        $kalender  = $this->sichtbareKalender($user);
+
+        $bereitsImportiert = $roster->events()
+            ->whereNotNull('ox_termin_id')
+            ->pluck('ox_termin_id')
+            ->toArray();
+
+        $importiert = 0;
+        $uebersprungen = 0;
+
+        foreach ($request->ox_termin_ids as $terminId) {
+            // Duplikat-Schutz
+            if (in_array($terminId, $bereitsImportiert)) {
+                $uebersprungen++;
+                continue;
+            }
+
+            $termin = OxTermin::find($terminId);
+            if (!$termin) {
+                continue;
+            }
+
+            // Sichtbarkeits-Check
+            if (!$kalender->pluck('id')->contains($termin->ox_calendar_id)) {
+                continue;
+            }
+
+            if ($termin->ganztaegig) {
+                $start = '08:00:00';
+                $end   = '14:30:00';
+            } else {
+                $start = $termin->beginn->format('H:i:s');
+                $end   = $termin->ende->format('H:i:s');
+                // Zeiten auf Dienstplan-Grenzen kappen (08:00–14:30)
+                if ($start < '08:00:00') { $start = '08:00:00'; }
+                if ($end > '14:30:00')   { $end   = '14:30:00'; }
+                if ($end <= $start)      { $end   = (new \DateTime($start))->modify('+15 minutes')->format('H:i:s'); }
+            }
+
+            $event = new RosterEvents([
+                'roster_id'    => $roster->id,
+                'employe_id'   => null,
+                'date'         => $termin->beginn->toDateString(),
+                'start'        => $start,
+                'end'          => $end,
+                'event'        => $termin->titel,
+                'ox_termin_id' => $termin->id,
+            ]);
+            $event->save();
+
+            Cache::forget('roster_'.$roster->id.'_'.$termin->beginn->format('Ymd'));
+            $importiert++;
+        }
+
+        $msg = $importiert . ' Termin(e) importiert';
+        if ($uebersprungen > 0) {
+            $msg .= ', ' . $uebersprungen . ' bereits vorhanden übersprungen';
+        }
+
+        return redirect()->route('roster.show', $roster->id)
+            ->with('Meldung', $msg)
+            ->with('type', 'success');
+    }
+
+    /**
+     * Hilfsmethode: Für den aktuellen User sichtbare Kalender laden.
+     * (Analog zu CalendarController::sichtbareKalender)
+     */
+    protected function sichtbareKalender($user): Collection
+    {
+        return OxCalendar::where('sichtbar', true)
+            ->with('groups')
+            ->get()
+            ->filter(function (OxCalendar $calendar) use ($user) {
+                if ($user->can('manage calendar')) {
+                    return true;
+                }
+                if ($calendar->groups->isEmpty()) {
+                    return $user->can('view calendar');
+                }
+                $calendarGroupIds = $calendar->groups->pluck('id');
+                $userGroupIds     = $user->groups()->pluck('id');
+                return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
+            });
     }
 }

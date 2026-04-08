@@ -276,6 +276,10 @@ Route::group([
                     Route::post('roster/{roster}/auto-plan/apply', [RosterController::class, 'applyAutoPlan'])->name('roster.autoPlan.apply');
                     Route::get('roster/{roster}/auto-plan/undo', [RosterController::class, 'undoAutoPlan'])->name('roster.autoPlan.undo');
 
+                    // Kalender-Import
+                    Route::get('roster/{roster}/import-calendar', [RosterEventsController::class, 'importFromCalendarPreview'])->name('roster.importCalendar.preview');
+                    Route::post('roster/{roster}/import-calendar', [RosterEventsController::class, 'importFromCalendar'])->name('roster.importCalendar.store');
+
                     // Task Requirements
                     Route::post('roster/{roster}/task-requirements', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'store'])->name('roster.taskRequirements.store');
                     Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'update'])->name('roster.taskRequirements.update');
