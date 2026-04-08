@@ -3,9 +3,14 @@
         <div class="d-flex justify-content-between align-items-center">
             <div></div>
             @can('create roster')
-                <a href="{{route('roster.autoPlan',$roster->id)}}" class="btn btn-sm btn-outline-primary">
-                    <i class="la la-magic"></i> Auto-Umplanung Vorschlag
-                </a>
+                <div class="d-flex gap-1 flex-wrap">
+                    <a href="{{route('roster.importCalendar.preview',$roster->id)}}" class="btn btn-sm btn-outline-secondary">
+                        <i class="la la-calendar"></i> Aus Kalender importieren
+                    </a>
+                    <a href="{{route('roster.autoPlan',$roster->id)}}" class="btn btn-sm btn-outline-primary">
+                        <i class="la la-magic"></i> Auto-Umplanung Vorschlag
+                    </a>
+                </div>
             @endcan
         </div>
     </div>
@@ -22,7 +27,7 @@
                     </p>
                     <p>
                         ({{(calculateWorkingTime($working_times->where('employe_id', $employe->id), $events->where('employe_id', $employe->id)))->format('%H:%I')}}
-                        /{{$employe->employments()->where('department_id', $department->id)->active()->get()->sum('percent')*40/100}}
+                        /{{ round($employe->employments()->where('department_id', $department->id)->active()->get()->sum('hours'), 2) }}
                         h)
                     </p>
                 </div>

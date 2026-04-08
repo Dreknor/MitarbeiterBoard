@@ -2,6 +2,7 @@
 
 namespace App\Models\personal;
 
+use App\Models\OxTermin;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,8 +16,8 @@ class RosterEvents extends Model
     use SoftDeletes;
 
 
-    protected $fillable = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event'];
-    protected $visible = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event'];
+    protected $fillable = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id'];
+    protected $visible = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id'];
 
     protected $casts =[
         'date' => 'datetime:Y-m-d'
@@ -30,6 +31,11 @@ class RosterEvents extends Model
     public function employe()
     {
         return $this->belongsTo(User::class, 'employe_id');
+    }
+
+    public function oxTermin()
+    {
+        return $this->belongsTo(OxTermin::class, 'ox_termin_id');
     }
 
     public function getDurationAttribute()

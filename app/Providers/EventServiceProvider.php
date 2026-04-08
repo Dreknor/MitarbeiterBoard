@@ -43,6 +43,28 @@ class EventServiceProvider extends ServiceProvider
         \SocialiteProviders\Manager\SocialiteWasCalled::class => [
             \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class.'@handle',
         ],
+
+        // Personal-Module Events (Listener-Implementierung folgt in späteren Phasen)
+        \App\Events\Personal\EmploymentCreated::class => [
+            \App\Listeners\Personal\CreateNextcloudFolder::class,
+            \App\Listeners\Personal\InitMissingQualifications::class,
+            \App\Listeners\Personal\StartOnboardingProcess::class,
+            \App\Listeners\Personal\CreateProbationReminder::class,
+        ],
+        \App\Events\Personal\EmploymentTerminated::class => [
+            \App\Listeners\Personal\StartOffboardingProcess::class,
+            \App\Listeners\Personal\MoveNextcloudFolder::class,
+            \App\Listeners\Personal\CreateRetentionReminders::class,
+        ],
+        \App\Events\Personal\ProcedureStepCompleted::class => [
+            \App\Listeners\Personal\UpdateQualificationFromStep::class,
+        ],
+        \App\Events\Personal\EmployeeNameChanged::class => [
+            \App\Listeners\Personal\RenameNextcloudFolder::class,
+        ],
+        \App\Events\Personal\EmploymentStatusChanged::class => [
+            \App\Listeners\Personal\InvalidateScopeCache::class,
+        ],
     ];
 
     /**

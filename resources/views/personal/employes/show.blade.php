@@ -361,8 +361,9 @@
                     <div class="card">
                         <div class="card-header border-bottom">
                             <h5 class="card-title">
-                                Anstellungen (derzeit: {{$employe->employments()->active()->get()->sum('percent')}}%
-                                / {{$employe->employments()->active()->get()->sum('percent')*40/100}}h)
+                                @php($activeEmployments = $employe->employments()->active()->get())
+                                Anstellungen (derzeit: {{ round($activeEmployments->sum('percent'), 2) }}%
+                                / {{ round($activeEmployments->sum('hours'), 2) }}h)
                                 @can('edit employe')
                                     <div class="d-inline pull-right">
                                         <a href="#" onclick="toggleAddEmpolyment()">
@@ -566,11 +567,16 @@
                         <div class="card">
                             <div class="card-header border-bottom">
                                 <h5 class="card-title">
-                                    Dokumente
+                                    Neue Personalverwaltung
                                 </h5>
                             </div>
                             <div class="card-body">
-
+                                <p class="text-muted mb-3">Verträge, Dokumente und Qualifikationen sind in der neuen Personalverwaltung verfügbar.</p>
+                                @can('view personal_data')
+                                <a href="{{ route('personal.personalakte.show', $employe->id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fa fa-folder-open"></i> Personalakte öffnen
+                                </a>
+                                @endcan
                             </div>
                         </div>
                     </div>

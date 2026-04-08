@@ -174,10 +174,9 @@ class EmploymentTest extends TestCase
         $dept = Group::factory()->asDepartment()->create();
         $ht   = HourType::factory()->create();
 
-        Employment::factory()->for($user, 'employe')->for($dept, 'department')->create([
+        // scopeActive() prüft status='aktiv' (nicht mehr end IS NULL – Konzept P1-03)
+        Employment::factory()->for($user, 'employe')->for($dept, 'department')->beendet()->create([
             'hour_type_id' => $ht->id,
-            'start'        => Carbon::now()->subYears(3),
-            'end'          => Carbon::now()->subYear(),
         ]);
 
         $result = Employment::active()->get();

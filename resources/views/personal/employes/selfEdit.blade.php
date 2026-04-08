@@ -235,8 +235,9 @@
                 <div class="card">
                     <div class="card-header border-bottom">
                         <h5 class="card-title">
-                            Anstellungen (derzeit: {{$employe->employments()->active()->get()->sum('percent')}}%
-                            / {{$employe->employments()->active()->get()->sum('percent')*40/100}}h)
+                            @php($activeEmployments = $employe->employments()->active()->get())
+                            Anstellungen (derzeit: {{ round($activeEmployments->sum('percent'), 2) }}%
+                            / {{ round($activeEmployments->sum('hours'), 2) }}h)
                         </h5>
                     </div>
                     <div class="card-body">
