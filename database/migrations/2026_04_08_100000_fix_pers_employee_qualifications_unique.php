@@ -11,9 +11,11 @@ return new class extends Migration
         // Der ursprüngliche Name war zu lang:
         // pers_employee_qualifications_employe_id_qualification_type_id_unique (69 Zeichen)
         Schema::table('pers_employee_qualifications', function (Blueprint $table) {
-            // Prüfen ob der Constraint bereits existiert
-            $indexes = collect(DB::select("SHOW INDEX FROM pers_employee_qualifications WHERE Key_name = 'pers_emp_qual_emp_qualtype_unique'"));
-            if ($indexes->isEmpty()) {
+            // Prüfen ob der Constraint bereits existiert (DB-agnostisch über Schema-API)
+            $indexExists = collect(Schema::getIndexes('pers_employee_qualifications'))
+                ->contains(fn ($idx) => $idx['name'] === 'pers_emp_qual_emp_qualtype_unique');
+
+            if (! $indexExists) {
                 $table->unique(['employe_id', 'qualification_type_id'], 'pers_emp_qual_emp_qualtype_unique');
             }
         });

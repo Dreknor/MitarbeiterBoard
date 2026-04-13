@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Sabre\VObject\Component\VCalendar;
+use Symfony\Component\Mime\Part\DataPart;
 
 class MeetingInvitationMail extends Mailable
 {
@@ -37,13 +38,31 @@ class MeetingInvitationMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Einladung zum Meeting: ' . $this->meeting->title)
-            ->view('mails.meeting_invitation')
-            ->attachData(
-                $this->buildIcal(),
+        $icalString = $this->buildIcal();
+
+        $mail = $this->subject('Einladung zum Meeting: ' . $this->meeting->title)
+            ->view('mails.meeting_invitation');
+
+        // ICS als regulären Attachment anhängen (für Clients die den
+        // alternativen Part nicht unterstützen)
+        $mail->attachData(
+            $icalString,
+            'einladung.ics',
+            ['mime' => 'application/ics']
+        );
+
+        // ICS zusätzlich als text/calendar Alternative-Part einbetten,
+        // damit Outlook & Co. die Einladung direkt als Kalender-Event erkennen.
+        $mail->withSymfonyMessage(function (\Symfony\Component\Mime\Email $message) use ($icalString) {
+            $calendarPart = new DataPart(
+                $icalString,
                 'einladung.ics',
-                ['mime' => 'text/calendar; charset=UTF-8; method=REQUEST']
+                'text/calendar; charset=UTF-8; method=REQUEST'
             );
+            $message->attachPart($calendarPart);
+        });
+
+        return $mail;
     }
 
     /**
@@ -55,25 +74,43 @@ class MeetingInvitationMail extends Mailable
         $date     = $this->meeting->date->format('Y-m-d');
         $dtstart  = \Carbon\Carbon::parse($date . ' ' . $this->meeting->start_time, $tz);
         $dtend    = \Carbon\Carbon::parse($date . ' ' . $this->meeting->end_time, $tz);
-        $fromAddr = config('mail.from.address', 'noreply@mitarbeiter.local');
+        $fromAddr = config('mail.from.address', 'noreply@example.com');
+        $fromName = config('mail.from.name', config('app.name', 'MitarbeiterBoard'));
+
+        // Domain für UID aus der konfigurierten App-URL ableiten (kein .local verwenden)
+        $appDomain = parse_url(config('app.url', 'https://mitarbeiter.local'), PHP_URL_HOST) ?: 'mitarbeiter.local';
 
         $vcal = new VCalendar();
-        $vcal->add('VEVENT', [
-            'UID'         => 'meeting-' . $this->meeting->id . '@mitarbeiter.local',
-            'DTSTAMP'     => new \DateTime('now', new \DateTimeZone($tz)),
+
+        // METHOD:REQUEST ist zwingend nötig, damit Mailserver die ICS als
+        // Kalender-Einladung erkennen und nicht als Spam einstufen.
+        $vcal->add('METHOD', 'REQUEST');
+
+        $vevent = $vcal->add('VEVENT', [
+            'UID'         => 'meeting-' . $this->meeting->id . '@' . $appDomain,
+            'DTSTAMP'     => new \DateTime('now', new \DateTimeZone('UTC')),
             'DTSTART'     => $dtstart->toDateTime(),
             'DTEND'       => $dtend->toDateTime(),
             'SUMMARY'     => $this->meeting->title,
             'DESCRIPTION' => strip_tags($this->buildDescription()),
-            'ORGANIZER'   => 'mailto:' . $fromAddr,
-            'ATTENDEE'    => 'mailto:' . $this->user->email,
             'STATUS'      => 'CONFIRMED',
             'SEQUENCE'    => 0,
         ]);
 
+        // ORGANIZER mit CN-Parameter (RFC 5545 §3.8.4.3)
+        $organizer = $vevent->add('ORGANIZER', 'mailto:' . $fromAddr);
+        $organizer['CN'] = $fromName;
+
+        // ATTENDEE mit korrekten Parametern (RFC 5545 §3.8.4.1)
+        $attendee = $vevent->add('ATTENDEE', 'mailto:' . $this->user->email);
+        $attendee['CN']       = $this->user->name;
+        $attendee['ROLE']     = 'REQ-PARTICIPANT';
+        $attendee['PARTSTAT'] = 'NEEDS-ACTION';
+        $attendee['RSVP']     = 'TRUE';
+
         // Location aus Meeting-URL der Gruppe, falls vorhanden
         if (!empty($this->group->meeting_url)) {
-            $vcal->VEVENT->add('LOCATION', $this->group->meeting_url);
+            $vevent->add('LOCATION', $this->group->meeting_url);
         }
 
         return $vcal->serialize();
