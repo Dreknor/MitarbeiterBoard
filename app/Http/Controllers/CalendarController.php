@@ -83,7 +83,8 @@ class CalendarController extends Controller
             ->values();
 
         // ── OxTermin-Events (gecacht) ────────────────────────────────────────────
-        $oxCacheKey = 'calendar_events_' . md5($start . $end . $user->id . $oxIds->sort()->join(','));
+        $service    = app(OxCalendarService::class);
+        $oxCacheKey = $service->eventsCacheKey(md5($start . $end . $user->id . $oxIds->sort()->join(',')));
 
         $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds) {
             $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
@@ -117,6 +118,7 @@ class CalendarController extends Controller
                         'ort'          => $termin->ort,
                         'beschreibung' => $termin->beschreibung,
                         'status'       => $termin->status,
+                        'updatedAt'    => $termin->updated_at?->toIso8601String(),
                     ],
                 ];
 
@@ -128,6 +130,7 @@ class CalendarController extends Controller
                     $duration = $termin->beginn->diff($termin->ende);
                     $event['duration'] = sprintf('%02d:%02d', $duration->h, $duration->i);
                     unset($event['end']);
+                    $event['editable'] = false;
                 }
 
                 return $event;
@@ -421,7 +424,7 @@ class CalendarController extends Controller
             ['value'  => $token]
         );
 
-        return redirectBack('Feed-Token wurde generiert.', 'success');
+        return redirectBack('success', 'Feed-Token wurde generiert.');
     }
 
     /**
@@ -442,7 +445,7 @@ class CalendarController extends Controller
             'aktiv' => true,
         ]);
 
-        return redirectBack('Feed wurde abonniert.', 'success');
+        return redirectBack('success', 'Feed wurde abonniert.');
     }
 
     /**
@@ -461,7 +464,7 @@ class CalendarController extends Controller
 
         $feed->update($validated);
 
-        return redirectBack('Feed wurde aktualisiert.', 'success');
+        return redirectBack('success', 'Feed wurde aktualisiert.');
     }
 
     /**
@@ -472,7 +475,7 @@ class CalendarController extends Controller
         abort_if($feed->user_id !== auth()->id(), 403);
         $feed->delete();
 
-        return redirectBack('Feed wurde entfernt.', 'success');
+        return redirectBack('success', 'Feed wurde entfernt.');
     }
 
     // =========================================================================
@@ -524,7 +527,8 @@ class CalendarController extends Controller
      */
     public function store(Request $request)
     {
-        $user = auth()->user();
+        $user    = auth()->user();
+        $service = app(OxCalendarService::class);
 
         $validated = $request->validate([
             'ox_calendar_id' => 'required|integer|exists:ox_calendars,id',
@@ -539,16 +543,20 @@ class CalendarController extends Controller
 
         $kalender = OxCalendar::findOrFail($validated['ox_calendar_id']);
 
-        if (!$this->canWriteCalendar($user, $kalender)) {
+        if (!$service->canWriteCalendar($user, $kalender)) {
             abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
         }
 
-        $termin = OxTermin::create(array_merge($validated, [
-            'erstellt_von' => $user->id,
-            'ganztaegig'   => $request->boolean('ganztaegig'),
-        ]));
+        try {
+            $termin = $service->createTermin($kalender, array_merge($validated, [
+                'ganztaegig' => $request->boolean('ganztaegig'),
+            ]));
 
-        return redirectBack('Termin "' . $termin->titel . '" wurde angelegt.', 'success');
+            return redirectBack('success', 'Termin "' . $termin->titel . '" wurde angelegt.');
+        } catch (\RuntimeException $e) {
+            Log::warning('Termin erstellen fehlgeschlagen', ['error' => $e->getMessage()]);
+            return redirectBack('danger', 'Termin konnte nicht angelegt werden: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -556,10 +564,11 @@ class CalendarController extends Controller
      */
     public function update(Request $request, OxTermin $termin)
     {
-        $user = auth()->user();
+        $user    = auth()->user();
+        $service = app(OxCalendarService::class);
         $termin->load('kalender');
 
-        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+        if (!$service->canEditTermin($user, $termin->kalender)) {
             abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
         }
 
@@ -567,8 +576,8 @@ class CalendarController extends Controller
         if ($request->filled('expected_updated_at')
             && $termin->updated_at->toIso8601String() !== $request->input('expected_updated_at')) {
             return redirectBack(
-                'Der Termin wurde zwischenzeitlich geändert. Bitte neu laden.',
-                'danger'
+                'warning',
+                'Der Termin wurde zwischenzeitlich geändert. Bitte neu laden.'
             );
         }
 
@@ -582,11 +591,16 @@ class CalendarController extends Controller
             'rrule'        => 'nullable|string|max:500',
         ]);
 
-        $termin->update(array_merge($validated, [
-            'ganztaegig' => $request->boolean('ganztaegig'),
-        ]));
+        try {
+            $service->updateTermin($termin, array_merge($validated, [
+                'ganztaegig' => $request->boolean('ganztaegig'),
+            ]));
 
-        return redirectBack('Termin "' . $termin->titel . '" wurde aktualisiert.', 'success');
+            return redirectBack('success', 'Termin "' . $termin->titel . '" wurde aktualisiert.');
+        } catch (\RuntimeException $e) {
+            Log::warning('Termin bearbeiten fehlgeschlagen', ['error' => $e->getMessage()]);
+            return redirectBack('danger', 'Termin konnte nicht aktualisiert werden: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -594,21 +608,57 @@ class CalendarController extends Controller
      */
     public function move(Request $request, OxTermin $termin): JsonResponse
     {
-        $user = auth()->user();
+        $user    = auth()->user();
+        $service = app(OxCalendarService::class);
         $termin->load('kalender');
 
-        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+        if (!$service->canEditTermin($user, $termin->kalender)) {
             abort(403);
         }
 
+        // RRULE-Termine können nicht per Drag & Drop verschoben werden
+        if ($termin->rrule) {
+            return response()->json([
+                'error' => 'Wiederkehrende Termine können nicht per Drag-and-Drop verschoben werden.',
+            ], 422);
+        }
+
         $validated = $request->validate([
-            'beginn' => 'required|date',
-            'ende'   => 'required|date|after_or_equal:beginn',
+            'beginn'              => 'required|date',
+            'ende'                => 'required|date|after_or_equal:beginn',
+            'expected_updated_at' => 'required|string',
         ]);
 
-        $termin->update($validated);
+        // Optimistic Locking
+        if ($termin->updated_at->toIso8601String() !== $validated['expected_updated_at']) {
+            return response()->json([
+                'error'  => 'Der Termin wurde zwischenzeitlich geändert. Bitte Seite neu laden.',
+                'reload' => true,
+            ], 409);
+        }
 
-        return response()->json(['ok' => true]);
+        try {
+            $service->updateTermin($termin, [
+                'titel'        => $termin->titel,
+                'beschreibung' => $termin->beschreibung,
+                'ort'          => $termin->ort,
+                'beginn'       => $validated['beginn'],
+                'ende'         => $validated['ende'],
+                'ganztaegig'   => $request->boolean('ganztaegig', $termin->ganztaegig),
+                'rrule'        => $termin->rrule,
+            ]);
+
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Termin wurde verschoben.',
+                'updated_at' => $termin->fresh()->updated_at->toIso8601String(),
+            ]);
+        } catch (\RuntimeException $e) {
+            Log::warning('Termin verschieben fehlgeschlagen', ['error' => $e->getMessage()]);
+            return response()->json([
+                'error' => 'Termin konnte nicht verschoben werden: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -616,17 +666,23 @@ class CalendarController extends Controller
      */
     public function destroy(OxTermin $termin)
     {
-        $user = auth()->user();
+        $user    = auth()->user();
+        $service = app(OxCalendarService::class);
         $termin->load('kalender');
 
-        if (!$this->canWriteCalendar($user, $termin->kalender)) {
+        if (!$service->canEditTermin($user, $termin->kalender)) {
             abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
         }
 
         $titel = $termin->titel;
-        $termin->delete();
 
-        return redirectBack('Termin "' . $titel . '" wurde gelöscht.', 'success');
+        try {
+            $service->deleteTermin($termin);
+            return redirectBack('success', 'Termin "' . $titel . '" wurde gelöscht.');
+        } catch (\RuntimeException $e) {
+            Log::warning('Termin löschen fehlgeschlagen', ['error' => $e->getMessage()]);
+            return redirectBack('danger', 'Termin konnte nicht gelöscht werden: ' . $e->getMessage());
+        }
     }
 
     // =========================================================================
