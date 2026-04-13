@@ -25,13 +25,39 @@ class MeetingInvitationMailTest extends TestCase
     }
 
     /** @test */
-    public function ical_attachment_contains_method_request(): void
+    public function it_sets_reply_to_with_sender_email(): void
+    {
+        $group   = Group::factory()->asMeetingGroup()->create();
+        $meeting = Meeting::factory()->for($group)->create(['title' => 'Teamsitzung']);
+        $user    = User::factory()->create(['email' => 'empfaenger@example.com', 'name' => 'Max Muster']);
+
+        $mail = new MeetingInvitationMail($meeting, $group, $user, null, 'Absender Name', 'absender@example.com');
+        $mail->build();
+
+        $this->assertTrue($mail->hasReplyTo('absender@example.com', 'Absender Name'));
+    }
+
+    /** @test */
+    public function it_does_not_set_reply_to_without_sender_email(): void
     {
         $group   = Group::factory()->asMeetingGroup()->create();
         $meeting = Meeting::factory()->for($group)->create(['title' => 'Teamsitzung']);
         $user    = User::factory()->create(['email' => 'empfaenger@example.com', 'name' => 'Max Muster']);
 
         $mail = new MeetingInvitationMail($meeting, $group, $user, null, 'Absender');
+        $mail->build();
+
+        $this->assertEmpty($mail->replyTo);
+    }
+
+    /** @test */
+    public function ical_attachment_contains_method_request(): void
+    {
+        $group   = Group::factory()->asMeetingGroup()->create();
+        $meeting = Meeting::factory()->for($group)->create(['title' => 'Teamsitzung']);
+        $user    = User::factory()->create(['email' => 'empfaenger@example.com', 'name' => 'Max Muster']);
+
+        $mail = new MeetingInvitationMail($meeting, $group, $user, null, 'Absender', 'absender@example.com');
         $built = $mail->build();
 
         // Render the mail to Symfony Email to check attachments
@@ -50,6 +76,9 @@ class MeetingInvitationMailTest extends TestCase
         $this->assertStringContainsString('SUMMARY:Teamsitzung', $ical);
         $this->assertStringContainsString('ORGANIZER', $ical);
         $this->assertStringContainsString('ATTENDEE', $ical);
+
+        // ORGANIZER muss die E-Mail des Versenders enthalten
+        $this->assertStringContainsString('absender@example.com', $ical, 'ORGANIZER enthält nicht die Absender-E-Mail');
 
         // ATTENDEE muss RFC-konforme Parameter haben
         $this->assertStringContainsString('PARTSTAT=NEEDS-ACTION', $ical, 'ATTENDEE fehlt PARTSTAT');
@@ -106,7 +135,7 @@ class MeetingInvitationMailTest extends TestCase
         $user    = User::factory()->create(['email' => 'test@example.com']);
 
         Mail::to($user->email)->queue(
-            new MeetingInvitationMail($meeting, $group, $user, 'Testnachricht', 'Admin')
+            new MeetingInvitationMail($meeting, $group, $user, 'Testnachricht', 'Admin', 'admin@example.com')
         );
 
         Mail::assertQueued(MeetingInvitationMail::class);

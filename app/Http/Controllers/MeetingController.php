@@ -255,7 +255,7 @@ class MeetingController extends Controller
 
             try {
                 Mail::to($user->email)->queue(
-                    new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name)
+                    new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name, auth()->user()->email)
                 );
                 $gesendet++;
             } catch (\Throwable $e) {

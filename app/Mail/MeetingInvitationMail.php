@@ -20,17 +20,19 @@ class MeetingInvitationMail extends Mailable
     public $user;
     public $messageText;
     public $absender;
+    public $absenderEmail;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Meeting $meeting, Group $group, User $user, $messageText = null, $absender = null)
+    public function __construct(Meeting $meeting, Group $group, User $user, $messageText = null, $absender = null, $absenderEmail = null)
     {
         $this->meeting = $meeting;
         $this->group = $group;
         $this->user = $user;
         $this->messageText = $messageText;
         $this->absender = $absender ?: '';
+        $this->absenderEmail = $absenderEmail;
     }
 
     /**
@@ -42,6 +44,12 @@ class MeetingInvitationMail extends Mailable
 
         $mail = $this->subject('Einladung zum Meeting: ' . $this->meeting->title)
             ->view('mails.meeting_invitation');
+
+        // Reply-To auf den tatsächlichen Versender setzen, damit
+        // Termin-Bestätigungen nicht an die noreply-Adresse gehen.
+        if ($this->absenderEmail) {
+            $mail->replyTo($this->absenderEmail, $this->absender);
+        }
 
         // ICS als regulären Attachment anhängen (für Clients die den
         // alternativen Part nicht unterstützen)
@@ -98,8 +106,12 @@ class MeetingInvitationMail extends Mailable
         ]);
 
         // ORGANIZER mit CN-Parameter (RFC 5545 §3.8.4.3)
-        $organizer = $vevent->add('ORGANIZER', 'mailto:' . $fromAddr);
-        $organizer['CN'] = $fromName;
+        // Falls vorhanden, wird die E-Mail des tatsächlichen Versenders genutzt,
+        // damit Kalender-Bestätigungen an die richtige Person gehen.
+        $organizerAddr = $this->absenderEmail ?: $fromAddr;
+        $organizerName = $this->absender ?: $fromName;
+        $organizer = $vevent->add('ORGANIZER', 'mailto:' . $organizerAddr);
+        $organizer['CN'] = $organizerName;
 
         // ATTENDEE mit korrekten Parametern (RFC 5545 §3.8.4.1)
         $attendee = $vevent->add('ATTENDEE', 'mailto:' . $this->user->email);
