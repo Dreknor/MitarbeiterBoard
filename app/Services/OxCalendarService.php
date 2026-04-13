@@ -688,10 +688,6 @@ class OxCalendarService
         $versionKey = 'calendar_events_version';
         $currentVersion = (int) Cache::get($versionKey, 0);
         Cache::forever($versionKey, $currentVersion + 1);
-
-        Log::debug('Kalender-Cache invalidiert (Version ' . ($currentVersion + 1) . ')', [
-            'calendar_id' => $calendarId,
-        ]);
     }
 
     /**
@@ -705,7 +701,7 @@ class OxCalendarService
     }
 
     // ========================================================================
-    // RRULE-Expansion (TODO 25)
+    // RRULE-Expansion
     // ========================================================================
 
     /**
