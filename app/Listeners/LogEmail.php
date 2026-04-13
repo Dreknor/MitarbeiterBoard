@@ -2,50 +2,84 @@
 
 namespace App\Listeners;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Events\MessageSending;
-use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LogEmail
 {
-    /**
-     * Create the event listener.
-     *
-     * @return void
-     */
     public function __construct()
     {
-        //
     }
 
     /**
-     * Handle the event.
-     *
-     * @param  object  $event
-     * @return void
+     * Event-Zuordnung: Dieser Listener behandelt beide Mail-Events.
      */
-    public function handle(MessageSending $event)
+    public function subscribe($events): array
     {
-        $message = $event->message;
+        return [
+            MessageSending::class => 'handleSending',
+            MessageSent::class    => 'handleSent',
+        ];
+    }
 
-        $seeting = Cache::remember('email_setting', 360, function () {
-            $setting = DB::table('settings')->where('setting', 'mail_log')->value('value');
-            return $setting;
+    /**
+     * Wird BEVOR die Mail an den SMTP-Server übergeben wird aufgerufen.
+     * Achtung: Wenn dieser Handler false zurückgibt, wird der Versand abgebrochen.
+     */
+    public function handleSending(MessageSending $event): void
+    {
+        if (! $this->isLoggingEnabled()) {
+            return;
+        }
+
+        $message = $event->message;
+        $to = $message->getTo()[0] ?? null;
+
+        Log::info('Mail wird gesendet', [
+            'to'      => $to ? $to->getAddress() : 'unbekannt',
+            'name'    => $to ? $to->getName() : '',
+            'subject' => $message->getSubject(),
+        ]);
+    }
+
+    /**
+     * Wird NACHDEM die Mail erfolgreich an den SMTP-Server übergeben wurde aufgerufen.
+     * Dieses Event bestätigt, dass der SMTP-Server die Mail akzeptiert hat (250 OK).
+     */
+    public function handleSent(MessageSent $event): void
+    {
+        if (! $this->isLoggingEnabled()) {
+            return;
+        }
+
+        $message = $event->message;
+        $to = $message->getTo()[0] ?? null;
+
+        // Debug-ID aus dem SMTP-Response extrahieren (falls vorhanden)
+        $messageId = $message->getHeaders()->has('Message-ID')
+            ? $message->getHeaders()->get('Message-ID')->getBodyAsString()
+            : null;
+
+        Log::info('Mail erfolgreich versendet (SMTP bestätigt)', [
+            'to'         => $to ? $to->getAddress() : 'unbekannt',
+            'name'       => $to ? $to->getName() : '',
+            'subject'    => $message->getSubject(),
+            'message_id' => $messageId,
+        ]);
+    }
+
+    /**
+     * Prüft ob Mail-Logging in den Settings aktiviert ist.
+     */
+    private function isLoggingEnabled(): bool
+    {
+        $setting = Cache::remember('email_setting', 360, function () {
+            return DB::table('settings')->where('setting', 'mail_log')->value('value');
         });
 
-        if ($seeting == '1') {
-
-            $log = [
-                'to' => $message->getTo()[0]->getAddress(),
-                'subject' => $message->getSubject(),
-                'body' => $message->getBody(),
-                'headers' => $message->getHeaders(),
-            ];
-
-            Log::info('Email sent to '. $message->getTo()[0]->getName(), $log);
-        }
+        return $setting == '1';
     }
 }

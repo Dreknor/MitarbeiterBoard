@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -32,6 +33,8 @@ class MailDiagnosticCommand extends Command
                             {--type=alle     : Welche Mail testen (alle, einfach, meeting, aufgabe, schritt, abwesenheit, einladung, mitteilung, thema, prozess)}
                             {--list          : Alle verfügbaren Mail-Typen auflisten}
                             {--dry-run       : Mail nur rendern, nicht versenden}
+                            {--queued        : Mail über die Queue versenden (wie im Produktivbetrieb) statt synchron}
+                            {--check-queue   : Queue-Health-Check: Prüft ob der Queue-Worker läuft und Jobs verarbeitet}
                             {--dump-headers  : MIME-Header der generierten E-Mail ausgeben}
                             {--dump-ical     : ICS-Inhalt der Meeting-Einladung ausgeben}';
 
@@ -142,6 +145,10 @@ class MailDiagnosticCommand extends Command
             return $this->listMailTypes();
         }
 
+        if ($this->option('check-queue')) {
+            return $this->checkQueueHealth();
+        }
+
         $email = $this->argument('email')
             ?: $this->ask('Bitte die E-Mail-Adresse des Empfängers eingeben');
 
@@ -152,6 +159,7 @@ class MailDiagnosticCommand extends Command
 
         $type = $this->option('type');
         $dryRun = $this->option('dry-run');
+        $useQueue = $this->option('queued');
         $dumpHeaders = $this->option('dump-headers');
         $dumpIcal = $this->option('dump-ical');
         $definitions = $this->mailDefinitions();
@@ -167,6 +175,13 @@ class MailDiagnosticCommand extends Command
         }
 
         $this->printMailConfig();
+
+        if ($useQueue) {
+            $this->newLine();
+            $this->warn('   📬 Modus: QUEUED – Mails werden über die Queue versendet (wie im Produktivbetrieb).');
+            $this->warn('      Stelle sicher, dass ein Queue-Worker läuft: php artisan queue:work');
+        }
+
         $this->newLine();
 
         $gesamtErfolg = 0;
@@ -191,8 +206,12 @@ class MailDiagnosticCommand extends Command
                     continue;
                 }
 
-                // Tatsächlicher Versand
-                $this->sendAndVerify($mailable, $email, $key);
+                if ($useQueue) {
+                    $this->sendViaQueue($mailable, $email, $key);
+                } else {
+                    // Tatsächlicher Versand (synchron)
+                    $this->sendAndVerify($mailable, $email, $key);
+                }
                 $gesamtErfolg++;
 
             } catch (\Throwable $e) {
@@ -220,7 +239,7 @@ class MailDiagnosticCommand extends Command
         $this->line("   Empfänger:  {$email}");
         $this->line("   Erfolgreich: <fg=green>{$gesamtErfolg}</>");
         $this->line("   Fehlerhaft:  " . ($gesamtFehler > 0 ? "<fg=red>{$gesamtFehler}</>" : '0'));
-        $this->line("   Modus:       " . ($dryRun ? 'Dry-Run (kein Versand)' : 'Live-Versand'));
+        $this->line("   Modus:       " . ($dryRun ? 'Dry-Run (kein Versand)' : ($useQueue ? 'Queued (über Queue-Worker)' : 'Live-Versand (synchron)')));
 
         if ($gesamtFehler > 0) {
             $this->newLine();
@@ -430,6 +449,188 @@ class MailDiagnosticCommand extends Command
     }
 
     /**
+     * Sendet die Mail über die Queue (wie im Produktivbetrieb).
+     */
+    private function sendViaQueue(\Illuminate\Mail\Mailable $mailable, string $email, string $key): void
+    {
+        $driver = config('queue.default');
+        $jobsBefore = 0;
+
+        if ($driver === 'database') {
+            $jobsBefore = DB::table('jobs')->count();
+        }
+
+        try {
+            Mail::to($email)->queue($mailable);
+        } catch (\Throwable $e) {
+            $this->error("   ❌ Fehler beim Einreihen in die Queue: " . $e->getMessage());
+            throw $e;
+        }
+
+        if ($driver === 'sync') {
+            // Bei sync-Queue wird die Mail sofort versendet
+            $this->line("   ✉  Queue-Driver: <fg=yellow>sync</> – Mail wurde sofort synchron versendet.");
+            $this->line("   <fg=green>✓ Mail versendet an {$email}</>");
+            return;
+        }
+
+        if ($driver === 'database') {
+            $jobsAfter = DB::table('jobs')->count();
+
+            if ($jobsAfter > $jobsBefore) {
+                $this->line("   ✉  Mail in die <fg=cyan>database</>-Queue eingereiht (Jobs vorher: {$jobsBefore}, nachher: {$jobsAfter})");
+
+                // Warten und prüfen, ob der Queue-Worker den Job verarbeitet
+                $this->line("   ⏳ Warte auf Verarbeitung durch Queue-Worker (max. 30 Sek.)...");
+
+                $processed = false;
+                for ($i = 0; $i < 30; $i++) {
+                    sleep(1);
+                    $jobsNow = DB::table('jobs')->count();
+                    $failedNow = DB::table('failed_jobs')->count();
+
+                    if ($jobsNow < $jobsAfter) {
+                        // Job wurde verarbeitet (erfolgreich oder fehlgeschlagen)
+                        if ($failedNow > 0) {
+                            $latest = DB::table('failed_jobs')->latest('id')->first();
+                            $this->error("   ❌ Job ist fehlgeschlagen nach {$i}s!");
+                            if ($latest) {
+                                $this->line("   Fehler: " . \Illuminate\Support\Str::limit($latest->exception, 200));
+                            }
+                        } else {
+                            $this->line("   <fg=green>✓ Job nach {$i}s verarbeitet – prüfe Log auf 'Mail erfolgreich versendet (SMTP bestätigt)'</>");
+                        }
+                        $processed = true;
+                        break;
+                    }
+                }
+
+                if (! $processed) {
+                    $this->error("   ❌ Queue-Job wurde in 30 Sek. NICHT verarbeitet!");
+                    $this->error("      → Läuft der Queue-Worker? Prüfe: php artisan queue:work");
+                    $this->error("      → Aktuelle Jobs in der Queue: " . DB::table('jobs')->count());
+                }
+            } else {
+                // Job wurde sofort verarbeitet (Worker sehr schnell) oder sync Fallback
+                $this->line("   ✉  Mail eingereiht und offenbar sofort verarbeitet.");
+                $this->line("   <fg=green>✓ Prüfe Log auf 'Mail erfolgreich versendet (SMTP bestätigt)'</>");
+            }
+        } else {
+            $this->line("   ✉  Mail in die <fg=cyan>{$driver}</>-Queue eingereiht.");
+            $this->line("      Prüfe Log auf 'Mail erfolgreich versendet (SMTP bestätigt)'.");
+        }
+    }
+
+    /**
+     * Queue-Health-Check: Prüft ob der Queue-Worker aktiv ist und Jobs verarbeitet.
+     */
+    private function checkQueueHealth(): int
+    {
+        $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        $this->info('🏥 Queue-Health-Check');
+        $this->newLine();
+
+        $driver = config('queue.default');
+        $this->line("   Queue-Driver: <fg=cyan>{$driver}</>");
+        $issues = 0;
+
+        if ($driver === 'sync') {
+            $this->warn('   ⚠ Queue-Driver ist "sync" – Mails werden SYNCHRON im Web-Request versendet.');
+            $this->warn('     Mail::to()->queue() verhält sich identisch zu Mail::to()->send().');
+            $this->line("   <fg=green>✓ Kein Queue-Worker nötig.</>");
+            return Command::SUCCESS;
+        }
+
+        if ($driver === 'database') {
+            // Jobs-Tabelle prüfen
+            try {
+                $pendingJobs = DB::table('jobs')->count();
+                $this->line("   Wartende Jobs:       <fg=cyan>{$pendingJobs}</>");
+            } catch (\Exception $e) {
+                $this->error("   ❌ jobs-Tabelle nicht erreichbar: " . $e->getMessage());
+                $issues++;
+            }
+
+            // Failed Jobs
+            try {
+                $failedJobs = DB::table('failed_jobs')->count();
+                if ($failedJobs > 0) {
+                    $this->line("   Fehlgeschlagene Jobs: <fg=red>{$failedJobs}</>");
+                    $latest = DB::table('failed_jobs')->latest('failed_at')->take(3)->get();
+                    foreach ($latest as $job) {
+                        $payload = json_decode($job->payload, true);
+                        $jobName = $payload['displayName'] ?? 'unbekannt';
+                        $errorStart = \Illuminate\Support\Str::limit($job->exception, 120);
+                        $this->line("     <fg=red>•</> [{$job->failed_at}] {$jobName}");
+                        $this->line("       {$errorStart}");
+                    }
+                    $issues++;
+                } else {
+                    $this->line("   Fehlgeschlagene Jobs: <fg=green>0</>");
+                }
+            } catch (\Exception $e) {
+                $this->error("   ❌ failed_jobs-Tabelle nicht erreichbar: " . $e->getMessage());
+                $issues++;
+            }
+
+            // Queue-Worker-Test: Einen Probe-Job einreihen und prüfen ob er verarbeitet wird
+            $this->newLine();
+            $this->line('   🔄 Queue-Worker-Test: Probe-Job wird eingereiht...');
+
+            $testKey = 'mail_diagnose_queue_test_' . time();
+            $jobCountBefore = DB::table('jobs')->count();
+
+            // Einfachen Cache-Job dispatchen
+            dispatch(function () use ($testKey) {
+                \Illuminate\Support\Facades\Cache::put($testKey, true, 120);
+            });
+
+            $jobCountAfter = DB::table('jobs')->count();
+
+            if ($jobCountAfter <= $jobCountBefore) {
+                $this->warn('   ⚠ Job wurde scheinbar sofort verarbeitet (oder Queue ist sync).');
+                if (\Illuminate\Support\Facades\Cache::get($testKey)) {
+                    $this->line("   <fg=green>✓ Probe-Job wurde ausgeführt (sync-Modus).</>");
+                }
+            } else {
+                // Warten auf Verarbeitung
+                $workerActive = false;
+                for ($i = 0; $i < 15; $i++) {
+                    sleep(1);
+                    if (\Illuminate\Support\Facades\Cache::get($testKey)) {
+                        $workerActive = true;
+                        $this->line("   <fg=green>✓ Queue-Worker hat den Probe-Job nach {$i}s verarbeitet!</>");
+                        break;
+                    }
+                }
+
+                if (! $workerActive) {
+                    $this->error("   ❌ Queue-Worker hat den Probe-Job in 15 Sek. NICHT verarbeitet!");
+                    $this->error("      → Der Queue-Worker läuft möglicherweise NICHT.");
+                    $this->error("      → Starte ihn mit: php artisan queue:work --daemon");
+                    $this->newLine();
+                    $this->error('   ⚡ DIES IST WAHRSCHEINLICH DIE URSACHE für nicht zugestellte Mails!');
+                    $this->error('      Alle Produktions-Mails nutzen ->queue() und landen in der jobs-Tabelle,');
+                    $this->error('      werden aber nie verarbeitet, wenn kein queue:work-Prozess läuft.');
+                    $issues++;
+                }
+
+                // Aufräumen
+                \Illuminate\Support\Facades\Cache::forget($testKey);
+            }
+        }
+
+        $this->newLine();
+        if ($issues === 0) {
+            $this->info('   <fg=green>✓ Queue-System scheint gesund.</>');
+        } else {
+            $this->error("   ❌ {$issues} Problem(e) gefunden.");
+        }
+
+        return $issues > 0 ? Command::FAILURE : Command::SUCCESS;
+    }
+
+    /**
      * Gibt die aktuelle Mail-Konfiguration aus.
      */
     private function printMailConfig(): void
@@ -468,11 +669,14 @@ class MailDiagnosticCommand extends Command
 
         $this->newLine();
         $this->line('Beispiele:');
-        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com</>                    Alle Mails senden');
-        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --type=meeting</>     Nur Meeting-Einladung');
-        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --dry-run</>          Nur rendern, nicht senden');
-        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --type=meeting --dump-ical</>  ICS-Inhalt anzeigen');
-        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --dump-headers</>     MIME-Header anzeigen');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com</>                        Alle Mails senden (synchron)');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --queued</>               Alle Mails über die Queue senden');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --type=meeting</>         Nur Meeting-Einladung');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --type=einfach --queued</>  Einfache Mail via Queue');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --dry-run</>              Nur rendern, nicht senden');
+        $this->line('  <fg=cyan>php artisan mail:diagnose --check-queue</>                           Queue-Worker prüfen');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --dump-ical</>            ICS-Inhalt anzeigen');
+        $this->line('  <fg=cyan>php artisan mail:diagnose user@example.com --dump-headers</>         MIME-Header anzeigen');
 
         return Command::SUCCESS;
     }

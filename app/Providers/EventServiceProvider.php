@@ -18,7 +18,6 @@ use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +27,13 @@ use Spatie\Permission\Models\Role;
 class EventServiceProvider extends ServiceProvider
 {
     /**
+     * Event-Subscriber (hören auf mehrere Events).
+     */
+    protected $subscribe = [
+        LogEmail::class,
+    ];
+
+    /**
      * The event listener mappings for the application.
      *
      * @var array
@@ -35,9 +41,6 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
-        ],
-        MessageSending::class => [
-           LogEmail::class,
         ],
 
         \SocialiteProviders\Manager\SocialiteWasCalled::class => [
