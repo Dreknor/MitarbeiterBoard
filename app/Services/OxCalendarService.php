@@ -1315,10 +1315,18 @@ class OxCalendarService
      * Bestehenden Termin aktualisieren und nach OX schreiben.
      * Nutzt raw_ical für verlustfreien Round-Trip.
      *
+     * Wenn der Termin keine CalDAV-Metadaten hat (ox_href/ox_uid sind null),
+     * wird er zuerst auf dem CalDAV-Server erstellt (Legacy-Eintrag nachsynchronisieren).
+     *
      * @throws \RuntimeException Bei CalDAV-Fehler oder ETag-Mismatch
      */
     public function updateTermin(OxTermin $termin, array $data): OxTermin
     {
+        // Legacy-Eintrag ohne CalDAV-Gegenstück → zuerst auf Server erstellen
+        if (empty($termin->ox_href) || empty($termin->ox_uid)) {
+            return $this->promoteLocalTermin($termin, $data);
+        }
+
         // iCal bauen (basierend auf raw_ical wenn vorhanden, sonst neu)
         $icalData = $termin->raw_ical
             ? $this->updateExistingIcal($termin->raw_ical, $data)
@@ -1374,18 +1382,97 @@ class OxCalendarService
     }
 
     /**
+     * Lokalen Termin ohne CalDAV-Metadaten auf den Server hochladen
+     * und den lokalen Eintrag mit CalDAV-Daten (ox_uid, ox_href, ox_etag) aktualisieren.
+     *
+     * @throws \RuntimeException Bei CalDAV-Fehler
+     */
+    protected function promoteLocalTermin(OxTermin $termin, array $data): OxTermin
+    {
+        $calendar = $termin->kalender;
+
+        // UID generieren
+        $uid = \Illuminate\Support\Str::uuid() . '@mitarbeiterboard';
+
+        // iCal bauen mit neuen Daten
+        $icalData = $this->buildIcal(array_merge($data, ['uid' => $uid]));
+
+        // CalDAV-URL für neues Event
+        $eventFilename = $uid . '.ics';
+        $eventUrl      = $this->buildEventUrl($calendar, $eventFilename);
+        $eventHref     = parse_url($eventUrl, PHP_URL_PATH);
+
+        // CalDAV PUT
+        $response = $this->putEvent($eventUrl, $icalData);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException(
+                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
+            );
+        }
+
+        // Lokalen Eintrag mit CalDAV-Metadaten + neuen Daten aktualisieren
+        $termin->update([
+            'ox_uid'       => $uid,
+            'ox_etag'      => $response->header('ETag'),
+            'ox_href'      => $eventHref,
+            'titel'        => $data['titel'],
+            'beschreibung' => $data['beschreibung'] ?? null,
+            'ort'          => $data['ort'] ?? null,
+            'beginn'       => $data['beginn'],
+            'ende'         => $data['ende'],
+            'ganztaegig'   => $data['ganztaegig'] ?? false,
+            'rrule'        => $data['rrule'] ?? null,
+            'raw_ical'     => $icalData,
+        ]);
+
+        // Audit-Log
+        OxSyncLog::create([
+            'ox_calendar_id' => $calendar->id,
+            'aktion'         => 'promote_local',
+            'details'        => [
+                'titel'  => $termin->titel,
+                'ox_uid' => $uid,
+                'info'   => 'Lokaler Termin nachträglich auf CalDAV-Server erstellt',
+            ],
+            'user_id'    => auth()->id(),
+            'ip_adresse' => request()->ip(),
+        ]);
+
+        $this->invalidateEventsCache($calendar->id);
+
+        Log::info('Lokaler Termin auf CalDAV nachsynchronisiert', [
+            'termin_id' => $termin->id,
+            'ox_uid'    => $uid,
+        ]);
+
+        return $termin;
+    }
+
+    /**
      * Termin in OX löschen und lokal soft-deleten.
+     *
+     * Wenn der Termin keine CalDAV-Metadaten hat (ox_href ist null),
+     * wird nur lokal gelöscht (Legacy-Eintrag ohne CalDAV-Gegenstück).
      */
     public function deleteTermin(OxTermin $termin): bool
     {
-        $eventUrl = $this->buildEventUrl($termin->kalender, $termin->ox_href);
+        // CalDAV DELETE nur wenn der Termin ein CalDAV-Gegenstück hat
+        if ($termin->ox_href) {
+            $eventUrl = $this->buildEventUrl($termin->kalender, $termin->ox_href);
 
-        $response = $this->deleteEvent($eventUrl);
+            $response = $this->deleteEvent($eventUrl);
 
-        if (!$response->successful() && $response->status() !== 404) {
-            throw new \RuntimeException(
-                'CalDAV DELETE fehlgeschlagen: HTTP ' . $response->status()
-            );
+            if (!$response->successful() && $response->status() !== 404) {
+                throw new \RuntimeException(
+                    'CalDAV DELETE fehlgeschlagen: HTTP ' . $response->status()
+                );
+            }
+        } else {
+            Log::info('Termin ohne ox_href gelöscht (nur lokal)', [
+                'termin_id' => $termin->id,
+                'titel'     => $termin->titel,
+            ]);
         }
 
         // Audit-Log
@@ -1395,6 +1482,7 @@ class OxCalendarService
             'details'        => [
                 'titel'  => $termin->titel,
                 'ox_uid' => $termin->ox_uid,
+                'nur_lokal' => empty($termin->ox_href),
             ],
             'user_id'    => auth()->id(),
             'ip_adresse' => request()->ip(),
