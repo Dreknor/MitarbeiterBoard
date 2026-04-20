@@ -158,6 +158,21 @@ Route::group([
                 Route::get('dashboard/{dashBoardUser}/toggle', [DashboardController::class, 'toggle']);
 
                 /*
+                 * Dashboard v2 API-Routen
+                 */
+                Route::put('dashboard/layout', [DashboardController::class, 'updateLayout']);
+                Route::post('dashboard/layout/reset', [DashboardController::class, 'resetLayout']);
+                Route::get('dashboard/hilfe', [DashboardController::class, 'hilfe'])->name('dashboard.hilfe');
+                Route::get('dashboard/card/{dashBoardUser}', [DashboardController::class, 'loadCard']);
+                Route::post('notifications/mark-all-read', [DashboardController::class, 'markNotificationsRead'])->name('notifications.markAllRead');
+
+                /*
+                 * Dashboard v2 – Schnellzugriff (Quicklinks)
+                 */
+                Route::post('dashboard/quicklinks', [DashboardController::class, 'storeQuicklink'])->name('dashboard.quicklinks.store');
+                Route::delete('dashboard/quicklinks/{quicklink}', [DashboardController::class, 'destroyQuicklink'])->name('dashboard.quicklinks.destroy');
+
+                /*
                  * Routes for Wiki
                  */
                 Route::middleware(['permission:view wiki'])->group(function () {

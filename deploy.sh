@@ -14,6 +14,12 @@ php artisan migrate --force
 
 #Cache clear
 php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# Queue-Worker neustarten (lädt neuen Code, erneuert SMTP-Verbindung)
+php artisan queue:restart
 
 # stop maintenance mode
 php artisan up

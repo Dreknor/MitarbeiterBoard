@@ -1,7 +1,9 @@
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
+import intersect from '@alpinejs/intersect';
 
 Alpine.plugin(collapse);
+Alpine.plugin(intersect);
 
 // Alpine global verfügbar machen, damit andere Skripte (z.B. wochenplan.js)
 // über den alpine:init-Hook Komponenten registrieren können.

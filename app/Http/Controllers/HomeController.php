@@ -30,6 +30,51 @@ class HomeController extends Controller
             return DashboardCard::all();
         });
 
+        // ─── Dashboard v2 – Permission-Weiche ──────────────────────────────
+        if (auth()->user()->can('use dashboard v2')) {
+            $cards = auth()->user()->dashboardCards()->get();
+            $cards->load('dashboardCard');
+
+            // Falls User noch keine Cards hat (erster Aufruf): Defaults anlegen
+            if ($cards->isEmpty()) {
+                foreach ($defaultCards as $card) {
+                    if ($card->permission === null || auth()->user()->can($card->permission)) {
+                        DashBoardUser::insert([
+                            'dashboard_card_id' => $card->id,
+                            'user_id'           => auth()->id(),
+                            'row'               => $card->default_row,
+                            'col'               => $card->default_col,
+                            'order'             => ($card->default_row * 10) + $card->default_col,
+                            'width'             => $card->default_width ?? 'md',
+                            'active'            => true,
+                            'created_at'        => now(),
+                            'updated_at'        => now(),
+                        ]);
+                    }
+                }
+                $cards = auth()->user()->dashboardCards()->with('dashboardCard')->get();
+            }
+
+            $cards = $cards->sortBy('order');
+
+            // JSON-Daten für Alpine.js aufbereiten
+            $cardsJson = $cards->map(fn($c) => [
+                'id'       => $c->id,
+                'order'    => $c->order,
+                'width'    => $c->width ?? 'md',
+                'active'   => (bool) $c->active,
+                'title'    => $c->dashboardCard->title ?? '',
+                'skeleton' => $c->dashboardCard->skeleton ?? 'default',
+                'icon'     => $c->dashboardCard->icon ?? 'fas fa-th',
+            ])->values()->toArray();
+
+            return view('dashboard.dashboard-v2', [
+                'cards'     => $cards,
+                'cardsJson' => $cardsJson,
+            ]);
+        }
+        // ─── Ende Dashboard v2 ──────────────────────────────────────────────
+
 
 
         $cards = auth()->user()->dashboardCards;

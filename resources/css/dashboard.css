@@ -1,0 +1,50 @@
+/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "../views/dashboard/**/*.blade.php";
+@source "../views/rooms/rooms/freeRoomsCard-v2.blade.php";
+@source "../views/calendar/dashboardCard-v2.blade.php";
+@source "../views/wiki/dashboardCard-v2.blade.php";
+@source "../views/ticketsystem/dashboardCard-v2.blade.php";
+@source "../views/atom-feed/dashboardCard-v2.blade.php";
+@source "../views/posts/dashboardCard-v2.blade.php";
+@source "../views/tasks/tasksCard-v2.blade.php";
+@source "../views/procedure/dashboardCard-v2.blade.php";
+@source "../views/absences/dashboardCard-v2.blade.php";
+@source "../views/personal/holidays/dashboardCard-v2.blade.php";
+@source "../views/personal/time_recording/dashboardCard-v2.blade.php";
+@source "../views/personal/time_recording/dashboardCardOwn-v2.blade.php";
+@source "../views/personal/hort_planung/dashboardCard-v2.blade.php";
+@source "../js/dashboard.js";
+
+[x-cloak] { display: none !important; }
+
+#tw-main .collapse,
+#tw-main .collapsing { visibility: visible; }
+
+#tw-main .dashboard-wrapper button:not([class*="border"]) { border-width: 0; }
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    min-width: 0;
+}
+.dashboard-grid > * { min-width: 0; }
+@media (min-width: 768px) {
+    .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+    .dashboard-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.dashboard-wrapper { max-width: 100%; overflow-x: hidden; }
+
+/* Skeleton-Animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.skeleton-pulse { animation: pulse 1.5s ease-in-out infinite; }
+
