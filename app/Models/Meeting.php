@@ -44,7 +44,9 @@ class Meeting extends Model
 
     public function scopeUpcoming($query)
     {
-        return $query->where('date', '>', now()->toDateString())
+        // Heutige Meetings gehören zu "upcoming" – ansonsten verschwinden
+        // sie zu früh aus der Dashboard-Card.
+        return $query->where('date', '>=', now()->toDateString())
                      ->orderBy('date')
                      ->orderBy('start_time');
     }

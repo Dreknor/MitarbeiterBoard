@@ -19,7 +19,7 @@ class MeetingsComposer
 
         $meetings = Meeting::whereIn('group_id', $groupIds)
             ->upcoming()
-            ->where('date', '<=', now()->addDays(14))
+            ->where('date', '<=', now()->addDays(21))
             ->where('cancelled', false)
             ->with(['group'])
             ->withCount('themes')

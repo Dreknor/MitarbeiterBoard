@@ -1,7 +1,5 @@
-{{-- Nächste Meetings Card (N2) – nur Body-Inhalt (cardWrapper übernimmt Header) --}}
-
 @if($naechsteMeetings->isEmpty())
-    <div class="px-4 py-8 text-center text-gray-400 text-sm">
+    <div data-card-empty="true" class="px-4 py-8 text-center text-gray-400 text-sm">
         <i class="fas fa-users text-2xl mb-2 block opacity-40"></i>
         Keine bevorstehenden Meetings
     </div>
@@ -42,12 +40,4 @@
         @endforeach
     </div>
 @endif
-
-{{-- Footer --}}
-<div class="px-4 py-3 border-t border-gray-100">
-    <a href="{{ url('meetings') }}"
-       class="flex items-center justify-center gap-1 text-sm text-blue-600 hover:text-blue-800 no-underline font-medium">
-        Alle Meetings →
-    </a>
-</div>
 

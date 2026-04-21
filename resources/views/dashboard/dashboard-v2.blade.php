@@ -83,9 +83,15 @@
                          html = h;
                          const tmp = document.createElement('div');
                          tmp.innerHTML = h;
-                         const hasText = tmp.textContent.replace(/\s+/g, '').length > 0;
-                         const hasInteractive = tmp.querySelectorAll('a, button, form, input, select, img, svg, table, ul, ol').length > 0;
-                         isEmpty = !hasText && !hasInteractive;
+                         // Expliziter Marker hat Vorrang – Empty-State-Wrapper setzen data-card-empty='true'
+                         const explicitEmpty = tmp.querySelector('[data-card-empty=\'true\']') !== null;
+                         if (explicitEmpty) {
+                             isEmpty = true;
+                         } else {
+                             const hasText = tmp.textContent.replace(/\s+/g, '').length > 0;
+                             const hasInteractive = tmp.querySelectorAll('a, button, form, input, select, img, svg, table, ul, ol').length > 0;
+                             isEmpty = !hasText && !hasInteractive;
+                         }
                          loaded = true;
                      })
                      .catch(() => { error = true; loaded = true })

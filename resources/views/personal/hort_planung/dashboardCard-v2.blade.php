@@ -1,7 +1,8 @@
 {{-- Hortstunden-Planung Card v2 – nur Body-Inhalt (cardWrapper übernimmt Header) --}}
 @can('view hort planung')
     @if(!$hortPlanung)
-        <div class="px-4 py-8 text-center text-gray-400 text-sm">
+        <div @cannot('manage hort planung') data-card-empty="true" @endcannot
+             class="px-4 py-8 text-center text-gray-400 text-sm">
             <i class="fas fa-child text-2xl mb-2 block opacity-40"></i>
             Keine aktive Hortstunden-Planung gefunden.
         </div>
@@ -93,7 +94,7 @@
         </div>
     @endif
 @else
-    <div class="px-4 py-8 text-center text-gray-400 text-sm">
+    <div data-card-empty="true" class="px-4 py-8 text-center text-gray-400 text-sm">
         Keine Berechtigung für die Hortstunden-Planung.
     </div>
 @endcan
