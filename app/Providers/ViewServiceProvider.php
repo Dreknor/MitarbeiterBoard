@@ -65,5 +65,7 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.qualifications._missing_qualifications_card', \App\View\Composers\MissingQualificationsComposer::class);
         // Phase 2 – Fortbildungen
         View::composer('personal.trainings._upcoming_trainings_card', \App\View\Composers\UpcomingTrainingsComposer::class);
+        // Phase 2 – Pädagogisches Tagebuch Dashboard-Card
+        View::composer('dashboard.cards.paed_diary', \App\View\Composers\PaedDiaryComposer::class);
     }
 }
