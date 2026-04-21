@@ -2,6 +2,7 @@
 
 namespace App\View\Composers;
 
+use App\Models\GradingDocumentationSession;
 use App\Models\PaedDiaryAppointment;
 use App\Models\PaedDiaryEntry;
 use App\Models\PaedDiaryTask;
@@ -12,10 +13,13 @@ use Illuminate\View\View;
  * View Composer für die Dashboard-Card "Pädagogisches Tagebuch".
  *
  * Liefert:
- *   $paedKlassen      – Klassen des Users (nur id+name, mit Anzahl offener Aufgaben)
- *   $paedOffeneTasks  – Offene Aufgaben des Users (sortiert nach due_date)
- *   $paedHeuteTermine – Heutige Termine (inkl. Wiederholungen)
- *   $paedLetzterEintrag – Zuletzt erstellter Tagebuch-Eintrag
+ *   $paedKlassen          – Klassen des Users (id+name)
+ *   $paedOffeneTasks      – Offene Aufgaben (limit 5)
+ *   $paedOffeneEintraege  – Eigene Tagebuch-Einträge ohne Abschluss (limit 5)
+ *   $paedOffeneDokus      – Offene Dokumentations-Sessions des Users (limit 5)
+ *   $paedHeuteTermine     – Heutige Termine (inkl. Wiederholungen)
+ *   $paedLetzterEintrag   – Zuletzt erstellter Tagebuch-Eintrag
+ *   $paedOffeneCounts     – Anzahl offener Tasks pro Klasse
  */
 class PaedDiaryComposer
 {
@@ -24,10 +28,13 @@ class PaedDiaryComposer
         $user = auth()->user();
 
         $defaults = [
-            'paedKlassen'        => collect(),
-            'paedOffeneTasks'    => collect(),
-            'paedHeuteTermine'   => collect(),
-            'paedLetzterEintrag' => null,
+            'paedKlassen'         => collect(),
+            'paedOffeneTasks'     => collect(),
+            'paedOffeneEintraege' => collect(),
+            'paedOffeneDokus'     => collect(),
+            'paedHeuteTermine'    => collect(),
+            'paedLetzterEintrag'  => null,
+            'paedOffeneCounts'    => collect(),
         ];
 
         if (!$user || !$user->can('view paed diary')) {
@@ -35,7 +42,7 @@ class PaedDiaryComposer
             return;
         }
 
-        // Klassen des Users (nur id+name)
+        // Klassen des Users
         try {
             $klassen = $user->paed_klassen()
                 ->select('klassen.id', 'klassen.name')
@@ -47,7 +54,7 @@ class PaedDiaryComposer
 
         $klassenIds = $klassen->pluck('id')->all();
 
-        // Offene Aufgaben: eigene + Aufgaben in Klassen des Users
+        // Offene Aufgaben
         $offeneTasks = PaedDiaryTask::query()
             ->open()
             ->where(function ($q) use ($user, $klassenIds) {
@@ -61,17 +68,33 @@ class PaedDiaryComposer
             ->limit(5)
             ->get();
 
-        // Heutige Termine (inkl. Wiederholungen)
-        $heute       = Carbon::today();
-        $heuteEnd    = Carbon::today()->endOfDay();
-        $termine     = collect();
+        // Offene (nicht abgeschlossene) Tagebuch-Einträge des Users
+        $offeneEintraege = PaedDiaryEntry::query()
+            ->where('user_id', $user->id)
+            ->whereNull('completed_at')
+            ->with(['klasse:id,name', 'category:id,name,color'])
+            ->orderByDesc('datum')
+            ->limit(5)
+            ->get();
+
+        // Offene Dokumentations-Sessions des Users
+        $offeneDokus = GradingDocumentationSession::query()
+            ->where('user_id', $user->id)
+            ->whereNull('completed_at')
+            ->with(['klasse:id,name', 'gradingSystem:id,name', 'schueler:id,vorname,nachname', 'group:id,name'])
+            ->orderByDesc('started_at')
+            ->limit(5)
+            ->get();
+
+        // Heutige Termine
+        $heute    = Carbon::today();
+        $heuteEnd = Carbon::today()->endOfDay();
+        $termine  = collect();
 
         try {
             $appointments = PaedDiaryAppointment::forUser($user->id)
                 ->active()
                 ->where(function ($q) use ($heute) {
-                    // Entweder einmaliger Termin heute ODER Wiederholung, die
-                    // spätestens heute gestartet ist und (noch) nicht endet.
                     $q->where(function ($q2) use ($heute) {
                         $q2->where('is_recurring', false)
                            ->whereDate('start_date', $heute);
@@ -91,13 +114,12 @@ class PaedDiaryComposer
                     $termine->push($occ);
                 }
             }
-
             $termine = $termine->sortBy('start_time')->values();
         } catch (\Throwable) {
             $termine = collect();
         }
 
-        // Zuletzt erstellter Eintrag (nur Metadaten – content ist verschlüsselt)
+        // Zuletzt erstellter Eintrag
         try {
             $letzter = PaedDiaryEntry::query()
                 ->where('user_id', $user->id)
@@ -109,7 +131,7 @@ class PaedDiaryComposer
             $letzter = null;
         }
 
-        // Anzahl offener Tasks pro Klasse (für Chip-Anzeige)
+        // Anzahl offener Tasks pro Klasse
         $offeneCountsProKlasse = collect();
         if (!empty($klassenIds)) {
             $offeneCountsProKlasse = PaedDiaryTask::query()
@@ -121,13 +143,14 @@ class PaedDiaryComposer
         }
 
         $view->with([
-            'paedKlassen'           => $klassen,
-            'paedOffeneTasks'       => $offeneTasks,
-            'paedHeuteTermine'      => $termine,
-            'paedLetzterEintrag'    => $letzter,
-            'paedOffeneCounts'      => $offeneCountsProKlasse,
+            'paedKlassen'         => $klassen,
+            'paedOffeneTasks'     => $offeneTasks,
+            'paedOffeneEintraege' => $offeneEintraege,
+            'paedOffeneDokus'     => $offeneDokus,
+            'paedHeuteTermine'    => $termine,
+            'paedLetzterEintrag'  => $letzter,
+            'paedOffeneCounts'    => $offeneCountsProKlasse,
         ]);
     }
 }
-
 
