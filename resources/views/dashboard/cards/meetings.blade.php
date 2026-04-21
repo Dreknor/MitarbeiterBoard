@@ -6,7 +6,7 @@
 @else
     <div class="divide-y divide-gray-100">
         @foreach($naechsteMeetings as $meeting)
-            <a href="{{ url('meetings/' . $meeting->id) }}"
+            <a href="{{ route('meetings.index', ['group' => $meeting->group->name]) }}"
                class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 no-underline">
                 <div class="text-center min-w-[3rem]">
                     <div class="text-sm font-bold text-gray-800">{{ $meeting->date->format('d.m.') }}</div>
