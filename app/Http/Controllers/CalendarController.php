@@ -123,12 +123,29 @@ class CalendarController extends Controller
                 ];
 
                 if ($termin->rrule) {
-                    $event['rrule'] = 'DTSTART:' . $termin->beginn->format('Ymd\THis\Z') . "\nRRULE:" . $termin->rrule;
+                    // Ganztägige Termine benötigen DTSTART;VALUE=DATE im iCal-Format,
+                    // da sonst FullCalendar-rrule-Plugin sie nicht korrekt rendert.
+                    if ($termin->ganztaegig) {
+                        $dtstart = 'DTSTART;VALUE=DATE:' . $termin->beginn->format('Ymd');
+                    } else {
+                        $dtstart = 'DTSTART:' . $termin->beginn->utc()->format('Ymd\THis\Z');
+                    }
+                    $event['rrule'] = $dtstart . "\nRRULE:" . $termin->rrule;
                     if ($termin->exdates) {
                         $event['exdate'] = $termin->exdates;
                     }
-                    $duration = $termin->beginn->diff($termin->ende);
-                    $event['duration'] = sprintf('%02d:%02d', $duration->h, $duration->i);
+                    // Dauer berechnen: bei ganztägigen Terminen anhand der Tage-Differenz,
+                    // da die Zeitdifferenz 0:00 ergeben würde (Mitternacht bis Mitternacht).
+                    $diff = $termin->beginn->diff($termin->ende);
+                    if ($termin->ganztaegig) {
+                        $totalDays = (int) $termin->beginn->diffInDays($termin->ende);
+                        $event['duration'] = ['days' => max(1, $totalDays)];
+                    } else {
+                        $totalMinutes = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
+                        $hours   = intdiv($totalMinutes, 60);
+                        $minutes = $totalMinutes % 60;
+                        $event['duration'] = sprintf('%02d:%02d', $hours, $minutes);
+                    }
                     unset($event['end']);
                     $event['editable'] = false;
                 }
