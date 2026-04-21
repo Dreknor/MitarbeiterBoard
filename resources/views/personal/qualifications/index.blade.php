@@ -11,14 +11,17 @@
 @section('content')
 <div class="personal-wrapper">
 
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Qualifikationen</h1>
-            <p class="text-gray-500 text-sm mt-1">{{ $employe->name }}</p>
-        </div>
-        <div class="flex gap-3">
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <p class="text-gray-500 text-sm">
+            Qualifikationen von <span class="font-medium text-gray-700">{{ $employe->name }}</span>
+        </p>
+        <div class="flex gap-2 flex-wrap">
             <a href="{{ route('personal.qualifications.matrix') }}"
                class="btn-personal-secondary text-sm">📊 Qualifikationsmatrix</a>
+            @can('manage qualifications')
+            <a href="{{ route('personal.qualification-types.index') }}"
+               class="btn-personal-secondary text-sm">⚙️ Typen verwalten</a>
+            @endcan
             <a href="{{ route('personal.personalakte.show', $employe->id) }}"
                class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
         </div>

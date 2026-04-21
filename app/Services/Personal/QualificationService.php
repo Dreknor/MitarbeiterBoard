@@ -65,14 +65,31 @@ class QualificationService
 
     /**
      * Status einer einzelnen Qualifikation berechnen.
+     *
+     * Reihenfolge der Ablauflogik:
+     *   1. explizit gespeichertes `expiry_date`
+     *   2. Fallback: `acquired_date + validity_months` (aus QualificationType)
+     *   3. Ohne beides → unbegrenzt gültig (bzw. Fehlend wenn kein acquired_date)
      */
     public function calculateStatus(EmployeeQualification $qual): QualificationStatus
     {
-        if (! $qual->expiry_date) {
-            return $qual->acquired_date ? QualificationStatus::Gueltig : QualificationStatus::Fehlend;
+        if (! $qual->acquired_date) {
+            return QualificationStatus::Fehlend;
         }
 
-        $daysLeft = now()->diffInDays($qual->expiry_date, false);
+        $expiry = $qual->expiry_date;
+
+        // Fallback: berechne Ablauf aus acquired_date + validity_months
+        if (! $expiry && ($months = $qual->qualificationType?->validity_months)) {
+            $expiry = $qual->acquired_date->copy()->addMonths((int) $months);
+        }
+
+        // Kein Ablauf hinterlegt und keine Gültigkeitsdauer am Typ → unbegrenzt
+        if (! $expiry) {
+            return QualificationStatus::Gueltig;
+        }
+
+        $daysLeft = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
 
         if ($daysLeft < 0) return QualificationStatus::Abgelaufen;
 
@@ -119,7 +136,10 @@ class QualificationService
      */
     public function getQualificationMatrix(User $viewer): array
     {
-        return Cache::remember('qualification_matrix_' . $viewer->id, 300, function () use ($viewer) {
+        $version = Cache::get('qualification_matrix_version', 0);
+        $cacheKey = 'qualification_matrix_' . $viewer->id . '_v' . $version;
+
+        return Cache::remember($cacheKey, 300, function () use ($viewer) {
             $employees = app(PersonalScopeService::class)->visibleEmployees($viewer)
                 ->with(['qualifications.qualificationType'])
                 ->get();

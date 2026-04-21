@@ -15,16 +15,14 @@
 @section('content')
 <div class="personal-wrapper">
 
-    {{-- Seitenkopf --}}
+    {{-- Seitenkopf (Titel steht bereits in der Topbar → hier nur Avatar + Meta + Actions) --}}
     <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl select-none">
+            <div class="personal-avatar">
                 {{ strtoupper(substr($employe->name, 0, 1)) }}
             </div>
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
-                    {{ $employe->vorname ?? $employe->name }} {{ $employe->familienname ?? '' }}
-                </h1>
+                <p class="text-gray-700 font-semibold">{{ $employe->vorname ?? $employe->name }} {{ $employe->familienname ?? '' }}</p>
                 <p class="text-gray-500 text-sm">{{ $employe->email }}</p>
                 @if($employe->employments->isNotEmpty())
                     <p class="text-gray-400 text-xs mt-0.5">

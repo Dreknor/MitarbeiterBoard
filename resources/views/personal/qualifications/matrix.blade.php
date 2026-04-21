@@ -13,6 +13,11 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Qualifikationsmatrix – Pflichtqualifikationen</h1>
+        @can('manage qualifications')
+            <a href="{{ route('personal.qualification-types.index') }}" class="btn-personal-secondary text-sm">
+                ⚙️ Qualifikationstypen verwalten
+            </a>
+        @endcan
     </div>
 
     {{-- Legende --}}

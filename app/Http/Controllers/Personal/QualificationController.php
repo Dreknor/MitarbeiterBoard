@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Personal\StoreQualificationRequest;
+use App\Http\Requests\personal\StoreQualificationRequest;
 use App\Models\personal\EmployeeQualification;
 use App\Models\personal\QualificationType;
 use App\Models\User;
@@ -35,9 +35,11 @@ class QualificationController extends Controller
         $type       = QualificationType::findOrFail($request->qualification_type_id);
         $expiryDate = $request->expiry_date;
 
-        // Ablaufdatum automatisch berechnen wenn nicht angegeben
-        if (! $expiryDate && $type->validity_months) {
-            $expiryDate = now()->addMonths($type->validity_months)->toDateString();
+        // Ablaufdatum automatisch berechnen (vom Erwerbsdatum aus!) wenn nicht angegeben
+        if (! $expiryDate && $type->validity_months && $request->acquired_date) {
+            $expiryDate = \Carbon\Carbon::parse($request->acquired_date)
+                ->addMonths((int) $type->validity_months)
+                ->toDateString();
         }
 
         EmployeeQualification::updateOrCreate(

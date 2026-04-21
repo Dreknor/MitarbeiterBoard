@@ -1250,6 +1250,14 @@ Route::middleware(['auth', 'permission:manage qualifications', 'personal.audit']
             ->name('qualifications.store');
         Route::delete('/qualifikationen/{qualification}', [App\Http\Controllers\Personal\QualificationController::class, 'destroy'])
             ->name('qualifications.destroy');
+
+        // Verwaltung der Qualifikationstypen (Matrix-Vorgaben)
+        Route::get('/qualifikationstypen',                    [App\Http\Controllers\Personal\QualificationTypeController::class, 'index'])->name('qualification-types.index');
+        Route::get('/qualifikationstypen/neu',                [App\Http\Controllers\Personal\QualificationTypeController::class, 'create'])->name('qualification-types.create');
+        Route::post('/qualifikationstypen',                   [App\Http\Controllers\Personal\QualificationTypeController::class, 'store'])->name('qualification-types.store');
+        Route::get('/qualifikationstypen/{qualificationType}/bearbeiten', [App\Http\Controllers\Personal\QualificationTypeController::class, 'edit'])->name('qualification-types.edit');
+        Route::put('/qualifikationstypen/{qualificationType}', [App\Http\Controllers\Personal\QualificationTypeController::class, 'update'])->name('qualification-types.update');
+        Route::delete('/qualifikationstypen/{qualificationType}', [App\Http\Controllers\Personal\QualificationTypeController::class, 'destroy'])->name('qualification-types.destroy');
     });
 
 // ═══════════════════════════════════════════════════════════════════════════
