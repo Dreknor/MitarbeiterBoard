@@ -163,7 +163,8 @@
             </div>
         @endif
     @else
-        <div data-card-empty="true" class="px-4 py-8 text-center text-gray-400 text-sm">
+        <div @cannot('create posts') data-card-empty="true" @endcannot
+             class="px-4 py-8 text-center text-gray-400 text-sm">
             <i class="fas fa-newspaper text-2xl mb-2 block opacity-40"></i>
             <p>Keine Nachrichten vorhanden</p>
             @can('create posts')

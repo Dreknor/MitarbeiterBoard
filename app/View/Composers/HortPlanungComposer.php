@@ -34,11 +34,15 @@ class HortPlanungComposer
             return;
         }
 
-        // Aktive Planung der Abteilungen des Users
-        $abteilungIds = $user->groups()->pluck('id');
+        // Aktive Planung der Abteilungen des Users.
+        // Fallbacks:
+        //   1. erst über Gruppenzuordnung,
+        //   2. falls keine Gruppe matched ODER User hat 'manage hort planung',
+        //      wird einfach die erste aktive Planung gezeigt (Berechtigung
+        //      'view hort planung' schützt den Zugriff ohnehin).
+        $abteilungIds = $user->groups()->pluck('id')->all();
 
-        $planung = HortPlanung::whereIn('department_id', $abteilungIds)
-            ->where('aktiv', true)
+        $baseQuery = HortPlanung::where('aktiv', true)
             ->with([
                 'faktoren.werte',
                 'zusatzstundenTypen',
@@ -51,7 +55,28 @@ class HortPlanungComposer
                 'monate.monatZusatzstunden.typ',
                 'department',
             ])
-            ->first();
+            ->orderByDesc('updated_at');
+
+        $planung = null;
+
+        if (!empty($abteilungIds)) {
+            $planung = (clone $baseQuery)
+                ->whereIn('department_id', $abteilungIds)
+                ->first();
+        }
+
+        // Fallback: Management-Berechtigte sehen immer mindestens eine Planung
+        if (!$planung && $user->can('manage hort planung')) {
+            $planung = (clone $baseQuery)->first();
+        }
+
+        // Zweiter Fallback: Auch Nur-Leser bekommen die erste aktive Planung
+        // angezeigt, wenn sie explizit 'view hort planung' haben, aber keiner
+        // der eingetragenen Abteilungen angehören (häufiger Sonderfall bei
+        // Schulleitung / Verwaltung).
+        if (!$planung) {
+            $planung = (clone $baseQuery)->first();
+        }
 
         if (!$planung) {
             $view->with([
