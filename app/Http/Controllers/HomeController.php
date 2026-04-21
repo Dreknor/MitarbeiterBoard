@@ -53,6 +53,32 @@ class HomeController extends Controller
                     }
                 }
                 $cards = auth()->user()->dashboardCards()->with('dashboardCard')->get();
+            } else {
+                // Neue Cards nachträglich zuweisen (neue Module, neue Dashboard-Phasen)
+                $existingCardIds = $cards->pluck('dashboard_card_id')->all();
+                $maxOrder = $cards->max('order') ?? 0;
+
+                foreach ($defaultCards as $card) {
+                    if (in_array($card->id, $existingCardIds)) {
+                        continue; // User hat diese Card bereits
+                    }
+                    if ($card->permission !== null && !auth()->user()->can($card->permission)) {
+                        continue; // Keine Berechtigung
+                    }
+                    $maxOrder += 10;
+                    DashBoardUser::insert([
+                        'dashboard_card_id' => $card->id,
+                        'user_id'           => auth()->id(),
+                        'row'               => $card->default_row,
+                        'col'               => $card->default_col,
+                        'order'             => $maxOrder,
+                        'width'             => $card->default_width ?? 'md',
+                        'active'            => true,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+                }
+                $cards = auth()->user()->dashboardCards()->with('dashboardCard')->get();
             }
 
             $cards = $cards->sortBy('order');
