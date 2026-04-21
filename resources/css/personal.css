@@ -1,84 +1,165 @@
 /*
  * Personal-Modul – Tailwind CSS v4
  *
- * Hinweis: Tailwind Preflight ist DISABLED (tailwind.config.js → corePlugins.preflight: false)
- * um Konflikte mit Bootstrap 4 (Legacy) zu vermeiden.
- *
- * Alle Personal-Tailwind-Stile sind über .personal-wrapper gescopet.
+ * Architektur (siehe AGENTS.md):
+ *   - Preflight wird NICHT geladen, um Bootstrap 4 (Legacy) nicht zu zerstören.
+ *     Stattdessen nur `theme` + `utilities` Layer importieren.
+ *   - Alle Personal-Stile sind via `.personal-wrapper` gescopet.
+ *   - Content-Sources explizit via `@source` (Tailwind v4), damit Utility-Klassen
+ *     aus allen Blade-Views zuverlässig generiert werden.
+ *   - Defensive Fixes für Bootstrap-4-Konflikte:
+ *       * `.collapse { visibility: collapse }` bricht Bootstrap-Accordion → zurücksetzen
+ *       * `@property --tw-border-style` erzeugt ungewollte Borders auf Bootstrap-Buttons
  */
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
 
-/*
- * Scope-Wrapper: Alle Personal-Views sind in <div class="personal-wrapper"> eingebettet.
- * Tailwind-Utilities greifen nur innerhalb dieses Wrappers.
- */
+@source "../views/personal/**/*.blade.php";
+@source "../views/layouts/**/*.blade.php";
+@source "../js/personal.js";
+@source "../js/personal/**/*.js";
+
+/* ---------------------------------------------------------------
+ * Bootstrap-4-Konflikt-Fixes (analog sidebar.css)
+ * ------------------------------------------------------------- */
+.personal-wrapper .collapse,
+.personal-wrapper .collapsing { visibility: visible; }
+.personal-wrapper button:not([class*="border"]) { border-width: 0; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper
+ * ------------------------------------------------------------- */
 .personal-wrapper {
-    /* Container-Reset, der Bootstrap-Stile überschreibt wo nötig */
     box-sizing: border-box;
+    color: #111827; /* gray-900 */
+    line-height: 1.5;
+    /* Eigene Container-Polsterung, weil .content im Layout keine hat */
+    padding: 1.5rem 1.75rem 3rem;
+    max-width: 1400px;
+    margin-inline: auto;
 }
+@media (max-width: 640px) {
+    .personal-wrapper { padding: 1rem 1rem 2rem; }
+}
+.personal-wrapper *,
+.personal-wrapper *::before,
+.personal-wrapper *::after { box-sizing: border-box; }
+
+.personal-wrapper h1,
+.personal-wrapper h2,
+.personal-wrapper h3,
+.personal-wrapper h4 { margin: 0; }
+
+.personal-wrapper p { margin: 0; }
+
+.personal-wrapper a { color: inherit; text-decoration: none; }
+.personal-wrapper a:hover { text-decoration: none; }
+
+.personal-wrapper ul,
+.personal-wrapper ol { margin: 0; padding: 0; }
+.personal-wrapper ul.list-disc,
+.personal-wrapper ol.list-decimal { padding-left: 1.25rem; }
 
 /* Alpine.js Cloak */
-[x-cloak] {
-    display: none !important;
-}
+[x-cloak] { display: none !important; }
 
-/* Statusfarben für Qualifikations-Ampel */
-.personal-wrapper .badge-green  { @apply bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
-.personal-wrapper .badge-yellow { @apply bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
-.personal-wrapper .badge-red    { @apply bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
-.personal-wrapper .badge-gray   { @apply bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full; }
+/* ---------------------------------------------------------------
+ * Komponenten-Klassen
+ * ------------------------------------------------------------- */
 
-/* Karten-Komponente (ersetzt Bootstrap .card) */
+/* Statusbadges für Qualifikations-Ampel */
+.personal-wrapper .badge-green  { @apply inline-flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full ring-1 ring-inset ring-green-200; }
+.personal-wrapper .badge-yellow { @apply inline-flex items-center bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full ring-1 ring-inset ring-yellow-200; }
+.personal-wrapper .badge-red    { @apply inline-flex items-center bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full ring-1 ring-inset ring-red-200; }
+.personal-wrapper .badge-gray   { @apply inline-flex items-center bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-0.5 rounded-full ring-1 ring-inset ring-gray-200; }
+.personal-wrapper .badge-blue   { @apply inline-flex items-center bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full ring-1 ring-inset ring-blue-200; }
+
+/* Karten-Komponente */
 .personal-wrapper .personal-card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-shadow duration-200;
 }
+.personal-wrapper a.personal-card:hover,
+.personal-wrapper button.personal-card:hover { @apply shadow-md border-gray-200; }
 
 /* Tab-Navigation */
 .personal-wrapper .personal-tab {
     @apply px-4 py-2 text-sm font-medium border-b-2 cursor-pointer transition-colors;
 }
-.personal-wrapper .personal-tab-active {
-    @apply border-blue-500 text-blue-600;
-}
-.personal-wrapper .personal-tab-inactive {
-    @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
-}
+.personal-wrapper .personal-tab-active   { @apply border-blue-500 text-blue-600; }
+.personal-wrapper .personal-tab-inactive { @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300; }
 
-/* Primärer Button */
+/* Buttons */
 .personal-wrapper .btn-personal-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800
+           text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
 }
-
-/* Sekundärer Button */
 .personal-wrapper .btn-personal-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 active:bg-gray-100
+           text-gray-700 font-medium py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400;
+    border: 1px solid #e5e7eb; /* gray-200 */
 }
-
-/* Danger Button */
 .personal-wrapper .btn-personal-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800
+           text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500;
+    border-width: 0;
 }
 
-/* Formular-Input */
+/* Formular-Input – Views nutzen konsistent `.personal-input` (Alias `.input-personal`) */
+.personal-wrapper .personal-input,
 .personal-wrapper .input-personal {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900
+           shadow-sm placeholder:text-gray-400
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none
+           disabled:bg-gray-50 disabled:text-gray-500;
+}
+.personal-wrapper textarea.personal-input,
+.personal-wrapper textarea.input-personal { min-height: 5rem; }
+
+/* Label */
+.personal-wrapper .personal-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
 }
 
 /* Tabelle */
 .personal-wrapper .table-personal {
-    @apply w-full text-sm text-left text-gray-500;
+    @apply w-full text-sm text-left text-gray-600 border-separate border-spacing-0;
 }
-.personal-wrapper .table-personal thead {
-    @apply text-xs text-gray-700 uppercase bg-gray-50;
+.personal-wrapper .table-personal thead th {
+    @apply bg-gray-50 text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 py-3 border-b border-gray-200;
 }
-.personal-wrapper .table-personal th {
-    @apply px-6 py-3;
+.personal-wrapper .table-personal tbody td {
+    @apply px-4 py-3 border-b border-gray-100 align-middle;
 }
-.personal-wrapper .table-personal td {
-    @apply px-6 py-4;
-}
-.personal-wrapper .table-personal tbody tr {
-    @apply bg-white border-b hover:bg-gray-50;
+.personal-wrapper .table-personal tbody tr:hover td { @apply bg-gray-50/70; }
+
+/* Avatar */
+.personal-wrapper .personal-avatar {
+    @apply w-14 h-14 rounded-full bg-blue-100 text-blue-700 font-bold text-xl
+           flex items-center justify-center select-none ring-2 ring-white shadow;
 }
 
+/* Stat-Kachel */
+.personal-wrapper .personal-stat {
+    @apply bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col gap-1;
+}
+.personal-wrapper .personal-stat-value { @apply text-2xl font-bold text-gray-900; }
+.personal-wrapper .personal-stat-label { @apply text-xs uppercase tracking-wide text-gray-500; }
+
+/* Flash-Alerts */
+.personal-wrapper .alert-success { @apply rounded-lg p-4 mb-4 bg-green-50 text-green-800 border border-green-200; }
+.personal-wrapper .alert-warning { @apply rounded-lg p-4 mb-4 bg-yellow-50 text-yellow-800 border border-yellow-200; }
+.personal-wrapper .alert-error   { @apply rounded-lg p-4 mb-4 bg-red-50 text-red-800 border border-red-200; }
+.personal-wrapper .alert-info    { @apply rounded-lg p-4 mb-4 bg-blue-50 text-blue-800 border border-blue-200; }
+
+/* ---------------------------------------------------------------
+ * Responsive-Feinschliff
+ * ------------------------------------------------------------- */
+@media (max-width: 640px) {
+    .personal-wrapper .personal-card { @apply p-4 rounded-xl; }
+    .personal-wrapper h1.text-2xl { @apply text-xl; }
+}
