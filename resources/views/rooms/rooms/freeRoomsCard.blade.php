@@ -24,9 +24,31 @@
         {{-- Body --}}
         <div class="p-3">
             @if($freeRooms && $freeRooms->count() > 0)
-                <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
-                    @foreach($freeRooms as $room)
-                        <a href="{{ url('rooms/rooms/'.$room->id) }}"
+                <div x-data="{
+                        suche: '',
+                        raeume: {{ $freeRooms->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->toJson() }},
+                        get gefiltert() {
+                            const q = this.suche.toLowerCase().trim();
+                            if (!q) return this.raeume.map(r => r.id);
+                            return this.raeume.filter(r => r.name.toLowerCase().includes(q)).map(r => r.id);
+                        }
+                     }">
+                    {{-- Suchfeld --}}
+                    <div class="mb-2.5 relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
+                            </svg>
+                        </div>
+                        <input x-model="suche" type="search" placeholder="Raum suchen …"
+                               class="w-full rounded-xl border border-gray-200 pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50">
+                    </div>
+                    {{-- Keine Treffer --}}
+                    <p x-show="suche && gefiltert.length === 0" class="text-xs text-center text-gray-400 py-2">Kein Raum gefunden</p>
+                    <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
+                        @foreach($freeRooms as $room)
+                            <a x-show="gefiltert.includes({{ $room->id }})"
+                               href="{{ url('rooms/rooms/'.$room->id) }}"
                            class="group flex flex-col gap-2 p-3 bg-white border border-gray-100 rounded-xl hover:border-blue-200 hover:shadow-sm no-underline">
                             {{-- Raum-Name --}}
                             <div class="flex items-center gap-2 min-w-0">
@@ -63,8 +85,9 @@
                                 </svg>
                             </div>
                         </a>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>{{-- /.grid --}}
+                </div>{{-- /x-data --}}
             @else
                 <div class="flex flex-col items-center justify-center py-8 text-gray-400">
                     <svg class="w-10 h-10 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">

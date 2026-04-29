@@ -28,6 +28,8 @@ class RoomsComposer
         $freeRooms = $rooms->filter(function ($room){
             return $room->bookable && $room->availability == true;
         });
+        $bookableRooms = $rooms->filter(fn($room) => $room->bookable);
         $view->with('freeRooms', $freeRooms);
+        $view->with('bookableRooms', $bookableRooms);
     }
 }
