@@ -598,6 +598,7 @@ Route::group([
                 //Posts
                 Route::resource('posts', PostsController::class);
                 Route::get('posts/{post}/release', [PostsController::class, 'release']);
+                Route::get('posts/{post}/archive', [PostsController::class, 'archive'])->middleware('permission:create posts');
 
 
                 //globale Suche

@@ -19,6 +19,6 @@ class NachrichtenComposer
      */
     public function compose(View $view): void
     {
-        $view->with('posts', auth()->user()->posts()->orderByDesc('created_at')->paginate(15));
+        $view->with('posts', auth()->user()->posts()->where('archived', 0)->orderByDesc('created_at')->paginate(15));
     }
 }

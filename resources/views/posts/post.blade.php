@@ -12,6 +12,14 @@
                                 <i class="fa fa-eye"></i>
                             </a>
                         @endif
+                        @can('create posts')
+                            <a class="text-white btn btn-bg-gradient-x-purple-blue btn-link mt-2"
+                               href="{{url('posts/'.$post->id.'/archive')}}"
+                               title="Nachricht archivieren"
+                               onclick="return confirm('Nachricht archivieren?')">
+                                <i class="fa fa-archive"></i>
+                            </a>
+                        @endcan
                         <a class="text-white btn btn-bg-gradient-x-orange-yellow btn-link m-4" href="{{url('posts/'.$post->id.'/edit')}}">
                             <i class="fa fa-edit"></i>
                         </a>
