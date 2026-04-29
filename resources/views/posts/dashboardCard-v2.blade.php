@@ -136,11 +136,23 @@
                                         {{ \Illuminate\Support\Str::limit(strip_tags($post->text), 140) }}
                                     </div>
                                 @endif
-                                @if(!$post->released && $post->author_id == auth()->id())
-                                    <a href="{{ url('posts/'.$post->id.'/release') }}"
-                                       class="inline-block mt-1 text-xs text-green-600 hover:text-green-800 font-medium no-underline">
-                                        <i class="fas fa-check"></i> Jetzt veröffentlichen
-                                    </a>
+                                @if($post->author_id == auth()->id())
+                                    <div class="flex items-center gap-3 mt-1 flex-wrap">
+                                        @if(!$post->released)
+                                            <a href="{{ url('posts/'.$post->id.'/release') }}"
+                                               class="text-xs text-green-600 hover:text-green-800 font-medium no-underline">
+                                                <i class="fas fa-check"></i> Jetzt veröffentlichen
+                                            </a>
+                                        @endif
+                                        @can('create posts')
+                                            <a href="{{ url('posts/'.$post->id.'/archive') }}"
+                                               class="text-xs text-gray-400 hover:text-gray-600 font-medium no-underline"
+                                               title="Nachricht archivieren"
+                                               onclick="return confirm('Nachricht archivieren?')">
+                                                <i class="fas fa-archive"></i> Archivieren
+                                            </a>
+                                        @endcan
+                                    </div>
                                 @endif
                             </div>
                             @if($post->created_at->gt(now()->subDays(1)))
