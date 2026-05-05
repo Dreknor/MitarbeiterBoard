@@ -325,13 +325,40 @@
                 @endcanany
 
                 {{-- Raumplan --}}
-                @can('view roomBooking')
-                    <a href="{{ url('rooms/rooms') }}"
-                       class="sidebar-link @if(request()->segment(1) == 'rooms') active @endif">
-                        <i class="fa fa-calendar-alt"></i>
-                        <span>Raumplan</span>
-                    </a>
-                @endcan
+                @canany(['view roomBooking', 'manage zeitraster'])
+                    @php $raumActive = request()->segment(1) == 'rooms' || request()->segment(1) == 'zeitraster'; @endphp
+                    @can('manage zeitraster')
+                        <div x-data="{ open: {{ $raumActive ? 'true' : 'false' }} }">
+                            <button class="sidebar-toggle @if($raumActive) active-parent @endif"
+                                    @click="open = !open"
+                                    :aria-expanded="open.toString()">
+                                <i class="fa fa-calendar-alt toggle-icon"></i>
+                                <span class="toggle-label">Raumplan</span>
+                                <i class="fas fa-chevron-down toggle-arrow"></i>
+                            </button>
+                            <div class="sidebar-submenu" x-show="open" x-collapse>
+                                @can('view roomBooking')
+                                    <a href="{{ url('rooms/rooms') }}"
+                                       class="sidebar-link @if(request()->segment(1) == 'rooms') active @endif">
+                                        <i class="fa fa-door-open"></i>
+                                        <span>Räume</span>
+                                    </a>
+                                @endcan
+                                <a href="{{ route('zeitraster.index') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'zeitraster') active @endif">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Zeitraster</span>
+                                </a>
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ url('rooms/rooms') }}"
+                           class="sidebar-link @if(request()->segment(1) == 'rooms') active @endif">
+                            <i class="fa fa-calendar-alt"></i>
+                            <span>Raumplan</span>
+                        </a>
+                    @endcan
+                @endcanany
 
 
                 {{-- ── TICKETSYSTEM (Untermenü) ────────────────────────── --}}

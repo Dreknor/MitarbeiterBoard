@@ -16,7 +16,12 @@
             @endif
 
             <div class="d-flex justify-content-between align-items-center my-3">
-                <h4 class="mb-0">Zeitraster-Verwaltung</h4>
+                <div>
+                    <a href="{{ url('rooms/rooms') }}" class="btn btn-sm btn-outline-secondary mr-2">
+                        <i class="fa fa-arrow-left"></i> Zurück zum Raumplan
+                    </a>
+                    <h4 class="d-inline mb-0">Zeitraster-Verwaltung</h4>
+                </div>
                 @can('manage zeitraster')
                     <a href="{{ route('zeitraster.create') }}" class="btn btn-primary">
                         <i class="fa fa-plus"></i> Neues Zeitraster
@@ -73,7 +78,7 @@
                                                 @if($zr->klassen_count === 0)
                                                     <form action="{{ route('zeitraster.destroy', $zr) }}"
                                                           method="post" class="d-inline"
-                                                          onsubmit="return confirm('Zeitraster \"{{ addslashes($zr->name) }}\" wirklich löschen?');">
+                                                          onsubmit="return confirm('Zeitraster {{ addslashes($zr->name) }} wirklich löschen?');">
                                                         @csrf
                                                         @method('delete')
                                                         <button type="submit" class="btn btn-sm btn-outline-danger">
