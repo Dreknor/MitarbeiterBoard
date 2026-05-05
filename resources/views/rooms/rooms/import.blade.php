@@ -3,8 +3,12 @@
         Es besteht die Möglichkeit, einen Plan aus Indiware zu importieren. Dazu muss die <strong>Export-Gesamt XML-Datei</strong> aus Indiware ausgewählt werden.
         Voraussetzung ist, dass sowohl die Zeitraster als auch die Räume in Indiware angelegt und beim Export ausgewählt wurden.
         <br><strong>Klassen und Lehrkräfte</strong> werden automatisch aus dem XML extrahiert und im Raumplan angezeigt.
-        Manuell eingetragene Buchungen bleiben beim Import erhalten – nur Indiware-Einträge werden aktualisiert.
     </p>
+    <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        <strong>Mehrere Indiware-Projekte:</strong> Beim Import werden veraltete Einträge <em>ausschließlich in den Zeitraster-Slots des aktuellen Plans</em> gelöscht.
+        Buchungen desselben Raums aus einem anderen Indiware-Projekt (andere Stunden) sowie manuell eingetragene Buchungen bleiben unberührt.
+        Nur die Option <em>„Plan vollständig leeren"</em> entfernt alle bisherigen Indiware-Einträge der betroffenen Räume.
+    </div>
 
     <form action="{{ url('rooms/import') }}" method="post" enctype="multipart/form-data" class="space-y-4">
         @csrf
@@ -22,15 +26,15 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1" title="Sollen vor dem Import alle bisherigen Indiware-Buchungen gelöscht werden? Manuelle Buchungen bleiben erhalten.">
-                    Indiware-Plan leeren vor Import?
+                <label class="block text-sm font-medium text-gray-700 mb-1" title="'Nein': Nur veraltete Einträge in den Zeitrastern dieses Plans werden entfernt – Einträge anderer Projekte und manuelle Buchungen bleiben erhalten. 'Ja': Alle bisherigen Indiware-Einträge der betroffenen Räume werden vor dem Import gelöscht (für Einzelprojekt-Nutzung geeignet).">
+                    Plan vollständig leeren vor Import?
                     <svg class="w-3.5 h-3.5 inline text-gray-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </label>
                 <select class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" name="deletePlan">
-                    <option value="0" selected>Nein</option>
-                    <option value="1">Ja</option>
+                    <option value="0" selected>Nein – nur Zeitrasterbereich bereinigen</option>
+                    <option value="1">Ja – alle Indiware-Einträge der Räume löschen</option>
                 </select>
             </div>
             <div>

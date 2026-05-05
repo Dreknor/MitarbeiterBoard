@@ -134,6 +134,93 @@ class RoomBookingIndiwareXmlTest extends TestCase
         $this->assertDatabaseMissing('room_bookings', ['id' => $xml->id]);
     }
 
+    /**
+     * @test
+     * Stellt sicher, dass beim Import die Bereinigung nur Einträge im selben Zeitraster-Slot
+     * des aktuellen Indiware-Projekts löscht, nicht Einträge eines anderen Projekts
+     * (die in anderen Stunden/Tags liegen) und keine manuellen Buchungen.
+     */
+    public function veraltete_indiware_eintraege_werden_nur_im_eigenen_zeitraster_geloescht()
+    {
+        $room = Room::factory()->create();
+
+        // Altes Indiware-XML-Eintrag in Slot Mo/08:00 (dieses Projekts) – soll gelöscht werden
+        $alterEintragProjektA = RoomBooking::factory()->for($room)->indiwareXml()->create([
+            'weekday'      => 1, // Montag
+            'start'        => '08:00',
+            'end'          => '08:45',
+            'week'         => null,
+            'source_id'    => 'pl_OLD_1_1_1',
+            'is_recurring' => true,
+        ]);
+
+        // Indiware-XML-Eintrag eines anderen Projekts in Slot Mo/10:00 – soll ERHALTEN bleiben
+        $eintragProjektB = RoomBooking::factory()->for($room)->indiwareXml()->create([
+            'weekday'      => 1, // Montag
+            'start'        => '10:00',
+            'end'          => '10:45',
+            'week'         => null,
+            'source_id'    => 'pl_PROJB_1_3_1',
+            'is_recurring' => true,
+        ]);
+
+        // Manuelle Buchung im selben Slot Mo/08:00 – soll ERHALTEN bleiben
+        $manuellerEintrag = RoomBooking::factory()->for($room)->create([
+            'source'       => 'manual',
+            'weekday'      => 1,
+            'start'        => '08:00',
+            'end'          => '09:00',
+            'week'         => null,
+            'is_recurring' => true,
+        ]);
+
+        // Neuer Import aus Projekt A aktualisiert Slot Mo/08:00 mit neuer Buchung
+        $neuerEintragProjektA = RoomBooking::updateOrCreate(
+            ['source' => 'indiware_xml', 'source_id' => 'pl_NEW_1_1_1'],
+            [
+                'room_id'      => $room->id,
+                'users_id'     => $this->actingAsWithPermission('manage rooms')->id,
+                'weekday'      => 1,
+                'start'        => '08:00',
+                'end'          => '08:45',
+                'name'         => 'Deutsch 5a',
+                'is_recurring' => true,
+                'week'         => null,
+            ]
+        );
+        $updatedIds = [$neuerEintragProjektA->id];
+
+        // Selektive Bereinigung: nur Slot Mo/08:00 für diesen Raum
+        $importierteSlots = [
+            ['room_id' => $room->id, 'weekday' => 1, 'start' => '08:00', 'week' => null],
+        ];
+        $eindeutigeSlots = collect($importierteSlots)
+            ->unique(fn ($s) => $s['room_id'] . '_' . $s['weekday'] . '_' . $s['start'] . '_' . ($s['week'] ?? ''))
+            ->values();
+
+        foreach ($eindeutigeSlots as $slot) {
+            RoomBooking::fromIndiwareXml()
+                ->where('room_id', $slot['room_id'])
+                ->where('weekday', $slot['weekday'])
+                ->where('start', $slot['start'])
+                ->where('week', $slot['week'])
+                ->whereNotIn('id', $updatedIds)
+                ->forceDelete();
+        }
+
+        // Alter Projekt-A-Eintrag (Mo/08:00) muss weg sein
+        $this->assertDatabaseMissing('room_bookings', ['id' => $alterEintragProjektA->id]);
+
+        // Projekt-B-Eintrag (Mo/10:00) muss erhalten sein
+        $this->assertDatabaseHas('room_bookings', ['id' => $eintragProjektB->id]);
+
+        // Manueller Eintrag muss erhalten sein
+        $this->assertDatabaseHas('room_bookings', ['id' => $manuellerEintrag->id]);
+
+        // Neuer Projekt-A-Eintrag muss vorhanden sein
+        $this->assertDatabaseHas('room_bookings', ['id' => $neuerEintragProjektA->id]);
+    }
+
     /** @test */
     public function klassen_und_lehrer_koennen_null_sein()
     {

@@ -608,6 +608,13 @@ class RoomController extends Controller
         $booking = [];
         $updatedIds = [];
 
+        /**
+         * Zeitraster-Slots aller importierten Planeinträge (Raum + Tag + Startzeit + Woche).
+         * Wird verwendet, um beim selektiven Bereinigen nur die eigenen Zeitraster zu löschen
+         * und Einträge anderer Indiware-Projekte sowie manuelle Buchungen zu erhalten.
+         */
+        $importierteSlots = [];
+
         $fehler = [];
 
         foreach ($plan['plan'] as $key => $pl) {
@@ -666,6 +673,16 @@ class RoomController extends Controller
             }
 
             $end = $start->copy()->addMinutes(45);
+
+            // Slot für selektive Bereinigung erfassen – unabhängig davon, ob die Buchung
+            // später wegen Konflikten übersprungen wird. So werden veraltete Indiware-XML-
+            // Einträge dieses Projekts in diesem Zeitraster korrekt gelöscht.
+            $importierteSlots[] = [
+                'room_id' => $room->id,
+                'weekday' => (int) $pl['tag'],
+                'start'   => $start->format('H:i'),
+                'week'    => $buchungsWoche,
+            ];
 
             $unterricht_key = array_search($pl['id'], array_column($plan['unterricht'], 'id'));
 
@@ -726,13 +743,29 @@ class RoomController extends Controller
             }
         }
 
-        // Verwaiste Indiware-XML-Buchungen entfernen (waren im alten Plan, aber nicht mehr im neuen)
+        // Verwaiste Indiware-XML-Buchungen entfernen (waren im alten Plan, aber nicht mehr im neuen).
+        // Die Bereinigung ist auf die tatsächlich importierten Zeitraster-Slots eingeschränkt –
+        // dadurch bleiben Buchungen anderer Indiware-Projekte (andere Stunden) und manuelle
+        // Eintragungen unberührt, auch wenn sie zum gleichen Raum gehören.
+        $orphanCount = 0;
         if (!$request->deletePlan) {
-            $roomIds = $rooms->pluck('id')->toArray();
-            $orphanCount = RoomBooking::fromIndiwareXml()
-                ->whereIn('room_id', $roomIds)
-                ->when(count($updatedIds) > 0, fn ($q) => $q->whereNotIn('id', $updatedIds))
-                ->forceDelete();
+            $eindeutigeSlots = collect($importierteSlots)
+                ->unique(fn ($s) => $s['room_id'] . '_' . $s['weekday'] . '_' . $s['start'] . '_' . ($s['week'] ?? ''))
+                ->values();
+
+            foreach ($eindeutigeSlots as $slot) {
+                $query = RoomBooking::fromIndiwareXml()
+                    ->where('room_id', $slot['room_id'])
+                    ->where('weekday', $slot['weekday'])
+                    ->where('start', $slot['start'])
+                    ->where('week', $slot['week']);
+
+                if (count($updatedIds) > 0) {
+                    $query->whereNotIn('id', $updatedIds);
+                }
+
+                $orphanCount += $query->forceDelete();
+            }
         }
 
         $Meldung = "Import erfolgreich. ";
@@ -747,8 +780,8 @@ class RoomController extends Controller
 
         $Meldung .= count($booking) . ' Buchungen importiert/aktualisiert  ';
 
-        if (isset($orphanCount) && $orphanCount > 0) {
-            $Meldung .= '(' . $orphanCount . ' veraltete Einträge entfernt) ';
+        if ($orphanCount > 0) {
+            $Meldung .= '(' . $orphanCount . ' veraltete Einträge im Zeitrasterbereich entfernt) ';
         }
 
         if ($syncedZeitraster) {
