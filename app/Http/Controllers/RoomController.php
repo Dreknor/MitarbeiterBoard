@@ -725,7 +725,10 @@ class RoomController extends Controller
                 $lehrer = implode(', ', $lehrer);
             }
 
-            // Prüfe auf Kollision nur mit NICHT-Indiware-XML-Buchungen (manuelle/VP-Buchungen bleiben geschützt)
+            // Prüfe auf Kollision ausschließlich mit aktiven manuellen Buchungen.
+            // VP-Buchungen (indiware_vp) sind datumsspezifisch und blockieren keinen
+            // wöchentlich wiederkehrenden Stundenplan-Import. Stornierte Einträge zählen
+            // ebenfalls nicht als Konflikt.
             $vergeben = RoomBooking::query()
                 ->where('room_id', $room->id)
                 ->where('weekday', $pl['tag'])
@@ -734,7 +737,8 @@ class RoomController extends Controller
                     $query->orWhereBetween('end', [$start->format('H:i'), $end->format('H:i')]);
                 })
                 ->where('week', $buchungsWoche)
-                ->where('source', '!=', 'indiware_xml')
+                ->where('source', 'manual')
+                ->where('cancelled', false)
                 ->count();
 
             if ($vergeben > 0){
