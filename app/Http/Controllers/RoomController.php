@@ -126,14 +126,35 @@ class RoomController extends Controller
             })
             ->get();
 
+        // Lehrer-Kürzel → Vollname-Mapping (ein DB-Query für alle Buchungen).
+        // Die Indiware-Kürzel (z.B. "Mül") werden case-insensitiv gegen User.kuerzel geprüft.
+        $lehrerMap = \App\Models\User::whereNotNull('kuerzel')
+            ->where('kuerzel', '!=', '')
+            ->get(['name', 'kuerzel'])
+            ->mapWithKeys(fn ($u) => [mb_strtolower(trim($u->kuerzel)) => $u->name])
+            ->toArray();
+
 
         // Formatiere Buchungen für JavaScript
-        $bookingsFormatted = $bookings->map(function($booking) use ($startOfWeek, $endOfWeek, $week) {
+        $bookingsFormatted = $bookings->map(function($booking) use ($startOfWeek, $endOfWeek, $week, $lehrerMap) {
+
+            // Lehrer-Kürzel zu Vollnamen auflösen (kommagetrennte Liste möglich)
+            $lehrerName = null;
+            if ($booking->lehrer) {
+                $kuerzelListe = array_map('trim', explode(',', $booking->lehrer));
+                $aufgeloest   = array_map(
+                    fn ($k) => $lehrerMap[mb_strtolower($k)] ?? $k,
+                    $kuerzelListe
+                );
+                $lehrerName = implode(', ', $aufgeloest);
+            }
+
             $result = [
                 'id'           => $booking->id,
                 'name'         => $booking->name,
                 'klassen'      => $booking->klassen,
-                'lehrer'       => $booking->lehrer,
+                'lehrer'       => $booking->lehrer,       // Kürzel (Fallback / Tooltip)
+                'lehrer_name'  => $lehrerName,            // ausgeschriebener Name (aus User.kuerzel)
                 'start'        => $booking->start,
                 'end'          => $booking->end,
                 'is_recurring' => $booking->is_recurring,

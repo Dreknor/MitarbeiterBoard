@@ -433,13 +433,18 @@
                         cell.appendChild(nameDiv);
 
                         // Klassen & Lehrer anzeigen (falls vorhanden)
-                        if (booking.klassen || booking.lehrer) {
+                        const anzeigeName = booking.lehrer_name || booking.lehrer;
+                        if (booking.klassen || anzeigeName) {
                             const metaDiv = document.createElement('div');
-                            metaDiv.style.cssText = 'font-size:0.55rem; opacity:0.85; line-height:1.2; word-break:break-word;';
+                            metaDiv.style.cssText = 'font-size:0.6rem; opacity:0.9; line-height:1.3; word-break:break-word; margin-top:1px;';
                             const parts = [];
                             if (booking.klassen) parts.push(booking.klassen);
-                            if (booking.lehrer) parts.push(booking.lehrer);
+                            if (anzeigeName) parts.push(anzeigeName);
                             metaDiv.textContent = parts.join(' · ');
+                            // Kürzel als Tooltip wenn aufgelöster Name vorhanden
+                            if (booking.lehrer_name && booking.lehrer && booking.lehrer_name !== booking.lehrer) {
+                                metaDiv.title = 'Lehrer-Kürzel: ' + booking.lehrer;
+                            }
                             cell.appendChild(metaDiv);
                         }
 

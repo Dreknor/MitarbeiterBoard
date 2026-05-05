@@ -181,8 +181,11 @@ class RoomBookingFromVpService
         if ($raumNeu) {
             $roomNeu = $this->findRoom($raumNeu);
             if ($roomNeu) {
-                $fach    = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
-                $klassen = implode(', ', $aktion->Klassen ?? []);
+                $fach          = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
+                $klassen       = implode(', ', $aktion->Klassen ?? []);
+                $lehrerKuerzel = !empty($aktion->VLehrer)
+                    ? implode(', ', (array) $aktion->VLehrer)
+                    : (!empty($aktion->Lehrer) ? implode(', ', (array) $aktion->Lehrer) : null);
 
                 // Konfliktprüfung (manuelle oder XML-Buchungen haben Vorrang)
                 $conflict = $roomNeu->hasBookingCollision(
@@ -200,7 +203,9 @@ class RoomBookingFromVpService
                     'room_id'      => $roomNeu->id,
                     'start'        => $times['start'],
                     'end'          => $times['end'],
-                    'name'         => "VP: {$fach}" . ($klassen ? " ({$klassen})" : ''),
+                    'name'         => "VP: {$fach}",
+                    'klassen'      => $klassen ?: null,
+                    'lehrer'       => $lehrerKuerzel,
                     'booking_date' => $date,
                     'is_recurring' => false,
                     'cancelled'    => false,
@@ -263,8 +268,11 @@ class RoomBookingFromVpService
             $timesNach  = $this->resolveTimeRangeCached((int) $stundeNach, $stundenAnz, $week, $zeitrasterId);
 
             if ($roomNeu && $timesNach) {
-                $fach    = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
-                $klassen = implode(', ', $aktion->Klassen ?? []);
+                $fach          = $aktion->Ak_VFach ?? $aktion->Ak_Fach ?? '?';
+                $klassen       = implode(', ', $aktion->Klassen ?? []);
+                $lehrerKuerzel = !empty($aktion->VLehrer)
+                    ? implode(', ', (array) $aktion->VLehrer)
+                    : (!empty($aktion->Lehrer) ? implode(', ', (array) $aktion->Lehrer) : null);
 
                 RoomBooking::create([
                     'source'       => 'indiware_vp',
@@ -272,7 +280,9 @@ class RoomBookingFromVpService
                     'room_id'      => $roomNeu->id,
                     'start'        => $timesNach['start'],
                     'end'          => $timesNach['end'],
-                    'name'         => "VP (verl.): {$fach}" . ($klassen ? " ({$klassen})" : ''),
+                    'name'         => "VP (verl.): {$fach}",
+                    'klassen'      => $klassen ?: null,
+                    'lehrer'       => $lehrerKuerzel,
                     'booking_date' => $datumNach,
                     'is_recurring' => false,
                     'cancelled'    => false,
@@ -310,8 +320,11 @@ class RoomBookingFromVpService
             return;
         }
 
-        $fach    = $aktion->Ak_Fach ?? '?';
-        $klassen = implode(', ', $aktion->Klassen ?? []);
+        $fach          = $aktion->Ak_Fach ?? '?';
+        $klassen       = implode(', ', $aktion->Klassen ?? []);
+        $lehrerKuerzel = !empty($aktion->VLehrer)
+            ? implode(', ', (array) $aktion->VLehrer)
+            : (!empty($aktion->Lehrer) ? implode(', ', (array) $aktion->Lehrer) : null);
 
         RoomBooking::create([
             'source'       => 'indiware_vp',
@@ -319,7 +332,9 @@ class RoomBookingFromVpService
             'room_id'      => $room->id,
             'start'        => $times['start'],
             'end'          => $times['end'],
-            'name'         => "VP (neu): {$fach}" . ($klassen ? " ({$klassen})" : ''),
+            'name'         => "VP (neu): {$fach}",
+            'klassen'      => $klassen ?: null,
+            'lehrer'       => $lehrerKuerzel,
             'booking_date' => $date,
             'is_recurring' => false,
             'cancelled'    => false,

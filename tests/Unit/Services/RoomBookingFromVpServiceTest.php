@@ -567,9 +567,10 @@ class RoomBookingFromVpServiceTest extends TestCase
             $this->service->processAktion($aktion, Carbon::parse('2026-03-30')->addDays($i));
         }
 
+        // Nur SELECT-Abfragen direkt auf die `klassen`-Tabelle zählen (kein INSERT auf room_bookings mit klassen-Spalte)
         $klassenQueries = array_values(array_filter(
             $queries,
-            fn ($sql) => str_contains(strtolower($sql), 'klassen')
+            fn ($sql) => preg_match('/^\s*select\b.*\bfrom\b.*\bklassen\b/i', $sql)
         ));
 
         $this->assertCount(1, $klassenQueries, 'Klassen dürfen nur einmal aus der DB geladen werden');
@@ -602,6 +603,121 @@ class RoomBookingFromVpServiceTest extends TestCase
             'VRaeume'      => ['R101'],
         ]);
         $this->service->processAktion($aktion, Carbon::parse('2026-03-30'));
+    }
+
+    // ─── Test: Änderung speichert lehrer + klassen als separate Felder ────────
+
+    public function test_aenderung_stores_lehrer_and_klassen_fields(): void
+    {
+        $this->enableIntegration();
+        $this->createRoom('R101', 'R101');
+        $date = Carbon::parse('2026-03-16');
+
+        $aktion = $this->makeAktion([
+            'Raeume'   => ['R101'],
+            'VRaeume'  => ['R101'],
+            'Klassen'  => ['5a'],
+            'VLehrer'  => ['Mül'],
+        ]);
+        $this->service->processAktion($aktion, $date);
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('5a', $booking->klassen);
+        $this->assertEquals('Mül', $booking->lehrer);
+        // Klassen nicht mehr in name eingebettet
+        $this->assertStringNotContainsString('(5a)', $booking->name);
+    }
+
+    // ─── Test: Neu speichert lehrer + klassen ────────────────────────────────
+
+    public function test_neu_stores_lehrer_and_klassen_fields(): void
+    {
+        $this->enableIntegration();
+        $this->createRoom('R101', 'R101');
+        $date = Carbon::parse('2026-03-16');
+
+        $aktion = $this->makeAktion([
+            'Ak_Art'  => 'Neu',
+            'VRaeume' => ['R101'],
+            'Klassen' => ['6b'],
+            'VLehrer' => ['Hof'],
+        ]);
+        $this->service->processAktion($aktion, $date);
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('6b', $booking->klassen);
+        $this->assertEquals('Hof', $booking->lehrer);
+    }
+
+    // ─── Test: Verlegung speichert lehrer + klassen ───────────────────────────
+
+    public function test_verlegung_stores_lehrer_and_klassen_fields(): void
+    {
+        $this->enableIntegration();
+        $this->createRoom('R101', 'R101');
+        $date = Carbon::parse('2026-03-16');
+
+        $aktion = $this->makeAktion([
+            'Ak_Art'        => 'Verl.',
+            'Raeume'        => ['R101'],
+            'VRaeume'       => ['R101'],
+            'Ak_DatumVon'   => '16.03.2026',
+            'Ak_DatumNach'  => '17.03.2026',
+            'Ak_StundeNach' => 1,
+            'Klassen'       => ['7c'],
+            'VLehrer'       => ['Sch'],
+        ]);
+        $this->service->processAktion($aktion, $date);
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('7c', $booking->klassen);
+        $this->assertEquals('Sch', $booking->lehrer);
+    }
+
+    // ─── Test: Lehrer-Fallback auf Ak_Lehrer wenn kein VLehrer ───────────────
+
+    public function test_aenderung_falls_back_to_lehrer_when_no_vlehrer(): void
+    {
+        $this->enableIntegration();
+        $this->createRoom('R101', 'R101');
+        $date = Carbon::parse('2026-03-16');
+
+        $aktion = $this->makeAktion([
+            'Raeume'  => ['R101'],
+            'VRaeume' => ['R101'],
+            'Klassen' => ['4d'],
+            'Lehrer'  => ['Alt'],
+            // kein VLehrer
+        ]);
+        $this->service->processAktion($aktion, $date);
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('Alt', $booking->lehrer);
+    }
+
+    // ─── Test: kein Lehrer → lehrer-Feld ist null ────────────────────────────
+
+    public function test_aenderung_null_lehrer_when_not_provided(): void
+    {
+        $this->enableIntegration();
+        $this->createRoom('R101', 'R101');
+        $date = Carbon::parse('2026-03-16');
+
+        $aktion = $this->makeAktion([
+            'Raeume'  => ['R101'],
+            'VRaeume' => ['R101'],
+            'Klassen' => ['4d'],
+            // kein Lehrer, kein VLehrer
+        ]);
+        $this->service->processAktion($aktion, $date);
+
+        $booking = RoomBooking::where('cancelled', false)->first();
+        $this->assertNotNull($booking);
+        $this->assertNull($booking->lehrer);
     }
 }
 
