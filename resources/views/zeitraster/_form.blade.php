@@ -65,8 +65,8 @@
         if ($zeitraster && $zeitraster->lessonTimes->isNotEmpty()) {
             $stundenInit = $zeitraster->lessonTimes->map(fn($lt) => [
                 'period' => $lt->period,
-                'start'  => $lt->start,
-                'end'    => $lt->end,
+                'start'  => substr($lt->start, 0, 5),
+                'end'    => substr($lt->end, 0, 5),
                 'week'   => $lt->week ?? '',
             ])->values()->all();
         } else {

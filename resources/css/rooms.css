@@ -2,6 +2,9 @@
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
 
+@source "../views/rooms/**/*.blade.php";
+@source "../views/zeitraster/**/*.blade.php";
+
 /* Scope all Tailwind styles to rooms-wrapper only */
 .rooms-wrapper {
     /* All Tailwind utilities work inside this wrapper */
