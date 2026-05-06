@@ -82,18 +82,21 @@ class RosterController extends Controller
         $weekEnd = $weekStart->copy()->endOfWeek();
         $employes = $roster->department->activeEmployes($weekStart, $weekEnd);
 
-        for ($day = $weekStart->copy(); $day->lessThanOrEqualTo($weekEnd); $day->addDay()) {
-            if (is_holiday($day)) {
-                foreach ($employes as $employe) {
-                    $event = new RosterEvents([
-                        'roster_id' => $roster->id,
-                        'employe_id' => $employe->id,
-                        'date' => $day->copy(),
-                        'start' => '08:00:00',
-                        'end' => '14:30:00',
-                        'event' => is_holiday($day)['title'],
-                    ]);
-                    $event->save();
+        // Feiertags-Events nur bei normalen Dienstplänen erstellen, nicht bei Vorlagen
+        if ($roster->type !== 'template') {
+            for ($day = $weekStart->copy(); $day->lessThanOrEqualTo($weekEnd); $day->addDay()) {
+                if (is_holiday($day)) {
+                    foreach ($employes as $employe) {
+                        $event = new RosterEvents([
+                            'roster_id' => $roster->id,
+                            'employe_id' => $employe->id,
+                            'date' => $day->copy(),
+                            'start' => '08:00:00',
+                            'end' => '14:30:00',
+                            'event' => is_holiday($day)['title'],
+                        ]);
+                        $event->save();
+                    }
                 }
             }
         }
@@ -108,7 +111,8 @@ class RosterController extends Controller
             foreach ($templateEvents as $event) {
                 $days = $templateStart->diffInDays($event->date);
                 $targetDay = $newRosterStart->copy()->addDays($days);
-                if (is_holiday($targetDay)) {
+                // Feiertage nur bei normalen Dienstplänen überspringen, nicht bei Vorlagen
+                if ($roster->type !== 'template' && is_holiday($targetDay)) {
                     continue;
                 }
                 $newEvent = $event->replicate();
