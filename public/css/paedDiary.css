@@ -247,9 +247,9 @@
 .stage-change { cursor:pointer; }
 
 /* Inline Stage Dropdown (paed-stage-dropdown) */
-.paed-stage-dropdown { position:absolute; background:#fff; border:1px solid #ced4da; border-radius:6px; z-index:1400; box-shadow:0 4px 16px rgba(0,0,0,0.12); font-size:.82rem; max-height:300px; overflow:auto; padding:6px; }
-.paed-stage-dropdown button{ width:100%; text-align:left; border:none; background:transparent; padding:6px 8px; border-radius:4px; cursor:pointer; }
-.paed-stage-dropdown button:hover{ background:#f1f3f5; }
+.paed-stage-dropdown { position:fixed; background:#fff; border:1px solid #ced4da; border-radius:6px; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.18); font-size:.82rem; max-height:300px; overflow-y:auto; overflow-x:hidden; padding:6px; -webkit-overflow-scrolling:touch; touch-action:pan-y; max-width:90vw; }
+.paed-stage-dropdown button{ width:100%; text-align:left; border:none; background:transparent; padding:8px 10px; border-radius:4px; cursor:pointer; min-height:36px; }
+.paed-stage-dropdown button:hover, .paed-stage-dropdown button:focus{ background:#f1f3f5; outline:none; }
 .paed-stage-dropdown img{ vertical-align:middle; }
 .paed-stage-dropdown .stage-label{ color: #212529; font-size:0.9rem; line-height:1.2; display:inline-block; vertical-align:middle; }
 .paed-stage-dropdown .btn{ color: #212529; }
