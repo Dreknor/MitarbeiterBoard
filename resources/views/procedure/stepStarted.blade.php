@@ -135,7 +135,9 @@
 
         <div id="step_children_{{$step->id}}" class="ml-4 pl-2 collapse {{ ($hasIncomplete || $step->parent == "") ? 'show' : '' }} step_{{$step->id}}">
             <ul class="list-unstyled">
-                @each('procedure.stepStarted',$step->childs, 'step')
+                @foreach($step->childs as $child)
+                    @include('procedure.stepStarted', ['step' => $child, 'canEdit' => $canEdit ?? false])
+                @endforeach
             </ul>
         </div>
 

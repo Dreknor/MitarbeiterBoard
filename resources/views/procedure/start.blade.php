@@ -90,9 +90,9 @@
                 <div class="card-body border-top">
                     <div class="container-fluid">
                         <ul class="list-group">
-                                @if(count($procedure->steps->where('parent', null))>0)
-                                    @each('procedure.stepStarted',$procedure->steps->where('parent', null), 'step')
-                                @endif
+                                @foreach($procedure->steps->where('parent', null) as $step)
+                                    @include('procedure.stepStarted', ['step' => $step, 'canEdit' => $canEdit ?? false])
+                                @endforeach
                         </ul>
                         @if($canEdit ?? false)
                             <div class="mt-3">
