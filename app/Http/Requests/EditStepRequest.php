@@ -29,6 +29,7 @@ class EditStepRequest extends FormRequest
             'name'=>    'required|string',
             'description'=>'string|nullable',
             'durationDays'=>'integer|min:1',
+            'endDate'=>'nullable|date',
         ];
     }
 }

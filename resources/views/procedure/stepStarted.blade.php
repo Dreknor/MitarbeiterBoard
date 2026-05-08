@@ -83,6 +83,14 @@
                     </form>
                 @endif
 
+                {{-- Schritt bearbeiten --}}
+                @if($step->done == 0 && ($canEdit ?? false))
+                    <a href="{{ url('procedure/step/'.$step->id.'/edit') }}" class="btn btn-sm btn-outline-primary rounded-pill mr-2 d-flex align-items-center" title="Schritt bearbeiten" aria-label="Schritt bearbeiten">
+                        <i class="fas fa-edit mr-2" aria-hidden="true"></i>
+                        <span class="d-none d-md-inline">Bearbeiten</span>
+                    </a>
+                @endif
+
                 {{-- Person hinzufügen link (öffnet Modal) --}}
                 @if($step->done == 0 && ($canEdit ?? false))
                     <a href="#" class="btn btn-sm btn-primary rounded-pill mr-2 addUser d-flex align-items-center" data-toggle="modal" data-target="#addUserModal" data-step="{{$step->id}}" title="Person hinzufügen" aria-label="Person zuweisen">

@@ -29,6 +29,7 @@ class CreateStepRequest extends FormRequest
             'name'=>    'required|string|max:60',
             'description'=>'string|nullable',
             'durationDays'=>'integer|min:1',
+            'endDate'=>'nullable|date',
         ];
     }
 }

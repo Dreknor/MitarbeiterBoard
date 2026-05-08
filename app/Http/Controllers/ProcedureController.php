@@ -391,7 +391,38 @@ class ProcedureController extends Controller
 
         $step = new Procedure_Step($request->validated());
         $step->procedure_id = $procedure->id;
-        $step->save();
+
+        // Bei laufenden Prozessen: endDate setzen und Benutzer automatisch zuweisen
+        if ($procedure->started_at !== null) {
+            if ($request->filled('endDate')) {
+                $step->endDate = $request->input('endDate');
+            }
+            $step->save();
+
+            // Benutzer der zugewiesenen Position automatisch anhängen
+            $position = \App\Models\Positions::find($step->position_id);
+            if ($position) {
+                $users = $position->users;
+                if ($users->isNotEmpty()) {
+                    $step->users()->attach($users);
+                    foreach ($users as $user) {
+                        try {
+                            Mail::to($user)->queue(new newStepMail(
+                                $user->name,
+                                $step->endDate ? \Carbon\Carbon::parse($step->endDate)->format('d.m.Y') : '–',
+                                $step->name,
+                                $procedure->name,
+                                $procedure->id
+                            ));
+                        } catch (\Exception $e) {
+                            Log::warning('Prozesse: E-Mail konnte nicht gesendet werden', ['user' => $user->id, 'error' => $e->getMessage()]);
+                        }
+                    }
+                }
+            }
+        } else {
+            $step->save();
+        }
 
         return redirect()->back()->with([
             'type'=> 'success',
@@ -410,7 +441,7 @@ class ProcedureController extends Controller
             return Positions::all();
         });
 
-        $procedure = $step->procedure;
+        $procedure = $step->procedure()->with('steps')->first();
 
         return view('procedure.editStep', [
             'step'=>$step,
@@ -429,9 +460,50 @@ class ProcedureController extends Controller
             ]);
         }
 
+        $oldPositionId = $step->position_id;
         $step->update($request->validated());
 
-        return redirect(url('procedure/'.$step->procedure_id.'/edit'));
+        $procedure = $step->fresh()->procedure;
+
+        // Bei laufenden Prozessen: Zuweisungen bei Positionswechsel aktualisieren
+        if ($procedure->started_at !== null && $request->position_id != $oldPositionId) {
+            // Alte Zuweisungen entfernen und neue Position eintragen
+            $step->users()->detach();
+
+            $position = \App\Models\Positions::find($step->position_id);
+            if ($position) {
+                $users = $position->users;
+                if ($users->isNotEmpty()) {
+                    $step->users()->attach($users);
+                    foreach ($users as $user) {
+                        try {
+                            Mail::to($user)->queue(new newStepMail(
+                                $user->name,
+                                $step->endDate ? $step->endDate->format('d.m.Y') : '–',
+                                $step->name,
+                                $procedure->name,
+                                $procedure->id
+                            ));
+                        } catch (\Exception $e) {
+                            Log::warning('Prozesse: E-Mail konnte nicht gesendet werden', ['user' => $user->id, 'error' => $e->getMessage()]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Weiterleitung: bei laufenden Prozessen zur Prozessansicht, sonst zur Vorlage
+        if ($procedure->started_at !== null) {
+            return redirect(url('procedure/'.$procedure->id.'/start'))->with([
+                'type' => 'success',
+                'Meldung' => 'Schritt gespeichert.',
+            ]);
+        }
+
+        return redirect(url('procedure/'.$step->procedure_id.'/edit'))->with([
+            'type' => 'success',
+            'Meldung' => 'Schritt gespeichert.',
+        ]);
     }
 
     public function done(Procedure_Step $step)

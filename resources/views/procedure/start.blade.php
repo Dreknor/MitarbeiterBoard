@@ -92,14 +92,15 @@
                         <ul class="list-group">
                                 @if(count($procedure->steps->where('parent', null))>0)
                                     @each('procedure.stepStarted',$procedure->steps->where('parent', null), 'step')
-                                @elseif(count($procedure->steps)>0)
-                                    @if($procedure->started_at == null && ($canEdit ?? false))
-                                        <div class="btn btn-sm btn-outline-success newStep" data-parent=""  data-target="#stepModal"  data-toggle="modal">
-                                            <i class="fas fa-plus" data-parent=""></i> Schritt erstellen
-                                        </div>
-                                    @endif
                                 @endif
                         </ul>
+                        @if($canEdit ?? false)
+                            <div class="mt-3">
+                                <div class="btn btn-sm btn-outline-success newStep" data-parent="" data-target="#stepModal" data-toggle="modal">
+                                    <i class="fas fa-plus" data-parent=""></i> Neuer Schritt
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -173,6 +174,17 @@
                                 <input type="number" class="form-control" required min="1" step="1" name="durationDays" value="{{old('durationDays')}}">
                             </div>
                         </div>
+                        @if($procedure->started_at != null)
+                        <div class="form-row mt-2">
+                            <div class="col-md-6 col-sm-12">
+                                <label for="endDate">
+                                    Fälligkeitsdatum
+                                </label>
+                                <input type="date" class="form-control" name="endDate" value="{{old('endDate')}}">
+                                <small class="form-text text-muted">Das konkrete Fälligkeitsdatum für diesen Schritt im laufenden Prozess.</small>
+                            </div>
+                        </div>
+                        @endif
                     </form>
                 </div>
                 <div class="modal-footer">

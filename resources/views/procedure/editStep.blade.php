@@ -2,10 +2,17 @@
 
 @section('content')
     <div class="card">
-        <div class="card-header">
-            <h6>
-                Schritt bearbeiten
-            </h6>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Schritt bearbeiten</h6>
+            @if($procedure->started_at != null)
+                <a href="{{ url('procedure/'.$procedure->id.'/start') }}" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Zurück zum Prozess
+                </a>
+            @else
+                <a href="{{ url('procedure/'.$procedure->id.'/edit') }}" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Zurück zur Vorlage
+                </a>
+            @endif
         </div>
         <div class="card-body">
             <form action="{{url('procedure/step/'.$step->id)}}" method="post" class="form-horizontal" id="stepForm">
@@ -40,6 +47,12 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if($procedure->started_at != null)
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i>
+                                Bei Änderung der Position werden die bisherigen Zuweisungen ersetzt und die neuen Personen per E-Mail benachrichtigt.
+                            </small>
+                        @endif
                     </div>
                     <div class="col-md-4 col-sm-12">
                         <label for="durationDays">
@@ -48,27 +61,41 @@
                         <input type="number" class="form-control" required min="1" step="1" name="durationDays" value="{{old('durationDays', $step->durationDays)}}">
                     </div>
                 </div>
+                @if($procedure->started_at != null)
+                    <div class="form-row mt-2">
+                        <div class="col-md-6 col-sm-12">
+                            <label for="endDate">
+                                Fälligkeitsdatum
+                            </label>
+                            <input type="date" class="form-control" name="endDate"
+                                   value="{{old('endDate', $step->endDate ? $step->endDate->format('Y-m-d') : '')}}">
+                            <small class="form-text text-muted">Das konkrete Fälligkeitsdatum für diesen Schritt.</small>
+                        </div>
+                    </div>
+                @endif
                 <div class="form-row">
                     <div class="col-12">
-                        <label for="position_id">
+                        <label for="parent">
                             nach folgender Aufgabe
                         </label>
                         <select name="parent" class="custom-select" >
                             <option value=""> </option>
-                            @foreach($procedure->steps as $position)
-                                @if($position->id != $step->id)
-                                    <option value="{{$position->id}}" @if($step->position_id == $position->id) selected @endif>
-                                        {{$position->name}}
+                            @foreach($procedure->steps as $s)
+                                @if($s->id != $step->id)
+                                    <option value="{{$s->id}}" @if($step->parent == $s->id) selected @endif>
+                                        {{$s->name}}
                                     </option>
                                 @endif
                             @endforeach
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
-                    <button type="submit" class="btn btn-block btn-success">
-                        speichern
-                    </button>
+                <div class="form-row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-block btn-success">
+                            <i class="fas fa-save"></i> speichern
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -77,8 +104,8 @@
             <form action="{{url('procedure/step/'.$step->id.'/delete')}}" method="post" class="form-horizontal">
                 @csrf
                 @method('delete')
-                <button type="submit" class="btn btn-block btn-danger">
-                    Schritt löschen
+                <button type="submit" class="btn btn-block btn-danger" onclick="return confirm('Schritt wirklich löschen?')">
+                    <i class="fas fa-trash"></i> Schritt löschen
                 </button>
             </form>
         </div>
