@@ -55,25 +55,44 @@ function initializeStagesModule({csrf, getCache, escapeHtml, loadWeek}){
         // Container bauen
         const container = document.createElement('div');
         container.className = 'paed-stage-dropdown';
-        // Basales Styling (leicht angepasst) — kann durch CSS ersetzt werden
-        container.style.position = 'absolute';
+        // position: fixed (viewport-relativ) vermeidet Scroll-Offset-Probleme auf iPad/Mobile
+        container.style.position = 'fixed';
         container.style.zIndex = 9999;
         container.style.background = '#ffffff';
         container.style.border = '1px solid #ddd';
         container.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
         container.style.padding = '6px';
         container.style.borderRadius = '4px';
-        container.style.minWidth = '140px';
+        container.style.minWidth = '160px';
+        container.style.maxWidth = '90vw';
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '6px';
 
-        // Positionierung: rechts unter dem opener, sofern Platz
+        // Positionierung: fixed → direkt aus getBoundingClientRect(), kein Scroll-Offset nötig
         const rect = opener.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
-        container.style.top = (rect.bottom + scrollTop + 6) + 'px';
-        container.style.left = (rect.left + scrollLeft) + 'px';
+        const vw = window.innerWidth || document.documentElement.clientWidth || 320;
+        const vh = window.innerHeight || document.documentElement.clientHeight || 568;
+        const dropdownMinWidth = 160;
+        const dropdownEstHeight = 300; // max-height aus CSS
+
+        // Horizontal: linksbündig zum opener, aber nicht über den rechten Rand
+        let leftPos = rect.left;
+        if (leftPos + dropdownMinWidth > vw - 8) {
+            leftPos = Math.max(8, rect.right - dropdownMinWidth);
+        }
+
+        // Vertikal: unterhalb des openers, aber wenn nicht genug Platz → oberhalb
+        let topPos;
+        if (rect.bottom + dropdownEstHeight + 6 > vh) {
+            // Oberhalb: falls genug Platz, sonst trotzdem unterhalb
+            topPos = Math.max(8, rect.top - dropdownEstHeight - 6);
+        } else {
+            topPos = rect.bottom + 6;
+        }
+
+        container.style.top = topPos + 'px';
+        container.style.left = leftPos + 'px';
 
         // Lade Stufen
         const listInfo = document.createElement('div');

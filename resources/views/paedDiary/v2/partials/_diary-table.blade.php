@@ -55,42 +55,46 @@
                             </div>
 
                             {{-- Stufen-Symbol (links, größer) --}}
-                            <span x-data="stageDropdown()" class="position-relative flex-shrink-0" style="cursor:pointer;">
-                                <span @click.stop="openDropdown(stu.id, stu.klasse_id)"
+                            <span x-data="stageDropdown()" class="flex-shrink-0" style="cursor:pointer;">
+                                <span @click.stop="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
                                       x-show="$store.diary.can_manage_grading"
                                       x-html="stageHtml(stu)"></span>
                                 <span x-show="!$store.diary.can_manage_grading"
                                       x-html="stageHtml(stu)"></span>
 
-                                {{-- Stufen-Dropdown (inline) --}}
-                                <div x-show="dropdownOpen && dropdownStuId === stu.id"
-                                     x-cloak
-                                     @click.outside="closeDropdown()"
-                                     class="position-absolute bg-white border rounded shadow-sm p-1"
-                                     style="z-index:9999; min-width:140px; top:100%; left:0;">
-                                    <div x-show="stageLoading" class="small text-muted p-1">Lade...</div>
-                                    <template x-if="!stageLoading">
-                                        <div style="display:flex; flex-direction:column; gap:4px;">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary text-left"
-                                                    @click="selectStage('')">
-                                                <span style="width:20px;display:inline-block;text-align:center;">—</span> Keine Stufe
-                                            </button>
-                                            <template x-for="stage in stages" :key="stage.id">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary text-left d-flex align-items-center"
-                                                        style="gap:8px"
-                                                        @click="selectStage(stage.id)">
-                                                    <template x-if="stage.image_url">
-                                                        <img :src="stage.image_url" :alt="stage.name" style="width:20px;height:20px;object-fit:contain;">
-                                                    </template>
-                                                    <template x-if="!stage.image_url && stage.symbol">
-                                                        <span class="badge badge-info" x-text="stage.symbol"></span>
-                                                    </template>
-                                                    <span x-text="stage.name || stage.symbol || ('Stufe ' + stage.id)"></span>
+                                {{-- Stufen-Dropdown (per Teleport an <body>, damit es nicht von --}}
+                                {{-- `contain:paint` der Tabellenzellen oder `transform`-Containern --}}
+                                {{-- (insb. auf iPad) abgeschnitten wird). --}}
+                                <template x-teleport="body">
+                                    <div x-show="dropdownOpen && dropdownStuId === stu.id"
+                                         x-cloak
+                                         @click.outside="closeDropdown()"
+                                         class="bg-white border rounded shadow-sm p-1 paed-stage-dropdown"
+                                         :style="`position:fixed; top:${dropdownTop}px; left:${dropdownLeft}px; z-index:9999; min-width:160px; max-width:90vw; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;`">
+                                        <div x-show="stageLoading" class="small text-muted p-1">Lade...</div>
+                                        <template x-if="!stageLoading">
+                                            <div style="display:flex; flex-direction:column; gap:4px;">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary text-left"
+                                                        @click="selectStage('')">
+                                                    <span style="width:20px;display:inline-block;text-align:center;">—</span> Keine Stufe
                                                 </button>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
+                                                <template x-for="stage in stages" :key="stage.id">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary text-left d-flex align-items-center"
+                                                            style="gap:8px"
+                                                            @click="selectStage(stage.id)">
+                                                        <template x-if="stage.image_url">
+                                                            <img :src="stage.image_url" :alt="stage.name" style="width:20px;height:20px;object-fit:contain;">
+                                                        </template>
+                                                        <template x-if="!stage.image_url && stage.symbol">
+                                                            <span class="badge badge-info" x-text="stage.symbol"></span>
+                                                        </template>
+                                                        <span x-text="stage.name || stage.symbol || ('Stufe ' + stage.id)"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
                             </span>
 
                         </div>

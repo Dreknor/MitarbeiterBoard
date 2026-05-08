@@ -15,6 +15,11 @@ export function registerStageDropdown(Alpine) {
         stages: [],
         stageLoading: false,
         stageSaving: false,
+        // Position des (per x-teleport in den body verschobenen) Dropdowns – fixed-Koordinaten
+        dropdownTop: 0,
+        dropdownLeft: 0,
+        triggerEl: null,
+        _repositionHandler: null,
 
         /**
          * Gibt HTML für das Stufen-Symbol eines Schülers zurück.
@@ -36,7 +41,7 @@ export function registerStageDropdown(Alpine) {
         /**
          * Dropdown für einen Schüler öffnen und Stufen laden.
          */
-        async openDropdown(stuId, klasseId) {
+        async openDropdown(stuId, klasseId, triggerEl) {
             if (!this.$store.diary.can_manage_grading) return;
 
             // Wenn schon für diesen Schüler offen → schließen
@@ -45,11 +50,18 @@ export function registerStageDropdown(Alpine) {
                 return;
             }
 
+            this.triggerEl = triggerEl || null;
             this.dropdownStuId = stuId;
             this.dropdownKlasseId = klasseId;
             this.dropdownOpen = true;
             this.stageLoading = true;
             this.stages = [];
+
+            // Position berechnen + Listener registrieren, damit beim Scrollen/Resize neu positioniert wird
+            this.computePosition();
+            this._repositionHandler = () => this.computePosition();
+            window.addEventListener('scroll', this._repositionHandler, true);
+            window.addEventListener('resize', this._repositionHandler);
 
             try {
                 const resp = await fetch(`/paed-diary/klasse/${klasseId}/stages`, {
@@ -62,12 +74,51 @@ export function registerStageDropdown(Alpine) {
                 this.stages = [];
             } finally {
                 this.stageLoading = false;
+                // Nach dem Laden kann sich die Höhe ändern → erneut positionieren
+                this.$nextTick(() => this.computePosition());
             }
         },
 
         closeDropdown() {
             this.dropdownOpen = false;
             this.dropdownStuId = null;
+            this.triggerEl = null;
+            if (this._repositionHandler) {
+                window.removeEventListener('scroll', this._repositionHandler, true);
+                window.removeEventListener('resize', this._repositionHandler);
+                this._repositionHandler = null;
+            }
+        },
+
+        /**
+         * Berechnet die fixed-Position des Dropdowns relativ zum Viewport.
+         * Verhindert, dass das Dropdown durch `contain:paint` der Tabellenzellen
+         * oder durch `transform`-Container abgeschnitten wird (insbesondere auf iPad).
+         */
+        computePosition() {
+            if (!this.triggerEl) return;
+            const rect = this.triggerEl.getBoundingClientRect();
+            const vw = window.innerWidth || document.documentElement.clientWidth || 320;
+            const vh = window.innerHeight || document.documentElement.clientHeight || 568;
+            const dropdownEstWidth = 200;
+            const dropdownEstHeight = 320;
+
+            // Horizontal: linksbündig zum Trigger, aber nicht über rechten Rand
+            let left = rect.left;
+            if (left + dropdownEstWidth > vw - 8) {
+                left = Math.max(8, vw - dropdownEstWidth - 8);
+            }
+
+            // Vertikal: unterhalb des Triggers; falls dort nicht genug Platz → oberhalb
+            let top;
+            if (rect.bottom + dropdownEstHeight + 6 > vh) {
+                top = Math.max(8, rect.top - dropdownEstHeight - 6);
+            } else {
+                top = rect.bottom + 6;
+            }
+
+            this.dropdownTop = top;
+            this.dropdownLeft = left;
         },
 
         /**
