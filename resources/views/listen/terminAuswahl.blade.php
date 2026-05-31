@@ -229,7 +229,6 @@
     <script>
         $('.btnAbsage').on('click', function () {
             var btn = this;
-            console.log(btn);
             var id = $(this).data('terminid');
             var url = "{{url("eintragungen/absagen/")}}/"+id;
             $('#absagenForm').attr('action', url);
