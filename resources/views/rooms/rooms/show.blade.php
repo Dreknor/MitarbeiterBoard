@@ -117,6 +117,10 @@
                         @csrf
                         <input type="hidden" name="room_id" value="{{ $room->id }}">
                         <input type="hidden" name="is_recurring" value="0">
+                        {{-- colliding_booking_id: aus Session (erster Redirect) oder old() (zweiter Redirect) --}}
+                        <input type="hidden" name="colliding_booking_id"
+                               value="{{ old('colliding_booking_id', session('colliding_booking_id')) }}">
+
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Datum <span class="text-red-400">*</span></label>
@@ -145,6 +149,36 @@
                                 </button>
                             </div>
                         </div>
+
+                        {{-- Hinweis bei Kollision mit wiederkehrendem Termin --}}
+                        @php
+                            $collidingId   = old('colliding_booking_id', session('colliding_booking_id'));
+                            $collidingName = session('colliding_booking_name') ?: null;
+                            $showOverride  = session('collision_is_recurring') || $collidingId;
+                        @endphp
+                        @if($showOverride)
+                            <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-3">
+                                <svg class="w-5 h-5 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                </svg>
+                                <div class="flex-1 text-sm text-amber-800">
+                                    <p class="font-semibold mb-1">Kollision mit wiederkehrendem Termin</p>
+                                    @if($collidingName)
+                                        <p class="mb-2">Der wiederkehrende Termin <strong>„{{ $collidingName }}"</strong> belegt den Raum an diesem Tag.</p>
+                                    @else
+                                        <p class="mb-2">Ein wiederkehrender Termin belegt den Raum an diesem Tag.</p>
+                                    @endif
+                                    <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                                        <input type="checkbox" name="ueberschreibe_wiederkehrend" value="1"
+                                               class="w-4 h-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                                               {{ old('ueberschreibe_wiederkehrend') ? 'checked' : '' }}>
+                                        <span class="font-medium">Wiederkehrenden Termin für dieses Datum überschreiben</span>
+                                    </label>
+                                </div>
+                            </div>
+                        @endif
+
                     </form>
                 </div>
             </div>
@@ -480,6 +514,19 @@
     }
 
     document.addEventListener('DOMContentLoaded', renderWeekTable);
+
+    // Buchungsformular automatisch öffnen wenn is_recurring=0 in old() oder Kollision mit wiederkehrendem Termin
+    @if(old('is_recurring') === '0' || session('collision_is_recurring'))
+    document.addEventListener('DOMContentLoaded', function () {
+        const panel = document.getElementById('bookingPanel');
+        const btn   = document.getElementById('toggleBookingBtn');
+        if (panel) {
+            panel.classList.remove('hidden');
+            if (btn) btn.classList.add('bg-blue-700');
+        }
+        switchTab('single');
+    });
+    @endif
 </script>
 @endsection
 

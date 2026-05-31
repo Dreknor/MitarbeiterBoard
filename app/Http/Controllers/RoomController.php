@@ -346,13 +346,40 @@ class RoomController extends Controller
         if (!$isRecurring && $bookingDate) {
             $weekday = $bookingDate->dayOfWeek;
 
-            // Prüfe auf Kollisionen
-            $collision = $room->hasBookingCollision($start, $end, $weekday, $bookingDate, $week);
+            // Wiederkehrenden Termin überschreiben?
+            $confirmOverride   = $request->boolean('ueberschreibe_wiederkehrend');
+            $overrideBookingId = $request->input('colliding_booking_id');
+
+            // Sicherheitscheck: colliding_booking_id muss zu diesem Raum und is_recurring gehören
+            $excludeId = null;
+            if ($confirmOverride && $overrideBookingId) {
+                $collidingCheck = RoomBooking::where('id', $overrideBookingId)
+                    ->where('room_id', $room->id)
+                    ->where('is_recurring', true)
+                    ->first();
+                if ($collidingCheck) {
+                    $excludeId = (int) $overrideBookingId;
+                }
+            }
+
+            // Prüfe auf Kollisionen (ggf. wiederkehrenden Termin ausschließen)
+            $collision = $room->hasBookingCollision($start, $end, $weekday, $bookingDate, $week, $excludeId);
 
             if ($collision) {
+                if ($collision->is_recurring) {
+                    // Erste Kollision mit wiederkehrendem Termin → Bestätigung anfordern
+                    return redirect()->back()->withInput()->with([
+                        'type' => 'warning',
+                        'Meldung' => 'Raum ist am ' . $bookingDate->format('d.m.Y')
+                            . ' durch den wiederkehrenden Termin „' . $collision->name . '" belegt.',
+                        'collision_is_recurring' => true,
+                        'colliding_booking_id'   => $collision->id,
+                        'colliding_booking_name' => $collision->name,
+                    ]);
+                }
                 return redirect()->back()->withInput()->with([
                     'type' => 'warning',
-                    'Meldung'=> 'Raum ist bereits am ' . $bookingDate->format('d.m.Y') . ' belegt'
+                    'Meldung'=> 'Raum ist bereits am ' . $bookingDate->format('d.m.Y') . ' belegt.',
                 ]);
             }
 
@@ -372,7 +399,7 @@ class RoomController extends Controller
 
             return redirect()->back()->with([
                 'type' => 'success',
-                'Meldung'=> 'Einzeltermin für ' . $bookingDate->format('d.m.Y') . ' gebucht'
+                'Meldung'=> 'Einzeltermin für ' . $bookingDate->format('d.m.Y') . ' gebucht',
             ]);
         }
 
