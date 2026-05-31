@@ -1,45 +1,57 @@
 @extends('layouts.app')
 
+@push('css')
+    @vite('resources/css/meetings.css')
+@endpush
+
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="btn btn-primary">Zurück zur Übersicht</a>
+<div class="meeting-wrapper" x-data="{ showTasks: false }" x-cloak>
+    <div class="flex items-center justify-between mb-6">
+        <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">
+            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
+        </a>
     </div>
-    <div class="card">
-        <div class="card-header">
-            <h3>Meeting bearbeiten</h3>
+
+    <div class="mtg-card">
+        <div class="mtg-band mtg-band-upcoming">
+            <h1 class="text-lg font-bold">Meeting bearbeiten</h1>
         </div>
-        <div class="card-body">
-            <form method="POST" action="{{ route('meetings.update', ['group' => $group->name, 'meeting' => $meeting->id]) }}">
+        <div class="p-5 sm:p-6 max-w-2xl">
+            <form method="POST" action="{{ route('meetings.update', ['group' => $group->name, 'meeting' => $meeting->id]) }}" class="space-y-4">
                 @csrf
                 @method('PUT')
-                <div class="mb-3">
-                    <label for="title" class="form-label">Titel</label>
-                    <input type="text" class="form-control" id="title" name="title" value="{{ old('title', $meeting->title) }}" required>
+                <div>
+                    <label for="title" class="mtg-label">Titel</label>
+                    <input type="text" class="mtg-input" id="title" name="title" value="{{ old('title', $meeting->title) }}" required>
                 </div>
-                <div class="mb-3">
-                    <label for="date" class="form-label">Datum</label>
-                    <input type="date" class="form-control" id="date" name="date" value="{{ old('date', $meeting->date ? $meeting->date->format('Y-m-d') : '' ) }}" required>
+                <div>
+                    <label for="date" class="mtg-label">Datum</label>
+                    <input type="date" class="mtg-input" id="date" name="date" value="{{ old('date', $meeting->date ? $meeting->date->format('Y-m-d') : '') }}" required>
                 </div>
-                <div class="mb-3">
-                    <label for="start_time" class="form-label">Beginn</label>
-                    <input type="time" class="form-control" id="start_time" name="start_time" value="{{ old('start_time', $meeting->start_time) }}" required>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="start_time" class="mtg-label">Beginn</label>
+                        <input type="time" class="mtg-input" id="start_time" name="start_time" value="{{ old('start_time', $meeting->start_time) }}" required>
+                    </div>
+                    <div>
+                        <label for="end_time" class="mtg-label">Ende</label>
+                        <input type="time" class="mtg-input" id="end_time" name="end_time" value="{{ old('end_time', $meeting->end_time) }}" required>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="end_time" class="form-label">Ende</label>
-                    <input type="time" class="form-control" id="end_time" name="end_time" value="{{ old('end_time', $meeting->end_time) }}" required>
+                <div class="flex flex-wrap gap-2 pt-2">
+                    <button type="submit" class="mtg-btn mtg-btn-primary">Speichern</button>
+                    <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">Abbrechen</a>
                 </div>
-                <button type="submit" class="btn btn-primary">Speichern</button>
-                <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="btn btn-secondary">Abbrechen</a>
             </form>
 
-            <div class="mt-4">
-                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#meetingTasksModal-{{ $meeting->id }}">
-                    Aufgaben für dieses Meeting verwalten
+            <div class="mt-6 pt-6 border-t border-gray-100">
+                <button type="button" class="mtg-btn mtg-btn-secondary" @click="showTasks = true">
+                    <i class="fas fa-user-tag"></i> Aufgaben &amp; Rollen verwalten
                 </button>
             </div>
-            @include('meetings.partials.tasks_modal', ['meeting' => $meeting, 'group' => $group])
         </div>
     </div>
+
+    @include('meetings.partials.tasks_modal', ['meeting' => $meeting, 'group' => $group])
 </div>
 @endsection

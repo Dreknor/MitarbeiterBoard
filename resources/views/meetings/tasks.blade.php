@@ -1,97 +1,81 @@
 @extends('layouts.app')
 
+@push('css')
+    @vite('resources/css/meetings.css')
+@endpush
+
 @section('content')
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mt-3 mb-3 flex-wrap">
-            <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="btn btn-primary">
-                <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
-            </a>
-            <h3 class="mb-0">Aufgaben &amp; Rollen – {{ $meeting->title }}</h3>
+<div class="meeting-wrapper">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">
+            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
+        </a>
+        <h1 class="mtg-page-title text-xl font-bold text-gray-900">Aufgaben &amp; Rollen – {{ $meeting->title }}</h1>
+    </div>
+
+    <div class="mtg-card">
+        <div class="mtg-band mtg-band-upcoming">
+            <span class="text-sm">{{ $meeting->date->format('d.m.Y') }} · {{ $meeting->start_time }} – {{ $meeting->end_time }}</span>
         </div>
-
-        <div class="card">
-            <div class="card-header bg-light">
-                {{ $meeting->date->format('d.m.Y') }} &middot; {{ $meeting->start_time }} - {{ $meeting->end_time }}
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped align-middle">
-                        <thead>
-                            <tr>
-                                <th>Mitarbeiter</th>
-                                <th>Rolle</th>
-                                <th>Notizen</th>
-                                <th class="text-right">Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($tasks as $task)
-                                <tr>
-                                    <form action="{{ route('meetings.tasks.update', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}" method="POST">
-                                        @csrf
-                                        @method('PUT')
-                                        <td>
-                                            <select name="user_id" class="form-control form-control-sm">
-                                                @foreach($users as $user)
-                                                    <option value="{{ $user->id }}" @if($task->user_id == $user->id) selected @endif>{{ $user->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input type="text" name="role" value="{{ $task->role }}" class="form-control form-control-sm">
-                                        </td>
-                                        <td>
-                                            <input type="text" name="notes" value="{{ $task->notes }}" class="form-control form-control-sm">
-                                        </td>
-                                        <td class="text-right text-nowrap">
-                                            <button type="submit" class="btn btn-success btn-sm">Speichern</button>
-                                    </form>
-                                            <form action="{{ route('meetings.tasks.delete', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}" method="POST" class="d-inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Wirklich löschen?')">Löschen</button>
-                                            </form>
-                                        </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="text-muted">Noch keine Aufgaben/Rollen vergeben.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <hr>
-
-                <h5>Neue Aufgabe / Rolle</h5>
-                <form action="{{ route('meetings.tasks.add', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST">
-                    @csrf
-                    <div class="form-row">
-                        <div class="col-12 col-md-4 mb-2">
-                            <label for="user_id">Mitarbeiter</label>
-                            <select name="user_id" id="user_id" class="form-control" required>
-                                <option value="">Bitte wählen</option>
+        <div class="p-5">
+            <div class="space-y-2 mb-6">
+                @forelse($tasks as $task)
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+                        <form action="{{ route('meetings.tasks.update', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}"
+                              method="POST" class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            @csrf
+                            @method('PUT')
+                            <select name="user_id" class="mtg-select">
                                 @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                    <option value="{{ $user->id }}" @if($task->user_id == $user->id) selected @endif>{{ $user->name }}</option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="col-12 col-md-3 mb-2">
-                            <label for="role">Rolle</label>
-                            <input type="text" name="role" id="role" class="form-control" placeholder="z. B. Protokollant" required>
-                        </div>
-                        <div class="col-12 col-md-4 mb-2">
-                            <label for="notes">Notizen</label>
-                            <input type="text" name="notes" id="notes" class="form-control" placeholder="optional">
-                        </div>
-                        <div class="col-12 col-md-1 mb-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary btn-block">+</button>
-                        </div>
+                            <input type="text" name="role" value="{{ $task->role }}" class="mtg-input" placeholder="Rolle">
+                            <input type="text" name="notes" value="{{ $task->notes }}" class="mtg-input" placeholder="Notizen">
+                            <div class="sm:col-span-3 flex justify-end">
+                                <button type="submit" class="mtg-btn mtg-btn-success mtg-btn-sm"><i class="fas fa-save"></i> Speichern</button>
+                            </div>
+                        </form>
+                        <form action="{{ route('meetings.tasks.delete', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}"
+                              method="POST" onsubmit="return confirm('Wirklich löschen?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="mtg-btn-icon w-9 h-9 text-red-500 hover:bg-red-50" title="Löschen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
                     </div>
-                </form>
+                @empty
+                    <p class="text-sm text-gray-400 italic">Noch keine Aufgaben/Rollen vergeben.</p>
+                @endforelse
             </div>
+
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Neue Aufgabe / Rolle</h4>
+            <form action="{{ route('meetings.tasks.add', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST"
+                  class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                @csrf
+                <div class="sm:col-span-2">
+                    <label class="mtg-label">Mitarbeiter</label>
+                    <select name="user_id" class="mtg-select" required>
+                        <option value="">Bitte wählen</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->id }}">{{ $user->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mtg-label">Rolle</label>
+                    <input type="text" name="role" class="mtg-input" placeholder="z. B. Protokollant" required>
+                </div>
+                <div>
+                    <label class="mtg-label">Notizen</label>
+                    <input type="text" name="notes" class="mtg-input" placeholder="optional">
+                </div>
+                <div class="sm:col-span-4 flex justify-end">
+                    <button type="submit" class="mtg-btn mtg-btn-primary mtg-btn-sm"><i class="fas fa-plus"></i> Hinzufügen</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 @endsection
-

@@ -1,0 +1,193 @@
+/*
+ * Meetings-Modul – Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .meeting-wrapper gescopet
+ *   - Modals & Interaktion via Alpine.js (global aus sidebar.js)
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "../views/meetings/**/*.blade.php";
+
+/* Alpine.js Cloak */
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper
+ * ------------------------------------------------------------- */
+.meeting-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1280px;
+    margin-inline: auto;
+}
+@media (max-width: 640px) {
+    .meeting-wrapper { padding: 1rem 1rem 3rem; }
+}
+.meeting-wrapper *,
+.meeting-wrapper *::before,
+.meeting-wrapper *::after { box-sizing: border-box; }
+
+.meeting-wrapper h1,
+.meeting-wrapper h2,
+.meeting-wrapper h3,
+.meeting-wrapper h4,
+.meeting-wrapper h5 { margin: 0; }
+.meeting-wrapper p { margin: 0; }
+.meeting-wrapper a { color: inherit; text-decoration: none; }
+.meeting-wrapper a:hover { text-decoration: none; }
+.meeting-wrapper ul,
+.meeting-wrapper ol { margin: 0; padding: 0; list-style: none; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-lg
+           px-4 py-2 text-sm transition-colors shadow-sm cursor-pointer
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+}
+.meeting-wrapper .mtg-btn-sm { @apply px-3 py-1.5 text-xs gap-1.5; }
+.meeting-wrapper .mtg-btn-primary  { @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white focus-visible:ring-blue-500; }
+.meeting-wrapper .mtg-btn-success  { @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white focus-visible:ring-emerald-500; }
+.meeting-wrapper .mtg-btn-danger   { @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white focus-visible:ring-red-500; }
+.meeting-wrapper .mtg-btn-warning  { @apply bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white focus-visible:ring-amber-400; }
+.meeting-wrapper .mtg-btn-secondary {
+    @apply bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 focus-visible:ring-blue-400;
+    border: 1px solid #e5e7eb;
+}
+.meeting-wrapper .mtg-btn-ghost {
+    @apply bg-transparent hover:bg-gray-100 text-gray-600 shadow-none focus-visible:ring-gray-300;
+}
+.meeting-wrapper .mtg-btn-icon {
+    @apply inline-flex items-center justify-center rounded-lg w-9 h-9 p-0 transition-colors cursor-pointer
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    border-width: 0;
+}
+
+/* ---------------------------------------------------------------
+ * Formular-Elemente
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-input,
+.meeting-wrapper .mtg-select,
+.meeting-wrapper .mtg-textarea {
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900
+           shadow-sm placeholder:text-gray-400
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none
+           disabled:bg-gray-50 disabled:text-gray-500;
+}
+.meeting-wrapper .mtg-textarea { min-height: 4.5rem; }
+.meeting-wrapper .mtg-label { @apply block text-sm font-medium text-gray-700 mb-1; }
+.meeting-wrapper .mtg-required { @apply text-red-500; }
+
+/* ---------------------------------------------------------------
+ * Karten
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-shadow duration-200;
+}
+.meeting-wrapper .mtg-card:hover { @apply shadow-md; }
+
+/* Meeting-Kopfband-Varianten */
+.meeting-wrapper .mtg-band {
+    @apply px-5 py-4 text-white;
+}
+.meeting-wrapper .mtg-band-today     { @apply bg-gradient-to-r from-blue-600 to-indigo-600; }
+.meeting-wrapper .mtg-band-upcoming  { @apply bg-gradient-to-r from-slate-600 to-slate-700; }
+.meeting-wrapper .mtg-band-cancelled { @apply bg-gradient-to-r from-red-500 to-rose-600; }
+
+/* ---------------------------------------------------------------
+ * Badges
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-badge {
+    @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full;
+}
+.meeting-wrapper .mtg-badge-gray    { @apply bg-gray-100 text-gray-700; }
+.meeting-wrapper .mtg-badge-blue    { @apply bg-blue-100 text-blue-700; }
+.meeting-wrapper .mtg-badge-green   { @apply bg-emerald-100 text-emerald-700; }
+.meeting-wrapper .mtg-badge-red     { @apply bg-red-100 text-red-700; }
+.meeting-wrapper .mtg-badge-amber   { @apply bg-amber-100 text-amber-800; }
+
+/* ---------------------------------------------------------------
+ * Avatar
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-avatar {
+    @apply rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center select-none shrink-0;
+    width: 2rem; height: 2rem;
+}
+.meeting-wrapper .mtg-avatar img { @apply rounded-full object-cover w-full h-full; }
+
+/* ---------------------------------------------------------------
+ * Themen-Zeile
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-theme-row {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 p-3 rounded-xl border border-gray-100
+           bg-gray-50/60 hover:bg-gray-50 transition-colors;
+}
+.meeting-wrapper .mtg-theme-row.is-done { @apply bg-emerald-50/70 border-emerald-100; }
+.meeting-wrapper .mtg-progress {
+    @apply h-2 w-full rounded-full bg-gray-200 overflow-hidden;
+}
+.meeting-wrapper .mtg-progress > span {
+    @apply block h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500;
+}
+
+/* ---------------------------------------------------------------
+ * Tabellen (Archiv / Aufgaben)
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-table { @apply w-full text-sm; }
+.meeting-wrapper .mtg-table thead th {
+    @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-3 py-2 border-b border-gray-200;
+}
+.meeting-wrapper .mtg-table tbody td { @apply px-3 py-3 align-top border-b border-gray-100; }
+.meeting-wrapper .mtg-table tbody tr:hover { @apply bg-gray-50; }
+
+/* ---------------------------------------------------------------
+ * Modal (Alpine)
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-modal-backdrop {
+    @apply fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto;
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(2px);
+}
+.meeting-wrapper .mtg-modal {
+    @apply bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 max-h-[90vh] flex flex-col overflow-hidden;
+}
+.meeting-wrapper .mtg-modal-lg { @apply max-w-2xl; }
+.meeting-wrapper .mtg-modal-header {
+    @apply flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-100;
+}
+.meeting-wrapper .mtg-modal-title { @apply text-lg font-bold text-gray-900; }
+.meeting-wrapper .mtg-modal-body { @apply px-5 py-4 overflow-y-auto; }
+.meeting-wrapper .mtg-modal-footer {
+    @apply flex flex-wrap items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50;
+}
+.meeting-wrapper .mtg-modal-close {
+    @apply text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer bg-transparent;
+    border-width: 0;
+}
+
+/* ---------------------------------------------------------------
+ * Alerts (Flash innerhalb des Wrappers)
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-alert { @apply rounded-lg p-4 mb-5 text-sm border; }
+.meeting-wrapper .mtg-alert-success { @apply bg-emerald-50 text-emerald-800 border-emerald-200; }
+.meeting-wrapper .mtg-alert-warning { @apply bg-amber-50 text-amber-800 border-amber-200; }
+.meeting-wrapper .mtg-alert-danger  { @apply bg-red-50 text-red-800 border-red-200; }
+.meeting-wrapper .mtg-alert-info    { @apply bg-blue-50 text-blue-800 border-blue-200; }
+
+/* ---------------------------------------------------------------
+ * Section-Header
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-section-title { @apply text-sm font-semibold uppercase tracking-wide text-gray-500; }
+
+@media (max-width: 640px) {
+    .meeting-wrapper h1.mtg-page-title { @apply text-xl; }
+}
+

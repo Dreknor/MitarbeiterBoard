@@ -30,6 +30,13 @@ export default defineConfig({
                 // Prozesse-Modul (Phase 2)
                 'resources/css/procedure.css',
                 'resources/js/procedure.js',
+
+                // Meetings-Modul (Tailwind-Migration)
+                'resources/css/meetings.css',
+
+                // Themenarchiv (Tailwind-Migration, ersetzt CDN)
+                'resources/css/themes-archive.css',
+                'resources/js/themes-archive.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -53,6 +60,11 @@ export default defineConfig({
                 // Prozesse-Modul (Phase 2)
                 'resources/views/procedure/**/*.blade.php',
                 'app/Http/Controllers/ProcedureController.php',
+                // Meetings-Modul (Tailwind-Migration)
+                'resources/views/meetings/**/*.blade.php',
+                'app/Http/Controllers/MeetingController.php',
+                // Themenarchiv (Tailwind-Migration)
+                'resources/views/themes/archive.blade.php',
             ],
         }),
     ],

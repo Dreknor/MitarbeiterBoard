@@ -1,39 +1,55 @@
-<tr class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif">
-    <td>
-        @if($theme->ersteller->getMedia('profile')->count() != 0)
-            <img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">
+@php
+    $hatHeutigesProtokoll = $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0;
+    $eigenePrio = $theme->priorities->where('creator_id', auth()->id())->first();
+@endphp
+<li class="mtg-theme-row {{ $hatHeutigesProtokoll ? 'is-done' : '' }}">
+
+    {{-- Ersteller --}}
+    <div class="flex items-center gap-2 sm:w-40 shrink-0">
+        <span class="mtg-avatar" title="{{ $theme->ersteller->name }}">
+            @if($theme->ersteller->getMedia('profile')->count() != 0)
+                <img src="{{ $theme->ersteller->photo() }}" alt="{{ $theme->ersteller->name }}">
+            @else
+                {{ \Illuminate\Support\Str::of($theme->ersteller->name)->explode(' ')->map(fn($p) => \Illuminate\Support\Str::substr($p, 0, 1))->take(2)->implode('') }}
+            @endif
+        </span>
+        <span class="text-xs text-gray-500 truncate">{{ $theme->ersteller->name }}</span>
+    </div>
+
+    {{-- Titel --}}
+    <div class="flex-1 min-w-0">
+        <span class="font-semibold text-gray-900 break-words">{{ $theme->theme }}</span>
+        @if($hatHeutigesProtokoll)
+            <span class="mtg-badge mtg-badge-green ml-1"><i class="fas fa-check"></i> protokolliert</span>
         @endif
-        <div class="@if($theme->ersteller->getMedia('profile')->count() > 0) d-none @else d-inline  @endif">
-            {{$theme->ersteller->name}}
-        </div>
-    </td>
-    <th class="w-50">
-        {{ $theme->theme }}
-    </th>
-    <td class="w-25" id="priority_{{$theme->id}}">
-        @if ($theme->priorities->where('creator_id', auth()->id())->first())
-            <div class="progress">
-                <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
-            </div>
+    </div>
+
+    {{-- Priorität --}}
+    <div class="sm:w-44 shrink-0" id="priority_{{ $theme->id }}">
+        @if($eigenePrio)
+            <div class="mtg-progress"><span style="width: {{ 100 - $theme->priority }}%"></span></div>
         @else
-            <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-creatorid = "{{auth()->id()}}">
+            <input type="range" class="w-full cursor-pointer accent-blue-600" id="theme_{{ $theme->id }}"
+                   min="1" max="100" value="0" data-theme="{{ $theme->id }}" data-creatorid="{{ auth()->id() }}"
+                   title="Priorität festlegen">
         @endif
-    </td>
-    <td>
-        <a href="{{url(request()->segment(1)."/themes/$theme->id")}}" class="btn btn-light btn-sm float-right">
-            <i class="far fa-eye"></i> zeigen
+    </div>
+
+    {{-- Aktionen --}}
+    <div class="flex items-center gap-1.5 shrink-0">
+        <a href="{{ url(request()->segment(1).'/themes/'.$theme->id) }}" class="mtg-btn mtg-btn-secondary mtg-btn-sm">
+            <i class="far fa-eye"></i> <span class="hidden sm:inline">zeigen</span>
         </a>
         @isset($meeting)
             <form action="{{ route('meetings.themes.remove', ['group' => $group->name, 'meeting' => $meeting->id, 'theme' => $theme->id]) }}"
-                  method="POST" class="float-right mr-1"
+                  method="POST"
                   onsubmit="return confirm('Thema von diesem Meeting entfernen? Das Thema selbst bleibt erhalten.');">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="btn btn-outline-danger btn-sm" title="Vom Meeting entfernen">
+                <button type="submit" class="mtg-btn-icon w-8 h-8 text-red-500 hover:bg-red-50" title="Vom Meeting entfernen">
                     <i class="fas fa-unlink"></i>
                 </button>
             </form>
         @endisset
-    </td>
-</tr>
-
+    </div>
+</li>

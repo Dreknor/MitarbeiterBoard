@@ -1,27 +1,17 @@
 @extends('layouts.app')
 
 @push('css')
-<!-- Tailwind CSS CDN -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    primary: '#3b82f6',
-                    secondary: '#64748b',
-                }
-            }
-        }
-    }
-</script>
-<style>
-    [x-cloak] { display: none !important; }
-</style>
+    @vite('resources/css/themes-archive.css')
 @endpush
 
+@php
+    // Standardmäßig sind alle Tagesgruppen der aktuellen Seite aufgeklappt
+    $openDayIds = [];
+    for ($i = 0; $i < count($themes); $i++) { $openDayIds[] = 'day-'.$i; }
+@endphp
+
 @section('content')
-<div x-data="archiveApp()" x-cloak class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-8">
+<div x-data="archiveApp(@js($openDayIds))" x-cloak class="theme-archive-wrapper min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-8 pt-4">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <!-- Sticky Header -->
@@ -222,20 +212,24 @@
                                                     <td class="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">{{$theme->goal}}</td>
 
                                                     <td class="px-4 py-4">
-                                                        <div class="flex justify-center space-x-2">
+                                                        <div class="flex justify-center gap-2">
                                                             <a href="{{url(request()->segment(1)."/themes/$theme->id")}}"
-                                                               class="inline-flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
+                                                               title="Thema ansehen" aria-label="Thema ansehen"
+                                                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
                                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                                                 </svg>
+                                                                <span>Ansehen</span>
                                                             </a>
                                                             @can('unarchive theme')
                                                                 <a href="{{url("/unarchiv/$theme->id")}}"
-                                                                   class="inline-flex items-center px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
+                                                                   title="Thema reaktivieren" aria-label="Thema reaktivieren"
+                                                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
                                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                                                     </svg>
+                                                                    <span>Reaktivieren</span>
                                                                 </a>
                                                             @endcan
                                                         </div>
@@ -334,106 +328,5 @@
 @stop
 
 @push('js')
-<!-- Alpine.js CDN -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script>
-function archiveApp() {
-    return {
-        searchQuery: '',
-        filterType: '',
-        filterCreator: '',
-        openDays: [@foreach($themes as $day => $dayThemes)'day-{{$loop->index}}'@if(!$loop->last),@endif @endforeach],
-        availableTypes: [],
-        availableCreators: [],
-
-        init() {
-            // Sammle verfügbare Typen und Ersteller
-            const types = new Set();
-            const creators = new Set();
-
-            document.querySelectorAll('.theme-row, .theme-card').forEach(item => {
-                types.add(item.dataset.type);
-                creators.add(item.dataset.creator);
-            });
-
-            this.availableTypes = Array.from(types).map(t => t.charAt(0).toUpperCase() + t.slice(1));
-            this.availableCreators = Array.from(creators).map(c => c.charAt(0).toUpperCase() + c.slice(1));
-        },
-
-        isThemeVisible(theme, type, creator, goal) {
-            const searchTerm = this.searchQuery.toLowerCase();
-            const selectedType = this.filterType.toLowerCase();
-            const selectedCreator = this.filterCreator.toLowerCase();
-
-            const matchesSearch = !searchTerm ||
-                theme.includes(searchTerm) ||
-                goal.includes(searchTerm) ||
-                type.includes(searchTerm) ||
-                creator.includes(searchTerm);
-
-            const matchesType = !selectedType || type === selectedType;
-            const matchesCreator = !selectedCreator || creator === selectedCreator;
-
-            return matchesSearch && matchesType && matchesCreator;
-        },
-
-        isDaySectionVisible(dayId) {
-            const section = document.querySelector(`[data-day-id="${dayId}"]`);
-            if (!section) return false;
-
-            const themes = section.querySelectorAll('.theme-row, .theme-card');
-            return Array.from(themes).some(theme => {
-                return this.isThemeVisible(
-                    theme.dataset.theme,
-                    theme.dataset.type,
-                    theme.dataset.creator,
-                    theme.dataset.goal
-                );
-            });
-        },
-
-        getVisibleThemesCount(dayId) {
-            const section = document.querySelector(`[data-day-id="${dayId}"]`);
-            if (!section) return 0;
-
-            const themes = section.querySelectorAll('.theme-row, .theme-card');
-            return Array.from(themes).filter(theme => {
-                return this.isThemeVisible(
-                    theme.dataset.theme,
-                    theme.dataset.type,
-                    theme.dataset.creator,
-                    theme.dataset.goal
-                );
-            }).length;
-        },
-
-        toggleDay(dayId) {
-            const index = this.openDays.indexOf(dayId);
-            if (index > -1) {
-                this.openDays.splice(index, 1);
-            } else {
-                this.openDays.push(dayId);
-            }
-        },
-
-        resetFilters() {
-            this.searchQuery = '';
-            this.filterType = '';
-            this.filterCreator = '';
-        },
-
-        getFilteredThemesCount() {
-            const themes = document.querySelectorAll('.theme-row, .theme-card');
-            return Array.from(themes).filter(theme => {
-                return this.isThemeVisible(
-                    theme.dataset.theme,
-                    theme.dataset.type,
-                    theme.dataset.creator,
-                    theme.dataset.goal
-                );
-            }).length;
-        }
-    }
-}
-</script>
+    @vite('resources/js/themes-archive.js')
 @endpush
