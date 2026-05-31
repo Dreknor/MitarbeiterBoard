@@ -1,189 +1,214 @@
 @extends('layouts.app')
 
-@section('content')
-    <div class="container-fluid">
-        <a href="{{url('procedure')}}" class="btn btn-info">zurück</a>
-        <div class="card">
-            <div class="card-header">
-                @if($procedure->started_at != null && ($canEdit ?? false))
-                    {{-- Bearbeitbarer Titel für gestartete Prozesse --}}
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1" id="procedure-header-display">
-                            <h6>
-                                {{$procedure->category->name}}: <span id="procedure-name-display">{{$procedure->name}}</span>
-                                <a href="#" class="ml-2 text-primary" id="edit-procedure-btn" title="Prozess bearbeiten">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </h6>
-                            <p>
-                                <small id="procedure-description-display">
-                                    {!! $procedure->description !!}
-                                </small>
-                            </p>
-                        </div>
-                    </div>
+@push('css')
+    @vite('resources/css/procedure.css')
+@endpush
 
-                    {{-- Bearbeitungsformular (initial versteckt) --}}
-                    <div id="procedure-edit-form" style="display: none;">
-                        <form action="{{url('procedure/'.$procedure->id.'/update')}}" method="post">
-                            @csrf
-                            @method('PUT')
-                            <div class="form-group">
-                                <label for="edit-name">Prozessname:</label>
-                                <input type="text" class="form-control" id="edit-name" name="name" value="{{$procedure->name}}" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-description">Beschreibung:</label>
-                                <textarea class="form-control" id="edit-description" name="description" rows="3">{{$procedure->description}}</textarea>
-                            </div>
-                            <div class="form-group mb-0">
-                                <button type="submit" class="btn btn-success btn-sm">
-                                    <i class="fas fa-save"></i> Speichern
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" id="cancel-edit-btn">
-                                    <i class="fas fa-times"></i> Abbrechen
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                @else
-                    {{-- Normaler Titel für Templates oder Nutzer ohne Bearbeitungsrechte --}}
-                    <h6>
-                        {{$procedure->category->name}}: {{$procedure->name}}
-                    </h6>
-                    <p>
-                        <small>
-                            {!! $procedure->description !!}
-                        </small>
-                    </p>
+@section('content')
+<div class="procedure-wrapper"
+     x-data="procedureTree({
+         canEdit: {{ ($canEdit ?? false) ? 'true' : 'false' }},
+         csrfToken: '{{ csrf_token() }}'
+     })"
+     x-init="init()"
+     x-cloak>
+
+    {{-- ── Flash-Meldung ──────────────────────────────────── --}}
+    @if(session('Meldung'))
+    <div class="procedure-flash procedure-flash-{{ session('type', 'info') }}"
+         x-data="{show:true}" x-show="show">
+        <span>{{ session('Meldung') }}</span>
+        <button @click="show=false" class="ml-auto text-current opacity-60 hover:opacity-100 text-lg leading-none">×</button>
+    </div>
+    @endif
+
+    {{-- ── Kopfzeile ──────────────────────────────────────── --}}
+    <div class="procedure-card mb-4">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-0.5">
+                    {{ $procedure->category->name ?? 'Prozess' }} · Vorlage bearbeiten
+                </p>
+                <h1 class="text-xl font-bold text-gray-900 leading-tight mb-1">{{ $procedure->name }}</h1>
+                @if($procedure->description)
+                    <p class="text-sm text-gray-500">{!! $procedure->description !!}</p>
                 @endif
             </div>
-            <div class="card-body border-top">
-                <div class="container-fluid">
-                    <div class="row">
-                        @if(count($procedure->steps->where('parent', null))>0)
-                            @each('procedure.step',$procedure->steps->where('parent', null), 'step')
-                        @elseif(count($procedure->steps)>0)
-                            <div class="col-12">
-                                <p class="p-2 bg-warning">
-                                    Es kann kein Start-Schritt gefunden werden. Startschritte dürfen keinen Vorgängerschritt haben.
-                                </p>
-                                <ul class="list-group">
-                                    @foreach($procedure->steps as $step)
-                                        <li class="list-group-item">
-                                            {{$step->name}}
-                                            @if($canEdit ?? false)
-                                                <div class="pull-right">
-                                                    <small>
-                                                        <a href="{{url('procedure/step/'.$step->id."/edit")}}">
-                                                            <i class="fas fa-pen"></i>
-                                                        </a>
-                                                    </small>
-                                                </div>
-                                            @endif
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @else
-                            @if($canEdit ?? false)
-                                <div class="btn btn-sm btn-outline-success newStep" data-parent=""  data-target="#stepModal"  data-toggle="modal">
-                                    <i class="fas fa-plus" data-parent=""></i> Schritt erstellen
-                                </div>
-                            @endif
-                        @endif
+            <a href="{{ url('procedure') }}" class="btn-procedure-secondary text-xs whitespace-nowrap">← Zurück</a>
+        </div>
+
+        @if($canEdit ?? false)
+        <div class="mt-4 border-t border-gray-100 pt-4" x-data="{ editOpen: false }">
+            <button type="button" @click="editOpen = !editOpen" class="btn-procedure-secondary text-xs">
+                <span x-text="editOpen ? '✕ Abbrechen' : '✏ Name / Beschreibung bearbeiten'"></span>
+            </button>
+            <template x-if="editOpen">
+                <form action="{{ url('procedure/'.$procedure->id.'/update') }}" method="post" class="mt-3 space-y-3">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <label class="procedure-label">Prozessname <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" class="input-procedure" value="{{ $procedure->name }}" required>
+                    </div>
+                    <div>
+                        <label class="procedure-label">Beschreibung</label>
+                        <textarea name="description" class="input-procedure" rows="2">{{ $procedure->description }}</textarea>
+                    </div>
+                    <button type="submit" class="btn-procedure-success text-sm">Speichern</button>
+                </form>
+            </template>
+        </div>
+        @endif
+    </div>
+
+    {{-- ── Schritt-Baum ────────────────────────────────────── --}}
+    @php
+        $rootSteps = $procedure->steps->where('parent', null)->sortBy(fn($s) => [$s->sort_order, $s->id]);
+    @endphp
+
+    <div class="procedure-card overflow-x-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-gray-800">Schritte</h2>
+            @if($canEdit ?? false)
+            <button type="button"
+                    class="btn-procedure-primary text-xs"
+                    @click="openAddStep(null)">
+                + Schritt hinzufügen
+            </button>
+            @endif
+        </div>
+
+        @if($rootSteps->isNotEmpty())
+        <div class="flex gap-6 overflow-x-auto pb-4"
+             data-sortable-container
+             data-procedure-id="{{ $procedure->id }}"
+             data-parent-id="">
+            @foreach($rootSteps as $step)
+            <div class="flex flex-col items-center">
+                @include('procedure._node', [
+                    'step'        => $step,
+                    'depth'       => 0,
+                    'canEdit'     => $canEdit ?? false,
+                    'users'       => $users ?? collect(),
+                    'positions'   => $positions ?? collect(),
+                    'procedure'   => $procedure,
+                    'procedureId' => $procedure->id,
+                ])
+            </div>
+            @endforeach
+        </div>
+        @elseif($procedure->steps->isNotEmpty())
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+            Es kann kein Start-Schritt gefunden werden.
+            Startschritte dürfen keinen Vorgängerschritt haben.
+        </div>
+        @else
+        <div class="text-center py-10 text-gray-400">
+            <p class="text-sm mb-3">Noch keine Schritte vorhanden.</p>
+            @if($canEdit ?? false)
+            <button type="button" @click="openAddStep(null)" class="btn-procedure-primary text-sm">
+                + Ersten Schritt erstellen
+            </button>
+            @endif
+        </div>
+        @endif
+    </div>
+
+    {{-- ── Vorlage starten ─────────────────────────────────── --}}
+    @if($canEdit ?? false)
+    <div class="procedure-card mt-4">
+        <h2 class="font-semibold text-gray-800 mb-3">Prozess auf Basis dieser Vorlage starten</h2>
+        <a href="{{ url('procedure/'.$procedure->id.'/start') }}" class="btn-procedure-success text-sm">
+            ▶ Vorlage starten
+        </a>
+    </div>
+    @endif
+
+    {{-- ── Side-Panel ──────────────────────────────────────── --}}
+    <div class="fixed inset-y-0 right-0 w-96 max-w-full bg-white shadow-2xl border-l border-gray-200 z-50
+                transform transition-transform duration-300 overflow-y-auto"
+         :class="selectedStep ? 'translate-x-0' : 'translate-x-full'"
+         x-show="selectedStep">
+        @include('procedure._detail_panel', [
+            'procedure' => $procedure,
+            'users'     => $users ?? collect(),
+            'positions' => $positions ?? collect(),
+        ])
+    </div>
+    <div x-show="selectedStep" @click="closePanel()"
+         class="fixed inset-0 bg-black/20 z-40"></div>
+
+    {{-- ── Modals ──────────────────────────────────────────── --}}
+    {{-- Add-Step Drawer --}}
+    <div x-show="addingStep"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
+         style="display:none"
+         @keydown.escape.window="addingStep = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-900">Neuer Schritt</h3>
+                <button @click="addingStep = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+            <form action="{{ url('procedure/'.$procedure->id.'/step') }}" method="post" class="space-y-4">
+                @csrf
+                <input type="hidden" name="parent" x-bind:value="addingStepParent ?? ''">
+                <div>
+                    <label class="procedure-label">Bezeichnung <span class="text-red-500">*</span></label>
+                    <input name="name" type="text" class="input-procedure" required autofocus>
+                </div>
+                <div>
+                    <label class="procedure-label">Beschreibung</label>
+                    <textarea name="description" rows="3" class="input-procedure"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="procedure-label">Verantwortliche Position <span class="text-red-500">*</span></label>
+                        <select name="position_id" class="input-procedure" required>
+                            <option value="" disabled selected></option>
+                            @foreach($positions ?? [] as $pos)
+                            <option value="{{ $pos->id }}">{{ $pos->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="procedure-label">Dauer (Tage) <span class="text-red-500">*</span></label>
+                        <input type="number" name="durationDays" min="1" step="1" class="input-procedure" required>
                     </div>
                 </div>
-            </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="btn-procedure-primary flex-1">Speichern</button>
+                    <button type="button" @click="addingStep = false" class="btn-procedure-secondary">Abbrechen</button>
+                </div>
+            </form>
         </div>
     </div>
+
+    {{-- Toast-Container --}}
+    <div class="fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white text-sm"
+                 :class="{'bg-green-600':toast.type==='success','bg-red-600':toast.type==='error','bg-amber-500':toast.type==='warning','bg-blue-600':toast.type==='info'}"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0 translate-y-2">
+                <span x-text="toast.message" class="flex-1"></span>
+                <button @click="removeToast(toast.id)" class="opacity-70 hover:opacity-100 text-lg font-bold leading-none">×</button>
+            </div>
+        </template>
+    </div>
+
+</div>
 @endsection
 
 @push('js')
-    <script>
-        // Procedure Name/Description Edit Toggle
-        $(document).ready(function() {
-            $('#edit-procedure-btn').on('click', function(e) {
-                e.preventDefault();
-                $('#procedure-header-display').hide();
-                $('#procedure-edit-form').show();
-                $('#edit-name').focus();
-            });
-
-            $('#cancel-edit-btn').on('click', function() {
-                $('#procedure-edit-form').hide();
-                $('#procedure-header-display').show();
-            });
-        });
-
-        $('.newStep').on('click', function (e){
-            $('#parent').val(e.target.dataset.parent);
-            console.log(e.target.dataset.parent)
-        })
-    </script>
-@endpush
-
-@push('modals')
-    @if($canEdit ?? false)
-        <div class="modal" tabindex="-1" role="dialog" id="stepModal">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Neuer Schritt</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-
-                        <form action="{{url('procedure/'.$procedure->id.'/step')}}" method="post" class="form-horizontal" id="stepForm">
-                            @csrf
-                            <input type="hidden" name="parent" id="parent" value="{{old('parent')}}">
-                            <div class="form-row">
-                                <div class="col-12">
-                                    <label for="name">
-                                        Bezeichnung des Schrittes
-                                    </label>
-                                    <input  id="name" name="name" type="text" class="form-control" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <label for="description">
-                                    Beschreibung
-                                </label>
-                                <textarea name="description" id="description" rows="6" class="form-control">
-                                    {{old('description')}}
-                                </textarea>
-                            </div>
-                            <div class="form-row">
-                                <div class="col-md-8 col-sm-12">
-                                    <label for="position_id">
-                                        Verantwortliche Position
-                                    </label>
-                                    <select name="position_id" class="custom-select" required>
-                                        <option disabled selected> </option>
-                                        @foreach($positions as $position)
-                                            <option value="{{$position->id}}">
-                                                {{$position->name}}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-4 col-sm-12">
-                                    <label for="durationDays">
-                                        Dauer in Tagen
-                                    </label>
-                                    <input type="number" class="form-control" required min="1" step="1" name="durationDays" value="{{old('durationDays')}}">
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success" form="stepForm">Speichern</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+    @vite('resources/js/procedure.js')
 @endpush

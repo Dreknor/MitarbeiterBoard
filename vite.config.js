@@ -26,6 +26,10 @@ export default defineConfig({
                 // Personal-Modul (Phase 0)
                 'resources/css/personal.css',
                 'resources/js/personal.js',
+
+                // Prozesse-Modul (Phase 2)
+                'resources/css/procedure.css',
+                'resources/js/procedure.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -46,6 +50,9 @@ export default defineConfig({
                 // Personal-Modul (Phase 0)
                 'resources/views/personal/**/*.blade.php',
                 'app/Http/Controllers/Personal/*.php',
+                // Prozesse-Modul (Phase 2)
+                'resources/views/procedure/**/*.blade.php',
+                'app/Http/Controllers/ProcedureController.php',
             ],
         }),
     ],

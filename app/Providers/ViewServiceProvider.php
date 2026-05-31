@@ -24,7 +24,7 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.holidays.dashboardCard', \App\View\Composers\UrlaubCardComposer::class);
         View::composer('personal.rosters.homeView', \App\View\Composers\RosterComposer::class);
         View::composer('tasks.tasksCard', \App\View\Composers\TasksComposer::class);
-        View::composer('procedure.dashboardCard', \App\View\Composers\ProcedureComposer::class);
+        // Phase 4: procedure.dashboardCard-View gelöscht; DB-Referenz via Migration auf v2 migriert.
         View::composer('wiki.dashboardCard', \App\View\Composers\WikiCardComposer::class);
         View::composer('absences.dashboardCard', \App\View\Composers\AbsenceComposer::class);
         View::composer('personal.time_recording.dashboardCard', \App\View\Composers\TimeRecordingCardComposer::class);

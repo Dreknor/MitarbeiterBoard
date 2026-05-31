@@ -2,17 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Procedure_Step extends Model
 {
+    use HasFactory;
+
     protected $table = 'procedure_steps';
 
-    protected $visible = ['name', 'description', 'durationDays', 'done', 'endDate'];
-    protected $fillable = ['name', 'description', 'durationDays', 'done', 'procedure_id', 'parent', 'position_id', 'endDate'];
+    protected static function newFactory(): \Database\Factories\ProcedureStepFactory
+    {
+        return \Database\Factories\ProcedureStepFactory::new();
+    }
+
+    protected $visible = ['name', 'description', 'durationDays', 'done', 'endDate', 'completed_at', 'completed_by'];
+    protected $fillable = ['name', 'description', 'durationDays', 'done', 'procedure_id', 'parent', 'sort_order', 'position_id', 'endDate', 'completed_at', 'completed_by', 'template_step_id'];
 
     protected $casts = [
-        'endDate' => 'date'
+        'endDate'      => 'date',
+        'completed_at' => 'datetime',
     ];
 
     public function position()
@@ -38,5 +47,25 @@ class Procedure_Step extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'steps_users', 'steps_id', 'users_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(ProcedureStepComment::class, 'step_id')->latest();
+    }
+
+    public function completedBy()
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function templateStep()
+    {
+        return $this->belongsTo(ProcedureTemplateStep::class, 'template_step_id');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(ProcedureStepHistory::class, 'step_id')->orderByDesc('created_at');
     }
 }

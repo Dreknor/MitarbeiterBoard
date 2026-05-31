@@ -32,14 +32,8 @@ class PositionsController extends Controller
 
     public function index()
     {
-        $positions = Cache::remember('positions', 60 * 60, function () {
-            return Positions::all();
-        });
-
-        return view('procedure.index', [
-           'positions'=>$positions,
-            'users'=>User::all(),
-        ]);
+        // Phase 4: Positionen sind ein Tab im neuen Index – einfach weiterleiten.
+        return redirect(url('procedure'));
     }
 
     public function addUser(Request $request, Positions $position)

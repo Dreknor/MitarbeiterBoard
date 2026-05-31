@@ -46,7 +46,7 @@ class RecurringProcedureController extends Controller
 
         return view('procedure.recurring', [
             'procedures' => $procedures,
-            'templates' => Procedure::whereNull('started_at')->get(),
+            'templates' => Procedure::vorlagen()->get(),
             'monate' => $monate,
         ]);
     }
@@ -101,6 +101,25 @@ class RecurringProcedureController extends Controller
         return redirect()->back()->with([
             'Meldung' => 'Wiederkehrender Prozess wurde erfolgreich gelöscht.',
             'type' => 'success'
+        ]);
+    }
+
+    /**
+     * Phase 1 / B-30: Pausieren / Aktivieren.
+     */
+    public function toggle(RecurringProcedure $recurringProcedure)
+    {
+        $recurringProcedure->update([
+            'active' => !($recurringProcedure->active ?? true),
+        ]);
+
+        if (request()->wantsJson()) {
+            return response()->json(['data' => ['id' => $recurringProcedure->id, 'active' => $recurringProcedure->active]]);
+        }
+
+        return redirect()->back()->with([
+            'Meldung' => $recurringProcedure->active ? 'Aktiviert' : 'Pausiert',
+            'type'    => 'success',
         ]);
     }
 
@@ -161,7 +180,15 @@ class RecurringProcedureController extends Controller
     }
 
     public function checkStart(){
+        // Phase 1: Auslagern in härtenden Service.
+        try {
+            app(\App\Services\Procedure\RecurringProcedureRunner::class)->check();
+            return;
+        } catch (\Throwable $e) {
+            Log::error('RecurringProcedureRunner Fehler – Fallback auf Legacy', ['error' => $e->getMessage()]);
+        }
 
+        // Legacy-Fallback (alte Logik, falls Service nicht verfügbar)
         $state = settings('ferien_state', 'holidays');
         $year = Carbon::now()->format('Y');
 

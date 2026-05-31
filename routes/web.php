@@ -768,8 +768,12 @@ Route::group([
                 //Prozesse
                 Route::prefix('procedure')->group(function () {
                     Route::get('/', [ProcedureController::class, 'index']);
-                    Route::get('/template', [ProcedureController::class, 'index_templates']);
-                    Route::get('/recurring', [RecurringProcedureController::class, 'index']);
+
+                    // ─── Phase 4: Legacy-URLs → HTTP-Redirect (kein JS-Umweg mehr) ───
+                    Route::get('/template',   fn() => redirect(url('procedure') . '#templates'));
+                    Route::get('/recurring',  fn() => redirect(url('procedure') . '#automation'));
+                    Route::get('/positions',  fn() => redirect(url('procedure') . '#automation'));
+
                     Route::post('/recurring', [RecurringProcedureController::class, 'store']);
                     Route::delete('/recurring/{recurringProcedure}', [RecurringProcedureController::class, 'destroy']);
                     Route::get('/recurring/{recurringProcedure}/start/{redirect?}', [RecurringProcedureController::class, 'start']);
@@ -778,32 +782,64 @@ Route::group([
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
                     Route::get('{procedure}/edit', [ProcedureController::class, 'edit']);
                     Route::get('{procedure}/start', [ProcedureController::class, 'start']);
-                    Route::get('{procedure}/ends', [ProcedureController::class, 'endProcedure']);
+                    // ─── Phase 4: GET-Mutation entfernt – jetzt POST ─────────────────
+                    Route::post('{procedure}/end', [ProcedureController::class, 'endProcedure']);
                     Route::post('{procedure}/start', [ProcedureController::class, 'startNow']);
                     Route::put('{procedure}/update', [ProcedureController::class, 'updateProcedure']);
                     Route::get('step/{step}/edit', [ProcedureController::class, 'editStep']);
                     Route::delete('step/{step}/delete', [ProcedureController::class, 'destroy']);
                     Route::put('step/{step}', [ProcedureController::class, 'storeStep']);
-                    Route::get('step/{step}/remove/{user}', [ProcedureController::class, 'removeUser']);
                     Route::post('step/addUser', [ProcedureController::class, 'addUser']);
-                    Route::get('{procedure}/delete', [ProcedureController::class, 'delete']);
-
 
                     //Step
                     Route::post('{procedure}/step', [ProcedureController::class, 'addStep']);
                     Route::put('step/{step}/done', [ProcedureController::class, 'done']);
-                    Route::get('step/{step}/done/mail', [ProcedureController::class, 'done']);
-                    Route::get('/stepMail', [ProcedureController::class, 'remindStepMail']);
+                    // Phase 4: GET /stepMail entfernt – Erinnerung läuft nur via Scheduler
 
+                    // REST-konforme Routen (Phase 1 – jetzt primär)
+                    Route::delete('{procedure}', [ProcedureController::class, 'delete']);
+                    Route::delete('step/{step}/users/{user}', [ProcedureController::class, 'removeUser']);
+                    Route::post('recurring/{recurringProcedure}/trigger', [RecurringProcedureController::class, 'start']);
 
-                    //positions
-                    Route::get('/positions', [PositionsController::class, 'index']);
+                    //positions – GET /positions ist jetzt Redirect (oben definiert)
                     Route::post('/positions/{position}/add', [PositionsController::class, 'addUser']);
-                    Route::get('/positions/{positions}/remove/{users}', [PositionsController::class, 'removeUser']);
+                    // Phase 4: GET /positions/remove → DELETE
+                    Route::delete('/positions/{positions}/remove/{users}', [PositionsController::class, 'removeUser']);
 
                     //Categories
                     Route::post('categories', [CategoryController::class, 'store']); //Categories
                     Route::post('position', [PositionsController::class, 'store']);
+
+                    // ─── Phase 1: JSON-API (Read-only, für neues Tailwind/Alpine-Frontend) ───
+                    Route::prefix('api')->group(function () {
+                        Route::get('templates',  [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'templates']);
+                        Route::get('active',     [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'active']);
+                        Route::get('categories', [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'categories']);
+                        Route::get('positions',  [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'positions']);
+                        Route::get('recurring',  [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'recurring']);
+                        Route::get('steps/{step}/history', [\App\Http\Controllers\Procedure\ProcedureApiController::class, 'stepHistory']);
+                    });
+
+                    // ─── Phase 1: Kommentare an Schritten (§8.3) ───────────────
+                    Route::get('steps/{step}/comments',         [\App\Http\Controllers\Procedure\ProcedureStepCommentController::class, 'index']);
+                    Route::post('steps/{step}/comments',        [\App\Http\Controllers\Procedure\ProcedureStepCommentController::class, 'store']);
+                    Route::delete('steps/{step}/comments/{comment}', [\App\Http\Controllers\Procedure\ProcedureStepCommentController::class, 'destroy']);
+
+                    // ─── Phase 1: Kategorie-Verwaltung (B-23/B-24) ─────────────
+                    Route::put('categories/{category}',    [\App\Http\Controllers\Procedure\ProcedureCategoryController::class, 'update']);
+                    Route::delete('categories/{category}', [\App\Http\Controllers\Procedure\ProcedureCategoryController::class, 'destroy']);
+
+                    // ─── Phase 1: Wiederkehrende Prozesse – Pause/Aktivieren (B-30) ───
+                    Route::patch('recurring/{recurringProcedure}/toggle', [RecurringProcedureController::class, 'toggle']);
+
+                    // ─── Phase 3: Schritt AJAX (complete/reopen/move/reorder) ──────
+                    Route::post('steps/{step}/complete', [\App\Http\Controllers\Procedure\ProcedureStepController::class, 'complete']);
+                    Route::post('steps/{step}/reopen',   [\App\Http\Controllers\Procedure\ProcedureStepController::class, 'reopen']);
+                    Route::patch('steps/{step}/move',    [\App\Http\Controllers\Procedure\ProcedureStepController::class, 'move']);
+                    Route::post('steps/reorder',         [\App\Http\Controllers\Procedure\ProcedureStepController::class, 'reorder']);
+
+                    // ─── Phase 3: Vorlage duplizieren (B-05) ─────────────────────
+                    Route::post('templates/{procedure}/clone', [\App\Http\Controllers\Procedure\ProcedureTemplateController::class, 'clone']);
                 });
 
                 /*
@@ -848,7 +884,7 @@ Route::group([
                     Route::post('paed-diary/entry/{entry}/unpause-day', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseEntryDay'])->name('paedDiary.entry.unpause');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyEntry'])->name('paedDiary.entry.destroy');
 
-                    // Spalten-Verwaltung → PaedDiaryColumnController (TODO 16)
+                    // Spalten-Verwaltung → PaedDiaryColumnController
                     Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumn'])->name('paedDiary.column.store');
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
                     Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumnValue'])->name('paedDiary.column.value');
@@ -860,7 +896,7 @@ Route::group([
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
 
-                    // Aufgaben → PaedDiaryTaskController (TODO 16)
+                    // Aufgaben → PaedDiaryTaskController
                     Route::post('paed-diary/task', [\App\Http\Controllers\PaedDiaryTaskController::class, 'store'])->name('paedDiary.task.store');
                     Route::put('paed-diary/task/{task}', [\App\Http\Controllers\PaedDiaryTaskController::class, 'updateTask'])->name('paedDiary.task.update');
                     Route::post('paed-diary/task/{task}/close', [\App\Http\Controllers\PaedDiaryTaskController::class, 'closeTask'])->name('paedDiary.task.close');

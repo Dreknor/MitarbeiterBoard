@@ -26,7 +26,7 @@
             @if($freeRooms && $freeRooms->count() > 0)
                 <div x-data="{
                         suche: '',
-                        raeume: {{ $freeRooms->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->toJson() }},
+                        raeume: {{ $freeRooms->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->values()->toJson() }},
                         get gefiltert() {
                             const q = this.suche.toLowerCase().trim();
                             if (!q) return this.raeume.map(r => r.id);

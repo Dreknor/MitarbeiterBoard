@@ -105,7 +105,7 @@
     @if($rooms->count() > 0)
         <div x-data="{
                 suche: '',
-                raeume: {{ $rooms->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'room_number' => $r->room_number ?? ''])->toJson() }},
+                raeume: {{ $rooms->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'room_number' => $r->room_number ?? ''])->values()->toJson() }},
                 get gefiltert() {
                     const q = this.suche.toLowerCase().trim();
                     if (!q) return this.raeume.map(r => r.id);
