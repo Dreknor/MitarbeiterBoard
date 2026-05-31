@@ -23,6 +23,17 @@
         <a href="{{url(request()->segment(1)."/themes/$theme->id")}}" class="btn btn-light btn-sm float-right">
             <i class="far fa-eye"></i> zeigen
         </a>
+        @isset($meeting)
+            <form action="{{ route('meetings.themes.remove', ['group' => $group->name, 'meeting' => $meeting->id, 'theme' => $theme->id]) }}"
+                  method="POST" class="float-right mr-1"
+                  onsubmit="return confirm('Thema von diesem Meeting entfernen? Das Thema selbst bleibt erhalten.');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-outline-danger btn-sm" title="Vom Meeting entfernen">
+                    <i class="fas fa-unlink"></i>
+                </button>
+            </form>
+        @endisset
     </td>
 </tr>
 

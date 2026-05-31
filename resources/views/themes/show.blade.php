@@ -295,16 +295,29 @@
                                     <b>
                                         Dateien
                                     </b>
+                                    @can('unarchive theme')
+                                        <br>
+                                        <a href="{{ route('themes.archivedFiles') }}" class="small">
+                                            <i class="fas fa-archive"></i> Archivierte Dateien
+                                        </a>
+                                    @endcan
                                 </div>
                                 <div class="col-sm-12 col-md-6 col-lg-9">
                                     <ul class="list-group">
-                                        @foreach($theme->getMedia()->sortBy('name') as $media)
-                                            <li class="list-group-item  list-group-item-action ">
-                                                <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mx-auto ">
+                                        @foreach($theme->getMedia()->reject(fn($m) => $m->getCustomProperty('archiviert'))->sortBy('name') as $media)
+                                            <li class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                                <a href="{{url('/image/'.$media->id)}}" target="_blank" class="mr-2">
                                                     <i class="fas fa-file-download"></i>
                                                     {{$media->name}} (erstellt: {{$media->created_at->format('d.m.Y H:i')}} Uhr)
                                                 </a>
-
+                                                <form action="{{url(request()->segment(1).'/themes/'.$theme->id.'/files/'.$media->id)}}" method="post" class="mb-0 ml-2"
+                                                      onsubmit="return confirm('Datei wirklich entfernen? Die Datei wird archiviert und bleibt über bestehende Protokoll-Verweise abrufbar.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Datei entfernen">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
                                             </li>
                                         @endforeach
 

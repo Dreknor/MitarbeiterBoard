@@ -1,9 +1,9 @@
 <!-- Modal für Meeting-Aufgaben -->
-<div class="modal fade" id="meetingTasksModal" tabindex="-1" aria-labelledby="meetingTasksModalLabel" aria-hidden="true">
+<div class="modal fade" id="meetingTasksModal-{{ $meeting->id }}" tabindex="-1" aria-labelledby="meetingTasksModalLabel-{{ $meeting->id }}" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="meetingTasksModalLabel">Aufgaben für dieses Meeting</h5>
+        <h5 class="modal-title" id="meetingTasksModalLabel-{{ $meeting->id }}">Aufgaben für dieses Meeting</h5>
       </div>
       <div class="modal-body">
         <!-- Aufgabenliste -->

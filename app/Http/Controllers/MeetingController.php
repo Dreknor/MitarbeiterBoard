@@ -9,33 +9,67 @@ use App\Models\Meeting;
 use App\Models\MeetingTask;
 use App\Models\Theme;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class MeetingController extends Controller
 {
+    /**
+     * Prüft, ob ein Meeting gerade läuft (heute + innerhalb des Zeitfensters und nicht abgesagt).
+     */
+    private function isMeetingLive(Meeting $meeting): bool
+    {
+        if ($meeting->cancelled || ! $meeting->date->isSameDay(now())) {
+            return false;
+        }
+
+        $start = \Carbon\Carbon::parse($meeting->date->format('Y-m-d') . ' ' . $meeting->start_time);
+        $end   = \Carbon\Carbon::parse($meeting->date->format('Y-m-d') . ' ' . $meeting->end_time);
+
+        return now()->between($start, $end);
+    }
+
+    /**
+     * Stellt sicher, dass die Gruppe existiert und der angemeldete Nutzer Mitglied ist.
+     * Gibt bei fehlendem Zugriff null + eine fertige Redirect-Response zurück.
+     */
+    private function resolveGroup(string $groupname, ?RedirectResponse &$denied): ?Group
+    {
+        $denied = null;
+        $group  = Group::where('name', $groupname)->first();
+
+        if (! $group || ! auth()->user()->groups()->contains($group)) {
+            $denied = redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+            return null;
+        }
+
+        return $group;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index($groupname)
     {
-
-        $group = Group::where('name', $groupname)->first();
-
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
         }
 
-        $today = now()->toDateString();
+        $today         = now()->toDateString();
         $meetingsToday = Meeting::where('date', $today)->where('group_id', $group->id)->with('themes')->get();
         $otherMeetings = Meeting::query()->where('group_id', $group->id)->upcoming()->get();
-        // Offene Themen aus älteren Meetings, die noch nicht abgeschlossen sind und nicht im aktuellen Meeting sind
-        $openThemes = \App\Models\Theme::where('completed', false)
+
+        // Offene Themen der Gruppe (für das "vorhandenes Thema zuweisen"-Dropdown)
+        $openThemes = Theme::where('completed', false)
             ->where('group_id', $group->id)
+            ->orderBy('date')
             ->get();
 
         return view('meetings.index', [
@@ -43,7 +77,7 @@ class MeetingController extends Controller
             'otherMeetings' => $otherMeetings,
             'group'         => $group,
             'openThemes'    => $openThemes,
-            'types'          => \App\Models\Type::all(),
+            'types'         => \App\Models\Type::all(),
         ]);
     }
 
@@ -53,13 +87,9 @@ class MeetingController extends Controller
      */
     public function store(MeetingRequest $request, $groupname)
     {
-        $group = Group::where('name', $groupname)->first();
-
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
         }
 
         $meeting = new Meeting($request->validated());
@@ -79,16 +109,14 @@ class MeetingController extends Controller
      */
     public function edit($group, Meeting $meeting)
     {
-        $group = Group::where('name', $group)->first();
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         return view('meetings.edit', [
             'meeting' => $meeting,
-            'group' => $group,
+            'group'   => $group,
         ]);
     }
 
@@ -97,20 +125,19 @@ class MeetingController extends Controller
      */
     public function update(Request $request, $group, Meeting $meeting)
     {
-        $group = Group::where('name', $group)->first();
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'date' => 'required|date',
-            'start_time' => 'required',
-            'end_time' => 'required',
+            'title'      => 'required|string|max:255',
+            'date'       => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time'   => 'required|date_format:H:i|after:start_time',
         ]);
         $meeting->update($validated);
+
         return redirect()->route('meetings.index', ['group' => $group->name])->with([
             'type'    => 'success',
             'Meldung' => 'Meeting erfolgreich bearbeitet',
@@ -118,87 +145,95 @@ class MeetingController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified resource from storage (Soft-Delete).
      */
-    public function destroy(Meeting $meeting)
+    public function destroy($group, Meeting $meeting): RedirectResponse
     {
-        //
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
+        }
+
+        // Verknüpfung zu Themen lösen (die Themen selbst bleiben erhalten)
+        $meeting->themes()->detach();
+        $meeting->delete();
+
+        return redirect()->route('meetings.index', ['group' => $group->name])->with([
+            'type'    => 'success',
+            'Meldung' => 'Meeting wurde gelöscht',
+        ]);
     }
 
     /**
      * Speichert ein neues Thema oder weist ein bestehendes Thema zu.
      */
-    public function storeTheme(Request $request, $group, $meetingId): \Illuminate\Http\RedirectResponse
+    public function storeTheme(Request $request, $group, $meetingId): RedirectResponse
     {
-        $group = Group::where('name', $group)->first();
-
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
 
-        // Validierung der Anfrage
-            if ($request->filled('existing_theme_id')) {
-                $request->validate([
-                    'existing_theme_id' => 'required|exists:themes,id',
-                ]);
-            } else  {
-                $request->validate([
-                    'theme' => 'required|string|max:255',
-                    'goal' => 'required|string',
-                    'duration' => 'required|integer|min:5|max:240',
-                    'type'     => 'required|exists:types,id',
-                ]);
+        $meeting = Meeting::where('group_id', $group->id)->findOrFail($meetingId);
+
+        // Bestehendes Thema zuweisen
+        if ($request->filled('existing_theme_id')) {
+            $request->validate([
+                'existing_theme_id' => [
+                    'required',
+                    Rule::exists('themes', 'id')->where('group_id', $group->id),
+                ],
+            ]);
+
+            $theme = Theme::findOrFail((int) $request->input('existing_theme_id'));
+
+            if (! $meeting->themes()->where('theme_id', $theme->id)->exists()) {
+                $meeting->themes()->attach($theme->id);
+                $theme->update(['date' => $meeting->date]);
             }
-
-
-        $meeting = \App\Models\Meeting::findOrFail($meetingId);
+        }
         // Neues Thema anlegen
-        if ($request->filled('theme') && !$request->filled('existing_theme_id')) {
-            $theme = new \App\Models\Theme(
-                $request->only('theme', 'goal', 'duration')
-            );
-            $theme->group_id = $group->id;
-            $theme->type_id = $request->input('type');
+        else {
+            $request->validate([
+                'theme'    => 'required|string|max:255',
+                'goal'     => 'required|string',
+                'duration' => 'required|integer|min:5|max:240',
+                'type'     => 'required|exists:types,id',
+            ]);
+
+            $theme = new Theme($request->only('theme', 'goal', 'duration'));
+            $theme->group_id   = $group->id;
+            $theme->type_id    = $request->input('type');
             $theme->creator_id = auth()->id();
-            $theme->date = $meeting->date;
+            $theme->date       = $meeting->date;
             $theme->save();
 
             $meeting->themes()->attach($theme->id);
-
-        }
-        // Bestehendes Thema zuweisen
-        elseif ($request->filled('existing_theme_id')) {
-            $themeId = $request->input('existing_theme_id');
-            if (!$meeting->themes()->where('theme_id', $themeId)->exists()) {
-                $meeting->themes()->attach($themeId);
-                Theme::query()->where('id', $themeId)->update(['date' => $meeting->date]);
-            }
         }
 
-        if ($meeting->date == today()->toDateString() and $meeting->start_time <= now()->format('H:i') and $meeting->end_time >= now()){
-
-            return redirect(url($group->name.'/themes/'.$theme->id))->with('success', 'Thema wurde dem Meeting zugewiesen.');
-
+        // Wenn das Meeting gerade läuft, direkt zum Thema springen
+        if ($this->isMeetingLive($meeting)) {
+            return redirect(url($group->name . '/themes/' . $theme->id))->with([
+                'type'    => 'success',
+                'Meldung' => 'Thema wurde dem Meeting zugewiesen.',
+            ]);
         }
-        return redirect()->back()->with('success', 'Thema wurde dem Meeting zugewiesen.');
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema wurde dem Meeting zugewiesen.',
+        ]);
     }
 
     public function cancelMeeting($groupname, Meeting $meeting)
     {
-        $group = Group::where('name', $groupname)->first();
-
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
         }
 
         $meeting->update([
-            'cancelled' => true,
+            'cancelled'    => true,
             'cancelled_by' => auth()->id(),
             'cancelled_at' => now(),
         ]);
@@ -207,7 +242,28 @@ class MeetingController extends Controller
             'type'    => 'success',
             'Meldung' => 'Meeting erfolgreich abgesagt',
         ]);
+    }
 
+    /**
+     * Hebt die Absage eines Meetings wieder auf.
+     */
+    public function reactivateMeeting($groupname, Meeting $meeting)
+    {
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
+        }
+
+        $meeting->update([
+            'cancelled'    => false,
+            'cancelled_by' => null,
+            'cancelled_at' => null,
+        ]);
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Meeting wurde wieder aktiviert',
+        ]);
     }
 
     /**
@@ -215,14 +271,13 @@ class MeetingController extends Controller
      */
     public function removeTheme($group, Meeting $meeting, $themeId)
     {
-        $group = Group::where('name', $group)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $meeting->themes()->detach($themeId);
+
         return redirect()->back()->with([
             'type'    => 'success',
             'Meldung' => 'Thema wurde vom Meeting entfernt',
@@ -234,13 +289,17 @@ class MeetingController extends Controller
      */
     public function sendInvitation(Request $request, $groupname, $meetingId)
     {
-        $group   = \App\Models\Group::where('name', $groupname)->firstOrFail();
-        $meeting = \App\Models\Meeting::with('themes')->findOrFail($meetingId);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
+        }
+
+        $meeting = Meeting::with('themes')->where('group_id', $group->id)->findOrFail($meetingId);
         $message = $request->input('message');
         $users   = $group->users;
 
-        $gesendet    = 0;
-        $fehlerhaft  = [];
+        $gesendet   = 0;
+        $fehlerhaft = [];
 
         foreach ($users as $user) {
             if (empty($user->email)) {
@@ -276,14 +335,14 @@ class MeetingController extends Controller
                 'invitation_sent_by' => auth()->id(),
             ]);
             Log::info('Meeting-Einladungen eingereiht', [
-                'meeting_id'    => $meeting->id,
-                'gesendet'      => $gesendet,
-                'fehlerhaft'    => count($fehlerhaft),
-                'versender_id'  => auth()->id(),
+                'meeting_id'   => $meeting->id,
+                'gesendet'     => $gesendet,
+                'fehlerhaft'   => count($fehlerhaft),
+                'versender_id' => auth()->id(),
             ]);
         }
 
-        if (!empty($fehlerhaft)) {
+        if (! empty($fehlerhaft)) {
             $meldung = "Einladungen wurden an {$gesendet} Mitglieder eingereiht. "
                 . 'Folgende Empfänger konnten nicht berücksichtigt werden: '
                 . implode(', ', $fehlerhaft);
@@ -300,25 +359,28 @@ class MeetingController extends Controller
     }
 
     /**
-     * Übersicht vergangener Meetings
+     * Meetingsarchiv – Übersicht vergangener und abgesagter Meetings.
      */
     public function past($groupname)
     {
-        $group = Group::where('name', $groupname)->first();
-        if (! auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $pastMeetings = Meeting::where('group_id', $group->id)
-            ->where('date', '<', now()->toDateString())
+            ->where(function ($query) {
+                $query->where('date', '<', now()->toDateString())
+                      ->orWhere('cancelled', true);
+            })
             ->orderBy('date', 'desc')
-            ->with('themes')
+            ->orderBy('start_time', 'desc')
+            ->with(['themes', 'meetingTasks.user', 'invitationSender'])
             ->get();
+
         return view('meetings.past', [
             'pastMeetings' => $pastMeetings,
-            'group' => $group,
+            'group'        => $group,
         ]);
     }
 
@@ -327,20 +389,19 @@ class MeetingController extends Controller
      */
     public function tasks($group, Meeting $meeting)
     {
-        $group = Group::where('name', $group)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $users = $group->users;
         $tasks = $meeting->meetingTasks()->with('user')->get();
+
         return view('meetings.tasks', [
             'meeting' => $meeting,
-            'group' => $group,
-            'users' => $users,
-            'tasks' => $tasks,
+            'group'   => $group,
+            'users'   => $users,
+            'tasks'   => $tasks,
         ]);
     }
 
@@ -349,20 +410,22 @@ class MeetingController extends Controller
      */
     public function addTask(Request $request, $group, Meeting $meeting)
     {
-        $group = Group::where('name', $group)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'role' => 'required|string|max:255',
-            'notes' => 'nullable|string|max:255',
+            'role'    => 'required|string|max:255',
+            'notes'   => 'nullable|string|max:255',
         ]);
         $meeting->meetingTasks()->create($validated);
-        return redirect()->back()->with('success', 'Aufgabe hinzugefügt.');
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Aufgabe hinzugefügt.',
+        ]);
     }
 
     /**
@@ -370,20 +433,22 @@ class MeetingController extends Controller
      */
     public function updateTask(Request $request, $group, Meeting $meeting, MeetingTask $task)
     {
-        $group = Group::where('name', $group)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'role' => 'required|string|max:255',
-            'notes' => 'nullable|string|max:255',
+            'role'    => 'required|string|max:255',
+            'notes'   => 'nullable|string|max:255',
         ]);
         $task->update($validated);
-        return redirect()->back()->with('success', 'Aufgabe aktualisiert.');
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Aufgabe aktualisiert.',
+        ]);
     }
 
     /**
@@ -391,15 +456,17 @@ class MeetingController extends Controller
      */
     public function deleteTask($group, Meeting $meeting, MeetingTask $task)
     {
-        $group = Group::where('name', $group)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($group, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         $task->delete();
-        return redirect()->back()->with('success', 'Aufgabe gelöscht.');
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Aufgabe gelöscht.',
+        ]);
     }
 
     /**
@@ -407,28 +474,28 @@ class MeetingController extends Controller
      */
     public function assignAllThemesForDate($groupname, Meeting $meeting)
     {
-        $group = Group::where('name', $groupname)->first();
-        if (!auth()->user()->groups()->contains($group)) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Kein Zugriff auf diese Gruppe',
-            ]);
+        $group = $this->resolveGroup($groupname, $denied);
+        if (! $group) {
+            return $denied;
         }
+
         // Alle offenen Themen der Gruppe mit gleichem Datum wie das Meeting
-        $themes = \App\Models\Theme::where('completed', false)
+        $themes = Theme::where('completed', false)
             ->where('group_id', $group->id)
             ->whereDate('date', $meeting->date)
             ->get();
+
         $count = 0;
         foreach ($themes as $theme) {
-            if (!$meeting->themes()->where('theme_id', $theme->id)->exists()) {
+            if (! $meeting->themes()->where('theme_id', $theme->id)->exists()) {
                 $meeting->themes()->attach($theme->id);
                 $count++;
             }
         }
+
         return redirect()->back()->with([
-            'type' => 'success',
-            'Meldung' => $count . ' Themen wurden dem Meeting zugewiesen.'
+            'type'    => 'success',
+            'Meldung' => $count . ' Themen wurden dem Meeting zugewiesen.',
         ]);
     }
 }

@@ -619,6 +619,8 @@ Route::group([
                 Route::get('{group}/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
                 Route::put('{group}/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
                 Route::post('{group}/meetings/{meeting}/cancel', [MeetingController::class, 'cancelMeeting'])->name('meetings.cancel');
+                Route::post('{group}/meetings/{meeting}/reactivate', [MeetingController::class, 'reactivateMeeting'])->name('meetings.reactivate');
+                Route::delete('{group}/meetings/{meeting}', [MeetingController::class, 'destroy'])->name('meetings.destroy');
                 Route::get('{groupname}/meetings/past', [\App\Http\Controllers\MeetingController::class, 'past'])->name('meetings.past');
 
                 //Meeting-Themen anlegen/zuweisen
@@ -636,6 +638,12 @@ Route::group([
 
 
                 //Themes
+                // Verwaltung archivierter (soft-gelöschter) Theme-Dateien (vor der Resource registrieren!)
+                Route::middleware('permission:unarchive theme')->group(function () {
+                    Route::get('themes/archived-files', [ThemeController::class, 'archivedFiles'])->name('themes.archivedFiles');
+                    Route::put('themes/archived-files/{media}/restore', [ThemeController::class, 'restoreFile'])->name('themes.files.restore');
+                    Route::delete('themes/archived-files/{media}', [ThemeController::class, 'forceDeleteFile'])->name('themes.files.forceDelete');
+                });
                 Route::resource('{groupname}/themes', ThemeController::class);
                 Route::get('{groupname}/themes/create/{speicher?}', [ThemeController::class, 'create']);
                 Route::post('{groupname}/move/themes', [ThemeController::class, 'moveAllThemes']);
@@ -647,6 +655,8 @@ Route::group([
                 Route::get('unarchiv/{theme}', [ThemeController::class, 'unArchive'])->middleware('permission:unarchive theme');
                 Route::get('{groupname}/themes/{theme}/close', [ThemeController::class, 'closeTheme']);
                 Route::get('{groupname}/themes/{theme}/activate', [ThemeController::class, 'activate']);
+                // Datei eines Themas archivieren (Soft-Löschen) + Protokollvermerk
+                Route::delete('{groupname}/themes/{theme}/files/{media}', [ThemeController::class, 'archiveFile'])->name('themes.files.archive');
                 Route::post('share/{theme}', [ShareController::class, 'shareTheme']);
                 Route::get('theme/{theme}/assign/{user}', [ThemeController::class, 'assgin_to']);
                 Route::get('theme/{theme}/change/group/{group}', [ThemeController::class, 'change_group']);

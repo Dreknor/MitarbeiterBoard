@@ -11,7 +11,21 @@
                         @csrf
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Meeting wirklich absagen?')">Absagen</button>
                     </form>
+                @else
+                    <form action="{{ route('meetings.reactivate', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST" style="display:inline-block">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Absage aufheben und Meeting wieder aktivieren?')">
+                            <i class="fas fa-undo"></i> Wieder aktivieren
+                        </button>
+                    </form>
                 @endif
+                <form action="{{ route('meetings.destroy', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST" style="display:inline-block">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-sm btn-outline-light" title="Meeting löschen" onclick="return confirm('Meeting endgültig löschen? Die zugeordneten Themen bleiben erhalten.')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -74,6 +88,10 @@
         <!-- Button zum Öffnen des Modals für Themen -->
         <button class="btn btn-sm btn-success mt-2" data-toggle="modal" data-target="#addThemeModal-{{ $meeting->id }}">
             Thema hinzufügen/zuweisen
+        </button>
+        <!-- Button zum Verwalten der Meeting-Aufgaben/Rollen -->
+        <button class="btn btn-sm btn-outline-secondary mt-2" data-toggle="modal" data-target="#meetingTasksModal-{{ $meeting->id }}">
+            <i class="fas fa-user-tag"></i> Aufgaben &amp; Rollen
         </button>
         <!-- Modal für Themen anlegen/zuweisen -->
         <div class="modal fade" id="addThemeModal-{{ $meeting->id }}" tabindex="-1" role="dialog" aria-labelledby="addThemeModalLabel-{{ $meeting->id }}" aria-hidden="true">
@@ -175,3 +193,4 @@
         @endif
     </div>
 </div>
+@include('meetings.partials.tasks_modal', ['meeting' => $meeting, 'group' => $group])

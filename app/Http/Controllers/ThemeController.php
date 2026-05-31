@@ -18,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ThemeController extends Controller
 {
@@ -606,6 +607,188 @@ class ThemeController extends Controller
         return redirect()->back()->with([
             'type'  => 'warning',
             'Meldung'   => 'Thema kann nicht gelöscht werden',
+        ]);
+    }
+
+    /**
+     * Soft-Löschen einer an ein Thema angehängten Datei.
+     *
+     * Die Datei wird NICHT physisch gelöscht, sondern nur als "archiviert"
+     * markiert (Spatie Custom Property). Dadurch bleibt der bestehende
+     * Download-Link (/image/{id}) gültig – Verweise in bereits erstellten
+     * Protokollen brechen also nicht. Zusätzlich wird ein Protokolleintrag
+     * angelegt, der auf die entfernte (archivierte) Datei hinweist.
+     */
+    public function archiveFile($groupname, Theme $theme, Media $media)
+    {
+        // Zugriff auf die Gruppe des Themas prüfen
+        if (! auth()->user()->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Kein Zugriff auf diese Gruppe',
+            ]);
+        }
+
+        // Die Datei muss tatsächlich zu diesem Thema gehören (Schutz vor ID-Manipulation)
+        if ($media->model_type !== $theme->getMorphClass() || (int) $media->model_id !== (int) $theme->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Datei gehört nicht zu diesem Thema',
+            ]);
+        }
+
+        // Bereits archiviert? Dann nichts tun.
+        if ($media->getCustomProperty('archiviert')) {
+            return redirect()->back()->with([
+                'type'    => 'info',
+                'Meldung' => 'Datei wurde bereits entfernt',
+            ]);
+        }
+
+        // Soft-Löschen: archivieren statt physisch löschen, damit bestehende
+        // Protokoll-Verweise (/image/{id}) weiterhin funktionieren.
+        $media->setCustomProperty('archiviert', true)
+            ->setCustomProperty('archiviert_von', auth()->id())
+            ->setCustomProperty('archiviert_am', now()->toDateTimeString())
+            ->save();
+
+        // Protokolleintrag anlegen, der auf die entfernte (archivierte) Datei hinweist.
+        $protocol = new Protocol([
+            'theme_id'   => $theme->id,
+            'creator_id' => auth()->id(),
+            'protocol'   => auth()->user()->name . ' hat die Datei „' . e($media->name) . '" entfernt. '
+                . 'Die Datei bleibt archiviert abrufbar: '
+                . '<a href="' . url('/image/' . $media->id) . '" target="_blank">' . e($media->name) . '</a>',
+        ]);
+        $protocol->save();
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Datei wurde entfernt (archiviert) und im Protokoll vermerkt.',
+        ]);
+    }
+
+    /**
+     * Admin-Übersicht aller archivierten (soft-gelöschten) Theme-Dateien.
+     */
+    public function archivedFiles()
+    {
+        $userGroupIds = auth()->user()->groups()->pluck('groups.id');
+
+        $media = Media::query()
+            ->where('model_type', (new Theme)->getMorphClass())
+            ->where('custom_properties->archiviert', true)
+            ->with('model.group')
+            ->orderByDesc('updated_at')
+            ->get()
+            // Nur Dateien aus Gruppen, in denen der Nutzer Mitglied ist
+            ->filter(fn ($m) => $m->model && $userGroupIds->contains($m->model->group_id))
+            ->map(function ($m) {
+                $theme = $m->model;
+                // Direkter Link im Protokolltext (/image/{id})
+                $linkRef = Protocol::where('protocol', 'like', '%/image/' . $m->id . '%')->exists();
+                // Hat das Thema überhaupt Protokolle? Dann kann die Datei auch rein
+                // textuell referenziert sein (z. B. "siehe angehängte Datei") – ohne Link.
+                $hasProtocols = $theme ? $theme->protocols()->exists() : false;
+
+                $m->geschuetzt  = $linkRef || $hasProtocols;
+                $m->schutzgrund = $linkRef
+                    ? 'In einem Protokoll direkt verlinkt'
+                    : ($hasProtocols ? 'Thema hat Protokolle – möglicher Verweis im Text' : null);
+                $m->archiviert_von_name = optional(User::find($m->getCustomProperty('archiviert_von')))->name;
+                return $m;
+            });
+
+        return view('themes.archived_files', [
+            'medien' => $media,
+        ]);
+    }
+
+    /**
+     * Stellt eine archivierte Theme-Datei wieder her.
+     */
+    public function restoreFile(Media $media)
+    {
+        $theme = $media->model;
+
+        if (! $theme instanceof Theme || ! auth()->user()->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Kein Zugriff auf diese Datei',
+            ]);
+        }
+
+        if (! $media->getCustomProperty('archiviert')) {
+            return redirect()->back()->with([
+                'type'    => 'info',
+                'Meldung' => 'Datei ist nicht archiviert',
+            ]);
+        }
+
+        $media->forgetCustomProperty('archiviert')
+            ->forgetCustomProperty('archiviert_von')
+            ->forgetCustomProperty('archiviert_am')
+            ->save();
+
+        $protocol = new Protocol([
+            'theme_id'   => $theme->id,
+            'creator_id' => auth()->id(),
+            'protocol'   => auth()->user()->name . ' hat die Datei „' . e($media->name) . '" wiederhergestellt.',
+        ]);
+        $protocol->save();
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Datei wurde wiederhergestellt.',
+        ]);
+    }
+
+    /**
+     * Löscht eine archivierte Theme-Datei endgültig – aber nur, wenn sie in
+     * keinem Protokoll referenziert wird (sonst würde der Verweis brechen).
+     */
+    public function forceDeleteFile(Media $media)
+    {
+        $theme = $media->model;
+
+        if (! $theme instanceof Theme || ! auth()->user()->groups()->contains($theme->group)) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Kein Zugriff auf diese Datei',
+            ]);
+        }
+
+        // Referenzprüfung: Eine Datei darf nur endgültig gelöscht werden, wenn das
+        // Thema gar keine Protokolle hat. Sobald Protokolle existieren, kann die
+        // Datei dort verlinkt ODER nur textuell erwähnt sein ("siehe angehängte
+        // Datei"). Beides lässt sich nicht zuverlässig automatisch erkennen, daher
+        // bleibt die Datei in diesem Fall sicherheitshalber archiviert erhalten.
+        $linkRef      = Protocol::where('protocol', 'like', '%/image/' . $media->id . '%')->exists();
+        $hasProtocols = $theme->protocols()->exists();
+
+        if ($linkRef || $hasProtocols) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Datei kann nicht endgültig gelöscht werden: Das Thema enthält Protokolle, '
+                    . 'die auf die Datei verweisen könnten (auch ohne direkten Link, z. B. „siehe angehängte Datei"). '
+                    . 'Die Datei bleibt archiviert.',
+            ]);
+        }
+
+        $themeId   = $theme->id;
+        $dateiName = $media->name;
+        $media->delete(); // physisches Löschen inkl. Datei
+
+        $protocol = new Protocol([
+            'theme_id'   => $themeId,
+            'creator_id' => auth()->id(),
+            'protocol'   => auth()->user()->name . ' hat die archivierte Datei „' . e($dateiName) . '" endgültig gelöscht.',
+        ]);
+        $protocol->save();
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Datei wurde endgültig gelöscht.',
         ]);
     }
 

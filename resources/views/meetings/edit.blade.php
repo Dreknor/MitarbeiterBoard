@@ -34,7 +34,7 @@
             </form>
 
             <div class="mt-4">
-                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#meetingTasksModal">
+                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#meetingTasksModal-{{ $meeting->id }}">
                     Aufgaben für dieses Meeting verwalten
                 </button>
             </div>
