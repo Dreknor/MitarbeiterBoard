@@ -163,7 +163,7 @@ class ThemeController extends Controller
             case 'date':
                 if ($group->stack_themes == true) {
 
-                    $themes = $themes->sortBy('date')->groupBy(function ($item) {
+                    $themes = $themes->sortByDesc('priority')->groupBy(function ($item) {
                         return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('d.m.Y');
                     });
 
@@ -180,7 +180,7 @@ class ThemeController extends Controller
                 });
                 break;
             case 'priority':
-                $themes = $themes->sortByDesc('priority');
+                $themes = $themes->sortBy('priority');
                 break;
         }
 
@@ -214,7 +214,7 @@ class ThemeController extends Controller
         $themes = $group->themes()->where('completed', 0)->where('memory', 1)->get();
         $themes->load('priorities', 'ersteller');
 
-        $themes = $themes->sortByDesc('priority');
+        $themes = $themes->sortBy('priority');
 
         return view('themes.memory', [
            'themes' => $themes,
@@ -673,14 +673,18 @@ class ThemeController extends Controller
      */
     public function archivedFiles()
     {
-        $userGroupIds = auth()->user()->groups()->pluck('groups.id');
+        // Hinweis: User::groups() liefert eine (gecachte) Collection, KEINE
+        // Relationship-Query. Daher muss hier pluck('id') verwendet werden –
+        // pluck('groups.id') würde auf der Collection null-Werte liefern und
+        // sämtliche archivierten Dateien fälschlich herausfiltern.
+        $userGroupIds = auth()->user()->groups()->pluck('id');
 
         $media = Media::query()
             ->where('model_type', (new Theme)->getMorphClass())
-            ->where('custom_properties->archiviert', true)
             ->with('model.group')
             ->orderByDesc('updated_at')
             ->get()
+            ->filter(fn ($m) => $m->getCustomProperty('archiviert'))
             // Nur Dateien aus Gruppen, in denen der Nutzer Mitglied ist
             ->filter(fn ($m) => $m->model && $userGroupIds->contains($m->model->group_id))
             ->map(function ($m) {

@@ -894,6 +894,10 @@ Route::group([
                     Route::post('paed-diary/entry/{entry}/unpause-day', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseEntryDay'])->name('paedDiary.entry.unpause');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyEntry'])->name('paedDiary.entry.destroy');
 
+                    // Tages-Pause für gesamte Klasse/Gruppe (Veranstaltungen, Ferienüberschreibung)
+                    Route::post('paed-diary/day/pause', [\App\Http\Controllers\PaedDiaryController::class, 'pauseClassDay'])->name('paedDiary.day.pause');
+                    Route::post('paed-diary/day/unpause', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseClassDay'])->name('paedDiary.day.unpause');
+
                     // Spalten-Verwaltung → PaedDiaryColumnController
                     Route::post('paed-diary/column', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumn'])->name('paedDiary.column.store');
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');

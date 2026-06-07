@@ -333,6 +333,79 @@ export function registerDiaryTable(Alpine) {
             }
         },
 
+        // ── Tages-Pause (Klassen-Ebene) ────────────────────────────
+
+        /**
+         * Gibt true zurück, wenn für diesen Tag eine manuelle Klassen-Tages-Pause existiert.
+         */
+        isDayPaused(date) {
+            const store = this.$store.diary;
+            const klassenIds = store.is_group
+                ? (store.klassen || []).map(k => k.id)
+                : [store.selectedKlasseId];
+            return (store.class_day_pauses || []).some(
+                p => p.date === date && klassenIds.includes(p.klasse_id)
+            );
+        },
+
+        /**
+         * Gibt den Grund der Tages-Pause zurück (z.B. 'Veranstaltung').
+         */
+        getDayPauseReason(date) {
+            const store = this.$store.diary;
+            const klassenIds = store.is_group
+                ? (store.klassen || []).map(k => k.id)
+                : [store.selectedKlasseId];
+            const pause = (store.class_day_pauses || []).find(
+                p => p.date === date && klassenIds.includes(p.klasse_id)
+            );
+            return pause ? (pause.reason || 'Veranstaltung') : null;
+        },
+
+        /**
+         * Tages-Pause für alle Schüler der Klasse/Gruppe togglen.
+         * Wenn nicht pausiert: Grund abfragen und pausieren.
+         * Wenn pausiert: Pause aufheben.
+         */
+        async toggleDayPause(date) {
+            const store = this.$store.diary;
+            const isPaused = this.isDayPaused(date);
+            const endpoint = isPaused ? '/paed-diary/day/unpause' : '/paed-diary/day/pause';
+
+            const body = { date };
+            if (store.selectedGroupId) {
+                body.group_id = store.selectedGroupId;
+            } else {
+                body.klasse_id = store.selectedKlasseId;
+            }
+
+            if (!isPaused) {
+                const reason = window.prompt('Grund der Tages-Pause (leer lassen für "Veranstaltung"):', 'Veranstaltung');
+                if (reason === null) return; // Abgebrochen
+                body.reason = reason.trim() || 'Veranstaltung';
+            }
+
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(body),
+                });
+                const j = await resp.json();
+                if (j.success) {
+                    store.loadWeek();
+                } else {
+                    alert(j.message || 'Fehler beim Ändern der Tages-Pause');
+                }
+            } catch (_) {
+                alert('Fehler beim Ändern der Tages-Pause');
+            }
+        },
+
         // ── Kategorie-Filter ───────────────────────────────────────
 
         toggleCategoryHeadings() {

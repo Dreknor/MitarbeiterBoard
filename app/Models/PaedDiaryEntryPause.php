@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaedDiaryEntryPause extends Model
 {
-    protected $fillable = ['paed_diary_entry_id','schueler_id','date'];
+    protected $fillable = ['paed_diary_entry_id','schueler_id','date','reason'];
     protected $casts = ['date'=>'date'];
 
     public function entry(){ return $this->belongsTo(PaedDiaryEntry::class,'paed_diary_entry_id'); }

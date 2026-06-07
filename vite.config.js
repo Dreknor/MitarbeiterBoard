@@ -37,6 +37,10 @@ export default defineConfig({
                 // Themenarchiv (Tailwind-Migration, ersetzt CDN)
                 'resources/css/themes-archive.css',
                 'resources/js/themes-archive.js',
+
+                // Themen-Modul (Tailwind-Migration)
+                'resources/css/themes.css',
+                'resources/js/themes.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -65,6 +69,9 @@ export default defineConfig({
                 'app/Http/Controllers/MeetingController.php',
                 // Themenarchiv (Tailwind-Migration)
                 'resources/views/themes/archive.blade.php',
+                // Themen-Modul (Tailwind-Migration)
+                'resources/views/themes/**/*.blade.php',
+                'app/Http/Controllers/ThemeController.php',
             ],
         }),
     ],

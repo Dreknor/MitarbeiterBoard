@@ -15,7 +15,9 @@ class TerminlistenComposer
             return;
         }
 
-        $groupIds = $user->groups()->pluck('groups.id');
+        // User::groups() liefert eine Collection (kein Query-Builder),
+        // daher pluck('id') statt pluck('groups.id') – sonst nur null-Werte.
+        $groupIds = $user->groups()->pluck('id');
 
         // Aktive Terminlisten in den Gruppen des Users, bei denen der User noch keinen Termin gewählt hat
         $listen = Liste::where('active', true)

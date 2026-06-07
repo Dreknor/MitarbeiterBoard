@@ -34,6 +34,7 @@ export function registerDiaryStore(Alpine) {
         can_manage_grading: false,
         show_column_categories: false,
         open_entries: [],
+        class_day_pauses: [],
 
         // ── UI-Toggles (komponentenübergreifend) ────────────────────
         showPaused: false,
@@ -147,6 +148,7 @@ export function registerDiaryStore(Alpine) {
                 this.can_manage_grading = data.can_manage_grading || false;
                 this.show_column_categories = data.show_column_categories || false;
                 this.open_entries = data.open_entries || [];
+                this.class_day_pauses = data.class_day_pauses || [];
 
                 // Termine separat nachladen
                 this.loadAppointments();

@@ -1,130 +1,86 @@
 @extends('layouts.app')
 
+@push('css')
+    @vite('resources/css/themes.css')
+@endpush
 
 @section('content')
-    <div class="container-fluid">
-        <div class="card">
-            <div class="card-header">
-                @include('themes.element.header')
-            </div>
-            @can('create themes')
-                <div class="card-body">
-                    <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-primary">neues Thema</a>
-                </div>
-            @endcan
+<div class="theme-wrapper">
+
+    <div class="thm-card thm-card-visible mb-6">
+        <div class="p-5">
+            @include('themes.element.header')
         </div>
-
-        @if (count($themes) == 0)
-            <div class="card">
-                <div class="card-body">
-                    <p>
-                        Es gibt keine offenen Themen
-                    </p>
-                </div>
+        @can('create themes')
+            <div class="px-5 pb-5">
+                <a href="{{ url(request()->segment(1).'/themes/create') }}" class="thm-btn thm-btn-primary w-full">
+                    <i class="fas fa-plus"></i> Neues Thema
+                </a>
             </div>
-        @else
-                    @foreach($themes as  $type=> $typeThemes)
-
-                        <div class="card" id="{{$type}}" >
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    {{$type}}
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive-sm table-responsive-md">
-                                    <table class="table">
-                                        <thead>
-                                        <tr>
-                                            <th>Von</th>
-                                            <th>Thema</th>
-                                            <th>Datum</th>
-                                            @if($group->hasAllocations)
-                                                <th>
-                                                    zugewiesen
-                                                </th>
-                                            @endif
-                                            <th>Priorität</th>
-                                            <th colspan="2">Informationen</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody class="connectedSortable" >
-                                        @foreach($typeThemes->sortByDesc('priority') as $theme)
-                                            <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif">
-                                                <td>
-                                                    {{$theme->ersteller->name}}
-                                                </td>
-                                                <td>
-                                                    {{$theme->theme}}
-                                                </td>
-
-                                                <td>
-                                                    {{$theme->date->format('d.m.Y')}}
-                                                </td>
-                                                @if($group->hasAllocations)
-                                                    <td>
-                                                        @if($theme->zugewiesen_an != null)
-                                                            <div class="badge bg-gradient-directional-amber p-2">
-                                                                {{$theme->zugewiesen_an?->name}}
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                @endif
-                                                <td id="priority_{{$theme->id}}">
-                                                    @if ($theme->priorities->where('creator_id', auth()->id())->first())
-                                                        <div class="progress">
-                                                            <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
-                                                        </div>
-                                                    @else
-                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}">
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">
-                                                        <i class="far fa-eye"></i> zeigen
-                                                    </a>
-                                                </td>
-                                                <td>
-                                                    <a href="{{url(request()->segment(1)."/protocols/$theme->id")}}">
-                                                        <i class="far fa-sticky-note"></i> Protokoll
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-        @endif
+        @endcan
     </div>
 
+    @if (count($themes) == 0)
+        <div class="thm-card p-8 text-center text-gray-500">
+            <i class="far fa-folder-open text-3xl text-gray-300 mb-3 block"></i>
+            Es gibt keine offenen Themen.
+        </div>
+    @else
+        <div class="space-y-5">
+            @foreach($themes as $type => $typeThemes)
+                <div class="thm-card" id="{{ $type }}">
+                    <div class="thm-band thm-band-slate">
+                        <h2 class="text-lg font-bold">{{ $type }}</h2>
+                    </div>
+                    <div class="p-4 overflow-x-auto">
+                        <table class="thm-table">
+                            <thead>
+                                <tr>
+                                    <th>Von</th>
+                                    <th>Thema</th>
+                                    <th class="hidden md:table-cell">Datum</th>
+                                    @if($group->hasAllocations)<th>Zugewiesen</th>@endif
+                                    <th class="hidden md:table-cell w-40">Priorität</th>
+                                    <th class="text-right">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($typeThemes->sortByDesc('priority') as $theme)
+                                    <tr id="{{ $theme->id }}" data-priority="{{ $theme->priority }}"
+                                        class="{{ $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ? 'thm-row-protokoll' : '' }} {{ $theme->zugewiesen_an?->id === auth()->id() ? 'thm-row-assigned' : '' }}">
+                                        <td class="text-sm text-gray-600">{{ $theme->ersteller->name }}</td>
+                                        <td class="font-semibold text-gray-900">{{ $theme->theme }}</td>
+                                        <td class="hidden md:table-cell text-sm text-gray-600 whitespace-nowrap">{{ $theme->date->format('d.m.Y') }}</td>
+                                        @if($group->hasAllocations)
+                                            <td>@if($theme->zugewiesen_an != null)<span class="thm-badge thm-badge-amber">{{ $theme->zugewiesen_an?->name }}</span>@endif</td>
+                                        @endif
+                                        <td id="priority_{{ $theme->id }}" class="hidden md:table-cell">
+                                            @if ($theme->priorities->where('creator_id', auth()->id())->first())
+                                                <div class="thm-progress"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                                            @else
+                                                <input type="range" id="theme_{{ $theme->id }}" min="1" max="100" value="0" data-theme="{{ $theme->id }}" title="Priorität festlegen">
+                                            @endif
+                                        </td>
+                                        <td class="text-right whitespace-nowrap">
+                                            <a href="{{ url(request()->segment(1).'/themes/'.$theme->id) }}" class="thm-btn thm-btn-secondary thm-btn-sm">
+                                                <i class="far fa-eye"></i> <span class="hidden sm:inline">zeigen</span>
+                                            </a>
+                                            <a href="{{ url(request()->segment(1).'/protocols/'.$theme->id) }}" class="thm-btn thm-btn-secondary thm-btn-sm hidden md:inline-flex">
+                                                <i class="far fa-sticky-note"></i> Protokoll
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+</div>
 @stop
 
 @push('js')
-    <script>
-        $('input[type=range]').on("change", function() {
-            let theme = $(this).data('theme');
-            let url = "{{url(request()->segment(1).'/themes')}}";
-            $.ajax({
-                    type: "POST",
-                    url: '{{url('priorities')}}',
-                    data: {
-                        "priority": $(this).val(),
-                        'theme': theme,
-                        "_token": "{{ csrf_token() }}",
-                    },
-                success: function(responseText){
-                    window.location.replace(url);
-                }
-            });
-        });
-
-
-    </script>
-@endpush
-
-@push('css')
-
+    @vite('resources/js/themes.js')
 @endpush

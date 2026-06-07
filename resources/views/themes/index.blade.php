@@ -1,277 +1,156 @@
 @extends('layouts.app')
 
+@push('css')
+    @vite('resources/css/themes.css')
+@endpush
 
 @section('content')
-    <div class="container-fluid">
-        <div class="sticky-top">
-            <div class="card ">
-                <div class="card-header">
-                    @include('themes.element.header')
-                </div>
-                @can('create themes')
-                    <div class="card-body">
-                        <a href="{{url(request()->segment(1).'/themes/create')}}" class="btn btn-block btn-bg-gradient-x-blue-cyan">neues Thema</a>
-                    </div>
-                @endcan
-            </div>
+<div class="theme-wrapper">
+
+    {{-- Kopf --}}
+    <div class="thm-card thm-card-visible mb-6">
+        <div class="p-5">
+            @include('themes.element.header')
         </div>
-
-
-        @if (count($themes) == 0)
-            <div class="card">
-                <div class="card-body">
-                    <p>
-                        Es gibt keine offenen Themen
-                    </p>
-                </div>
+        @can('create themes')
+            <div class="px-5 pb-5">
+                <a href="{{ url(request()->segment(1).'/themes/create') }}" class="thm-btn thm-btn-primary w-full">
+                    <i class="fas fa-plus"></i> Neues Thema
+                </a>
             </div>
-        @else
-            @foreach($themes as $day => $dayThemes)
-                        <div class="card mb-3" id="@if($day == "offen")offen @else{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}@endif">
-                            <div class="card-header bg-gradient-directional-blue-grey text-white">
-                                <div class="row">
-                                    <div class="col-sm-12 col-md-8">
-                                        <h5 class="card-title">
-                                            {{$day}}
-                                        </h5>
-
-                                        @if($day != 'offen')
-                                            <p class="small">
-                                                Dauer: {{$dayThemes->sum('duration')}} Minuten
-                                            </p>
-                                        @endif
-
-                                    </div>
-                                    <div class="col-sm-12 col-md-4 pull-right">
-                                        @can('move themes')
-                                            @if($day != 'offen')
-                                                <div class="pull-right">
-                                                    <a href="#" title="Alle Themen verschieben" class="changeDateLink" id="link_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}" data-date="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
-                                                        <i class="fa fa-calendar-day"></i>
-                                                    </a>
-                                                    <div class="d-none" id="form_{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}}">
-                                                        <form method="post" action="{{url(request()->segment(1).'/move/themes')}}" class="form-inline" >
-                                                            @csrf
-                                                            <input type="date" class="form-control" name="date" value="{{\Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')}}">
-                                                            <input type="hidden" class="form-control" name="oldDate" value="{{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d')}}">
-                                                            <button type="submit" class="btn btn-sm btn-success">verschieben</button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        @endcan
-                                    </div>
-                                </div>
-
-
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive-md">
-                                    <table class="table" id="{{$day}}_themes">
-                                        <thead class="thead-light">
-                                        <tr>
-                                            <th>Von</th>
-                                            <th>Thema</th>
-                                            <th class="d-none d-md-table-cell">Typ</th>
-                                            <th style="max-width: 30%;"  class="d-none d-md-table-cell">Ziel</th>
-                                            @if($group->hasAllocations)
-                                                <th>
-                                                    zugewiesen
-                                                </th>
-                                            @endif
-                                            <th class="d-none d-md-table-cell">Dauer</th>
-                                            <th class="d-none d-md-table-cell">Priorität</th>
-                                            <th >Informationen</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody class="connectedSortable" >
-                                        @if($day != 'offen')
-                                            <tr class="@if(isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() > 0 ) bg-gradient-directional-success @endif">
-                                            <td>
-                                                System
-                                            </td>
-                                            <td>
-                                                Anwesenheit
-                                            </td>
-                                            <td class="d-none d-md-table-cell">
-
-                                            </td>
-                                            <td class="d-none d-md-table-cell">
-
-                                            </td>
-                                            <td class="d-none d-md-table-cell">
-
-                                            </td>
-                                            <td class="d-none d-md-table-cell">
-
-                                            </td>
-                                            <td>
-                                                @if(\Carbon\Carbon::createFromFormat('d.m.Y', $day)->isSameDay(\Carbon\Carbon::now()) and isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() == null )
-                                                    <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
-                                                        <i class="far fa-edit"></i> erstellen
-                                                    </a>
-                                                @else
-                                                    <a href="{{url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'))}}">
-                                                        <i class="far fa-eye"></i> zeigen
-                                                    </a>
-                                                @endif
-
-                                            </td>
-                                        </tr>
-                                        @endif
-                                        @foreach($dayThemes->sortByDesc('priority') as $theme)
-                                            <tr id="{{$theme->id}}" class="@if($theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ) bg-gradient-striped-success @endif     @if($theme->zugewiesen_an?->id === auth()->id()) border-left-10 @endif" data-priority="{{$theme->priority}}">
-                                                <td class="align-content-center">
-                                                    @if($theme->ersteller->getMedia('profile')->count() != 0)<img src="{{$theme->ersteller->photo()}}" class="avatar-xs" title="{{$theme->ersteller->name}}">@endif <div class="@if($theme->ersteller->getMedia('profile')->count() > 0) d-none @else d-inline  @endif">{{$theme->ersteller->name}}</div>
-                                                </td>
-                                                <td>
-                                                    {{$theme->theme}}
-                                                </td>
-
-                                                <td  class="d-none d-md-table-cell">
-                                                    {{$theme->type->type}}
-                                                </td>
-                                                <td class="d-none d-md-table-cell">
-                                                    {{$theme->goal}}
-                                                </td>
-                                                @if($group->hasAllocations)
-                                                    <td>
-                                                        @if($theme->zugewiesen_an != null)
-                                                            <div class="badge bg-gradient-directional-amber p-2">
-                                                                {{$theme->zugewiesen_an?->name}}
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                @endif
-                                                <td class="d-none d-md-table-cell">
-                                                    {{$theme->duration}} Minuten
-                                                </td>
-                                                <td id="priority_{{$theme->id}}" class="d-none d-md-table-cell">
-                                                    @if ($theme->priorities->where('creator_id', auth()->id())->first())
-                                                        <div class="progress">
-                                                            <div class="progress-bar amount" role="progressbar" id="progress_{{$theme->id}}" style="width: {{100-$theme->priority}}%;" ></div>
-                                                        </div>
-                                                    @else
-                                                        <input type="range" class="custom-range" id="theme_{{$theme->id}}" min="1" max="100" value="0" data-theme = "{{$theme->id}}" data-date="@if($day != 'offen'){{\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')}} @endif" data-url="{{url('priorities')}}" data-token="{{ csrf_token() }}">
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <div class="container-fluid">
-                                                        <div class="row">
-                                                            <div class="col-auto">
-                                                                <a href="{{url(request()->segment(1)."/themes/$theme->id")}}">
-                                                                    <i class="far fa-eye"></i> zeigen
-                                                                </a>
-                                                            </div>
-                                                            <div class="col-auto d-none d-md-inline">
-                                                                <a href="{{url(request()->segment(1)."/protocols/$theme->id")}}" >
-                                                                    <i class="far fa-sticky-note"></i> Protokoll
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-        @endif
+        @endcan
     </div>
 
+    @if (count($themes) == 0)
+        <div class="thm-card p-8 text-center text-gray-500">
+            <i class="far fa-folder-open text-3xl text-gray-300 mb-3 block"></i>
+            Es gibt keine offenen Themen.
+        </div>
+    @else
+        <div class="space-y-5">
+            @foreach($themes as $day => $dayThemes)
+                @php $dayId = $day == 'offen' ? 'offen' : \Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'); @endphp
+                <div class="thm-card" id="{{ $dayId }}" x-data="{ moveOpen: false }">
+                    <div class="thm-band thm-band-blue">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-lg font-bold">{{ $day }}</h2>
+                                @if($day != 'offen')
+                                    <p class="text-sm text-white/80">Dauer: {{ $dayThemes->sum('duration') }} Minuten</p>
+                                @endif
+                            </div>
+                            @can('move themes')
+                                @if($day != 'offen')
+                                    <button type="button" class="thm-btn-icon bg-white/15 hover:bg-white/25 text-white"
+                                            title="Alle Themen verschieben" @click="moveOpen = !moveOpen">
+                                        <i class="fas fa-calendar-day"></i>
+                                    </button>
+                                @endif
+                            @endcan
+                        </div>
+                        @can('move themes')
+                            @if($day != 'offen')
+                                <div x-show="moveOpen" x-collapse x-cloak class="mt-3">
+                                    <form method="post" action="{{ url(request()->segment(1).'/move/themes') }}"
+                                          class="flex flex-wrap items-end gap-2 bg-white/10 rounded-xl p-3">
+                                        @csrf
+                                        <div>
+                                            <label class="block text-xs text-white/80 mb-1">Neues Datum</label>
+                                            <input type="date" class="thm-input !text-gray-900 w-auto" name="date"
+                                                   value="{{ \Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d') }}">
+                                        </div>
+                                        <input type="hidden" name="oldDate" value="{{ \Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d') }}">
+                                        <button type="submit" class="thm-btn thm-btn-success thm-btn-sm">
+                                            <i class="fas fa-arrow-right"></i> Verschieben
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+                        @endcan
+                    </div>
+
+                    <div class="p-3 sm:p-4">
+                        <div class="thm-theme-list divide-y divide-gray-100" data-theme-list>
+                            @if($day != 'offen')
+                                {{-- System-Eintrag: Anwesenheit --}}
+                                <div class="thm-theme-item {{ (isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() > 0) ? 'thm-row-protokoll' : '' }}">
+                                    <span class="thm-avatar bg-gray-100 text-gray-500"><i class="fas fa-users"></i></span>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="font-semibold text-gray-900">Anwesenheit</h3>
+                                        <p class="text-xs text-gray-400 mt-0.5">System</p>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0 sm:ml-auto">
+                                        <a href="{{ url(request()->segment(1).'/presence/'.\Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd')) }}"
+                                           class="thm-btn thm-btn-secondary thm-btn-sm">
+                                            @if(\Carbon\Carbon::createFromFormat('d.m.Y', $day)->isSameDay(\Carbon\Carbon::now()) and isset($anwesenheiten) and $anwesenheiten->where('date', \Carbon\Carbon::now())->count() == null)
+                                                <i class="far fa-edit"></i> erstellen
+                                            @else
+                                                <i class="far fa-eye"></i> zeigen
+                                            @endif
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @foreach($dayThemes->sortBy(fn($t) => $t->priority ?? PHP_INT_MAX) as $theme)
+                                <div id="{{ $theme->id }}" data-priority="{{ $theme->priority }}"
+                                     class="thm-theme-item {{ $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ? 'thm-row-protokoll' : '' }} {{ $theme->zugewiesen_an?->id === auth()->id() ? 'thm-row-assigned' : '' }}">
+                                    {{-- Ersteller-Avatar --}}
+                                    <span class="thm-avatar" title="{{ $theme->ersteller->name }}">
+                                        @if($theme->ersteller->getMedia('profile')->count() != 0)
+                                            <img src="{{ $theme->ersteller->photo() }}" alt="{{ $theme->ersteller->name }}">
+                                        @else
+                                            {{ \Illuminate\Support\Str::of($theme->ersteller->name)->explode(' ')->map(fn($p)=>\Illuminate\Support\Str::substr($p,0,1))->take(2)->implode('') }}
+                                        @endif
+                                    </span>
+
+                                    {{-- Hauptinhalt: Titel, Ziel, Meta --}}
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h6 class="text-sm font-semibold text-gray-900">{{ $theme->theme }}</h6>
+                                            <span class="thm-badge thm-badge-blue"><i class="fas fa-tag text-[10px]"></i> {{ $theme->type->type }}</span>
+                                            @if($group->hasAllocations and $theme->zugewiesen_an != null)
+                                                <span class="thm-badge thm-badge-amber"><i class="fas fa-user-check text-[10px]"></i> {{ $theme->zugewiesen_an?->name }}</span>
+                                            @endif
+                                        </div>
+                                        @if($theme->goal)
+                                            <p class="text-sm text-gray-500 mt-0.5 thm-clamp-2">{{ $theme->goal }}</p>
+                                        @endif
+                                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
+                                            <span>{{ $theme->ersteller->name }}</span>
+                                            <span><i class="far fa-clock"></i> {{ $theme->duration }} Min.</span>
+                                        </div>
+                                    </div>
+
+                                    {{-- Priorität --}}
+                                    <div id="priority_{{ $theme->id }}" class="w-full sm:w-40 shrink-0">
+                                        @if ($theme->priorities->where('creator_id', auth()->id())->first())
+                                            <div class="thm-progress"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                                        @else
+                                            <input type="range" id="theme_{{ $theme->id }}" min="1" max="100" value="0" data-theme="{{ $theme->id }}" title="Priorität festlegen">
+                                        @endif
+                                    </div>
+
+                                    {{-- Aktionen --}}
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <a href="{{ url(request()->segment(1).'/themes/'.$theme->id) }}" class="thm-btn thm-btn-secondary thm-btn-sm">
+                                            <i class="far fa-eye"></i> <span class="hidden sm:inline">zeigen</span>
+                                        </a>
+                                        <a href="{{ url(request()->segment(1).'/protocols/'.$theme->id) }}" class="thm-btn thm-btn-secondary thm-btn-sm">
+                                            <i class="far fa-sticky-note"></i> <span class="hidden sm:inline">Protokoll</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+</div>
 @stop
 
 @push('js')
-    <script>
-        $('input[type=range]').on("change", function() {
-            let theme = $(this).data('theme');
-
-            let url = "{{url(request()->segment(1).'/themes/' )}}"
-            $.ajax({
-                    type: "POST",
-                    url: '{{url('priorities')}}',
-                    data: {
-                        "priority": $(this).val(),
-                        'theme': theme,
-                        "_token": "{{ csrf_token() }}",
-                    },
-                success: function(responseText){
-                        let percent = 100 -responseText['priority']
-                        let element = document.getElementById('priority_'+theme)
-
-                        element.innerHTML = '<div class="progress">'+
-                            '<div class="progress-bar amount" role="progressbar" id="progress_'+theme+'" style="width: '+percent+'%;" ></div>'+
-                        '</div>'
-
-                        document.getElementById(theme).dataset.priority = responseText['priority']
-                        sortTable(responseText['day']+"_themes")
-                        document.getElementById(theme).scrollTo()
-                }
-            });
-        });
-
-        $('.changeDateLink').on('click', function (link){
-            let date;
-            date = $(this).data('date');
-            id  = '#form_' + date;
-
-            const form = $(id);
-
-            if ($(form).hasClass('d-none')){
-                $(form).removeClass('d-none');
-                this.text = 'ausblenden'
-            } else {
-                $(form).addClass('d-none');
-                this.innerHTML = '<i class="fa fa-calendar-day"></i>';
-            }
-
-
-        });
-
-        function sortTable(id ,) {
-            var table, rows, switching, i, x, y, shouldSwitch;
-            table = document.getElementById(id);
-            switching = true;
-            /* Make a loop that will continue until
-            no switching has been done: */
-            while (switching) {
-                // Start by saying: no switching is done:
-                switching = false;
-                rows = table.rows;
-                /* Loop through all table rows (except the
-                first, which contains table headers): */
-                for (i = 0; i < (rows.length - 1); i++) {
-                    // Start by saying there should be no switching:
-                    shouldSwitch = false;
-                    /* Get the two elements you want to compare,
-                    one from current row and one from the next: */
-                    x = rows[i];
-                    y = rows[i + 1];
-                    // Check if the two rows should switch place:
-                    if (((x.dataset.priority !== "") ? x.dataset.priority : 0) < ((y.dataset.priority !== "") ? y.dataset.priority : 0)) {
-                        // If so, mark as a switch and break the loop:
-                        console.log(x.dataset.priority + '<' + y.dataset.priority)
-                        shouldSwitch = true;
-                        break;
-                    }
-                }
-                if (shouldSwitch) {
-                    /* If a switch has been marked, make the switch
-                    and mark that a switch has been done: */
-                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                    switching = true;
-                }
-            }
-
-        }
-
-
-    </script>
-@endpush
-
-@push('css')
-
+    @vite('resources/js/themes.js')
 @endpush

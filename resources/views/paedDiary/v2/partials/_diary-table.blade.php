@@ -12,12 +12,24 @@
                     <th class="text-center"
                         :class="{
                             'today-header': day.date === $store.diary.todayStr,
-                            'ferien-header': day.is_ferien
+                            'ferien-header': day.is_ferien,
+                            'class-paused-header': isDayPaused(day.date) && !day.is_ferien
                         }"
-                        :title="day.ferien_name || ''"
+                        :title="day.is_ferien ? (day.ferien_name || 'Ferien') : (isDayPaused(day.date) ? ('Pausiert: ' + getDayPauseReason(day.date)) : '')"
                         :data-date="day.date">
                         <span x-text="day.label"></span>
                         <span x-show="day.is_ferien"> 🏖️</span>
+
+                        {{-- Tages-Pause-Button (nur an Nicht-Ferientagen) --}}
+                        <template x-if="!day.is_ferien">
+                            <button @click.stop="toggleDayPause(day.date)"
+                                    class="diary-btn day-pause-btn"
+                                    :class="isDayPaused(day.date) ? 'day-pause-btn--active' : 'day-pause-btn--idle'"
+                                    :title="isDayPaused(day.date) ? ('Tages-Pause aufheben (' + getDayPauseReason(day.date) + ')') : 'Alle Einträge dieses Tages pausieren'"
+                                    style="font-size:0.65rem; padding:1px 3px; display:block; margin:0 auto;">
+                                <span x-text="isDayPaused(day.date) ? '⏸ ' + getDayPauseReason(day.date) : '⏸'"></span>
+                            </button>
+                        </template>
 
                         {{-- Klassen-/Gruppentermine im Header --}}
                         <template x-for="apt in getHeaderAppointments(day.date)" :key="apt.id">
@@ -141,7 +153,8 @@
                                 'today-cell': day.date === $store.diary.todayStr,
                                 'ferien-cell': day.is_ferien,
                                 'absent-cell': $store.diary.isAbsent(stu.id, day.date),
-                                'stu-has-task-cell': hasTaskForStudent(stu.id)
+                                'stu-has-task-cell': hasTaskForStudent(stu.id),
+                                'class-paused-cell': isDayPaused(day.date) && !day.is_ferien
                             }"
                             :data-stu="stu.id"
                             :data-date="day.date">

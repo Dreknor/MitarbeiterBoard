@@ -77,9 +77,67 @@
     color: #fff;
     border: 2px solid #ff9800;
 }
-#diaryTable td.today-cell.ferien-cell {
-    background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
+#diaryTable td.today-cell.ferien-cell {    background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
     border: 2px solid #ff9800;
+}
+
+/* Manuelle Klassen-Tages-Pause (Veranstaltung o.ä.) */
+#diaryTable th.class-paused-header {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 2px solid #c084fc;
+    font-weight: bold;
+}
+#diaryTable td.class-paused-cell {
+    background: #faf5ff;
+    border: 2px solid #e9d5ff;
+}
+#diaryTable td.class-paused-cell:hover {
+    background: #f5eeff;
+}
+/* Kombination: Heute + Klassen-Pause */
+#diaryTable th.today-header.class-paused-header {
+    background: linear-gradient(135deg, #1976d2 0%, #f3e8ff 100%);
+    color: #fff;
+    border: 2px solid #c084fc;
+}
+#diaryTable td.today-cell.class-paused-cell {
+    background: linear-gradient(135deg, #e3f2fd 0%, #faf5ff 100%);
+    border: 2px solid #c084fc;
+}
+
+/* Tages-Pause-Button im Tabellenkopf */
+.day-pause-btn {
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 0.62rem;
+    padding: 1px 4px;
+    margin-top: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.2;
+}
+.day-pause-btn--idle {
+    color: #9ca3af;
+    background: transparent;
+    opacity: 0.5;
+}
+.day-pause-btn--idle:hover {
+    opacity: 1;
+    color: #6b21a8;
+    background: #f3e8ff;
+    border-color: #c084fc;
+}
+.day-pause-btn--active {
+    color: #6b21a8;
+    background: #f3e8ff;
+    border-color: #c084fc;
+    font-weight: bold;
+    opacity: 1;
+}
+.day-pause-btn--active:hover {
+    background: #e9d5ff;
+    border-color: #a855f7;
 }
 
 #diaryTable td .col-inputs-row {

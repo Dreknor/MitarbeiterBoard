@@ -12,6 +12,7 @@ use App\Models\PaedDiaryTask;
 use App\Models\PaedDiaryAppointment;
 use App\Models\Schueler;
 use App\Models\PaedDiaryClassGroup;
+use App\Models\PaedDiaryClassDayPause;
 use App\Models\PaedDiaryEntryPause;
 use App\Exports\PaedDiaryExport;
 use App\Exports\PaedDiarySchuelerExport;
@@ -270,29 +271,65 @@ class PaedDiaryController extends Controller
 
         // Auto-Pausierung: Offene Einträge während der Ferien pausieren
         if (!empty($ferienDates)) {
-            foreach ($entries as $entry) {
-                if (is_null($entry->completed_at)) {
-                    foreach ($entry->schueler as $schueler_item) {
-                        foreach ($ferienDates as $ferienDate) {
-                            // Prüfen ob bereits eine Pause existiert
-                            $existingPause = PaedDiaryEntryPause::where('paed_diary_entry_id', $entry->id)
-                                ->where('schueler_id', $schueler_item->id)
-                                ->where('date', $ferienDate)
-                                ->first();
-
-                            if (!$existingPause) {
-                                // Neue Pause für Ferien-Tag erstellen
-                                PaedDiaryEntryPause::create([
+            try {
+                // Prüfen ob reason-Spalte bereits existiert (Migration ggf. noch nicht gelaufen)
+                $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
+                foreach ($entries as $entry) {
+                    if (is_null($entry->completed_at)) {
+                        foreach ($entry->schueler as $schueler_item) {
+                            foreach ($ferienDates as $ferienDate) {
+                                $pauseData = [
                                     'paed_diary_entry_id' => $entry->id,
                                     'schueler_id' => $schueler_item->id,
                                     'date' => $ferienDate,
-                                    'reason' => 'Ferien'
-                                ]);
+                                ];
+                                $defaults = $reasonColumnExists ? ['reason' => 'Ferien'] : [];
+                                PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Ferien-Auto-Pause fehlgeschlagen: ' . $e->getMessage());
+            }
+        }
+
+        // ── Klassen-Tag-Pausen (manuelle Veranstaltungs-Pausen) laden und anwenden ──
+        $classDayPauseRecords = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('paed_diary_class_day_pauses')) {
+                $classDayPauseRecords = PaedDiaryClassDayPause::whereIn('klasse_id', $klassen->pluck('id'))
+                    ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
+                    ->get();
+
+                // Gruppiert nach klasse_id: [klasseId => [dateStr, ...]]
+                $classDayPauseDates = $classDayPauseRecords
+                    ->groupBy('klasse_id')
+                    ->map(fn($items) => $items->pluck('date')->map(fn($d) => $d->toDateString())->toArray());
+
+                if ($classDayPauseRecords->isNotEmpty()) {
+                    $reasonColumnExists2 = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
+                    foreach ($entries as $entry) {
+                        if (is_null($entry->completed_at)) {
+                            $pauseDates = $classDayPauseDates[$entry->klasse_id] ?? [];
+                            foreach ($entry->schueler as $schueler_item) {
+                                foreach ($pauseDates as $pauseDate) {
+                                    $pauseData = [
+                                        'paed_diary_entry_id' => $entry->id,
+                                        'schueler_id' => $schueler_item->id,
+                                        'date' => $pauseDate,
+                                    ];
+                                    $defaults = $reasonColumnExists2 ? ['reason' => 'Veranstaltung'] : [];
+                                    PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
+                                }
                             }
                         }
                     }
                 }
             }
+        } catch (\Throwable $e) {
+            Log::warning('Klassen-Tag-Pause-Anwendung fehlgeschlagen: ' . $e->getMessage());
+            $classDayPauseRecords = collect();
         }
 
         $entryData = $entries->map(fn($e) => [
@@ -396,6 +433,11 @@ class PaedDiaryController extends Controller
                 'id'          => $a->id,
                 'schueler_id' => $a->schueler_id,
                 'datum'       => $a->datum->toDateString(),
+            ]),
+            'class_day_pauses'       => $classDayPauseRecords->map(fn($p) => [
+                'klasse_id' => $p->klasse_id,
+                'date'      => $p->date->toDateString(),
+                'reason'    => $p->reason,
             ]),
         ]);
     }
@@ -1870,6 +1912,132 @@ class PaedDiaryController extends Controller
         }
         $this->forgetWeekCache($klasseId, $start);
         $this->forgetWeekCache($klasseId, $completedDate);
+    }
+
+    /**
+     * Pausiert alle offenen Einträge aller Schüler einer Klasse/Gruppe für einen Tag.
+     * Wird bei besonderen Veranstaltungen o.ä. eingesetzt.
+     *
+     * POST /paed-diary/day/pause
+     */
+    public function pauseClassDay(Request $request)
+    {
+        $data = $request->validate([
+            'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
+            'group_id'  => ['nullable', 'integer', 'exists:paed_diary_class_groups,id'],
+            'date'      => ['required', 'date'],
+            'reason'    => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if (!$request->filled('klasse_id') && !$request->filled('group_id')) {
+            return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
+        }
+
+        // Migration noch nicht gelaufen?
+        if (!\Illuminate\Support\Facades\Schema::hasTable('paed_diary_class_day_pauses')) {
+            return response()->json(['message' => 'Migration noch nicht ausgeführt. Bitte php artisan migrate aufrufen.'], 503);
+        }
+
+        $user    = Auth::user();
+        $dateStr = Carbon::parse($data['date'])->toDateString();
+        $reason  = trim($data['reason'] ?? '') ?: 'Veranstaltung';
+
+        $klassen = collect();
+        if ($request->filled('group_id')) {
+            $group   = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
+            $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
+            $klassen = $group->klassen->whereIn('id', $userKlassenIds)->values();
+        } else {
+            $klasse  = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
+            $klassen = collect([$klasse]);
+        }
+
+        $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
+
+        $created = [];
+        foreach ($klassen as $klasse) {
+            // Klassen-Tag-Pause anlegen (idempotent)
+            PaedDiaryClassDayPause::firstOrCreate(
+                ['klasse_id' => $klasse->id, 'date' => $dateStr],
+                ['reason' => $reason, 'paused_by' => $user->id]
+            );
+
+            // Alle offenen Einträge dieser Klasse bis einschl. dieses Tages pausieren
+            $openEntries = PaedDiaryEntry::where('klasse_id', $klasse->id)
+                ->whereNull('completed_at')
+                ->whereDate('datum', '<=', $dateStr)
+                ->with('schueler:id')
+                ->get();
+
+            foreach ($openEntries as $entry) {
+                foreach ($entry->schueler as $stu) {
+                    $pauseData = ['paed_diary_entry_id' => $entry->id, 'schueler_id' => $stu->id, 'date' => $dateStr];
+                    $defaults  = $reasonColumnExists ? ['reason' => $reason] : [];
+                    PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
+                }
+            }
+
+            $created[] = ['klasse_id' => $klasse->id, 'date' => $dateStr, 'reason' => $reason];
+            $this->forgetWeekCache($klasse->id, Carbon::parse($dateStr));
+        }
+
+        return response()->json(['success' => true, 'class_day_pauses' => $created]);
+    }
+
+    /**
+     * Hebt die manuelle Tages-Pause einer Klasse/Gruppe für einen Tag auf.
+     * Entfernt nur Pausen mit reason = 'Veranstaltung' (nicht Ferien- oder individuelle Pausen).
+     *
+     * POST /paed-diary/day/unpause
+     */
+    public function unpauseClassDay(Request $request)
+    {
+        $data = $request->validate([
+            'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
+            'group_id'  => ['nullable', 'integer', 'exists:paed_diary_class_groups,id'],
+            'date'      => ['required', 'date'],
+        ]);
+
+        if (!$request->filled('klasse_id') && !$request->filled('group_id')) {
+            return response()->json(['message' => 'klasse_id oder group_id erforderlich'], 422);
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable('paed_diary_class_day_pauses')) {
+            return response()->json(['success' => true]); // Tabelle existiert noch nicht – nichts zu tun
+        }
+
+        $user    = Auth::user();
+        $dateStr = Carbon::parse($data['date'])->toDateString();
+
+        $klassen = collect();
+        if ($request->filled('group_id')) {
+            $group   = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
+            $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
+            $klassen = $group->klassen->whereIn('id', $userKlassenIds)->values();
+        } else {
+            $klasse  = $user->paed_klassen()->where('klassen.id', $data['klasse_id'])->firstOrFail();
+            $klassen = collect([$klasse]);
+        }
+
+        $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
+
+        foreach ($klassen as $klasse) {
+            // Klassen-Tag-Pause löschen
+            PaedDiaryClassDayPause::where('klasse_id', $klasse->id)->where('date', $dateStr)->delete();
+
+            // Nur durch class-day-pause erzeugte Eintrags-Pausen entfernen
+            $entryIds = PaedDiaryEntry::where('klasse_id', $klasse->id)->pluck('id');
+            $query = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
+                ->where('date', $dateStr);
+            if ($reasonColumnExists) {
+                $query->where('reason', 'Veranstaltung');
+            }
+            $query->delete();
+
+            $this->forgetWeekCache($klasse->id, Carbon::parse($dateStr));
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /**

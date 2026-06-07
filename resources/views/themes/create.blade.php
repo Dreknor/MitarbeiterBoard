@@ -1,165 +1,115 @@
 @extends('layouts.app')
 
-@section('content')
-<div class="container-fluid">
-    <a href="{{url(request()->segment(1).'/themes')}}" class="btn btn-primary btn-link">zurück</a>
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title">
-                neues Thema
-            </h5>
-        </div>
-        <div class="card-body border-top">
-            <form method="post" class="form form-horizontal" action="{{url(request()->segment(1).'/themes')}}" id="createForm"  enctype="multipart/form-data">
-                @csrf
-                <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-4">
-                        <label for="theme">Thema</label>
-                        <input type="text" class="form-control" id="theme" name="theme" required autofocus value="{{old('theme')}}">
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="date">Datum der Besprechung*<a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Datum festlegen" data-content="Das Datum muss sollte {{$group->InvationDays}} Tage in der Zukunft liegen, da {{$group->InvationDays}} Tage vor einer Sitzung die Themen versandt werden. Dies ermöglicht die Vorbereitung auf Themen und der Priorisierung. Verpflichtend">?</a> </label>
-                        @if(\Carbon\Carbon::now()->next($group->weekday_name())->diffInDays(\Carbon\Carbon::now()) >= $group->InvationDays)
-                            <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->format('Y-m-d')}}">
-                        @else
-                            <input type="date" class="form-control" id="date" name="date" required  value="{{old('date', \Carbon\Carbon::now()->next($group->weekday_name())->addWeek()->format('Y-m-d'))}}" min="{{\Carbon\Carbon::now()->format('Y-m-d')}}">
-                        @endif
+@push('css')
+    @vite('resources/css/themes.css')
+@endpush
 
+@section('content')
+<div class="theme-wrapper">
+    <div class="mb-4">
+        <a href="{{ url(request()->segment(1).'/themes') }}" class="thm-btn thm-btn-secondary">
+            <i class="fas fa-arrow-left"></i> Zurück
+        </a>
+    </div>
+
+    <div class="thm-card">
+        <div class="thm-band thm-band-blue">
+            <h1 class="thm-page-title text-xl font-bold"><i class="fas fa-plus mr-1"></i> Neues Thema</h1>
+        </div>
+
+        <form method="post" action="{{ url(request()->segment(1).'/themes') }}" id="createForm" enctype="multipart/form-data">
+            @csrf
+            <div class="p-5 sm:p-6 space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="lg:col-span-1">
+                        <label for="theme" class="thm-label">Thema <span class="thm-required">*</span></label>
+                        <input type="text" class="thm-input" id="theme" name="theme" required autofocus value="{{ old('theme') }}">
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-3">
-                        <label for="type">Typ</label>
-                        <select name="type" id="type" class="custom-select" required>
-                            <option disabled></option>
+                    <div>
+                        <label for="date" class="thm-label">Datum der Besprechung <span class="thm-required">*</span></label>
+                        @if(\Carbon\Carbon::now()->next($group->weekday_name())->diffInDays(\Carbon\Carbon::now()) >= $group->InvationDays)
+                            <input type="date" class="thm-input" id="date" name="date" required value="{{ old('date', \Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')) }}" min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
+                        @else
+                            <input type="date" class="thm-input" id="date" name="date" required value="{{ old('date', \Carbon\Carbon::now()->next($group->weekday_name())->addWeek()->format('Y-m-d')) }}" min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
+                        @endif
+                        <p class="thm-hint mt-1">Sollte mind. {{ $group->InvationDays }} Tage in der Zukunft liegen (Themenversand vor der Sitzung).</p>
+                    </div>
+                    <div>
+                        <label for="type" class="thm-label">Typ <span class="thm-required">*</span></label>
+                        <select name="type" id="type" class="thm-select" required>
+                            <option value="" disabled selected>-- wählen --</option>
                             @foreach($types as $type)
-                                <option value="{{$type->id}}" data-needsprotocol="{{$type->needsProtocol}}" @if (old('type') == $type->id) selected @endif>{{$type->type}}</option>
+                                <option value="{{ $type->id }}" data-needsprotocol="{{ $type->needsProtocol }}" @if(old('type') == $type->id) selected @endif>{{ $type->type }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-2">
-                        <label for="duration">Dauer <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Die Dauer wird in 5 Minuten Schritten angegeben. Sie kann {{config('config.themes.maxDuration')}} Minuten nicht überschreiten. Verpflichtend">?</a></label>
-                        <input type="number" class="form-control" id="duration" name="duration" required min="5" max="240" step="5" value="{{old('duration', config('.config.themes.maxDuration'))}}">
+                    <div>
+                        <label for="duration" class="thm-label">Dauer (Min.) <span class="thm-required">*</span></label>
+                        <input type="number" class="thm-input" id="duration" name="duration" required min="5" max="240" step="5" value="{{ old('duration', config('config.themes.maxDuration')) }}">
                     </div>
                 </div>
-                <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-7">
-                        <label for="goal">Ziel
-                            <b>
-                                <a href="#" class="font-weight-bold text-info" data-toggle="popover" title="Dauer schätzen" data-content="Das Ziel sollte spezifisch, messbar, akzeptiert, realistisch und terminiert sein. Verpflichtend">?</a>
-                            </b>
-                        </label>
-                        <input type="text" class="form-control" id="goal" name="goal" required value="{{old('goal')}}">
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <div class="lg:col-span-8">
+                        <label for="goal" class="thm-label">Ziel <span class="thm-required">*</span></label>
+                        <input type="text" class="thm-input" id="goal" name="goal" required value="{{ old('goal') }}">
+                        <p class="thm-hint mt-1">Spezifisch, messbar, akzeptiert, realistisch und terminiert.</p>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-2">
-                        <label for="type">Protokolle veränderbar</label>
-                        <select name="change_protokoll" id="change_protokoll" class="custom-select">
+                    <div class="lg:col-span-2">
+                        <label for="change_protokoll" class="thm-label">Protokolle veränderbar</label>
+                        <select name="change_protokoll" id="change_protokoll" class="thm-select">
                             <option value="0">nein</option>
                             <option value="1">ja</option>
                         </select>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-2">
-                        <label for="type">direkt in Themenspeicher?</label>
-                        <select name="memory" id="memory" class="custom-select">
+                    <div class="lg:col-span-2">
+                        <label for="memory" class="thm-label">In Themenspeicher?</label>
+                        <select name="memory" id="memory" class="thm-select">
                             <option value="0">nein</option>
                             <option value="1" @if($speicher) selected @endif>ja</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-12">
-                        <label for="information">Informationen</label>
-                        <textarea class="form-control" id="information" name="information">
-                            {{old('information', $group->information_template)}}
-                        </textarea>
-                    </div>
+
+                <div>
+                    <label for="information" class="thm-label">Informationen</label>
+                    <textarea class="thm-textarea" id="information" name="information">{{ old('information', $group->information_template) }}</textarea>
                 </div>
-                <div class="form-row pt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-12">
-                        <label for="information">zusätzliche Dateien</label>
-                        <input type="file"  name="files[]" id="customFile" multiple>
-                    </div>
+
+                <div>
+                    <label for="customFile" class="thm-label">Zusätzliche Dateien</label>
+                    <input type="file" name="files[]" id="customFile" multiple
+                           class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
                 </div>
-            </form>
-        </div>
-        <div class="card-footer">
-            <button type="submit" form="createForm" class="btn btn-success btn-block">speichern</button>
-        </div>
+            </div>
+
+            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50">
+                <button type="submit" class="thm-btn thm-btn-success w-full">
+                    <i class="fas fa-save"></i> Speichern
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 @stop
 
-
-@push('css')
-
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css" />
-
-@endpush
-
-
 @push('js')
-    <script>
-        $(function () {
-            $('[data-toggle="popover"]').popover()
-        })
-    </script>
-
-    <script src="{{asset('js/plugins/tinymce/jquery.tinymce.min.js')}}"></script>
-    <script src="{{asset('js/plugins/tinymce/tinymce.min.js')}}"></script>
-    <script src="{{asset('js/plugins/tinymce/langs/de.js')}}"></script>
+    <script src="{{ asset('js/plugins/tinymce/jquery.tinymce.min.js') }}"></script>
+    <script src="{{ asset('js/plugins/tinymce/tinymce.min.js') }}"></script>
+    <script src="{{ asset('js/plugins/tinymce/langs/de.js') }}"></script>
     <script>
         tinymce.init({
-            selector: 'textarea',
-            lang:'de',
+            selector: '#information',
+            lang: 'de',
             height: 400,
             menubar: true,
             plugins: [
                 'advlist autolink lists link charmap',
                 'searchreplace visualblocks code',
                 'insertdatetime table paste code wordcount',
-                'contextmenu',
             ],
-            toolbar: 'undo redo  | bold italic backcolor forecolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link ',
-            contextmenu: " link paste inserttable | cell row column deletetable",
-            table_default_attributes: {
-                border: '1'
-            }
+            toolbar: 'undo redo | bold italic backcolor forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link',
+            table_default_attributes: { border: '1' }
         });
     </script>
-@endpush
-
-
-@push('js')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/js/plugins/piexif.min.js" type="text/javascript"></script>
-
-
-
-    <!-- piexif.min.js is needed for auto orienting image files OR when restoring exif data in resized images and when you
-        wish to resize images before upload. This must be loaded before fileinput.min.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/js/plugins/piexif.min.js" type="text/javascript"></script>
-    <!-- sortable.min.js is only needed if you wish to sort / rearrange files in initial preview.
-        This must be loaded before fileinput.min.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/js/plugins/sortable.min.js" type="text/javascript"></script>
-    <!-- purify.min.js is only needed if you wish to purify HTML content in your preview for
-        HTML files. This must be loaded before fileinput.min.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/js/plugins/purify.min.js" type="text/javascript"></script>
-    <!-- popper.min.js below is needed if you use bootstrap 4.x (for popover and tooltips). You can also use the bootstrap js
-       3.3.x versions without popper.min.js. -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/js/fileinput.min.js"></script>
-    <!-- following theme script is needed to use the Font Awesome 5.x theme (`fas`) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-fileinput/5.0.1/themes/fas/theme.min.js"></script>
-
-    <script>
-        // initialize with defaults
-
-        $("#customFile").fileinput({
-            'showUpload':false,
-            'previewFileType': 'any',
-            maxFileSize: '{{config('app.maxFileSize', 100)}}',
-            'theme': "fas",
-        });
-    </script>
-
-
 @endpush
