@@ -4,6 +4,7 @@
  * Verantwortlich für:
  * - Termin-CRUD (Modal)
  * - Wiederkehrende Termine
+ * - Lösch-Dialog mit Optionen (Vorkommen-Scope + Schüler-Scope)
  */
 
 import { csrfToken, formatTime, trimText } from './utils.js';
@@ -23,8 +24,15 @@ export function registerAppointmentManager(Alpine) {
         formKlasseIds: [],
         formGroupIds: [],
         formSchuelerIds: [],
+        formUserId: null,
         appointmentSaving: false,
         appointmentFeedback: '',
+
+        // Lösch-Dialog
+        showingDeleteOptions: false,
+        deleteMode: 'all',          // 'only_this' | 'this_and_future' | 'all'
+        deleteSchuelerScope: 'all', // 'all' | 'specific'
+        deleteSchuelerIds: [],      // bei scope = 'specific': ausgewählte Schüler-IDs
 
         openCreateModal() {
             this.resetForm();
@@ -43,8 +51,8 @@ export function registerAppointmentManager(Alpine) {
             this.formRecurringType = apt.recurring_type || 'weekly';
             this.formRecurringInterval = apt.recurring_interval || 1;
             this.formRecurringEndDate = apt.recurring_end_date || '';
+            this.formUserId = apt.user_id || null;
 
-            // Klassen/Gruppen/Schüler-Checkboxen
             if (Array.isArray(apt.klassen)) {
                 this.formKlasseIds = apt.klassen.map(k => String(k.id));
             }
@@ -72,8 +80,66 @@ export function registerAppointmentManager(Alpine) {
             this.formKlasseIds = [];
             this.formGroupIds = [];
             this.formSchuelerIds = [];
+            this.formUserId = null;
             this.appointmentSaving = false;
             this.appointmentFeedback = '';
+            this.showingDeleteOptions = false;
+            this.deleteMode = 'all';
+            this.deleteSchuelerScope = 'all';
+            this.deleteSchuelerIds = [];
+        },
+
+        showDeleteDialog() {
+            if (!this.formId) return;
+            this.deleteMode = 'all';
+            this.deleteSchuelerScope = 'all';
+            this.deleteSchuelerIds = [...this.formSchuelerIds];
+            this.showingDeleteOptions = true;
+        },
+
+        cancelDelete() {
+            this.showingDeleteOptions = false;
+        },
+
+        async confirmDelete() {
+            if (!this.formId) return;
+
+            const body = new URLSearchParams();
+            body.append('_method', 'DELETE');
+            body.append('delete_mode', this.deleteMode);
+            if (this.formStartDate) body.append('occurrence_date', this.formStartDate);
+
+            if (this.deleteSchuelerScope === 'specific' && this.deleteSchuelerIds.length > 0) {
+                this.deleteSchuelerIds.forEach(id => body.append('schueler_ids[]', id));
+            }
+
+            try {
+                const resp = await fetch(`/paed-diary/appointments/${this.formId}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: body.toString(),
+                });
+                if (resp.status === 403) {
+                    this.appointmentFeedback = 'Keine Berechtigung zum Löschen dieses Termins.';
+                    this.showingDeleteOptions = false;
+                    return;
+                }
+                const j = await resp.json();
+                if (j.success) {
+                    $('#appointmentModal').modal('hide');
+                    this.$store.diary.loadAppointments();
+                } else {
+                    this.appointmentFeedback = j.message || 'Fehler beim Löschen';
+                    this.showingDeleteOptions = false;
+                }
+            } catch (_) {
+                this.appointmentFeedback = 'Netzwerkfehler beim Löschen';
+                this.showingDeleteOptions = false;
+            }
         },
 
         async saveAppointment() {
@@ -101,7 +167,6 @@ export function registerAppointmentManager(Alpine) {
                 : '/paed-diary/appointments';
             const method = this.formId ? 'PUT' : 'POST';
 
-            // FormData + PUT: Laravel erwartet POST + _method
             if (method === 'PUT') fd.append('_method', 'PUT');
 
             try {
@@ -124,23 +189,6 @@ export function registerAppointmentManager(Alpine) {
             }
         },
 
-        async deleteAppointment() {
-            if (!this.formId || !confirm('Termin wirklich löschen?')) return;
-
-            try {
-                const resp = await fetch(`/paed-diary/appointments/${this.formId}`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' }
-                });
-                const j = await resp.json();
-                if (j.success) {
-                    $('#appointmentModal').modal('hide');
-                    this.$store.diary.loadAppointments();
-                }
-            } catch (_) {
-                this.appointmentFeedback = 'Fehler beim Löschen';
-            }
-        },
 
         async togglePause() {
             if (!this.formId) return;

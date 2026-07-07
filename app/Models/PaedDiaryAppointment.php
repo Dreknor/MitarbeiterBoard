@@ -54,8 +54,14 @@ class PaedDiaryAppointment extends Model
         return $this->belongsToMany(Schueler::class, 'paed_diary_appointment_schueler');
     }
 
+    public function exceptions()
+    {
+        return $this->hasMany(PaedDiaryAppointmentException::class, 'appointment_id');
+    }
+
     /**
      * Berechnet alle Termine für einen Zeitraum unter Berücksichtigung von Wiederholungen
+     * und gesetzten Ausnahmen (übersprungene einzelne Vorkommen).
      */
     public function getOccurrencesInRange(Carbon $startDate, Carbon $endDate)
     {
@@ -73,6 +79,7 @@ class PaedDiaryAppointment extends Model
                     'end_time' => $this->end_time,
                     'is_recurring' => false,
                     'is_paused' => $this->is_paused,
+                    'user_id' => $this->user_id,
                 ];
             }
             return $occurrences;
@@ -83,22 +90,33 @@ class PaedDiaryAppointment extends Model
             return [];
         }
 
+        // Ausnahmedaten laden (bereits eager-loaded oder lazy-loaded)
+        $exceptionDates = $this->exceptions
+            ->pluck('exception_date')
+            ->map(fn ($d) => $d->toDateString())
+            ->flip()
+            ->toArray();
+
         $current = $this->start_date->copy();
         $maxDate = $this->recurring_end_date ?
             min($endDate, $this->recurring_end_date) : $endDate;
 
         while ($current->lte($maxDate)) {
-            if ($current->between($startDate, $endDate)) {
-                $occurrences[] = [
-                    'id' => $this->id,
-                    'title' => $this->title,
-                    'description' => $this->description,
-                    'date' => $current->toDateString(),
-                    'start_time' => $this->start_time,
-                    'end_time' => $this->end_time,
-                    'is_recurring' => true,
-                    'is_paused' => false,
-                ];
+            // Ausnahme überspringen
+            if (!isset($exceptionDates[$current->toDateString()])) {
+                if ($current->between($startDate, $endDate)) {
+                    $occurrences[] = [
+                        'id' => $this->id,
+                        'title' => $this->title,
+                        'description' => $this->description,
+                        'date' => $current->toDateString(),
+                        'start_time' => $this->start_time,
+                        'end_time' => $this->end_time,
+                        'is_recurring' => true,
+                        'is_paused' => false,
+                        'user_id' => $this->user_id,
+                    ];
+                }
             }
 
             // Nächsten Termin berechnen

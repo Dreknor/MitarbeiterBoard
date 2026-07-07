@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Traits\PaedDiaryHelperTrait;
 use App\Models\PaedDiaryAppointment;
+use App\Models\PaedDiaryAppointmentException;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\Schueler;
 use Carbon\Carbon;
@@ -42,7 +43,12 @@ class PaedDiaryAppointmentController extends Controller
         $start = Carbon::parse($data['start_date'])->startOfDay();
         $end   = Carbon::parse($data['end_date'])->endOfDay();
 
-        $appointments = PaedDiaryAppointment::with(['klassen:id,name', 'groups:id,name', 'schueler:id,vorname,nachname,klasse_id'])
+        $appointments = PaedDiaryAppointment::with([
+            'klassen:id,name',
+            'groups:id,name',
+            'schueler:id,vorname,nachname,klasse_id',
+            'exceptions',
+        ])
             ->where(function ($q) use ($classIds, $groupId) {
                 $q->whereHas('klassen', fn ($qq) => $qq->whereIn('klassen.id', $classIds))
                   ->orWhereHas('schueler', fn ($qq) => $qq->whereIn('schueler.klasse_id', $classIds));
@@ -112,7 +118,12 @@ class PaedDiaryAppointmentController extends Controller
     public function update(PaedDiaryAppointment $appointment, Request $request)
     {
         $user = Auth::user();
-        abort_unless($appointment->user_id === $user->id, 403);
+        $userClassIds = $user->paed_klassen()->pluck('klassen.id')->toArray();
+        $hasAccess = $appointment->user_id === $user->id
+            || $appointment->klassen()->whereIn('klassen.id', $userClassIds)->exists()
+            || $appointment->schueler()->whereIn('schueler.klasse_id', $userClassIds)->exists()
+            || $appointment->groups()->whereHas('klassen', fn ($q) => $q->whereIn('klassen.id', $userClassIds))->exists();
+        abort_unless($hasAccess, 403);
         $data = $request->validate([
             'title'              => ['required', 'string', 'max:150'],
             'description'        => ['nullable', 'string'],
@@ -142,21 +153,88 @@ class PaedDiaryAppointmentController extends Controller
     public function togglePause(PaedDiaryAppointment $appointment)
     {
         $user = Auth::user();
-        abort_unless($appointment->user_id === $user->id, 403);
+        $userClassIds = $user->paed_klassen()->pluck('klassen.id')->toArray();
+        $hasAccess = $appointment->user_id === $user->id
+            || $appointment->klassen()->whereIn('klassen.id', $userClassIds)->exists()
+            || $appointment->schueler()->whereIn('schueler.klasse_id', $userClassIds)->exists()
+            || $appointment->groups()->whereHas('klassen', fn ($q) => $q->whereIn('klassen.id', $userClassIds))->exists();
+        abort_unless($hasAccess, 403);
         if (!$appointment->is_recurring) return response()->json(['message' => 'Nur für wiederkehrende Termine'], 422);
         $appointment->is_paused = !$appointment->is_paused;
         $appointment->save();
         return response()->json(['success' => true, 'is_paused' => $appointment->is_paused]);
     }
 
-    public function destroy(PaedDiaryAppointment $appointment)
+    public function destroy(PaedDiaryAppointment $appointment, Request $request)
     {
         $user = Auth::user();
-        abort_unless($appointment->user_id === $user->id, 403);
+
+        // Zugriff: Ersteller ODER Nutzer mit Zugang zu mind. einer zugeordneten Klasse
+        $userClassIds = $user->paed_klassen()->pluck('klassen.id')->toArray();
+        $hasAccess = $appointment->user_id === $user->id
+            || $appointment->klassen()->whereIn('klassen.id', $userClassIds)->exists()
+            || $appointment->schueler()->whereIn('schueler.klasse_id', $userClassIds)->exists()
+            || $appointment->groups()->whereHas('klassen', fn ($q) => $q->whereIn('klassen.id', $userClassIds))->exists();
+
+        abort_unless($hasAccess, 403);
+
+        $deleteMode      = $request->input('delete_mode', 'all');   // 'only_this' | 'this_and_future' | 'all'
+        $occurrenceDate  = $request->input('occurrence_date');       // YYYY-MM-DD des angeklickten Vorkommens
+        $schuelerIds     = $request->input('schueler_ids', []);      // leer = alle
+
+        // --- Schüler-spezifisches Entfernen (nur aus individueller Zuordnung) ---
+        if (!empty($schuelerIds)) {
+            $appointment->schueler()->detach($schuelerIds);
+            // Wenn danach keine Zuordnungen mehr übrig sind → ganz löschen
+            if ($appointment->klassen()->count() === 0
+                && $appointment->groups()->count() === 0
+                && $appointment->schueler()->count() === 0) {
+                $appointment->exceptions()->delete();
+                $appointment->delete();
+            }
+            return response()->json(['success' => true]);
+        }
+
+        // --- Wiederkehrende Termine ---
+        if ($appointment->is_recurring && $occurrenceDate) {
+            $carbon = Carbon::parse($occurrenceDate);
+
+            if ($deleteMode === 'only_this') {
+                // Dieses einzelne Vorkommen als Ausnahme eintragen
+                PaedDiaryAppointmentException::firstOrCreate([
+                    'appointment_id' => $appointment->id,
+                    'exception_date' => $carbon->toDateString(),
+                ]);
+                return response()->json(['success' => true]);
+            }
+
+            if ($deleteMode === 'this_and_future') {
+                $dayBefore = $carbon->copy()->subDay()->toDateString();
+                if ($carbon->toDateString() <= $appointment->start_date->toDateString()) {
+                    // Erstes Vorkommen → gesamte Serie löschen
+                    $appointment->klassen()->detach();
+                    $appointment->groups()->detach();
+                    $appointment->schueler()->detach();
+                    $appointment->exceptions()->delete();
+                    $appointment->delete();
+                } else {
+                    // Serie bis zum Vortag kürzen; zukünftige Ausnahmen entfernen
+                    $appointment->update(['recurring_end_date' => $dayBefore]);
+                    $appointment->exceptions()
+                        ->where('exception_date', '>=', $carbon->toDateString())
+                        ->delete();
+                }
+                return response()->json(['success' => true]);
+            }
+        }
+
+        // --- Alle Termine / Einmaliger Termin ---
         $appointment->klassen()->detach();
         $appointment->groups()->detach();
         $appointment->schueler()->detach();
+        $appointment->exceptions()->delete();
         $appointment->delete();
+
         return response()->json(['success' => true]);
     }
 
