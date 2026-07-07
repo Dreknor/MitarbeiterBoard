@@ -1504,8 +1504,8 @@
     }
 
     function initializeGraduationCharts() {
-        // Letzte Session für Radar-Chart
-        const latestSession = gradingSessions[gradingSessions.length - 1];
+        // Neueste Session für Radar-Chart (Controller sortiert DESC nach completed_at → Index 0 ist die aktuellste)
+        const latestSession = gradingSessions[0];
 
         // Extrahiere alle einzigartigen Fragen aus allen Sessions
         const allQuestionsMap = new Map();
