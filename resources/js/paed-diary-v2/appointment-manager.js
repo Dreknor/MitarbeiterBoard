@@ -11,6 +11,17 @@ import { csrfToken, formatTime, trimText } from './utils.js';
 
 export function registerAppointmentManager(Alpine) {
     Alpine.data('appointmentManager', () => ({
+        // ...existing code...
+
+        init() {
+            // Bootstrap-Modal-Event: Formular bei jedem Schließen zurücksetzen
+            const modalEl = document.getElementById('appointmentModal');
+            if (modalEl) {
+                modalEl.addEventListener('hidden.bs.modal', () => {
+                    this.resetForm();
+                });
+            }
+        },
         formId: null,
         formTitle: '',
         formDescription: '',
@@ -25,6 +36,7 @@ export function registerAppointmentManager(Alpine) {
         formGroupIds: [],
         formSchuelerIds: [],
         formUserId: null,
+        formPauseEntries: false,
         appointmentSaving: false,
         appointmentFeedback: '',
 
@@ -52,6 +64,7 @@ export function registerAppointmentManager(Alpine) {
             this.formRecurringInterval = apt.recurring_interval || 1;
             this.formRecurringEndDate = apt.recurring_end_date || '';
             this.formUserId = apt.user_id || null;
+            this.formPauseEntries = !!apt.pause_entries;
 
             if (Array.isArray(apt.klassen)) {
                 this.formKlasseIds = apt.klassen.map(k => String(k.id));
@@ -81,6 +94,7 @@ export function registerAppointmentManager(Alpine) {
             this.formGroupIds = [];
             this.formSchuelerIds = [];
             this.formUserId = null;
+            this.formPauseEntries = false;
             this.appointmentSaving = false;
             this.appointmentFeedback = '';
             this.showingDeleteOptions = false;
@@ -153,6 +167,7 @@ export function registerAppointmentManager(Alpine) {
             if (this.formStartTime) fd.append('start_time', this.formStartTime);
             if (this.formEndTime) fd.append('end_time', this.formEndTime);
             fd.append('is_recurring', this.formIsRecurring ? '1' : '0');
+            fd.append('pause_entries', this.formPauseEntries ? '1' : '0');
             if (this.formIsRecurring) {
                 fd.append('recurring_type', this.formRecurringType);
                 fd.append('recurring_interval', this.formRecurringInterval);

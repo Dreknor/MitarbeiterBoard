@@ -186,6 +186,7 @@
                     </div>
 
                     <div x-show="formIsRecurring" x-cloak>
+                        {{-- ...recurring fields... --}}
                         <div class="form-row">
                             <div class="col-md-4 mb-2">
                                 <label class="small mb-1">Wiederholung</label>
@@ -204,6 +205,21 @@
                                 <input type="date" x-model="formRecurringEndDate" class="form-control form-control-sm">
                             </div>
                         </div>
+                    </div>
+
+                    {{-- Einträge pausieren --}}
+                    <div class="form-group mb-2 p-2 rounded"
+                         :class="formPauseEntries ? 'bg-warning-subtle border border-warning' : 'border border-transparent'">
+                        <div class="d-flex align-items-center" style="gap:6px;">
+                            <input type="checkbox" x-model="formPauseEntries" id="aptPauseEntriesV2" class="align-middle">
+                            <label for="aptPauseEntriesV2" class="small mb-0 align-middle font-weight-semibold">
+                                <i class="fas fa-pause-circle text-warning mr-1"></i>
+                                Offene Einträge am Termintag pausieren
+                            </label>
+                        </div>
+                        <p class="small text-muted mb-0 mt-1 ml-3" x-show="formPauseEntries" x-cloak>
+                            Alle offenen Einträge der betroffenen Schüler werden an jedem Vorkommen dieses Termins automatisch pausiert.
+                        </p>
                     </div>
 
                     {{-- Zuweisen an --}}

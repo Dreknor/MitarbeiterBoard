@@ -22,6 +22,7 @@ class PaedDiaryAppointment extends Model
         'recurring_interval',
         'recurring_end_date',
         'is_paused',
+        'pause_entries',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class PaedDiaryAppointment extends Model
         'is_recurring' => 'boolean',
         'is_paused' => 'boolean',
         'recurring_interval' => 'integer',
+        'pause_entries' => 'boolean',
     ];
 
     public function user()
@@ -150,5 +152,44 @@ class PaedDiaryAppointment extends Model
     public function scopeForUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Prüft, ob dieser Termin am angegebenen Datum ein Vorkommen hat.
+     * Berücksichtigt Ausnahmen (exceptions), Wiederholungsintervalle und Enddatum.
+     */
+    public function isOccurrenceOn(Carbon $date): bool
+    {
+        if ($this->is_paused) return false;
+
+        $dateStr = $date->toDateString();
+
+        // Ausnahmen prüfen (eager- oder lazy-loaded)
+        if ($this->relationLoaded('exceptions')) {
+            foreach ($this->exceptions as $exc) {
+                if ($exc->exception_date->toDateString() === $dateStr) return false;
+            }
+        }
+
+        if (!$this->is_recurring) {
+            return $this->start_date->toDateString() === $dateStr;
+        }
+
+        if ($date->lt($this->start_date)) return false;
+        if ($this->recurring_end_date && $date->gt($this->recurring_end_date)) return false;
+
+        $diff = (int) $this->start_date->copy()->startOfDay()->diffInDays($date->copy()->startOfDay());
+
+        return match ($this->recurring_type) {
+            'daily'   => $diff % $this->recurring_interval === 0,
+            'weekly'  => ($diff % (7 * $this->recurring_interval)) === 0,
+            'monthly' => (function () use ($date): bool {
+                $monthsDiff = ($date->year - $this->start_date->year) * 12
+                            + ($date->month - $this->start_date->month);
+                return $monthsDiff % $this->recurring_interval === 0
+                    && $date->day === $this->start_date->day;
+            })(),
+            default   => false,
+        };
     }
 }

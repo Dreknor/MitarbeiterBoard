@@ -649,6 +649,7 @@ class PaedDiaryController extends Controller
                     'dossier_only' => $isDossierOnly,
                 ]);
                 $entry->schueler()->sync($students->pluck('id')->all());
+                $this->autoPauseEntryForAppointments($entry, $students->pluck('id')->all(), $dateObj->toDateString());
                 $this->forgetWeekCache($klasseId, $dateObj);
                 $createdEntryIds[] = $entry->id;
             } catch (\Throwable $e) {
@@ -2543,5 +2544,68 @@ class PaedDiaryController extends Controller
         }
 
         return $slug;
+    }
+
+    /**
+     * Pausiert einen neu erstellten Eintrag automatisch für alle betroffenen Schüler,
+     * die an diesem Datum ein Termin mit pause_entries=true haben.
+     *
+     * @param PaedDiaryEntry $entry
+     * @param array          $schuelerIds
+     * @param string         $dateStr  YYYY-MM-DD
+     */
+    private function autoPauseEntryForAppointments(PaedDiaryEntry $entry, array $schuelerIds, string $dateStr): void
+    {
+        if (empty($schuelerIds)) return;
+
+        // Spalte existiert noch nicht → Migration ausstehend, Feature überspringen
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('paed_diary_appointments', 'pause_entries')) return;
+
+        $date = \Carbon\Carbon::parse($dateStr);
+
+        // Klassen-IDs der betroffenen Schüler ermitteln (für Klassen-basierte Termine)
+        $klasseIds = \App\Models\Schueler::whereIn('id', $schuelerIds)->pluck('klasse_id')->unique()->toArray();
+
+        // Alle potenziell relevanten Termine laden
+        $appointments = PaedDiaryAppointment::where('pause_entries', true)
+            ->where('is_paused', false)
+            ->where('start_date', '<=', $dateStr)
+            ->where(function ($q) use ($dateStr) {
+                $q->whereNull('recurring_end_date')
+                  ->orWhere('recurring_end_date', '>=', $dateStr);
+            })
+            ->where(function ($q) use ($schuelerIds, $klasseIds) {
+                $q->whereHas('klassen', fn ($qq) => $qq->whereIn('klassen.id', $klasseIds))
+                  ->orWhereHas('schueler', fn ($qq) => $qq->whereIn('schueler.id', $schuelerIds));
+            })
+            ->with(['klassen:id', 'schueler:id', 'exceptions'])
+            ->get()
+            ->filter(fn ($apt) => $apt->isOccurrenceOn($date));
+
+        if ($appointments->isEmpty()) return;
+
+        $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
+
+        foreach ($appointments as $apt) {
+            // Betroffene Schüler-IDs dieses Termins
+            $aptKlasseIds   = $apt->klassen->pluck('id')->toArray();
+            $aptSchuelerIds = $apt->schueler->pluck('id')->toArray();
+
+            foreach ($schuelerIds as $stuId) {
+                $stuKlasseId = \App\Models\Schueler::find($stuId)?->klasse_id;
+                $affected = in_array($stuKlasseId, $aptKlasseIds)
+                         || in_array($stuId, $aptSchuelerIds);
+
+                if (!$affected) continue;
+
+                $pauseData = [
+                    'paed_diary_entry_id' => $entry->id,
+                    'schueler_id'         => $stuId,
+                    'date'                => $dateStr,
+                ];
+                $defaults = $reasonColumnExists ? ['reason' => 'Termin'] : [];
+                PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
+            }
+        }
     }
 }
