@@ -894,6 +894,10 @@ Route::group([
                     Route::post('paed-diary/entry/{entry}/unpause-day', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseEntryDay'])->name('paedDiary.entry.unpause');
                     Route::delete('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'destroyEntry'])->name('paedDiary.entry.destroy');
 
+                    // Ziele ("Ziel an dem ich arbeiten möchte") mit Historie
+                    Route::post('paed-diary/schueler/{schueler}/goals', [\App\Http\Controllers\PaedDiaryController::class, 'storeGoal'])->name('paedDiary.goal.store');
+                    Route::put('paed-diary/goals/{goal}/achieve', [\App\Http\Controllers\PaedDiaryController::class, 'achieveGoal'])->name('paedDiary.goal.achieve');
+
                     // Tages-Pause für gesamte Klasse/Gruppe (Veranstaltungen, Ferienüberschreibung)
                     Route::post('paed-diary/day/pause', [\App\Http\Controllers\PaedDiaryController::class, 'pauseClassDay'])->name('paedDiary.day.pause');
                     Route::post('paed-diary/day/unpause', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseClassDay'])->name('paedDiary.day.unpause');
@@ -980,6 +984,7 @@ Route::group([
                         Route::get('session/{session}/teacher-assessment', [\App\Http\Controllers\GradingDocumentationController::class, 'showTeacherAssessment'])->name('teacherAssessment');
                         Route::post('student-answer', [\App\Http\Controllers\GradingDocumentationController::class, 'saveStudentAnswer'])->name('saveStudentAnswer');
                         Route::post('teacher-assessment', [\App\Http\Controllers\GradingDocumentationController::class, 'saveTeacherAssessment'])->name('saveTeacherAssessment');
+                        Route::post('coaching-note', [\App\Http\Controllers\GradingDocumentationController::class, 'saveCoachingNote'])->name('saveCoachingNote');
                         Route::post('session/{session}/complete', [\App\Http\Controllers\GradingDocumentationController::class, 'completeSession'])->name('completeSession');
                         Route::post('session/{session}/cancel', [\App\Http\Controllers\GradingDocumentationController::class, 'cancelSession'])->name('cancelSession');
                         Route::post('session/{session}/reopen', [\App\Http\Controllers\GradingDocumentationController::class, 'reopenSession'])->name('reopenSession');

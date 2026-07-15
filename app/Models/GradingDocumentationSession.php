@@ -61,6 +61,11 @@ class GradingDocumentationSession extends Model
         return $this->hasMany(GradingTeacherAssessment::class, 'session_id');
     }
 
+    public function coachingNotes()
+    {
+        return $this->hasMany(GradingCoachingNote::class, 'session_id');
+    }
+
     public function isCompleted()
     {
         return !is_null($this->completed_at);

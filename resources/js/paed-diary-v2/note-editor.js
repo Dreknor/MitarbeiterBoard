@@ -26,6 +26,51 @@ export function registerNoteEditor(Alpine) {
         formDossierOnly: false,
 
         /**
+         * Prüft, ob aktuell ALLE verfügbaren Schüler ausgewählt sind
+         * (über alle Klassen/Gruppen hinweg).
+         */
+        get isAllSelected() {
+            const all = (this.$store.diary.schueler || []).map(s => String(s.id));
+            return all.length > 0 && all.every(id => this.formSchuelerIds.includes(id));
+        },
+
+        /**
+         * Prüft, ob alle Schüler einer bestimmten Klasse ausgewählt sind.
+         */
+        isKlasseSelected(klasseId) {
+            const ids = (this.$store.diary.schueler || [])
+                .filter(s => s.klasse_id === klasseId)
+                .map(s => String(s.id));
+            return ids.length > 0 && ids.every(id => this.formSchuelerIds.includes(id));
+        },
+
+        /**
+         * Wählt alle verfügbaren Schüler aus/ab.
+         */
+        toggleAll(checked) {
+            const all = (this.$store.diary.schueler || []).map(s => String(s.id));
+            if (checked) {
+                this.formSchuelerIds = Array.from(new Set([...this.formSchuelerIds, ...all]));
+            } else {
+                this.formSchuelerIds = this.formSchuelerIds.filter(id => !all.includes(id));
+            }
+        },
+
+        /**
+         * Wählt alle Schüler einer Klasse aus/ab (Gruppen-Modus).
+         */
+        toggleKlasse(klasseId, checked) {
+            const ids = (this.$store.diary.schueler || [])
+                .filter(s => s.klasse_id === klasseId)
+                .map(s => String(s.id));
+            if (checked) {
+                this.formSchuelerIds = Array.from(new Set([...this.formSchuelerIds, ...ids]));
+            } else {
+                this.formSchuelerIds = this.formSchuelerIds.filter(id => !ids.includes(id));
+            }
+        },
+
+        /**
          * Editor öffnen für neuen Eintrag (optional mit Datum + Schüler).
          */
         openForNew(detail) {

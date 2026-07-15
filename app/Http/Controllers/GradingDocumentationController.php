@@ -6,6 +6,7 @@ use App\Models\GradingDocumentationSession;
 use App\Models\GradingQuestion;
 use App\Models\GradingStudentAnswer;
 use App\Models\GradingTeacherAssessment;
+use App\Models\GradingCoachingNote;
 use App\Models\GradingSystem;
 use App\Models\Klasse;
 use App\Models\Schueler;
@@ -194,7 +195,8 @@ class GradingDocumentationController extends Controller
                 $q->where('active', true)->orderBy('sort_order');
             },
             'studentAnswers',
-            'teacherAssessments'
+            'teacherAssessments',
+            'coachingNotes'
         ]);
 
         // Bei individueller Session nur den betroffenen Schüler laden
@@ -248,6 +250,35 @@ class GradingDocumentationController extends Controller
         );
 
         return response()->json(['assessment' => $assessment]);
+    }
+
+    /**
+     * Speichert das kurze Coaching-Protokoll für einen Schüler innerhalb einer Session
+     */
+    public function saveCoachingNote(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|exists:grading_documentation_sessions,id',
+            'schueler_id' => 'required|exists:schueler,id',
+            'note' => 'nullable|string|max:5000',
+        ]);
+
+        $session = GradingDocumentationSession::findOrFail($request->session_id);
+        $this->authorize('update', $session);
+
+        $note = GradingCoachingNote::updateOrCreate(
+            [
+                'session_id' => $request->session_id,
+                'schueler_id' => $request->schueler_id,
+            ],
+            [
+                'user_id' => Auth::id(),
+                'note' => $request->note,
+                'noted_at' => now(),
+            ]
+        );
+
+        return response()->json(['note' => $note]);
     }
 
     /**
@@ -386,6 +417,9 @@ class GradingDocumentationController extends Controller
                     $q->where('schueler_id', $schueler->id);
                 },
                 'teacherAssessments' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id);
+                },
+                'coachingNotes' => function($q) use ($schueler) {
                     $q->where('schueler_id', $schueler->id);
                 }
             ])

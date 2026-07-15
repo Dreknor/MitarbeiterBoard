@@ -66,4 +66,10 @@ class Schueler extends Model
     {
         return $this->hasMany(\App\Models\PaedDiarySchuelerAbsence::class);
     }
+
+    // Ziele ("Ziel an dem ich arbeiten möchte") im Pädagogischen Tagebuch – neueste zuerst
+    public function paedDiaryGoals()
+    {
+        return $this->hasMany(\App\Models\PaedDiaryGoal::class, 'schueler_id')->orderByDesc('created_at');
+    }
 }

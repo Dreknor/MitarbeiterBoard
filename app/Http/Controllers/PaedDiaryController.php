@@ -14,6 +14,7 @@ use App\Models\Schueler;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\PaedDiaryClassDayPause;
 use App\Models\PaedDiaryEntryPause;
+use App\Models\PaedDiaryGoal;
 use App\Exports\PaedDiaryExport;
 use App\Exports\PaedDiarySchuelerExport;
 use App\Exports\PaedDiaryWeekTableExport;
@@ -1311,6 +1312,9 @@ class PaedDiaryController extends Controller
                 },
                 'teacherAssessments' => function($q) use ($schueler) {
                     $q->where('schueler_id', $schueler->id);
+                },
+                'coachingNotes' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id);
                 }
             ])
             ->orderBy('completed_at', 'desc')
@@ -1459,6 +1463,22 @@ class PaedDiaryController extends Controller
 
             $categories = PaedDiaryCategory::all(['id', 'name']);
 
+            // Ziele ("Ziel an dem ich arbeiten möchte") inkl. Historie laden
+            $goals = PaedDiaryGoal::with(['user:id,name', 'achievedByUser:id,name'])
+                ->where('schueler_id', $schueler->id)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn($g) => [
+                    'id' => $g->id,
+                    'goal_text' => $g->goal_text,
+                    'created_at' => $g->created_at?->toDateTimeString(),
+                    'formatted_created_at' => $g->created_at?->format('d.m.Y H:i'),
+                    'user' => $g->user?->name,
+                    'achieved_at' => $g->achieved_at?->toDateTimeString(),
+                    'formatted_achieved_at' => $g->achieved_at?->format('d.m.Y H:i'),
+                    'achieved_by' => $g->achievedByUser?->name,
+                ]);
+
             return response()->json([
                 'entries' => $entries,
                 'current_stage' => $currentStage,
@@ -1470,7 +1490,8 @@ class PaedDiaryController extends Controller
                     'from' => $dateFrom->format('d.m.Y'),
                     'to' => $dateTo->format('d.m.Y')
                 ],
-                'categories' => $categories
+                'categories' => $categories,
+                'goals' => $goals
             ]);
 
         } catch (\Throwable $e) {
@@ -1478,6 +1499,76 @@ class PaedDiaryController extends Controller
             Log::error('schuelerData exception: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['message' => 'Interner Serverfehler'], 500);
         }
+    }
+
+    /**
+     * Erfasst ein neues Ziel ("Ziel an dem ich arbeiten möchte") für einen Schüler.
+     * Ältere Ziele bleiben als Historie erhalten (keine Update/Überschreibung).
+     *
+     * @param Schueler $schueler
+     * @param Request $request {goal_text}
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeGoal(Schueler $schueler, Request $request)
+    {
+        $validated = $request->validate([
+            'goal_text' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $user = Auth::user();
+        // Zugriff prüfen: Schüler muss in einer Klasse liegen, auf die der Nutzer Zugriff hat
+        $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
+
+        $goal = PaedDiaryGoal::create([
+            'schueler_id' => $schueler->id,
+            'user_id' => $user->id,
+            'goal_text' => trim($validated['goal_text']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'goal' => [
+                'id' => $goal->id,
+                'goal_text' => $goal->goal_text,
+                'created_at' => $goal->created_at?->toDateTimeString(),
+                'formatted_created_at' => $goal->created_at?->format('d.m.Y H:i'),
+                'user' => $user->name,
+                'achieved_at' => null,
+                'formatted_achieved_at' => null,
+                'achieved_by' => null,
+            ]
+        ]);
+    }
+
+    /**
+     * Markiert ein Ziel als erreicht (bzw. macht dies rückgängig).
+     *
+     * @param PaedDiaryGoal $goal
+     * @param Request $request {achieved: bool}
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function achieveGoal(PaedDiaryGoal $goal, Request $request)
+    {
+        $user = Auth::user();
+        $schueler = $goal->schueler;
+        $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
+
+        $achieved = $request->boolean('achieved', true);
+        if ($achieved) {
+            $goal->achieved_at = Carbon::now();
+            $goal->achieved_by = $user->id;
+        } else {
+            $goal->achieved_at = null;
+            $goal->achieved_by = null;
+        }
+        $goal->save();
+
+        return response()->json([
+            'success' => true,
+            'achieved_at' => $goal->achieved_at?->toDateTimeString(),
+            'formatted_achieved_at' => $goal->achieved_at?->format('d.m.Y H:i'),
+            'achieved_by' => $achieved ? $user->name : null,
+        ]);
     }
 
     /**

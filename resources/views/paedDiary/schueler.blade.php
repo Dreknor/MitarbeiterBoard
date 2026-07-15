@@ -462,6 +462,15 @@
                                                         <p class="text-gray-600 mb-3">
                                                             <strong>Lehrer:</strong> {{ $session->user->name }}
                                                         </p>
+                                                        @php
+                                                            $coachingNote = $session->coachingNotes->where('schueler_id', $schueler->id)->first();
+                                                        @endphp
+                                                        @if($coachingNote && $coachingNote->note)
+                                                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                                                <strong class="text-yellow-800"><i class="fas fa-clipboard"></i> Coaching-Protokoll:</strong>
+                                                                <div class="mt-1 text-gray-700" style="white-space: pre-line;">{{ $coachingNote->note }}</div>
+                                                            </div>
+                                                        @endif
                                                         <div class="overflow-x-auto">
                                                             <table class="min-w-full divide-y divide-gray-200 border border-gray-300">
                                                                 <thead class="bg-gray-50">
@@ -555,6 +564,45 @@
                                         @endforeach
                                     </div>
                                 @endif
+
+                                <!-- Ziel, an dem ich arbeiten möchte (mit Historie) – immer sichtbar in der Dokumentationsübersicht, unabhängig von Graduierungs-Sessions -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4 mt-4">
+                                    <div class="bg-purple-600 text-white px-4 py-3">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-bullseye"></i> Ziel, an dem ich arbeiten möchte
+                                        </h6>
+                                    </div>
+                                    <div class="p-4">
+                                        <div id="currentGoalBox" class="mb-4">
+                                            <div class="text-gray-400">Kein Ziel erfasst.</div>
+                                        </div>
+
+                                        <form id="goalForm" class="flex flex-col sm:flex-row gap-2 mb-4">
+                                            <textarea id="goalTextInput" rows="2" required
+                                                      class="flex-1 px-3 py-2 rounded border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                      placeholder="Neues Ziel formulieren…"></textarea>
+                                            <button type="submit"
+                                                    class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all duration-200 font-medium h-fit self-start">
+                                                <i class="fas fa-plus"></i> Ziel speichern
+                                            </button>
+                                        </form>
+
+                                        <h6 class="font-semibold text-gray-700 mb-2"><i class="fas fa-history"></i> Ziel-Historie</h6>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-gray-200" id="goalsTable">
+                                                <thead class="bg-gray-50">
+                                                    <tr>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ziel</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:140px">Erstellt von</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:160px">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="goalsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -906,6 +954,7 @@
 <script>
 (function(){
     const schuelerID = {{ $schueler->id }};
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 
     // DOM Elemente
     const dateFromInput = document.getElementById('dateFrom');
@@ -916,6 +965,12 @@
     const summarySection = document.getElementById('summarySection');
     const dataSection = document.getElementById('dataSection');
     const noDataMessage = document.getElementById('noDataMessage');
+
+    // Ziele
+    const goalForm = document.getElementById('goalForm');
+    const goalTextInput = document.getElementById('goalTextInput');
+    const currentGoalBox = document.getElementById('currentGoalBox');
+    const goalsTableBody = document.getElementById('goalsTableBody');
 
     // Neue Filter-Elemente
     const categoryFilter = document.getElementById('categoryFilter');
@@ -1129,6 +1184,7 @@
 
         renderStage(currentData.current_stage);
         renderHistory(currentData.stage_history || []);
+        renderGoals(currentData.goals || []);
 
         summarySection.classList.remove('hidden');
         dataSection.classList.remove('hidden');
@@ -1453,6 +1509,119 @@
                 <td class="text-center">${escapeHtml(changer)}</td>
             `;
             tbody.appendChild(tr);
+        });
+    }
+
+    // Render Ziele ("Ziel an dem ich arbeiten möchte") inkl. Historie
+    function renderGoals(goals) {
+        if (!currentGoalBox || !goalsTableBody) return;
+
+        if (!goals || goals.length === 0) {
+            currentGoalBox.innerHTML = '<div class="text-gray-400">Kein Ziel erfasst.</div>';
+            goalsTableBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500">Keine Ziele vorhanden</td></tr>`;
+            return;
+        }
+
+        // Sortierung neueste zuerst (Backend liefert bereits so, hier zur Sicherheit erneut)
+        const sorted = goals.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const current = sorted.find(g => !g.achieved_at) || sorted[0];
+
+        // Aktuelles Ziel oben anzeigen
+        const isAchieved = !!current.achieved_at;
+        currentGoalBox.innerHTML = `
+            <div class="flex items-start justify-between gap-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">Aktuelles Ziel (seit ${escapeHtml(current.formatted_created_at || '')})</div>
+                    <div class="text-gray-800" style="white-space: pre-line;">${escapeHtml(current.goal_text)}</div>
+                </div>
+                <button type="button" data-goal-id="${current.id}" data-achieved="${isAchieved ? '0' : '1'}"
+                        class="goal-achieve-btn shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${isAchieved ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}">
+                    <i class="fas ${isAchieved ? 'fa-rotate-left' : 'fa-check'}"></i>
+                    ${isAchieved ? 'Wieder öffnen' : 'Erreicht'}
+                </button>
+            </div>
+        `;
+
+        // Historie-Tabelle (alle Ziele)
+        goalsTableBody.innerHTML = '';
+        sorted.forEach(g => {
+            const tr = document.createElement('tr');
+            const status = g.achieved_at
+                ? `<span class="inline-flex items-center gap-1 text-green-700"><i class="fas fa-check-circle"></i> Erreicht am ${escapeHtml(g.formatted_achieved_at || '')}${g.achieved_by ? ' (' + escapeHtml(g.achieved_by) + ')' : ''}</span>`
+                : `<span class="text-gray-500">Offen</span>`;
+            tr.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(g.formatted_created_at || '')}</td>
+                <td class="px-4 py-3" style="white-space: pre-line;">${escapeHtml(g.goal_text)}</td>
+                <td class="px-4 py-3">${escapeHtml(g.user || '')}</td>
+                <td class="px-4 py-3">${status}</td>
+            `;
+            goalsTableBody.appendChild(tr);
+        });
+    }
+
+    // Neues Ziel speichern
+    if (goalForm) {
+        goalForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = (goalTextInput.value || '').trim();
+            if (!text) return;
+
+            fetch(`/paed-diary/schueler/${schuelerID}/goals`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ goal_text: text })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success) {
+                        goalTextInput.value = '';
+                        if (currentData) {
+                            currentData.goals = currentData.goals || [];
+                            currentData.goals.unshift(data.goal);
+                        }
+                        renderGoals(currentData ? currentData.goals : [data.goal]);
+                    } else {
+                        alert((data && data.message) || 'Fehler beim Speichern des Ziels.');
+                    }
+                })
+                .catch(() => alert('Fehler beim Speichern des Ziels.'));
+        });
+    }
+
+    // Ziel als erreicht markieren / wieder öffnen (Delegation auf currentGoalBox)
+    if (currentGoalBox) {
+        currentGoalBox.addEventListener('click', (e) => {
+            const btn = e.target.closest('.goal-achieve-btn');
+            if (!btn) return;
+            const goalId = btn.dataset.goalId;
+            const achieved = btn.dataset.achieved === '1';
+
+            fetch(`/paed-diary/goals/${goalId}/achieve`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ achieved })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success && currentData && currentData.goals) {
+                        const goal = currentData.goals.find(g => String(g.id) === String(goalId));
+                        if (goal) {
+                            goal.achieved_at = data.achieved_at;
+                            goal.formatted_achieved_at = data.formatted_achieved_at;
+                            goal.achieved_by = data.achieved_by;
+                        }
+                        renderGoals(currentData.goals);
+                    }
+                })
+                .catch(() => alert('Fehler beim Aktualisieren des Ziels.'));
         });
     }
 

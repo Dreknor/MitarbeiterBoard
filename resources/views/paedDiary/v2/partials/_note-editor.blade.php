@@ -33,13 +33,28 @@
                     <div class="col-md-10 mb-2">
                         <label class="small mb-1">Schüler</label>
                         <div class="border rounded p-2 bg-light" style="font-size:0.75rem;">
+                            {{-- Alle auswählen (Gruppe & Einzelklasse) --}}
+                            <div class="mb-1">
+                                <label class="custom-checkbox-wrapper" style="font-size:.7rem;font-weight:bold;">
+                                    <input type="checkbox" class="custom-checkbox-input"
+                                           :checked="isAllSelected" @change="toggleAll($event.target.checked)">
+                                    <span class="custom-checkbox-label">Alle auswählen</span>
+                                </label>
+                            </div>
                             {{-- Im Gruppenmodus nach Klasse gruppieren --}}
                             <template x-if="$store.diary.is_group">
                                 <div>
                                     <template x-for="klasse in $store.diary.klassen" :key="klasse.id">
                                         <div class="mb-1">
-                                            <div class="text-primary font-weight-bold small border-top pt-1 mt-1"
-                                                 x-text="klasse.name"></div>
+                                            <div class="d-flex align-items-center justify-content-between border-top pt-1 mt-1">
+                                                <span class="text-primary font-weight-bold small" x-text="klasse.name"></span>
+                                                <label class="custom-checkbox-wrapper mb-0" style="font-size:.65rem;">
+                                                    <input type="checkbox" class="custom-checkbox-input"
+                                                           :checked="isKlasseSelected(klasse.id)"
+                                                           @change="toggleKlasse(klasse.id, $event.target.checked)">
+                                                    <span class="custom-checkbox-label">Klasse auswählen</span>
+                                                </label>
+                                            </div>
                                             <template x-for="stu in $store.diary.schueler.filter(s => s.klasse_id === klasse.id)"
                                                       :key="stu.id">
                                                 <label class="custom-checkbox-wrapper" style="font-size:.65rem;">

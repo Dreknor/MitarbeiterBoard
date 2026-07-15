@@ -99,11 +99,16 @@
     const teacherAssessmentsData = @json($session->teacherAssessments->groupBy('schueler_id')->map(function($assessments) {
         return $assessments->keyBy('question_id');
     }));
+    const coachingNotesData = @json($session->coachingNotes->keyBy('schueler_id')->map(function($note) {
+        return $note->note;
+    }));
 
     // State
     let currentSchuelerIndex = 0;
     let teacherAssessments = teacherAssessmentsData || {};
+    let coachingNotes = coachingNotesData || {};
     let loading = false;
+    let noteLoading = false;
     let autoScrollEnabled = localStorage.getItem('teacherAssessment_autoScroll') !== 'false'; // Standard: An
 
     // Zeige Hinweis wenn Session fortgesetzt wird
@@ -171,6 +176,10 @@
         return teacherAssessments[schuelerId] &&
                teacherAssessments[schuelerId][questionId] &&
                teacherAssessments[schuelerId][questionId].comment || '';
+    }
+
+    function getCoachingNote(schuelerId) {
+        return coachingNotes[schuelerId] || '';
     }
 
     function isSchuelerComplete(schuelerId) {
@@ -359,6 +368,44 @@
         }
     }
 
+    async function saveCoachingNote(schuelerId, note) {
+        if (noteLoading) return;
+
+        noteLoading = true;
+
+        try {
+            const response = await fetch('/paed-diary/documentation/coaching-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    schueler_id: schuelerId,
+                    note: note
+                })
+            });
+
+            if (response.ok) {
+                coachingNotes[schuelerId] = note;
+                const status = document.getElementById('coachingNoteStatus');
+                if (status) {
+                    status.textContent = 'Gespeichert';
+                    status.classList.add('saved');
+                    setTimeout(() => status.classList.remove('saved'), 1500);
+                }
+            } else {
+                alert('Fehler beim Speichern des Coaching-Protokolls.');
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern des Coaching-Protokolls.');
+        } finally {
+            noteLoading = false;
+        }
+    }
+
     async function completeSession() {
         if (loading) return;
 
@@ -510,6 +557,25 @@
             </div>
         `;
         elements.tabContent.appendChild(studentHeader);
+
+        // Coaching-Protokoll (kurze Notiz je Schüler, unabhängig von den Fragen)
+        const coachingCard = document.createElement('div');
+        coachingCard.className = 'coaching-note-card mb-3';
+        coachingCard.innerHTML = `
+            <div class="section-label">
+                <i class="fas fa-clipboard"></i> Coaching-Protokoll
+                <span class="coaching-note-status" id="coachingNoteStatus"></span>
+            </div>
+            <textarea class="form-control coaching-note-input" id="coachingNoteInput" rows="3"
+                      placeholder="Kurze Notiz zum Coaching-Gespräch (optional)..."></textarea>
+        `;
+        elements.tabContent.appendChild(coachingCard);
+
+        const coachingNoteInput = coachingCard.querySelector('#coachingNoteInput');
+        if (coachingNoteInput) {
+            coachingNoteInput.value = getCoachingNote(currentSchueler.id);
+            coachingNoteInput.onblur = (e) => saveCoachingNote(currentSchueler.id, e.target.value);
+        }
 
         questions.forEach((question, qIndex) => {
             const card = document.createElement('div');
@@ -951,6 +1017,51 @@
     border-radius: 8px;
 }
 
+/* Coaching-Protokoll */
+.coaching-note-card {
+    background: #fff8e1;
+    border: 1px solid #ffe0a3;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.coaching-note-card .section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #8a6d00;
+    margin-bottom: 0.5rem;
+}
+
+.coaching-note-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--success);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.coaching-note-status.saved {
+    opacity: 1;
+}
+
+.coaching-note-input {
+    border-radius: 8px;
+    border: 2px solid #ffe0a3;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    resize: vertical;
+    background: white;
+}
+
+.coaching-note-input:focus {
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.15);
+}
+
 /* Fragen-Karten */
 .question-card {
     background: white;
@@ -1231,6 +1342,7 @@
     .question-card {
         margin-bottom: 1rem;
     }
+}
 
 </style>
 @endsection
