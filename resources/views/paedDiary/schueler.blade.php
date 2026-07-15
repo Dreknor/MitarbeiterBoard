@@ -122,50 +122,68 @@
                 <div class="text-gray-600 font-medium">Daten werden geladen...</div>
             </div>
 
-            <!-- Zusammenfassung - Moderne Statistik-Karten -->
-            <div id="summarySection" class="hidden">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
+            <!-- Zusammenfassung - Kompakte Statistik-Leiste -->
+            <div id="summarySection" class="hidden mb-4">
+                <div class="flex flex-wrap bg-white border border-gray-200 rounded-lg overflow-hidden">
                     <!-- Zeitraum -->
-                    <div class="flex items-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2.5 sm:p-3 border border-gray-200 shadow-sm">
-                        <div class="bg-gray-200 rounded-full p-1.5 sm:p-2 shrink-0">
-                            <i class="fas fa-calendar-alt text-gray-600 text-xs sm:text-sm"></i>
-                        </div>
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-calendar-alt text-gray-400 w-4 text-center"></i>
                         <div class="min-w-0">
-                            <h3 class="text-[11px] sm:text-xs font-medium text-gray-600 leading-tight truncate">Zeitraum</h3>
-                            <p class="text-sm sm:text-base font-bold text-gray-800 truncate" id="periodText"></p>
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Zeitraum</div>
+                            <div class="text-sm font-semibold text-gray-800 truncate" id="periodText"></div>
                         </div>
                     </div>
 
                     <!-- Einträge -->
-                    <div class="flex items-center gap-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-2.5 sm:p-3 shadow-md">
-                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
-                            <i class="fas fa-file-alt text-white text-xs sm:text-sm"></i>
-                        </div>
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[130px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-file-alt text-blue-500 w-4 text-center"></i>
                         <div class="min-w-0">
-                            <h3 class="text-[11px] sm:text-xs font-medium text-blue-100 leading-tight truncate">Einträge</h3>
-                            <p class="text-lg sm:text-xl font-bold text-white" id="entriesCount">0</p>
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Einträge</div>
+                            <div class="text-sm font-semibold text-gray-800" id="entriesCount">0</div>
                         </div>
                     </div>
 
-                    <!-- Aufgaben -->
-                    <div class="flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-2.5 sm:p-3 shadow-md">
-                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
-                            <i class="fas fa-tasks text-white text-xs sm:text-sm"></i>
-                        </div>
+                    <!-- Aufgaben (offen/gesamt) -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[170px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-tasks text-cyan-500 w-4 text-center"></i>
                         <div class="min-w-0">
-                            <h3 class="text-[11px] sm:text-xs font-medium text-cyan-100 leading-tight truncate">Aufgaben</h3>
-                            <p class="text-lg sm:text-xl font-bold text-white" id="tasksCount">0</p>
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Aufgaben (offen / gesamt)</div>
+                            <div class="text-sm font-semibold text-gray-800">
+                                <span id="tasksOpenCount">0</span> / <span id="tasksCount">0</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Tage mit Einträgen -->
-                    <div class="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-2.5 sm:p-3 shadow-md">
-                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
-                            <i class="fas fa-check-circle text-white text-xs sm:text-sm"></i>
-                        </div>
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[150px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-check-circle text-green-500 w-4 text-center"></i>
                         <div class="min-w-0">
-                            <h3 class="text-[11px] sm:text-xs font-medium text-green-100 leading-tight truncate">Tage m. Einträgen</h3>
-                            <p class="text-lg sm:text-xl font-bold text-white" id="daysWithEntriesCount">0</p>
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Tage mit Einträgen</div>
+                            <div class="text-sm font-semibold text-gray-800" id="daysWithEntriesCount">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Letzte Graduierung -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-award text-purple-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Letzte Graduierung</div>
+                            <div class="text-sm font-semibold text-gray-800 truncate">
+                                {{ $lastGraduationAt ? $lastGraduationAt->format('d.m.Y') : '–' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aktuelle Stufe seit -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px]">
+                        <i class="fas fa-medal text-amber-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">
+                                Stufe{{ $schueler->grading_stage ? ' „'.$schueler->grading_stage->name.'“' : '' }} seit
+                            </div>
+                            <div class="text-sm font-semibold text-gray-800 truncate">
+                                {{ $currentStageSince ? \Carbon\Carbon::parse($currentStageSince)->format('d.m.Y') : '–' }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1202,7 +1220,10 @@
         // Update summary counts based on filtered entries
         document.getElementById('periodText').textContent = `${currentData.period.from} - ${currentData.period.to}`;
         document.getElementById('entriesCount').textContent = filteredEntries.length;
-        document.getElementById('tasksCount').textContent = (currentData.tasks || []).length;
+
+        const allTasks = currentData.tasks || [];
+        document.getElementById('tasksCount').textContent = allTasks.length;
+        document.getElementById('tasksOpenCount').textContent = allTasks.filter(t => t.status === 'open').length;
 
         const uniqueDays = new Set();
         filteredEntries.forEach(e => {
@@ -1220,7 +1241,7 @@
 
         // Update Badges
         document.getElementById('entriesBadge').textContent = filteredEntries.length;
-        document.getElementById('tasksBadge').textContent = (currentData.tasks || []).length;
+        document.getElementById('tasksBadge').textContent = allTasks.length;
 
         // Determine active columns: if a column has an explicit `active` flag use it, otherwise treat as active
         const allColumns = (currentData.columns || []);

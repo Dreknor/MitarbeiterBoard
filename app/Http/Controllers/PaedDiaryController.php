@@ -1320,10 +1320,21 @@ class PaedDiaryController extends Controller
             ->orderBy('completed_at', 'desc')
             ->get();
 
+        // Letzte Graduierung (jüngste abgeschlossene Reflexions-Session)
+        $lastGraduationAt = $sessions->first()?->completed_at;
+
+        // Seit wann besteht die aktuelle Stufe? -> jüngster Historien-Eintrag, der zur aktuellen Stufe geführt hat
+        $currentStageSince = $schueler->grading_history()
+            ->where('grading_stage_id', $schueler->grading_stage_id)
+            ->orderByDesc('created_at')
+            ->value('created_at');
+
         return view('paedDiary.schueler', [
             'schueler' => $schueler,
             'klasse' => $klasse,
             'gradingSessions' => $sessions,
+            'lastGraduationAt' => $lastGraduationAt,
+            'currentStageSince' => $currentStageSince,
         ]);
     }
 
