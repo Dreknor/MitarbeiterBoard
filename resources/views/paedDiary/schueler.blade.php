@@ -49,7 +49,7 @@
             <!-- Zeitraum-Filter -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
                 <!-- Von Datum -->
-                <div class="lg:col-span-3">
+                <div class="lg:col-span-4">
                     <label for="dateFrom" class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Von:
                     </label>
@@ -60,7 +60,7 @@
                 </div>
 
                 <!-- Bis Datum -->
-                <div class="lg:col-span-3">
+                <div class="lg:col-span-4">
                     <label for="dateTo" class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Bis:
                     </label>
@@ -71,7 +71,7 @@
                 </div>
 
                 <!-- Daten laden Button -->
-                <div class="lg:col-span-3 flex items-end">
+                <div class="lg:col-span-4 flex items-end">
                     <button id="loadDataBtn"
                             class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md">
                         <i class="fas fa-sync-alt mr-2"></i>Daten laden
@@ -79,22 +79,35 @@
                 </div>
 
                 <!-- Schnell-Filter -->
-                <div class="lg:col-span-3 flex items-end">
-                    <div class="w-full flex gap-2">
+                <div class="lg:col-span-12">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-medium text-gray-700 mr-1 whitespace-nowrap">
+                            <i class="fas fa-bolt text-blue-500 mr-1"></i>Schnell-Filter:
+                        </span>
                         <button type="button"
-                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                                id="last7Days">
-                            7T
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="last1Week">
+                            1 Woche
                         </button>
                         <button type="button"
-                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                                id="last30Days">
-                            30T
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="last2Weeks">
+                            2 Wochen
                         </button>
                         <button type="button"
-                                class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                                id="last90Days">
-                            90T
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="currentHalfYear">
+                            Akt. Halbjahr
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="lastHalfYear">
+                            Letztes Halbjahr
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="currentSchoolYear">
+                            Akt. Schuljahr
                         </button>
                     </div>
                 </div>
@@ -111,49 +124,49 @@
 
             <!-- Zusammenfassung - Moderne Statistik-Karten -->
             <div id="summarySection" class="hidden">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
                     <!-- Zeitraum -->
-                    <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="bg-gray-200 rounded-full p-2">
-                                <i class="fas fa-calendar-alt text-gray-600"></i>
-                            </div>
+                    <div class="flex items-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2.5 sm:p-3 border border-gray-200 shadow-sm">
+                        <div class="bg-gray-200 rounded-full p-1.5 sm:p-2 shrink-0">
+                            <i class="fas fa-calendar-alt text-gray-600 text-xs sm:text-sm"></i>
                         </div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Zeitraum</h3>
-                        <p class="text-lg font-bold text-gray-800" id="periodText"></p>
+                        <div class="min-w-0">
+                            <h3 class="text-[11px] sm:text-xs font-medium text-gray-600 leading-tight truncate">Zeitraum</h3>
+                            <p class="text-sm sm:text-base font-bold text-gray-800 truncate" id="periodText"></p>
+                        </div>
                     </div>
 
                     <!-- Einträge -->
-                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
-                                <i class="fas fa-file-alt text-white"></i>
-                            </div>
+                    <div class="flex items-center gap-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-2.5 sm:p-3 shadow-md">
+                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
+                            <i class="fas fa-file-alt text-white text-xs sm:text-sm"></i>
                         </div>
-                        <h3 class="text-sm font-medium text-blue-100 mb-1">Einträge</h3>
-                        <p class="text-3xl font-bold text-white" id="entriesCount">0</p>
+                        <div class="min-w-0">
+                            <h3 class="text-[11px] sm:text-xs font-medium text-blue-100 leading-tight truncate">Einträge</h3>
+                            <p class="text-lg sm:text-xl font-bold text-white" id="entriesCount">0</p>
+                        </div>
                     </div>
 
                     <!-- Aufgaben -->
-                    <div class="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
-                                <i class="fas fa-tasks text-white"></i>
-                            </div>
+                    <div class="flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-2.5 sm:p-3 shadow-md">
+                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
+                            <i class="fas fa-tasks text-white text-xs sm:text-sm"></i>
                         </div>
-                        <h3 class="text-sm font-medium text-cyan-100 mb-1">Aufgaben</h3>
-                        <p class="text-3xl font-bold text-white" id="tasksCount">0</p>
+                        <div class="min-w-0">
+                            <h3 class="text-[11px] sm:text-xs font-medium text-cyan-100 leading-tight truncate">Aufgaben</h3>
+                            <p class="text-lg sm:text-xl font-bold text-white" id="tasksCount">0</p>
+                        </div>
                     </div>
 
                     <!-- Tage mit Einträgen -->
-                    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 shadow-md hover:shadow-lg transition-all hover:scale-105">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
-                                <i class="fas fa-check-circle text-white"></i>
-                            </div>
+                    <div class="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-2.5 sm:p-3 shadow-md">
+                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shrink-0">
+                            <i class="fas fa-check-circle text-white text-xs sm:text-sm"></i>
                         </div>
-                        <h3 class="text-sm font-medium text-green-100 mb-1">Tage mit Einträgen</h3>
-                        <p class="text-3xl font-bold text-white" id="daysWithEntriesCount">0</p>
+                        <div class="min-w-0">
+                            <h3 class="text-[11px] sm:text-xs font-medium text-green-100 leading-tight truncate">Tage m. Einträgen</h3>
+                            <p class="text-lg sm:text-xl font-bold text-white" id="daysWithEntriesCount">0</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -978,9 +991,11 @@
     const clearSearchBtn = document.getElementById('clearSearch');
 
     // Quick Date Buttons
-    const last7DaysBtn = document.getElementById('last7Days');
-    const last30DaysBtn = document.getElementById('last30Days');
-    const last90DaysBtn = document.getElementById('last90Days');
+    const last1WeekBtn = document.getElementById('last1Week');
+    const last2WeeksBtn = document.getElementById('last2Weeks');
+    const currentHalfYearBtn = document.getElementById('currentHalfYear');
+    const lastHalfYearBtn = document.getElementById('lastHalfYear');
+    const currentSchoolYearBtn = document.getElementById('currentSchoolYear');
 
     // Data Storage
     let currentData = null;
@@ -1019,6 +1034,58 @@
 
         dateFromInput.value = formatDate(fromDate);
         dateToInput.value = formatDate(today);
+    }
+
+    function setDateRangeByDates(from, to) {
+        dateFromInput.value = formatDate(from);
+        dateToInput.value = formatDate(to);
+    }
+
+    // ===== Schulhalbjahr / Schuljahr Berechnung =====
+    // Schuljahresbeginn ist der 1. August. 1. Halbjahr: 01.08. - 31.01., 2. Halbjahr: 01.02. - 31.07.
+    function getSchoolYearStart(date) {
+        const year = (date.getMonth() >= 7) ? date.getFullYear() : date.getFullYear() - 1;
+        return new Date(year, 7, 1); // 1. August
+    }
+
+    function getHalfYearRange(date) {
+        const schoolYearStart = getSchoolYearStart(date);
+        const firstHalfEnd = new Date(schoolYearStart.getFullYear() + 1, 0, 31); // 31. Januar
+
+        if (date <= firstHalfEnd) {
+            return { start: schoolYearStart, end: firstHalfEnd };
+        }
+
+        const secondHalfStart = new Date(schoolYearStart.getFullYear() + 1, 1, 1); // 1. Februar
+        const secondHalfEnd = new Date(schoolYearStart.getFullYear() + 1, 6, 31); // 31. Juli
+        return { start: secondHalfStart, end: secondHalfEnd };
+    }
+
+    function getPreviousHalfYearRange(date) {
+        const currentRange = getHalfYearRange(date);
+        const dayBefore = new Date(currentRange.start);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        return getHalfYearRange(dayBefore);
+    }
+
+    function setCurrentHalfYear() {
+        const today = new Date();
+        const range = getHalfYearRange(today);
+        // Enddatum nicht in die Zukunft legen
+        const end = range.end > today ? today : range.end;
+        setDateRangeByDates(range.start, end);
+    }
+
+    function setLastHalfYear() {
+        const today = new Date();
+        const range = getPreviousHalfYearRange(today);
+        setDateRangeByDates(range.start, range.end);
+    }
+
+    function setCurrentSchoolYear() {
+        const today = new Date();
+        const start = getSchoolYearStart(today);
+        setDateRangeByDates(start, today);
     }
 
     // Load Data
@@ -1651,18 +1718,28 @@
     loadDataBtn.addEventListener('click', loadData);
     exportWordBtn.addEventListener('click', exportWord);
 
-    last7DaysBtn.addEventListener('click', () => {
+    last1WeekBtn.addEventListener('click', () => {
         setDateRange(7);
         loadData();
     });
 
-    last30DaysBtn.addEventListener('click', () => {
-        setDateRange(30);
+    last2WeeksBtn.addEventListener('click', () => {
+        setDateRange(14);
         loadData();
     });
 
-    last90DaysBtn.addEventListener('click', () => {
-        setDateRange(90);
+    currentHalfYearBtn.addEventListener('click', () => {
+        setCurrentHalfYear();
+        loadData();
+    });
+
+    lastHalfYearBtn.addEventListener('click', () => {
+        setLastHalfYear();
+        loadData();
+    });
+
+    currentSchoolYearBtn.addEventListener('click', () => {
+        setCurrentSchoolYear();
         loadData();
     });
 
