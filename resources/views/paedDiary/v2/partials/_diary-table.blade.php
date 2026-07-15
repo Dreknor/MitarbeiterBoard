@@ -266,8 +266,18 @@
                                                                     x-text="col.name">
                                                             </button>
                                                         </template>
+                                                        {{-- Ampel-Button (3 Zustände: Ja/Nein/In Bearbeitung, durchklickbar) --}}
+                                                        <template x-if="col.type === 'ampel'">
+                                                            <button type="button"
+                                                                    class="btn btn-xs ampel-btn"
+                                                                    :class="ampelState(col.id, stu.id, day.date).cssClass"
+                                                                    @click.stop="toggleAmpelColumn(col.id, stu.id, day.date)"
+                                                                    :title="col.name + ': ' + ampelState(col.id, stu.id, day.date).label"
+                                                                    x-text="col.name">
+                                                            </button>
+                                                        </template>
                                                         {{-- Text-Input --}}
-                                                        <template x-if="col.type !== 'boolean'">
+                                                        <template x-if="col.type !== 'boolean' && col.type !== 'ampel'">
                                                             <input type="text" maxlength="255"
                                                                    class="form-control form-control-sm col-val-input"
                                                                    :value="getColumnValue(col.id, stu.id, day.date)"

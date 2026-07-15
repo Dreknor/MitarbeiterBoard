@@ -203,8 +203,26 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
                 }
             }
 
-            $row[$columnName] = $value;
+            $row[$columnName] = $this->formatColumnValue($column['type'] ?? 'text', $value);
         }
+    }
+
+    /**
+     * Formatiert einen Spaltenwert für die Excel-Ausgabe abhängig vom Spaltentyp.
+     */
+    protected function formatColumnValue(string $type, $value): string
+    {
+        if ($type === 'boolean') {
+            $isTrue = ($value === '1' || $value === 1 || $value === true || $value === 'true');
+            return $isTrue ? 'Ja' : 'Nein';
+        }
+        if ($type === 'ampel') {
+            if ($value === '1') return 'Ja';
+            if ($value === '2') return 'In Bearbeitung';
+            if ($value === '3') return 'Nein';
+            return 'Unbeantwortet';
+        }
+        return (string) $value;
     }
 
     public function headings(): array

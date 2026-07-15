@@ -23,7 +23,7 @@ class PaedDiaryColumnController extends Controller
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
             'group_id'  => ['nullable', 'integer', 'exists:paed_diary_class_groups,id'],
             'name'      => ['required', 'string', 'max:50'],
-            'type'      => ['nullable', 'in:text,boolean,number'],
+            'type'      => ['nullable', 'in:text,boolean,number,ampel'],
             'category'  => ['nullable', 'string', 'max:50'],
         ]);
         if (!$request->filled('klasse_id') && !$request->filled('group_id')) {

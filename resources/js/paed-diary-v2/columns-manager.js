@@ -101,6 +101,38 @@ export function registerColumnsManager(Alpine) {
         },
 
         /**
+         * Ampel-Button durchklicken (4 Zustände zyklisch):
+         * '' (grau/neutral, unbeantwortet) → '1' (grün/Ja) → '2' (gelb/In Bearbeitung) → '3' (rot/Nein) → '' …
+         */
+        async toggleAmpelColumn(colId, stuId, date) {
+            const current = this.getColumnValue(colId, stuId, date);
+            const order = ['', '1', '2', '3'];
+            const idx = order.indexOf(current);
+            const newVal = order[(idx + 1) % order.length];
+
+            // Optimistisches Update im Store
+            this._setColumnValueLocal(colId, stuId, date, newVal);
+
+            try {
+                await this.saveColumnValue(colId, stuId, date, newVal);
+            } catch (_) {
+                // Revert bei Fehler
+                this._setColumnValueLocal(colId, stuId, date, current);
+            }
+        },
+
+        /**
+         * Liefert Label + CSS-Klasse für den aktuellen Ampel-Zustand.
+         */
+        ampelState(colId, stuId, date) {
+            const value = this.getColumnValue(colId, stuId, date);
+            if (value === '1') return { label: 'Ja', cssClass: 'ampel-btn--ja' };
+            if (value === '2') return { label: 'In Bearbeitung', cssClass: 'ampel-btn--bearbeitung' };
+            if (value === '3') return { label: 'Nein', cssClass: 'ampel-btn--nein' };
+            return { label: 'Unbeantwortet', cssClass: 'ampel-btn--neutral' };
+        },
+
+        /**
          * Text-Input mit Debounce speichern.
          */
         debouncedSaveColumn(colId, stuId, date, value) {

@@ -47,6 +47,18 @@
 #diaryTable td.note-cell .col-inputs .bool-btn.btn-success:hover{background:#1f6f25;border-color:#155a1a;}
 /* Disabled-Zustand subtil */
 #diaryTable td.note-cell .col-inputs .bool-btn:disabled{opacity:.7;cursor:not-allowed;}
+
+/* Ampel-Buttons: 4 durchklickbare Zustände (neutral=grau / Ja=grün / In Bearbeitung=gelb / Nein=rot) */
+#diaryTable td.note-cell .col-inputs .ampel-btn{padding:1px 5px;font-size:0.60rem;line-height:1;border-radius:999px;border-width:1px;border-style:solid;transition:background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--neutral{background:#ffffff;border-color:#adb5bd;color:#495057;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--neutral:hover{background:#f1f3f5;border-color:#98a2ac;color:#343a40;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--ja{background:#2e7d32;border-color:#1b5e20;color:#fff;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--ja:hover{background:#1f6f25;border-color:#155a1a;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--bearbeitung{background:#f9c74f;border-color:#e0a800;color:#5a4400;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--bearbeitung:hover{background:#f0b429;border-color:#c99400;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--nein{background:#c62828;border-color:#8e1a1a;color:#fff;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--nein:hover{background:#b71c1c;border-color:#7f1717;}
+#diaryTable td.note-cell .col-inputs .ampel-btn:disabled{opacity:.7;cursor:not-allowed;}
 #diaryTable th.today-header {
     background: #1976d2;
     color: #fff;

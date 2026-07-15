@@ -68,6 +68,7 @@
                        placeholder="Neue Spaltengruppe (optional)">
                 <select x-model="newColumnType" class="form-control form-control-sm mr-1 mb-1">
                     <option value="boolean">Ja/Nein</option>
+                    <option value="ampel">Ampel (Ja/In Bearbeitung/Nein)</option>
                 </select>
                 <button type="submit" class="btn btn-sm btn-primary mb-1">Hinzufügen</button>
             </form>

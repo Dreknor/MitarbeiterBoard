@@ -1340,6 +1340,12 @@
         const trueCounts = {};
         sortedColumns.forEach(column => { trueCounts[column.id] = 0; });
 
+        // Prepare counts for ampel states per column (ja / bearbeitung / nein)
+        const ampelJaCounts = {};
+        const ampelBearbeitungCounts = {};
+        const ampelNeinCounts = {};
+        sortedColumns.forEach(column => { ampelJaCounts[column.id] = 0; ampelBearbeitungCounts[column.id] = 0; ampelNeinCounts[column.id] = 0; });
+
          // Group column values by date
          const valuesByDate = {};
          Object.keys(columnValues).forEach(date => {
@@ -1379,6 +1385,20 @@
                             '<span class="badge badge-secondary">Nein</span>';
                          if (isTrue) {
                             trueCounts[column.id] = (trueCounts[column.id] || 0) + 1;
+                         }
+                     } else if (column.type === 'ampel') {
+                         const v = value.value;
+                         if (v === '1') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#2e7d32;color:#fff;">Ja</span>';
+                             ampelJaCounts[column.id] = (ampelJaCounts[column.id] || 0) + 1;
+                         } else if (v === '2') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#f9c74f;color:#5a4400;">In Bearbeitung</span>';
+                             ampelBearbeitungCounts[column.id] = (ampelBearbeitungCounts[column.id] || 0) + 1;
+                         } else if (v === '3') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#c62828;color:#fff;">Nein</span>';
+                             ampelNeinCounts[column.id] = (ampelNeinCounts[column.id] || 0) + 1;
+                         } else {
+                             cell.innerHTML = '<span class="badge badge-light" style="border:1px solid #adb5bd;">Unbeantwortet</span>';
                          }
                      } else {
                          cell.textContent = value.value;
@@ -1420,6 +1440,8 @@
 
             if (column.type === 'boolean') {
                 ccell.textContent = String(trueCounts[column.id] || 0);
+            } else if (column.type === 'ampel') {
+                ccell.innerHTML = `Ja: ${ampelJaCounts[column.id] || 0} · In Bearbeitung: ${ampelBearbeitungCounts[column.id] || 0} · Nein: ${ampelNeinCounts[column.id] || 0}`;
             } else {
                 ccell.innerHTML = '<span class="text-muted">-</span>';
             }
