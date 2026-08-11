@@ -200,7 +200,7 @@
                     <span class="thm-section-title sm:w-32 shrink-0">Priorität</span>
                     <div class="flex-1 flex items-center gap-3" id="priority_{{ $theme->id }}">
                         @if ($theme->completed or $theme->priorities->where('creator_id', auth()->id())->first())
-                            <div class="thm-progress max-w-xs"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                            <div class="thm-progress max-w-xs"><span style="width: {{ $theme->priority }}%"></span></div>
                             <a href="{{ route('priorities.delete', [$theme->id]) }}" class="text-gray-400 hover:text-blue-600" title="Priorität ändern"><i class="fas fa-edit"></i></a>
                         @else
                             <input type="range" id="theme_{{ $theme->id }}" min="1" max="100" value="0" data-theme="{{ $theme->id }}" class="max-w-xs">

@@ -125,7 +125,7 @@
                                     {{-- Priorität --}}
                                     <div id="priority_{{ $theme->id }}" class="w-full sm:w-40 shrink-0">
                                         @if ($theme->priorities->where('creator_id', auth()->id())->first())
-                                            <div class="thm-progress"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                                            <div class="thm-progress"><span style="width: {{ $theme->priority }}%"></span></div>
                                         @else
                                             <input type="range" id="theme_{{ $theme->id }}" min="1" max="100" value="0" data-theme="{{ $theme->id }}" title="Priorität festlegen">
                                         @endif

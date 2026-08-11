@@ -19,7 +19,7 @@ function initThemeBoard() {
             url: '/priorities',
             data: { priority: $(this).val(), theme: themeId, _token: token },
             success(response) {
-                const percent = 100 - response.priority;
+                const percent = response.priority;
                 const cell = document.getElementById('priority_' + themeId);
                 if (cell) {
                     cell.innerHTML = '<div class="thm-progress"><span style="width:' + percent + '%"></span></div>';

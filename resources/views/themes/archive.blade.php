@@ -291,7 +291,7 @@
                                                 </div>
                                                 <div class="bg-gray-200 rounded-full h-2.5 overflow-hidden">
                                                     <div class="bg-gradient-to-r from-green-400 to-green-600 h-2.5 rounded-full transition-all duration-300"
-                                                         style="width: {{100-$theme->priority}}%"></div>
+                                                         style="width: {{ $theme->priority }}%"></div>
                                                 </div>
                                             </div>
 

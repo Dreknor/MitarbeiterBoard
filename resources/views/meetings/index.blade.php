@@ -120,7 +120,7 @@
                     "_token": "{{ csrf_token() }}",
                 },
                 success: function (responseText) {
-                    let percent = 100 - responseText['priority'];
+                    let percent = responseText['priority'];
                     let element = document.getElementById('priority_' + theme);
                     if (element) {
                         element.innerHTML = '<div class="mtg-progress"><span style="width:' + percent + '%"></span></div>';
