@@ -2,7 +2,7 @@
     $hatHeutigesProtokoll = $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0;
     $eigenePrio = $theme->priorities->where('creator_id', auth()->id())->first();
 @endphp
-<li class="mtg-theme-row {{ $hatHeutigesProtokoll ? 'is-done' : '' }}">
+<li id="{{ $theme->id }}" data-priority="{{ $theme->priority }}" class="mtg-theme-row {{ $hatHeutigesProtokoll ? 'is-done' : '' }}">
 
     {{-- Ersteller --}}
     <div class="flex items-center gap-2 sm:w-40 shrink-0">

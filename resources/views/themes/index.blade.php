@@ -92,7 +92,7 @@
                                 </div>
                             @endif
 
-                            @foreach($dayThemes->sortBy(fn($t) => $t->priority ?? PHP_INT_MAX) as $theme)
+                            @foreach($dayThemes->sortByDesc(fn($t) => $t->priority ?? -INF) as $theme)
                                 <div id="{{ $theme->id }}" data-priority="{{ $theme->priority }}"
                                      class="thm-theme-item {{ $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ? 'thm-row-protokoll' : '' }} {{ $theme->zugewiesen_an?->id === auth()->id() ? 'thm-row-assigned' : '' }}">
                                     {{-- Ersteller-Avatar --}}

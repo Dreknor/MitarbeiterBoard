@@ -125,12 +125,28 @@
                     if (element) {
                         element.innerHTML = '<div class="mtg-progress"><span style="width:' + percent + '%"></span></div>';
                     }
-                    if (typeof sortTable === 'function') {
-                        sortTable(responseText['day'] + "_themes");
+                    let row = document.getElementById(theme);
+                    if (row) {
+                        row.dataset.priority = responseText['priority'];
+                        let list = row.closest('ul');
+                        if (list) {
+                            sortThemesByPriority(list);
+                        }
                     }
                 }
             });
         });
+
+        // Höhere Priorität (weiter rechts) steht oben, unpriorisierte Themen ganz unten.
+        function sortThemesByPriority(list) {
+            const prio = (el) => {
+                const v = el.dataset.priority;
+                return v === undefined || v === '' ? -Infinity : Number(v);
+            };
+            const items = Array.from(list.children).filter((el) => el.dataset && el.dataset.priority !== undefined);
+            items.sort((a, b) => prio(b) - prio(a));
+            items.forEach((el) => list.appendChild(el));
+        }
 
     </script>
 @endpush
