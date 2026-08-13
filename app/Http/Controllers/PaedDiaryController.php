@@ -271,14 +271,23 @@ class PaedDiaryController extends Controller
         $entries = $currentWeekEntries->merge($previousOpenEntries);
 
         // Auto-Pausierung: Offene Einträge während der Ferien pausieren
+        // WICHTIG: Ein Eintrag darf NICHT rückwirkend für sein eigenes Start-Datum (oder
+        // frühere Tage) pausiert werden – sonst verschwindet ein gerade erst erstellter,
+        // offener Eintrag sofort wieder aus der Ansicht, obwohl er heute (ggf. innerhalb
+        // eines laut Kalender noch laufenden Ferienzeitraums) bewusst angelegt wurde.
+        // Die Auto-Pause greift daher nur für Ferientage NACH dem Start-Datum des Eintrags.
         if (!empty($ferienDates)) {
             try {
                 // Prüfen ob reason-Spalte bereits existiert (Migration ggf. noch nicht gelaufen)
                 $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
                 foreach ($entries as $entry) {
                     if (is_null($entry->completed_at)) {
+                        $entryStart = $entry->datum->copy()->startOfDay();
                         foreach ($entry->schueler as $schueler_item) {
                             foreach ($ferienDates as $ferienDate) {
+                                if (Carbon::parse($ferienDate)->lte($entryStart)) {
+                                    continue;
+                                }
                                 $pauseData = [
                                     'paed_diary_entry_id' => $entry->id,
                                     'schueler_id' => $schueler_item->id,
