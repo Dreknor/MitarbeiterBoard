@@ -92,7 +92,7 @@
                                 </div>
                             @endif
 
-                            @foreach($dayThemes->sortBy(fn($t) => $t->priority ?? PHP_INT_MAX) as $theme)
+                            @foreach($dayThemes->sortByDesc(fn($t) => $t->priority ?? -INF) as $theme)
                                 <div id="{{ $theme->id }}" data-priority="{{ $theme->priority }}"
                                      class="thm-theme-item {{ $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0 ? 'thm-row-protokoll' : '' }} {{ $theme->zugewiesen_an?->id === auth()->id() ? 'thm-row-assigned' : '' }}">
                                     {{-- Ersteller-Avatar --}}
@@ -125,7 +125,7 @@
                                     {{-- Priorität --}}
                                     <div id="priority_{{ $theme->id }}" class="w-full sm:w-40 shrink-0">
                                         @if ($theme->priorities->where('creator_id', auth()->id())->first())
-                                            <div class="thm-progress"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                                            <div class="thm-progress"><span style="width: {{ $theme->priority }}%"></span></div>
                                         @else
                                             <input type="range" id="theme_{{ $theme->id }}" min="1" max="100" value="0" data-theme="{{ $theme->id }}" title="Priorität festlegen">
                                         @endif

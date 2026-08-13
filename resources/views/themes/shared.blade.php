@@ -15,7 +15,7 @@
             <div class="lg:col-span-2 space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
                     <span class="thm-section-title sm:w-32 shrink-0">Priorität</span>
-                    <div class="thm-progress max-w-xs"><span style="width: {{ 100-$theme->priority }}%"></span></div>
+                    <div class="thm-progress max-w-xs"><span style="width: {{ $theme->priority }}%"></span></div>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-1 sm:gap-3">
                     <span class="thm-section-title sm:w-32 shrink-0">Von</span>

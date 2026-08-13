@@ -180,7 +180,7 @@ class ThemeController extends Controller
                 });
                 break;
             case 'priority':
-                $themes = $themes->sortBy('priority');
+                $themes = $themes->sortByDesc('priority');
                 break;
         }
 

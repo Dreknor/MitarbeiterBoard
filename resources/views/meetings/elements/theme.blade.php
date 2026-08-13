@@ -2,7 +2,7 @@
     $hatHeutigesProtokoll = $theme->protocols->where('created_at', '>', \Carbon\Carbon::now()->startOfDay())->count() > 0;
     $eigenePrio = $theme->priorities->where('creator_id', auth()->id())->first();
 @endphp
-<li class="mtg-theme-row {{ $hatHeutigesProtokoll ? 'is-done' : '' }}">
+<li id="{{ $theme->id }}" data-priority="{{ $theme->priority }}" class="mtg-theme-row {{ $hatHeutigesProtokoll ? 'is-done' : '' }}">
 
     {{-- Ersteller --}}
     <div class="flex items-center gap-2 sm:w-40 shrink-0">
@@ -27,7 +27,7 @@
     {{-- Priorität --}}
     <div class="sm:w-44 shrink-0" id="priority_{{ $theme->id }}">
         @if($eigenePrio)
-            <div class="mtg-progress"><span style="width: {{ 100 - $theme->priority }}%"></span></div>
+            <div class="mtg-progress"><span style="width: {{ $theme->priority }}%"></span></div>
         @else
             <input type="range" class="w-full cursor-pointer accent-blue-600" id="theme_{{ $theme->id }}"
                    min="1" max="100" value="0" data-theme="{{ $theme->id }}" data-creatorid="{{ auth()->id() }}"

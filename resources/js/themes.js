@@ -19,7 +19,7 @@ function initThemeBoard() {
             url: '/priorities',
             data: { priority: $(this).val(), theme: themeId, _token: token },
             success(response) {
-                const percent = 100 - response.priority;
+                const percent = response.priority;
                 const cell = document.getElementById('priority_' + themeId);
                 if (cell) {
                     cell.innerHTML = '<div class="thm-progress"><span style="width:' + percent + '%"></span></div>';
@@ -36,9 +36,9 @@ function initThemeBoard() {
 
 /**
  * Sortiert eine Themen-Liste oder -Tabelle nach Priorität.
- * Der Balken wird mit `width: 100 - priority` gerendert, d.h. ein
- * niedrigerer data-priority-Wert bedeutet eine höhere Priorität und
- * muss oben stehen – daher aufsteigend nach data-priority sortieren.
+ * Ein höherer data-priority-Wert bedeutet eine höhere Priorität und
+ * muss oben stehen – daher absteigend nach data-priority sortieren.
+ * Themen ohne gesetzte Priorität werden ans Ende sortiert.
  */
 function sortThemeContainer(container) {
     if (!container) return;
@@ -59,10 +59,10 @@ function sortByPriority(parent, children) {
     // Themen ohne gesetzte Priorität (leerer Wert) ans Ende sortieren.
     const prio = (el) => {
         const v = el.dataset.priority;
-        return v === undefined || v === '' ? Infinity : Number(v);
+        return v === undefined || v === '' ? -Infinity : Number(v);
     };
     const items = Array.from(children).filter((el) => el.dataset.priority !== undefined);
-    items.sort((a, b) => prio(a) - prio(b));
+    items.sort((a, b) => prio(b) - prio(a));
     items.forEach((el) => parent.appendChild(el));
 }
 
