@@ -244,24 +244,44 @@ class PaedDiaryController extends Controller
 
         // Schüler aller Klassen laden
         $schueler = \App\Models\Schueler::whereIn('klasse_id', $klassen->pluck('id'))->with('grading_stage')->orderBy('klasse_id')->orderBy('vorname')->orderBy('nachname')->get(['id', 'vorname', 'nachname', 'grading_stage_id', 'klasse_id']);
+        $schuelerIds = $schueler->pluck('id');
 
-        // Spalten aller Klassen vereinigt
-        $columns = PaedDiaryColumn::whereIn('klasse_id', $klassen->pluck('id'))
+        // Spaltenwerte der Woche zuerst schülerbasiert laden (unabhängig von der aktuellen
+        // Klasse!), damit auch Werte aus vorherigen Schuljahren/Klassen erhalten bleiben,
+        // wenn Lehrer in der Wochenansicht in die Vergangenheit zurückblättern.
+        $columnValues = PaedDiaryColumnValue::whereIn('schueler_id', $schuelerIds)
+            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
+        $historicalColumnIds = $columnValues->pluck('paed_diary_column_id')->unique();
+
+        // Spalten aller Klassen vereinigt: aktuelle Klassenspalten + alle Spalten, für die in
+        // dieser Woche tatsächlich historische Werte existieren (auch aus einer früheren Klasse
+        // der Schüler) - so bleibt die vollständige Historie für Lehrer jederzeit einsehbar.
+        $columns = PaedDiaryColumn::where(function ($q) use ($klassen, $historicalColumnIds) {
+                $q->whereIn('klasse_id', $klassen->pluck('id'))
+                  ->orWhereIn('id', $historicalColumnIds);
+            })
             ->where(function ($q) use ($weekStart) {
                 $q->whereNull('deactivated_from')->orWhere('deactivated_from', '>', $weekStart->toDateString());
             })
             ->orderBy('klasse_id')->orderBy('sort_order')->get();
 
-        // Einträge der aktuellen Woche laden
+        // Einträge der aktuellen Woche laden.
+        // WICHTIG: NICHT (mehr) nach klasse_id filtern, sondern nach den aktuell in dieser
+        // Klasse/Gruppe befindlichen Schülern (schueler_id)! Beim Schuljahreswechsel bleibt die
+        // Schueler-ID erhalten, aber klasse_id wird auf die neue Klasse aktualisiert - alte
+        // Einträge (z.B. aus dem letzten Schuljahr, wenn man in der Wochenansicht zurückblättert)
+        // referenzieren noch die damalige klasse_id. Eine klasse_id-Filterung würde diese
+        // Einträge sonst unsichtbar machen, obwohl der Schüler weiterhin korrekt zugeordnet ist.
         $currentWeekEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
-            ->whereIn('klasse_id', $klassen->pluck('id'))
+            ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
             ->where('dossier_only', false)
             ->get();
 
-        // Zusätzlich alle offenen Einträge aus vorherigen Wochen laden
+        // Zusätzlich alle offenen Einträge aus vorherigen Wochen laden (ebenfalls schülerbasiert, s.o.)
         $previousOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
-            ->whereIn('klasse_id', $klassen->pluck('id'))
+            ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
             ->where('datum', '<', $weekStart->toDateString())
             ->whereNull('completed_at')
             ->where('dossier_only', false)
@@ -361,9 +381,10 @@ class PaedDiaryController extends Controller
             'dossier_only' => (bool) $e->dossier_only,
         ]);
 
-        // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen)
+        // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen/Schuljahren).
+        // Ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s.o.).
         $allOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
-            ->whereIn('klasse_id', $klassen->pluck('id'))
+            ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
             ->whereNull('completed_at')
             ->where('dossier_only', false)
             ->where('datum', '<=', $periodEnd->toDateString()) // Nur Notizen bis zum Ende der aktuellen Woche
@@ -378,14 +399,13 @@ class PaedDiaryController extends Controller
             'category_id' => $e->category_id,
             'category' => (is_object($e->category)) ? $e->category->name : null
         ])->values();
-        $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
-            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get();
+        // Spaltenwerte wurden bereits oben schülerbasiert geladen (inkl. Historie) - hier nur gruppieren.
         $valuesGrouped = [];
         foreach ($columnValues as $v) {
             $valuesGrouped[$v->paed_diary_column_id][$v->schueler_id][$v->datum->toDateString()] = $v->value;
         }
-        $tasks = PaedDiaryTask::whereIn('klasse_id', $klassen->pluck('id'))->open()->with('schueler:id,vorname,nachname')->get()->map(fn($t) => [
+        // Aufgaben: ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s.o.)
+        $tasks = PaedDiaryTask::whereIn('schueler_id', $schuelerIds)->open()->with('schueler:id,vorname,nachname')->get()->map(fn($t) => [
             'id' => $t->id, 'schueler_id' => $t->schueler_id, 'title' => $t->title,
             'description' => $t->description,
             'due_date' => $t->due_date?->toDateString(), 'highlighted' => $t->highlighted, 'klasse_id' => $t->klasse_id,
@@ -419,8 +439,8 @@ class PaedDiaryController extends Controller
             $hiddenCategoryIds = [];
         }
 
-        // Abwesenheiten für die aktuelle Woche laden
-        $absencesForWeek = PaedDiarySchuelerAbsence::whereIn('klasse_id', $klassen->pluck('id'))
+        // Abwesenheiten für die aktuelle Woche laden (schülerbasiert statt klasse_id-basiert, s.o.)
+        $absencesForWeek = PaedDiarySchuelerAbsence::whereIn('schueler_id', $schuelerIds)
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
             ->get(['id', 'schueler_id', 'datum']);
 
