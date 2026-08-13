@@ -1309,14 +1309,17 @@ class PaedDiaryController extends Controller
         $user = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
 
-        // Graduierungs-Dokumentationen laden
-        $sessions = \App\Models\GradingDocumentationSession::where('klasse_id', $klasse->id)
-            ->where(function($q) use ($schueler) {
-                $q->where('type', 'group')
-                  ->orWhere(function($q2) use ($schueler) {
-                      $q2->where('type', 'individual')
-                         ->where('schueler_id', $schueler->id);
-                  });
+        // Graduierungs-Dokumentationen laden.
+        // WICHTIG: Individuelle Sitzungen (type=individual) werden über schueler_id gefunden und
+        // dürfen NICHT zusätzlich auf die aktuelle klasse_id des Schülers eingeschränkt werden -
+        // sonst gehen individuelle Sitzungen aus einer früheren Klasse (Schuljahreswechsel)
+        // verloren. Nur Gruppen-Sitzungen (type=group) sind klassenspezifisch.
+        $sessions = \App\Models\GradingDocumentationSession::where(function($q) use ($klasse, $schueler) {
+                $q->where(function($q2) use ($klasse) {
+                    $q2->where('type', 'group')->where('klasse_id', $klasse->id);
+                })->orWhere(function($q2) use ($schueler) {
+                    $q2->where('type', 'individual')->where('schueler_id', $schueler->id);
+                });
             })
             ->whereNotNull('completed_at')
             ->with([
@@ -1378,9 +1381,16 @@ class PaedDiaryController extends Controller
             $dateFrom = Carbon::parse($request->date_from);
             $dateTo = Carbon::parse($request->date_to);
 
-            // Einträge für den Schüler laden
+            // Einträge für den Schüler laden.
+            // WICHTIG: NICHT zusätzlich nach der aktuellen klasse_id des Schülers filtern!
+            // Beim Schuljahreswechsel bleibt die Schueler-ID erhalten, aber klasse_id wird auf
+            // die neue Klasse aktualisiert. Alte Tagebucheinträge referenzieren noch die
+            // ehemalige klasse_id - eine zusätzliche Einschränkung auf $klasse->id würde daher
+            // sämtliche Einträge aus vorherigen Schuljahren/Klassen unsichtbar machen, obwohl
+            // der Schüler über die Pivot-Tabelle korrekt zugeordnet ist. Der Zugriffsschutz
+            // erfolgt bereits oben über $user->paed_klassen() (Zugriff auf die aktuelle Klasse
+            // des Schülers).
             $entries = PaedDiaryEntry::with(['user:id,name', 'category:id,name'])
-                ->where('klasse_id', $klasse->id)
                 ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
                 ->whereHas('schueler', fn($q) => $q->where('schueler.id', $schueler->id))
                 ->orderBy('datum')
@@ -1395,6 +1405,7 @@ class PaedDiaryController extends Controller
                     'category_id' => $e->category_id,
                     'dossier_only' => $e->dossier_only,
                     'completed_at' => $e->completed_at?->toDateString(),
+
                 ]);
 
             // Aufeinanderfolgende Tage mit identischem Inhalt gruppieren
@@ -1429,8 +1440,18 @@ class PaedDiaryController extends Controller
                 ];
             });
 
-            // Spalten für die Klasse laden
+            // Spaltenwerte für den Schüler zuerst laden (unabhängig von der aktuellen Klasse!),
+            // damit Werte aus vorherigen Schuljahren/Klassen (alte klasse_id der Spalte) erhalten bleiben.
+            $columnValues = PaedDiaryColumnValue::where('schueler_id', $schueler->id)
+                ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->get();
+            $historicalColumnIds = $columnValues->pluck('paed_diary_column_id')->unique();
+
+            // Spalten für die Klasse laden: aktuelle Klassenspalten + alle Spalten, für die
+            // im Betrachtungszeitraum tatsächlich historische Werte existieren (auch aus
+            // einer früheren Klasse des Schülers).
             $columns = PaedDiaryColumn::where('klasse_id', $klasse->id)
+                ->orWhereIn('id', $historicalColumnIds)
                 ->orderBy('sort_order')
                 ->get()
                 ->map(function($c) use ($dateTo) {
@@ -1457,11 +1478,8 @@ class PaedDiaryController extends Controller
                     ];
                 });
 
-            // Spaltenwerte für den Schüler laden und nach YYYY-MM-DD gruppieren
-            $columnValues = PaedDiaryColumnValue::whereIn('paed_diary_column_id', $columns->pluck('id'))
-                ->where('schueler_id', $schueler->id)
-                ->whereBetween('datum', [$dateFrom->toDateString(), $dateTo->toDateString()])
-                ->get()
+            // Spaltenwerte nach YYYY-MM-DD gruppieren (bereits oben ungefiltert nach Spalte geladen)
+            $columnValues = $columnValues
                 ->groupBy(function ($v) {
                     try {
                         return Carbon::parse($v->datum)->toDateString();
@@ -1474,9 +1492,9 @@ class PaedDiaryController extends Controller
                     return $dayValues->keyBy('paed_diary_column_id');
                 });
 
-            // Aufgaben für den Schüler laden
-            $tasks = PaedDiaryTask::where('klasse_id', $klasse->id)
-                ->where('schueler_id', $schueler->id)
+            // Aufgaben für den Schüler laden.
+            // WICHTIG: NICHT nach aktueller klasse_id filtern - siehe Begründung bei $entries oben.
+            $tasks = PaedDiaryTask::where('schueler_id', $schueler->id)
                 ->whereBetween('created_at', [$dateFrom, $dateTo->addDay()])
                 ->orderBy('created_at', 'desc')
                 ->get()
