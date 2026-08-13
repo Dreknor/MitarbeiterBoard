@@ -401,13 +401,15 @@ class GradingDocumentationController extends Controller
             abort(403);
         }
 
-        $sessions = GradingDocumentationSession::where('klasse_id', $klasse->id)
-            ->where(function($q) use ($schueler) {
-                $q->where('type', 'group')
-                  ->orWhere(function($q2) use ($schueler) {
-                      $q2->where('type', 'individual')
-                         ->where('schueler_id', $schueler->id);
-                  });
+        // Gruppen-Sitzungen sind klassenspezifisch, individuelle Sitzungen dürfen NICHT
+        // zusätzlich auf die aktuelle klasse_id des Schülers eingeschränkt werden - sonst
+        // gehen individuelle Sitzungen aus einer früheren Klasse (Schuljahreswechsel) verloren.
+        $sessions = GradingDocumentationSession::where(function($q) use ($klasse, $schueler) {
+                $q->where(function($q2) use ($klasse) {
+                    $q2->where('type', 'group')->where('klasse_id', $klasse->id);
+                })->orWhere(function($q2) use ($schueler) {
+                    $q2->where('type', 'individual')->where('schueler_id', $schueler->id);
+                });
             })
             ->whereNotNull('completed_at')
             ->with([
