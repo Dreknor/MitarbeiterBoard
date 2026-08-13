@@ -275,13 +275,22 @@ class PaedDiaryController extends Controller
         // frühere Tage) pausiert werden – sonst verschwindet ein gerade erst erstellter,
         // offener Eintrag sofort wieder aus der Ansicht, obwohl er heute (ggf. innerhalb
         // eines laut Kalender noch laufenden Ferienzeitraums) bewusst angelegt wurde.
-        // Die Auto-Pause greift daher nur für Ferientage NACH dem Start-Datum des Eintrags.
+        // Zusätzlich: Manche Kolleg*innen legen Einträge bewusst WÄHREND laufender Ferien an
+        // (z.B. Hort-/Ferienbetreuung). Wurde ein Eintrag selbst innerhalb eines Ferienzeitraums
+        // erstellt (created_at liegt in den Ferien), wird er grundsätzlich NIE automatisch
+        // pausiert - unabhängig vom konkreten Ferientag. Die Auto-Pause soll nur bereits vor den
+        // Ferien offene Einträge betreffen, die während der Ferien "liegen bleiben" würden.
         if (!empty($ferienDates)) {
             try {
                 // Prüfen ob reason-Spalte bereits existiert (Migration ggf. noch nicht gelaufen)
                 $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
                 foreach ($entries as $entry) {
                     if (is_null($entry->completed_at)) {
+                        // Wurde der Eintrag bewusst während laufender Ferien erstellt? Dann nie pausieren.
+                        $createdAt = $entry->created_at ?? $entry->datum;
+                        if (!is_null(is_ferien($createdAt->copy()))) {
+                            continue;
+                        }
                         $entryStart = $entry->datum->copy()->startOfDay();
                         foreach ($entry->schueler as $schueler_item) {
                             foreach ($ferienDates as $ferienDate) {
