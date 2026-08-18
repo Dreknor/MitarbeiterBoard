@@ -13,7 +13,7 @@ class RoomBooking extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'weekday', 'date', 'start', 'end', 'room_id', 'users_id', 'name', 'klassen', 'lehrer',
+        'weekday', 'date', 'start', 'end', 'room_id', 'meeting_id', 'users_id', 'name', 'klassen', 'lehrer',
         'week', 'is_recurring', 'booking_date',
         'source', 'source_id', 'cancelled',
     ];
@@ -56,6 +56,10 @@ class RoomBooking extends Model
 
     public function room(){
         return $this->belongsTo(Room::class, 'room_id');
+    }
+
+    public function meeting(){
+        return $this->belongsTo(Meeting::class, 'meeting_id');
     }
 
     public function getDurationAttribute(){

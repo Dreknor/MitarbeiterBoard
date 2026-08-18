@@ -378,6 +378,7 @@ Route::group([
                     Route::get('rooms/{room}/export', [RoomController::class, 'export']);
                     Route::get('rooms/{room}/{week?}/{date?}', [RoomController::class, 'show'])->name('rooms.show.week');
                     Route::post('bookings', [RoomController::class, 'storeBooking']);
+                    Route::get('availability/{room}', [RoomController::class, 'availability'])->name('rooms.availability');
                     Route::get('booking/{booking}', [RoomController::class, 'editBooking']);
                     Route::delete('booking/{booking}', [RoomController::class, 'deleteBooking']);
                     Route::put('bookings/{booking}', [RoomController::class, 'updateBooking']);

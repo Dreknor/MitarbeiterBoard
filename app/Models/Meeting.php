@@ -89,5 +89,15 @@ class Meeting extends Model
         return $this->hasMany(MeetingTask::class);
     }
 
+    public function roomBooking()
+    {
+        return $this->hasOne(RoomBooking::class)->where('cancelled', false)->whereNull('deleted_at');
+    }
+
+    public function roomBookings()
+    {
+        return $this->hasMany(RoomBooking::class);
+    }
+
 
 }

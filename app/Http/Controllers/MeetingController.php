@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\createThemeRequest;
-use App\Http\Requests\MeetingRequest;
+use App\Http\Requests\StoreMeetingRequest;
+use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Group;
 use App\Models\Meeting;
 use App\Models\MeetingTask;
+use App\Models\Room;
+use App\Models\RoomBooking;
 use App\Models\Theme;
-use App\Models\User;
+use App\Services\Meetings\CreateMeetingWithRoomBookingAction;
+use App\Services\Meetings\UpdateMeetingWithRoomBookingAction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MeetingController extends Controller
 {
@@ -63,8 +67,16 @@ class MeetingController extends Controller
         }
 
         $today         = now()->toDateString();
-        $meetingsToday = Meeting::where('date', $today)->where('group_id', $group->id)->with('themes')->get();
-        $otherMeetings = Meeting::query()->where('group_id', $group->id)->upcoming()->get();
+        $meetingsToday = Meeting::where('date', $today)
+            ->where('group_id', $group->id)
+            ->with(['themes', 'roomBooking.room', 'meetingTasks.user', 'invitationSender'])
+            ->get();
+        $otherMeetings = Meeting::query()
+            ->where('group_id', $group->id)
+            ->where('date', '>', $today)
+            ->with(['roomBooking.room', 'meetingTasks.user', 'invitationSender'])
+            ->upcoming()
+            ->get();
 
         // Offene Themen der Gruppe (für das "vorhandenes Thema zuweisen"-Dropdown)
         $openThemes = Theme::where('completed', false)
@@ -78,6 +90,8 @@ class MeetingController extends Controller
             'group'         => $group,
             'openThemes'    => $openThemes,
             'types'         => \App\Models\Type::all(),
+            'bookableRooms' => Room::query()->where('bookable', true)->orderBy('room_number')->orderBy('name')->get(),
+            'canBookRooms'  => auth()->user()->canAny(['create roomBooking', 'manage rooms']),
         ]);
     }
 
@@ -85,20 +99,27 @@ class MeetingController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(MeetingRequest $request, $groupname)
+    public function store(StoreMeetingRequest $request, $groupname, CreateMeetingWithRoomBookingAction $action)
     {
         $group = $this->resolveGroup($groupname, $denied);
         if (! $group) {
             return $denied;
         }
 
-        $meeting = new Meeting($request->validated());
-        $meeting->group_id = $group->id;
-        $meeting->save();
+        try {
+            $action->execute($group, $request->validated(), auth()->user());
+        } catch (ValidationException $e) {
+            return redirect()->back()->withInput()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting konnte nicht erstellt werden. ' . collect($e->errors())->flatten()->first(),
+            ])->withErrors($e->errors());
+        }
 
         return redirect()->route('meetings.index', ['group' => $groupname])->with([
             'type'    => 'success',
-            'Meldung' => 'Meeting erfolgreich erstellt',
+            'Meldung' => $request->boolean('book_room')
+                ? 'Meeting erfolgreich erstellt und Raum gebucht'
+                : 'Meeting erfolgreich erstellt',
         ]);
     }
 
@@ -114,33 +135,52 @@ class MeetingController extends Controller
             return $denied;
         }
 
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
+        }
+
         return view('meetings.edit', [
-            'meeting' => $meeting,
+            'meeting' => $meeting->load('roomBooking.room'),
             'group'   => $group,
+            'bookableRooms' => Room::query()->where('bookable', true)->orderBy('room_number')->orderBy('name')->get(),
+            'canBookRooms'  => auth()->user()->canAny(['create roomBooking', 'manage rooms']),
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $group, Meeting $meeting)
+    public function update(UpdateMeetingRequest $request, $group, Meeting $meeting, UpdateMeetingWithRoomBookingAction $action)
     {
         $group = $this->resolveGroup($group, $denied);
         if (! $group) {
             return $denied;
         }
 
-        $validated = $request->validate([
-            'title'      => 'required|string|max:255',
-            'date'       => 'required|date',
-            'start_time' => 'required|date_format:H:i',
-            'end_time'   => 'required|date_format:H:i|after:start_time',
-        ]);
-        $meeting->update($validated);
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
+        }
+
+        try {
+            $action->execute($meeting, $request->validated(), auth()->user());
+        } catch (ValidationException $e) {
+            return redirect()->back()->withInput()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting konnte nicht bearbeitet werden. ' . collect($e->errors())->flatten()->first(),
+            ])->withErrors($e->errors());
+        }
 
         return redirect()->route('meetings.index', ['group' => $group->name])->with([
             'type'    => 'success',
-            'Meldung' => 'Meeting erfolgreich bearbeitet',
+            'Meldung' => $request->boolean('book_room')
+                ? 'Meeting erfolgreich bearbeitet und Raumbuchung aktualisiert'
+                : 'Meeting erfolgreich bearbeitet',
         ]);
     }
 
@@ -156,6 +196,12 @@ class MeetingController extends Controller
 
         // Verknüpfung zu Themen lösen (die Themen selbst bleiben erhalten)
         $meeting->themes()->detach();
+
+        RoomBooking::query()
+            ->where('meeting_id', $meeting->id)
+            ->where('cancelled', false)
+            ->update(['cancelled' => true]);
+
         $meeting->delete();
 
         return redirect()->route('meetings.index', ['group' => $group->name])->with([
@@ -232,10 +278,28 @@ class MeetingController extends Controller
             return $denied;
         }
 
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
+        }
+
         $meeting->update([
             'cancelled'    => true,
             'cancelled_by' => auth()->id(),
             'cancelled_at' => now(),
+        ]);
+
+        RoomBooking::query()
+            ->where('meeting_id', $meeting->id)
+            ->where('cancelled', false)
+            ->update(['cancelled' => true]);
+
+        Log::info('Meeting abgesagt und Raumbuchung freigegeben', [
+            'meeting_id' => $meeting->id,
+            'group_id'   => $group->id,
+            'user_id'    => auth()->id(),
         ]);
 
         return redirect()->route('meetings.index', ['group' => $groupname])->with([
@@ -252,6 +316,13 @@ class MeetingController extends Controller
         $group = $this->resolveGroup($groupname, $denied);
         if (! $group) {
             return $denied;
+        }
+
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
         }
 
         $meeting->update([
@@ -294,7 +365,7 @@ class MeetingController extends Controller
             return $denied;
         }
 
-        $meeting = Meeting::with('themes')->where('group_id', $group->id)->findOrFail($meetingId);
+        $meeting = Meeting::with(['themes', 'roomBooking.room'])->where('group_id', $group->id)->findOrFail($meetingId);
         $message = $request->input('message');
         $users   = $group->users;
 

@@ -13,7 +13,8 @@ class createRoomBookingRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('manage recurring themes');
+        return auth()->check()
+            && auth()->user()->canAny(['create roomBooking', 'manage rooms']);
     }
 
     /**

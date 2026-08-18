@@ -120,9 +120,9 @@ class MeetingInvitationMail extends Mailable
         $attendee['PARTSTAT'] = 'NEEDS-ACTION';
         $attendee['RSVP']     = 'TRUE';
 
-        // Location aus Meeting-URL der Gruppe, falls vorhanden
-        if (!empty($this->group->meeting_url)) {
-            $vevent->add('LOCATION', $this->group->meeting_url);
+        $location = $this->buildLocation();
+        if (!empty($location)) {
+            $vevent->add('LOCATION', $location);
         }
 
         return $vcal->serialize();
@@ -134,6 +134,16 @@ class MeetingInvitationMail extends Mailable
     private function buildDescription(): string
     {
         $lines = [];
+
+        if ($this->meeting->roomBooking?->room) {
+            $room = $this->meeting->roomBooking->room;
+            $lines[] = 'Raum: ' . $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
+        }
+
+        if (!empty($this->group->meeting_url)) {
+            $lines[] = 'Meeting-Link: ' . $this->group->meeting_url;
+        }
+
         foreach ($this->meeting->themes as $theme) {
             $lines[] = '- ' . $theme->theme . ' (' . $theme->duration . ' min)';
         }
@@ -142,6 +152,26 @@ class MeetingInvitationMail extends Mailable
             $desc .= "\n\n" . $this->messageText;
         }
         return $desc;
+    }
+
+    private function buildLocation(): ?string
+    {
+        $parts = [];
+
+        if ($this->meeting->roomBooking?->room) {
+            $room = $this->meeting->roomBooking->room;
+            $parts[] = $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
+        }
+
+        if (!empty($this->group->meeting_url)) {
+            $parts[] = $this->group->meeting_url;
+        }
+
+        if (empty($parts)) {
+            return null;
+        }
+
+        return implode(' | ', $parts);
     }
 }
 

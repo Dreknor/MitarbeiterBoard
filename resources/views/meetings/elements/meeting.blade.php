@@ -26,6 +26,15 @@
                 <div class="text-sm text-white/90 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span><i class="far fa-calendar-alt mr-1"></i>{{ $meeting->date->format('d.m.Y') }}</span>
                     <span><i class="far fa-clock mr-1"></i>{{ $meeting->start_time }} – {{ $meeting->end_time }}</span>
+                    @if($meeting->roomBooking && $meeting->roomBooking->room)
+                        <span>
+                            <i class="fas fa-door-open mr-1"></i>
+                            {{ $meeting->roomBooking->room->name }}
+                            @if($meeting->roomBooking->room->room_number)
+                                (Nr. {{ $meeting->roomBooking->room->room_number }})
+                            @endif
+                        </span>
+                    @endif
                 </div>
             </div>
 

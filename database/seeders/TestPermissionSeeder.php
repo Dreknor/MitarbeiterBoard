@@ -36,6 +36,7 @@ class TestPermissionSeeder extends Seeder
         // ─── Raumbuchung ────────────────────────────────────────────────────
         'view roomBooking',
         'manage rooms',
+        'create roomBooking',
 
         // ─── Wochenplan ─────────────────────────────────────────────────────
         'create Wochenplan',          // Legacy-Permission (großes W)

@@ -19,6 +19,7 @@ class RoomBookingFactory extends Factory
 
         return [
             'room_id'      => Room::factory(),
+            'meeting_id'   => null,
             'users_id'     => User::factory(),
             'name'         => $this->faker->words(2, true),
             'klassen'      => null,

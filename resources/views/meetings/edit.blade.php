@@ -20,6 +20,11 @@
             <form method="POST" action="{{ route('meetings.update', ['group' => $group->name, 'meeting' => $meeting->id]) }}" class="space-y-4">
                 @csrf
                 @method('PUT')
+                @if($errors->any())
+                    <div class="rounded border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 text-sm">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
                 <div>
                     <label for="title" class="mtg-label">Titel</label>
                     <input type="text" class="mtg-input" id="title" name="title" value="{{ old('title', $meeting->title) }}" required>
@@ -38,6 +43,15 @@
                         <input type="time" class="mtg-input" id="end_time" name="end_time" value="{{ old('end_time', $meeting->end_time) }}" required>
                     </div>
                 </div>
+
+                @include('meetings.partials.room_booking_fields', [
+                    'prefix' => 'edit_meeting',
+                    'bookRoomEnabled' => old('book_room', $meeting->roomBooking ? 1 : 0),
+                    'selectedRoomId' => old('room_id', optional($meeting->roomBooking)->room_id),
+                    'bookableRooms' => $bookableRooms,
+                    'canBookRooms' => $canBookRooms,
+                ])
+
                 <div class="flex flex-wrap gap-2 pt-2">
                     <button type="submit" class="mtg-btn mtg-btn-primary">Speichern</button>
                     <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">Abbrechen</a>

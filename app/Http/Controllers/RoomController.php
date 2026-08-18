@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\createRoomBookingRequest;
+use App\Http\Requests\CheckRoomAvailabilityRequest;
 use App\Http\Requests\createRoomRequest;
 use App\Http\Requests\editRoomRequest;
 use App\Http\Requests\ImportRoomsRequest;
@@ -124,6 +125,7 @@ class RoomController extends Controller
                       ->whereBetween('booking_date', [$startOfWeek, $endOfWeek]);
                 });
             })
+            ->with('user')
             ->get();
 
         // Lehrer-Kürzel → Vollname-Mapping (ein DB-Query für alle Buchungen).
@@ -437,6 +439,71 @@ class RoomController extends Controller
             'Meldung'=> 'Wiederkehrende Buchung erstellt'
         ]);
 
+    }
+
+    /**
+     * Liefert die Verfügbarkeit eines Raumes für Datum/Zeit als JSON.
+     */
+    public function availability(CheckRoomAvailabilityRequest $request, Room $room)
+    {
+        $validated = $request->validated();
+
+        if (!$room->bookable) {
+            return response()->json([
+                'available' => false,
+                'message' => 'Der ausgewählte Raum ist nicht buchbar.',
+                'alternatives' => [],
+            ]);
+        }
+
+        $date = Carbon::parse($validated['date']);
+        $collision = $room->hasBookingCollision(
+            $validated['start_time'],
+            $validated['end_time'],
+            $date->dayOfWeek,
+            $date
+        );
+
+        if (!$collision) {
+            return response()->json([
+                'available' => true,
+                'message' => 'Raum ist frei.',
+                'alternatives' => [],
+            ]);
+        }
+
+        $alternatives = Room::query()
+            ->where('bookable', true)
+            ->where('id', '!=', $room->id)
+            ->orderBy('room_number')
+            ->orderBy('name')
+            ->get()
+            ->filter(function (Room $candidate) use ($validated, $date) {
+                return $candidate->hasBookingCollision(
+                    $validated['start_time'],
+                    $validated['end_time'],
+                    $date->dayOfWeek,
+                    $date
+                ) === null;
+            })
+            ->take(3)
+            ->map(fn (Room $candidate) => [
+                'id' => $candidate->id,
+                'name' => $candidate->name,
+                'room_number' => $candidate->room_number,
+            ])
+            ->values();
+
+        return response()->json([
+            'available' => false,
+            'message' => 'Raum ist im gewählten Zeitraum belegt.',
+            'collision' => [
+                'name' => $collision->name,
+                'start' => $collision->start,
+                'end' => $collision->end,
+            ],
+            'alternatives' => $alternatives,
+        ]);
     }
 
 

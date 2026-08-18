@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="meeting-wrapper" x-data="{ showCreate: false }" x-cloak>
+<div class="meeting-wrapper" x-data="{ showCreate: {{ $errors->any() ? 'true' : 'false' }} }" x-cloak>
 
     {{-- Kopfbereich --}}
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -76,24 +76,37 @@
             <form action="{{ route('meetings.store', ['group' => $group->name]) }}" method="POST">
                 @csrf
                 <div class="mtg-modal-body space-y-4">
+                    @if($errors->any())
+                        <div class="rounded border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 text-sm">
+                            {{ $errors->first() }}
+                        </div>
+                    @endif
                     <div>
                         <label for="title" class="mtg-label">Titel des Meetings <span class="mtg-required">*</span></label>
-                        <input type="text" class="mtg-input" name="title" id="title" required autofocus>
+                        <input type="text" class="mtg-input" name="title" id="title" required autofocus value="{{ old('title') }}">
                     </div>
                     <div>
                         <label for="date" class="mtg-label">Datum <span class="mtg-required">*</span></label>
-                        <input type="date" class="mtg-input" name="date" id="date" required min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
+                        <input type="date" class="mtg-input" name="date" id="date" required min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}" value="{{ old('date') }}">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="start_time" class="mtg-label">Startzeit <span class="mtg-required">*</span></label>
-                            <input type="time" class="mtg-input" name="start_time" id="start_time" required>
+                            <input type="time" class="mtg-input" name="start_time" id="start_time" required value="{{ old('start_time') }}">
                         </div>
                         <div>
                             <label for="end_time" class="mtg-label">Endzeit <span class="mtg-required">*</span></label>
-                            <input type="time" class="mtg-input" name="end_time" id="end_time" required>
+                            <input type="time" class="mtg-input" name="end_time" id="end_time" required value="{{ old('end_time') }}">
                         </div>
                     </div>
+
+                    @include('meetings.partials.room_booking_fields', [
+                        'prefix' => 'create_meeting',
+                        'bookRoomEnabled' => old('book_room'),
+                        'selectedRoomId' => old('room_id'),
+                        'bookableRooms' => $bookableRooms,
+                        'canBookRooms' => $canBookRooms,
+                    ])
                 </div>
                 <div class="mtg-modal-footer">
                     <button type="button" class="mtg-btn mtg-btn-secondary" @click="showCreate = false">Abbrechen</button>
