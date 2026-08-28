@@ -45,7 +45,7 @@
                     </div>
                     <div>
                         <label for="duration" class="thm-label">Dauer (Min.) <span class="thm-required">*</span></label>
-                        <input type="number" class="thm-input" id="duration" name="duration" required min="5" max="240" step="5" value="{{ old('duration', config('config.themes.maxDuration')) }}">
+                        <input type="number" class="thm-input" id="duration" name="duration" required min="5" max="240" step="5" value="{{ old('duration') }}">
                     </div>
                 </div>
 
