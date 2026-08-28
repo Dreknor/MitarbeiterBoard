@@ -245,7 +245,7 @@ class ThemeController extends Controller
         }
 
         $oldest_theme = $group->themes()->where('completed', 1)->orderBy('date')->first();
-        $oldest_theme = $oldest_theme->date;
+        $oldest_theme = $oldest_theme?->date;
 
         $themes = $group->themes()
             ->where('completed', 1)

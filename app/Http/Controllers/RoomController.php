@@ -107,6 +107,10 @@ class RoomController extends Controller
             $vpWeek = VertretungsplanWeek::query()->where('week', $startOfWeek)->first();
             $week = $vpWeek?->type;
 
+            if ($week == null) {
+                $week = "A";
+            }
+
         // Hole alle relevanten Buchungen für diese Woche
         $bookings = RoomBooking::query()
             ->where('room_id', $room->id)
