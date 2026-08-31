@@ -157,15 +157,46 @@ export function registerDiaryTable(Alpine) {
         },
 
         /**
-         * Prüft ob vor diesem Schüler eine Klassentrennzeile angezeigt werden soll
-         * (nur im Gruppenmodus).
+         * Gruppiert die Schülerliste nach Klasse (nur relevant im Gruppenmodus).
+         * Jede Gruppe erhält eine eigene <tbody> mit optionaler Klassentrennzeile,
+         * damit Nutzer bei gekoppelten Gruppen schneller Schüler ihrer Klasse finden.
+         *
+         * Rückgabe: [{ key, klasseId, klasseName, klasseColor, showDivider, students: [...] }, ...]
          */
-        shouldShowClassDivider(stu, index) {
+        get diaryGroups() {
             const store = this.$store.diary;
-            if (!store.is_group) return false;
-            if (index === 0) return true;
-            const prev = store.schueler[index - 1];
-            return prev && prev.klasse_id !== stu.klasse_id;
+            const list = store.schueler || [];
+
+            if (!store.is_group) {
+                // Kein Gruppenmodus: eine einzige "Gruppe" ohne Trennzeile
+                return [{
+                    key: 'all',
+                    klasseId: null,
+                    klasseName: null,
+                    klasseColor: null,
+                    showDivider: false,
+                    students: list,
+                }];
+            }
+
+            const groups = [];
+            let current = null;
+            list.forEach(stu => {
+                if (!current || current.klasseId !== stu.klasse_id) {
+                    current = {
+                        key: 'klasse-' + stu.klasse_id,
+                        klasseId: stu.klasse_id,
+                        klasseName: this.getKlasseName(stu.klasse_id),
+                        klasseColor: this.getKlasseColor(stu.klasse_id),
+                        showDivider: true,
+                        students: [],
+                    };
+                    groups.push(current);
+                }
+                current.students.push(stu);
+            });
+
+            return groups;
         },
 
         /**

@@ -45,14 +45,21 @@
             </tr>
         </thead>
 
-        {{-- ── Tabellenkörper ───────────────────────────────────────── --}}
-        <tbody>
-            <template x-for="(stu, stuIndex) in $store.diary.schueler" :key="stu.id">
-                <tr>
-                    {{-- Klassentrennzeile im Gruppenmodus --}}
-                    {{-- Hinweis: x-for + conditional divider-row in reinem Alpine schwierig,
-                         daher als zusätzliche Logik in der Zelle gelöst --}}
+        {{-- ── Tabellenkörper (gruppiert nach Klasse im Gruppenmodus) ── --}}
+        <template x-for="grp in diaryGroups" :key="grp.key">
+            <tbody>
+                {{-- Klassentrennzeile bei gekoppelten Gruppen, damit Schüler
+                     ihrer Klasse schneller gefunden werden können --}}
+                <template x-if="grp.showDivider">
+                    <tr class="class-divider-row">
+                        <td :colspan="$store.diary.days.length + 1"
+                            :style="grp.klasseColor ? ('background-color:' + grp.klasseColor + '; color:' + (getBrightness(grp.klasseColor) > 128 ? '#000' : '#fff')) : ''"
+                            x-text="grp.klasseName"></td>
+                    </tr>
+                </template>
 
+            <template x-for="(stu, stuIndex) in grp.students" :key="stu.id">
+                <tr>
                     {{-- Schülername --}}
                     <th class="align-top schueler_name_field" style="font-size:.72rem;">
                         <div class="d-flex align-items-start" style="gap:4px;">
@@ -318,7 +325,8 @@
                     </template>
                 </tr>
             </template>
-        </tbody>
+            </tbody>
+        </template>
     </table>
 
     {{-- Hinweis bei leerer Tabelle --}}
