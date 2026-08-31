@@ -28,7 +28,7 @@
                                         </template>
                                     </div>
                                     <button class="diary-btn diary-btn-complete ml-2" title="Notiz abschließen"
-                                            @click="completeEntryFromPanel(item.entry_id)">✔</button>
+                                            @click="completeEntryFromPanel(item.entry_id, group.stuId)">✔</button>
                                 </div>
                             </template>
 

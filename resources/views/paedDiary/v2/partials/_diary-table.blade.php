@@ -214,7 +214,7 @@
                                                     <div class="ml-1 d-flex">
                                                         <template x-if="!entry.completed_at">
                                                             <button class="diary-btn diary-btn-complete entry-complete-btn"
-                                                                    @click.stop="completeEntry(entry.id, day.date)"
+                                                                    @click.stop="completeEntry(entry.id, stu.id, day.date)"
                                                                     title="Notiz abschließen" aria-label="Abschließen">✔</button>
                                                         </template>
                                                         <template x-if="!entry.completed_at">

@@ -1986,6 +1986,8 @@ class PaedDiaryController extends Controller
         $request->validate([
             'klasse_id' => ['nullable', 'integer', 'exists:klassen,id'],
             'completed_at' => ['nullable', 'date'],
+            // Optional: nur diesen Schüler abschließen, wenn der Eintrag mehreren Schülern zugeordnet ist.
+            'schueler_id' => ['nullable', 'integer', 'exists:schueler,id'],
         ]);
         $user = Auth::user();
         // Zugriff auf Klasse des Eintrags prüfen (unabhängig von gesendeter klasse_id)
@@ -1993,18 +1995,49 @@ class PaedDiaryController extends Controller
         if ($entry->completed_at) {
             return response()->json(['success' => true]);
         }
+
+        // Wenn ein completed_at Datum übergeben wurde, dieses verwenden (z.B. wenn aus einer Zelle abgeschlossen wird),
+        // sonst das aktuelle Datum/time.
+        $completedAt = $request->filled('completed_at')
+            ? Carbon::parse($request->get('completed_at'))->startOfDay()
+            : Carbon::now();
+
         DB::beginTransaction();
         try {
-            // Wenn ein completed_at Datum übergeben wurde, dieses verwenden (z.B. wenn aus einer Zelle abgeschlossen wird),
-            // sonst das aktuelle Datum/time.
-            if ($request->filled('completed_at')) {
-                $entry->completed_at = Carbon::parse($request->get('completed_at'))->startOfDay();
+            $entry->loadMissing('schueler');
+            $allStudentIds = $entry->schueler->pluck('id')->all();
+            $schuelerId = $request->filled('schueler_id') ? (int) $request->get('schueler_id') : null;
+
+            if ($schuelerId && in_array($schuelerId, $allStudentIds, true) && count($allStudentIds) > 1) {
+                // Eintrag betrifft mehrere Schüler: Nur den gewählten Schüler abschließen,
+                // der Eintrag bleibt für die übrigen Schüler unverändert offen.
+                $entry->schueler()->detach($schuelerId);
+
+                $completedEntry = PaedDiaryEntry::create([
+                    'klasse_id' => $entry->klasse_id,
+                    'user_id' => $entry->user_id,
+                    'datum' => $entry->datum,
+                    'content' => $entry->content,
+                    'category_id' => $entry->category_id,
+                    'dossier_only' => $entry->dossier_only,
+                    'completed_at' => $completedAt,
+                ]);
+                $completedEntry->schueler()->sync([$schuelerId]);
+
+                // Bereits vorhandene Pausen dieses Schülers auf den neuen (abgeschlossenen) Eintrag übertragen,
+                // damit finalizeEntry() sie korrekt berücksichtigt.
+                $entry->pauses()->where('schueler_id', $schuelerId)
+                    ->update(['paed_diary_entry_id' => $completedEntry->id]);
+
+                $completedEntry->load('schueler', 'pauses');
+                $this->finalizeEntry($completedEntry);
             } else {
-                $entry->completed_at = Carbon::now();
+                // Nur ein Schüler betroffen (oder kein schueler_id übergeben): kompletten Eintrag abschließen.
+                $entry->completed_at = $completedAt;
+                $entry->save();
+                $entry->load('schueler');
+                $this->finalizeEntry($entry);
             }
-            $entry->save();
-            $entry->load('schueler');
-            $this->finalizeEntry($entry);
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -2059,10 +2092,11 @@ class PaedDiaryController extends Controller
             // Schüler ohne Pause an diesem Tag
             $activeStudents = array_filter($allStudentIds, function($sid) use ($pauseMap, $dateStr) { return empty($pauseMap[$sid][$dateStr]); });
             if(empty($activeStudents)) continue; // nichts einzutragen
-            // Prüfen ob bereits ein Eintrag mit gleichem Inhalt für (alle) diese Schüler existiert
+            // Prüfen ob bereits ein Eintrag mit gleichem Inhalt (und gleicher Kategorie) für (alle) diese Schüler existiert
             $existing = PaedDiaryEntry::where('klasse_id',$klasseId)
                 ->whereDate('datum',$dateStr)
                 ->where('content',$entry->content)
+                ->when($entry->category_id === null, function($q){ $q->whereNull('category_id'); }, function($q) use ($entry){ $q->where('category_id',$entry->category_id); })
                 ->whereHas('schueler', function($q) use ($activeStudents){ $q->whereIn('schueler.id',$activeStudents); })
                 ->first();
             if($existing){
@@ -2077,6 +2111,8 @@ class PaedDiaryController extends Controller
                 'datum'=>$dateStr,
                 'content'=>$entry->content,
                 'completed_at'=>$entry->completed_at,
+                'category_id'=>$entry->category_id,
+                'dossier_only'=>$entry->dossier_only,
             ]);
             $newEntry->schueler()->sync($activeStudents);
         }

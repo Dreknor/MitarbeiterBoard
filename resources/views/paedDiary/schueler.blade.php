@@ -348,6 +348,9 @@
                                                 <tr id="columnHeaders">
 
                                                 </tr>
+                                                <tr id="columnHeaderCounts" class="bg-blue-50">
+
+                                                </tr>
                                             </thead>
                                             <tbody id="columnsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
                                             <tfoot id="columnsTableFooter" class="bg-gray-50"></tfoot>
@@ -779,6 +782,16 @@
     background-color: #4a90e2;
     color: white;
     padding: 0.75rem 1rem;
+}
+
+/* Auswertungszeile direkt unter der Spaltenüberschrift (kein Scrollen notwendig) */
+#columnsTable thead tr#columnHeaderCounts th {
+    background-color: #eff6ff;
+    color: #1e3a5f;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid #93c5fd;
 }
 
 /* Vertikale Trennlinien zwischen Kategorien */
@@ -1362,11 +1375,13 @@
     function renderColumns(columns, columnValues) {
         const categoryHeaders = document.getElementById('columnCategoryHeaders');
         const headers = document.getElementById('columnHeaders');
+        const headerCounts = document.getElementById('columnHeaderCounts');
         const tbody = document.getElementById('columnsTableBody');
 
         // Reset headers
         categoryHeaders.innerHTML = '<th style="width: 100px;" rowspan="2">Datum</th>';
         headers.innerHTML = '';
+        if (headerCounts) headerCounts.innerHTML = '';
         tbody.innerHTML = '';
 
         if (columns.length === 0) {
@@ -1507,35 +1522,50 @@
              tbody.appendChild(row);
          }
 
-        // Append a counts row under the values: Anzahl (Ja) pro Spalte
-        const countsRow = document.createElement('tr');
-        const countsLabelCell = document.createElement('td');
-        countsLabelCell.className = 'text-center font-weight-bold';
-        countsLabelCell.textContent = 'Anzahl (Ja)';
-        countsRow.appendChild(countsLabelCell);
+        // Füllt eine (bereits bestehende) Tabellenzeile mit der Auswertung (Anzahl Ja / Ampel-Status) pro Spalte.
+        // WICHTIG: Es wird kein neues <tr> erzeugt, sondern die Zellen werden direkt in "rowEl" eingefügt,
+        // da ein verschachteltes <tr> innerhalb eines <tr> ungültiges HTML ist und vom Browser aus der
+        // Tabellenstruktur entfernt/verschoben wird (führte zuvor zur falschen Positionierung unter "Datum").
+        function fillCountsRow(rowEl, cellTag) {
+            rowEl.innerHTML = '';
 
-        let currentCountCategory = sortedColumns[0]?.category || 'Unkategorisiert';
-        sortedColumns.forEach(column => {
-            const ccell = document.createElement('td');
-            ccell.className = 'font-weight-bold';
+            const labelCell = document.createElement(cellTag);
+            labelCell.className = 'text-center font-weight-bold';
+            labelCell.textContent = 'Anzahl (Ja)';
+            rowEl.appendChild(labelCell);
 
-            // Check if this is the start of a new category
-            const colCategory = column.category || 'Unkategorisiert';
-            if (colCategory !== currentCountCategory) {
-                ccell.classList.add('category-start');
-                currentCountCategory = colCategory;
-            }
+            let currentCountCategory = sortedColumns[0]?.category || 'Unkategorisiert';
+            sortedColumns.forEach(column => {
+                const ccell = document.createElement(cellTag);
+                ccell.className = 'font-weight-bold';
 
-            if (column.type === 'boolean') {
-                ccell.textContent = String(trueCounts[column.id] || 0);
-            } else if (column.type === 'ampel') {
-                ccell.innerHTML = `Ja: ${ampelJaCounts[column.id] || 0} · In Bearbeitung: ${ampelBearbeitungCounts[column.id] || 0} · Nein: ${ampelNeinCounts[column.id] || 0}`;
-            } else {
-                ccell.innerHTML = '<span class="text-muted">-</span>';
-            }
-            countsRow.appendChild(ccell);
-        });
-        tbody.appendChild(countsRow);
+                // Check if this is the start of a new category
+                const colCategory = column.category || 'Unkategorisiert';
+                if (colCategory !== currentCountCategory) {
+                    ccell.classList.add('category-start');
+                    currentCountCategory = colCategory;
+                }
+
+                if (column.type === 'boolean') {
+                    ccell.textContent = String(trueCounts[column.id] || 0);
+                } else if (column.type === 'ampel') {
+                    ccell.innerHTML = `Ja: ${ampelJaCounts[column.id] || 0} · In Bearbeitung: ${ampelBearbeitungCounts[column.id] || 0} · Nein: ${ampelNeinCounts[column.id] || 0}`;
+                } else {
+                    ccell.innerHTML = '<span class="text-muted">-</span>';
+                }
+                rowEl.appendChild(ccell);
+            });
+        }
+
+        // Auswertungszeile direkt unter der Überschrift anzeigen, damit kein Scrollen notwendig ist
+        if (headerCounts) {
+            fillCountsRow(headerCounts, 'th');
+        }
+
+        // Auswertungszeile zusätzlich am Ende der Werte-Tabelle anzeigen
+        const footerCountsRow = document.createElement('tr');
+        fillCountsRow(footerCountsRow, 'td');
+        tbody.appendChild(footerCountsRow);
      }
 
     // Export Word

@@ -139,7 +139,12 @@ export function registerTaskPanel(Alpine) {
             }
         },
 
-        async completeEntryFromPanel(entryId) {
+        /**
+         * Notiz aus dem Panel abschließen.
+         * `stuId` stammt aus der Gruppierung (itemsByStudent), sodass bei Einträgen
+         * mit mehreren Schülern nur der jeweils angezeigte Schüler beendet wird.
+         */
+        async completeEntryFromPanel(entryId, stuId) {
             try {
                 const resp = await fetch(`/paed-diary/entry/${entryId}/complete`, {
                     method: 'POST',
@@ -148,7 +153,10 @@ export function registerTaskPanel(Alpine) {
                         'X-CSRF-TOKEN': csrfToken(),
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ completed_at: new Date().toISOString().slice(0, 10) })
+                    body: JSON.stringify({
+                        completed_at: new Date().toISOString().slice(0, 10),
+                        schueler_id: stuId,
+                    })
                 });
                 const j = await resp.json();
                 if (j.success) this.$store.diary.loadWeek();

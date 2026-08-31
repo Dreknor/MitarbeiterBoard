@@ -121,8 +121,10 @@ export function registerDiaryTable(Alpine) {
 
         /**
          * Offene Notiz aus der Namensspalte abschließen (wie v1 complete-entry-btn).
+         * Betrifft der Eintrag mehrere Schüler, wird er nur für diesen Schüler beendet,
+         * die anderen Schüler behalten den Eintrag weiterhin offen.
          */
-        async completeOpenEntry(entryId) {
+        async completeOpenEntry(entryId, stuId) {
             try {
                 const resp = await fetch(`/paed-diary/entry/${entryId}/complete`, {
                     method: 'POST',
@@ -131,7 +133,10 @@ export function registerDiaryTable(Alpine) {
                         'X-CSRF-TOKEN': csrfToken(),
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ completed_at: new Date().toISOString().slice(0, 10) })
+                    body: JSON.stringify({
+                        completed_at: new Date().toISOString().slice(0, 10),
+                        schueler_id: stuId,
+                    })
                 });
                 const j = await resp.json();
                 if (j.success) this.$store.diary.loadWeek();
@@ -290,8 +295,10 @@ export function registerDiaryTable(Alpine) {
 
         /**
          * Eintrag als erledigt markieren.
+         * Betrifft der Eintrag mehrere Schüler, wird er nur für diesen Schüler (stuId) beendet,
+         * die anderen Schüler behalten den Eintrag weiterhin offen.
          */
-        async completeEntry(entryId, date) {
+        async completeEntry(entryId, stuId, date) {
             try {
                 const resp = await fetch(`/paed-diary/entry/${entryId}/complete`, {
                     method: 'POST',
@@ -300,7 +307,7 @@ export function registerDiaryTable(Alpine) {
                         'X-CSRF-TOKEN': csrfToken(),
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ completed_at: date })
+                    body: JSON.stringify({ completed_at: date, schueler_id: stuId })
                 });
                 const j = await resp.json();
                 if (j.success) {
