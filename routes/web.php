@@ -1239,8 +1239,16 @@ Route::middleware(['auth', 'permission:view timesheet anomalies', 'personal.audi
             ->name('timesheet-validation.run')
             ->middleware('permission:run timesheet validation');
 
+        Route::post('/mitarbeiter/{employe}/pruefung/zeitraum-lauf', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'runForEmployeeRange'])
+            ->name('timesheet-validation.run-range')
+            ->middleware('permission:run timesheet validation');
+
         Route::post('/abteilung/{department}/pruefung/{date}/lauf', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'runForDepartment'])
             ->name('timesheet-validation.run-department')
+            ->middleware('permission:run timesheet validation');
+
+        Route::post('/abteilung/{department}/pruefung/zeitraum-lauf', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'runForDepartmentRange'])
+            ->name('timesheet-validation.run-department-range')
             ->middleware('permission:run timesheet validation');
 
         Route::patch('/pruefung/anomalien/{anomaly}/quittieren', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'resolve'])

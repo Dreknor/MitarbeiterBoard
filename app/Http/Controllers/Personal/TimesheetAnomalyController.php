@@ -27,18 +27,29 @@ class TimesheetAnomalyController extends Controller
     ) {}
 
     /**
-     * GET /personal/mitarbeiter/{employe}/pruefung/{date?}
-     * Monats-Dashboard: Auffälligkeiten, Vertragsänderungs-Banner, Soll/Ist-Gegenüberstellung.
+     * GET /personal/mitarbeiter/{employe}/pruefung/{date?}?bis=Y-m
+     * Dashboard: Auffälligkeiten, Vertragsänderungs-Banner, Soll/Ist-Gegenüberstellung.
+     * Standardmäßig wird ein einzelner Monat angezeigt ({date}); über den Query-Parameter
+     * "bis" kann optional ein längerer Zeitraum (Quartal, Halbjahr, Jahr, ...) betrachtet werden,
+     * wobei {date} dann als Anfangsmonat des Zeitraums dient.
      */
-    public function index(int $employe, ?string $date = null): View
+    public function index(Request $request, int $employe, ?string $date = null): View
     {
         /** @var User $employe */
         $employe = $this->scopeService->visibleEmployees()->findOrFail($employe);
 
         $month = $date ? Carbon::createFromFormat('Y-m', $date)->startOfMonth() : Carbon::now()->startOfMonth();
 
+        $bisParam = $request->query('bis');
+        $periodStart = $month;
+        $periodEnd   = $bisParam ? Carbon::createFromFormat('Y-m', $bisParam)->startOfMonth() : $month;
+        if ($periodEnd->lessThan($periodStart)) {
+            [$periodStart, $periodEnd] = [$periodEnd, $periodStart];
+        }
+        $isRange = !$periodStart->isSameMonth($periodEnd);
+
         $anomalies = TimesheetAnomaly::forEmploye($employe->id)
-            ->forPeriod($month->month, $month->year)
+            ->forPeriodRange($periodStart, $periodEnd)
             ->with(['resolvedBy', 'relatedEmployment'])
             ->orderByDesc('severity')
             ->orderBy('date')
@@ -53,18 +64,22 @@ class TimesheetAnomalyController extends Controller
             fn (TimesheetAnomaly $a) => in_array($a->rule_type->value, ['CONTRACT_CHANGE_IN_PERIOD', 'RETROACTIVE_CONTRACT_CHANGE'], true)
         );
 
-        $timesheet = Timesheet::where('employe_id', $employe->id)
+        // Bei Einzelmonat-Ansicht (Standardfall) wird zusätzlich das Timesheet des Monats geladen (Sperrstatus etc.).
+        $timesheet = $isRange ? null : Timesheet::where('employe_id', $employe->id)
             ->where('year', $month->year)
             ->where('month', $month->month)
             ->first();
 
-        $balance = $this->validationService->calculateMonthlyBalance($employe, $month);
+        $balance = $this->validationService->calculateBalance($employe, $periodStart->copy()->startOfMonth(), $periodEnd->copy()->endOfMonth());
 
         $anomaliesByDay = $anomalies->groupBy(fn (TimesheetAnomaly $a) => $a->date?->format('Y-m-d'));
 
         return view('personal.timesheet-validation.index', [
             'employe'                 => $employe,
             'month'                   => $month,
+            'periodStart'             => $periodStart,
+            'periodEnd'               => $periodEnd,
+            'isRange'                 => $isRange,
             'timesheet'               => $timesheet,
             'anomalies'               => $otherAnomalies,
             'contractChangeAnomalies' => $contractChangeAnomalies,
@@ -92,6 +107,35 @@ class TimesheetAnomalyController extends Controller
     }
 
     /**
+     * POST /personal/mitarbeiter/{employe}/pruefung/zeitraum-lauf
+     * Stößt eine Neu-Prüfung für einen Mitarbeiter über einen mehrmonatigen
+     * Zeitraum (z. B. Quartal, Halbjahr, Jahr) an.
+     */
+    public function runForEmployeeRange(Request $request, int $employe): RedirectResponse
+    {
+        /** @var User $employe */
+        $employe = $this->scopeService->visibleEmployees()->findOrFail($employe);
+
+        $data = $request->validate([
+            'von' => ['required', 'date_format:Y-m'],
+            'bis' => ['required', 'date_format:Y-m', 'after_or_equal:von'],
+        ]);
+
+        $rangeStart = Carbon::createFromFormat('Y-m', $data['von'])->startOfMonth();
+        $rangeEnd   = Carbon::createFromFormat('Y-m', $data['bis'])->endOfMonth();
+
+        $anomalies = $this->validationService->runForEmployeeRange($employe, $rangeStart, $rangeEnd, auth()->user());
+
+        return redirect()
+            ->route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $rangeEnd->format('Y-m')])
+            ->with('type', 'success')
+            ->with('Meldung', sprintf(
+                'Prüflauf für %s bis %s abgeschlossen: %d Auffälligkeit(en) gefunden.',
+                $rangeStart->format('m.Y'), $rangeEnd->format('m.Y'), $anomalies->count()
+            ));
+    }
+
+    /**
      * POST /personal/orgchart-abteilung/{department}/pruefung/{date}/lauf
      * Stößt eine Neu-Prüfung für alle aktiven Mitarbeiter einer Abteilung an.
      */
@@ -103,6 +147,30 @@ class TimesheetAnomalyController extends Controller
         $total = $results->sum(fn ($c) => $c->count());
 
         return redirectBack('success', sprintf('Prüflauf für Abteilung "%s" abgeschlossen: %d Auffälligkeit(en) bei %d Mitarbeiter(n).', $department->name, $total, $results->count()));
+    }
+
+    /**
+     * POST /personal/abteilung/{department}/pruefung/zeitraum-lauf
+     * Stößt eine Neu-Prüfung für alle aktiven Mitarbeiter einer Abteilung über
+     * einen mehrmonatigen Zeitraum an.
+     */
+    public function runForDepartmentRange(Request $request, Group $department): RedirectResponse
+    {
+        $data = $request->validate([
+            'von' => ['required', 'date_format:Y-m'],
+            'bis' => ['required', 'date_format:Y-m', 'after_or_equal:von'],
+        ]);
+
+        $rangeStart = Carbon::createFromFormat('Y-m', $data['von'])->startOfMonth();
+        $rangeEnd   = Carbon::createFromFormat('Y-m', $data['bis'])->endOfMonth();
+
+        $results = $this->validationService->runForDepartmentRange($department, $rangeStart, $rangeEnd, auth()->user());
+        $total = $results->sum(fn ($c) => $c->count());
+
+        return redirectBack('success', sprintf(
+            'Prüflauf für Abteilung "%s" (%s bis %s) abgeschlossen: %d Auffälligkeit(en) bei %d Mitarbeiter(n).',
+            $department->name, $rangeStart->format('m.Y'), $rangeEnd->format('m.Y'), $total, $results->count()
+        ));
     }
 
     /**
@@ -140,4 +208,6 @@ class TimesheetAnomalyController extends Controller
             ->with('Meldung', 'Auffälligkeit wurde quittiert.');
     }
 }
+
+
 

@@ -77,9 +77,29 @@ class TimesheetAnomaly extends Model
         return $query->where('month', $month)->where('year', $year);
     }
 
+    /**
+     * Erweiterung: Auffälligkeiten über einen mehrmonatigen Zeitraum (z. B. Quartal/Jahr).
+     * $from/$to sind Carbon-Instanzen (nur Monat/Jahr relevant).
+     */
+    public function scopeForPeriodRange($query, \Carbon\Carbon $from, \Carbon\Carbon $to)
+    {
+        return $query->where(function ($q) use ($from, $to) {
+            $q->where('year', '>', $from->year)
+              ->orWhere(function ($qq) use ($from) {
+                  $qq->where('year', $from->year)->where('month', '>=', $from->month);
+              });
+        })->where(function ($q) use ($from, $to) {
+            $q->where('year', '<', $to->year)
+              ->orWhere(function ($qq) use ($to) {
+                  $qq->where('year', $to->year)->where('month', '<=', $to->month);
+              });
+        });
+    }
+
     public function scopeForEmploye($query, int $employeId)
     {
         return $query->where('employe_id', $employeId);
     }
 }
+
 

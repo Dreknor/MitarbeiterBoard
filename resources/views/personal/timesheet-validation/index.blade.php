@@ -11,16 +11,33 @@
     <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Prüfengine – Zeiterfassung &amp; Verträge</h1>
-            <p class="text-gray-500 text-sm mt-1">{{ $employe->name }} {{ $employe->familienname }} · {{ $month->translatedFormat('F Y') }}</p>
+            <p class="text-gray-500 text-sm mt-1">
+                {{ $employe->name }} {{ $employe->familienname }} ·
+                @if($isRange)
+                    {{ $periodStart->translatedFormat('F Y') }} – {{ $periodEnd->translatedFormat('F Y') }}
+                @else
+                    {{ $month->translatedFormat('F Y') }}
+                @endif
+            </p>
         </div>
-        <div class="flex gap-3 items-center">
-            <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $month->copy()->subMonth()->format('Y-m')]) }}"
-               class="btn-personal-secondary text-sm">&larr;</a>
-            <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $month->copy()->addMonth()->format('Y-m')]) }}"
-               class="btn-personal-secondary text-sm">&rarr;</a>
+        <div class="flex gap-3 items-center flex-wrap">
+            @if($isRange)
+                @php $spanMonths = $periodStart->diffInMonths($periodEnd) + 1; @endphp
+                <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $periodStart->copy()->subMonths($spanMonths)->format('Y-m')]) }}?bis={{ $periodEnd->copy()->subMonths($spanMonths)->format('Y-m') }}"
+                   class="btn-personal-secondary text-sm">&larr;</a>
+                <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $periodStart->copy()->addMonths($spanMonths)->format('Y-m')]) }}?bis={{ $periodEnd->copy()->addMonths($spanMonths)->format('Y-m') }}"
+                   class="btn-personal-secondary text-sm">&rarr;</a>
+                <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $periodEnd->format('Y-m')]) }}"
+                   class="btn-personal-secondary text-sm">Einzelmonat</a>
+            @else
+                <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $month->copy()->subMonth()->format('Y-m')]) }}"
+                   class="btn-personal-secondary text-sm">&larr;</a>
+                <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $month->copy()->addMonth()->format('Y-m')]) }}"
+                   class="btn-personal-secondary text-sm">&rarr;</a>
+            @endif
 
             @can('run timesheet validation')
-            <form method="POST" action="{{ route('personal.timesheet-validation.run', ['employe' => $employe->id, 'date' => $month->format('Y-m')]) }}">
+            <form method="POST" action="{{ route('personal.timesheet-validation.run', ['employe' => $employe->id, 'date' => ($isRange ? $periodEnd : $month)->format('Y-m')]) }}">
                 @csrf
                 <button type="submit" class="btn-personal-primary text-sm">🔄 Neu prüfen</button>
             </form>
@@ -29,6 +46,36 @@
             <a href="{{ route('personal.personalakte.show', $employe->id) }}" class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
         </div>
     </div>
+
+    {{-- Zeitraum-Auswahl & Zeitraum-Prüflauf (mehrere Monate auf einmal) --}}
+    <div class="personal-card mb-6">
+        <div class="flex flex-wrap items-end gap-4">
+            <form method="GET" action="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id]) }}" class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="personal-label">Von</label>
+                    <input type="month" name="date" value="{{ $periodStart->format('Y-m') }}" class="personal-input" required>
+                </div>
+                <div>
+                    <label class="personal-label">Bis</label>
+                    <input type="month" name="bis" value="{{ $periodEnd->format('Y-m') }}" class="personal-input" required>
+                </div>
+                <button type="submit" class="btn-personal-secondary text-sm">Zeitraum anzeigen</button>
+            </form>
+
+            @can('run timesheet validation')
+            <form method="POST" action="{{ route('personal.timesheet-validation.run-range', ['employe' => $employe->id]) }}" class="flex flex-wrap items-end gap-3">
+                @csrf
+                <input type="hidden" name="von" value="{{ $periodStart->format('Y-m') }}">
+                <input type="hidden" name="bis" value="{{ $periodEnd->format('Y-m') }}">
+                <button type="submit" class="btn-personal-primary text-sm">
+                    🔄 Zeitraum {{ $periodStart->format('m.Y') }}–{{ $periodEnd->format('m.Y') }} prüfen
+                </button>
+            </form>
+            @endcan
+        </div>
+        <p class="text-xs text-gray-400 mt-2">Zeigt/prüft auf Wunsch mehrere Monate gleichzeitig (z. B. Quartal, Halbjahr, Jahr) statt nur einen Einzelmonat.</p>
+    </div>
+
 
     @if(session('Meldung'))
     <div class="rounded-lg p-4 mb-4 {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : (session('type') === 'warning' ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' : 'bg-red-50 text-red-800 border border-red-200') }}">
@@ -72,7 +119,9 @@
 
     {{-- Detailansicht: Tagesgenaue Farbcodierung (Aufgabe 5.1 / 5.3) --}}
     <div class="personal-card mb-6 overflow-x-auto">
-        <h2 class="font-semibold text-gray-900 mb-3">Monatsübersicht</h2>
+        <h2 class="font-semibold text-gray-900 mb-3">
+            {{ $isRange ? 'Zeitraumübersicht' : 'Monatsübersicht' }}
+        </h2>
         <table class="table-personal">
             <thead>
                 <tr>
@@ -82,7 +131,7 @@
                 </tr>
             </thead>
             <tbody>
-                @for($day = $month->copy()->startOfMonth(); $day->lessThanOrEqualTo($month->copy()->endOfMonth()); $day->addDay())
+                @for($day = $periodStart->copy()->startOfMonth(); $day->lessThanOrEqualTo($periodEnd->copy()->endOfMonth()); $day->addDay())
                     @php
                         $dayAnomalies = $anomaliesByDay->get($day->format('Y-m-d'), collect());
                         $maxSeverity = $dayAnomalies->sortByDesc(fn($a) => $a->severity->weight())->first()?->severity;
@@ -153,4 +202,6 @@
 @push('js')
     @vite('resources/js/personal.js')
 @endpush
+
+
 
