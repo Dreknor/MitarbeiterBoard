@@ -138,6 +138,20 @@
         </a>
         @endcan
 
+        {{-- Prüfengine: Zeiterfassung & Vertragsänderungen --}}
+        @can('view timesheet anomalies')
+        <a href="{{ route('personal.timesheet-validation.index', $employe->id) }}"
+           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
+            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600 text-xl shrink-0">
+                🛡️
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900 group-hover:text-red-700 transition-colors">Prüfengine</h3>
+                <p class="text-gray-500 text-sm mt-0.5">Zeiterfassung, Dienstplan & Vertragsänderungen prüfen</p>
+            </div>
+        </a>
+        @endcan
+
         {{-- Organigramm --}}
         @can('view orgchart')
         <a href="{{ route('personal.orgchart.index') }}"

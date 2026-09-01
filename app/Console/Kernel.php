@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         RemindProcedureUser::class,
         \App\Console\Commands\Personal\ReEncryptPersonalData::class,
+        \App\Console\Commands\Personal\AuditTimesheets::class,
     ];
 
     /**
@@ -97,6 +98,13 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             app(\App\Services\Personal\QualificationService::class)->checkExpiringQualifications();
         })->dailyAt('07:30')->name('personal-expiring-qualifications')->withoutOverlapping();
+
+        // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
+        $schedule->command('personal:audit-timesheets')
+            ->dailyAt('03:00')
+            ->name('personal-audit-timesheets')
+            ->withoutOverlapping(60)
+            ->appendOutputTo(storage_path('logs/personal-audit-timesheets.log'));
     }
 
     /**

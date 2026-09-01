@@ -10,6 +10,38 @@
 
 @section('content')
     <div class="container-fluid">
+        @if(isset($missingEntries) && $missingEntries->isNotEmpty())
+            <div class="card border-warning mb-3">
+                <div class="card-body">
+                    <h6 class="text-warning"><i class="fa-solid fa-triangle-exclamation"></i> Bitte Arbeitszeiten nachtragen</h6>
+                    <p class="mb-2">Für folgende Dienstplantage fehlt eine vollständige Zeitbuchung. Die Dienstplanzeiten können direkt übernommen werden:</p>
+                    <table class="table table-sm">
+                        <tbody>
+                        @foreach($missingEntries as $entry)
+                            <tr>
+                                <td>{{ optional($entry->date)->format('d.m.Y') }}</td>
+                                <td>{{ $entry->description }}</td>
+                                <td class="text-right">
+                                    @php $ctx = $entry->context ?? []; @endphp
+                                    @if(!empty($ctx['suggested_start']) && !empty($ctx['suggested_end']))
+                                        <form action="{{ url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.optional($entry->date)->format('Y-m-d').'/apply-roster') }}" method="post" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-bg-gradient-x-blue-green">
+                                                Dienstplan übernehmen ({{ $ctx['suggested_start'] }}–{{ $ctx['suggested_end'] }})
+                                            </button>
+                                        </form>
+                                    @else
+                                        <a href="{{ url('timesheets/'.$employe->id.'/'.$timesheet->id.'/'.optional($entry->date)->format('Y-m-d').'/add') }}"
+                                           class="btn btn-sm btn-outline-warning">erfassen</a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
         <div class="card border">
             <div class="card-header">
                 <h6>Arbeitszeitnachweis {{$employe->vorname}} {{$employe->familienname}}</h6>
@@ -39,7 +71,7 @@
                                 @endfor
                             </ul>
                         </div>
-                    </>
+                    </div>
                 </p>
             </div>
             <div class="card-body border-bottom border-top">

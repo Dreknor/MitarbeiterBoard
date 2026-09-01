@@ -8,6 +8,7 @@ use App\Http\Requests\updateTimesheetDayRequest;
 use App\Mail\SendMonthlyTimesheetMail;
 use App\Models\Absence;
 use App\Models\personal\RosterEvents;
+use App\Models\personal\TimesheetAnomaly;
 use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
@@ -195,9 +196,78 @@ class TimesheetController extends Controller
         return view('personal.timesheets.addDay',[
             'day' => $day,
             'user' => $user,
-            'timesheet' => $timesheet
+            'timesheet' => $timesheet,
+            'suggestion' => $this->rosterSuggestionForDay($user, $day),
         ]);
 
+    }
+
+    /**
+     * Ermittelt aus dem Dienstplan (WorkingTime) den Vorschlag für Beginn/Ende
+     * eines Tages, damit Mitarbeiter fehlende Zeiten schnell nachtragen können.
+     *
+     * @return array{start: ?string, end: ?string}
+     */
+    private function rosterSuggestionForDay(User $user, Carbon $day): array
+    {
+        $withTimes = $user->working_times()
+            ->whereDate('date', $day->format('Y-m-d'))
+            ->get()
+            ->filter(fn ($w) => $w->start !== null && $w->end !== null);
+
+        if ($withTimes->isEmpty()) {
+            return ['start' => null, 'end' => null];
+        }
+
+        return [
+            'start' => $withTimes->min(fn ($w) => $w->start)->format('H:i'),
+            'end'   => $withTimes->max(fn ($w) => $w->end)->format('H:i'),
+        ];
+    }
+
+    /**
+     * Übernimmt die Dienstplanzeiten (WorkingTime) für einen Tag als Zeitbuchung.
+     * Ergänzt eine unvollständige Buchung (fehlender Ausstieg) oder legt eine neue
+     * Buchung an, falls für den Tag noch keine erfasst wurde.
+     */
+    public function applyRosterSuggestion(User $user, Timesheet $timesheet, $day)
+    {
+        if (!$this->berechtigt($user, 'edit')){
+            return redirectBack('warning', 'Keine Berechtigung');
+        }
+
+        $day = Carbon::createFromFormat('Y-m-d', $day);
+        $suggestion = $this->rosterSuggestionForDay($user, $day);
+
+        if ($suggestion['start'] === null || $suggestion['end'] === null){
+            return redirectBack('warning', 'Für diesen Tag liegen keine Dienstplanzeiten vor.');
+        }
+
+        // Unvollständige Buchung (Start ohne Ende) ergänzen statt Duplikat anzulegen
+        $incomplete = TimesheetDays::where('timesheet_id', $timesheet->id)
+            ->whereDate('date', $day->format('Y-m-d'))
+            ->whereNotNull('start')
+            ->whereNull('end')
+            ->first();
+
+        if ($incomplete !== null){
+            $incomplete->update(['end' => $suggestion['end']]);
+        } else {
+            $timesheetDay = new TimesheetDays([
+                'start' => $suggestion['start'],
+                'end'   => $suggestion['end'],
+                'comment' => 'aus Dienstplan übernommen',
+            ]);
+            $timesheetDay->timesheet_id = $timesheet->id;
+            $timesheetDay->date = $day;
+            $timesheetDay->save();
+        }
+
+        $timesheet->updateTime();
+
+        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))
+            ->with('type', 'success')
+            ->with('Meldung', 'Dienstplanzeiten wurden übernommen ('.$suggestion['start'].' - '.$suggestion['end'].' Uhr).');
     }
 
     public function editDay(TimesheetDays $timesheetDay){
@@ -342,13 +412,23 @@ class TimesheetController extends Controller
 
         $timesheet->updateTime();
 
+        // Offene Auffälligkeiten (fehlende/unvollständige Zeitbuchungen an Dienstplantagen)
+        // inkl. Dienstplan-Vorschlag, damit der Mitarbeiter zur Nacherfassung aufgefordert werden kann.
+        $missingEntries = TimesheetAnomaly::forEmploye($user->id)
+            ->forPeriod($act_month->month, $act_month->year)
+            ->where('rule_type', \App\Enums\AnomalyRuleType::MissingClockOut->value)
+            ->unresolved()
+            ->orderBy('date')
+            ->get();
+
         return view('personal.timesheets.timesheet', [
             'timesheet_old' => $timesheet_old,
             'timesheet' => $timesheet,
             'timesheet_days' => $timesheet_days,
             'balance' => $timesheet->working_time_account,
             'employe' => $user,
-            'month' => $act_month
+            'month' => $act_month,
+            'missingEntries' => $missingEntries,
         ]);
 
     }

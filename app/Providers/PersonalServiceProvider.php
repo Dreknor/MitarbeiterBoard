@@ -47,6 +47,7 @@ class PersonalServiceProvider extends ServiceProvider
         $this->app->singleton(PersonalRetentionService::class);
         $this->app->singleton(PersonalAuditService::class);
         $this->app->singleton(ContractValidationService::class);
+        $this->app->singleton(TimeValidationService::class);
     }
 
     public function boot(): void

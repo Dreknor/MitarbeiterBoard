@@ -87,6 +87,35 @@ class Employment extends Model implements Auditable
     }
 
     /**
+     * Vertragshistorie / Audit-Log dieser Anstellung (Arbeitspaket 1.2).
+     */
+    public function contractAudits(): HasMany
+    {
+        return $this->hasMany(ContractAudit::class, 'employment_id')->latest('valid_from');
+    }
+
+    /**
+     * Auffälligkeiten der Prüfengine, die dieser Anstellung zugeordnet wurden.
+     */
+    public function anomalies(): HasMany
+    {
+        return $this->hasMany(TimesheetAnomaly::class, 'related_employment_id');
+    }
+
+    // ---- Semantische Aliase für die Prüfengine (valid_from/valid_to) ----
+    // 'start'/'end' bilden bereits den Gültigkeitsbereich einer Vertragsversion ab.
+
+    public function getValidFromAttribute()
+    {
+        return $this->start;
+    }
+
+    public function getValidToAttribute()
+    {
+        return $this->end;
+    }
+
+    /**
      * Liefert aktuell gültiges TeacherDetail (valid_until IS NULL oder >= heute).
      */
     public function currentTeacherDetail(): HasOne

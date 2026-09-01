@@ -259,6 +259,7 @@ Route::group([
                 Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
                 Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
                 Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
+                Route::post('timesheets/{user}/{timesheet}/{date}/apply-roster', [TimesheetController::class, 'applyRosterSuggestion']);
 
                 //Anstellungen
                 Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
@@ -1222,6 +1223,29 @@ Route::middleware(['auth', 'permission:view contracts', 'personal.audit'])
             ->middleware('permission:edit contracts');
         Route::patch('/vertraege/{employment}/beenden',   [App\Http\Controllers\Personal\ContractController::class, 'setBeendet'])->name('contracts.setBeendet')
             ->middleware('permission:edit contracts');
+    });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Arbeitspaket 4: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'permission:view timesheet anomalies', 'personal.audit'])
+    ->prefix('personal')
+    ->name('personal.')
+    ->group(function () {
+        Route::get('/mitarbeiter/{employe}/pruefung/{date?}', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'index'])
+            ->name('timesheet-validation.index');
+
+        Route::post('/mitarbeiter/{employe}/pruefung/{date}/lauf', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'runForEmployee'])
+            ->name('timesheet-validation.run')
+            ->middleware('permission:run timesheet validation');
+
+        Route::post('/abteilung/{department}/pruefung/{date}/lauf', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'runForDepartment'])
+            ->name('timesheet-validation.run-department')
+            ->middleware('permission:run timesheet validation');
+
+        Route::patch('/pruefung/anomalien/{anomaly}/quittieren', [App\Http\Controllers\Personal\TimesheetAnomalyController::class, 'resolve'])
+            ->name('timesheet-validation.resolve')
+            ->middleware('permission:resolve timesheet anomalies');
     });
 
 // ═══════════════════════════════════════════════════════════════════════════
