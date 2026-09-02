@@ -4,8 +4,11 @@
 
 <p>Hallo {{ $user->name }},</p>
 
-<p>du bist zum folgenden Meeting eingeladen:</p>
+@if($messageText)
+    <p><strong>Zusätzliche Nachricht:</strong><br>{{ $messageText }}</p>
+@endif
 
+<p>du bist zum folgenden Meeting eingeladen:</p>
 <ul>
     <li><strong>Titel:</strong> {{ $meeting->title }}</li>
     <li><strong>Datum:</strong> {{ $meeting->date->format('d.m.Y') }}</li>
@@ -32,11 +35,6 @@
         </ul>
     </li>
 </ul>
-
-@if($messageText)
-    <p><strong>Zusätzliche Nachricht:</strong><br>{{ $messageText }}</p>
-@endif
-
 <p>Viele Grüße<br>
 {{$absender}}
 </p>
