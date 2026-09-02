@@ -61,7 +61,7 @@ class MissingClockOutRule implements ValidationRuleInterface
             ]);
         }
 
-        // 2) Unentschuldigtes Fehlen: geplanter Dienst ohne Zeitbuchung, Urlaub oder Abwesenheit.
+        // 2) geplanter Dienst ohne Zeitbuchung, Urlaub oder Abwesenheit.
         if ($workingTimesByDay->isEmpty()) {
             return $anomalies;
         }
@@ -92,7 +92,7 @@ class MissingClockOutRule implements ValidationRuleInterface
             if (!$onHoliday && !$onAbsence) {
                 $suggestion = $this->rosterSuggestion($planned);
 
-                $description = sprintf('Keine Zeitbuchung am geplanten Dienstplantag %s (unentschuldigtes Fehlen?).', $day->format('d.m.Y'));
+                $description = sprintf('Keine Zeitbuchung am geplanten Dienstplantag %s.', $day->format('d.m.Y'));
                 if ($suggestion['start'] !== null && $suggestion['end'] !== null) {
                     $description .= sprintf(' Dienstplan schlägt %s–%s Uhr vor.', $suggestion['start'], $suggestion['end']);
                 }
