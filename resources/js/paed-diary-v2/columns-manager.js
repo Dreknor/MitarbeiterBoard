@@ -25,15 +25,43 @@ export function registerColumnsManager(Alpine) {
         newColumnType: 'boolean',
         newColumnCategorySelect: '',
         newColumnNewCategory: '',
+        /** Ausgewählte Ziel-Klassen (Mehrfachauswahl) für das Anlegen neuer Spalten */
+        newColumnKlasseIds: [],
+        /** Alle Klassen des Lehrers (id, name), aus dem data-Attribut der Card gelesen */
+        allKlassenList: [],
+        /** Welche Spalte gerade ein "In andere Klassen kopieren"-Panel geöffnet hat */
+        copyOpenFor: null,
+        /** Ausgewählte Ziel-Klassen für den Kopiervorgang */
+        copyTargetIds: [],
 
         /**
          * Initialisierung: Wenn die Spalten-Card geöffnet wird,
          * lädt diese Instanz automatisch alle Spalten nach.
          */
         init() {
+            try {
+                this.allKlassenList = JSON.parse(this.$el.dataset.klassen || '[]');
+            } catch (_) {
+                this.allKlassenList = [];
+            }
+            this.newColumnKlasseIds = this.$store.diary.selectedKlasseId ? [this.$store.diary.selectedKlasseId] : [];
             this.$watch('$store.diary.columnsCardOpen', (open) => {
-                if (open) this.loadAllColumns();
+                if (open) {
+                    this.loadAllColumns();
+                    this.newColumnKlasseIds = this.$store.diary.selectedKlasseId ? [this.$store.diary.selectedKlasseId] : [];
+                }
             });
+        },
+
+        /** Checkbox-Handler für die Ziel-Klassen-Auswahl beim Anlegen. */
+        toggleNewColumnKlasse(klasseId) {
+            const id = parseInt(klasseId);
+            const idx = this.newColumnKlasseIds.indexOf(id);
+            if (idx === -1) {
+                this.newColumnKlasseIds.push(id);
+            } else {
+                this.newColumnKlasseIds.splice(idx, 1);
+            }
         },
 
         // ── Spalten für die Tabellenzellen ─────────────────────────
@@ -226,6 +254,10 @@ export function registerColumnsManager(Alpine) {
         async addColumn() {
             const store = this.$store.diary;
             if (!this.newColumnName.trim()) return;
+            if (!this.newColumnKlasseIds.length) {
+                this.setFeedback('Bitte mindestens eine Klasse auswählen', 'warning');
+                return;
+            }
 
             let category = '';
             if (this.newColumnNewCategory.trim()) {
@@ -237,7 +269,7 @@ export function registerColumnsManager(Alpine) {
             const fd = new FormData();
             fd.append('name', this.newColumnName.trim());
             fd.append('type', this.newColumnType);
-            fd.append('klasse_id', store.selectedKlasseId);
+            this.newColumnKlasseIds.forEach(id => fd.append('klasse_ids[]', id));
             if (category) fd.append('category', category);
 
             try {
@@ -251,7 +283,9 @@ export function registerColumnsManager(Alpine) {
                     this.newColumnName = '';
                     this.newColumnNewCategory = '';
                     this.newColumnCategorySelect = '';
-                    this.setFeedback('Spalte angelegt', 'success');
+                    this.newColumnKlasseIds = store.selectedKlasseId ? [store.selectedKlasseId] : [];
+                    const count = (j.columns || (j.column ? [j.column] : [])).length;
+                    this.setFeedback(count > 1 ? `Spalte in ${count} Klassen angelegt` : 'Spalte angelegt', 'success');
                     store.loadWeek();
                     this.loadAllColumns();
                 } else {
@@ -259,6 +293,63 @@ export function registerColumnsManager(Alpine) {
                 }
             } catch (_) {
                 this.setFeedback('Fehler beim Anlegen', 'danger');
+            }
+        },
+
+        // ── Spalte in andere Klassen kopieren ──────────────────────
+
+        /** Öffnet/schließt das Kopier-Panel für eine Spalte. */
+        toggleCopyPanel(colId) {
+            this.copyOpenFor = this.copyOpenFor === colId ? null : colId;
+            this.copyTargetIds = [];
+        },
+
+        /** Klassen, in die eine Spalte kopiert werden kann (alle außer der eigenen). */
+        copyTargetsFor(col) {
+            return this.allKlassenList.filter(k => parseInt(k.id) !== parseInt(col.klasse_id));
+        },
+
+        toggleCopyTarget(klasseId) {
+            const id = parseInt(klasseId);
+            const idx = this.copyTargetIds.indexOf(id);
+            if (idx === -1) {
+                this.copyTargetIds.push(id);
+            } else {
+                this.copyTargetIds.splice(idx, 1);
+            }
+        },
+
+        async copyColumn(colId) {
+            if (!this.copyTargetIds.length) return;
+            try {
+                const resp = await fetch(`/paed-diary/column/${colId}/copy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ klasse_ids: this.copyTargetIds })
+                });
+                const j = await resp.json();
+                if (j.success) {
+                    const createdCount = (j.created || []).length;
+                    const skippedCount = (j.skipped || []).length;
+                    let msg = createdCount ? `Spalte in ${createdCount} Klasse(n) kopiert` : 'Keine Spalte kopiert';
+                    if (skippedCount) {
+                        const names = j.skipped.map(s => s.name).join(', ');
+                        msg += ` (übersprungen, da Name bereits existiert: ${names})`;
+                    }
+                    this.setFeedback(msg, skippedCount && !createdCount ? 'warning' : 'success');
+                    this.copyOpenFor = null;
+                    this.copyTargetIds = [];
+                    this.$store.diary.loadWeek();
+                    this.loadAllColumns();
+                } else {
+                    this.setFeedback(j.message || 'Fehler', 'danger');
+                }
+            } catch (_) {
+                this.setFeedback('Fehler beim Kopieren', 'danger');
             }
         },
 
