@@ -79,7 +79,8 @@
             @if($canEdit ?? false)
             <div class="procedure-card">
                 <h3 class="font-semibold text-gray-800 mb-4">Prozess starten</h3>
-                <form action="{{ url('procedure/'.$procedure->id.'/start') }}" method="post" class="space-y-4">
+                <form action="{{ url('procedure/'.$procedure->id.'/start') }}" method="post" class="space-y-4"
+                      onsubmit="return validateProcedureStart(this)">
                     @csrf
                     <div>
                         <label class="procedure-label" for="name">
@@ -97,6 +98,35 @@
                                value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}"
                                class="input-procedure max-w-xs">
                     </div>
+
+                    @if($multiPositions->isNotEmpty())
+                        <div class="border-t pt-4 mt-2">
+                            <p class="text-sm font-semibold text-gray-700 mb-1">
+                                <i class="fas fa-users"></i> Auswahl der Verantwortlichen
+                            </p>
+                            <p class="text-xs text-gray-500 mb-3">
+                                Folgenden Positionen sind mehrere Personen zugeordnet. Bitte wählen Sie je Position aus,
+                                welche Person(en) für diesen Prozess hinterlegt werden sollen (Mehrfachauswahl möglich).
+                            </p>
+                            <div class="space-y-3">
+                                @foreach($multiPositions as $position)
+                                    <div class="p-3 bg-gray-50 rounded border border-gray-200" data-position-group
+                                         data-position-name="{{ $position->name }}">
+                                        <p class="procedure-label mb-2">{{ $position->name }} <span class="text-red-500">*</span></p>
+                                        <div class="flex flex-wrap gap-3">
+                                            @foreach($position->users->sortBy('name') as $user)
+                                                <label class="inline-flex items-center gap-1.5 text-sm">
+                                                    <input type="checkbox" name="selected_users[{{ $position->id }}][]" value="{{ $user->id }}">
+                                                    {{ $user->name }}
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <button type="submit" class="btn-procedure-success">
                         <i class="fas fa-play"></i> Starten
                     </button>
@@ -221,4 +251,18 @@
 
 @push('js')
     @vite('resources/js/procedure.js')
+    <script>
+        function validateProcedureStart(form) {
+            const groups = form.querySelectorAll('[data-position-group]');
+            for (const group of groups) {
+                const checked = group.querySelectorAll('input[type="checkbox"]:checked');
+                if (checked.length === 0) {
+                    const positionName = group.dataset.positionName ?? 'einer Position';
+                    alert('Bitte wählen Sie mindestens eine Person für "' + positionName + '" aus.');
+                    return false;
+                }
+            }
+            return true;
+        }
+    </script>
 @endpush

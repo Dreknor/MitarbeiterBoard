@@ -51,10 +51,46 @@ document.addEventListener('alpine:init', () => {
                 if (id) this.expanded[id] = true;
             });
 
+            // Aktive Schritte und ihre Eltern so weit aufklappen, dass sie direkt sichtbar sind.
+            this._expandActivePaths();
+
             // Drag-&-Drop initialisieren wenn Bearbeitungsmodus
             if (this.canEdit) {
                 this.$nextTick(() => this._initSortable());
             }
+        },
+
+        _expandActivePaths() {
+            const nodes = Array.from(document.querySelectorAll('[data-step-id]'));
+            const stepMap = new Map();
+
+            nodes.forEach(node => {
+                const id = parseInt(node.dataset.stepId);
+                if (!id) return;
+
+                stepMap.set(id, {
+                    node,
+                    parentId: node.parentElement?.closest('[data-step-id]')?.dataset?.stepId
+                        ? parseInt(node.parentElement.closest('[data-step-id]').dataset.stepId)
+                        : null,
+                });
+            });
+
+            const shouldAutoOpen = (node) => {
+                const badge = node.querySelector('.badge-step-active, .badge-step-due, .badge-step-overdue');
+                const doneBadge = node.querySelector('.badge-step-done');
+                return !!badge && !doneBadge;
+            };
+
+            stepMap.forEach(({ node }, id) => {
+                if (!shouldAutoOpen(node)) return;
+
+                let currentId = id;
+                while (currentId) {
+                    this.expanded[currentId] = true;
+                    currentId = stepMap.get(currentId)?.parentId ?? null;
+                }
+            });
         },
 
         /** SortableJS initialisieren – für alle sortable Container im DOM */
@@ -74,7 +110,7 @@ document.addEventListener('alpine:init', () => {
                     dragoverBubble: false,
 
                     onEnd: (evt) => {
-                        const orderedIds = Array.from(evt.to.querySelectorAll(':scope > [data-step-id]'))
+                        const orderedIds = Array.from(evt.to.querySelectorAll(':scope > .flex-col.items-center > [data-step-id]'))
                             .map(el => parseInt(el.dataset.stepId))
                             .filter(Boolean);
 
@@ -366,5 +402,3 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
-
-

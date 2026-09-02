@@ -322,6 +322,12 @@ class ProcedureController extends Controller
 
         $users = User::all();
 
+        // Positionen ermitteln, die im Template mehreren Personen zugeordnet sind
+        // – dafür muss beim Start eine Auswahl getroffen werden.
+        $multiPositions = collect();
+        if ($procedure->started_at === null) {
+            $multiPositions = $this->getMultiUserPositions($procedure);
+        }
 
         return view('procedure.start', [
             'procedure'=>$procedure->load(
@@ -336,10 +342,52 @@ class ProcedureController extends Controller
             'positions'=>$positions,
             'users' => $users,
             'canEdit'=>$this->canEditProcedure($procedure),
+            'multiPositions' => $multiPositions,
         ]);
     }
 
-    public function recursiveSteps($steps, $parent)
+    /**
+     * Ermittelt alle Positionen, die in den Schritten des Prozesses verwendet werden
+     * und denen mehr als eine Person zugeordnet ist. Für diese Positionen muss beim
+     * (Neu-)Start des Prozesses eine Auswahl getroffen werden, welche Person(en)
+     * hinterlegt werden sollen.
+     */
+    private function getMultiUserPositions(Procedure $procedure): Collection
+    {
+        $positionIds = $procedure->steps->pluck('position_id')->filter()->unique();
+
+        if ($positionIds->isEmpty()) {
+            return collect();
+        }
+
+        return Positions::whereIn('id', $positionIds)
+            ->with('users')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn($position) => $position->users->count() > 1)
+            ->values();
+    }
+
+    /**
+     * Liefert die Personen, die einem Schritt anhand seiner Position zugeordnet werden sollen.
+     * Wurde für die Position eine Auswahl getroffen (Mehrfachauswahl bei mehreren zugeordneten
+     * Personen), werden nur die ausgewählten Personen zurückgegeben. Andernfalls werden alle
+     * der Position zugeordneten Personen verwendet (z.B. wenn nur eine Person zugeordnet ist).
+     */
+    private function resolveStepUsers($position, array $selectedUsersByPosition = [])
+    {
+        if (!$position) {
+            return collect();
+        }
+
+        if (isset($selectedUsersByPosition[$position->id])) {
+            return User::whereIn('id', $selectedUsersByPosition[$position->id])->get();
+        }
+
+        return $position->users;
+    }
+
+    public function recursiveSteps($steps, $parent, array $selectedUsersByPosition = [])
     {
         foreach ($steps as $step) {
             $newStep = $step->replicate();
@@ -347,11 +395,11 @@ class ProcedureController extends Controller
             $newStep->parent = $parent->id;
             $newStep->save();
 
-            $users = $newStep->position->users;
+            $users = $this->resolveStepUsers($newStep->position, $selectedUsersByPosition);
             $newStep->users()->attach($users);
 
             if (count($step->childs) > 0) {
-                $this->recursiveSteps($step->childs, $newStep);
+                $this->recursiveSteps($step->childs, $newStep, $selectedUsersByPosition);
             }
         }
     }
@@ -364,6 +412,28 @@ class ProcedureController extends Controller
                 'type'=>'danger',
                 'Meldung'=> 'Keine Berechtigung Prozesse zu starten.'
             ]);
+        }
+
+        // Positionen mit mehreren zugeordneten Personen ermitteln und Auswahl validieren
+        $multiPositions = $this->getMultiUserPositions($procedure);
+        $selectedInput = $request->input('selected_users', []);
+        $selectedUsersByPosition = [];
+
+        foreach ($multiPositions as $position) {
+            $validIds = $position->users->pluck('id');
+            $selectedIds = collect($selectedInput[$position->id] ?? [])
+                ->map(fn($id) => (int) $id)
+                ->intersect($validIds)
+                ->values();
+
+            if ($selectedIds->isEmpty()) {
+                return redirect()->back()->withInput()->with([
+                    'type' => 'danger',
+                    'Meldung' => 'Bitte wählen Sie für die Position "'.$position->name.'" mindestens eine Person aus.',
+                ]);
+            }
+
+            $selectedUsersByPosition[$position->id] = $selectedIds->all();
         }
 
         $startedProcedure = $procedure->replicate();
@@ -380,7 +450,7 @@ class ProcedureController extends Controller
             $newStep->endDate = $startedProcedure->started_at->addDays($startedProcedure->durationDays);
             $newStep->save();
 
-            $users = $step->position->users;
+            $users = $this->resolveStepUsers($step->position, $selectedUsersByPosition);
 
             if ($users->contains('id', auth()->id())) {
                 $newStep->users()->attach(auth()->user());
@@ -399,7 +469,7 @@ class ProcedureController extends Controller
 
 
 
-            $this->recursiveSteps($step->childs, $newStep);
+            $this->recursiveSteps($step->childs, $newStep, $selectedUsersByPosition);
         }
 
         return redirect('procedure/'.$startedProcedure->id.'/start');
