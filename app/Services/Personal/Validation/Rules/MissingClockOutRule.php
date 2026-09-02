@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 
 /**
  * MISSING_CLOCK_OUT: Identifiziert unvollständige Zeitbuchungen (fehlender
- * Stempel-Ausstieg) sowie unentschuldigtes Fehlen an geplanten Dienstplantagen.
+ * Stempel-Ausstieg) sowie Fehlen an geplanten Dienstplantagen.
  * Severity: HIGH.
  */
 class MissingClockOutRule implements ValidationRuleInterface
@@ -25,9 +25,15 @@ class MissingClockOutRule implements ValidationRuleInterface
     public function check(User $employe, Carbon $periodStart, Carbon $periodEnd): Collection
     {
         $anomalies = new Collection();
+        $effectivePeriodEnd = $periodEnd->copy()->startOfDay()->min(Carbon::today());
+
+        // Zukuenftige Monate nicht als fehlende Buchungen markieren.
+        if ($effectivePeriodEnd->lessThan($periodStart->copy()->startOfDay())) {
+            return $anomalies;
+        }
 
         $workingTimesByDay = $employe->working_times()
-            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereBetween('date', [$periodStart->toDateString(), $effectivePeriodEnd->toDateString()])
             ->get()
             ->groupBy(fn ($w) => $w->date->format('Y-m-d'));
 
@@ -35,7 +41,7 @@ class MissingClockOutRule implements ValidationRuleInterface
         $incomplete = TimesheetDays::whereHas('timesheet', function ($q) use ($employe) {
                 $q->where('employe_id', $employe->id);
             })
-            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereBetween('date', [$periodStart->toDateString(), $effectivePeriodEnd->toDateString()])
             ->whereNotNull('start')
             ->whereNull('end')
             ->get();
@@ -69,7 +75,7 @@ class MissingClockOutRule implements ValidationRuleInterface
         $bookedDays = TimesheetDays::whereHas('timesheet', function ($q) use ($employe) {
                 $q->where('employe_id', $employe->id);
             })
-            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereBetween('date', [$periodStart->toDateString(), $effectivePeriodEnd->toDateString()])
             ->pluck('date')
             ->map(fn ($d) => $d->format('Y-m-d'))
             ->unique();

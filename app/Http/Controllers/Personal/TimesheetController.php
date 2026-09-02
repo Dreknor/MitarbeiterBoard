@@ -417,6 +417,7 @@ class TimesheetController extends Controller
         $missingEntries = TimesheetAnomaly::forEmploye($user->id)
             ->forPeriod($act_month->month, $act_month->year)
             ->where('rule_type', \App\Enums\AnomalyRuleType::MissingClockOut->value)
+            ->whereDate('date', '<=', Carbon::today()->toDateString())
             ->unresolved()
             ->orderBy('date')
             ->get();

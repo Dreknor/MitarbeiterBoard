@@ -56,6 +56,17 @@ class TimesheetAnomaly extends Model
         return $this->resolved_at !== null;
     }
 
+    public function getDescriptionAttribute(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $cleaned = preg_replace('/\s*\(unentschuldigtes Fehlen\?\)\.?/u', '', $value) ?? $value;
+
+        return trim(preg_replace('/\s{2,}/', ' ', $cleaned) ?? $cleaned);
+    }
+
     public function resolve(User $user, ?string $comment = null): void
     {
         $this->update([
