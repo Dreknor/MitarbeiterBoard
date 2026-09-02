@@ -1370,12 +1370,40 @@ class PaedDiaryController extends Controller
             ->orderByDesc('created_at')
             ->value('created_at');
 
+        // Diagnose-Sitzungen und aktuelle Diagnose-Ziele nur laden, wenn der Nutzer das Recht dazu hat.
+        $diagnosticSessions = collect();
+        $currentDiagnosticGoals = collect();
+        $canViewDiagnostics = $user->can('view diagnostics');
+
+        if ($canViewDiagnostics) {
+            $diagnosticSessions = \App\Models\DiagnosticSession::where('schueler_id', $schueler->id)
+                ->with(['area:id,name', 'user:id,name'])
+                ->orderByDesc('session_date')
+                ->orderByDesc('id')
+                ->get();
+
+            // Nur die aktuell als "aktuell" markierten Ziele aus allen Diagnose-Bereichen anzeigen.
+            $currentDiagnosticGoals = \App\Models\DiagnosticAssessment::where('is_current_goal', true)
+                ->whereHas('session', fn($q) => $q->where('schueler_id', $schueler->id))
+                ->with(['goal.stage.area', 'session'])
+                ->get()
+                ->sortBy([
+                    fn($a, $b) => ($a->goal?->stage?->area?->sort_order ?? 0) <=> ($b->goal?->stage?->area?->sort_order ?? 0),
+                    fn($a, $b) => ($a->goal?->stage?->sort_order ?? 0) <=> ($b->goal?->stage?->sort_order ?? 0),
+                    fn($a, $b) => ($a->goal?->code ?? '') <=> ($b->goal?->code ?? ''),
+                ])
+                ->values();
+        }
+
         return view('paedDiary.schueler', [
             'schueler' => $schueler,
             'klasse' => $klasse,
             'gradingSessions' => $sessions,
             'lastGraduationAt' => $lastGraduationAt,
             'currentStageSince' => $currentStageSince,
+            'canViewDiagnostics' => $canViewDiagnostics,
+            'diagnosticSessions' => $diagnosticSessions,
+            'currentDiagnosticGoals' => $currentDiagnosticGoals,
         ]);
     }
 

@@ -246,6 +246,20 @@
                                                   :class="activeTab === 'graduations' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'">{{ $gradingSessions->count() }}</span>
                                         </button>
                                     </li>
+                                    @can('view diagnostics')
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'diagnostics' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'diagnostics'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'diagnostics'">
+                                            <i class="fas fa-clipboard-check"></i>
+                                            <span>Diagnose</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'diagnostics' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'">{{ $diagnosticSessions->count() }}</span>
+                                        </button>
+                                    </li>
+                                    @endcan
                                 </ul>
                             </div>
 
@@ -638,6 +652,120 @@
                                     </div>
                                 </div>
                             </div>
+
+                            @can('view diagnostics')
+                            <!-- Diagnose Tab -->
+                            <div x-show="activeTab === 'diagnostics'" id="diagnostics" role="tabpanel">
+                                <!-- Aktuelle Ziele aus den Diagnosen -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
+                                    <div class="bg-purple-600 text-white px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-bullseye"></i> Aktuelle Ziele aus den Diagnosen
+                                        </h6>
+                                        <a href="{{ route('diagnostic.areas', $schueler->id) }}"
+                                           class="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors">
+                                            <i class="fas fa-external-link-alt"></i> Zu den Diagnosebögen
+                                        </a>
+                                    </div>
+                                    <div class="p-4">
+                                        @if($currentDiagnosticGoals->isEmpty())
+                                            <div class="text-gray-400">Keine aktuellen Ziele erfasst.</div>
+                                        @else
+                                            <div class="space-y-6">
+                                                @foreach($currentDiagnosticGoals->groupBy('goal.stage.area.name') as $areaName => $areaGoals)
+                                                    <div>
+                                                        <h6 class="font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-200">
+                                                            <i class="fas fa-layer-group"></i> {{ $areaName }}
+                                                        </h6>
+                                                        @foreach($areaGoals->groupBy('goal.stage.name') as $stageName => $stageGoals)
+                                                            <div class="mb-3">
+                                                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ $stageName }}</div>
+                                                                <div class="overflow-x-auto">
+                                                                    <table class="min-w-full divide-y divide-gray-200">
+                                                                        <thead class="bg-gray-50">
+                                                                            <tr>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:90px">Code</th>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung</th>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Erfasst am</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody class="bg-white divide-y divide-gray-200">
+                                                                            @foreach($stageGoals as $assessment)
+                                                                                <tr>
+                                                                                    <td class="px-4 py-2 whitespace-nowrap">
+                                                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-100 text-purple-800">
+                                                                                            {{ $assessment->goal->code }}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td class="px-4 py-2 text-sm text-gray-800">{{ $assessment->goal->description }}</td>
+                                                                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                                                        {{ $assessment->session?->session_date?->format('d.m.Y') }}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            @endforeach
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Diagnose-Sitzungen -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div class="bg-blue-600 text-white px-4 py-3">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-clipboard-list"></i> Diagnose-Sitzungen
+                                        </h6>
+                                    </div>
+                                    <div class="p-4">
+                                        @if($diagnosticSessions->isEmpty())
+                                            <div class="text-gray-400">Für diesen Schüler liegen noch keine Diagnose-Sitzungen vor.</div>
+                                        @else
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full divide-y divide-gray-200">
+                                                    <thead class="bg-gray-50">
+                                                        <tr>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bereich</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:140px">Status</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:160px">Ersteller</th>
+                                                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Aktion</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="bg-white divide-y divide-gray-200">
+                                                        @foreach($diagnosticSessions as $dSession)
+                                                            <tr>
+                                                                <td class="px-4 py-3 whitespace-nowrap">{{ $dSession->session_date?->format('d.m.Y') }}</td>
+                                                                <td class="px-4 py-3">{{ $dSession->area?->name }}</td>
+                                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                                    @if($dSession->is_completed)
+                                                                        <span class="inline-flex items-center gap-1 text-green-700"><i class="fas fa-check-circle"></i> Abgeschlossen</span>
+                                                                    @else
+                                                                        <span class="inline-flex items-center gap-1 text-yellow-700"><i class="fas fa-hourglass-half"></i> In Bearbeitung</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="px-4 py-3 whitespace-nowrap">{{ $dSession->user?->name }}</td>
+                                                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                                                    <a href="{{ route('diagnostic.session', $dSession->id) }}"
+                                                                       class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                                                                        <i class="fas fa-eye"></i> Ansehen
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @endcan
                         </div>
                     </div>
 
