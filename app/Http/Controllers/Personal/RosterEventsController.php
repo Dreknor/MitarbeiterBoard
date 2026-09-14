@@ -211,7 +211,11 @@ class RosterEventsController extends Controller
     {
         $termine = OxTermin::where('ox_calendar_id', $kalenderId)
             ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('beginn', [$startDate, $endDate])
+                $query->where(function ($subQuery) use ($endDate) {
+                    $subQuery->whereNotNull('rrule')
+                        ->where('beginn', '<=', $endDate);
+                })
+                    ->orWhereBetween('beginn', [$startDate, $endDate])
                     ->orWhere(function ($subQuery) use ($startDate, $endDate) {
                         $subQuery->where('beginn', '<=', $endDate)
                             ->where('ende', '>=', $startDate);

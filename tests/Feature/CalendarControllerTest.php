@@ -237,6 +237,29 @@ class CalendarControllerTest extends TestCase
             'event' => 'Wöchentlicher Dienst',
         ]);
     }
+
+    public function test_wiederkehrender_termin_aus_vorheriger_woche_erscheint_in_der_preview(): void
+    {
+        $this->actingAsWithPermission('create roster', 'view calendar');
+
+        $calendar = OxCalendar::factory()->create(['sichtbar' => true]);
+        $roster = Roster::factory()->create([
+            'start_date' => '2026-03-09 00:00:00',
+        ]);
+
+        OxTermin::factory()->create([
+            'ox_calendar_id' => $calendar->id,
+            'titel' => 'Dienst aus Vorwoche',
+            'beginn' => '2026-03-02 09:00:00',
+            'ende' => '2026-03-02 10:00:00',
+            'rrule' => 'FREQ=WEEKLY;BYDAY=MO;COUNT=2',
+        ]);
+
+        $this->get(route('roster.importCalendar.preview', $roster->id, ['kalender_id' => $calendar->id]))
+            ->assertOk()
+            ->assertSee('Dienst aus Vorwoche')
+            ->assertSee('09.03.2026');
+    }
 }
 
 
