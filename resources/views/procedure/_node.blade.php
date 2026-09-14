@@ -116,17 +116,19 @@
     @endif
 
     {{-- Verbindungslinie nach unten --}}
-    @if($hasKids)
+    @if($hasKids || $canEdit)
     <div class="w-px h-6 bg-gray-300 mt-3" x-show="isExpanded({{ $stepId }})"></div>
     @endif
 
     {{-- Kinder-Ebene --}}
-    @if($hasKids)
+    {{-- Wird auch ohne bestehende Kinder gerendert (im Bearbeitungsmodus), damit ein
+         Schritt per Drag&Drop auch unter aktuell kinderlose Schritte verschoben werden kann. --}}
+    @if($hasKids || $canEdit)
     <div x-show="isExpanded({{ $stepId }})"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
          x-transition:enter-end="opacity-100 translate-y-0"
-         class="flex gap-6 relative"
+         class="flex gap-6 relative {{ $hasKids ? '' : 'min-w-[120px] min-h-[2.5rem]' }}"
          data-sortable-container
          data-procedure-id="{{ $procedureId }}"
          data-parent-id="{{ $stepId }}">
@@ -150,6 +152,12 @@
             ])
         </div>
         @endforeach
+
+        @if(!$hasKids)
+        <div class="border border-dashed border-gray-200 rounded-lg text-[10px] text-gray-300 flex items-center justify-center w-full h-10 select-none pointer-events-none">
+            Hierher ziehen
+        </div>
+        @endif
     </div>
     @endif
 </div>

@@ -109,6 +109,16 @@ document.addEventListener('alpine:init', () => {
                     chosenClass:    'sortable-chosen',
                     dragoverBubble: false,
 
+                    onStart: () => {
+                        // Alle Unterbaum-Container aufklappen, damit auch aktuell
+                        // eingeklappte Bereiche während des Ziehens als Drop-Ziel
+                        // erreichbar sind (x-show="display:none" verhindert sonst das Droppen).
+                        document.querySelectorAll('[data-sortable-container]').forEach(c => {
+                            const pid = c.dataset.parentId ? parseInt(c.dataset.parentId) : null;
+                            if (pid) this.expanded[pid] = true;
+                        });
+                    },
+
                     onEnd: (evt) => {
                         const orderedIds = Array.from(evt.to.querySelectorAll(':scope > .flex-col.items-center > [data-step-id]'))
                             .map(el => parseInt(el.dataset.stepId))

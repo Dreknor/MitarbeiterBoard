@@ -207,6 +207,83 @@ class RosterEventsController extends Controller
         return redirectBack('warning', 'Termine konnten nicht gelöscht werden.', '#' . $request->date);
     }
 
+    protected function termineFuerRosterImport(int $kalenderId, Carbon $startDate, Carbon $endDate): Collection
+    {
+        $termine = OxTermin::where('ox_calendar_id', $kalenderId)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('beginn', [$startDate, $endDate])
+                    ->orWhere(function ($subQuery) use ($startDate, $endDate) {
+                        $subQuery->where('beginn', '<=', $endDate)
+                            ->where('ende', '>=', $startDate);
+                    });
+            })
+            ->orderBy('beginn')
+            ->get();
+
+        $preview = collect();
+        $rruleService = app(\App\Services\OxCalendarService::class);
+
+        foreach ($termine as $termin) {
+            if ($termin->rrule) {
+                foreach ($rruleService->expandRruleTermine($termin, $startDate->copy(), $endDate->copy()) as $occurrence) {
+                    $preview->push($this->makeImportPreviewItem($termin, $occurrence['beginn'], $occurrence['ende']));
+                }
+
+                continue;
+            }
+
+            $preview->push($this->makeImportPreviewItem($termin, $termin->beginn->copy(), $termin->ende->copy()));
+        }
+
+        return $preview->sortBy('beginn')->values();
+    }
+
+    protected function makeImportPreviewItem(OxTermin $termin, Carbon $beginn, Carbon $ende): object
+    {
+        return (object) [
+            'id' => $termin->id,
+            'selection_key' => $this->buildImportSelectionKey((int) $termin->id, $beginn->copy(), $beginn->copy(), $ende->copy()),
+            'titel' => $termin->titel,
+            'ort' => $termin->ort,
+            'status' => $termin->status,
+            'ganztaegig' => (bool) $termin->ganztaegig,
+            'beginn' => $beginn,
+            'ende' => $ende,
+            'rrule' => $termin->rrule,
+            'is_recurring' => (bool) $termin->rrule,
+        ];
+    }
+
+    protected function buildImportSelectionKey(int $terminId, ?Carbon $date = null, ?Carbon $start = null, ?Carbon $end = null): string
+    {
+        if (!$date) {
+            return (string) $terminId;
+        }
+
+        return implode('|', [
+            (string) $terminId,
+            $date->toDateString(),
+            $start ? $start->format('H:i:s') : '00:00:00',
+            $end ? $end->format('H:i:s') : '00:00:00',
+        ]);
+    }
+
+    protected function parseImportSelection(string $selection): array
+    {
+        $parts = explode('|', $selection);
+        $terminId = (int) ($parts[0] ?? 0);
+        if (count($parts) < 2 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($parts[1] ?? ''))) {
+            return [$terminId, null, null, null];
+        }
+
+        return [
+            $terminId,
+            $parts[1],
+            $parts[2] ?? null,
+            $parts[3] ?? null,
+        ];
+    }
+
     public function remember(RosterEvents $event)
     {
         if (auth()->user()->can('create roster')) {
@@ -238,24 +315,20 @@ class RosterEventsController extends Controller
 
         $termine = collect();
         if ($selectedKalenderId && $kalender->pluck('id')->contains($selectedKalenderId)) {
-            $termine = OxTermin::where('ox_calendar_id', $selectedKalenderId)
-                ->where(function ($q) use ($startDate, $endDate) {
-                    $q->whereBetween('beginn', [$startDate, $endDate])
-                      ->orWhere(function ($q2) use ($startDate, $endDate) {
-                          // Mehrtägige Termine die in die Woche hineinragen
-                          $q2->where('beginn', '<=', $endDate)
-                             ->where('ende', '>=', $startDate);
-                      });
-                })
-                ->whereNull('rrule') // Wiederholungstermine zunächst ausschließen
-                ->orderBy('beginn')
-                ->get();
+            $termine = $this->termineFuerRosterImport($selectedKalenderId, $startDate, $endDate);
         }
 
-        // Bereits importierte ox_termin_ids für diesen Roster ermitteln
+        // Bereits importierte Vorkommen für diesen Roster ermitteln.
         $bereitsImportiert = $roster->events()
             ->whereNotNull('ox_termin_id')
-            ->pluck('ox_termin_id')
+            ->get()
+            ->map(fn ($event) => $this->buildImportSelectionKey(
+                (int) $event->ox_termin_id,
+                $event->date->copy(),
+                $event->start,
+                $event->end
+            ))
+            ->values()
             ->toArray();
 
         return view('personal.rosters.import_calendar', compact(
@@ -271,7 +344,7 @@ class RosterEventsController extends Controller
     {
         $request->validate([
             'ox_termin_ids'   => 'required|array|min:1',
-            'ox_termin_ids.*' => 'required|integer|exists:ox_termine,id',
+            'ox_termin_ids.*' => 'required|string',
         ]);
 
         $user      = auth()->user();
@@ -279,26 +352,45 @@ class RosterEventsController extends Controller
 
         $bereitsImportiert = $roster->events()
             ->whereNotNull('ox_termin_id')
-            ->pluck('ox_termin_id')
+            ->get()
+            ->map(fn ($event) => $this->buildImportSelectionKey(
+                (int) $event->ox_termin_id,
+                $event->date->copy(),
+                $event->start,
+                $event->end
+            ))
+            ->values()
             ->toArray();
 
         $importiert = 0;
         $uebersprungen = 0;
 
-        foreach ($request->ox_termin_ids as $terminId) {
-            // Duplikat-Schutz
-            if (in_array($terminId, $bereitsImportiert)) {
-                $uebersprungen++;
+        foreach ($request->ox_termin_ids as $selection) {
+            [$terminId, $eventDate, $startTime, $endTime] = $this->parseImportSelection((string) $selection);
+
+            if (!is_numeric($terminId) || $terminId <= 0) {
                 continue;
             }
 
-            $termin = OxTermin::find($terminId);
+            $termin = OxTermin::find((int) $terminId);
             if (!$termin) {
                 continue;
             }
 
-            // Sichtbarkeits-Check
             if (!$kalender->pluck('id')->contains($termin->ox_calendar_id)) {
+                continue;
+            }
+
+            $eventDateCarbon = $eventDate ? Carbon::parse($eventDate) : $termin->beginn->copy();
+            $selectionKey = $this->buildImportSelectionKey(
+                (int) $terminId,
+                $eventDateCarbon,
+                $startTime ? Carbon::parse($eventDateCarbon->toDateString() . ' ' . $startTime) : $termin->beginn->copy(),
+                $endTime ? Carbon::parse($eventDateCarbon->toDateString() . ' ' . $endTime) : $termin->ende->copy()
+            );
+
+            if (in_array($selectionKey, $bereitsImportiert, true)) {
+                $uebersprungen++;
                 continue;
             }
 
@@ -306,9 +398,9 @@ class RosterEventsController extends Controller
                 $start = '08:00:00';
                 $end   = '14:30:00';
             } else {
-                $start = $termin->beginn->format('H:i:s');
-                $end   = $termin->ende->format('H:i:s');
-                // Zeiten auf Dienstplan-Grenzen kappen (08:00–14:30)
+                $start = $startTime ?: $termin->beginn->format('H:i:s');
+                $end   = $endTime ?: $termin->ende->format('H:i:s');
+
                 if ($start < '08:00:00') { $start = '08:00:00'; }
                 if ($end > '14:30:00')   { $end   = '14:30:00'; }
                 if ($end <= $start)      { $end   = (new \DateTime($start))->modify('+15 minutes')->format('H:i:s'); }
@@ -317,7 +409,7 @@ class RosterEventsController extends Controller
             $event = new RosterEvents([
                 'roster_id'    => $roster->id,
                 'employe_id'   => null,
-                'date'         => $termin->beginn->toDateString(),
+                'date'         => $eventDateCarbon->toDateString(),
                 'start'        => $start,
                 'end'          => $end,
                 'event'        => $termin->titel,
@@ -325,7 +417,7 @@ class RosterEventsController extends Controller
             ]);
             $event->save();
 
-            Cache::forget('roster_'.$roster->id.'_'.$termin->beginn->format('Ymd'));
+            Cache::forget('roster_'.$roster->id.'_'.$eventDateCarbon->format('Ymd'));
             $importiert++;
         }
 

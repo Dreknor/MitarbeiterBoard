@@ -126,11 +126,15 @@ class ProcedureStepController extends Controller
             'ordered_ids.*' => 'integer|exists:procedure_steps,id',
         ]);
 
-        $this->stepService->reorderSiblings(
-            $validated['procedure_id'],
-            $validated['parent_id'] ?? null,
-            $validated['ordered_ids']
-        );
+        try {
+            $this->stepService->reorderSiblings(
+                $validated['procedure_id'],
+                $validated['parent_id'] ?? null,
+                $validated['ordered_ids']
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json(['message' => 'Reihenfolge gespeichert.']);
     }

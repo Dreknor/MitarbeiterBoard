@@ -137,10 +137,24 @@ class ProcedureStepService
     {
         DB::transaction(function () use ($procedureId, $parentId, $orderedIds) {
             foreach ($orderedIds as $idx => $stepId) {
-                Procedure_Step::where('id', $stepId)
+                $step = Procedure_Step::where('id', $stepId)
                     ->where('procedure_id', $procedureId)
-                    ->where('parent', $parentId)
-                    ->update(['sort_order' => $idx]);
+                    ->first();
+
+                if (!$step) {
+                    continue;
+                }
+
+                // Zirkuläre Elternschaft verhindern, falls der Schritt in einen
+                // anderen Elternknoten verschoben wird (Drag zwischen Ebenen).
+                if ($parentId !== null && $step->parent !== $parentId && $this->isDescendant($step, $parentId)) {
+                    throw new \InvalidArgumentException('Ein Schritt kann nicht unter seinen eigenen Nachfahren verschoben werden.');
+                }
+
+                $step->update([
+                    'parent'     => $parentId,
+                    'sort_order' => $idx,
+                ]);
             }
         });
     }

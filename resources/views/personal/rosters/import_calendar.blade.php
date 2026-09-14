@@ -34,7 +34,7 @@
             <p class="small text-muted mt-1 mb-0">
                 <i class="la la-info-circle"></i>
                 Es werden Termine des gewählten Kalenders im Zeitraum der Dienstplanwoche angezeigt.
-                Wiederholungstermine werden nicht berücksichtigt.
+                Wiederholungstermine erscheinen als einzelne Vorkommen und werden entsprechend importiert.
             </p>
         </div>
 
@@ -68,12 +68,12 @@
                             </thead>
                             <tbody>
                             @foreach($termine as $termin)
-                                @php $schonImportiert = in_array($termin->id, $bereitsImportiert); @endphp
+                                @php $selectionKey = $termin->selection_key ?? (string) $termin->id; $schonImportiert = in_array($selectionKey, $bereitsImportiert, true); @endphp
                                 <tr class="{{ $schonImportiert ? 'table-secondary' : '' }}">
                                     <td>
                                         <input type="checkbox"
                                                name="ox_termin_ids[]"
-                                               value="{{ $termin->id }}"
+                                               value="{{ $selectionKey }}"
                                                class="row-select"
                                                @if($schonImportiert) disabled @endif
                                                @if(!$schonImportiert) checked @endif
@@ -83,6 +83,9 @@
                                         {{ $termin->titel }}
                                         @if($termin->ganztaegig)
                                             <span class="badge badge-info ml-1" title="Ganztägiger Termin, wird als 08:00-14:30 importiert">ganztägig</span>
+                                        @endif
+                                        @if($termin->is_recurring)
+                                            <span class="badge badge-primary ml-1" title="Wiederkehrender Termin">wiederkehrend</span>
                                         @endif
                                         @if($schonImportiert)
                                             <span class="badge badge-secondary ml-1" title="Bereits in diesen Dienstplan importiert">bereits importiert</span>

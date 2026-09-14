@@ -7,6 +7,7 @@ use App\Models\OxCalendar;
 use App\Models\OxTermin;
 use App\Models\OxTerminTeilnehmer;
 use App\Models\User;
+use App\Models\personal\Roster;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -199,6 +200,42 @@ class CalendarControllerTest extends TestCase
 
         $this->get('/calendar')
             ->assertDontSee('Neuer Termin');
+    }
+
+    public function test_wiederkehrende_termin_vorkommen_werden_im_roster_import_angezeigt_und_importiert(): void
+    {
+        $this->actingAsWithPermission('create roster', 'view calendar');
+
+        $calendar = OxCalendar::factory()->create(['sichtbar' => true]);
+        $roster = Roster::factory()->create([
+            'start_date' => '2026-03-02 00:00:00',
+        ]);
+
+        $termin = OxTermin::factory()->create([
+            'ox_calendar_id' => $calendar->id,
+            'titel' => 'Wöchentlicher Dienst',
+            'beginn' => '2026-03-02 09:00:00',
+            'ende' => '2026-03-02 10:00:00',
+            'rrule' => 'FREQ=WEEKLY;BYDAY=MO,WE;COUNT=2',
+        ]);
+
+        $this->get(route('roster.importCalendar.preview', $roster->id, ['kalender_id' => $calendar->id]))
+            ->assertOk()
+            ->assertSee('Wöchentlicher Dienst')
+            ->assertSee('02.03.2026');
+
+        $selectionKey = $termin->id . '|2026-03-02|09:00:00|10:00:00';
+
+        $this->post(route('roster.importCalendar.store', $roster->id), [
+            'ox_termin_ids' => [$selectionKey],
+        ])->assertRedirect(route('roster.show', $roster->id));
+
+        $this->assertDatabaseHas('roster_events', [
+            'roster_id' => $roster->id,
+            'ox_termin_id' => $termin->id,
+            'date' => '2026-03-02',
+            'event' => 'Wöchentlicher Dienst',
+        ]);
     }
 }
 
