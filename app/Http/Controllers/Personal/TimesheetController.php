@@ -25,6 +25,11 @@ use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 class TimesheetController extends Controller
 {
 
+    public function __construct(
+        private readonly PersonalScopeService $scopeService,
+        private readonly TimeValidationService $validationService,
+    ) {}
+
     /**
      * Display a listing of the resource.
      *
@@ -122,9 +127,8 @@ class TimesheetController extends Controller
         $timesheetDay->date=$day;
         $timesheetDay->save();
 
+        $this->clearMissingClockOutAnomaly($timesheet, $day);
         $timesheet->updateTime();
-
-
 
         return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
 
@@ -152,6 +156,7 @@ class TimesheetController extends Controller
         $timesheetDay->date=$day;
         $timesheetDay->save();
 
+        $this->clearMissingClockOutAnomaly($timesheet, $day);
         $timesheet->updateTime();
 
         return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
@@ -172,6 +177,7 @@ class TimesheetController extends Controller
 
         if ($timesheetDay->timesheet_id == $timesheet->id and $timesheet->employe_id == $user->id){
             $timesheetDay->delete();
+            $this->rebuildDayAnomalies($timesheet, $day);
             $timesheet->updateTime();
             return redirect(url('timesheets/'.$timesheet->employe_id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag gelöscht');
         }
@@ -263,6 +269,7 @@ class TimesheetController extends Controller
             $timesheetDay->save();
         }
 
+        $this->clearMissingClockOutAnomaly($timesheet, $day);
         $timesheet->updateTime();
 
         return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))
@@ -604,6 +611,21 @@ class TimesheetController extends Controller
         return redirectBack('success', 'Aktualisierung erfolgreich');
     }
 
+    private function clearMissingClockOutAnomaly(Timesheet $timesheet, Carbon $day): void
+    {
+        TimesheetAnomaly::forEmploye($timesheet->employe_id)
+            ->forPeriod($day->month, $day->year)
+            ->whereDate('date', $day->toDateString())
+            ->where('rule_type', \App\Enums\AnomalyRuleType::MissingClockOut->value)
+            ->unresolved()
+            ->delete();
+    }
+
+    private function rebuildDayAnomalies(Timesheet $timesheet, Carbon $day): void
+    {
+        $this->clearMissingClockOutAnomaly($timesheet, $day);
+    }
+
     public function lock(User $user, Timesheet $timesheet){
 
 
@@ -652,4 +674,3 @@ class TimesheetController extends Controller
     }
 
 }
-
