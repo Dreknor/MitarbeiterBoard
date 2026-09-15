@@ -584,6 +584,7 @@ class TimesheetController extends Controller
         }
 
         $timesheet->updateTime();
+        $this->validationService->runForEmployee($user, Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month), auth()->user(), false);
 
         return redirectBack('success', 'Aktuslisierung erfolgt');
     }
@@ -609,6 +610,7 @@ class TimesheetController extends Controller
 
         foreach ($timesheets as $timesheet){
             $timesheet->updateTime();
+            $this->validationService->runForEmployee($user, Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month), auth()->user(), false);
         }
         return redirectBack('success', 'Aktualisierung erfolgreich');
     }
