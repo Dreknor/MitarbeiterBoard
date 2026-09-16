@@ -189,6 +189,8 @@
                 </div>
             </div>
 
+            <div id="absenceAlertPanel" class="hidden mb-4"></div>
+
             <!-- Daten-Anzeige -->
             <div id="dataSection" class="hidden">
                         <!-- Moderne Tab-Navigation mit Alpine.js -->
@@ -1340,11 +1342,50 @@
     }
 
     // Apply filters (category + search) and render
+    function renderAbsenceAlerts(patterns) {
+        const panel = document.getElementById('absenceAlertPanel');
+        if (!panel) return;
+
+        const alertList = Array.isArray(patterns) ? patterns : [];
+        if (!alertList.length) {
+            panel.classList.add('hidden');
+            panel.innerHTML = '';
+            return;
+        }
+
+        const items = alertList.map(pattern => {
+            const extraDetail = pattern.details ? `<div class="text-xs text-amber-800 mt-1">${escapeHtml(pattern.details)}</div>` : '';
+            return `
+                <li class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">!</span>
+                    <div>
+                        <div class="font-semibold">${escapeHtml(pattern.label)}</div>
+                        <div>${escapeHtml(pattern.summary)}</div>
+                        ${extraDetail}
+                    </div>
+                </li>
+            `;
+        }).join('');
+
+        panel.innerHTML = `
+            <div class="rounded-lg border border-amber-300 bg-amber-50 p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+                    <i class="fas fa-exclamation-triangle text-amber-600"></i>
+                    <span>Auffällige Abwesenheitsmuster</span>
+                </div>
+                <ul class="space-y-2">${items}</ul>
+            </div>
+        `;
+        panel.classList.remove('hidden');
+    }
+
     function applyFiltersAndRender(){
         if (!currentData) return;
         const entries = currentData.entries || [];
         const searchTerm = (searchNotesInput && searchNotesInput.value || '').trim().toLowerCase();
         const category = (categoryFilter && categoryFilter.value) || '';
+
+        renderAbsenceAlerts(currentData.absence_patterns || []);
 
         filteredEntries = entries.filter(e => {
             // Category filter: support e.category_id or e.category?.id or e.category_id as string

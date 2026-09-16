@@ -111,4 +111,13 @@ return [
     'grading_documentation' => [
         'session_reopen_days' => env('GRADING_SESSION_REOPEN_DAYS', 30), // Tage, innerhalb derer Sessions wiedergeöffnet werden können
     ],
+
+    'paed_diary_absence_pattern_total_absence_days_threshold' => 10,
+    'paed_diary_absence_pattern_total_absence_percent_threshold' => 10,
+    'paed_diary_absence_pattern_total_absence_window_days' => 28,
+    'paed_diary_absence_pattern_short_cluster_count' => 3,
+    'paed_diary_absence_pattern_short_cluster_max_days' => 2,
+    'paed_diary_absence_pattern_short_cluster_window_days' => 30,
+    'paed_diary_absence_pattern_weekday_threshold' => 3,
+    'paed_diary_absence_pattern_weekday_window_days' => 42,
 ];

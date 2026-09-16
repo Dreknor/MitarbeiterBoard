@@ -444,6 +444,9 @@ class PaedDiaryController extends Controller
             ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
             ->get(['id', 'schueler_id', 'datum']);
 
+        $absencePatternWindowEnd = Carbon::now()->endOfDay();
+        $absencePatternWindowStart = $absencePatternWindowEnd->copy()->subDays((int) PaedDiarySchuelerAbsence::patternSettings()['weekday_window_days']);
+
         return response()->json([
             'is_group' => $isGroup,
             'group' => $isGroup ? ['id' => $group->id, 'name' => $group->name] : null,
@@ -452,7 +455,8 @@ class PaedDiaryController extends Controller
                 'id' => $s->id, 'name' => $s->vorname . ' ' . $s->nachname,
                 'klasse_id' => $s->klasse_id,
                 'klasse_name' => $klassen->firstWhere('id', $s->klasse_id)?->name,
-                'stage' => $s->grading_stage ? ['id' => $s->grading_stage->id, 'name' => $s->grading_stage->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url] : null
+                'stage' => $s->grading_stage ? ['id' => $s->grading_stage->id, 'name' => $s->grading_stage->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url] : null,
+                'absence_alerts' => PaedDiarySchuelerAbsence::patternSummaryForStudent($s->id, $absencePatternWindowStart, $absencePatternWindowEnd),
             ]),
             'klassen' => $klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name, 'kuerzel' => $k->kuerzel, 'color' => $k->color]),
             'can_manage_grading' => Auth::user()->can('manage grading systems'),
@@ -1574,6 +1578,8 @@ class PaedDiaryController extends Controller
                     'achieved_by' => $g->achievedByUser?->name,
                 ]);
 
+            $absencePatterns = PaedDiarySchuelerAbsence::patternSummaryForStudent($schueler->id, $dateFrom, $dateTo);
+
             return response()->json([
                 'entries' => $entries,
                 'current_stage' => $currentStage,
@@ -1586,7 +1592,8 @@ class PaedDiaryController extends Controller
                     'to' => $dateTo->format('d.m.Y')
                 ],
                 'categories' => $categories,
-                'goals' => $goals
+                'goals' => $goals,
+                'absence_patterns' => $absencePatterns,
             ]);
 
         } catch (\Throwable $e) {

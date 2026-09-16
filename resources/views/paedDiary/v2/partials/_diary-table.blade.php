@@ -71,6 +71,13 @@
                                    title="Detailansicht öffnen">
                                     <span x-text="stu.name"></span>
                                 </a>
+                                <template x-if="Array.isArray(stu.absence_alerts) && stu.absence_alerts.length">
+                                    <span class="badge badge-warning text-dark ml-1 align-middle"
+                                          :title="stu.absence_alerts.map(a => a.label + ': ' + a.summary).join('\n')">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span x-text="stu.absence_alerts.length"></span>
+                                    </span>
+                                </template>
                             </div>
 
                             {{-- Stufen-Symbol (links, größer) --}}
