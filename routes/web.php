@@ -988,6 +988,7 @@ Route::group([
                         Route::post('student-answer', [\App\Http\Controllers\GradingDocumentationController::class, 'saveStudentAnswer'])->name('saveStudentAnswer');
                         Route::post('teacher-assessment', [\App\Http\Controllers\GradingDocumentationController::class, 'saveTeacherAssessment'])->name('saveTeacherAssessment');
                         Route::post('coaching-note', [\App\Http\Controllers\GradingDocumentationController::class, 'saveCoachingNote'])->name('saveCoachingNote');
+                        Route::post('session/{session}/answer-order-mode', [\App\Http\Controllers\GradingDocumentationController::class, 'updateAnswerOrderMode'])->name('updateAnswerOrderMode');
                         Route::post('session/{session}/complete', [\App\Http\Controllers\GradingDocumentationController::class, 'completeSession'])->name('completeSession');
                         Route::post('session/{session}/cancel', [\App\Http\Controllers\GradingDocumentationController::class, 'cancelSession'])->name('cancelSession');
                         Route::post('session/{session}/reopen', [\App\Http\Controllers\GradingDocumentationController::class, 'reopenSession'])->name('reopenSession');

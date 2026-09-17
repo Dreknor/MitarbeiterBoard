@@ -10,11 +10,21 @@ use Illuminate\Support\Facades\Log;
 class GradingDocumentationSession extends Model
 {
     use HasFactory;
+
+    public const ANSWER_ORDER_BY_STUDENT = 'by_student';
+    public const ANSWER_ORDER_BY_QUESTION = 'by_question';
+
+    public const ANSWER_ORDER_MODES = [
+        self::ANSWER_ORDER_BY_STUDENT,
+        self::ANSWER_ORDER_BY_QUESTION,
+    ];
+
     protected $fillable = [
         'klasse_id',
         'grading_system_id',
         'user_id',
         'type',
+        'answer_order_mode',
         'group_id',
         'schueler_id',
         'started_at',
@@ -25,6 +35,26 @@ class GradingDocumentationSession extends Model
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
+
+    public function getAnswerOrderModeAttribute($value): string
+    {
+        return static::normalizeAnswerOrderMode($value);
+    }
+
+    public function getAnswerOrderModeLabelAttribute(): string
+    {
+        return match ($this->answer_order_mode) {
+            self::ANSWER_ORDER_BY_QUESTION => 'Fragenweise',
+            default => 'Schülerweise',
+        };
+    }
+
+    public static function normalizeAnswerOrderMode(?string $mode): string
+    {
+        return in_array($mode, self::ANSWER_ORDER_MODES, true)
+            ? $mode
+            : self::ANSWER_ORDER_BY_STUDENT;
+    }
 
     public function klasse()
     {
@@ -79,6 +109,22 @@ class GradingDocumentationSession extends Model
     public function isIndividualSession()
     {
         return $this->type === 'individual';
+    }
+
+    public function usesQuestionOrder(): bool
+    {
+        return $this->answer_order_mode === self::ANSWER_ORDER_BY_QUESTION;
+    }
+
+    public function canUseAnswerOrderMode(string $mode): bool
+    {
+        $mode = static::normalizeAnswerOrderMode($mode);
+
+        if ($this->isIndividualSession()) {
+            return $mode === self::ANSWER_ORDER_BY_STUDENT;
+        }
+
+        return in_array($mode, self::ANSWER_ORDER_MODES, true);
     }
 
     /**

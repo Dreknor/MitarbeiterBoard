@@ -67,10 +67,12 @@ class GradingDocumentationController extends Controller
         $request->validate([
             'klasse_id' => 'required|exists:klassen,id',
             'group_id' => 'nullable|exists:paed_diary_class_groups,id',
+            'answer_order_mode' => 'nullable|in:' . implode(',', GradingDocumentationSession::ANSWER_ORDER_MODES),
         ]);
 
         $user = Auth::user();
         $klasse = $user->paed_klassen()->findOrFail($request->klasse_id);
+        $answerOrderMode = GradingDocumentationSession::normalizeAnswerOrderMode($request->input('answer_order_mode'));
 
         if (!$klasse->gradingSystem) {
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
@@ -85,6 +87,13 @@ class GradingDocumentationController extends Controller
             ->first();
 
         if ($existingSession) {
+            if ($existingSession->answer_order_mode !== $answerOrderMode) {
+                $existingSession->update([
+                    'answer_order_mode' => $answerOrderMode,
+                ]);
+                $existingSession->refresh();
+            }
+
             // Bestehende Session fortsetzen
             return response()->json([
                 'session' => $existingSession,
@@ -99,6 +108,7 @@ class GradingDocumentationController extends Controller
             'grading_system_id' => $klasse->grading_system_id,
             'user_id' => $user->id,
             'type' => 'group',
+            'answer_order_mode' => $answerOrderMode,
             'group_id' => $request->group_id,
             'started_at' => now(),
         ]);
@@ -339,6 +349,13 @@ class GradingDocumentationController extends Controller
             ->first();
 
         if ($existingSession) {
+            if ($existingSession->answer_order_mode !== GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT) {
+                $existingSession->update([
+                    'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
+                ]);
+                $existingSession->refresh();
+            }
+
             // Bestehende Session fortsetzen
             return response()->json([
                 'session' => $existingSession,
@@ -353,6 +370,7 @@ class GradingDocumentationController extends Controller
             'grading_system_id' => $klasse->grading_system_id,
             'user_id' => $user->id,
             'type' => 'individual',
+            'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
             'schueler_id' => $request->schueler_id,
             'started_at' => now(),
         ]);
@@ -604,6 +622,44 @@ class GradingDocumentationController extends Controller
         }
 
         return response()->json(['message' => 'Fehler beim Wiederöffnen der Session.'], 500);
+    }
+
+    /**
+     * Aktualisiert die Beantwortungsreihenfolge einer offenen Session
+     */
+    public function updateAnswerOrderMode(Request $request, GradingDocumentationSession $session)
+    {
+        $this->authorize('update', $session);
+
+        if ($session->isCompleted()) {
+            return response()->json([
+                'message' => 'Die Beantwortungsreihenfolge kann bei abgeschlossenen Sessions nicht geändert werden.'
+            ], 422);
+        }
+
+        $request->validate([
+            'answer_order_mode' => 'required|in:' . implode(',', GradingDocumentationSession::ANSWER_ORDER_MODES),
+        ]);
+
+        $answerOrderMode = GradingDocumentationSession::normalizeAnswerOrderMode($request->input('answer_order_mode'));
+
+        if (!$session->canUseAnswerOrderMode($answerOrderMode)) {
+            return response()->json([
+                'message' => 'Für diese Session ist die gewählte Beantwortungsreihenfolge nicht verfügbar.'
+            ], 422);
+        }
+
+        $session->update([
+            'answer_order_mode' => $answerOrderMode,
+        ]);
+
+        $session->refresh();
+
+        return response()->json([
+            'message' => 'Die Beantwortungsreihenfolge wurde aktualisiert.',
+            'answer_order_mode' => $session->answer_order_mode,
+            'answer_order_mode_label' => $session->answer_order_mode_label,
+        ]);
     }
 }
 

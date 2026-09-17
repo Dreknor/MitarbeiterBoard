@@ -78,6 +78,17 @@
                                                 </div>
                                                 @endif
 
+                                                <div class="form-group">
+                                                    <label for="group_answer_order_mode">Beantwortungsreihenfolge</label>
+                                                    <select name="answer_order_mode" id="group_answer_order_mode" class="form-control">
+                                                        <option value="by_student">Ein Schüler beantwortet alle Fragen, danach folgt der nächste Schüler</option>
+                                                        <option value="by_question">Alle Schüler beantworten zuerst Frage 1, dann Frage 2 usw.</option>
+                                                    </select>
+                                                    <small class="form-text text-muted">
+                                                        Diese Reihenfolge wird für die Schüler-Einschätzung und die anschließende Lehrereinschätzung übernommen.
+                                                    </small>
+                                                </div>
+
                                                 <button type="submit" class="btn btn-primary">
                                                     <i class="fas fa-play"></i> Gruppendokumentation starten
                                                 </button>
@@ -163,6 +174,12 @@
                                                     @else
                                                         Alle Schüler
                                                     @endif
+
+                                                    @if($session->type === 'group')
+                                                        <div class="mt-1">
+                                                            <span class="badge badge-light">{{ $session->answer_order_mode_label }}</span>
+                                                        </div>
+                                                    @endif
                                                 </td>
                                                 <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>
                                                 <td>
@@ -231,6 +248,12 @@
                                                         {{ $session->group->name }}
                                                     @else
                                                         Alle Schüler
+                                                    @endif
+
+                                                    @if($session->type === 'group')
+                                                        <div class="mt-1">
+                                                            <span class="badge badge-light">{{ $session->answer_order_mode_label }}</span>
+                                                        </div>
                                                     @endif
                                                 </td>
                                                 <td>{{ $session->started_at->format('d.m.Y H:i') }}</td>

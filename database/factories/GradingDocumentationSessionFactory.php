@@ -19,6 +19,7 @@ class GradingDocumentationSessionFactory extends Factory
             'grading_system_id'=> GradingSystem::factory(),
             'user_id'          => User::factory(),
             'type'             => 'individual',
+            'answer_order_mode'=> GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
             'klasse_id'        => null,
             'group_id'         => null,
             'started_at'       => now(),
@@ -38,6 +39,13 @@ class GradingDocumentationSessionFactory extends Factory
         return $this->state(fn () => [
             'type'        => 'group',
             'schueler_id' => null,
+        ]);
+    }
+
+    public function byQuestion(): static
+    {
+        return $this->state(fn () => [
+            'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_QUESTION,
         ]);
     }
 }

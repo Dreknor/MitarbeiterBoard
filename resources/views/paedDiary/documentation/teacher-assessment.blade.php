@@ -42,6 +42,24 @@
                         </div>
                     </div>
 
+                    @if($session->type === 'group')
+                        <div class="answer-order-toolbar mb-3">
+                            <div>
+                                <div class="answer-order-title">
+                                    <i class="fas fa-random text-primary"></i>
+                                    <strong>Beantwortungsreihenfolge</strong>
+                                </div>
+                                <small class="text-muted" id="answerOrderDescription"></small>
+                            </div>
+                            <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group" aria-label="Beantwortungsreihenfolge">
+                                <button type="button" class="btn btn-outline-primary" id="orderByStudentButton">Schülerweise</button>
+                                <button type="button" class="btn btn-outline-primary" id="orderByQuestionButton">Fragenweise</button>
+                            </div>
+                        </div>
+
+                        <div class="question-cycle-banner mb-3" id="questionCycleBanner" style="display: none;"></div>
+                    @endif
+
                     <!-- Fortschrittsanzeige -->
                     <div class="progress-section mb-3">
                         <div class="progress-info">
@@ -89,10 +107,11 @@
 
 <script>
 (function() {
-    // Daten vom Server
     const sessionId = {{ $session->id }};
     const schueler = @json($schueler);
     const questions = @json($questions);
+    const sessionType = @json($session->type);
+    const initialAnswerOrderMode = @json($session->answer_order_mode);
     const studentAnswers = @json($session->studentAnswers->groupBy('schueler_id')->map(function($answers) {
         return $answers->keyBy('question_id')->map(function($answer) { return $answer->self_rating; });
     }));
@@ -103,18 +122,26 @@
         return $note->note;
     }));
 
-    // State
+    const ANSWER_ORDER_MODES = {
+        BY_STUDENT: 'by_student',
+        BY_QUESTION: 'by_question'
+    };
+
     let currentSchuelerIndex = 0;
+    let currentQuestionIndex = 0;
     let teacherAssessments = teacherAssessmentsData || {};
     let coachingNotes = coachingNotesData || {};
     let loading = false;
     let noteLoading = false;
-    let autoScrollEnabled = localStorage.getItem('teacherAssessment_autoScroll') !== 'false'; // Standard: An
+    let autoScrollEnabled = localStorage.getItem('teacherAssessment_autoScroll') !== 'false';
+    let answerOrderMode = sessionType === 'group'
+        ? (initialAnswerOrderMode || ANSWER_ORDER_MODES.BY_STUDENT)
+        : ANSWER_ORDER_MODES.BY_STUDENT;
 
-    // Zeige Hinweis wenn Session fortgesetzt wird
     const assessmentCount = Object.values(teacherAssessments).reduce((count, assessments) => {
         return count + Object.keys(assessments).length;
     }, 0);
+
     if (assessmentCount > 0) {
         const resumedAlert = document.getElementById('resumedAlert');
         const resumedCount = document.getElementById('resumedCount');
@@ -124,7 +151,6 @@
         }
     }
 
-    // DOM Elemente
     const elements = {
         studentTabs: document.getElementById('studentTabs'),
         studentSelect: document.getElementById('studentSelect'),
@@ -132,12 +158,19 @@
         completeButton: document.getElementById('completeButton'),
         skipButton: document.getElementById('skipButton'),
         progressBar: document.getElementById('progressBar'),
-        progressText: document.getElementById('progressText')
+        progressText: document.getElementById('progressText'),
+        answerOrderDescription: document.getElementById('answerOrderDescription'),
+        orderByStudentButton: document.getElementById('orderByStudentButton'),
+        orderByQuestionButton: document.getElementById('orderByQuestionButton'),
+        questionCycleBanner: document.getElementById('questionCycleBanner')
     };
 
-    // Hilfsfunktionen
     function getCurrentSchueler() {
         return schueler[currentSchuelerIndex] || null;
+    }
+
+    function getCurrentQuestion() {
+        return questions[currentQuestionIndex] || null;
     }
 
     function getSmileyIcon(rating) {
@@ -183,45 +216,152 @@
     }
 
     function isSchuelerComplete(schuelerId) {
-        return questions.every(q => {
+        return questions.every(question => {
             return teacherAssessments[schuelerId] &&
-                   teacherAssessments[schuelerId][q.id] &&
-                   teacherAssessments[schuelerId][q.id].teacher_rating;
+                   teacherAssessments[schuelerId][question.id] &&
+                   teacherAssessments[schuelerId][question.id].teacher_rating;
         });
     }
 
     function isAllComplete() {
-        // Erlaube Abschluss, wenn mindestens ein Schüler bewertet wurde
-        return schueler.some(s => isSchuelerComplete(s.id));
+        return schueler.some(currentSchueler => isSchuelerComplete(currentSchueler.id));
+    }
+
+    function isQuestionOrderMode() {
+        return sessionType === 'group' && answerOrderMode === ANSWER_ORDER_MODES.BY_QUESTION;
+    }
+
+    function getAnswerOrderDescription() {
+        if (isQuestionOrderMode()) {
+            return 'Alle Schüler werden nacheinander zur aktuellen Frage bewertet, bevor zur nächsten Frage gewechselt wird.';
+        }
+
+        return 'Ein Schüler wird vollständig bewertet, bevor zum nächsten Schüler gewechselt wird.';
+    }
+
+    function getFirstUnansweredQuestionIndexForStudent(index) {
+        const currentSchueler = schueler[index];
+
+        if (!currentSchueler) {
+            return 0;
+        }
+
+        const firstUnansweredQuestion = questions.findIndex(question => !getTeacherRating(currentSchueler.id, question.id));
+
+        return firstUnansweredQuestion === -1 ? 0 : firstUnansweredQuestion;
+    }
+
+    function getTraversalSteps() {
+        const steps = [];
+
+        if (isQuestionOrderMode()) {
+            questions.forEach((question, questionIndex) => {
+                schueler.forEach((currentSchueler, schuelerIndex) => {
+                    steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
+                });
+            });
+
+            return steps;
+        }
+
+        schueler.forEach((currentSchueler, schuelerIndex) => {
+            questions.forEach((question, questionIndex) => {
+                steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
+            });
+        });
+
+        return steps;
+    }
+
+    function isStepAssessed(step) {
+        return !!getTeacherRating(step.schuelerId, step.questionId);
+    }
+
+    function setCurrentStep(step) {
+        if (!step) return;
+
+        currentSchuelerIndex = step.schuelerIndex;
+        currentQuestionIndex = step.questionIndex;
+    }
+
+    function findFirstPendingStep() {
+        return getTraversalSteps().find(step => !isStepAssessed(step)) || null;
+    }
+
+    function findNextPendingStepAfterCurrent(wrap = false) {
+        const steps = getTraversalSteps();
+        const currentIndex = steps.findIndex(step =>
+            step.schuelerIndex === currentSchuelerIndex && step.questionIndex === currentQuestionIndex
+        );
+
+        if (currentIndex === -1) {
+            return findFirstPendingStep();
+        }
+
+        const nextStep = steps.slice(currentIndex + 1).find(step => !isStepAssessed(step));
+        if (nextStep) {
+            return nextStep;
+        }
+
+        if (!wrap) {
+            return null;
+        }
+
+        return steps.slice(0, currentIndex).find(step => !isStepAssessed(step)) || null;
+    }
+
+    function getAnsweredQuestionCountForStudent(schuelerId) {
+        return questions.filter(question => !!getTeacherRating(schuelerId, question.id)).length;
+    }
+
+    function getQuestionCompletionCount(questionId) {
+        return schueler.filter(currentSchueler => !!getTeacherRating(currentSchueler.id, questionId)).length;
     }
 
     function skipCurrentStudent() {
         if (loading) return;
 
-        if (currentSchuelerIndex < schueler.length - 1) {
-            currentSchuelerIndex++;
+        if (isQuestionOrderMode()) {
+            const nextStep = findNextPendingStepAfterCurrent(true);
+
+            if (!nextStep) {
+                alert('Es gibt keine weiteren offenen Bewertungen.');
+                return;
+            }
+
+            setCurrentStep(nextStep);
             render();
-        } else {
-            // Beim letzten Schüler zum ersten zurück
-            currentSchuelerIndex = 0;
-            render();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
         }
+
+        const incompleteIndices = schueler
+            .map((currentSchueler, index) => ({ currentSchueler, index }))
+            .filter(({ currentSchueler }) => !isSchuelerComplete(currentSchueler.id))
+            .map(({ index }) => index);
+
+        if (incompleteIndices.length === 0) {
+            currentSchuelerIndex = 0;
+            currentQuestionIndex = 0;
+            render();
+            return;
+        }
+
+        const nextIndex = incompleteIndices.find(index => index > currentSchuelerIndex) ?? incompleteIndices[0];
+        currentSchuelerIndex = nextIndex;
+        currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(nextIndex);
+        render();
     }
 
     function scrollToNextQuestion(currentQuestionId) {
-        // Nur scrollen wenn aktiviert
-        if (!autoScrollEnabled) return;
+        if (!autoScrollEnabled || isQuestionOrderMode()) return;
 
-        // Finde den Index der aktuellen Frage
-        const currentIndex = questions.findIndex(q => q.id === currentQuestionId);
-
+        const currentIndex = questions.findIndex(question => question.id === currentQuestionId);
         if (currentIndex === -1) return;
 
-        // Nächste Frage ermitteln
         const nextIndex = currentIndex + 1;
 
         if (nextIndex < questions.length) {
-            // Zur nächsten Frage scrollen
             setTimeout(() => {
                 const allCards = document.querySelectorAll('.question-card');
                 if (allCards[nextIndex]) {
@@ -230,7 +370,6 @@
                         block: 'center'
                     });
 
-                    // Optionale visuelle Hervorhebung
                     allCards[nextIndex].classList.add('highlight-question');
                     setTimeout(() => {
                         allCards[nextIndex].classList.remove('highlight-question');
@@ -238,21 +377,19 @@
                 }
             }, 300);
         } else {
-            // Alle Fragen für diesen Schüler beantwortet
             const currentSchueler = getCurrentSchueler();
-            if (isSchuelerComplete(currentSchueler.id)) {
-                // Zum nächsten Schüler wechseln, wenn nicht der letzte
+
+            if (currentSchueler && isSchuelerComplete(currentSchueler.id)) {
                 if (currentSchuelerIndex < schueler.length - 1) {
                     setTimeout(() => {
                         if (confirm(`Alle Fragen für ${currentSchueler.vorname} ${currentSchueler.nachname} beantwortet! Zum nächsten Schüler wechseln?`)) {
                             currentSchuelerIndex++;
+                            currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
                             render();
-                            // Zum Anfang scrollen
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                     }, 500);
                 } else {
-                    // Letzter Schüler komplett - Hinweis auf Abschluss
                     setTimeout(() => {
                         if (confirm('Alle Fragen beantwortet! Möchten Sie die Dokumentation jetzt abschließen?')) {
                             completeSession();
@@ -286,7 +423,87 @@
         }
     }
 
-    // API-Funktionen
+    function renderAnswerOrderControls() {
+        if (!elements.answerOrderDescription) return;
+
+        elements.answerOrderDescription.textContent = getAnswerOrderDescription();
+        elements.orderByStudentButton.classList.toggle('active', !isQuestionOrderMode());
+        elements.orderByQuestionButton.classList.toggle('active', isQuestionOrderMode());
+
+        if (elements.skipButton) {
+            elements.skipButton.innerHTML = isQuestionOrderMode()
+                ? '<i class="fas fa-forward"></i> Ohne Bewertung weiter'
+                : '<i class="fas fa-forward"></i> Überspringen';
+        }
+    }
+
+    function renderQuestionCycleBanner() {
+        if (!elements.questionCycleBanner) return;
+
+        if (!isQuestionOrderMode()) {
+            elements.questionCycleBanner.style.display = 'none';
+            elements.questionCycleBanner.innerHTML = '';
+            return;
+        }
+
+        const currentQuestion = getCurrentQuestion();
+
+        if (!currentQuestion) {
+            elements.questionCycleBanner.style.display = 'none';
+            return;
+        }
+
+        const completedForQuestion = getQuestionCompletionCount(currentQuestion.id);
+        elements.questionCycleBanner.style.display = 'block';
+        elements.questionCycleBanner.innerHTML = `
+            <div class="question-cycle-meta">Frage ${currentQuestionIndex + 1} von ${questions.length}</div>
+            <div class="question-cycle-text">${currentQuestion.question}</div>
+            <div class="question-cycle-progress">${completedForQuestion} von ${schueler.length} Schülern bewertet</div>
+        `;
+    }
+
+    async function updateAnswerOrderMode(mode) {
+        if (loading || sessionType !== 'group' || answerOrderMode === mode) return;
+
+        loading = true;
+
+        try {
+            const response = await fetch(`/paed-diary/documentation/session/${sessionId}/answer-order-mode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    answer_order_mode: mode
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Die Reihenfolge konnte nicht geändert werden.');
+            }
+
+            const data = await response.json();
+            answerOrderMode = data.answer_order_mode || ANSWER_ORDER_MODES.BY_STUDENT;
+
+            const firstPendingStep = findFirstPendingStep();
+            if (firstPendingStep) {
+                setCurrentStep(firstPendingStep);
+            } else {
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
+            }
+
+            render();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert(error.message || 'Fehler beim Ändern der Beantwortungsreihenfolge.');
+        } finally {
+            loading = false;
+        }
+    }
+
     async function saveAssessment(schuelerId, questionId, rating) {
         if (loading) return;
 
@@ -316,9 +533,19 @@
                     teacher_rating: rating,
                     comment: getTeacherComment(schuelerId, questionId)
                 };
-                render();
 
-                // Automatisch zur nächsten Frage scrollen
+                if (isQuestionOrderMode()) {
+                    const nextStep = findNextPendingStepAfterCurrent(true);
+                    if (nextStep) {
+                        setCurrentStep(nextStep);
+                    }
+                    render();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
+                render();
                 scrollToNextQuestion(questionId);
             } else {
                 alert('Fehler beim Speichern der Einschätzung.');
@@ -409,20 +636,18 @@
     async function completeSession() {
         if (loading) return;
 
-        // Prüfe ob mindestens ein Schüler bewertet wurde
-        const hasAnyAssessments = schueler.some(s => isSchuelerComplete(s.id));
+        const hasAnyAssessments = schueler.some(currentSchueler => isSchuelerComplete(currentSchueler.id));
 
         if (!hasAnyAssessments) {
             alert('Bitte bewerten Sie mindestens einen Schüler, bevor Sie die Dokumentation abschließen.');
             return;
         }
 
-        // Prüfe ob Schüler übersprungen wurden
-        const skippedStudents = schueler.filter(s => !isSchuelerComplete(s.id));
+        const skippedStudents = schueler.filter(currentSchueler => !isSchuelerComplete(currentSchueler.id));
         let confirmMessage = 'Möchten Sie die Dokumentation wirklich abschließen? Danach können keine Änderungen mehr vorgenommen werden.';
 
         if (skippedStudents.length > 0) {
-            const skippedNames = skippedStudents.map(s => `${s.vorname} ${s.nachname}`).join(', ');
+            const skippedNames = skippedStudents.map(currentSchueler => `${currentSchueler.vorname} ${currentSchueler.nachname}`).join(', ');
             confirmMessage = `Achtung: Folgende Schüler wurden nicht vollständig bewertet: ${skippedNames}\n\nMöchten Sie die Dokumentation trotzdem abschließen? Danach können keine Änderungen mehr vorgenommen werden.`;
         }
 
@@ -455,9 +680,8 @@
         }
     }
 
-    // Render-Funktionen
     function updateProgress() {
-        const completedCount = schueler.filter(s => isSchuelerComplete(s.id)).length;
+        const completedCount = schueler.filter(currentSchueler => isSchuelerComplete(currentSchueler.id)).length;
         const totalCount = schueler.length;
         const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -476,12 +700,12 @@
         if (!elements.studentSelect) return;
         elements.studentSelect.innerHTML = '';
 
-        schueler.forEach((s, index) => {
+        schueler.forEach((currentSchueler, index) => {
             const option = document.createElement('option');
             option.value = index;
-            option.textContent = `${s.nachname}, ${s.vorname}`;
+            option.textContent = `${currentSchueler.nachname}, ${currentSchueler.vorname}`;
 
-            if (isSchuelerComplete(s.id)) {
+            if (isSchuelerComplete(currentSchueler.id)) {
                 option.textContent += ' ✓';
             }
 
@@ -492,8 +716,11 @@
             elements.studentSelect.appendChild(option);
         });
 
-        elements.studentSelect.onchange = (e) => {
-            currentSchuelerIndex = parseInt(e.target.value);
+        elements.studentSelect.onchange = (event) => {
+            currentSchuelerIndex = parseInt(event.target.value, 10);
+            if (!isQuestionOrderMode()) {
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
+            }
             render();
         };
     }
@@ -502,34 +729,37 @@
         if (!elements.studentTabs) return;
         elements.studentTabs.innerHTML = '';
 
-        schueler.forEach((s, index) => {
+        schueler.forEach((currentSchueler, index) => {
             const li = document.createElement('li');
             li.className = 'nav-item';
 
-            const a = document.createElement('a');
-            a.className = 'nav-link';
+            const link = document.createElement('a');
+            link.className = 'nav-link';
             if (currentSchuelerIndex === index) {
-                a.classList.add('active');
+                link.classList.add('active');
             }
-            a.href = '#';
+            link.href = '#';
 
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = `${s.nachname}, ${s.vorname}`;
-            a.appendChild(nameSpan);
+            nameSpan.textContent = `${currentSchueler.nachname}, ${currentSchueler.vorname}`;
+            link.appendChild(nameSpan);
 
-            if (isSchuelerComplete(s.id)) {
+            if (isSchuelerComplete(currentSchueler.id)) {
                 const icon = document.createElement('i');
                 icon.className = 'fas fa-check-circle text-success ml-2';
-                a.appendChild(icon);
+                link.appendChild(icon);
             }
 
-            a.onclick = (e) => {
-                e.preventDefault();
+            link.onclick = (event) => {
+                event.preventDefault();
                 currentSchuelerIndex = index;
+                if (!isQuestionOrderMode()) {
+                    currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(index);
+                }
                 render();
             };
 
-            li.appendChild(a);
+            li.appendChild(link);
             elements.studentTabs.appendChild(li);
         });
     }
@@ -541,7 +771,12 @@
         const currentSchueler = getCurrentSchueler();
         if (!currentSchueler) return;
 
-        // Schüler-Info Header
+        const answeredCount = getAnsweredQuestionCountForStudent(currentSchueler.id);
+        const currentQuestion = getCurrentQuestion();
+        const headerMeta = isQuestionOrderMode()
+            ? `Aktuelle Frage ${currentQuestionIndex + 1} von ${questions.length}`
+            : `${answeredCount} von ${questions.length} Fragen bewertet`;
+
         const studentHeader = document.createElement('div');
         studentHeader.className = 'student-header mb-3';
         studentHeader.innerHTML = `
@@ -551,14 +786,13 @@
                 </div>
                 <div class="student-details">
                     <h5 class="mb-0">${currentSchueler.vorname} ${currentSchueler.nachname}</h5>
-                    <small class="text-muted">Frage ${1} von ${questions.length}</small>
+                    <small class="text-muted">${headerMeta}</small>
                 </div>
                 ${isSchuelerComplete(currentSchueler.id) ? '<span class="badge badge-success"><i class="fas fa-check"></i> Vollständig</span>' : '<span class="badge badge-warning"><i class="fas fa-clock"></i> In Bearbeitung</span>'}
             </div>
         `;
         elements.tabContent.appendChild(studentHeader);
 
-        // Coaching-Protokoll (kurze Notiz je Schüler, unabhängig von den Fragen)
         const coachingCard = document.createElement('div');
         coachingCard.className = 'coaching-note-card mb-3';
         coachingCard.innerHTML = `
@@ -574,14 +808,16 @@
         const coachingNoteInput = coachingCard.querySelector('#coachingNoteInput');
         if (coachingNoteInput) {
             coachingNoteInput.value = getCoachingNote(currentSchueler.id);
-            coachingNoteInput.onblur = (e) => saveCoachingNote(currentSchueler.id, e.target.value);
+            coachingNoteInput.onblur = (event) => saveCoachingNote(currentSchueler.id, event.target.value);
         }
 
-        questions.forEach((question, qIndex) => {
+        const visibleQuestions = isQuestionOrderMode() && currentQuestion ? [currentQuestion] : questions;
+
+        visibleQuestions.forEach((question) => {
+            const qIndex = questions.findIndex(currentItem => currentItem.id === question.id);
             const card = document.createElement('div');
             card.className = 'question-card mb-3';
 
-            // Question Header mit Nummer
             const questionHeader = document.createElement('div');
             questionHeader.className = 'question-header';
             questionHeader.innerHTML = `
@@ -590,11 +826,9 @@
             `;
             card.appendChild(questionHeader);
 
-            // Card Body
             const cardBody = document.createElement('div');
             cardBody.className = 'question-body';
 
-            // Selbsteinschätzung (kompakt)
             const studentAnswer = getStudentAnswer(currentSchueler.id, question.id);
             const studentSection = document.createElement('div');
             studentSection.className = 'student-answer-section mb-3';
@@ -617,7 +851,6 @@
             }
             cardBody.appendChild(studentSection);
 
-            // Lehrereinschätzung
             const teacherSection = document.createElement('div');
             teacherSection.className = 'teacher-section';
 
@@ -626,36 +859,34 @@
             sectionLabel.textContent = 'Ihre Einschätzung:';
             teacherSection.appendChild(sectionLabel);
 
-            // Rating Buttons (optimiert für Touch)
             const buttonDiv = document.createElement('div');
             buttonDiv.className = 'rating-buttons mb-3';
 
             for (let rating = 1; rating <= 5; rating++) {
-                const btn = document.createElement('button');
-                btn.className = 'rating-btn';
+                const button = document.createElement('button');
+                button.className = 'rating-btn';
 
                 const currentRating = getTeacherRating(currentSchueler.id, question.id);
                 if (currentRating === rating) {
-                    btn.classList.add('active');
+                    button.classList.add('active');
                 }
 
                 const icon = document.createElement('i');
                 icon.className = getSmileyIcon(rating);
-                btn.appendChild(icon);
+                button.appendChild(icon);
 
                 const label = document.createElement('span');
                 label.className = 'rating-label';
                 label.textContent = rating;
-                btn.appendChild(label);
+                button.appendChild(label);
 
-                btn.onclick = () => saveAssessment(currentSchueler.id, question.id, rating);
-                btn.setAttribute('aria-label', getSmileyLabel(rating));
+                button.onclick = () => saveAssessment(currentSchueler.id, question.id, rating);
+                button.setAttribute('aria-label', getSmileyLabel(rating));
 
-                buttonDiv.appendChild(btn);
+                buttonDiv.appendChild(button);
             }
             teacherSection.appendChild(buttonDiv);
 
-            // Kommentar Textarea (kompakter)
             const formGroup = document.createElement('div');
             formGroup.className = 'comment-section';
 
@@ -664,14 +895,13 @@
             textarea.rows = 2;
             textarea.value = getTeacherComment(currentSchueler.id, question.id);
             textarea.placeholder = 'Optional: Kommentar hinzufügen...';
-            textarea.onblur = (e) => saveComment(currentSchueler.id, question.id, e.target.value);
+            textarea.onblur = (event) => saveComment(currentSchueler.id, question.id, event.target.value);
 
             formGroup.appendChild(textarea);
             teacherSection.appendChild(formGroup);
 
             cardBody.appendChild(teacherSection);
             card.appendChild(cardBody);
-
             elements.tabContent.appendChild(card);
         });
     }
@@ -679,23 +909,19 @@
     function renderCompleteButton() {
         if (!elements.completeButton) return;
 
-        if (isAllComplete()) {
-            elements.completeButton.disabled = false;
-        } else {
-            elements.completeButton.disabled = true;
-        }
+        elements.completeButton.disabled = !isAllComplete();
     }
 
     function render() {
-        console.log('Rendering...');
         updateProgress();
+        renderAnswerOrderControls();
+        renderQuestionCycleBanner();
         renderStudentSelect();
         renderTabs();
         renderTabContent();
         renderCompleteButton();
     }
 
-    // Event Listener
     if (elements.completeButton) {
         elements.completeButton.addEventListener('click', completeSession);
     }
@@ -704,48 +930,61 @@
         elements.skipButton.addEventListener('click', skipCurrentStudent);
     }
 
-    // Auto-Scroll Toggle
+    if (elements.orderByStudentButton) {
+        elements.orderByStudentButton.addEventListener('click', () => updateAnswerOrderMode(ANSWER_ORDER_MODES.BY_STUDENT));
+    }
+
+    if (elements.orderByQuestionButton) {
+        elements.orderByQuestionButton.addEventListener('click', () => updateAnswerOrderMode(ANSWER_ORDER_MODES.BY_QUESTION));
+    }
+
     const autoScrollToggle = document.getElementById('autoScrollToggle');
     if (autoScrollToggle) {
         autoScrollToggle.addEventListener('click', toggleAutoScroll);
         updateAutoScrollUI();
     }
 
-    // Keyboard Navigation für Tablets
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowRight' && currentSchuelerIndex < schueler.length - 1) {
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' && currentSchuelerIndex < schueler.length - 1) {
             currentSchuelerIndex++;
+            if (!isQuestionOrderMode()) {
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
+            }
             render();
-        } else if (e.key === 'ArrowLeft' && currentSchuelerIndex > 0) {
+        } else if (event.key === 'ArrowLeft' && currentSchuelerIndex > 0) {
             currentSchuelerIndex--;
+            if (!isQuestionOrderMode()) {
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(currentSchuelerIndex);
+            }
             render();
         }
     });
 
-    // Initialisierung
     function init() {
-        console.log('Initializing...');
         if (schueler.length === 0) {
-            console.warn('Keine Schüler gefunden!');
             alert('Keine Schüler in dieser Klasse gefunden!');
             return;
         }
+
         if (questions.length === 0) {
-            console.warn('Keine Fragen gefunden!');
             alert('Keine Fragen für dieses Bewertungssystem gefunden!');
             return;
         }
 
-        // Zum ersten nicht vollständig bewerteten Schüler springen
-        const firstIncompleteIndex = schueler.findIndex(s => !isSchuelerComplete(s.id));
-        if (firstIncompleteIndex !== -1) {
-            currentSchuelerIndex = firstIncompleteIndex;
+        const firstPendingStep = findFirstPendingStep();
+        if (firstPendingStep) {
+            setCurrentStep(firstPendingStep);
+        } else {
+            const firstIncompleteIndex = schueler.findIndex(currentSchueler => !isSchuelerComplete(currentSchueler.id));
+            if (firstIncompleteIndex !== -1) {
+                currentSchuelerIndex = firstIncompleteIndex;
+                currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(firstIncompleteIndex);
+            }
         }
 
         render();
     }
 
-    // Warte auf DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
@@ -871,6 +1110,59 @@
 
 .info-banner i {
     font-size: 1.1rem;
+}
+
+.answer-order-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    flex-wrap: wrap;
+}
+
+.answer-order-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.answer-order-toolbar .btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-color: var(--primary);
+}
+
+.question-cycle-banner {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%);
+    border: 1px solid #c9defa;
+    color: #0b3d6f;
+    box-shadow: 0 2px 10px rgba(13, 110, 253, 0.08);
+}
+
+.question-cycle-meta {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+}
+
+.question-cycle-text {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.question-cycle-progress {
+    font-size: 0.9rem;
 }
 
 /* Fortschrittsanzeige */
@@ -1299,6 +1591,10 @@
 
     .info-banners {
         flex-direction: column;
+    }
+
+    .answer-order-toolbar {
+        align-items: flex-start;
     }
 
     .student-info-card {
