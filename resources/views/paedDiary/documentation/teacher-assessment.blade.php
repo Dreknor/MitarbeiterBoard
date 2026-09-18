@@ -41,8 +41,7 @@
                             <span id="autoScrollText">Auto-Scroll: An</span>
                         </div>
                     </div>
-
-                    @if($session->type === 'group')
+                    @if($session->type == 'group')
                         <div class="answer-order-toolbar mb-3">
                             <div>
                                 <div class="answer-order-title">
@@ -59,6 +58,14 @@
 
                         <div class="question-cycle-banner mb-3" id="questionCycleBanner" style="display: none;"></div>
                     @endif
+
+                    <div class="question-navigation mb-3" id="questionNavigation">
+                        <div class="question-navigation-label">
+                            <i class="fas fa-list-ol text-primary"></i>
+                            <strong>Direkt zu Frage springen</strong>
+                        </div>
+                        <div class="question-navigation-buttons" id="questionNavigationButtons"></div>
+                    </div>
 
                     <!-- Fortschrittsanzeige -->
                     <div class="progress-section mb-3">
@@ -162,7 +169,9 @@
         answerOrderDescription: document.getElementById('answerOrderDescription'),
         orderByStudentButton: document.getElementById('orderByStudentButton'),
         orderByQuestionButton: document.getElementById('orderByQuestionButton'),
-        questionCycleBanner: document.getElementById('questionCycleBanner')
+        questionCycleBanner: document.getElementById('questionCycleBanner'),
+        questionNavigation: document.getElementById('questionNavigation'),
+        questionNavigationButtons: document.getElementById('questionNavigationButtons')
     };
 
     function getCurrentSchueler() {
@@ -318,6 +327,27 @@
         return schueler.filter(currentSchueler => !!getTeacherRating(currentSchueler.id, questionId)).length;
     }
 
+    function goToQuestion(questionIndex) {
+        if (loading || questionIndex < 0 || questionIndex >= questions.length) return;
+
+        currentQuestionIndex = questionIndex;
+        render();
+
+        setTimeout(() => {
+            const targetCard = document.querySelector(`.question-card[data-question-index="${questionIndex}"]`);
+            if (!targetCard) return;
+
+            targetCard.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            targetCard.classList.add('highlight-question');
+            setTimeout(() => {
+                targetCard.classList.remove('highlight-question');
+            }, 1500);
+        }, 50);
+    }
+
     function skipCurrentStudent() {
         if (loading) return;
 
@@ -460,6 +490,39 @@
             <div class="question-cycle-text">${currentQuestion.question}</div>
             <div class="question-cycle-progress">${completedForQuestion} von ${schueler.length} Schülern bewertet</div>
         `;
+    }
+
+    function renderQuestionNavigation() {
+        if (!elements.questionNavigation || !elements.questionNavigationButtons) return;
+
+        if (sessionType !== 'group' || !isQuestionOrderMode() || questions.length <= 1) {
+            elements.questionNavigation.style.display = 'none';
+            elements.questionNavigationButtons.innerHTML = '';
+            return;
+        }
+
+        elements.questionNavigation.style.display = 'block';
+        elements.questionNavigationButtons.innerHTML = '';
+
+        questions.forEach((question, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'question-nav-btn';
+            button.textContent = index + 1;
+            button.title = question.question;
+            button.setAttribute('aria-label', `Zu Frage ${index + 1} springen`);
+
+            if (index === currentQuestionIndex) {
+                button.classList.add('active');
+            }
+
+            if (getQuestionCompletionCount(question.id) === schueler.length) {
+                button.classList.add('completed');
+            }
+
+            button.addEventListener('click', () => goToQuestion(index));
+            elements.questionNavigationButtons.appendChild(button);
+        });
     }
 
     async function updateAnswerOrderMode(mode) {
@@ -817,6 +880,7 @@
             const qIndex = questions.findIndex(currentItem => currentItem.id === question.id);
             const card = document.createElement('div');
             card.className = 'question-card mb-3';
+            card.dataset.questionIndex = String(qIndex);
 
             const questionHeader = document.createElement('div');
             questionHeader.className = 'question-header';
@@ -916,6 +980,7 @@
         updateProgress();
         renderAnswerOrderControls();
         renderQuestionCycleBanner();
+        renderQuestionNavigation();
         renderStudentSelect();
         renderTabs();
         renderTabContent();
@@ -1163,6 +1228,57 @@
 
 .question-cycle-progress {
     font-size: 0.9rem;
+}
+
+.question-navigation {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.question-navigation-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.question-navigation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.question-nav-btn {
+    min-width: 42px;
+    height: 42px;
+    border: 2px solid #e9ecef;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--dark);
+    font-weight: 700;
+    transition: var(--transition);
+}
+
+.question-nav-btn:hover {
+    border-color: var(--primary);
+    background: #f0f7ff;
+    transform: translateY(-1px);
+}
+
+.question-nav-btn.completed {
+    border-color: var(--success);
+    color: var(--success);
+    background: #edf9f1;
+}
+
+.question-nav-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
 }
 
 /* Fortschrittsanzeige */

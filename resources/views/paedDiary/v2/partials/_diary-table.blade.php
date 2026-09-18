@@ -82,9 +82,17 @@
 
                             {{-- Stufen-Symbol (links, größer) --}}
                             <span x-data="stageDropdown()" class="flex-shrink-0" style="cursor:pointer;">
-                                <span @click.stop="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
-                                      x-show="$store.diary.can_manage_grading"
-                                      x-html="stageHtml(stu)"></span>
+                                <button type="button"
+                                       @click.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
+                                       @pointerdown.stop
+                                       @keydown.enter.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
+                                       @keydown.space.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
+                                       x-show="$store.diary.can_manage_grading"
+                                       class="stage-trigger-btn"
+                                       aria-label="Graduierungsstufe wählen"
+                                       :aria-expanded="dropdownOpen && dropdownStuId === stu.id ? 'true' : 'false'">
+                                    <span x-html="stageHtml(stu)"></span>
+                                </button>
                                 <span x-show="!$store.diary.can_manage_grading"
                                       x-html="stageHtml(stu)"></span>
 
@@ -94,7 +102,6 @@
                                 <template x-teleport="body">
                                     <div x-show="dropdownOpen && dropdownStuId === stu.id"
                                          x-cloak
-                                         @click.outside="closeDropdown()"
                                          class="bg-white border rounded shadow-sm p-1 paed-stage-dropdown"
                                          :style="`position:fixed; top:${dropdownTop}px; left:${dropdownLeft}px; z-index:9999; min-width:160px; max-width:90vw; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;`">
                                         <div x-show="stageLoading" class="small text-muted p-1">Lade...</div>
@@ -342,4 +349,3 @@
         <i class="fas fa-info-circle"></i> Keine Schüler in der gewählten Klasse/Gruppe.
     </div>
 </div>
-
