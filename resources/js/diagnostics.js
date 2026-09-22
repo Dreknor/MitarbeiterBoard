@@ -6,7 +6,8 @@ import axios from 'axios';
 Alpine.plugin(collapse);
 
 // Make Alpine and axios available globally
-window.Alpine = Alpine;
+// window.Alpine wird von sidebar.js gesetzt – hier nur als Fallback
+if (!window.Alpine) window.Alpine = Alpine;
 window.axios = axios;
 
 // Configure axios
@@ -435,6 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Diagnostic system loaded');
 });
 
-// Initialize Alpine - MUST be last after all stores and data components are defined
-Alpine.start();
+// Alpine.start() wird NICHT hier aufgerufen.
+// Der Start erfolgt durch sidebar.js beim window-load-Event, nachdem
+// alle seitenspezifischen Module ihre Komponenten registriert haben.
 

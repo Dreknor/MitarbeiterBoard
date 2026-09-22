@@ -12,10 +12,12 @@ use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Services\AutoRosterPlanner; // Import ergänzt
+use App\Services\NextcloudTalkService;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -80,18 +82,21 @@ class RosterController extends Controller
         $weekEnd = $weekStart->copy()->endOfWeek();
         $employes = $roster->department->activeEmployes($weekStart, $weekEnd);
 
-        for ($day = $weekStart->copy(); $day->lessThanOrEqualTo($weekEnd); $day->addDay()) {
-            if (is_holiday($day)) {
-                foreach ($employes as $employe) {
-                    $event = new RosterEvents([
-                        'roster_id' => $roster->id,
-                        'employe_id' => $employe->id,
-                        'date' => $day->copy(),
-                        'start' => '08:00:00',
-                        'end' => '14:30:00',
-                        'event' => is_holiday($day)['title'],
-                    ]);
-                    $event->save();
+        // Feiertags-Events nur bei normalen Dienstplänen erstellen, nicht bei Vorlagen
+        if ($roster->type !== 'template') {
+            for ($day = $weekStart->copy(); $day->lessThanOrEqualTo($weekEnd); $day->addDay()) {
+                if (is_holiday($day)) {
+                    foreach ($employes as $employe) {
+                        $event = new RosterEvents([
+                            'roster_id' => $roster->id,
+                            'employe_id' => $employe->id,
+                            'date' => $day->copy(),
+                            'start' => '08:00:00',
+                            'end' => '14:30:00',
+                            'event' => is_holiday($day)['title'],
+                        ]);
+                        $event->save();
+                    }
                 }
             }
         }
@@ -106,7 +111,8 @@ class RosterController extends Controller
             foreach ($templateEvents as $event) {
                 $days = $templateStart->diffInDays($event->date);
                 $targetDay = $newRosterStart->copy()->addDays($days);
-                if (is_holiday($targetDay)) {
+                // Feiertage nur bei normalen Dienstplänen überspringen, nicht bei Vorlagen
+                if ($roster->type !== 'template' && is_holiday($targetDay)) {
                     continue;
                 }
                 $newEvent = $event->replicate();
@@ -323,7 +329,7 @@ class RosterController extends Controller
     public function exportPDF(Roster $roster)
     {
         if (auth()->user()->can('create roster') or auth()->user()->groups_rel->contains($roster->department)){
-            return $this->createPDF($roster)->stream($roster->start_date->copy()->format('Y_m_d') . '_dienstplan.pdf');
+            return $this->createPDF($roster)->stream($roster->start_date->copy()->format('Y_m_d') . '_dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf');
         }
         return redirectBack('danger', 'Berechtigung fehlt');
 
@@ -382,7 +388,7 @@ class RosterController extends Controller
             if ($employe->email) {
                 $rosterEmployePDF = $this->createPDFEmploye($roster, $employe)->save(storage_path('dienstplan_' . $employe->vorname . '.pdf'), 1);
                 $message = new SendRosterMail($employe->vorname, $employe->nachname, $roster->start_date->format('d.m.Y'), $name, [
-                    'dienstplan.pdf', 'dienstplan_' . $employe->vorname . '.pdf'
+                    'dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf', 'dienstplan_' . $employe->vorname . '.pdf'
                 ]);
                 Mail::to($employe->email)->queue($message);
                 Storage::delete('dienstplan_' . $employe->vorname . '.pdf');
@@ -392,6 +398,62 @@ class RosterController extends Controller
         Storage::delete('dienstplan.pdf');
 
         return redirectBack('success', 'E-Mails versandt');
+    }
+
+    public function sendRosterToNextcloudTalk(Roster $roster)
+    {
+        if (!auth()->user()->can('create roster')) {
+            return redirectBack('danger', 'Berechtigung fehlt');
+        }
+
+        $nextcloudService = new NextcloudTalkService();
+
+        if (!$nextcloudService->isEnabled()) {
+            return redirectBack('warning', 'Nextcloud Talk ist nicht aktiviert oder nicht konfiguriert');
+        }
+
+        $chatToken = config('nextcloud.roster_chat_token');
+
+        if (empty($chatToken)) {
+            return redirectBack('warning', 'Kein Nextcloud Talk Chat-Token konfiguriert');
+        }
+
+        // PDF erstellen
+        $weekStart = $roster->start_date->copy();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $pdfPath = storage_path('app/dienstplan_' . $roster->id . '_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf');
+        $this->createPDF($roster)->save($pdfPath);
+
+        // Nachricht vorbereiten
+        $message = sprintf(
+            "📅 **Neuer Dienstplan**\n\nWoche vom %s bis %s\n",
+            $weekStart->format('d.m.Y'),
+            $weekEnd->format('d.m.Y'),
+
+        );
+
+        // Datei zu Nextcloud hochladen und im Chat teilen
+        $targetPath = '/Dienstpläne/' . $roster->start_date->format('Y_m_d') . '_dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf';
+
+        Log::info('Attempting to upload roster to Nextcloud', [
+            'roster_id' => $roster->id,
+            'local_path' => $pdfPath,
+            'target_path' => $targetPath,
+            'chat_token' => substr($chatToken, 0, 8) . '...',
+        ]);
+
+        $success = $nextcloudService->uploadAndShare($chatToken, $pdfPath, $targetPath, $message);
+
+        // Lokale PDF löschen
+        if (file_exists($pdfPath)) {
+            unlink($pdfPath);
+        }
+
+        if ($success) {
+            return redirectBack('success', 'Dienstplan wurde erfolgreich an Nextcloud Talk gesendet');
+        } else {
+            return redirectBack('danger', 'Fehler beim Senden an Nextcloud Talk. Bitte Logs prüfen.');
+        }
     }
 
     public function exportPdfEmploye(Roster $roster, User $employe)

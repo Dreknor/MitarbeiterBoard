@@ -1,12 +1,14 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use App\Models\PaedDiaryCategory; // import category model
 
 class PaedDiaryEntry extends Model
 {
+    use HasFactory;
     /** @var array<int,string> */
     protected $fillable = [ 'klasse_id','user_id','datum','content','completed_at','category_id', 'dossier_only' ]; // completed_at und category_id ergänzt
 

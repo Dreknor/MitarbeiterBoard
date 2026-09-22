@@ -66,6 +66,9 @@ php artisan webpush:vapid
 echo "Führe php artisan storage:link aus..."
 php artisan storage:link
 
+echo "Lade Schriftarten für den Wochenplan herunter..."
+php artisan wochenplan:fonts-download
+
 echo "Es müssen noch die folgenden Aufgaben manuell ausgeführt werden:"
 echo "1. Einstellungen in .env anpassen"
 echo "2. Den Cronjob erstellen. Die erfolgt den Befehl: crontab -e"

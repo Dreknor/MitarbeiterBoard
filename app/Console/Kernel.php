@@ -16,6 +16,8 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         RemindProcedureUser::class,
+        \App\Console\Commands\Personal\ReEncryptPersonalData::class,
+        \App\Console\Commands\Personal\AuditTimesheets::class,
     ];
 
     /**
@@ -46,6 +48,63 @@ class Kernel extends ConsoleKernel
 
         // Cleanup expired grading tokens
         $schedule->command('grading:cleanup-tokens')->daily();
+
+        // VP-Raumbuchungen aufräumen (älter als X Tage, konfigurierbar via settings)
+        $schedule->command('room-bookings:cleanup-vp')->weekly();
+
+        // Kalender-Synchronisation (OX CalDAV)
+        $syncInterval = (int) (\App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'calendar_sync_interval')
+            ->value('value') ?? 15);
+
+        $schedule->command('ox:sync-calendars')
+            ->cron("*/{$syncInterval} * * * *")
+            ->withoutOverlapping(30) // Max. Lock-Zeit: 30 Minuten
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/ox-sync.log'));
+
+        // Kalender Sync-Log-Bereinigung (täglich um 03:00)
+        $schedule->call(function () {
+            $aufbewahrungTage = (int) (\App\Models\Setting::where('module', 'Kalender')
+                ->where('setting', 'calendar_log_aufbewahrung_tage')
+                ->value('value') ?? 90);
+
+            $deleted = \App\Models\OxSyncLog::where('created_at', '<', now()->subDays($aufbewahrungTage))
+                ->delete(); // Hart löschen (kein SoftDeletes)
+
+            if ($deleted > 0) {
+                \Illuminate\Support\Facades\Log::info("Kalender: {$deleted} alte Sync-Logs gelöscht (>{$aufbewahrungTage} Tage)");
+            }
+        })->dailyAt('03:00')->name('calendar-log-cleanup');
+
+        // Personal-Modul: Audit-Log-Bereinigung (monatlich am 1. um 03:30)
+        $schedule->call(function () {
+            $deleted = app(\App\Services\Personal\PersonalAuditService::class)->cleanupOldLogs();
+            \Illuminate\Support\Facades\Log::info("Personal: {$deleted} alte Zugriffs-Logs bereinigt.");
+        })->monthlyOn(1, '03:30')->name('personal-audit-cleanup');
+
+        // Phase 2: Nextcloud Konsistenz-Check (täglich um 02:00)
+        $schedule->job(new \App\Jobs\Personal\CheckNextcloudConsistency)
+            ->dailyAt('02:00')
+            ->name('nc-consistency-check')
+            ->withoutOverlapping(60);
+
+        // Phase 2: Ablaufende Dokumente prüfen und Erinnerungen versenden (täglich um 07:15)
+        $schedule->call(function () {
+            app(\App\Services\Personal\PersonalDocumentService::class)->checkExpiringDocuments();
+        })->dailyAt('07:15')->name('personal-expiring-documents')->withoutOverlapping();
+
+        // Phase 2: Ablaufende Qualifikationen prüfen und Erinnerungen versenden (täglich um 07:30)
+        $schedule->call(function () {
+            app(\App\Services\Personal\QualificationService::class)->checkExpiringQualifications();
+        })->dailyAt('07:30')->name('personal-expiring-qualifications')->withoutOverlapping();
+
+        // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
+        $schedule->command('personal:audit-timesheets')
+            ->dailyAt('03:00')
+            ->name('personal-audit-timesheets')
+            ->withoutOverlapping(60)
+            ->appendOutputTo(storage_path('logs/personal-audit-timesheets.log'));
     }
 
     /**

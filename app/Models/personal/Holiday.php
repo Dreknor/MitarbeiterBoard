@@ -31,14 +31,20 @@ class Holiday extends Model
         'end_date' => 'date',
         'approved' => 'boolean',
         'rejected' => 'boolean',
+        'approved_at' => 'datetime',
     ];
 
     public function employe()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
-   public function approved_by()
+    public function approved_by()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approved_by_user()
     {
         return $this->belongsTo(User::class, 'approved_by');
     }

@@ -64,8 +64,8 @@
                     <span class="ml-2 text-sm font-normal text-gray-500">({{ $schueler->count() }} {{ $schueler->count() == 1 ? 'Schüler' : 'Schüler' }})</span>
                 </h2>
             </div>
-            <div class="overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-8">
-                <div class="inline-block min-w-full align-middle">
+            <div class="overflow-x-auto">
+                <div class="min-w-full">
                     <table class="table-diagnostic min-w-full">
                     <thead>
                         <tr>

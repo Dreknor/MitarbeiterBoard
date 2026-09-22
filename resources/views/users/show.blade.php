@@ -141,7 +141,7 @@
                                 </div>
                             </div>
                         @endcan
-                        @can('view procedures')
+                        @can('manage procedures')
                             <div class="col-auto">
                                 <div class="card">
                                     <div class="card-header">

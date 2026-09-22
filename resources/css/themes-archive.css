@@ -1,0 +1,41 @@
+/*
+ * Themenarchiv – Tailwind CSS v4
+ *
+ * Ersetzt das bisherige Tailwind-CDN (Browser-Kompilierung = mehrere Sekunden Ladezeit).
+ * Architektur siehe AGENTS.md: Preflight deaktiviert, gescopet über .theme-archive-wrapper.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "../views/themes/archive.blade.php";
+
+/* Alpine.js Cloak */
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets (Preflight ist deaktiviert)
+ * ------------------------------------------------------------- */
+.theme-archive-wrapper { box-sizing: border-box; color: #111827; }
+.theme-archive-wrapper *,
+.theme-archive-wrapper *::before,
+.theme-archive-wrapper *::after { box-sizing: border-box; }
+
+.theme-archive-wrapper h1,
+.theme-archive-wrapper h2,
+.theme-archive-wrapper h3 { margin: 0; }
+.theme-archive-wrapper p { margin: 0; }
+.theme-archive-wrapper a { color: inherit; text-decoration: none; }
+.theme-archive-wrapper a:hover { text-decoration: none; }
+.theme-archive-wrapper ul,
+.theme-archive-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.theme-archive-wrapper button { border-width: 0; background: none; cursor: pointer; }
+.theme-archive-wrapper svg { display: inline-block; vertical-align: middle; }
+
+/* Tabellen im Archiv nicht durch Bootstrap/own.css beeinflussen */
+.theme-archive-wrapper table { border-collapse: collapse; width: 100%; }
+.theme-archive-wrapper th,
+.theme-archive-wrapper td { background: transparent; }
+
+/* Pagination (Laravel ->links()) etwas kompakter einbetten */
+.theme-archive-wrapper nav[role="navigation"] { @apply text-sm; }
+

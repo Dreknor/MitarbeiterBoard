@@ -15,6 +15,9 @@ class DashboardCard extends Model
         'default_row',
         'default_col',
         'permission',
+        'default_width',
+        'icon',
+        'skeleton',
     ];
 
     public function user_cards()

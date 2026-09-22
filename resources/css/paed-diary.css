@@ -1,0 +1,115 @@
+/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* ── Quell-Dateien für Tailwind-Klassen-Scan ────────────────────────────── */
+@source "../views/paedDiary/**/*.blade.php";
+@source "../../public/js/paedDiary/categories.js";
+
+[x-cloak] { display: none !important; }
+
+/* ── Sidebar beim Päd. Tagebuch automatisch ausblenden ──────────────────── */
+body.paed-hide-sidebar #tw-sidebar {
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Main füllt die komplette Breite */
+body.paed-hide-sidebar #tw-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+/* Sanfte Transition beim Ein-/Ausblenden */
+#tw-main {
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* Hamburger-Button im Topbar auch auf Desktop sichtbar wenn Sidebar hidden */
+body.paed-hide-sidebar #sidebar-open-btn {
+    display: block !important;
+}
+
+/* Floating Toggle-Button (erzeugt per JS) */
+.paed-toggle-btn {
+    position: fixed;
+    top: 80px;
+    left: 10px;
+    z-index: 1100;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: none;
+}
+.paed-toggle-btn:focus {
+    outline: 2px solid rgba(255,255,255,0.2);
+}
+.paed-toggle-btn[data-state="visible"]::after { content: "✕"; font-size: 18px; }
+.paed-toggle-btn[data-state="hidden"]::after  { content: "☰"; font-size: 18px; }
+
+/* ── Abwesenheits-Toggle ────────────────────────────────────────────────── */
+.absence-toggle {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s;
+}
+.absence-toggle:hover { opacity: 1; }
+.diary-btn-absent {
+    background-color: #f8d7da !important;
+    opacity: 1 !important;
+    color: #842029 !important;
+}
+td.absent-cell {
+    background-color: #fff5f5 !important;
+}
+.absent-banner {
+    clear: both;
+}
+
+
+.open-entry-large {
+    font-size: 1.05rem !important;
+    line-height: 1.35 !important;
+}
+.open-entry-large .fa-comment-alt {
+    font-size: 0.95rem;
+    margin-right: 0.4rem;
+}
+.open-entry-large .text-muted {
+    font-size: 0.85rem;
+}
+@media (max-width: 767px) {
+    .open-entry-large { font-size: 1rem !important; }
+}
+
+.name_column,
+.schueler_name_field {
+    max-width: 130px;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+.name_column *,
+.schueler_name_field * {
+    white-space: normal !important;
+}
+
+#diaryTable {
+    table-layout: fixed;
+    width: 100%;
+}

@@ -27,7 +27,23 @@
                                             <option value="{{$user->id}}" class="{{ trim($userGroupClasses) }}">{{$user->name}}</option>
                                         @endforeach
                                     @else
-                                        <option value="{{auth()->user()->id}}">{{auth()->user()->name}}</option>
+                                        @if($users->count() > 1)
+                                            {{-- Supervisor mit unterstellten Mitarbeitern --}}
+                                            @foreach($users as $user)
+                                                @php
+                                                    $userGroupClasses = '';
+                                                    if($user->groups_rel) {
+                                                        foreach($user->groups_rel as $group) {
+                                                            $userGroupClasses .= $group->name . ' ';
+                                                        }
+                                                    }
+                                                @endphp
+                                                <option value="{{$user->id}}" class="{{ trim($userGroupClasses) }}" @if($user->id == auth()->id()) selected @endif>{{$user->name}}</option>
+                                            @endforeach
+                                        @else
+                                            {{-- Normaler Benutzer kann nur für sich selbst Urlaub erfassen --}}
+                                            <option value="{{auth()->user()->id}}">{{auth()->user()->name}}</option>
+                                        @endif
                                     @endcan
 
                                 </select>

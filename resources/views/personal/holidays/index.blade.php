@@ -19,6 +19,23 @@
             </div>
             <div class="col-md-6">
                 @include('personal.holidays.partials.holidays_overview')
+                @can('approve holidays')
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cog"></i> Verwaltung
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <a href="{{ url('holidays/manage') }}" class="btn btn-info btn-block btn-lg">
+                                <i class="fas fa-tasks"></i> Genehmigte Urlaube verwalten & löschen
+                            </a>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> Hier können Sie genehmigte Urlaube filtern und bei Bedarf löschen.
+                            </small>
+                        </div>
+                    </div>
+                @endcan
             </div>
         </div>
         @can('approve holidays')
@@ -44,16 +61,24 @@
                                     </thead>
                                     <tbody>
                                     @forelse($unapproved as $holiday)
-                                        @if($holiday->employe)
-                                        <tr>
-                                            <td>{{ $holiday->employe->name }}</td>
+                                        <tr class="@if($holiday->employe->groups_rel) @foreach($holiday->employe->groups_rel as $group) {{$group->name}} @endforeach @endif">
+                                            <td>
+                                                @if($holiday->employe)
+                                                    {{ $holiday->employe->name }}
+                                                    @if($holiday->employe->trashed())
+                                                        <span class="badge badge-secondary ml-1" title="Mitarbeiter wurde gelöscht">gelöscht</span>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted">(Mitarbeiter nicht gefunden)</span>
+                                                @endif
+                                            </td>
                                             <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
                                             <td>{{ $holiday->days }}</td>
                                             <td>
-                                <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
-                                    {{ $holiday->approved ? 'genehmigt' : 'offen' }}
-                                </span>
+                                                <span class="badge {{ $holiday->approved ? 'badge-success' : 'badge-warning' }}">
+                                                    {{ $holiday->approved ? 'genehmigt' : 'offen' }}
+                                                </span>
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#approveModal-{{ $holiday->id }}">
@@ -88,7 +113,7 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                        @endif
+
                                     @empty
                                         <tr>
                                             <td colspan="6" class="text-center">Keine ungeprüften Anträge gefunden.</td>

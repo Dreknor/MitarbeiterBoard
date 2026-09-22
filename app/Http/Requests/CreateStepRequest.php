@@ -13,7 +13,7 @@ class CreateStepRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('view procedures');
+        return auth()->user()->can('manage procedures');
     }
 
     /**
@@ -29,6 +29,7 @@ class CreateStepRequest extends FormRequest
             'name'=>    'required|string|max:60',
             'description'=>'string|nullable',
             'durationDays'=>'integer|min:1',
+            'endDate'=>'nullable|date',
         ];
     }
 }

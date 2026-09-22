@@ -2,284 +2,472 @@
 
 @section('content')
 <div class="container-fluid" id="schueler-diary-app">
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-3">
-                <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
-                    <div class="d-flex align-items-center flex-wrap">
-                        <h5 class="mb-0 mr-3">Pädagogisches Tagebuch - {{ $schueler->vorname }} {{ $schueler->nachname }}</h5>
-                        <div class="small text-muted">Klasse: {{ $klasse->name }}</div>
+    <!-- Moderner Tailwind-Header -->
+    <div class="mb-6">
+        <!-- Hauptüberschrift und Aktionen -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <!-- Titel und Info -->
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                            <i class="fas fa-user-graduate text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl sm:text-3xl font-bold text-white mb-1">
+                                {{ $schueler->vorname }} {{ $schueler->nachname }}
+                            </h1>
+                            <div class="flex items-center gap-2 text-blue-100">
+                                <i class="fas fa-users text-sm"></i>
+                                <span class="text-sm font-medium">Klasse: {{ $klasse->name }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center">
-                        <a href="{{ route('paedDiary.index', ['klasse' => $klasse->id]) }}" class="btn btn-sm btn-outline-secondary mb-1 mr-2">
-                            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
-                        </a>
-                        <button id="exportWordBtn" class="btn btn-sm btn-outline-success mb-1" title="Excel Export">
-                            <i class="fas fa-file-excel"></i> Excel Export
+                </div>
+
+                <!-- Aktions-Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('paedDiary.index', ['klasse' => $klasse->id]) }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:inline">Zurück zur Übersicht</span>
+                        <span class="sm:hidden">Zurück</span>
+                    </a>
+                    <button id="exportWordBtn"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium shadow-md"
+                            title="Excel Export">
+                        <i class="fas fa-file-excel"></i>
+                        <span class="hidden sm:inline">Excel Export</span>
+                        <span class="sm:hidden">Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter-Bereich mit Tailwind -->
+        <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <!-- Zeitraum-Filter -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
+                <!-- Von Datum -->
+                <div class="lg:col-span-4">
+                    <label for="dateFrom" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Von:
+                    </label>
+                    <input type="date"
+                           id="dateFrom"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           value="{{ now()->subDays(30)->format('Y-m-d') }}">
+                </div>
+
+                <!-- Bis Datum -->
+                <div class="lg:col-span-4">
+                    <label for="dateTo" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-blue-500 mr-1"></i> Bis:
+                    </label>
+                    <input type="date"
+                           id="dateTo"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           value="{{ now()->format('Y-m-d') }}">
+                </div>
+
+                <!-- Daten laden Button -->
+                <div class="lg:col-span-4 flex items-end">
+                    <button id="loadDataBtn"
+                            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md">
+                        <i class="fas fa-sync-alt mr-2"></i>Daten laden
+                    </button>
+                </div>
+
+                <!-- Schnell-Filter -->
+                <div class="lg:col-span-12">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-medium text-gray-700 mr-1 whitespace-nowrap">
+                            <i class="fas fa-bolt text-blue-500 mr-1"></i>Schnell-Filter:
+                        </span>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="last1Week">
+                            1 Woche
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="last2Weeks">
+                            2 Wochen
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="currentHalfYear">
+                            Akt. Halbjahr
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="lastHalfYear">
+                            Letztes Halbjahr
+                        </button>
+                        <button type="button"
+                                class="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 whitespace-nowrap"
+                                id="currentSchoolYear">
+                            Akt. Schuljahr
                         </button>
                     </div>
                 </div>
-                <div class="card-body p-3">
-                    <!-- Zeitraum-Filter -->
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label class="small mb-1" for="dateFrom">Von:</label>
-                            <input type="date" id="dateFrom" class="form-control form-control-sm" value="{{ now()->subDays(30)->format('Y-m-d') }}">
+            </div>
+
+            <!-- Trennlinie -->
+            <div class="border-t border-gray-200 my-4"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="text-center py-12 hidden">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                <div class="text-gray-600 font-medium">Daten werden geladen...</div>
+            </div>
+
+            <!-- Zusammenfassung - Kompakte Statistik-Leiste -->
+            <div id="summarySection" class="hidden mb-4">
+                <div class="flex flex-wrap bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <!-- Zeitraum -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-calendar-alt text-gray-400 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Zeitraum</div>
+                            <div class="text-sm font-semibold text-gray-800 truncate" id="periodText"></div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="small mb-1" for="dateTo">Bis:</label>
-                            <input type="date" id="dateTo" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}">
+                    </div>
+
+                    <!-- Einträge -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[130px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-file-alt text-blue-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Einträge</div>
+                            <div class="text-sm font-semibold text-gray-800" id="entriesCount">0</div>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button id="loadDataBtn" class="btn btn-primary btn-sm">Daten laden</button>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary" id="last7Days">7 Tage</button>
-                                <button type="button" class="btn btn-outline-secondary" id="last30Days">30 Tage</button>
-                                <button type="button" class="btn btn-outline-secondary" id="last90Days">90 Tage</button>
+                    </div>
+
+                    <!-- Aufgaben (offen/gesamt) -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[170px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-tasks text-cyan-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Aufgaben (offen / gesamt)</div>
+                            <div class="text-sm font-semibold text-gray-800">
+                                <span id="tasksOpenCount">0</span> / <span id="tasksCount">0</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Neue Filter-Zeile: Kategorie + Suche -->
-
-
-                    <div id="loadingIndicator" class="text-center py-4 d-none">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="sr-only">Lade...</span>
+                    <!-- Tage mit Einträgen -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[150px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-check-circle text-green-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Tage mit Einträgen</div>
+                            <div class="text-sm font-semibold text-gray-800" id="daysWithEntriesCount">0</div>
                         </div>
-                        <div class="mt-2">Daten werden geladen...</div>
                     </div>
 
-                    <!-- Zusammenfassung -->
-                    <div id="summarySection" class="row mb-4 d-none">
-                        <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Zeitraum</h6>
-                                    <p class="card-text small mb-0" id="periodText"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Einträge</h6>
-                                    <p class="card-text mb-0"><span id="entriesCount">0</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Aufgaben</h6>
-                                    <p class="card-text mb-0"><span id="tasksCount">0</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body p-2 text-center">
-                                    <h6 class="card-title mb-1">Tage mit Einträgen</h6>
-                                    <p class="card-text mb-0"><span id="daysWithEntriesCount">0</span></p>
-                                </div>
+                    <!-- Letzte Graduierung -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px] border-b sm:border-b-0 sm:border-r border-gray-200">
+                        <i class="fas fa-award text-purple-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">Letzte Graduierung</div>
+                            <div class="text-sm font-semibold text-gray-800 truncate">
+                                {{ $lastGraduationAt ? $lastGraduationAt->format('d.m.Y') : '–' }}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Daten-Anzeige -->
-                    <div id="dataSection" class="d-none">
-                        <!-- Navigation zwischen Ansichten -->
-                        <ul class="nav nav-tabs mb-3" id="viewTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link active" id="entries-tab" data-toggle="tab" href="#entries" role="tab">
-                                    Einträge <span class="badge badge-secondary" id="entriesBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="tasks-tab" data-toggle="tab" href="#tasks" role="tab">
-                                    Aufgaben <span class="badge badge-secondary" id="tasksBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="columns-tab" data-toggle="tab" href="#columns" role="tab">
-                                    Spalten <span class="badge badge-secondary" id="columnsBadge">0</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" id="graduations-tab" data-toggle="tab" href="#graduations" role="tab">
-                                    Dokumentation <span class="badge badge-secondary">{{ $gradingSessions->count() }}</span>
-                                </a>
-                            </li>
-                        </ul>
+                    <!-- Aktuelle Stufe seit -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-[160px]">
+                        <i class="fas fa-medal text-amber-500 w-4 text-center"></i>
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-medium uppercase tracking-wide text-gray-400 leading-tight">
+                                Stufe{{ $schueler->grading_stage ? ' „'.$schueler->grading_stage->name.'“' : '' }} seit
+                            </div>
+                            <div class="text-sm font-semibold text-gray-800 truncate">
+                                {{ $currentStageSince ? \Carbon\Carbon::parse($currentStageSince)->format('d.m.Y') : '–' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        <div class="tab-content" id="viewTabContent">
+            <div id="absenceAlertPanel" class="hidden mb-4"></div>
+
+            <!-- Daten-Anzeige -->
+            <div id="dataSection" class="hidden">
+                        <!-- Moderne Tab-Navigation mit Alpine.js -->
+                        <div class="mb-6" x-data="{ activeTab: 'entries' }" id="tabContainer">
+                            <div class="border-b border-gray-200">
+                                <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="viewTabs" role="tablist">
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'entries' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'entries'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'entries'">
+                                            <i class="fas fa-file-alt"></i>
+                                            <span>Einträge</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'entries' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="entriesBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'tasks' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'tasks'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'tasks'">
+                                            <i class="fas fa-tasks"></i>
+                                            <span>Aufgaben</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'tasks' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="tasksBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'columns' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'columns'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'columns'">
+                                            <i class="fas fa-columns"></i>
+                                            <span>Spalten</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'columns' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  id="columnsBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'graduations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'graduations'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'graduations'">
+                                            <i class="fas fa-graduation-cap"></i>
+                                            <span>Dokumentation</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'graduations' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'">{{ $gradingSessions->count() }}</span>
+                                        </button>
+                                    </li>
+                                    @can('view diagnostics')
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'diagnostics' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'diagnostics'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'diagnostics'">
+                                            <i class="fas fa-clipboard-check"></i>
+                                            <span>Diagnose</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'diagnostics' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'">{{ $diagnosticSessions->count() }}</span>
+                                        </button>
+                                    </li>
+                                    @endcan
+                                </ul>
+                            </div>
+
+                        <!-- Tab Content Container -->
+                        <div id="viewTabContent">
                             <!-- Einträge Tab -->
-                            <div class="tab-pane fade show active" id="entries" role="tabpanel">
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="small mb-1" for="categoryFilter">Kategorie</label>
-                                        <select id="categoryFilter" class="form-control form-control-sm">
-                                            <option value="">Alle Kategorien</option>
-                                            <!-- Kategorien werden clientseitig gefüllt -->
-                                        </select>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <label class="small mb-1" for="searchNotes">Suche Notizen</label>
-                                        <div class="">
-                                            <input type="text" id="searchNotes" class="form-control" placeholder="Textsuche in Notizen (Inhalt, Autor)">
+                            <div x-show="activeTab === 'entries'" id="entries" role="tabpanel">
+                                <!-- Filter für Einträge -->
+                                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+                                        <!-- Kategorie-Filter -->
+                                        <div class="lg:col-span-4">
+                                            <label for="categoryFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-filter text-blue-500 mr-1"></i> Kategorie
+                                            </label>
+                                            <select id="categoryFilter"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all">
+                                                <option value="">Alle Kategorien</option>
+                                                <!-- Kategorien werden clientseitig gefüllt -->
+                                            </select>
+                                        </div>
 
+                                        <!-- Textsuche -->
+                                        <div class="lg:col-span-6">
+                                            <label for="searchNotes" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-search text-blue-500 mr-1"></i> Suche Notizen
+                                            </label>
+                                            <input type="text"
+                                                   id="searchNotes"
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                                   placeholder="Textsuche in Notizen (Inhalt, Autor)">
+                                        </div>
+
+                                        <!-- Info -->
+                                        <div class="lg:col-span-2 flex items-end">
+                                            <small class="text-xs text-gray-500">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Clientseitige Filterung
+                                            </small>
                                         </div>
                                     </div>
-
-                                    <div class="col-md-2 d-flex align-items-end">
-                                        <small class="text-muted">Suche wird clientseitig gefiltert</small>
-                                    </div>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="entriesTable">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th style="width: 100px;">Datum</th>
-                                                <th class="w-50">Notiz</th>
-                                                <th>Kategorie</th>
-                                                <th style="width: 120px;">Autor</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="entriesTableBody"></tbody>
-                                    </table>
+
+                                <!-- Tabelle mit Einträgen -->
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="entriesTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;">
+                                                        Datum
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 50%;">
+                                                        Notiz
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Kategorie
+                                                    </th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 120px;">
+                                                        Autor
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="entriesTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Aufgaben Tab -->
-                            <div class="tab-pane fade" id="tasks" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="tasksTable">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th style="width: 120px;">Erstellt</th>
-                                                <th>Titel</th>
-                                                <th>Beschreibung</th>
-                                                <th style="width: 100px;">Fällig</th>
-                                                <th style="width: 80px;">Status</th>
-                                                <th style="width: 80px;">Priorität</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tasksTableBody"></tbody>
-                                    </table>
+                            <div x-show="activeTab === 'tasks'" id="tasks" role="tabpanel">
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="tasksTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 120px;">Erstellt</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titel</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;">Fällig</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 80px;">Status</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 80px;">Priorität</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tasksTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Spalten Tab -->
-                            <div class="tab-pane fade" id="columns" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped" id="columnsTable">
-                                        <thead class="thead-light">
-                                            <tr id="columnHeaders">
-                                                <th style="width: 100px;">Datum</th>
+                            <div x-show="activeTab === 'columns'" id="columns" role="tabpanel">
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="columnsTable">
+                                            <thead class="bg-gray-50">
+                                                <tr id="columnCategoryHeaders">
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 100px;" rowspan="2">Datum</th>
+                                                </tr>
+                                                <tr id="columnHeaders">
 
-                                            </tr>
-                                        </thead>
-                                        <tbody id="columnsTableBody"></tbody>
-                                        <tfoot id="columnsTableFooter"></tfoot>
-                                    </table>
+                                                </tr>
+                                                <tr id="columnHeaderCounts" class="bg-blue-50">
+
+                                                </tr>
+                                            </thead>
+                                            <tbody id="columnsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                            <tfoot id="columnsTableFooter" class="bg-gray-50"></tfoot>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Graduierungen Tab -->
-                            <div class="tab-pane fade" id="graduations" role="tabpanel">
+                            <div x-show="activeTab === 'graduations'" id="graduations" role="tabpanel">
                                 @if($gradingSessions->isEmpty())
-                                    <div class="alert alert-info">
+                                    <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
                                         <i class="fas fa-info-circle"></i> Für diesen Schüler liegen noch keine Graduierungs-Dokumentationen vor.
                                     </div>
                                 @else
                                     <!-- Entwicklungs-Übersicht -->
-                                    <div class="row mb-4">
-                                        <div class="col-lg-6 mb-3">
-                                            <div class="card">
-                                                <div class="card-header bg-primary text-white">
-                                                    <h6 class="mb-0">
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                                <div class="bg-blue-600 text-white px-4 py-3">
+                                                    <h6 class="mb-0 font-semibold">
                                                         <i class="fas fa-chart-radar"></i> Aktuelle Kompetenzen (Letzte Session)
                                                     </h6>
                                                 </div>
-                                                <div class="card-body">
+                                                <div class="p-4">
                                                     <canvas id="radarChart" height="280"></canvas>
                                                     <div class="text-center mt-2">
-                                                        <small class="text-muted">
-                                                            <span class="badge badge-info">●</span> Schüler-Einschätzung &nbsp;
-                                                            <span class="badge badge-success">●</span> Lehrer-Bewertung
+                                                        <small class="text-gray-500">
+                                                            <span class="inline-block w-3 h-3 bg-cyan-500 rounded-full"></span> Schüler-Einschätzung &nbsp;
+                                                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span> Lehrer-Bewertung
                                                         </small>
                                                     </div>
-                                                    <div class="mt-3 pt-2 border-top">
-                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
-                                                        <div class="d-flex justify-content-between align-items-center px-2">
-                                                            <div class="text-center" style="flex: 1;">
+                                                    <div class="mt-3 pt-2 border-t border-gray-200">
+                                                        <small class="text-gray-500 block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="flex justify-between items-center px-2">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">1</small></div>
+                                                                <div><small class="text-gray-500">1</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">2</small></div>
+                                                                <div><small class="text-gray-500">2</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">3</small></div>
+                                                                <div><small class="text-gray-500">3</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">4</small></div>
+                                                                <div><small class="text-gray-500">4</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">5</small></div>
+                                                                <div><small class="text-gray-500">5</small></div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-lg-6 mb-3">
-                                            <div class="card">
-                                                <div class="card-header bg-success text-white">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <h6 class="mb-0">
+                                        <div>
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                                <div class="bg-green-600 text-white px-4 py-3">
+                                                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                                        <h6 class="mb-0 font-semibold">
                                                             <i class="fas fa-chart-line"></i> Entwicklung über Zeit
                                                         </h6>
-                                                        <div class="d-flex align-items-center">
-                                                            <select id="lineChartQuestionSelector" class="form-control form-control-sm" style="max-width: 250px; background-color: white; color: #333;">
+                                                        <div class="w-full sm:w-auto">
+                                                            <select id="lineChartQuestionSelector" class="w-full sm:max-w-xs px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 text-sm">
                                                                 <option value="average">Durchschnitt aller Fragen</option>
                                                             </select>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="card-body">
+                                                <div class="p-4">
                                                     <canvas id="lineChart" height="280"></canvas>
                                                     <div class="text-center mt-2">
-                                                        <small class="text-muted" id="lineChartDescription">Durchschnittliche Bewertung über alle Fragen</small>
+                                                        <small class="text-gray-500" id="lineChartDescription">Durchschnittliche Bewertung über alle Fragen</small>
                                                     </div>
-                                                    <div class="mt-3 pt-2 border-top">
-                                                        <small class="text-muted d-block mb-1"><strong>Bewertungsskala:</strong></small>
-                                                        <div class="d-flex justify-content-between align-items-center px-2">
-                                                            <div class="text-center" style="flex: 1;">
+                                                    <div class="mt-3 pt-2 border-t border-gray-200">
+                                                        <small class="text-gray-500 block mb-1"><strong>Bewertungsskala:</strong></small>
+                                                        <div class="flex justify-between items-center px-2">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown text-danger" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">1</small></div>
+                                                                <div><small class="text-gray-500">1</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-frown-open text-warning" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">2</small></div>
+                                                                <div><small class="text-gray-500">2</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-meh text-secondary" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">3</small></div>
+                                                                <div><small class="text-gray-500">3</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-smile text-info" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">4</small></div>
+                                                                <div><small class="text-gray-500">4</small></div>
                                                             </div>
-                                                            <div class="text-center" style="flex: 1;">
+                                                            <div class="text-center flex-1">
                                                                 <i class="fas fa-grin-stars text-success" style="font-size: 1.5rem;"></i>
-                                                                <div><small class="text-muted">5</small></div>
+                                                                <div><small class="text-gray-500">5</small></div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -288,58 +476,65 @@
                                         </div>
                                     </div>
 
-                                    <!-- Schwierige Bereiche Zusammenfassung -->
-                                    <div class="card mb-4 border-warning">
-                                        <div class="card-header bg-warning">
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-exclamation-triangle"></i> Entwicklungsbereiche
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="challengingAreas">
-                                                <div class="text-center text-muted">
-                                                    <i class="fas fa-spinner fa-spin"></i> Wird berechnet...
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
 
                                     <!-- Einzelne Dokumentations-Sessions -->
-                                    <h6 class="mb-3"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
-                                    <div class="accordion" id="documentationAccordion">
+                                    <h6 class="mb-3 font-semibold text-gray-700"><i class="fas fa-list"></i> Einzelne Reflexions-Sessions</h6>
+                                    <div class="space-y-2" id="documentationAccordion">
                                         @foreach($gradingSessions as $session)
-                                            <div class="card mb-2">
-                                                <div class="card-header" id="heading{{ $session->id }}">
+                                            <div class="bg-white rounded-lg shadow-md overflow-hidden" x-data="{ open: false }">
+                                                <div class="bg-gray-100 px-4 py-3">
                                                     <h6 class="mb-0">
-                                                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse"
-                                                                data-target="#collapse{{ $session->id }}" aria-expanded="false">
-                                                            <i class="fas fa-calendar-alt"></i>
-                                                            {{ $session->completed_at->format('d.m.Y H:i') }} Uhr
-                                                            <span class="badge badge-info ml-2">{{ $session->gradingSystem->name }}</span>
-                                                            <span class="badge badge-secondary ml-1">
-                                                                {{ $session->isGroupSession() ? 'Gruppe' : 'Einzeln' }}
+                                                        <button class="w-full text-left font-medium transition-colors flex items-center justify-between"
+                                                                :class="open ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'"
+                                                                type="button"
+                                                                @click="open = !open"
+                                                                :aria-expanded="open">
+                                                            <span>
+                                                                <i class="fas fa-calendar-alt mr-1"></i>
+                                                                {{ $session->completed_at->format('d.m.Y H:i') }} Uhr
+                                                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 ml-2">{{ $session->gradingSystem->name }}</span>
+                                                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-800 ml-1">
+                                                                    {{ $session->isGroupSession() ? 'Gruppe' : 'Einzeln' }}
+                                                                </span>
                                                             </span>
+                                                            <i class="fas transition-transform duration-200" :class="open ? 'fa-chevron-up text-blue-600' : 'fa-chevron-down text-gray-500'"></i>
                                                         </button>
                                                     </h6>
                                                 </div>
-                                                <div id="collapse{{ $session->id }}" class="collapse" data-parent="#documentationAccordion">
-                                                    <div class="card-body">
-                                                        <p class="text-muted mb-3">
+                                                <div x-show="open"
+                                                     x-transition:enter="transition ease-out duration-200"
+                                                     x-transition:enter-start="opacity-0 -translate-y-2"
+                                                     x-transition:enter-end="opacity-100 translate-y-0"
+                                                     x-transition:leave="transition ease-in duration-150"
+                                                     x-transition:leave-start="opacity-100 translate-y-0"
+                                                     x-transition:leave-end="opacity-0 -translate-y-2">
+                                                    <div class="p-4">
+                                                        <p class="text-gray-600 mb-3">
                                                             <strong>Lehrer:</strong> {{ $session->user->name }}
                                                         </p>
-                                                            <table class="table table-sm table-bordered">
-                                                                <thead class="thead-light">
+                                                        @php
+                                                            $coachingNote = $session->coachingNotes->where('schueler_id', $schueler->id)->first();
+                                                        @endphp
+                                                        @if($coachingNote && $coachingNote->note)
+                                                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                                                <strong class="text-yellow-800"><i class="fas fa-clipboard"></i> Coaching-Protokoll:</strong>
+                                                                <div class="mt-1 text-gray-700" style="white-space: pre-line;">{{ $coachingNote->note }}</div>
+                                                            </div>
+                                                        @endif
+                                                        <div class="overflow-x-auto">
+                                                            <table class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                                                                <thead class="bg-gray-50">
                                                                     <tr>
-                                                                        <th style="width: 40%;" rowspan="2">Frage</th>
-                                                                        <th style="width: 30%" colspan="2" class="align-center">Einschätzung</th>
-                                                                        <th rowspan="2">Kommentar</th>
+                                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 40%;" rowspan="2">Frage</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 30%" colspan="2">Einschätzung</th>
+                                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" rowspan="2">Kommentar</th>
                                                                     </tr>
                                                                     <tr>
-                                                                        <th style="width: 15%;">Schüler</th>
-                                                                        <th style="width: 15%;">Lehrer</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Schüler</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Lehrer</th>
                                                                     </tr>
                                                                 </thead>
-                                                                <tbody>
+                                                                <tbody class="bg-white divide-y divide-gray-200">
                                                                     @foreach($session->gradingSystem->questions as $question)
                                                                         @php
                                                                             $studentAnswer = $session->studentAnswers->where('schueler_id', $schueler->id)
@@ -350,8 +545,8 @@
                                                                                                                               ->first();
                                                                         @endphp
                                                                         <tr>
-                                                                            <td>{{ $question->question }}</td>
-                                                                            <td class="text-center">
+                                                                            <td class="px-4 py-3">{{ $question->question }}</td>
+                                                                            <td class="px-4 py-3 text-center">
                                                                                 @if($studentAnswer)
                                                                                     @php
                                                                                         $rating = $studentAnswer->self_rating;
@@ -373,10 +568,10 @@
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
                                                                                        title="{{ $labels[$rating] }}"></i>
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
-                                                                            <td class="text-center">
+                                                                            <td class="px-4 py-3 text-center">
                                                                                 @if($teacherAssessment && $teacherAssessment->teacher_rating)
                                                                                     @php
                                                                                         $rating = $teacherAssessment->teacher_rating;
@@ -398,73 +593,241 @@
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
                                                                                        title="{{ $labels[$rating] }}"></i>
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
-                                                                            <td>
+                                                                            <td class="px-4 py-3">
                                                                                 @if($teacherAssessment && $teacherAssessment->comment)
                                                                                     {{ $teacherAssessment->comment }}
                                                                                 @else
-                                                                                    <span class="text-muted">-</span>
+                                                                                    <span class="text-gray-400">-</span>
                                                                                 @endif
                                                                             </td>
                                                                         </tr>
                                                                     @endforeach
                                                                 </tbody>
                                                             </table>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         @endforeach
                                     </div>
                                 @endif
+
+                                <!-- Ziel, an dem ich arbeiten möchte (mit Historie) – immer sichtbar in der Dokumentationsübersicht, unabhängig von Graduierungs-Sessions -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4 mt-4">
+                                    <div class="bg-purple-600 text-white px-4 py-3">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-bullseye"></i> Ziel, an dem ich arbeiten möchte
+                                        </h6>
+                                    </div>
+                                    <div class="p-4">
+                                        <div id="currentGoalBox" class="mb-4">
+                                            <div class="text-gray-400">Kein Ziel erfasst.</div>
+                                        </div>
+
+                                        <form id="goalForm" class="flex flex-col sm:flex-row gap-2 mb-4">
+                                            <textarea id="goalTextInput" rows="2" required
+                                                      class="flex-1 px-3 py-2 rounded border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                      placeholder="Neues Ziel formulieren…"></textarea>
+                                            <button type="submit"
+                                                    class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all duration-200 font-medium h-fit self-start">
+                                                <i class="fas fa-plus"></i> Ziel speichern
+                                            </button>
+                                        </form>
+
+                                        <h6 class="font-semibold text-gray-700 mb-2"><i class="fas fa-history"></i> Ziel-Historie</h6>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-gray-200" id="goalsTable">
+                                                <thead class="bg-gray-50">
+                                                    <tr>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ziel</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:140px">Erstellt von</th>
+                                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:160px">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="goalsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            @can('view diagnostics')
+                            <!-- Diagnose Tab -->
+                            <div x-show="activeTab === 'diagnostics'" id="diagnostics" role="tabpanel">
+                                <!-- Aktuelle Ziele aus den Diagnosen -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
+                                    <div class="bg-purple-600 text-white px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-bullseye"></i> Aktuelle Ziele aus den Diagnosen
+                                        </h6>
+                                        <a href="{{ route('diagnostic.areas', $schueler->id) }}"
+                                           class="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors">
+                                            <i class="fas fa-external-link-alt"></i> Zu den Diagnosebögen
+                                        </a>
+                                    </div>
+                                    <div class="p-4">
+                                        @if($currentDiagnosticGoals->isEmpty())
+                                            <div class="text-gray-400">Keine aktuellen Ziele erfasst.</div>
+                                        @else
+                                            <div class="space-y-6">
+                                                @foreach($currentDiagnosticGoals->groupBy('goal.stage.area.name') as $areaName => $areaGoals)
+                                                    <div>
+                                                        <h6 class="font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-200">
+                                                            <i class="fas fa-layer-group"></i> {{ $areaName }}
+                                                        </h6>
+                                                        @foreach($areaGoals->groupBy('goal.stage.name') as $stageName => $stageGoals)
+                                                            <div class="mb-3">
+                                                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ $stageName }}</div>
+                                                                <div class="overflow-x-auto">
+                                                                    <table class="min-w-full divide-y divide-gray-200">
+                                                                        <thead class="bg-gray-50">
+                                                                            <tr>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:90px">Code</th>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung</th>
+                                                                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Erfasst am</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody class="bg-white divide-y divide-gray-200">
+                                                                            @foreach($stageGoals as $assessment)
+                                                                                <tr>
+                                                                                    <td class="px-4 py-2 whitespace-nowrap">
+                                                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-100 text-purple-800">
+                                                                                            {{ $assessment->goal->code }}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td class="px-4 py-2 text-sm text-gray-800">{{ $assessment->goal->description }}</td>
+                                                                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                                                        {{ $assessment->session?->session_date?->format('d.m.Y') }}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            @endforeach
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Diagnose-Sitzungen -->
+                                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div class="bg-blue-600 text-white px-4 py-3">
+                                        <h6 class="mb-0 font-semibold">
+                                            <i class="fas fa-clipboard-list"></i> Diagnose-Sitzungen
+                                        </h6>
+                                    </div>
+                                    <div class="p-4">
+                                        @if($diagnosticSessions->isEmpty())
+                                            <div class="text-gray-400">Für diesen Schüler liegen noch keine Diagnose-Sitzungen vor.</div>
+                                        @else
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full divide-y divide-gray-200">
+                                                    <thead class="bg-gray-50">
+                                                        <tr>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bereich</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:140px">Status</th>
+                                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:160px">Ersteller</th>
+                                                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Aktion</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="bg-white divide-y divide-gray-200">
+                                                        @foreach($diagnosticSessions as $dSession)
+                                                            <tr>
+                                                                <td class="px-4 py-3 whitespace-nowrap">{{ $dSession->session_date?->format('d.m.Y') }}</td>
+                                                                <td class="px-4 py-3">{{ $dSession->area?->name }}</td>
+                                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                                    @if($dSession->is_completed)
+                                                                        <span class="inline-flex items-center gap-1 text-green-700"><i class="fas fa-check-circle"></i> Abgeschlossen</span>
+                                                                    @else
+                                                                        <span class="inline-flex items-center gap-1 text-yellow-700"><i class="fas fa-hourglass-half"></i> In Bearbeitung</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="px-4 py-3 whitespace-nowrap">{{ $dSession->user?->name }}</td>
+                                                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                                                    <a href="{{ route('diagnostic.session', $dSession->id) }}"
+                                                                       class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                                                                        <i class="fas fa-eye"></i> Ansehen
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @endcan
                         </div>
                     </div>
 
                     <!-- Stage & History (sichtbar in Schüleransicht) -->
-                    <div class="row mb-3" id="stageHistoryRow" style="display:none">
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title">Aktuelle Stufe</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4" id="stageHistoryRow" style="display:none">
+                        <div class="md:col-span-4">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <div class="p-4 text-center">
+                                    <h6 class="font-semibold text-gray-700 mb-3">Aktuelle Stufe</h6>
                                     <div id="stageCard" class="mt-2">
-                                        <div class="text-muted">—</div>
+                                        <div class="text-gray-400">—</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-8">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">Stufen-Historie</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped" id="historyTable">
-                                            <thead class="thead-light"><tr><th style="width:120px">Datum</th><th>Neu</th><th>Vorher</th><th style="width:120px">Geändert von</th></tr></thead>
-                                            <tbody id="historyTableBody"></tbody>
+                        <div class="md:col-span-8">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <div class="p-4">
+                                    <h6 class="font-semibold text-gray-700 mb-3">Stufen-Historie</h6>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" id="historyTable">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Datum</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Neu</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vorher</th>
+                                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width:120px">Geändert von</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200"></tbody>
                                         </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Keine Daten Nachricht -->
-                    <div id="noDataMessage" class="text-center py-5 d-none">
-                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">Keine Daten gefunden</h5>
-                        <p class="text-muted">Für den gewählten Zeitraum wurden keine Einträge gefunden.</p>
-                    </div>
                 </div>
             </div>
+            <!-- Ende von dataSection -->
+
+            <!-- Keine Daten Nachricht -->
+            <div id="noDataMessage" class="text-center py-12 hidden">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
+                    <i class="fas fa-info-circle text-4xl text-gray-400"></i>
+                </div>
+                <h5 class="text-xl font-semibold text-gray-600 mb-2">Keine Daten gefunden</h5>
+                <p class="text-gray-500">Für den gewählten Zeitraum wurden keine Einträge gefunden.</p>
+            </div>
         </div>
+        <!-- Ende bg-white Filter/Content Card -->
     </div>
+    <!-- Ende mb-6 Hauptcontainer -->
 </div>
+<!-- Ende container-fluid -->
 @endsection
 
 @push('css')
 <link rel="stylesheet" href="{{ asset('css/tablet-scroll-optimization.css?v=20251110') }}">
 <style>
+/* Tailwind-kompatible Styles */
 .card-title {
     font-size: 0.9rem;
 }
@@ -475,6 +838,11 @@
 .badge {
     font-size: 0.7rem;
 }
+
+/* Tabellen-Styling */
+#entriesTable tbody tr:hover {
+    background-color: #f9fafb;
+}
 #entriesTable td:nth-child(2) {
     max-width: 400px;
     word-wrap: break-word;
@@ -483,6 +851,8 @@
     max-width: 300px;
     word-wrap: break-word;
 }
+
+/* Status und Priorität */
 .status-open {
     color: #dc3545;
     font-weight: bold;
@@ -494,31 +864,271 @@
     color: #dc3545;
     font-weight: bold;
 }
-.table-responsive {
+
+/* Responsive Tabellen mit optimierter Höhe für iPads */
+.overflow-x-auto {
     max-height: 70vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
+
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tab-Button Übergangseffekte */
+.tab-btn {
+    transition: all 0.2s ease-in-out;
+}
+
 /* Chart Styling */
 #radarChart, #lineChart {
     max-height: 280px;
 }
-.challenging-area-item {
-    border-left: 3px solid #ffc107;
-    padding-left: 12px;
-    margin-bottom: 12px;
+
+.border-l-3 {
+    border-left-width: 3px;
 }
-.progress-small {
-    height: 8px;
+
+.border-blue-400 {
+    border-color: #60a5fa;
+}
+
+/* Accordion-Transition via Alpine.js x-transition */
+[x-cloak] { display: none !important; }
+
+/* Kategorie-Header Styling */
+#columnsTable thead tr:first-child th {
+    background-color: #2c5f8d;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.75rem 1rem;
+}
+#columnsTable thead tr:nth-child(2) th {
+    background-color: #4a90e2;
+    color: white;
+    padding: 0.75rem 1rem;
+}
+
+/* Auswertungszeile direkt unter der Spaltenüberschrift (kein Scrollen notwendig) */
+#columnsTable thead tr#columnHeaderCounts th {
+    background-color: #eff6ff;
+    color: #1e3a5f;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid #93c5fd;
+}
+
+/* Vertikale Trennlinien zwischen Kategorien */
+#columnsTable thead tr:first-child th:not(:first-child) {
+    border-left: 2px solid #1a3a5a;
+}
+
+#columnsTable tbody tr td {
+    padding: 0.5rem 1rem;
+}
+
+#columnsTable tbody tr td:first-child {
+    border-right: 2px solid #2c5f8d;
+}
+
+/* Trennlinie für den Beginn einer neuen Kategorie */
+#columnsTable th.category-start,
+#columnsTable td.category-start {
+    border-left: 2px solid #2c5f8d !important;
+}
+
+/* Badge Styles für Tailwind-Kompatibilität */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+/* Progress Bar */
+.progress {
+    display: flex;
+    height: 1rem;
+    overflow: hidden;
+    font-size: 0.75rem;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+}
+
+.progress-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #007bff;
+    transition: width 0.6s ease;
+}
+
+.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* Alert Styles */
+.alert {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* Responsive Optimierungen für iPads und Tablets */
+@media (max-width: 1024px) {
+    /* iPad Landscape und kleiner */
+    .overflow-x-auto {
+        max-height: 60vh;
+    }
+
+    /* Kompaktere Charts auf Tablets */
+    #radarChart, #lineChart {
+        max-height: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* iPad Portrait und kleiner */
+    .bg-gradient-to-r {
+        padding: 1rem !important;
+    }
+
+    /* Kompaktere Tab-Navigation */
+    .tab-btn {
+        padding: 0.75rem 1rem !important;
+        font-size: 0.875rem;
+    }
+
+    .tab-btn span:not([id$="Badge"]) {
+        display: none;
+    }
+
+    /* Tabellen scrollbar für kleine Bildschirme */
+    .overflow-x-auto {
+        max-height: 50vh;
+    }
+
+    /* Kleinere Charts auf mobilen Geräten */
+    #radarChart, #lineChart {
+        max-height: 200px;
+    }
+
+    /* Kompaktere Tabellen-Padding */
+    #entriesTable td,
+    #tasksTable td,
+    #columnsTable td,
+    #historyTable td {
+        padding: 0.5rem !important;
+        font-size: 0.875rem;
+    }
+
+    #entriesTable th,
+    #tasksTable th,
+    #columnsTable th,
+    #historyTable th {
+        padding: 0.5rem !important;
+        font-size: 0.75rem;
+    }
+}
+
+/* Touch-Optimierung für iPads */
+@media (hover: none) and (pointer: coarse) {
+    /* Größere Touch-Targets */
+    button, a, .tab-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Verbesserte Scroll-Performance */
+    .overflow-x-auto {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Kleine Mobilgeräte */
+@media (max-width: 640px) {
+    /* Noch kompaktere Darstellung */
+    .overflow-x-auto {
+        max-height: 45vh;
+    }
+
+    #radarChart, #lineChart {
+        max-height: 180px;
+    }
+
+    /* Stack charts vertikal */
+    .grid > div {
+        margin-bottom: 1rem;
+    }
 }
 </style>
 @endpush
 
 @push('js')
+<script src="{{ asset('/js/paed-diary.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
 <script>
 (function(){
     const schuelerID = {{ $schueler->id }};
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 
     // DOM Elemente
     const dateFromInput = document.getElementById('dateFrom');
@@ -530,15 +1140,23 @@
     const dataSection = document.getElementById('dataSection');
     const noDataMessage = document.getElementById('noDataMessage');
 
+    // Ziele
+    const goalForm = document.getElementById('goalForm');
+    const goalTextInput = document.getElementById('goalTextInput');
+    const currentGoalBox = document.getElementById('currentGoalBox');
+    const goalsTableBody = document.getElementById('goalsTableBody');
+
     // Neue Filter-Elemente
     const categoryFilter = document.getElementById('categoryFilter');
     const searchNotesInput = document.getElementById('searchNotes');
     const clearSearchBtn = document.getElementById('clearSearch');
 
     // Quick Date Buttons
-    const last7DaysBtn = document.getElementById('last7Days');
-    const last30DaysBtn = document.getElementById('last30Days');
-    const last90DaysBtn = document.getElementById('last90Days');
+    const last1WeekBtn = document.getElementById('last1Week');
+    const last2WeeksBtn = document.getElementById('last2Weeks');
+    const currentHalfYearBtn = document.getElementById('currentHalfYear');
+    const lastHalfYearBtn = document.getElementById('lastHalfYear');
+    const currentSchoolYearBtn = document.getElementById('currentSchoolYear');
 
     // Data Storage
     let currentData = null;
@@ -579,6 +1197,58 @@
         dateToInput.value = formatDate(today);
     }
 
+    function setDateRangeByDates(from, to) {
+        dateFromInput.value = formatDate(from);
+        dateToInput.value = formatDate(to);
+    }
+
+    // ===== Schulhalbjahr / Schuljahr Berechnung =====
+    // Schuljahresbeginn ist der 1. August. 1. Halbjahr: 01.08. - 31.01., 2. Halbjahr: 01.02. - 31.07.
+    function getSchoolYearStart(date) {
+        const year = (date.getMonth() >= 7) ? date.getFullYear() : date.getFullYear() - 1;
+        return new Date(year, 7, 1); // 1. August
+    }
+
+    function getHalfYearRange(date) {
+        const schoolYearStart = getSchoolYearStart(date);
+        const firstHalfEnd = new Date(schoolYearStart.getFullYear() + 1, 0, 31); // 31. Januar
+
+        if (date <= firstHalfEnd) {
+            return { start: schoolYearStart, end: firstHalfEnd };
+        }
+
+        const secondHalfStart = new Date(schoolYearStart.getFullYear() + 1, 1, 1); // 1. Februar
+        const secondHalfEnd = new Date(schoolYearStart.getFullYear() + 1, 6, 31); // 31. Juli
+        return { start: secondHalfStart, end: secondHalfEnd };
+    }
+
+    function getPreviousHalfYearRange(date) {
+        const currentRange = getHalfYearRange(date);
+        const dayBefore = new Date(currentRange.start);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        return getHalfYearRange(dayBefore);
+    }
+
+    function setCurrentHalfYear() {
+        const today = new Date();
+        const range = getHalfYearRange(today);
+        // Enddatum nicht in die Zukunft legen
+        const end = range.end > today ? today : range.end;
+        setDateRangeByDates(range.start, end);
+    }
+
+    function setLastHalfYear() {
+        const today = new Date();
+        const range = getPreviousHalfYearRange(today);
+        setDateRangeByDates(range.start, range.end);
+    }
+
+    function setCurrentSchoolYear() {
+        const today = new Date();
+        const start = getSchoolYearStart(today);
+        setDateRangeByDates(start, today);
+    }
+
     // Load Data
     function loadData() {
         const dateFrom = dateFromInput.value;
@@ -595,10 +1265,10 @@
         }
 
         // UI Updates
-        loadingIndicator.classList.remove('d-none');
-        summarySection.classList.add('d-none');
-        dataSection.classList.add('d-none');
-        noDataMessage.classList.add('d-none');
+        loadingIndicator.classList.remove('hidden');
+        summarySection.classList.add('hidden');
+        dataSection.classList.add('hidden');
+        noDataMessage.classList.add('hidden');
 
         // Fetch Data
         const params = new URLSearchParams({
@@ -619,7 +1289,7 @@
                 alert('Fehler beim Laden der Daten.');
             })
             .finally(() => {
-                loadingIndicator.classList.add('d-none');
+                loadingIndicator.classList.add('hidden');
             });
     }
 
@@ -672,11 +1342,50 @@
     }
 
     // Apply filters (category + search) and render
+    function renderAbsenceAlerts(patterns) {
+        const panel = document.getElementById('absenceAlertPanel');
+        if (!panel) return;
+
+        const alertList = Array.isArray(patterns) ? patterns : [];
+        if (!alertList.length) {
+            panel.classList.add('hidden');
+            panel.innerHTML = '';
+            return;
+        }
+
+        const items = alertList.map(pattern => {
+            const extraDetail = pattern.details ? `<div class="text-xs text-amber-800 mt-1">${escapeHtml(pattern.details)}</div>` : '';
+            return `
+                <li class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">!</span>
+                    <div>
+                        <div class="font-semibold">${escapeHtml(pattern.label)}</div>
+                        <div>${escapeHtml(pattern.summary)}</div>
+                        ${extraDetail}
+                    </div>
+                </li>
+            `;
+        }).join('');
+
+        panel.innerHTML = `
+            <div class="rounded-lg border border-amber-300 bg-amber-50 p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+                    <i class="fas fa-exclamation-triangle text-amber-600"></i>
+                    <span>Auffällige Abwesenheitsmuster</span>
+                </div>
+                <ul class="space-y-2">${items}</ul>
+            </div>
+        `;
+        panel.classList.remove('hidden');
+    }
+
     function applyFiltersAndRender(){
         if (!currentData) return;
         const entries = currentData.entries || [];
         const searchTerm = (searchNotesInput && searchNotesInput.value || '').trim().toLowerCase();
         const category = (categoryFilter && categoryFilter.value) || '';
+
+        renderAbsenceAlerts(currentData.absence_patterns || []);
 
         filteredEntries = entries.filter(e => {
             // Category filter: support e.category_id or e.category?.id or e.category_id as string
@@ -693,14 +1402,28 @@
         // Update summary counts based on filtered entries
         document.getElementById('periodText').textContent = `${currentData.period.from} - ${currentData.period.to}`;
         document.getElementById('entriesCount').textContent = filteredEntries.length;
-        document.getElementById('tasksCount').textContent = (currentData.tasks || []).length;
 
-        const uniqueDays = new Set(filteredEntries.map(e => e.date));
+        const allTasks = currentData.tasks || [];
+        document.getElementById('tasksCount').textContent = allTasks.length;
+        document.getElementById('tasksOpenCount').textContent = allTasks.filter(t => t.status === 'open').length;
+
+        const uniqueDays = new Set();
+        filteredEntries.forEach(e => {
+            const from = e.date_from || e.date;
+            const to = e.date_to || e.date;
+            // Alle Tage im Bereich sammeln
+            let d = new Date(from);
+            const end = new Date(to);
+            while (d <= end) {
+                uniqueDays.add(d.toISOString().split('T')[0]);
+                d.setDate(d.getDate() + 1);
+            }
+        });
         document.getElementById('daysWithEntriesCount').textContent = uniqueDays.size;
 
         // Update Badges
         document.getElementById('entriesBadge').textContent = filteredEntries.length;
-        document.getElementById('tasksBadge').textContent = (currentData.tasks || []).length;
+        document.getElementById('tasksBadge').textContent = allTasks.length;
 
         // Determine active columns: if a column has an explicit `active` flag use it, otherwise treat as active
         const allColumns = (currentData.columns || []);
@@ -731,25 +1454,26 @@
 
         renderStage(currentData.current_stage);
         renderHistory(currentData.stage_history || []);
+        renderGoals(currentData.goals || []);
 
-        summarySection.classList.remove('d-none');
-        dataSection.classList.remove('d-none');
+        summarySection.classList.remove('hidden');
+        dataSection.classList.remove('hidden');
 
         if (filteredEntries.length === 0 && (currentData.tasks || []).length === 0) {
-            noDataMessage.classList.remove('d-none');
+            noDataMessage.classList.remove('hidden');
         } else {
-            noDataMessage.classList.add('d-none');
+            noDataMessage.classList.add('hidden');
         }
     }
 
-    // Render Entries (zeigt Kategorie als Badge falls vorhanden)
+    // Render Entries (zeigt Kategorie als Badge falls vorhanden, Datumsbereich bei mehrtägigen Einträgen)
     function renderEntries(entries) {
         const tbody = document.getElementById('entriesTableBody');
         tbody.innerHTML = '';
 
         if (!entries || entries.length === 0) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="3" class="text-center text-muted">Keine Einträge</td>`;
+            tr.innerHTML = `<td colspan="4" class="px-4 py-3 text-center text-gray-500">Keine Einträge</td>`;
             tbody.appendChild(tr);
             return;
         }
@@ -767,12 +1491,21 @@
                 if (cid && categoryMap.has(String(cid))) categoryName = categoryMap.get(String(cid));
             }
 
+            // Datumsbereich berechnen
+            const dateFrom = entry.date_from || entry.date;
+            const dateTo = entry.date_to || entry.date;
+            let datumHtml;
+            if (dateFrom !== dateTo) {
+                datumHtml = `<span title="Mehrtägiger Eintrag">${formatDisplayDate(dateFrom)}<br>– ${formatDisplayDate(dateTo)}</span>`;
+            } else {
+                datumHtml = formatDisplayDate(dateFrom);
+            }
 
             row.innerHTML = `
-                <td class="text-center">${formatDisplayDate(entry.date)}</td>
-                <td>${escapeHtml(entry.content)}</td>
-                <td >${escapeHtml(categoryName)}</td>
-                <td class="text-center">${escapeHtml(entry.user || '')}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${datumHtml}</td>
+                <td class="px-4 py-3">${escapeHtml(entry.content)}</td>
+                <td class="px-4 py-3">${escapeHtml(categoryName)}</td>
+                <td class="px-4 py-3 text-center">${escapeHtml(entry.user || '')}</td>
             `;
             tbody.appendChild(row);
         });
@@ -783,18 +1516,25 @@
         const tbody = document.getElementById('tasksTableBody');
         tbody.innerHTML = '';
 
+        if (!tasks || tasks.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="6" class="px-4 py-3 text-center text-gray-500">Keine Aufgaben</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
         tasks.forEach(task => {
             const row = document.createElement('tr');
             const statusClass = task.status === 'open' ? 'status-open' : 'status-closed';
             const priorityClass = task.highlighted ? 'priority-high' : '';
 
             row.innerHTML = `
-                <td class="text-center">${escapeHtml(task.created_at)}</td>
-                <td>${escapeHtml(task.title)}</td>
-                <td>${escapeHtml(task.description || '')}</td>
-                <td class="text-center">${escapeHtml(task.due_date || '')}</td>
-                <td class="text-center"><span class="${statusClass}">${task.status === 'open' ? 'Offen' : 'Geschlossen'}</span></td>
-                <td class="text-center"><span class="${priorityClass}">${task.highlighted ? 'Hoch' : 'Normal'}</span></td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${escapeHtml(task.created_at)}</td>
+                <td class="px-4 py-3">${escapeHtml(task.title)}</td>
+                <td class="px-4 py-3">${escapeHtml(task.description || '')}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">${escapeHtml(task.due_date || '')}</td>
+                <td class="px-4 py-3 text-center"><span class="${statusClass}">${task.status === 'open' ? 'Offen' : 'Geschlossen'}</span></td>
+                <td class="px-4 py-3 text-center"><span class="${priorityClass}">${task.highlighted ? 'Hoch' : 'Normal'}</span></td>
             `;
             tbody.appendChild(row);
         });
@@ -802,31 +1542,81 @@
 
     // Render Columns
     function renderColumns(columns, columnValues) {
+        const categoryHeaders = document.getElementById('columnCategoryHeaders');
         const headers = document.getElementById('columnHeaders');
+        const headerCounts = document.getElementById('columnHeaderCounts');
         const tbody = document.getElementById('columnsTableBody');
 
-        // Always ensure the first header cell for the date exists
-        headers.innerHTML = '<th style="width: 100px;">Datum</th>';
+        // Reset headers
+        categoryHeaders.innerHTML = '<th style="width: 100px;" rowspan="2">Datum</th>';
+        headers.innerHTML = '';
+        if (headerCounts) headerCounts.innerHTML = '';
         tbody.innerHTML = '';
 
         if (columns.length === 0) {
-            // If no columns, keep the date header and show a placeholder
-            headers.innerHTML = '<th style="width:100px;">Datum</th><th>Keine Spalten konfiguriert</th>';
+            // If no columns, show a placeholder
+            categoryHeaders.innerHTML = '<th style="width:100px;" rowspan="2">Datum</th><th>Keine Spalten konfiguriert</th>';
             return;
         }
 
-        // Create headers
-        // Nur aktive Spalten werden übergeben; hier werden die Header für diese Spalten angelegt
+        // Group columns by category
+        const columnsByCategory = {};
         columns.forEach(column => {
+            const cat = column.category || 'Unkategorisiert';
+            if (!columnsByCategory[cat]) {
+                columnsByCategory[cat] = [];
+            }
+            columnsByCategory[cat].push(column);
+        });
+
+        // Create category headers with colspan
+        const categories = Object.keys(columnsByCategory).sort((a, b) => {
+            if (a === 'Unkategorisiert') return 1;
+            if (b === 'Unkategorisiert') return -1;
+            return a.localeCompare(b, 'de');
+        });
+
+        categories.forEach(category => {
             const th = document.createElement('th');
-            th.textContent = column.name || '';
-            th.style.minWidth = '100px';
-            headers.appendChild(th);
+            th.textContent = category;
+            th.colSpan = columnsByCategory[category].length;
+            th.className = 'text-center';
+            th.style.borderBottom = '2px solid #dee2e6';
+            categoryHeaders.appendChild(th);
+        });
+
+        // Create column name headers
+        let isFirstColumnInCategory = true;
+        categories.forEach(category => {
+            isFirstColumnInCategory = true;
+            columnsByCategory[category].forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column.name || '';
+                th.style.minWidth = '100px';
+                // Markiere die erste Spalte jeder Kategorie für vertikale Trennlinie
+                if (isFirstColumnInCategory && category !== categories[0]) {
+                    th.classList.add('category-start');
+                }
+                headers.appendChild(th);
+                isFirstColumnInCategory = false;
+            });
+        });
+
+        // Create flat array of columns in the same order as headers (grouped by category)
+        const sortedColumns = [];
+        categories.forEach(category => {
+            sortedColumns.push(...columnsByCategory[category]);
         });
 
         // Prepare counts for boolean "true" values per column
         const trueCounts = {};
-        columns.forEach(column => { trueCounts[column.id] = 0; });
+        sortedColumns.forEach(column => { trueCounts[column.id] = 0; });
+
+        // Prepare counts for ampel states per column (ja / bearbeitung / nein)
+        const ampelJaCounts = {};
+        const ampelBearbeitungCounts = {};
+        const ampelNeinCounts = {};
+        sortedColumns.forEach(column => { ampelJaCounts[column.id] = 0; ampelBearbeitungCounts[column.id] = 0; ampelNeinCounts[column.id] = 0; });
 
          // Group column values by date
          const valuesByDate = {};
@@ -845,10 +1635,19 @@
              dateCell.className = 'text-center';
              row.appendChild(dateCell);
 
-             // Value columns
-             columns.forEach(column => {
+             // Value columns (in sorted order) - track category boundaries
+             let currentCategory = sortedColumns[0]?.category || 'Unkategorisiert';
+
+             sortedColumns.forEach((column) => {
                  const cell = document.createElement('td');
                  const value = valuesByDate[date] ? valuesByDate[date][column.id] : null;
+
+                 // Check if this is the start of a new category
+                 const colCategory = column.category || 'Unkategorisiert';
+                 if (colCategory !== currentCategory) {
+                     cell.classList.add('category-start');
+                     currentCategory = colCategory;
+                 }
 
                  if (value) {
                      if (column.type === 'boolean') {
@@ -859,6 +1658,20 @@
                          if (isTrue) {
                             trueCounts[column.id] = (trueCounts[column.id] || 0) + 1;
                          }
+                     } else if (column.type === 'ampel') {
+                         const v = value.value;
+                         if (v === '1') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#2e7d32;color:#fff;">Ja</span>';
+                             ampelJaCounts[column.id] = (ampelJaCounts[column.id] || 0) + 1;
+                         } else if (v === '2') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#f9c74f;color:#5a4400;">In Bearbeitung</span>';
+                             ampelBearbeitungCounts[column.id] = (ampelBearbeitungCounts[column.id] || 0) + 1;
+                         } else if (v === '3') {
+                             cell.innerHTML = '<span class="badge" style="background-color:#c62828;color:#fff;">Nein</span>';
+                             ampelNeinCounts[column.id] = (ampelNeinCounts[column.id] || 0) + 1;
+                         } else {
+                             cell.innerHTML = '<span class="badge badge-light" style="border:1px solid #adb5bd;">Unbeantwortet</span>';
+                         }
                      } else {
                          cell.textContent = value.value;
                      }
@@ -866,7 +1679,6 @@
                      cell.innerHTML = '<span class="text-muted">-</span>';
                  }
 
-                 cell.className = '';
                  row.appendChild(cell);
              });
 
@@ -875,27 +1687,54 @@
 
          if (sortedDates.length === 0) {
              const row = document.createElement('tr');
-             row.innerHTML = `<td colspan="${columns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
+             row.innerHTML = `<td colspan="${sortedColumns.length + 1}" class="text-center text-muted">Keine Spaltenwerte im gewählten Zeitraum</td>`;
              tbody.appendChild(row);
          }
 
-        // Append a counts row under the values: Anzahl (Ja) pro Spalte
-        const countsRow = document.createElement('tr');
-        const countsLabelCell = document.createElement('td');
-        countsLabelCell.className = 'text-center font-weight-bold';
-        countsLabelCell.textContent = 'Anzahl (Ja)';
-        countsRow.appendChild(countsLabelCell);
-        columns.forEach(column => {
-            const ccell = document.createElement('td');
-            ccell.className = ' font-weight-bold';
-            if (column.type === 'boolean') {
-                ccell.textContent = String(trueCounts[column.id] || 0);
-            } else {
-                ccell.innerHTML = '<span class="text-muted">-</span>';
-            }
-            countsRow.appendChild(ccell);
-        });
-        tbody.appendChild(countsRow);
+        // Füllt eine (bereits bestehende) Tabellenzeile mit der Auswertung (Anzahl Ja / Ampel-Status) pro Spalte.
+        // WICHTIG: Es wird kein neues <tr> erzeugt, sondern die Zellen werden direkt in "rowEl" eingefügt,
+        // da ein verschachteltes <tr> innerhalb eines <tr> ungültiges HTML ist und vom Browser aus der
+        // Tabellenstruktur entfernt/verschoben wird (führte zuvor zur falschen Positionierung unter "Datum").
+        function fillCountsRow(rowEl, cellTag) {
+            rowEl.innerHTML = '';
+
+            const labelCell = document.createElement(cellTag);
+            labelCell.className = 'text-center font-weight-bold';
+            labelCell.textContent = 'Anzahl (Ja)';
+            rowEl.appendChild(labelCell);
+
+            let currentCountCategory = sortedColumns[0]?.category || 'Unkategorisiert';
+            sortedColumns.forEach(column => {
+                const ccell = document.createElement(cellTag);
+                ccell.className = 'font-weight-bold';
+
+                // Check if this is the start of a new category
+                const colCategory = column.category || 'Unkategorisiert';
+                if (colCategory !== currentCountCategory) {
+                    ccell.classList.add('category-start');
+                    currentCountCategory = colCategory;
+                }
+
+                if (column.type === 'boolean') {
+                    ccell.textContent = String(trueCounts[column.id] || 0);
+                } else if (column.type === 'ampel') {
+                    ccell.innerHTML = `Ja: ${ampelJaCounts[column.id] || 0} · In Bearbeitung: ${ampelBearbeitungCounts[column.id] || 0} · Nein: ${ampelNeinCounts[column.id] || 0}`;
+                } else {
+                    ccell.innerHTML = '<span class="text-muted">-</span>';
+                }
+                rowEl.appendChild(ccell);
+            });
+        }
+
+        // Auswertungszeile direkt unter der Überschrift anzeigen, damit kein Scrollen notwendig ist
+        if (headerCounts) {
+            fillCountsRow(headerCounts, 'th');
+        }
+
+        // Auswertungszeile zusätzlich am Ende der Werte-Tabelle anzeigen
+        const footerCountsRow = document.createElement('tr');
+        fillCountsRow(footerCountsRow, 'td');
+        tbody.appendChild(footerCountsRow);
      }
 
     // Export Word
@@ -982,22 +1821,145 @@
         });
     }
 
+    // Render Ziele ("Ziel an dem ich arbeiten möchte") inkl. Historie
+    function renderGoals(goals) {
+        if (!currentGoalBox || !goalsTableBody) return;
+
+        if (!goals || goals.length === 0) {
+            currentGoalBox.innerHTML = '<div class="text-gray-400">Kein Ziel erfasst.</div>';
+            goalsTableBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500">Keine Ziele vorhanden</td></tr>`;
+            return;
+        }
+
+        // Sortierung neueste zuerst (Backend liefert bereits so, hier zur Sicherheit erneut)
+        const sorted = goals.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const current = sorted.find(g => !g.achieved_at) || sorted[0];
+
+        // Aktuelles Ziel oben anzeigen
+        const isAchieved = !!current.achieved_at;
+        currentGoalBox.innerHTML = `
+            <div class="flex items-start justify-between gap-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">Aktuelles Ziel (seit ${escapeHtml(current.formatted_created_at || '')})</div>
+                    <div class="text-gray-800" style="white-space: pre-line;">${escapeHtml(current.goal_text)}</div>
+                </div>
+                <button type="button" data-goal-id="${current.id}" data-achieved="${isAchieved ? '0' : '1'}"
+                        class="goal-achieve-btn shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${isAchieved ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}">
+                    <i class="fas ${isAchieved ? 'fa-rotate-left' : 'fa-check'}"></i>
+                    ${isAchieved ? 'Wieder öffnen' : 'Erreicht'}
+                </button>
+            </div>
+        `;
+
+        // Historie-Tabelle (alle Ziele)
+        goalsTableBody.innerHTML = '';
+        sorted.forEach(g => {
+            const tr = document.createElement('tr');
+            const status = g.achieved_at
+                ? `<span class="inline-flex items-center gap-1 text-green-700"><i class="fas fa-check-circle"></i> Erreicht am ${escapeHtml(g.formatted_achieved_at || '')}${g.achieved_by ? ' (' + escapeHtml(g.achieved_by) + ')' : ''}</span>`
+                : `<span class="text-gray-500">Offen</span>`;
+            tr.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(g.formatted_created_at || '')}</td>
+                <td class="px-4 py-3" style="white-space: pre-line;">${escapeHtml(g.goal_text)}</td>
+                <td class="px-4 py-3">${escapeHtml(g.user || '')}</td>
+                <td class="px-4 py-3">${status}</td>
+            `;
+            goalsTableBody.appendChild(tr);
+        });
+    }
+
+    // Neues Ziel speichern
+    if (goalForm) {
+        goalForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = (goalTextInput.value || '').trim();
+            if (!text) return;
+
+            fetch(`/paed-diary/schueler/${schuelerID}/goals`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ goal_text: text })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success) {
+                        goalTextInput.value = '';
+                        if (currentData) {
+                            currentData.goals = currentData.goals || [];
+                            currentData.goals.unshift(data.goal);
+                        }
+                        renderGoals(currentData ? currentData.goals : [data.goal]);
+                    } else {
+                        alert((data && data.message) || 'Fehler beim Speichern des Ziels.');
+                    }
+                })
+                .catch(() => alert('Fehler beim Speichern des Ziels.'));
+        });
+    }
+
+    // Ziel als erreicht markieren / wieder öffnen (Delegation auf currentGoalBox)
+    if (currentGoalBox) {
+        currentGoalBox.addEventListener('click', (e) => {
+            const btn = e.target.closest('.goal-achieve-btn');
+            if (!btn) return;
+            const goalId = btn.dataset.goalId;
+            const achieved = btn.dataset.achieved === '1';
+
+            fetch(`/paed-diary/goals/${goalId}/achieve`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ achieved })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success && currentData && currentData.goals) {
+                        const goal = currentData.goals.find(g => String(g.id) === String(goalId));
+                        if (goal) {
+                            goal.achieved_at = data.achieved_at;
+                            goal.formatted_achieved_at = data.formatted_achieved_at;
+                            goal.achieved_by = data.achieved_by;
+                        }
+                        renderGoals(currentData.goals);
+                    }
+                })
+                .catch(() => alert('Fehler beim Aktualisieren des Ziels.'));
+        });
+    }
+
     // Event Listeners
     loadDataBtn.addEventListener('click', loadData);
     exportWordBtn.addEventListener('click', exportWord);
 
-    last7DaysBtn.addEventListener('click', () => {
+    last1WeekBtn.addEventListener('click', () => {
         setDateRange(7);
         loadData();
     });
 
-    last30DaysBtn.addEventListener('click', () => {
-        setDateRange(30);
+    last2WeeksBtn.addEventListener('click', () => {
+        setDateRange(14);
         loadData();
     });
 
-    last90DaysBtn.addEventListener('click', () => {
-        setDateRange(90);
+    currentHalfYearBtn.addEventListener('click', () => {
+        setCurrentHalfYear();
+        loadData();
+    });
+
+    lastHalfYearBtn.addEventListener('click', () => {
+        setLastHalfYear();
+        loadData();
+    });
+
+    currentSchoolYearBtn.addEventListener('click', () => {
+        setCurrentSchoolYear();
         loadData();
     });
 
@@ -1030,8 +1992,8 @@
     }
 
     function initializeGraduationCharts() {
-        // Letzte Session für Radar-Chart
-        const latestSession = gradingSessions[gradingSessions.length - 1];
+        // Neueste Session für Radar-Chart (Controller sortiert DESC nach completed_at → Index 0 ist die aktuellste)
+        const latestSession = gradingSessions[0];
 
         // Extrahiere alle einzigartigen Fragen aus allen Sessions
         const allQuestionsMap = new Map();
@@ -1134,9 +2096,6 @@
 
         // Erstelle das Linien-Chart (Entwicklung über Zeit)
         createLineChart('average', allQuestions);
-
-        // Analysiere schwierige Bereiche (Fragen mit niedrigen Bewertungen)
-        analyzeChallenges(questions, latestSession);
     }
 
 
@@ -1301,90 +2260,17 @@
         }
     }
 
-    function analyzeChallenges(questions, latestSession) {
-        const challengeData = [];
-
-        questions.forEach(question => {
-            const studentAnswer = latestSession.student_answers?.find(
-                sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
-            );
-            const teacherAssessment = latestSession.teacher_assessments?.find(
-                ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
-            );
-
-            const studentRating = studentAnswer?.self_rating || 0;
-            const teacherRating = teacherAssessment?.teacher_rating || 0;
-            const avgRating = (studentRating + teacherRating) / 2;
-
-            // Nur Fragen mit durchschnittlicher Bewertung unter 3 als "herausfordernd" markieren
-            if (avgRating > 0 && avgRating < 3) {
-                challengeData.push({
-                    question: question.question,
-                    studentRating: studentRating,
-                    teacherRating: teacherRating,
-                    avgRating: avgRating,
-                    comment: teacherAssessment?.comment || ''
-                });
-            }
-        });
-
-        // Sortiere nach niedrigster Durchschnittsbewertung
-        challengeData.sort((a, b) => a.avgRating - b.avgRating);
-
-        // Rendere Entwicklungsbereiche
-        const container = document.getElementById('challengingAreas');
-        if (container) {
-            if (challengeData.length === 0) {
-                container.innerHTML = `
-                    <div class="alert alert-success mb-0">
-                        <i class="fas fa-check-circle"></i> <strong>Ausgezeichnet!</strong>
-                        Alle Bereiche zeigen gute bis sehr gute Bewertungen. Weiter so!
-                    </div>
-                `;
-            } else {
-                let html = '<div class="row">';
-                challengeData.forEach((item, index) => {
-                    const ratingLabels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
-                    const progressPercent = (item.avgRating / 5) * 100;
-                    const progressColor = item.avgRating < 2 ? 'bg-danger' : 'bg-warning';
-
-                    html += `
-                        <div class="col-md-6 mb-3">
-                            <div class="challenging-area-item">
-                                <h6 class="font-weight-bold mb-2">
-                                    <span class="badge badge-warning">${index + 1}</span> ${escapeHtml(item.question)}
-                                </h6>
-                                <div class="row mb-2">
-                                    <div class="col-6">
-                                        <small class="text-muted">Schüler:</small>
-                                        <strong>${ratingLabels[item.studentRating] || '-'}</strong>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Lehrer:</small>
-                                        <strong>${ratingLabels[item.teacherRating] || '-'}</strong>
-                                    </div>
-                                </div>
-                                <div class="progress progress-small mb-2">
-                                    <div class="progress-bar ${progressColor}" role="progressbar"
-                                         style="width: ${progressPercent}%"
-                                         aria-valuenow="${item.avgRating}" aria-valuemin="0" aria-valuemax="5">
-                                    </div>
-                                </div>
-                                ${item.comment ? `<small class="text-muted"><i class="fas fa-comment"></i> ${escapeHtml(item.comment)}</small>` : ''}
-                            </div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            }
-        }
-    }
 
     function truncateText(text, maxLength) {
         if (!text) return '';
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
+
+    // Tabs und Collapse werden durch Alpine.js gesteuert (x-data/x-show/@click)
+
+    // Initialisiere Tabs beim Laden (legacy-Kompatibilität für Badge-Updates via JS)
+    // Die Tab-Umschaltung übernimmt Alpine.js, aber Badge-Werte werden weiterhin per JS gesetzt.
+
 })();
 </script>
 @endpush

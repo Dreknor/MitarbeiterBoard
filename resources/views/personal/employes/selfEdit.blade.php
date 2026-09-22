@@ -170,6 +170,24 @@
                                     </div>
                                 </div>
                             </div>
+                            <hr id="atom-feed-settings">
+                            <h6><i class="fas fa-rss mr-1"></i> Veranstaltungs-Feed</h6>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label>ATOM-Feed URL</label>
+                                        <input type="url"
+                                               name="atom_feed_url"
+                                               class="form-control border-input"
+                                               placeholder="https://veranstaltungen.hauptfach-mensch.de/feed/atom.xml"
+                                               value="{{ old('atom_feed_url', $employe->atom_feed_url) }}">
+                                        <small class="form-text text-muted">
+                                            Standard: <code>https://veranstaltungen.hauptfach-mensch.de/feed/atom.xml</code><br>
+                                            Leer lassen, um den Standard-Feed zu verwenden.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                             <hr>
                             @can('has timesheet')
                                 <div class="row">
@@ -217,8 +235,9 @@
                 <div class="card">
                     <div class="card-header border-bottom">
                         <h5 class="card-title">
-                            Anstellungen (derzeit: {{$employe->employments()->active()->get()->sum('percent')}}%
-                            / {{$employe->employments()->active()->get()->sum('percent')*40/100}}h)
+                            @php($activeEmployments = $employe->employments()->active()->get())
+                            Anstellungen (derzeit: {{ round($activeEmployments->sum('percent'), 2) }}%
+                            / {{ round($activeEmployments->sum('hours'), 2) }}h)
                         </h5>
                     </div>
                     <div class="card-body">

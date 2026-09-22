@@ -65,6 +65,50 @@
                                     @enderror
                                     <small class="text-muted">Wenn ein System gewählt wird, können Klassenstufen verwendet werden.</small>
                                 </div>
+
+                                {{-- Zeitraster-Auswahl (TODO-12) --}}
+                                <div class="col-md-4 col-sm-12 mb-3">
+                                    <label for="zeitraster_id">Zeitraster (Stundenraster)</label>
+                                    <select name="zeitraster_id" id="zeitraster_id" class="form-control">
+                                        <option value="">-- Standard-Zeitraster verwenden --</option>
+                                        @isset($zeitraster)
+                                            @foreach($zeitraster as $zr)
+                                                <option value="{{ $zr->id }}"
+                                                    {{ old('zeitraster_id', $klasse->zeitraster_id) == $zr->id ? 'selected' : '' }}>
+                                                    {{ $zr->name }}{{ $zr->ist_standard ? ' (Standard)' : '' }}
+                                                </option>
+                                            @endforeach
+                                        @endisset
+                                    </select>
+                                    <small class="text-muted">
+                                        Bestimmt die Stundenzeiten für Raumbuchungen dieser Klasse.
+                                        Ohne Auswahl wird das Standard-Zeitraster verwendet.
+                                    </small>
+                                </div>
+
+                                {{-- Vertretungsplan-Sichtbarkeit --}}
+                                <div class="col-md-4 col-sm-12 mb-3">
+                                    <div class="form-group">
+                                        <label class="d-block">Vertretungsplan</label>
+                                        <div class="custom-control custom-switch mt-1">
+                                            <input type="hidden" name="show_vertretungen" value="0">
+                                            <input type="checkbox"
+                                                   class="custom-control-input"
+                                                   id="show_vertretungen"
+                                                   name="show_vertretungen"
+                                                   value="1"
+                                                   {{ $klasse->show_vertretungen ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="show_vertretungen">
+                                                Vertretungen öffentlich anzeigen
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">
+                                            <strong>Aktiv:</strong> Vertretungen erscheinen auf dem öffentlichen VP und werden ans ElternInfoBoard gesendet.<br>
+                                            <strong>Inaktiv:</strong> Es werden nur Raumbuchungen verarbeitet – keine öffentliche Anzeige.
+                                        </small>
+                                    </div>
+                                </div>
+
                             </div>
                             <div class="form-row">
                                  <div class="col-md-4 col-sm-12">

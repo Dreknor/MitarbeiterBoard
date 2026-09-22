@@ -5,6 +5,7 @@ namespace App\Models\personal;
 use App\Models\User;
 use Attribute;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
@@ -12,11 +13,18 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Timesheet extends Model implements Auditable
 {
+    use HasFactory;
     use SoftDeletes;
     use \OwenIt\Auditing\Auditable;
 
     public $fillable = [
-        'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment', 'locked_at', 'locked_by'
+        'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment', 'locked_at', 'locked_by',
+        'requires_review', 'review_reason', 'reviewed_at', 'reviewed_by',
+    ];
+
+    protected $casts = [
+        'requires_review' => 'boolean',
+        'reviewed_at'      => 'datetime',
     ];
 
     public function working_time_account(): Attribute
@@ -42,6 +50,42 @@ class Timesheet extends Model implements Auditable
 
     public function locked_by(){
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewed_by(){
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function anomalies(){
+        return $this->hasMany(TimesheetAnomaly::class, 'employe_id', 'employe_id')
+            ->where('month', $this->month)
+            ->where('year', $this->year);
+    }
+
+    /**
+     * Markiert den Monatsabschluss als erneut prüfungsbedürftig
+     * (z. B. wegen einer rückwirkenden Vertragsänderung, Arbeitspaket 3.2).
+     */
+    public function markRequiresReview(string $reason): void
+    {
+        $this->update([
+            'requires_review' => true,
+            'review_reason'   => $reason,
+            'reviewed_at'      => null,
+            'reviewed_by'      => null,
+        ]);
+    }
+
+    /**
+     * Quittiert die erneute Prüfung durch HR.
+     */
+    public function markReviewed(User $user): void
+    {
+        $this->update([
+            'requires_review' => false,
+            'reviewed_at'      => now(),
+            'reviewed_by'      => $user->id,
+        ]);
     }
 
 

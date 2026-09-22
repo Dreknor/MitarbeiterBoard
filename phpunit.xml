@@ -12,11 +12,14 @@
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
+    <coverage>
+        <include>
             <directory suffix=".php">./app</directory>
-        </whitelist>
-    </filter>
+        </include>
+        <exclude>
+            <directory>./app/Providers</directory>
+        </exclude>
+    </coverage>
     <php>
         <server name="APP_ENV" value="testing"/>
         <server name="BCRYPT_ROUNDS" value="4"/>
@@ -27,5 +30,10 @@
         <server name="QUEUE_CONNECTION" value="sync"/>
         <server name="SESSION_DRIVER" value="array"/>
         <server name="TELESCOPE_ENABLED" value="false"/>
+        <server name="KEYCLOAK_ENABLE" value="false"/>
+        <server name="SAML2_ENABLE" value="false"/>
+        <server name="AUTH_LOCAL" value="true"/>
+        <server name="MAIL_FROM_NAME" value="Test Admin"/>
+        <server name="MAIL_FROM_ADDRESS" value="admin@test.local"/>
     </php>
 </phpunit>

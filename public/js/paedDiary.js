@@ -39,13 +39,9 @@
     const noteStatus = document.getElementById('noteStatus');
     const noteCategory = document.getElementById('noteCategory');
     const noteNewCategory = document.getElementById('noteNewCategory');
+    const categoryTogglesContainer = document.getElementById('categoryToggles');
 
     const exportCsvBtn = document.getElementById('exportCsvBtn');
-
-
-    // Termine-Elemente
-    // (openAppointmentModalBtn entfernt, wird bei Bedarf vom appointments module verwaltet)
-
 
     // --- State ---
     let currentWeekStart = startOfWeek(new Date());
@@ -53,8 +49,6 @@
     // debounceTimers entfernt (nicht genutzt in diesem Modul)
     let groupsCache = [];
    let pauseMap = {}; // Neuer Map: entryId -> schuelerId -> date -> true
-
-    // Entferne lokale isPaused/getBrightness - verwende entriesModule.isPaused / entriesModule.getBrightness nach Initialisierung
 
     // --- Initialize Modules ---
     const columnsModule = initializeColumnsModule({
@@ -125,7 +119,7 @@
         return columnsModule.renderColumnInputs(stuId, date);
     }
 
-    // --- Neu hinzugefügt: Schüler-Checkboxen für Notizeditor ---
+    // --- Schüler-Checkboxen für Notizeditor ---
     function renderStudentCheckboxes(){
         if(!noteStudentsDiv) return;
         if(!cache.schueler || !cache.schueler.length){ noteStudentsDiv.innerHTML='<span class="text-muted">Keine Schüler</span>'; return; }
@@ -146,7 +140,7 @@
         noteStudentsDiv.innerHTML=html;
     }
 
-    // --- Neu hinzugefügt: Aufgaben & offene Notizen Panel (ausgelagert) ---
+    // ---Aufgaben & offene Notizen Panel ---
     function renderTasks() {
         tasksModule.renderTasks();
     }
@@ -246,7 +240,10 @@
          saveColumnValue: (columnsModule && typeof columnsModule.saveColumnValue === 'function') ? columnsModule.saveColumnValue : null,
          renderStudentCheckboxes,
          noteCategory,
-         noteNewCategory
+         noteNewCategory,
+         categoryTogglesContainer,
+         // Termine nach Tabellen-Rebuild neu rendern (ohne Server-Request)
+         renderAppointments: () => appointmentsModule.renderAppointments()
      });
 
     // --- Rendering ---

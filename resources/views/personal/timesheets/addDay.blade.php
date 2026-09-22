@@ -20,19 +20,28 @@
             </p>
         </div>
         <div class="card-body">
+            @if(($suggestion['start'] ?? null) && ($suggestion['end'] ?? null))
+                <div class="alert alert-info">
+                    Dienstplan schlägt vor: <strong>{{ $suggestion['start'] }} - {{ $suggestion['end'] }} Uhr</strong>
+                    <form action="{{ url('timesheets/'.$user->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/apply-roster') }}" method="post" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-bg-gradient-x-blue-green">Dienstplanzeiten übernehmen</button>
+                    </form>
+                </div>
+            @endif
             <div class="container-fluid">
                 <form action="{{url('timesheets/'.$user->id.'/'.$timesheet->id.'/'.$day->format('Y-m-d').'/store')}}" method="post" class="form-horizontal w-100">
                     @csrf
                     <div class="row">
                         <label class="label w-100">
                             Anfangszeit:
-                            <input type="time" class="form-control" name="start" required>
+                            <input type="time" class="form-control" name="start" value="{{ $suggestion['start'] ?? '' }}" required>
                         </label>
                     </div>
                     <div class="row">
                         <label class="label w-100">
                             Endzeitzeit:
-                            <input type="time" class="form-control" name="end" required>
+                            <input type="time" class="form-control" name="end" value="{{ $suggestion['end'] ?? '' }}" required>
                         </label>
                     </div>
                     <div class="row">

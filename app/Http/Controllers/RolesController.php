@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -26,10 +27,33 @@ class RolesController extends Controller
 
     public function edit()
     {
-
         return view('permissions.edit', [
-            'roles' => Role::all(),
-            'permissions'    => Permission::all(),
+            'roles'       => Role::all(),
+            'permissions' => Permission::all(),
+            'groups'      => Group::with('users')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function assignToGroup(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:groups,id',
+            'roles'    => 'nullable|array',
+            'roles.*'  => 'exists:roles,name',
+        ]);
+
+        $group = Group::with('users')->findOrFail($request->group_id);
+        $roles = $request->input('roles', []);
+
+        foreach ($group->users as $user) {
+            foreach ($roles as $role) {
+                $user->assignRole($role);
+            }
+        }
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Rollen für alle Mitglieder der Gruppe „' . $group->name . '" hinzugefügt.',
         ]);
     }
 

@@ -25,6 +25,8 @@ class ImportRoomsRequest extends FormRequest
             'file' => 'required|file|mimes:xml',
             'create_rooms' => 'required|boolean',
             'deletePlan' => 'required|boolean',
+            'sync_zeitraster' => 'sometimes|boolean',
+            'zeitraster_id' => 'nullable|integer|exists:zeitraster,id',
         ];
     }
 }

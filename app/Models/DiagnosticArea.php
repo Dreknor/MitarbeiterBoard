@@ -11,6 +11,7 @@ class DiagnosticArea extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'description',
         'sort_order',
         'active',

@@ -10,8 +10,8 @@
 #diaryTable td.note-cell .paused-entries { max-height: none; overflow: visible; }
 #diaryTable td.note-cell .paused-entries .entry-item { /* same appearance as normal entries */ }
 #diaryTable td.note-cell .entry-item{position:relative;padding:2px 3px 3px 3px;}
-#diaryTable td.note-cell .entry-item .author{display:block;font-weight:600;font-size:0.55rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
-#diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em; font-size:0.95rem;}
+#diaryTable td.note-cell .entry-item .author{display:block;font-weight:400;font-size:0.50rem;letter-spacing:.5px;color:#495057;margin-bottom:1px;border-bottom:1px dotted #ced4da;}
+#diaryTable td.note-cell .entry-item .text{display:block;line-height:1.15em; font-size:0.78rem;}
 #diaryTable td.note-cell .entry-item:hover{background:#e2e6ea;}
 #noteEditorCard{border-left:4px solid #17a2b8;}
 #noteEditorCard.editing{border-left-color:#ffc107;}
@@ -29,16 +29,16 @@
 .column-chip button.restore{color:#1b5e20;border-color:#b7e1c0;background:#e9f7ef;}
 .column-chip button.restore:hover{background:#d4edda;border-color:#a3d9b1;color:#155724;}
 /* Column inputs */
-#diaryTable td.note-cell .col-inputs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;align-items:flex-start;}
+#diaryTable td.note-cell .col-inputs{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;align-items:flex-start;}
 #diaryTable td.note-cell .col-inputs input[type=text],
-#diaryTable td.note-cell .col-inputs input[type=number]{width:56px;min-height:26px;padding:2px 6px;font-size:0.7rem;line-height:1.2;border:1px solid #ced4da;border-radius:6px;background:#fff;transition:border-color .15s ease, box-shadow .15s ease;}
+#diaryTable td.note-cell .col-inputs input[type=number]{width:46px;min-height:20px;padding:1px 4px;font-size:0.58rem;line-height:1.1;border:1px solid #ced4da;border-radius:4px;background:#fff;transition:border-color .15s ease, box-shadow .15s ease;}
 /* Fokus- und Placeholder-Styles für bessere Lesbarkeit */
 #diaryTable td.note-cell .col-inputs input[type=text]::placeholder,
 #diaryTable td.note-cell .col-inputs input[type=number]::placeholder{color:#9aa4af;opacity:1;}
 #diaryTable td.note-cell .col-inputs input[type=text]:focus,
 #diaryTable td.note-cell .col-inputs input[type=number]:focus{outline:0;border-color:#1976d2;box-shadow:0 0 0 2px rgba(25,118,210,0.15);}
 /* Bool-Buttons als kompakte Toggles */
-#diaryTable td.note-cell .col-inputs .bool-btn{padding:3px 8px;font-size:0.70rem;line-height:1;border-radius:999px;border-width:1px;border-style:solid;transition:background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;}
+#diaryTable td.note-cell .col-inputs .bool-btn{padding:1px 5px;font-size:0.60rem;line-height:1;border-radius:999px;border-width:1px;border-style:solid;transition:background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;}
 /* Inaktiv (Outline) klarer und kontrastreicher */
 #diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary{background:#ffffff;border-color:#adb5bd;color:#495057;}
 #diaryTable td.note-cell .col-inputs .bool-btn.btn-outline-secondary:hover{background:#f1f3f5;border-color:#98a2ac;color:#343a40;}
@@ -47,6 +47,18 @@
 #diaryTable td.note-cell .col-inputs .bool-btn.btn-success:hover{background:#1f6f25;border-color:#155a1a;}
 /* Disabled-Zustand subtil */
 #diaryTable td.note-cell .col-inputs .bool-btn:disabled{opacity:.7;cursor:not-allowed;}
+
+/* Ampel-Buttons: 4 durchklickbare Zustände (neutral=grau / Ja=grün / In Bearbeitung=gelb / Nein=rot) */
+#diaryTable td.note-cell .col-inputs .ampel-btn{padding:1px 5px;font-size:0.60rem;line-height:1;border-radius:999px;border-width:1px;border-style:solid;transition:background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--neutral{background:#ffffff;border-color:#adb5bd;color:#495057;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--neutral:hover{background:#f1f3f5;border-color:#98a2ac;color:#343a40;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--ja{background:#2e7d32;border-color:#1b5e20;color:#fff;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--ja:hover{background:#1f6f25;border-color:#155a1a;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--bearbeitung{background:#f9c74f;border-color:#e0a800;color:#5a4400;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--bearbeitung:hover{background:#f0b429;border-color:#c99400;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--nein{background:#c62828;border-color:#8e1a1a;color:#fff;}
+#diaryTable td.note-cell .col-inputs .ampel-btn.ampel-btn--nein:hover{background:#b71c1c;border-color:#7f1717;}
+#diaryTable td.note-cell .col-inputs .ampel-btn:disabled{opacity:.7;cursor:not-allowed;}
 #diaryTable th.today-header {
     background: #1976d2;
     color: #fff;
@@ -77,21 +89,124 @@
     color: #fff;
     border: 2px solid #ff9800;
 }
-#diaryTable td.today-cell.ferien-cell {
-    background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
+#diaryTable td.today-cell.ferien-cell {    background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
     border: 2px solid #ff9800;
+}
+
+/* Manuelle Klassen-Tages-Pause (Veranstaltung o.ä.) */
+#diaryTable th.class-paused-header {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 2px solid #c084fc;
+    font-weight: bold;
+}
+#diaryTable td.class-paused-cell {
+    background: #faf5ff;
+    border: 2px solid #e9d5ff;
+}
+#diaryTable td.class-paused-cell:hover {
+    background: #f5eeff;
+}
+/* Kombination: Heute + Klassen-Pause */
+#diaryTable th.today-header.class-paused-header {
+    background: linear-gradient(135deg, #1976d2 0%, #f3e8ff 100%);
+    color: #fff;
+    border: 2px solid #c084fc;
+}
+#diaryTable td.today-cell.class-paused-cell {
+    background: linear-gradient(135deg, #e3f2fd 0%, #faf5ff 100%);
+    border: 2px solid #c084fc;
+}
+
+/* Tages-Pause-Button im Tabellenkopf */
+.day-pause-btn {
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 0.62rem;
+    padding: 1px 4px;
+    margin-top: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.2;
+}
+.day-pause-btn--idle {
+    color: #9ca3af;
+    background: transparent;
+    opacity: 0.5;
+}
+.day-pause-btn--idle:hover {
+    opacity: 1;
+    color: #6b21a8;
+    background: #f3e8ff;
+    border-color: #c084fc;
+}
+.day-pause-btn--active {
+    color: #6b21a8;
+    background: #f3e8ff;
+    border-color: #c084fc;
+    font-weight: bold;
+    opacity: 1;
+}
+.day-pause-btn--active:hover {
+    background: #e9d5ff;
+    border-color: #a855f7;
 }
 
 #diaryTable td .col-inputs-row {
     display: block;
-    margin-top: 10px;
-
+    margin-top: 4px;
 }
 #diaryTable td .col-inputs {
     display: flex;
     flex-wrap: wrap;
     gap: 2px;
     width: 100%;
+}
+
+/* Spaltengruppen-Überschriften */
+
+/* Gruppierter Modus: Gruppen nebeneinander, Umbruch bei Platzmangel */
+#diaryTable td .col-inputs--grouped {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    align-items: flex-start;
+}
+
+/* Einzelne Gruppe: schrumpft/wächst flexibel */
+#diaryTable td .col-cat-group {
+    flex: 0 1 auto;
+}
+
+/* Kategorie-Label – schlank, kein Hintergrund */
+#diaryTable td .col-cat-group .col-cat-label {
+    color: #8a7050;
+    font-size: 0.45rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: none;
+    border-bottom: 1px dashed #cbb89a;
+    margin-bottom: 1px;
+    padding: 0 2px 1px;
+    line-height: 1.1;
+}
+
+/* Spalten innerhalb einer Gruppe: nebeneinander */
+#diaryTable td .col-cat-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    align-items: flex-start;
+}
+
+/* Flacher Modus (keine Gruppierung sichtbar): Spalten inline */
+#diaryTable td .col-cat-group--flat {
+    display: contents;
+}
+#diaryTable td .col-cat-group--flat > .col-cat-items {
+    display: contents;
 }
 /* Eigene Checkbox-Darstellung */
 .custom-checkbox-wrapper {
@@ -202,15 +317,15 @@
 .stage-change { cursor:pointer; }
 
 /* Inline Stage Dropdown (paed-stage-dropdown) */
-.paed-stage-dropdown { position:absolute; background:#fff; border:1px solid #ced4da; border-radius:6px; z-index:1400; box-shadow:0 4px 16px rgba(0,0,0,0.12); font-size:.82rem; max-height:300px; overflow:auto; padding:6px; }
-.paed-stage-dropdown button{ width:100%; text-align:left; border:none; background:transparent; padding:6px 8px; border-radius:4px; cursor:pointer; }
-.paed-stage-dropdown button:hover{ background:#f1f3f5; }
+.paed-stage-dropdown { position:fixed; background:#fff; border:1px solid #ced4da; border-radius:6px; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.18); font-size:.82rem; max-height:300px; overflow-y:auto; overflow-x:hidden; padding:6px; -webkit-overflow-scrolling:touch; touch-action:pan-y; max-width:90vw; }
+.paed-stage-dropdown button{ width:100%; text-align:left; border:none; background:transparent; padding:8px 10px; border-radius:4px; cursor:pointer; min-height:36px; }
+.paed-stage-dropdown button:hover, .paed-stage-dropdown button:focus{ background:#f1f3f5; outline:none; }
 .paed-stage-dropdown img{ vertical-align:middle; }
 .paed-stage-dropdown .stage-label{ color: #212529; font-size:0.9rem; line-height:1.2; display:inline-block; vertical-align:middle; }
 .paed-stage-dropdown .btn{ color: #212529; }
 /* --- Kompakte Aktions-Buttons für Notizen (Abschließen / Pausieren / Reaktivieren) --- */
 .entry-item .d-flex { display:flex; align-items:center; }
-.diary-btn{--btn-bg:#f1f3f5;--btn-border:#d0d5da;--btn-color:#495057;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin-left:4px;border-radius:6px;font-size:0.75rem;line-height:1;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--btn-color);cursor:pointer;transition:background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;position:relative;}
+.diary-btn{--btn-bg:#f1f3f5;--btn-border:#d0d5da;--btn-color:#495057;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin-left:4px;border-radius:6px;font-size:0.60rem;line-height:1;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--btn-color);cursor:pointer;transition:background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;position:relative;}
 .diary-btn:first-child{margin-left:0;}
 .diary-btn:hover{background:#e3e7ea;}
 .diary-btn:focus{outline:0;box-shadow:0 0 0 3px rgba(25,118,210,0.25);}

@@ -162,8 +162,15 @@ return [
         | When exporting and importing files, we use a temporary file, before
         | storing reading or downloading. Here you can customize that path.
         |
+        | Hinweis: Auf manchen Windows/IIS-Setups liefert sys_get_temp_dir()
+        | einen leeren oder ungültigen Pfad (z.B. wenn TMP/TEMP für den
+        | AppPool-Benutzer nicht gesetzt sind). Das führt zu Fehlern wie
+        | "Could not open file "" for writing." beim Excel-Export. Deshalb
+        | wird hier ein garantiert vorhandenes/beschreibbares Verzeichnis
+        | innerhalb der Laravel-Storage verwendet.
+        |
         */
-        'local_path'  => sys_get_temp_dir(),
+        'local_path'  => storage_path('app/tmp'),
 
         /*
         |--------------------------------------------------------------------------

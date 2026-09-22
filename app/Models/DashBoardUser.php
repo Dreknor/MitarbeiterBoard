@@ -18,10 +18,13 @@ class DashBoardUser extends Model
         'row',
         'col',
         'active',
+        'width',
+        'order',
     ];
 
     protected $casts = [
         'active' => 'boolean',
+        'order'  => 'integer',
     ];
 
     protected function title(): Attribute

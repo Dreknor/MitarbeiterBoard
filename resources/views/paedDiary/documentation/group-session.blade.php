@@ -24,6 +24,20 @@
                         <strong>Session fortgesetzt:</strong> <span id="resumedCount"></span> bereits gespeicherte Antworten wurden geladen.
                     </div>
 
+                    <div class="alert alert-light border mb-4" id="answerOrderPanel">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                            <div class="mb-2 mb-md-0">
+                                <i class="fas fa-random text-primary"></i>
+                                <strong>Beantwortungsreihenfolge:</strong>
+                                <div class="small text-muted mt-1" id="answerOrderDescription"></div>
+                            </div>
+                            <div class="btn-group btn-group-sm answer-order-buttons" role="group" aria-label="Beantwortungsreihenfolge">
+                                <button type="button" class="btn btn-outline-primary" id="orderByStudentButton">Schülerweise</button>
+                                <button type="button" class="btn btn-outline-primary" id="orderByQuestionButton">Fragenweise</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Aktueller Schüler -->
                     <div id="currentStudentCard" class="card mb-4 border-primary">
                         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -137,12 +151,19 @@
     const schueler = @json($schueler);
     const questions = @json($questions);
     const existingAnswers = @json($session->studentAnswers);
+    const initialAnswerOrderMode = @json($session->answer_order_mode);
+
+    const ANSWER_ORDER_MODES = {
+        BY_STUDENT: 'by_student',
+        BY_QUESTION: 'by_question'
+    };
 
     // State
     let currentSchuelerIndex = 0;
     let currentQuestionIndex = 0;
     let answers = {};
     let loading = false;
+    let answerOrderMode = initialAnswerOrderMode || ANSWER_ORDER_MODES.BY_STUDENT;
 
     // Bereits vorhandene Antworten in das answers Objekt laden
     if (existingAnswers && existingAnswers.length > 0) {
@@ -174,8 +195,86 @@
         studentTableBody: document.getElementById('studentTableBody'),
         questionContent: document.getElementById('questionContent'),
         loadingSpinner: document.getElementById('loadingSpinner'),
-        skipStudentButton: document.getElementById('skipStudentButton')
+        skipStudentButton: document.getElementById('skipStudentButton'),
+        answerOrderDescription: document.getElementById('answerOrderDescription'),
+        orderByStudentButton: document.getElementById('orderByStudentButton'),
+        orderByQuestionButton: document.getElementById('orderByQuestionButton')
     };
+
+    function isQuestionOrderMode() {
+        return answerOrderMode === ANSWER_ORDER_MODES.BY_QUESTION;
+    }
+
+    function getAnswerKey(schuelerId, questionId) {
+        return `${schuelerId}_${questionId}`;
+    }
+
+    function getAnswerOrderDescription() {
+        if (isQuestionOrderMode()) {
+            return 'Alle Schüler beantworten zuerst dieselbe Frage, anschließend wird zur nächsten Frage gewechselt.';
+        }
+
+        return 'Ein Schüler beantwortet alle Fragen vollständig, bevor der nächste Schüler an der Reihe ist.';
+    }
+
+    function getTraversalSteps() {
+        const steps = [];
+
+        if (isQuestionOrderMode()) {
+            questions.forEach((question, questionIndex) => {
+                schueler.forEach((currentSchueler, schuelerIndex) => {
+                    steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
+                });
+            });
+
+            return steps;
+        }
+
+        schueler.forEach((currentSchueler, schuelerIndex) => {
+            questions.forEach((question, questionIndex) => {
+                steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
+            });
+        });
+
+        return steps;
+    }
+
+    function isStepAnswered(step) {
+        return answers[getAnswerKey(step.schuelerId, step.questionId)] !== undefined;
+    }
+
+    function setCurrentStep(step) {
+        if (!step) return;
+
+        currentSchuelerIndex = step.schuelerIndex;
+        currentQuestionIndex = step.questionIndex;
+    }
+
+    function findFirstPendingStep() {
+        return getTraversalSteps().find(step => !isStepAnswered(step)) || null;
+    }
+
+    function findNextPendingStepAfterCurrent(wrap = false) {
+        const steps = getTraversalSteps();
+        const currentIndex = steps.findIndex(step =>
+            step.schuelerIndex === currentSchuelerIndex && step.questionIndex === currentQuestionIndex
+        );
+
+        if (currentIndex === -1) {
+            return findFirstPendingStep();
+        }
+
+        const nextStep = steps.slice(currentIndex + 1).find(step => !isStepAnswered(step));
+        if (nextStep) {
+            return nextStep;
+        }
+
+        if (!wrap) {
+            return null;
+        }
+
+        return steps.slice(0, currentIndex).find(step => !isStepAnswered(step)) || null;
+    }
 
     // Computed Properties als Funktionen
     function getCurrentSchueler() {
@@ -265,15 +364,12 @@
             });
 
             if (response.ok) {
-                const key = `${currentSchueler.id}_${currentQuestion.id}`;
+                const key = getAnswerKey(currentSchueler.id, currentQuestion.id);
                 answers[key] = rating;
 
-                // Nächste Frage oder nächster Schüler
-                if (currentQuestionIndex < questions.length - 1) {
-                    currentQuestionIndex++;
-                } else if (currentSchuelerIndex < schueler.length - 1) {
-                    currentQuestionIndex = 0;
-                    currentSchuelerIndex++;
+                const nextStep = findNextPendingStepAfterCurrent(true);
+                if (nextStep) {
+                    setCurrentStep(nextStep);
                 }
 
                 render();
@@ -288,30 +384,56 @@
         }
     }
 
-    async function skipStudent() {
-        const currentSchueler = getCurrentSchueler();
-
-        if (loading || !currentSchueler) return;
+    async function updateAnswerOrderMode(mode) {
+        if (loading || answerOrderMode === mode) return;
 
         loading = true;
 
         try {
-            // Einfach zum nächsten Schüler wechseln
-            if (currentSchuelerIndex < schueler.length - 1) {
-                currentSchuelerIndex++;
-                currentQuestionIndex = 0; // Zurück zur ersten Frage
-            } else {
-                // Falls letzter Schüler, vielleicht zur Übersicht oder so
-                alert('Alle Schüler wurden bereits bearbeitet.');
+            const response = await fetch(`/paed-diary/documentation/session/${sessionId}/answer-order-mode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    answer_order_mode: mode
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Die Reihenfolge konnte nicht geändert werden.');
+            }
+
+            const data = await response.json();
+            answerOrderMode = data.answer_order_mode || ANSWER_ORDER_MODES.BY_STUDENT;
+
+            const firstPendingStep = findFirstPendingStep();
+            if (firstPendingStep) {
+                setCurrentStep(firstPendingStep);
             }
 
             render();
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Überspringen des Schülers.');
+            alert(error.message || 'Fehler beim Ändern der Beantwortungsreihenfolge.');
         } finally {
             loading = false;
         }
+    }
+
+    function skipStudent() {
+        if (loading) return;
+
+        const nextStep = findNextPendingStepAfterCurrent(true);
+        if (!nextStep) {
+            alert('Es gibt keine weiteren offenen Antworten.');
+            return;
+        }
+
+        setCurrentStep(nextStep);
+        render();
     }
 
     function jumpToStudent(schuelerIndex) {
@@ -319,11 +441,21 @@
 
         currentSchuelerIndex = schuelerIndex;
 
+        if (isQuestionOrderMode()) {
+            render();
+
+            if (elements.currentStudentCard) {
+                elements.currentStudentCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            return;
+        }
+
         // Finde die erste unbeantwortete Frage für diesen Schüler
         const s = schueler[schuelerIndex];
         let foundUnanswered = false;
         for (let qIndex = 0; qIndex < questions.length; qIndex++) {
-            const key = `${s.id}_${questions[qIndex].id}`;
+            const key = getAnswerKey(s.id, questions[qIndex].id);
             if (answers[key] === undefined) {
                 currentQuestionIndex = qIndex;
                 foundUnanswered = true;
@@ -349,6 +481,14 @@
         elements.skipStudentButton.addEventListener('click', skipStudent);
     }
 
+    if (elements.orderByStudentButton) {
+        elements.orderByStudentButton.addEventListener('click', () => updateAnswerOrderMode(ANSWER_ORDER_MODES.BY_STUDENT));
+    }
+
+    if (elements.orderByQuestionButton) {
+        elements.orderByQuestionButton.addEventListener('click', () => updateAnswerOrderMode(ANSWER_ORDER_MODES.BY_QUESTION));
+    }
+
     // Render-Funktionen
     function renderCurrentStudent() {
         if (!elements.currentStudentName) return;
@@ -364,7 +504,7 @@
         if (!elements.currentQuestionText) return;
         const currentQuestion = getCurrentQuestion();
         if (currentQuestion) {
-            elements.currentQuestionText.textContent = currentQuestion.question;
+            elements.currentQuestionText.textContent = `Frage ${currentQuestionIndex + 1} von ${questions.length}: ${currentQuestion.question}`;
         }
     }
 
@@ -372,9 +512,17 @@
         if (!elements.smileyButtons) return;
         elements.smileyButtons.innerHTML = '';
 
+        const currentSchueler = getCurrentSchueler();
+        const currentQuestion = getCurrentQuestion();
+
         for (let rating = 1; rating <= 5; rating++) {
             const button = document.createElement('button');
-            button.className = 'btn btn-lg mx-2 smiley-btn btn-outline-secondary';
+            button.className = 'btn btn-lg mx-2 smiley-btn';
+            if (currentSchueler && currentQuestion && answers[getAnswerKey(currentSchueler.id, currentQuestion.id)] === rating) {
+                button.classList.add('btn-success');
+            } else {
+                button.classList.add('btn-outline-secondary');
+            }
             button.onclick = () => saveAnswer(rating);
 
             const icon = document.createElement('i');
@@ -443,6 +591,26 @@
         });
     }
 
+    function renderAnswerOrderControls() {
+        if (elements.answerOrderDescription) {
+            elements.answerOrderDescription.textContent = getAnswerOrderDescription();
+        }
+
+        if (elements.orderByStudentButton) {
+            elements.orderByStudentButton.classList.toggle('active', !isQuestionOrderMode());
+        }
+
+        if (elements.orderByQuestionButton) {
+            elements.orderByQuestionButton.classList.toggle('active', isQuestionOrderMode());
+        }
+
+        if (elements.skipStudentButton) {
+            elements.skipStudentButton.innerHTML = isQuestionOrderMode()
+                ? '<i class="fas fa-forward"></i> Ohne Antwort weiter'
+                : '<i class="fas fa-forward"></i> Schüler überspringen';
+        }
+    }
+
     function renderCompletionState() {
         if (!elements.currentStudentCard || !elements.completedAlert) return;
 
@@ -469,6 +637,7 @@
 
     function render() {
         console.log('Rendering...');
+        renderAnswerOrderControls();
         renderCurrentStudent();
         renderCurrentQuestion();
         renderSmileyButtons();
@@ -490,19 +659,9 @@
             return;
         }
 
-        // Zum ersten unbeantworteten Schüler/Frage springen
-        let found = false;
-        for (let sIndex = 0; sIndex < schueler.length; sIndex++) {
-            for (let qIndex = 0; qIndex < questions.length; qIndex++) {
-                const key = `${schueler[sIndex].id}_${questions[qIndex].id}`;
-                if (answers[key] === undefined) {
-                    currentSchuelerIndex = sIndex;
-                    currentQuestionIndex = qIndex;
-                    found = true;
-                    break;
-                }
-            }
-            if (found) break;
+        const firstPendingStep = findFirstPendingStep();
+        if (firstPendingStep) {
+            setCurrentStep(firstPendingStep);
         }
 
         // Setze die Links beim Start
@@ -669,6 +828,12 @@ function copyQRUrl() {
 }
 .btn-warning {
     border-radius: 8px;
+}
+
+.answer-order-buttons .btn.active {
+    color: #fff;
+    background: linear-gradient(90deg,#0d6efd,#0b5ed7);
+    border-color: #0d6efd;
 }
 
 /* Small helpers */

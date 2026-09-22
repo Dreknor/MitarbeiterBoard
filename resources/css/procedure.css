@@ -1,0 +1,187 @@
+/*
+ * Prozesse-Modul – Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .procedure-wrapper gescopet
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "../views/procedure/**/*.blade.php";
+@source "../js/procedure.js";
+@source "../js/procedure/**/*.js";
+
+/* ---------------------------------------------------------------
+ * Bootstrap-4-Konflikt-Fixes
+ * ------------------------------------------------------------- */
+.procedure-wrapper .collapse,
+.procedure-wrapper .collapsing { visibility: visible; }
+.procedure-wrapper button:not([class*="border"]) { border-width: 0; }
+
+/* Alpine.js Cloak */
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper
+ * ------------------------------------------------------------- */
+.procedure-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 3rem;
+    max-width: 1400px;
+    margin-inline: auto;
+}
+@media (max-width: 640px) {
+    .procedure-wrapper { padding: 1rem 1rem 2rem; }
+}
+.procedure-wrapper *,
+.procedure-wrapper *::before,
+.procedure-wrapper *::after { box-sizing: border-box; }
+
+.procedure-wrapper h1,
+.procedure-wrapper h2,
+.procedure-wrapper h3,
+.procedure-wrapper h4 { margin: 0; }
+
+.procedure-wrapper p { margin: 0; }
+
+.procedure-wrapper a { color: inherit; text-decoration: none; }
+.procedure-wrapper a:hover { text-decoration: none; }
+
+.procedure-wrapper ul,
+.procedure-wrapper ol { margin: 0; padding: 0; list-style: none; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.procedure-wrapper .btn-procedure-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800
+           text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+}
+.procedure-wrapper .btn-procedure-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 active:bg-gray-100
+           text-gray-700 font-medium py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400;
+    border: 1px solid #e5e7eb;
+}
+.procedure-wrapper .btn-procedure-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800
+           text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500;
+    border-width: 0;
+}
+.procedure-wrapper .btn-procedure-success {
+    @apply inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800
+           text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500;
+    border-width: 0;
+}
+
+/* ---------------------------------------------------------------
+ * Formular-Inputs
+ * ------------------------------------------------------------- */
+.procedure-wrapper .input-procedure {
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900
+           shadow-sm placeholder:text-gray-400
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none
+           disabled:bg-gray-50 disabled:text-gray-500;
+}
+.procedure-wrapper textarea.input-procedure { min-height: 4rem; }
+.procedure-wrapper .procedure-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+/* ---------------------------------------------------------------
+ * Karten
+ * ------------------------------------------------------------- */
+.procedure-wrapper .procedure-card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-shadow duration-200;
+}
+.procedure-wrapper a.procedure-card:hover,
+.procedure-wrapper button.procedure-card:hover { @apply shadow-md border-gray-200; }
+
+/* ---------------------------------------------------------------
+ * Tab-Navigation
+ * ------------------------------------------------------------- */
+.procedure-wrapper .procedure-tab {
+    @apply px-4 py-2 text-sm font-medium border-b-2 cursor-pointer transition-colors whitespace-nowrap;
+}
+.procedure-wrapper .procedure-tab-active   { @apply border-blue-500 text-blue-600; }
+.procedure-wrapper .procedure-tab-inactive { @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300; }
+
+/* ---------------------------------------------------------------
+ * Status-Badges für Schritte
+ * ------------------------------------------------------------- */
+.procedure-wrapper .badge-step-open {
+    @apply inline-flex items-center bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full;
+}
+.procedure-wrapper .badge-step-active {
+    @apply inline-flex items-center bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full;
+}
+.procedure-wrapper .badge-step-due {
+    @apply inline-flex items-center bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full;
+}
+.procedure-wrapper .badge-step-overdue {
+    @apply inline-flex items-center bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full;
+}
+.procedure-wrapper .badge-step-done {
+    @apply inline-flex items-center bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full;
+}
+
+/* ---------------------------------------------------------------
+ * Avatar
+ * ------------------------------------------------------------- */
+.procedure-wrapper .procedure-avatar {
+    @apply rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center select-none;
+}
+
+/* ---------------------------------------------------------------
+ * Flash-Alerts
+ * ------------------------------------------------------------- */
+.procedure-wrapper .alert-success  { @apply rounded-lg p-4 mb-4 bg-green-50 text-green-800 border border-green-200; }
+.procedure-wrapper .alert-warning  { @apply rounded-lg p-4 mb-4 bg-yellow-50 text-yellow-800 border border-yellow-200; }
+.procedure-wrapper .alert-danger   { @apply rounded-lg p-4 mb-4 bg-red-50 text-red-800 border border-red-200; }
+.procedure-wrapper .alert-error    { @apply rounded-lg p-4 mb-4 bg-red-50 text-red-800 border border-red-200; }
+.procedure-wrapper .alert-info     { @apply rounded-lg p-4 mb-4 bg-blue-50 text-blue-800 border border-blue-200; }
+
+/* ---------------------------------------------------------------
+ * Responsive
+ * ------------------------------------------------------------- */
+@media (max-width: 640px) {
+    .procedure-wrapper .procedure-card { @apply p-4 rounded-xl; }
+    .procedure-wrapper h1.text-2xl { @apply text-xl; }
+}
+
+/* ---------------------------------------------------------------
+ * SortableJS – Drag-&-Drop (Phase 3)
+ * ------------------------------------------------------------- */
+/* Ghost-Element während des Ziehens */
+.sortable-ghost {
+    opacity: 0.35;
+    background: theme('colors.blue.50') !important;
+    border: 2px dashed theme('colors.blue.300') !important;
+    border-radius: 0.75rem;
+}
+
+/* Aktiv gezogenes Element */
+.sortable-chosen {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    transform: scale(1.03) !important;
+    z-index: 100;
+}
+
+/* Drag-Handle Cursor */
+[data-drag-handle] {
+    cursor: grab;
+    touch-action: none;
+}
+[data-drag-handle]:active {
+    cursor: grabbing;
+}
+
+

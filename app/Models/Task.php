@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 
 class Task extends Model
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $fillable = ['task', 'date', 'theme_id', 'completed'];

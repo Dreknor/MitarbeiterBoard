@@ -52,7 +52,11 @@ class HolidayController extends Controller
                 ->orderBy('start_date')
                 ->get();
         }else{
-            $holidays = Holiday::where('employe_id', auth()->id())
+            // Supervisor kann seine eigenen Urlaube und die seiner Mitarbeiter sehen
+            $subordinateIds = auth()->user()->subordinates()->pluck('id')->toArray();
+            $employeeIds = array_merge([auth()->id()], $subordinateIds);
+
+            $holidays = Holiday::whereIn('employe_id', $employeeIds)
                 ->with(['employe.groups_rel'])
                 ->where(function($query) use ($startMonth, $endMonth) {
                     $query->whereBetween('start_date', [$startMonth, $endMonth])
@@ -68,7 +72,14 @@ class HolidayController extends Controller
         }
         $users = collect([]);
         if (auth()->user()->can('approve holidays')){
-            $usersAll = User::permission('has holidays')->with('groups_rel')->get();
+            $usersAll = User::permission('has holidays')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
+                ->get();
 
             foreach ($usersAll as $user){
                 if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
@@ -81,7 +92,12 @@ class HolidayController extends Controller
 
             $usersAll = User::query()
                 ->permission('has holidays')
-                ->with('groups_rel')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
                 ->get();
 
             foreach ($usersAll as $user){
@@ -93,7 +109,18 @@ class HolidayController extends Controller
 
             }
         } else {
-            $users = collect([auth()->user()]);
+            // Supervisor kann seine unterstellten Mitarbeiter sehen
+            $subordinates = auth()->user()->subordinates()
+                ->permission('has holidays')
+                ->with([
+                    'groups_rel',
+                    'holidays' => function($query) {
+                        $query->with('approved_by');
+                    }
+                ])
+                ->get();
+
+            $users = collect([auth()->user()])->merge($subordinates);
         }
 
         foreach ($holidays as $holiday){
@@ -143,8 +170,17 @@ class HolidayController extends Controller
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
-        if ($request->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        // Prüfen ob der Benutzer berechtigt ist, für diesen Mitarbeiter Urlaub zu erfassen
+        if ($request->employe_id != auth()->id()) {
+            $targetUser = User::find($request->employe_id);
+
+            // Erlaubt wenn: approve holidays Recht ODER Vorgesetzter des Mitarbeiters
+            $canCreateForEmployee = auth()->user()->can('approve holidays') ||
+                                   ($targetUser && auth()->user()->isSupervisorOf($targetUser));
+
+            if (!$canCreateForEmployee) {
+                return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+            }
         }
 
         if ($request->end_date < $request->start_date){
@@ -412,5 +448,69 @@ class HolidayController extends Controller
         $holiday->delete();
 
         return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
+    }
+
+    /**
+     * Zeigt die Verwaltungsseite für genehmigte Urlaube an
+     */
+    public function manage(Request $request)
+    {
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        // Alle Benutzer mit Urlaub-Berechtigung für den Filter
+        $users = User::permission('has holidays')
+            ->orderBy('name')
+            ->get();
+
+        // Aktuelles Jahr und nächstes Jahr als Zeitraum
+        $currentYearStart = Carbon::now()->startOfYear();
+        $nextYearEnd = Carbon::now()->addYear()->endOfYear();
+
+        // Query für genehmigte Urlaube (nur aktuelles und nächstes Jahr)
+        $query = Holiday::with(['employe', 'employe.groups_rel'])
+            ->where('approved', true)
+            ->where('rejected', false)
+            ->where(function($q) use ($currentYearStart, $nextYearEnd) {
+                $q->whereBetween('start_date', [$currentYearStart, $nextYearEnd])
+                  ->orWhereBetween('end_date', [$currentYearStart, $nextYearEnd]);
+            });
+
+        // Filter nach Benutzer
+        if ($request->has('user_id') && $request->user_id != '') {
+            $query->where('employe_id', $request->user_id);
+        }
+
+        // Filter für zukünftige Urlaube
+        if ($request->has('future_only') && $request->future_only == '1') {
+            $query->where('start_date', '>=', Carbon::now()->startOfDay());
+        }
+
+        $holidays = $query->orderBy('start_date', 'desc')->paginate(50);
+
+        return view('personal.holidays.manage', [
+            'holidays' => $holidays,
+            'users' => $users,
+            'selectedUserId' => $request->user_id ?? '',
+            'futureOnly' => $request->future_only ?? '0'
+        ]);
+    }
+
+    /**
+     * Löscht einen genehmigten Urlaub (auch wenn er in der Vergangenheit liegt)
+     */
+    public function manageDelete(Holiday $holiday)
+    {
+        if (!auth()->user()->can('approve holidays')){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        $employeName = $holiday->employe ? $holiday->employe->name : 'Unbekannt';
+        $startDate = $holiday->start_date->format('d.m.Y');
+
+        $holiday->delete();
+
+        return redirectBack('success', "Urlaub von {$employeName} ab {$startDate} wurde erfolgreich gelöscht.");
     }
 }

@@ -18,6 +18,11 @@ return new class extends Migration
             return;
         }
 
+        // SQLite unterstützt kein information_schema – Migration überspringen
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         try {
             // Prüfen, ob der Index existiert, bevor wir versuchen ihn zu löschen
             $indexExists = DB::select(
@@ -67,6 +72,11 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // SQLite unterstützt kein information_schema – Migration überspringen
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Prüfen, ob der Index existiert, bevor wir versuchen ihn zu löschen
         $indexExists = DB::select(
             "SELECT COUNT(*) as count FROM information_schema.statistics

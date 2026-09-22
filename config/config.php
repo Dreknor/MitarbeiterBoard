@@ -61,6 +61,8 @@ return [
     'short_teachers_name' => env('SHORT_TEACHERS_NAME', '5'),
     'vertretungsplan_api_key' => env('VERTRETUNGSPLAN_ALLOW_IFRAME_KEY'),
 
+    'vertretungsplan_allowed_ips' => env('VP_ALLOWED_IPS', ''),
+
     //Schuljahresbeginn
     'schuljahresbeginn' => (\Carbon\Carbon::now()->month >= 8) ? \Carbon\Carbon::parse(\Carbon\Carbon::now()->year.'-08-01') : \Carbon\Carbon::parse(\Carbon\Carbon::now()->subYear()->year.'-08-01'),
 
@@ -104,4 +106,18 @@ return [
 
     //Gruppen
     'meeting_day' => env('DEFAULT_MEETINGDAY', 1),
+
+    // Graduierungssystem-Dokumentation
+    'grading_documentation' => [
+        'session_reopen_days' => env('GRADING_SESSION_REOPEN_DAYS', 30), // Tage, innerhalb derer Sessions wiedergeöffnet werden können
+    ],
+
+    'paed_diary_absence_pattern_total_absence_days_threshold' => 10,
+    'paed_diary_absence_pattern_total_absence_percent_threshold' => 10,
+    'paed_diary_absence_pattern_total_absence_window_days' => 28,
+    'paed_diary_absence_pattern_short_cluster_count' => 3,
+    'paed_diary_absence_pattern_short_cluster_max_days' => 2,
+    'paed_diary_absence_pattern_short_cluster_window_days' => 30,
+    'paed_diary_absence_pattern_weekday_threshold' => 3,
+    'paed_diary_absence_pattern_weekday_window_days' => 42,
 ];

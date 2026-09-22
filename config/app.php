@@ -139,6 +139,10 @@ return [
 
     'key' => env('APP_KEY'),
 
+    // Alter Schlüssel nach APP_KEY-Rotation – wird von 'personal:re-encrypt' genutzt
+    // Setze OLD_APP_KEY in .env BEVOR du den Key rotierst, entferne ihn danach.
+    'old_key' => env('OLD_APP_KEY'),
+
     'cipher' => 'AES-256-CBC',
 
     /*
@@ -197,6 +201,7 @@ return [
 
         App\Providers\ViewServiceProvider::class,
         App\Providers\LogLevelServiceProvider::class,
+        App\Providers\PersonalServiceProvider::class,
         OwenIt\Auditing\AuditingServiceProvider::class,
 
 

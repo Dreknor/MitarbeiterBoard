@@ -49,9 +49,27 @@ class Schueler extends Model
         return $this->vorname.' '.$this->nachname;
     }
 
+    // Neue Wochenplan-Relation (neues System)
+    public function wpPlaene()
+    {
+        return $this->hasMany(\App\Models\Wochenplan\WpPlan::class, 'schueler_id');
+    }
+
     // Optionaler Accessor für Symbol (falls Stufe gesetzt)
     public function getStageSymbolAttribute(): ?string
     {
         return $this->grading_stage?->symbol ?? null;
+    }
+
+    // PaedDiary-Abwesenheiten
+    public function paedDiaryAbsences()
+    {
+        return $this->hasMany(\App\Models\PaedDiarySchuelerAbsence::class);
+    }
+
+    // Ziele ("Ziel an dem ich arbeiten möchte") im Pädagogischen Tagebuch – neueste zuerst
+    public function paedDiaryGoals()
+    {
+        return $this->hasMany(\App\Models\PaedDiaryGoal::class, 'schueler_id')->orderByDesc('created_at');
     }
 }

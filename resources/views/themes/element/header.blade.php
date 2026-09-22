@@ -1,48 +1,43 @@
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-sm-12 col-md-7">
-            <h5 class="card-title">Themen {{request()->segment(1)}}</h5>
+{{-- Themen-Board Kopf: Titel, Ansichtswechsel, Abo --}}
+<div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="thm-page-title text-2xl font-bold text-gray-900">
+        Themen <span class="text-gray-400 font-semibold">{{ request()->segment(1) }}</span>
+    </h1>
+
+    <div class="flex items-center gap-2">
+        {{-- Abo / Benachrichtigung --}}
+        @if(!isset($subscription))
+            <a href="{{ url('subscription/group/'.request()->segment(1)) }}" class="thm-btn thm-btn-secondary thm-btn-sm" title="Benachrichtigungen aktivieren">
+                <i class="far fa-bell"></i>
+            </a>
+        @else
+            <a href="{{ url('subscription/group/'.request()->segment(1).'/remove') }}" class="thm-btn thm-btn-primary thm-btn-sm" title="Benachrichtigungen deaktivieren">
+                <i class="fas fa-bell"></i>
+            </a>
+        @endif
+
+        {{-- Ansicht wechseln --}}
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button type="button" class="thm-btn thm-btn-secondary thm-btn-sm" @click="open = !open">
+                <i class="fas fa-eye"></i>
+                <span class="hidden sm:inline">Ansicht</span>
+                <i class="fas fa-chevron-down text-xs" :class="open && 'rotate-180'"></i>
+            </button>
+            <div x-show="open" x-transition x-cloak style="display:none"
+                 class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-40">
+                <a href="{{ url(request()->segment(1).'/view/date') }}"
+                   class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 {{ $viewType=='date' ? 'text-blue-600 font-semibold' : 'text-gray-700' }}">
+                    <i class="fas fa-calendar-day w-4 {{ $viewType=='date' ? '' : 'text-gray-400' }}"></i> Datum
+                </a>
+                <a href="{{ url(request()->segment(1).'/view/type') }}"
+                   class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 {{ $viewType=='type' ? 'text-blue-600 font-semibold' : 'text-gray-700' }}">
+                    <i class="fas fa-tag w-4 {{ $viewType=='type' ? '' : 'text-gray-400' }}"></i> Typ
+                </a>
+                <a href="{{ url(request()->segment(1).'/view/priority') }}"
+                   class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 {{ $viewType=='priority' ? 'text-blue-600 font-semibold' : 'text-gray-700' }}">
+                    <i class="fas fa-sort-amount-down w-4 {{ $viewType=='priority' ? '' : 'text-gray-400' }}"></i> Priorität
+                </a>
+            </div>
         </div>
-        <div class="col-sm-12 col-md-4 ">
-
-                        <div class="col-6 pull-right">
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-info dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <i class="fa fa-eye"></i>
-                                    <div class="d-none d-lg-inline ">
-                                        Ansicht ändern
-                                    </div>
-                                </button>
-                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                    <a class="dropdown-item" href="{{url(request()->segment(1).'/view/date')}}">
-                                        @if($viewType == 'date') <i class="fas fa-check"></i> @endif
-                                        Datum
-                                    </a>
-                                    <a class="dropdown-item" href="{{url(request()->segment(1).'/view/type')}}">
-                                        @if($viewType == 'type') <i class="fas fa-check"></i> @endif
-                                        Type
-                                    </a>
-                                    <a class="dropdown-item" href="{{url(request()->segment(1).'/view/priority')}}">
-                                        @if($viewType == 'priority') <i class="fas fa-check"></i> @endif
-                                        Priorität
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-5 pull-right">
-                            @if(!isset($subscription))
-                                <a href="{{url("subscription/group/".request()->segment(1))}}" class="btn btn-sm btn-outline-info">
-                                    <i class="far fa-bell"></i>
-                                </a>
-                            @else
-                                <a href="{{url("subscription/group/".request()->segment(1)."/remove")}}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-bell"></i>
-                                </a>
-                            @endif
-                        </div>
-
-        </div>
-
-
     </div>
 </div>

@@ -165,7 +165,7 @@
                                             </a>
                                         </div>
                                         <div class="progress">
-                                            <div class="progress-bar amount" role="progressbar" style="width: {{100-$theme->priority}}%;" ></div>
+                                            <div class="progress-bar amount" role="progressbar" style="width: {{$theme->priority}}%;" ></div>
                                         </div>
 
                                     @else

@@ -14,6 +14,7 @@ use App\Models\personal\WorkingTime;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
@@ -30,6 +31,7 @@ use Staudenmeir\EloquentHasManyDeep\HasRelationships;
  */
 class User extends Authenticatable implements HasMedia
 {
+    use HasFactory;
     use Notifiable;
     use HasRoles;
     use HasPushSubscriptions;
@@ -43,10 +45,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
     ];
 
     /**
@@ -55,7 +57,7 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'calendar_token',
     ];
 
     /**
@@ -235,7 +237,7 @@ class User extends Authenticatable implements HasMedia
 
     public function roster_events()
     {
-        return $this->hasMany(RosterEvents::class);
+        return $this->hasMany(RosterEvents::class, 'employe_id');
     }
 
     public function employments()
@@ -257,7 +259,9 @@ class User extends Authenticatable implements HasMedia
         });
 
         return $employments->filter(function ($item) use ($date, $end){
-                return $item->start->startOfDay()->lessThanOrEqualTo($date) and (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
+                return ($item->status === null || $item->status === \App\Enums\EmploymentStatus::Aktiv || $item->status?->value === 'aktiv')
+                    && $item->start->startOfDay()->lessThanOrEqualTo($date)
+                    && (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
         });
 
     }
@@ -318,6 +322,58 @@ class User extends Authenticatable implements HasMedia
         return $this->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
     }
 
+    /**
+     * Berechnet den Resturlaub aus dem Vorjahr
+     * Wenn ein Timesheet vorhanden ist, wird der Wert daraus verwendet
+     * Andernfalls wird er aus den genehmigten Urlauben berechnet
+     *
+     * @param int $year Das Jahr, für das der Resturlaub berechnet werden soll
+     * @return int Der Resturlaub aus dem Vorjahr
+     */
+    public function getPreviousYearHolidayRest($year)
+    {
+        $previousYear = $year - 1;
+
+        // Prüfen ob ein Timesheet für Dezember des Vorjahres existiert
+        $lastTimesheet = $this->timesheets()
+            ->where('year', $previousYear)
+            ->where('month', 12)
+            ->first();
+
+        if ($lastTimesheet) {
+            // Wenn Timesheet vorhanden, verwende holidays_rest
+            return $lastTimesheet->holidays_rest ?? 0;
+        }
+
+        // Ansonsten: Berechne aus genehmigten Urlauben des Vorjahres
+        $startOfPreviousYear = Carbon::createFromDate($previousYear, 1, 1)->startOfYear();
+        $endOfPreviousYear = Carbon::createFromDate($previousYear, 12, 31)->endOfYear();
+
+        // Prüfen ob überhaupt Arbeitszeitnachweise (Timesheets) für das Vorjahr existieren
+        $hasAnyTimesheet = $this->timesheets()
+            ->where('year', $previousYear)
+            ->exists();
+
+        // Genommene Urlaube im Vorjahr (nur genehmigte)
+        $takenDays = $this->holidays()
+            ->where('approved', true)
+            ->where('rejected', false)
+            ->whereBetween('start_date', [$startOfPreviousYear, $endOfPreviousYear])
+            ->sum('days');
+
+        // Wenn kein Timesheet existiert UND keine genehmigten Urlaube im Vorjahr,
+        // gehen wir davon aus, dass kein Resturlaubsanspruch besteht
+        if (!$hasAnyTimesheet && $takenDays == 0) {
+            return 0;
+        }
+
+        // Urlaubsanspruch für das Vorjahr
+        $totalClaim = $this->getHolidayClaim($startOfPreviousYear);
+
+        // Resturlaub = Anspruch - Genommene Tage
+        return $totalClaim - $takenDays;
+    }
+
     public function photo(){
 
         return Cache::remember('user_photo_'.$this->id, 60*60*24, function (){
@@ -343,6 +399,10 @@ class User extends Authenticatable implements HasMedia
             ->first();
 
         return $absence != null;
+    }
+
+    public function absences(){
+        return $this->hasMany(Absence::class, 'users_id');
     }
 
     /*
@@ -374,6 +434,18 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(User::class, 'superior_id');
     }
 
+    /**
+     * Prüft, ob der aktuelle Benutzer der Vorgesetzte eines anderen Benutzers ist
+     *
+     * @param int|User $user Die Benutzer-ID oder User-Instanz
+     * @return bool
+     */
+    public function isSupervisorOf($user)
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+        return $this->subordinates()->where('id', $userId)->exists();
+    }
+
     public function meetingTasks()
     {
         return $this->hasMany(\App\Models\MeetingTask::class);
@@ -387,6 +459,105 @@ class User extends Authenticatable implements HasMedia
     public function paed_diary_class_groups()
     {
         return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
+    }
+
+    // ── Kalender-Modul ────────────────────────────────────────────────────
+
+    /**
+     * User-spezifische iCal-Feeds (TODO 30).
+     */
+    public function icalFeeds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserIcalFeed::class);
+    }
+
+    /**
+     * Benutzerdefinierte Kalenderfarben – Hybrid localStorage/DB (TODO 29).
+     */
+    public function calendarColors(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(OxCalendar::class, 'user_calendar_colors')
+            ->withPivot('farbe')
+            ->withTimestamps();
+    }
+
+    // ── PaedDiary-Modul ───────────────────────────────────────────────────
+
+    /**
+     * Ausgeblendete PaedDiary-Notizkategorien des Users.
+     */
+    public function hiddenPaedDiaryCategories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            PaedDiaryCategory::class,
+            'paed_diary_user_hidden_categories',
+            'user_id',
+            'paed_diary_category_id'
+        );
+    }
+
+    // ── Personal-Modul (Phase 1) ──────────────────────────────────────────
+
+    /**
+     * DSGVO-Einwilligungen des Mitarbeiters.
+     */
+    public function consents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\Consent::class, 'employe_id');
+    }
+
+    /**
+     * Prüft ob der User eine aktive Einwilligung für den gegebenen Schlüssel hat.
+     * Verwendung: $user->hasConsent('foto_organigramm')
+     */
+    public function hasConsent(string $key): bool
+    {
+        return $this->consents()
+            ->whereHas('consentType', fn($q) => $q->where('key', $key))
+            ->whereNull('revoked_at')
+            ->exists();
+    }
+
+    /**
+     * Stellvertreter des Users (Abwesenheitsvertretung).
+     */
+    public function deputy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deputy_id');
+    }
+
+    // ── Personal-Modul (Phase 2) ──────────────────────────────────────────
+
+    /**
+     * Personalakte-Dokumente des Mitarbeiters.
+     */
+    public function personalDocuments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\PersonalDocument::class, 'employe_id');
+    }
+
+    /**
+     * Qualifikationen des Mitarbeiters.
+     */
+    public function qualifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\EmployeeQualification::class, 'employe_id');
+    }
+
+    /**
+     * Fortbildungs-Teilnahmen des Mitarbeiters.
+     */
+    public function trainingParticipations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\personal\TrainingParticipant::class, 'employe_id');
+    }
+
+    /**
+     * Adresse des Mitarbeiters.
+     */
+    public function address(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\personal\Address::class, 'employe_id');
     }
 
 }

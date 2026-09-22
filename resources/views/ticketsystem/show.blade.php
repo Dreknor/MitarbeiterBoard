@@ -21,7 +21,7 @@
                         <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                             <span class="dropdown-item bg-gradient-directional-amber text-white">Zuweisen an</span>
                             @foreach($assignable as $user)
-                                @if($show_ticket->assigned_to == null and $show_ticket->assigned_to != $user->id)
+                                @if($show_ticket->assigned_to != $user->id)
                                     <a class="dropdown-item" href="{{ route('tickets.assign', [$show_ticket->id, $user->id]) }}">{{ $user->name }}</a>
                                 @endif
                             @endforeach

@@ -25,6 +25,15 @@
                         @endcan
                     </div>
                 </div>
+                @can('edit employe')
+                    <div class="row mt-2">
+                        <div class="col">
+                            <a href="{{ route('employes.bulk-holiday-claim') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-users"></i> Urlaubsanspruch für Gruppen festlegen
+                            </a>
+                        </div>
+                    </div>
+                @endcan
             </div>
             <div class="card-body">
                 <table class="table table-hover" id="userTable">
@@ -40,9 +49,17 @@
                         @foreach($employes as $employe)
                             <tr>
                                 <td>
-                                    <a href="{{url('/employes/').'/'.$employe->id}}">
+                                    @can('view personal_data')
+                                    <a href="{{ route('personal.personalakte.show', $employe->id) }}" title="Personalakte öffnen">
+                                        <i class="fa fa-folder-open"></i>
+                                    </a>
+                                    @endcan
+                                    @can('edit employe')
+                                    &nbsp;
+                                    <a href="{{url('/employes/').'/'.$employe->id}}" title="Stammdaten bearbeiten">
                                         <i class="fa fa-edit"></i>
                                     </a>
+                                    @endcan
                                 </td>
                                 <td>
                                     {{$employe->familienname}}

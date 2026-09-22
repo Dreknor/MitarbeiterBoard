@@ -1,15 +1,27 @@
 module.exports = {
-  // Scan only diagnostic-related files to avoid conflicts
+  // Scan diagnostic, paedDiary and hort-planung files
   content: [
     "./resources/views/diagnostics/**/*.blade.php",
     "./resources/js/diagnostics.js",
+    "./resources/views/paedDiary/**/*.blade.php",
+    "./resources/views/wochenplan/**/*.blade.php",
+    "./resources/js/wochenplan.js",
+    "./resources/views/rooms/**/*.blade.php",
+    "./resources/css/rooms.css",
+    "./resources/views/calendar/**/*.blade.php",
+    "./resources/js/calendar.js",
+    "./resources/views/personal/hort_planung/**/*.blade.php",
+    // Personal-Modul (Phase 0)
+    "./resources/views/personal/**/*.blade.php",
+    "./resources/css/personal.css",
+    "./resources/js/personal.js",
   ],
   // Disable preflight (CSS reset) to prevent conflicts with Bootstrap
   corePlugins: {
     preflight: false,
   },
   // Make Tailwind styles more specific to win over Bootstrap when needed
-  important: '.diagnostic-wrapper',
+  important: true,
   theme: {
     extend: {
       colors: {

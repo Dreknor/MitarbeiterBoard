@@ -6,6 +6,7 @@ use App\Models\GradingDocumentationSession;
 use App\Models\GradingQuestion;
 use App\Models\GradingStudentAnswer;
 use App\Models\GradingTeacherAssessment;
+use App\Models\GradingCoachingNote;
 use App\Models\GradingSystem;
 use App\Models\Klasse;
 use App\Models\Schueler;
@@ -13,6 +14,7 @@ use App\Models\PaedDiaryClassGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GradingDocumentationController extends Controller
 {
@@ -37,10 +39,23 @@ class GradingDocumentationController extends Controller
             ->orderBy('started_at', 'desc')
             ->get();
 
+        // Abgeschlossene Sessions im aktuellen Schuljahr
+        $completedSessions = GradingDocumentationSession::where('user_id', $user->id)
+            ->completed()
+            ->currentSchoolYear()
+            ->with(['klasse', 'gradingSystem', 'schueler', 'group'])
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
+        // Maximale Wiederöffnungsfrist aus Settings
+        $reopenDays = settings('session_reopen_days', 'config.grading_documentation');
+
         return view('paedDiary.documentation.index', [
             'klassen' => $klassen,
             'groups' => $groups,
             'openSessions' => $openSessions,
+            'completedSessions' => $completedSessions,
+            'reopenDays' => $reopenDays,
         ]);
     }
 
@@ -52,10 +67,12 @@ class GradingDocumentationController extends Controller
         $request->validate([
             'klasse_id' => 'required|exists:klassen,id',
             'group_id' => 'nullable|exists:paed_diary_class_groups,id',
+            'answer_order_mode' => 'nullable|in:' . implode(',', GradingDocumentationSession::ANSWER_ORDER_MODES),
         ]);
 
         $user = Auth::user();
         $klasse = $user->paed_klassen()->findOrFail($request->klasse_id);
+        $answerOrderMode = GradingDocumentationSession::normalizeAnswerOrderMode($request->input('answer_order_mode'));
 
         if (!$klasse->gradingSystem) {
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
@@ -70,6 +87,13 @@ class GradingDocumentationController extends Controller
             ->first();
 
         if ($existingSession) {
+            if ($existingSession->answer_order_mode !== $answerOrderMode) {
+                $existingSession->update([
+                    'answer_order_mode' => $answerOrderMode,
+                ]);
+                $existingSession->refresh();
+            }
+
             // Bestehende Session fortsetzen
             return response()->json([
                 'session' => $existingSession,
@@ -84,6 +108,7 @@ class GradingDocumentationController extends Controller
             'grading_system_id' => $klasse->grading_system_id,
             'user_id' => $user->id,
             'type' => 'group',
+            'answer_order_mode' => $answerOrderMode,
             'group_id' => $request->group_id,
             'started_at' => now(),
         ]);
@@ -120,7 +145,7 @@ class GradingDocumentationController extends Controller
         }
 
         // Debug: Log the data being passed to the view
-        \Log::info('Group Session Data:', [
+        Log::info('Group Session Data:', [
             'session_id' => $session->id,
             'klasse_id' => $session->klasse_id,
             'klasse_name' => $session->klasse->name,
@@ -180,7 +205,8 @@ class GradingDocumentationController extends Controller
                 $q->where('active', true)->orderBy('sort_order');
             },
             'studentAnswers',
-            'teacherAssessments'
+            'teacherAssessments',
+            'coachingNotes'
         ]);
 
         // Bei individueller Session nur den betroffenen Schüler laden
@@ -234,6 +260,35 @@ class GradingDocumentationController extends Controller
         );
 
         return response()->json(['assessment' => $assessment]);
+    }
+
+    /**
+     * Speichert das kurze Coaching-Protokoll für einen Schüler innerhalb einer Session
+     */
+    public function saveCoachingNote(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|exists:grading_documentation_sessions,id',
+            'schueler_id' => 'required|exists:schueler,id',
+            'note' => 'nullable|string|max:5000',
+        ]);
+
+        $session = GradingDocumentationSession::findOrFail($request->session_id);
+        $this->authorize('update', $session);
+
+        $note = GradingCoachingNote::updateOrCreate(
+            [
+                'session_id' => $request->session_id,
+                'schueler_id' => $request->schueler_id,
+            ],
+            [
+                'user_id' => Auth::id(),
+                'note' => $request->note,
+                'noted_at' => now(),
+            ]
+        );
+
+        return response()->json(['note' => $note]);
     }
 
     /**
@@ -294,6 +349,13 @@ class GradingDocumentationController extends Controller
             ->first();
 
         if ($existingSession) {
+            if ($existingSession->answer_order_mode !== GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT) {
+                $existingSession->update([
+                    'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
+                ]);
+                $existingSession->refresh();
+            }
+
             // Bestehende Session fortsetzen
             return response()->json([
                 'session' => $existingSession,
@@ -308,6 +370,7 @@ class GradingDocumentationController extends Controller
             'grading_system_id' => $klasse->grading_system_id,
             'user_id' => $user->id,
             'type' => 'individual',
+            'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
             'schueler_id' => $request->schueler_id,
             'started_at' => now(),
         ]);
@@ -356,13 +419,15 @@ class GradingDocumentationController extends Controller
             abort(403);
         }
 
-        $sessions = GradingDocumentationSession::where('klasse_id', $klasse->id)
-            ->where(function($q) use ($schueler) {
-                $q->where('type', 'group')
-                  ->orWhere(function($q2) use ($schueler) {
-                      $q2->where('type', 'individual')
-                         ->where('schueler_id', $schueler->id);
-                  });
+        // Gruppen-Sitzungen sind klassenspezifisch, individuelle Sitzungen dürfen NICHT
+        // zusätzlich auf die aktuelle klasse_id des Schülers eingeschränkt werden - sonst
+        // gehen individuelle Sitzungen aus einer früheren Klasse (Schuljahreswechsel) verloren.
+        $sessions = GradingDocumentationSession::where(function($q) use ($klasse, $schueler) {
+                $q->where(function($q2) use ($klasse) {
+                    $q2->where('type', 'group')->where('klasse_id', $klasse->id);
+                })->orWhere(function($q2) use ($schueler) {
+                    $q2->where('type', 'individual')->where('schueler_id', $schueler->id);
+                });
             })
             ->whereNotNull('completed_at')
             ->with([
@@ -372,6 +437,9 @@ class GradingDocumentationController extends Controller
                     $q->where('schueler_id', $schueler->id);
                 },
                 'teacherAssessments' => function($q) use ($schueler) {
+                    $q->where('schueler_id', $schueler->id);
+                },
+                'coachingNotes' => function($q) use ($schueler) {
                     $q->where('schueler_id', $schueler->id);
                 }
             ])
@@ -442,7 +510,7 @@ class GradingDocumentationController extends Controller
                 'expires_at' => now()->addHours(24)->toIso8601String(),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Fehler beim Generieren des QR-Tokens', [
+            Log::error('Fehler beim Generieren des QR-Tokens', [
                 'session_id' => $session->id ?? null,
                 'schueler_id' => $schueler->id ?? null,
                 'error' => $e->getMessage(),
@@ -525,6 +593,73 @@ class GradingDocumentationController extends Controller
         );
 
         return response()->json(['answer' => $answer]);
+    }
+
+    /**
+     * Öffnet eine abgeschlossene Session wieder
+     */
+    public function reopenSession(GradingDocumentationSession $session)
+    {
+        $this->authorize('update', $session);
+
+        // Prüfen ob Session wiedergeöffnet werden kann
+        if (!$session->canBeReopened()) {
+            $maxDays = settings('session_reopen_days', 'config.grading_documentation');
+            $daysSinceCompleted = $session->completed_at ? $session->completed_at->diffInDays(now()) : 0;
+
+            return response()->json([
+                'message' => "Die Session kann nicht wiedergeöffnet werden. Sie wurde vor {$daysSinceCompleted} Tagen abgeschlossen. Maximale Frist: {$maxDays} Tage."
+            ], 422);
+        }
+
+        if ($session->reopen()) {
+            return response()->json([
+                'message' => 'Session wurde erfolgreich wiedergeöffnet.',
+                'redirect' => $session->type === 'group'
+                    ? route('gradingDocumentation.groupSession', $session->id)
+                    : route('gradingDocumentation.individualSession', $session->id)
+            ]);
+        }
+
+        return response()->json(['message' => 'Fehler beim Wiederöffnen der Session.'], 500);
+    }
+
+    /**
+     * Aktualisiert die Beantwortungsreihenfolge einer offenen Session
+     */
+    public function updateAnswerOrderMode(Request $request, GradingDocumentationSession $session)
+    {
+        $this->authorize('update', $session);
+
+        if ($session->isCompleted()) {
+            return response()->json([
+                'message' => 'Die Beantwortungsreihenfolge kann bei abgeschlossenen Sessions nicht geändert werden.'
+            ], 422);
+        }
+
+        $request->validate([
+            'answer_order_mode' => 'required|in:' . implode(',', GradingDocumentationSession::ANSWER_ORDER_MODES),
+        ]);
+
+        $answerOrderMode = GradingDocumentationSession::normalizeAnswerOrderMode($request->input('answer_order_mode'));
+
+        if (!$session->canUseAnswerOrderMode($answerOrderMode)) {
+            return response()->json([
+                'message' => 'Für diese Session ist die gewählte Beantwortungsreihenfolge nicht verfügbar.'
+            ], 422);
+        }
+
+        $session->update([
+            'answer_order_mode' => $answerOrderMode,
+        ]);
+
+        $session->refresh();
+
+        return response()->json([
+            'message' => 'Die Beantwortungsreihenfolge wurde aktualisiert.',
+            'answer_order_mode' => $session->answer_order_mode,
+            'answer_order_mode_label' => $session->answer_order_mode_label,
+        ]);
     }
 }
 

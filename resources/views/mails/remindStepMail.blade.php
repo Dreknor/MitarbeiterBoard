@@ -233,12 +233,7 @@
 
                 <div class="action-section">
                     <a href="{{config('app.url')}}/procedure/{{$step['procedureId']}}/start" class="btn btn-primary">
-                        Prozess öffnen
-                    </a>
-                    &nbsp;&nbsp;
-                    <a href="{{config('app.url')}}/procedure/step/{{$step['stepId']}}/done/mail"
-                       class="btn btn-success">
-                        ✓ Als erledigt markieren
+                        Prozess öffnen &amp; Schritt als erledigt markieren
                     </a>
                 </div>
             </div>

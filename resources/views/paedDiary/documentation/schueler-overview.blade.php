@@ -43,6 +43,16 @@
                                                 <strong>Lehrer:</strong> {{ $session->user->name }}
                                             </p>
 
+                                            @php
+                                                $coachingNote = $session->coachingNotes->where('schueler_id', $schueler->id)->first();
+                                            @endphp
+                                            @if($coachingNote && $coachingNote->note)
+                                                <div class="alert alert-warning">
+                                                    <strong><i class="fas fa-clipboard"></i> Coaching-Protokoll:</strong>
+                                                    <div class="mt-1" style="white-space: pre-line;">{{ $coachingNote->note }}</div>
+                                                </div>
+                                            @endif
+
                                             <div class="table-responsive">
                                                 <table class="table table-sm table-bordered">
                                                     <thead class="thead-light">

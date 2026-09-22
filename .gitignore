@@ -26,7 +26,10 @@ Homestead.json
 *.xml
 *.iml
 
+docs/
 .idea/
 database/seeders/DiagnosticSeeder.php
 
 /public/build
+
+database/testing.sqlite

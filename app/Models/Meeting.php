@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Meeting extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'group_id',
@@ -20,6 +21,8 @@ class Meeting extends Model
         'cancelled',
         'cancelled_at',
         'cancelled_by',
+        'invitation_sent_at',
+        'invitation_sent_by',
     ];
 
     protected $casts = [
@@ -41,7 +44,9 @@ class Meeting extends Model
 
     public function scopeUpcoming($query)
     {
-        return $query->where('date', '>', now()->toDateString())
+        // Heutige Meetings gehören zu "upcoming" – ansonsten verschwinden
+        // sie zu früh aus der Dashboard-Card.
+        return $query->where('date', '>=', now()->toDateString())
                      ->orderBy('date')
                      ->orderBy('start_time');
     }
@@ -82,6 +87,16 @@ class Meeting extends Model
     public function meetingTasks()
     {
         return $this->hasMany(MeetingTask::class);
+    }
+
+    public function roomBooking()
+    {
+        return $this->hasOne(RoomBooking::class)->where('cancelled', false)->whereNull('deleted_at');
+    }
+
+    public function roomBookings()
+    {
+        return $this->hasMany(RoomBooking::class);
     }
 
 

@@ -13,7 +13,8 @@ class createRoomBookingRequest extends FormRequest
      */
     public function authorize()
     {
-        return auth()->user()->can('manage recurring themes');
+        return auth()->check()
+            && auth()->user()->canAny(['create roomBooking', 'manage rooms']);
     }
 
     /**
@@ -35,7 +36,9 @@ class createRoomBookingRequest extends FormRequest
             'name' => ['required', 'string'],
             'week' => ['nullable', 'string'],
             'is_recurring' => ['boolean'],
-            'booking_date' => ['nullable', 'date', 'required_if:is_recurring,false']
+            'booking_date' => ['nullable', 'date', 'required_if:is_recurring,false'],
+            'colliding_booking_id' => ['nullable', 'integer', 'exists:room_bookings,id'],
+            'ueberschreibe_wiederkehrend' => ['nullable', 'boolean'],
         ];
     }
 }

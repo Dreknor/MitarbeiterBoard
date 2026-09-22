@@ -19,13 +19,17 @@ class ImageController extends Controller
 
     public function getImage(Media $media_id)
     {
-        if ($media_id->model->share != null or (auth()->check()  )) {
-            #ToDo
-            //Gruppen und Benutzerrechte prüfen
+        // Eingeloggte Nutzer dürfen immer; sonst nur wenn öffentlich geteilt.
+        // optional() verhindert Fatal Error wenn model null ist.
+        if (auth()->check() || optional($media_id->model)->share !== null) {
+            $path = $media_id->getPath();
 
+            // Datei fehlt auf Dateisystem → sauberes 404 statt 500
+            if (!file_exists($path)) {
+                abort(404, 'Datei nicht gefunden');
+            }
 
-
-            $response = new BinaryFileResponse($media_id->getPath());
+            $response = new BinaryFileResponse($path);
             $response->headers->set('Content-Disposition', 'inline; filename="'.$media_id->file_name.'"');
 
             return $response;

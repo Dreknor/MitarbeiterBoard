@@ -1,0 +1,81 @@
+@extends('layouts.app')
+
+@push('css')
+    @vite('resources/css/meetings.css')
+@endpush
+
+@section('content')
+<div class="meeting-wrapper">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <a href="{{ route('meetings.index', ['group' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">
+            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
+        </a>
+        <h1 class="mtg-page-title text-xl font-bold text-gray-900">Aufgaben &amp; Rollen – {{ $meeting->title }}</h1>
+    </div>
+
+    <div class="mtg-card">
+        <div class="mtg-band mtg-band-upcoming">
+            <span class="text-sm">{{ $meeting->date->format('d.m.Y') }} · {{ $meeting->start_time }} – {{ $meeting->end_time }}</span>
+        </div>
+        <div class="p-5">
+            <div class="space-y-2 mb-6">
+                @forelse($tasks as $task)
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+                        <form action="{{ route('meetings.tasks.update', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}"
+                              method="POST" class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            @csrf
+                            @method('PUT')
+                            <select name="user_id" class="mtg-select">
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}" @if($task->user_id == $user->id) selected @endif>{{ $user->name }}</option>
+                                @endforeach
+                            </select>
+                            <input type="text" name="role" value="{{ $task->role }}" class="mtg-input" placeholder="Rolle">
+                            <input type="text" name="notes" value="{{ $task->notes }}" class="mtg-input" placeholder="Notizen">
+                            <div class="sm:col-span-3 flex justify-end">
+                                <button type="submit" class="mtg-btn mtg-btn-success mtg-btn-sm"><i class="fas fa-save"></i> Speichern</button>
+                            </div>
+                        </form>
+                        <form action="{{ route('meetings.tasks.delete', ['group' => $group->name, 'meeting' => $meeting->id, 'task' => $task->id]) }}"
+                              method="POST" onsubmit="return confirm('Wirklich löschen?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="mtg-btn-icon w-9 h-9 text-red-500 hover:bg-red-50" title="Löschen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                @empty
+                    <p class="text-sm text-gray-400 italic">Noch keine Aufgaben/Rollen vergeben.</p>
+                @endforelse
+            </div>
+
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Neue Aufgabe / Rolle</h4>
+            <form action="{{ route('meetings.tasks.add', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST"
+                  class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                @csrf
+                <div class="sm:col-span-2">
+                    <label class="mtg-label">Mitarbeiter</label>
+                    <select name="user_id" class="mtg-select" required>
+                        <option value="">Bitte wählen</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->id }}">{{ $user->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mtg-label">Rolle</label>
+                    <input type="text" name="role" class="mtg-input" placeholder="z. B. Protokollant" required>
+                </div>
+                <div>
+                    <label class="mtg-label">Notizen</label>
+                    <input type="text" name="notes" class="mtg-input" placeholder="optional">
+                </div>
+                <div class="sm:col-span-4 flex justify-end">
+                    <button type="submit" class="mtg-btn mtg-btn-primary mtg-btn-sm"><i class="fas fa-plus"></i> Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection

@@ -1,0 +1,71 @@
+/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "../views/rooms/**/*.blade.php";
+@source "../views/zeitraster/**/*.blade.php";
+
+/* Scope all Tailwind styles to rooms-wrapper only */
+.rooms-wrapper {
+    /* All Tailwind utilities work inside this wrapper */
+}
+
+/* Alpine.js Cloak */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Smooth transitions */
+.rooms-wrapper * {
+    transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Booking cell hover */
+.booking-cell:hover {
+    filter: brightness(1.05);
+    cursor: pointer;
+}
+
+/* Scrollbar styling for week table */
+.week-table-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+.week-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.week-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+}
+.week-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+
+/** Vertretungsplan-Buchung (orange) */
+.booking-vp {
+    background-color: #f59e0b;
+    color: #000;
+}
+
+/** VP-Stornierung / Raum frei durch Vertretungsplan (grün gestreift) */
+.booking-vp-cancelled {
+    background: repeating-linear-gradient(
+        45deg,
+        #d1fae5,
+        #d1fae5 5px,
+        #a7f3d0 5px,
+        #a7f3d0 10px
+    );
+    color: #065f46;
+}
+
+/** VP-Buchung mit Konflikt mit manueller Buchung (rot) */
+.booking-conflict {
+    background-color: #ef4444;
+    color: #fff;
+}
+

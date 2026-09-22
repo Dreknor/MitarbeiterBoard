@@ -10,11 +10,12 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Post extends Model implements HasMedia
 {
+    use HasFactory;
     use SoftDeletes;
     use InteractsWithMedia;
 
     protected $fillable = [
-      'author_id', 'header', 'text', 'released', 'created_at'
+      'author_id', 'header', 'text', 'released', 'archived', 'created_at'
     ];
 
     public function author(){

@@ -103,6 +103,49 @@
         </div>
 
     </div>
+    <div class="container-fluid mt-3">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h5 class="card-title">
+                    Rollen einer ganzen Gruppe zuweisen
+                </h5>
+                <p class="text-muted small mb-0">Fügt allen Mitarbeitern einer Gruppe die ausgewählten Rollen hinzu (bestehende Rollen bleiben erhalten).</p>
+            </div>
+            <div class="card-body">
+                <form action="{{url('roles/assign-to-group')}}" method="post">
+                    @csrf
+                    <div class="form-row align-items-end">
+                        <div class="col-md-4 mb-2">
+                            <label for="group_id"><strong>Gruppe</strong></label>
+                            <select name="group_id" id="group_id" class="custom-select" required>
+                                <option value="" disabled selected>Gruppe wählen…</option>
+                                @foreach($groups as $group)
+                                    <option value="{{$group->id}}">{{$group->name}} ({{$group->users->count()}} Mitarbeiter)</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label><strong>Rollen</strong></label>
+                            <div class="border rounded p-2" style="max-height:180px; overflow-y:auto;">
+                                @foreach($roles as $role)
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="roles[]" value="{{$role->name}}" id="grp_role_{{$role->id}}">
+                                        <label class="form-check-label" for="grp_role_{{$role->id}}">{{$role->name}}</label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="col-md-2 mb-2">
+                            <button type="submit" class="btn btn-warning btn-block"
+                                onclick="return confirm('Die ausgewählten Rollen werden allen Mitarbeitern dieser Gruppe hinzugefügt. Fortfahren?')">
+                                <i class="fas fa-users-cog"></i> Zuweisen
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('js')

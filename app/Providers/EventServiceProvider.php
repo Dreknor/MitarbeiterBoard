@@ -18,7 +18,6 @@ use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +27,13 @@ use Spatie\Permission\Models\Role;
 class EventServiceProvider extends ServiceProvider
 {
     /**
+     * Event-Subscriber (hören auf mehrere Events).
+     */
+    protected $subscribe = [
+        LogEmail::class,
+    ];
+
+    /**
      * The event listener mappings for the application.
      *
      * @var array
@@ -36,12 +42,31 @@ class EventServiceProvider extends ServiceProvider
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],
-        MessageSending::class => [
-           LogEmail::class,
-        ],
 
         \SocialiteProviders\Manager\SocialiteWasCalled::class => [
             \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class.'@handle',
+        ],
+
+        // Personal-Module Events (Listener-Implementierung folgt in späteren Phasen)
+        \App\Events\Personal\EmploymentCreated::class => [
+            \App\Listeners\Personal\CreateNextcloudFolder::class,
+            \App\Listeners\Personal\InitMissingQualifications::class,
+            \App\Listeners\Personal\StartOnboardingProcess::class,
+            \App\Listeners\Personal\CreateProbationReminder::class,
+        ],
+        \App\Events\Personal\EmploymentTerminated::class => [
+            \App\Listeners\Personal\StartOffboardingProcess::class,
+            \App\Listeners\Personal\MoveNextcloudFolder::class,
+            \App\Listeners\Personal\CreateRetentionReminders::class,
+        ],
+        \App\Events\Personal\ProcedureStepCompleted::class => [
+            \App\Listeners\Personal\UpdateQualificationFromStep::class,
+        ],
+        \App\Events\Personal\EmployeeNameChanged::class => [
+            \App\Listeners\Personal\RenameNextcloudFolder::class,
+        ],
+        \App\Events\Personal\EmploymentStatusChanged::class => [
+            \App\Listeners\Personal\InvalidateScopeCache::class,
         ],
     ];
 

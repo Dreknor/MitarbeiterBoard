@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\GradingStage;
 
 class GradingSystem extends Model
 {
+    use HasFactory;
     protected $table = 'grading_systems';
 
     protected $fillable = ['name','slug','description','active'];

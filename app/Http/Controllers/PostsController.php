@@ -87,6 +87,22 @@ class PostsController extends Controller
     }
 
 
+    public function archive(Post $post){
+        if (! auth()->user()->can('create posts') || auth()->id() != $post->author_id){
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $post->update(['archived' => 1]);
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Nachricht archiviert'
+        ]);
+    }
+
     public function release(Post $post){
         if (! auth()->id() == $post->author_id){
             return redirect()->back()->with([
