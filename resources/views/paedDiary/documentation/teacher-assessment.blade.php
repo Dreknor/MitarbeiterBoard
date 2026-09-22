@@ -15,12 +15,12 @@
                             </div>
                         </div>
                         @if($session->type === 'group')
-                            <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="btn btn-outline-light btn-sm back-btn">
-                                <i class="fas fa-arrow-left"></i> <span class="d-none d-md-inline">Zurück</span>
+                            <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="back-btn inline-flex items-center gap-2">
+                                <i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Zurück</span>
                             </a>
                         @elseif($session->type === 'individual')
-                            <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="btn btn-outline-light btn-sm back-btn">
-                                <i class="fas fa-arrow-left"></i> <span class="d-none d-md-inline">Zurück</span>
+                            <a href="{{ route('gradingDocumentation.individualSession', $session->id) }}" class="back-btn inline-flex items-center gap-2">
+                                <i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Zurück</span>
                             </a>
                         @endif
                     </div>
@@ -41,8 +41,7 @@
                             <span id="autoScrollText">Auto-Scroll: An</span>
                         </div>
                     </div>
-
-                    @if($session->type === 'group')
+                    @if($session->type == 'group')
                         <div class="answer-order-toolbar mb-3">
                             <div>
                                 <div class="answer-order-title">
@@ -51,14 +50,22 @@
                                 </div>
                                 <small class="text-muted" id="answerOrderDescription"></small>
                             </div>
-                            <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group" aria-label="Beantwortungsreihenfolge">
-                                <button type="button" class="btn btn-outline-primary" id="orderByStudentButton">Schülerweise</button>
-                                <button type="button" class="btn btn-outline-primary" id="orderByQuestionButton">Fragenweise</button>
+                            <div class="flex flex-wrap gap-2 mt-2 md:mt-0" role="group" aria-label="Beantwortungsreihenfolge">
+                                <button type="button" class="answer-order-button" id="orderByStudentButton">Schülerweise</button>
+                                <button type="button" class="answer-order-button" id="orderByQuestionButton">Fragenweise</button>
                             </div>
                         </div>
 
                         <div class="question-cycle-banner mb-3" id="questionCycleBanner" style="display: none;"></div>
                     @endif
+
+                    <div class="question-navigation mb-3" id="questionNavigation">
+                        <div class="question-navigation-label">
+                            <i class="fas fa-list-ol text-primary"></i>
+                            <strong>Direkt zu Frage springen</strong>
+                        </div>
+                        <div class="question-navigation-buttons" id="questionNavigationButtons"></div>
+                    </div>
 
                     <!-- Fortschrittsanzeige -->
                     <div class="progress-section mb-3">
@@ -92,10 +99,10 @@
 
                     <!-- Sticky Footer mit Aktionsbuttons -->
                     <div class="action-footer">
-                        <button id="skipButton" class="btn btn-warning btn-action">
+                        <button id="skipButton" class="flex-1 max-w-[250px] px-4 py-2.5 text-sm font-medium text-[#212529] bg-white border-2 border-[#e9ecef] rounded-[8px] inline-flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 hover:border-[#0d6efd] hover:text-[#0d6efd] disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-forward"></i> Überspringen
                         </button>
-                        <button id="completeButton" class="btn btn-success btn-action" disabled>
+                        <button id="completeButton" class="flex-1 max-w-[250px] px-4 py-2.5 text-sm font-medium text-[#0d6efd] bg-white border-2 border-[#0d6efd] rounded-[8px] inline-flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 hover:bg-[#0d6efd] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-check"></i> Abschließen
                         </button>
                     </div>
@@ -162,7 +169,9 @@
         answerOrderDescription: document.getElementById('answerOrderDescription'),
         orderByStudentButton: document.getElementById('orderByStudentButton'),
         orderByQuestionButton: document.getElementById('orderByQuestionButton'),
-        questionCycleBanner: document.getElementById('questionCycleBanner')
+        questionCycleBanner: document.getElementById('questionCycleBanner'),
+        questionNavigation: document.getElementById('questionNavigation'),
+        questionNavigationButtons: document.getElementById('questionNavigationButtons')
     };
 
     function getCurrentSchueler() {
@@ -318,6 +327,27 @@
         return schueler.filter(currentSchueler => !!getTeacherRating(currentSchueler.id, questionId)).length;
     }
 
+    function goToQuestion(questionIndex) {
+        if (loading || questionIndex < 0 || questionIndex >= questions.length) return;
+
+        currentQuestionIndex = questionIndex;
+        render();
+
+        setTimeout(() => {
+            const targetCard = document.querySelector(`.question-card[data-question-index="${questionIndex}"]`);
+            if (!targetCard) return;
+
+            targetCard.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            targetCard.classList.add('highlight-question');
+            setTimeout(() => {
+                targetCard.classList.remove('highlight-question');
+            }, 1500);
+        }, 50);
+    }
+
     function skipCurrentStudent() {
         if (loading) return;
 
@@ -351,6 +381,59 @@
         currentSchuelerIndex = nextIndex;
         currentQuestionIndex = getFirstUnansweredQuestionIndexForStudent(nextIndex);
         render();
+    }
+
+    /**
+     * Reine Vorwärtsnavigation ohne Suche nach offenen Bewertungen: springt zum
+     * nächsten Kind (bzw. bei der letzten/dem letzten zur nächsten Frage/zum ersten Kind).
+     * Wird verwendet, wenn die aktuelle Bewertung bereits erfasst ist ("Weiter"-Zustand),
+     * damit der Button nicht ins Leere läuft, sobald keine offenen Bewertungen mehr existieren.
+     */
+    function goToNextStep() {
+        if (loading) return;
+
+        if (isQuestionOrderMode()) {
+            let nextSchuelerIndex = currentSchuelerIndex + 1;
+            let nextQuestionIndex = currentQuestionIndex;
+
+            if (nextSchuelerIndex >= schueler.length) {
+                nextSchuelerIndex = 0;
+                nextQuestionIndex = (currentQuestionIndex + 1) % questions.length;
+            }
+
+            currentSchuelerIndex = nextSchuelerIndex;
+            currentQuestionIndex = nextQuestionIndex;
+        } else {
+            let nextQuestionIndex = currentQuestionIndex + 1;
+            let nextSchuelerIndex = currentSchuelerIndex;
+
+            if (nextQuestionIndex >= questions.length) {
+                nextQuestionIndex = 0;
+                nextSchuelerIndex = (currentSchuelerIndex + 1) % schueler.length;
+            }
+
+            currentQuestionIndex = nextQuestionIndex;
+            currentSchuelerIndex = nextSchuelerIndex;
+        }
+
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function handleSkipButtonClick() {
+        if (loading) return;
+
+        const currentStepAssessed = !!getTeacherRating(
+            schueler[currentSchuelerIndex]?.id,
+            questions[currentQuestionIndex]?.id
+        );
+
+        if (currentStepAssessed) {
+            goToNextStep();
+            return;
+        }
+
+        skipCurrentStudent();
     }
 
     function scrollToNextQuestion(currentQuestionId) {
@@ -430,10 +513,17 @@
         elements.orderByStudentButton.classList.toggle('active', !isQuestionOrderMode());
         elements.orderByQuestionButton.classList.toggle('active', isQuestionOrderMode());
 
+        const currentStepAssessed = !!getTeacherRating(
+            schueler[currentSchuelerIndex]?.id,
+            questions[currentQuestionIndex]?.id
+        );
+
         if (elements.skipButton) {
+            elements.skipButton.classList.toggle('border-[#0d6efd]', currentStepAssessed);
+            elements.skipButton.classList.toggle('text-[#0d6efd]', currentStepAssessed);
             elements.skipButton.innerHTML = isQuestionOrderMode()
-                ? '<i class="fas fa-forward"></i> Ohne Bewertung weiter'
-                : '<i class="fas fa-forward"></i> Überspringen';
+                ? `<i class="fas fa-forward"></i> ${currentStepAssessed ? 'Weiter' : 'Ohne Bewertung weiter'}`
+                : `<i class="fas fa-forward"></i> ${currentStepAssessed ? 'Weiter' : 'Überspringen'}`;
         }
     }
 
@@ -460,6 +550,39 @@
             <div class="question-cycle-text">${currentQuestion.question}</div>
             <div class="question-cycle-progress">${completedForQuestion} von ${schueler.length} Schülern bewertet</div>
         `;
+    }
+
+    function renderQuestionNavigation() {
+        if (!elements.questionNavigation || !elements.questionNavigationButtons) return;
+
+        if (sessionType !== 'group' || !isQuestionOrderMode() || questions.length <= 1) {
+            elements.questionNavigation.style.display = 'none';
+            elements.questionNavigationButtons.innerHTML = '';
+            return;
+        }
+
+        elements.questionNavigation.style.display = 'block';
+        elements.questionNavigationButtons.innerHTML = '';
+
+        questions.forEach((question, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'question-nav-btn';
+            button.textContent = index + 1;
+            button.title = question.question;
+            button.setAttribute('aria-label', `Zu Frage ${index + 1} springen`);
+
+            if (index === currentQuestionIndex) {
+                button.classList.add('active');
+            }
+
+            if (getQuestionCompletionCount(question.id) === schueler.length) {
+                button.classList.add('completed');
+            }
+
+            button.addEventListener('click', () => goToQuestion(index));
+            elements.questionNavigationButtons.appendChild(button);
+        });
     }
 
     async function updateAnswerOrderMode(mode) {
@@ -817,6 +940,7 @@
             const qIndex = questions.findIndex(currentItem => currentItem.id === question.id);
             const card = document.createElement('div');
             card.className = 'question-card mb-3';
+            card.dataset.questionIndex = String(qIndex);
 
             const questionHeader = document.createElement('div');
             questionHeader.className = 'question-header';
@@ -916,6 +1040,7 @@
         updateProgress();
         renderAnswerOrderControls();
         renderQuestionCycleBanner();
+        renderQuestionNavigation();
         renderStudentSelect();
         renderTabs();
         renderTabContent();
@@ -927,7 +1052,7 @@
     }
 
     if (elements.skipButton) {
-        elements.skipButton.addEventListener('click', skipCurrentStudent);
+        elements.skipButton.addEventListener('click', handleSkipButtonClick);
     }
 
     if (elements.orderByStudentButton) {
@@ -1028,6 +1153,25 @@
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
+}
+
+.answer-order-button {
+    padding: 0.5rem 0.875rem;
+    color: var(--primary);
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.answer-order-button:hover,
+.answer-order-button.active {
+    color: white;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .header-info {
@@ -1163,6 +1307,57 @@
 
 .question-cycle-progress {
     font-size: 0.9rem;
+}
+
+.question-navigation {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.question-navigation-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.question-navigation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.question-nav-btn {
+    min-width: 42px;
+    height: 42px;
+    border: 2px solid #e9ecef;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--dark);
+    font-weight: 700;
+    transition: var(--transition);
+}
+
+.question-nav-btn:hover {
+    border-color: var(--primary);
+    background: #f0f7ff;
+    transform: translateY(-1px);
+}
+
+.question-nav-btn.completed {
+    border-color: var(--success);
+    color: var(--success);
+    background: #edf9f1;
+}
+
+.question-nav-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
 }
 
 /* Fortschrittsanzeige */
@@ -1545,36 +1740,6 @@
     justify-content: center;
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
     z-index: 10;
-}
-
-.btn-action {
-    flex: 1;
-    max-width: 250px;
-    padding: 0.85rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 10px;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: var(--transition);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.btn-action:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
-
-.btn-action:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-action i {
-    font-size: 1.1rem;
 }
 
 /* Responsive Anpassungen */

@@ -20,6 +20,7 @@ export function registerStageDropdown(Alpine) {
         dropdownLeft: 0,
         triggerEl: null,
         _repositionHandler: null,
+        _closeOnPointerDown: null,
 
         /**
          * Gibt HTML für das Stufen-Symbol eines Schülers zurück.
@@ -62,6 +63,18 @@ export function registerStageDropdown(Alpine) {
             this._repositionHandler = () => this.computePosition();
             window.addEventListener('scroll', this._repositionHandler, true);
             window.addEventListener('resize', this._repositionHandler);
+            this._closeOnPointerDown = (event) => {
+                const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+                const clickedInsideDropdown = path.some((element) => {
+                    return element instanceof Element && element.classList.contains('paed-stage-dropdown');
+                });
+                const clickedTrigger = this.triggerEl && (event.target === this.triggerEl || this.triggerEl.contains(event.target));
+
+                if (!clickedInsideDropdown && !clickedTrigger) {
+                    this.closeDropdown();
+                }
+            };
+            document.addEventListener('pointerdown', this._closeOnPointerDown);
 
             try {
                 const resp = await fetch(`/paed-diary/klasse/${klasseId}/stages`, {
@@ -87,6 +100,10 @@ export function registerStageDropdown(Alpine) {
                 window.removeEventListener('scroll', this._repositionHandler, true);
                 window.removeEventListener('resize', this._repositionHandler);
                 this._repositionHandler = null;
+            }
+            if (this._closeOnPointerDown) {
+                document.removeEventListener('pointerdown', this._closeOnPointerDown);
+                this._closeOnPointerDown = null;
             }
         },
 
@@ -161,4 +178,3 @@ export function registerStageDropdown(Alpine) {
         },
     }));
 }
-
