@@ -641,7 +641,7 @@ class PaedDiaryController extends Controller
         if ($isGroup) {
             $group = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
-            $isDossierOnly = $request->has('dossier_only') ? true : false;
+            $isDossierOnly = $request->boolean('dossier_only');
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 $schuelerIds = Schueler::whereIn('id', $validated['schueler_ids'])
                     ->where('klasse_id', $klasse->id)->pluck('id')->all();
@@ -651,7 +651,7 @@ class PaedDiaryController extends Controller
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
+                    'completed_at' => ($isDossierOnly || $request->boolean('completed')) ? Carbon::now() : null,
                     'category_id' => $categoryId,
                     'dossier_only' => $isDossierOnly,
                 ]);
@@ -681,13 +681,13 @@ class PaedDiaryController extends Controller
 
         foreach ($byClass as $klasseId => $students) {
             try {
-                $isDossierOnly = $request->has('dossier_only') ? true : false;
+                $isDossierOnly = $request->boolean('dossier_only');
                 $entry = PaedDiaryEntry::create([
                     'klasse_id' => $klasseId,
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
+                    'completed_at' => ($isDossierOnly || $request->boolean('completed')) ? Carbon::now() : null,
                     'category_id' => $categoryId,
                     'dossier_only' => $isDossierOnly,
                 ]);
@@ -752,9 +752,9 @@ class PaedDiaryController extends Controller
         }
 
         $wasCompleted = (bool)$entry->completed_at;
-        $isDossierOnly = $request->has('dossier_only') ? true : false;
+        $isDossierOnly = $request->boolean('dossier_only');
         $completedAt = $entry->completed_at;
-        if ($isDossierOnly || $request->has('completed')) {
+        if ($isDossierOnly || $request->boolean('completed')) {
             if (!$entry->completed_at) {
                 $completedAt = \Carbon\Carbon::now();
             }
@@ -1832,7 +1832,6 @@ class PaedDiaryController extends Controller
         $schueler = Schueler::findOrFail($data['schueler_id']);
         $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
 
-        $previous = $schueler->grading_stage_id;
         $newStage = null;
         if (!empty($data['grading_stage_id'])) {
             $newStage = GradingStage::findOrFail($data['grading_stage_id']);
@@ -1842,61 +1841,19 @@ class PaedDiaryController extends Controller
             }
         }
 
-        // Update Schüler and create history + optional diary entry in a transaction
-        $paedEntryId = $data['paed_diary_entry_id'] ?? null;
-        DB::beginTransaction();
+        // Stufenwechsel inkl. Historie und automatischem Tagebucheintrag (gemeinsamer Service mit API v1)
         try {
-            // Update student
-            $schueler->grading_stage_id = $data['grading_stage_id'] ?? null;
-            $schueler->save();
-
-            // If no paed_diary_entry_id provided, create an automatic diary entry describing the change
-            if (empty($paedEntryId)) {
-                $prevStageName = null;
-                if (!empty($previous)) {
-                    $prev = GradingStage::find($previous);
-                    $prevStageName = $prev?->name;
-                }
-                $newStageName = $newStage?->name ?? null;
-                $userId = $user->id ?? null;
-                $studentName = $schueler->vorname . ' ' . $schueler->nachname;
-                $parts = [];
-                if ($prevStageName) $parts[] = 'von "' . $prevStageName . '"';
-                if ($newStageName) $parts[] = 'auf "' . $newStageName . '"';
-                $changeText = 'Stufe geändert ' . ($parts ? implode(' ', $parts) : '') . ' für ' . $studentName . '.';
-
-                $entry = PaedDiaryEntry::create([
-                    'klasse_id' => $klasse->id,
-                    'user_id' => $userId,
-                    'datum' => now(),
-                    'content' => $changeText,
-                    'completed_at' => Carbon::now()
-                ]);
-                // attach the student
-                $entry->schueler()->sync([$schueler->id]);
-                $paedEntryId = $entry->id;
-            }
-
-            // History anlegen und mit dem Tagebucheintrag verknüpfen
-            SchuelerGradingHistory::create([
-                'schueler_id' => $schueler->id,
-                'grading_system_id' => $klasse->grading_system_id,
-                'grading_stage_id' => $data['grading_stage_id'] ?? null,
-                'previous_grading_stage_id' => $previous,
-                'changed_by' => $user->id,
-                'paed_diary_entry_id' => $paedEntryId,
-                'created_at' => now()
-            ]);
-
-            DB::commit();
+            app(\App\Services\GradingStageService::class)->changeStage(
+                $schueler,
+                $newStage,
+                $user,
+                $klasse,
+                $data['paed_diary_entry_id'] ?? null
+            );
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('changeSchuelerStage failed: ' . $e->getMessage());
             return response()->json(['message' => 'Fehler beim Anlegen des Tagebucheintrags'], 500);
         }
-
-        // Cache invalideren
-        $this->forgetWeekCache($klasse->id, Carbon::now());
 
         return response()->json(['success' => true, 'new_stage' => $newStage ? ['id' => $newStage->id, 'name' => $newStage->name, 'symbol' => $newStage->symbol, 'image_url' => $newStage->image_url] : null]);
     }
@@ -1932,7 +1889,7 @@ class PaedDiaryController extends Controller
                 'stages' => GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get(),
             ]);
 
-            return response()->json(['message' => $e], 500);
+            return response()->json(['message' => 'Stufen konnten nicht geladen werden.'], 500);
         }
 
     }
@@ -2092,67 +2049,8 @@ class PaedDiaryController extends Controller
      */
     private function finalizeEntry(PaedDiaryEntry $entry): void
     {
-        // Angepasst: pausierte Tage pro Schüler berücksichtigen
-        $klasseId = $entry->klasse_id;
-        $start = \Carbon\Carbon::parse($entry->datum)->startOfDay();
-        $completedDate = $entry->completed_at?->copy()->startOfDay();
-        if(!$completedDate){
-            // Wenn kein Abschlussdatum vorhanden, keine Finalisierung (Sicherheitsnetz)
-            return;
-        }
-        if ($completedDate->lt($start)) {
-            $completedDate = $start->copy();
-        }
-        $entry->loadMissing('schueler','pauses');
-        $allStudentIds = $entry->schueler->pluck('id')->all();
-        // Pausen gruppieren: [schueler_id][Y-m-d] => true
-        $pauseMap = [];
-        foreach($entry->pauses as $pause){
-            $pauseMap[$pause->schueler_id][$pause->date->toDateString()] = true;
-        }
-        // Start-Tag: entferne pausierte Schüler am Starttag aus Pivot
-        $startDateStr = $start->toDateString();
-        $keepStartStudents = array_filter($allStudentIds, fn($sid)=> empty($pauseMap[$sid][$startDateStr]));
-        if(count($keepStartStudents) !== count($allStudentIds)){
-            $entry->schueler()->sync($keepStartStudents);
-        }
-        // Falls keine Schüler mehr übrig -> Eintrag löschen
-        if(empty($keepStartStudents)){
-            $entry->schueler()->detach();
-            $entry->delete();
-        }
-        // Weitere Tage (exklusive Start) bis einschließlich completedDate
-        for($d = $start->copy()->addDay(); $d->lte($completedDate); $d->addDay()){
-            $dateStr = $d->toDateString();
-            // Schüler ohne Pause an diesem Tag
-            $activeStudents = array_filter($allStudentIds, function($sid) use ($pauseMap, $dateStr) { return empty($pauseMap[$sid][$dateStr]); });
-            if(empty($activeStudents)) continue; // nichts einzutragen
-            // Prüfen ob bereits ein Eintrag mit gleichem Inhalt (und gleicher Kategorie) für (alle) diese Schüler existiert
-            $existing = PaedDiaryEntry::where('klasse_id',$klasseId)
-                ->whereDate('datum',$dateStr)
-                ->where('content',$entry->content)
-                ->when($entry->category_id === null, function($q){ $q->whereNull('category_id'); }, function($q) use ($entry){ $q->where('category_id',$entry->category_id); })
-                ->whereHas('schueler', function($q) use ($activeStudents){ $q->whereIn('schueler.id',$activeStudents); })
-                ->first();
-            if($existing){
-                // sicherstellen dass alle activeStudents verknüpft sind
-                $merged = array_unique(array_merge($existing->schueler()->pluck('schueler.id')->all(), $activeStudents));
-                $existing->schueler()->sync($merged);
-                continue;
-            }
-            $newEntry = PaedDiaryEntry::create([
-                'klasse_id'=>$klasseId,
-                'user_id'=>$entry->user_id,
-                'datum'=>$dateStr,
-                'content'=>$entry->content,
-                'completed_at'=>$entry->completed_at,
-                'category_id'=>$entry->category_id,
-                'dossier_only'=>$entry->dossier_only,
-            ]);
-            $newEntry->schueler()->sync($activeStudents);
-        }
-        $this->forgetWeekCache($klasseId, $start);
-        $this->forgetWeekCache($klasseId, $completedDate);
+        // Logik in PaedDiaryEntryService ausgelagert (gemeinsam genutzt mit API v1)
+        app(\App\Services\PaedDiaryEntryService::class)->finalize($entry);
     }
 
     /**

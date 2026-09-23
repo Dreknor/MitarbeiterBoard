@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -31,6 +32,7 @@ use Staudenmeir\EloquentHasManyDeep\HasRelationships;
  */
 class User extends Authenticatable implements HasMedia
 {
+    use HasApiTokens;
     use HasFactory;
     use Notifiable;
     use HasRoles;
@@ -459,6 +461,61 @@ class User extends Authenticatable implements HasMedia
     public function paed_diary_class_groups()
     {
         return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
+    }
+
+    // ── API v1 (Pädagogen-App): Sonderrechte ──────────────────────────────
+
+    /**
+     * Klassenübergreifender Zugriff auf alle Schüler (Schulleitung / Admin).
+     */
+    public function canAccessAllStudents(): bool
+    {
+        return $this->hasRole('Admin') || $this->safeHasPermission('view all students');
+    }
+
+    /**
+     * Einsicht in vertrauliche Tagebucheinträge (dossier_only = true) fremder Autoren.
+     */
+    public function canViewConfidentialDiaryEntries(): bool
+    {
+        return $this->hasRole('Admin') || $this->safeHasPermission('view confidential diary entries');
+    }
+
+    /**
+     * Prüft, ob der Benutzer einer Klasse im Pädagogischen Tagebuch zugeordnet ist
+     * oder klassenübergreifende Rechte besitzt.
+     */
+    public function hasPaedClassAccess(?int $klasseId): bool
+    {
+        if ($this->canAccessAllStudents()) {
+            return true;
+        }
+        if (!$klasseId) {
+            return false;
+        }
+
+        return $this->paed_klassen()->where('klassen.id', $klasseId)->exists();
+    }
+
+    /**
+     * IDs der zugeordneten Klassen im Pädagogischen Tagebuch.
+     */
+    public function paedKlassenIds(): \Illuminate\Support\Collection
+    {
+        return $this->paed_klassen()->pluck('klassen.id')->map(fn ($id) => (int) $id);
+    }
+
+    /**
+     * hasPermissionTo() wirft eine Exception, wenn die Permission (noch) nicht existiert –
+     * z.B. wenn die Migration noch nicht gelaufen ist. Hier wird dann false geliefert.
+     */
+    private function safeHasPermission(string $permission): bool
+    {
+        try {
+            return $this->hasPermissionTo($permission);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+            return false;
+        }
     }
 
     // ── Kalender-Modul ────────────────────────────────────────────────────

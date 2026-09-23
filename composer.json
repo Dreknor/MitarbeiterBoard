@@ -22,6 +22,7 @@
         "h4cc/wkhtmltopdf-amd64": "^0.12.4",
         "laravel-notification-channels/webpush": "^7.0",
         "laravel/framework": "^10.0",
+        "laravel/sanctum": "^3.3",
         "laravel/scout": "^10.0",
         "laravel/tinker": "^2.5",
         "laravel/ui": "^4.0",

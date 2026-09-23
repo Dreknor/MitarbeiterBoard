@@ -9,9 +9,11 @@ Laravel 10 school intranet ("MitarbeiterBoard") for the Evangelisches Schulzentr
 - **Monolith** – single Laravel app, server-rendered Blade views, no SPA. Alpine.js handles interactive UI (diagnostics, wochenplan, sidebar).
 - **Dual CSS** – Legacy pages use Bootstrap 4 (`public/css/`). Newer modules (diagnostics, paedDiary, wochenplan, rooms, sidebar) use Tailwind v4 via Vite. Tailwind preflight is **disabled** (`corePlugins.preflight: false`) to avoid Bootstrap conflicts. Tailwind is scoped via wrapper classes (e.g. `.diagnostic-wrapper`).
 - **Vite entrypoints** are per-module, not a single bundle – see `vite.config.js`. Views load assets with `@vite()` and `@push('css')`/`@push('js')`.
-- **Authorization** uses `spatie/laravel-permission` (RBAC). Permissions are checked via route middleware (`permission:view wiki`) and in controllers. Policies exist only for `DiagnosticSession`, `DiagnosticArea`, `GradingDocumentationSession`.
+- **Authorization** uses `spatie/laravel-permission` (RBAC). Permissions are checked via route middleware (`permission:view wiki`) and in controllers. Policies exist for `DiagnosticSession`, `DiagnosticArea`, `GradingDocumentationSession`, Procedures, Personal and (API v1) `Schueler` (`StudentPolicy`) and `PaedDiaryEntry` (`PaedDiaryPolicy`).
 - **SSO** via SAML2 (`aacotroneo/laravel-saml2`) and Keycloak (`socialiteproviders/keycloak`). Local auth can be toggled via `AUTH_LOCAL` env.
 - **Dashboard** is card-based, powered by View Composers (`app/View/Composers/`) registered in `ViewServiceProvider`. Each card is a Blade partial.
+
+- **REST API v1** (Pädagogen-App) under `/api/v1`, Laravel Sanctum bearer tokens (`auth:sanctum` + `permission:view paed diary`). Controllers in `app/Http/Controllers/API/v1/`, Form Requests in `app/Http/Requests/API/v1/`, Resources in `app/Http/Resources/API/v1/`, shared queries in `app/Services/Api/StudentDataService.php`. Spec: `resources/api-docs/openapi-v1.yaml`, tests: `tests/Feature/API/v1/`. Keep the OpenAPI file in sync when changing endpoints.
 
 ## Key Directories
 
