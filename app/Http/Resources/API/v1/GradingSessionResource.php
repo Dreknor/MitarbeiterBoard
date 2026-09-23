@@ -21,6 +21,8 @@ class GradingSessionResource extends JsonResource
             'answer_order_mode' => $this->answer_order_mode,
             'class_id' => $this->klasse_id,
             'schueler_id' => $this->schueler_id,
+            'group_id' => $this->group_id,
+            'current_question_id' => $this->usesQuestionOrder() && $this->current_question_id ? (int) $this->current_question_id : null,
             'grading_system' => $this->whenLoaded('gradingSystem', fn () => [
                 'id' => $this->gradingSystem->id,
                 'name' => $this->gradingSystem->name,
@@ -47,7 +49,9 @@ class GradingSessionResource extends JsonResource
                     ? $this->studentAnswers->keyBy(fn ($a) => $a->schueler_id . '-' . $a->question_id)
                     : collect();
 
-                $keys = $this->teacherAssessments->map(fn ($a) => $a->schueler_id . '-' . $a->question_id)
+                // toBase(): Eine leere Eloquent-Collection bliebe nach map() eine Eloquent-Collection,
+                // deren merge() mit String-Schlüsseln fehlschlägt (nur Selbsteinschätzungen vorhanden).
+                $keys = $this->teacherAssessments->toBase()->map(fn ($a) => $a->schueler_id . '-' . $a->question_id)
                     ->merge($selfRatings->keys())->unique();
 
                 $teacher = $this->teacherAssessments->keyBy(fn ($a) => $a->schueler_id . '-' . $a->question_id);

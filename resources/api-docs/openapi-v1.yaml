@@ -1,12 +1,31 @@
 openapi: 3.0.3
 info:
   title: MitarbeiterBoard – Pädagogen-App API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier).
 
+    **Serverwahl:** `GET /instance` (öffentlich) liefert Schulname, Logo, API-Version und verfügbare Login-Arten.
+
     **Authentifizierung:** Laravel Sanctum – `Authorization: Bearer <token>`.
-    Tokens werden über `POST /auth/token` ausgestellt (nur Konten mit lokalem Passwort).
+    Tokens werden über `POST /auth/token` (lokales Passwort) oder den SSO-Ablauf
+    `GET /auth/sso/start` → `POST /auth/sso/exchange` (Schulkonto/Keycloak, PKCE) ausgestellt.
+    App-Tokens laufen nach 90 Tagen ohne Nutzung ab (`PAED_APP_TOKEN_DAYS`); jede Nutzung verlängert
+    die Laufzeit (höchstens ein Schreibzugriff pro Tag). Abgelaufene Tokens → 401.
+
+    **Idempotenz:** Schreibende Aufrufe (POST/PUT/PATCH/DELETE, außer `/auth/*`) akzeptieren den optionalen
+    Header `Idempotency-Key` (UUID). Wiederholungen mit gleichem Key und gleichem Body liefern die gespeicherte
+    Antwort unverändert (Header `Idempotent-Replayed: true`); gleicher Key mit anderem Body → 422;
+    parallele Anfrage mit gleichem Key → 409. Gespeichert werden nur 2xx-Antworten (48 h).
+
+    **Konfliktschutz:** `PUT /paed-diary/entries/{id}` und `PUT /diagnostic/goals/{id}` akzeptieren
+    `expected_updated_at`. Weicht es vom gespeicherten Stand ab → 409 mit aktuellem Datensatz in `data`.
+
+    **Caching/Delta:** Kataloge (`/paed-diary/categories`, `/diagnostic/areas`, `/grading/stages`) liefern
+    einen `ETag`; mit `If-None-Match` → 304. Listen von Tagebuch und Diagnosehistorie unterstützen `updated_since`.
+
+    **Schüler-iPads:** Schüler-Tokens (`POST /student/join`) gelten ausschließlich für `/student/*`;
+    alle übrigen Endpunkte antworten mit 403.
 
     **Rechte:**
     - `view paed diary` – Grundvoraussetzung für alle Endpunkte (Lehrkräfte/Erzieher).
@@ -24,6 +43,7 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: Instanz
   - name: Auth
   - name: Klassen
   - name: Schüler-View
@@ -31,14 +51,32 @@ tags:
   - name: Graduierung
   - name: Diagnose
   - name: Dossier
+  - name: Schüler-iPad
+    description: Selbsteinschätzung auf geteilten Schüler-iPads (Schüler-Token)
 
 paths:
+  /instance:
+    get:
+      tags: [Instanz]
+      summary: Instanz-Info für die Serverwahl (öffentlich)
+      security: []
+      description: Ohne Authentifizierung, Rate-Limit 30/min. Enthält keine personenbezogenen Daten.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+        '429': { description: Rate-Limit überschritten }
+
   /auth/token:
     post:
       tags: [Auth]
       summary: Token ausstellen (Login)
       security: []
-      description: Rate-Limit 6 Anfragen/Minute. Benötigt `view paed diary`.
+      description: |
+        Rate-Limit: 6/min je E-Mail+IP und 60/min je IP. Benötigt `view paed diary`.
+        403, wenn der Passwort-Login auf dem Server deaktiviert ist (`PAED_APP_PASSWORD_LOGIN=false`).
       requestBody:
         required: true
         content:
@@ -55,21 +93,97 @@ paths:
           description: Token ausgestellt
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  token_type: { type: string, example: Bearer }
-                  access_token: { type: string, example: "mb_1|abc..." }
-                  expires_at: { type: string, format: date-time, nullable: true }
-                  user: { $ref: '#/components/schemas/CurrentUser' }
+              schema: { $ref: '#/components/schemas/TokenResponse' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Rate-Limit überschritten }
     delete:
       tags: [Auth]
       summary: Aktuelles Token widerrufen (Logout)
       responses:
         '204': { description: Widerrufen }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+  /auth/sso/start:
+    get:
+      tags: [Auth]
+      summary: SSO-Login starten (im System-Browser öffnen)
+      security: []
+      description: |
+        Authorization Code + PKCE zwischen App und Backend; Keycloak bleibt unverändert.
+        Leitet zum Keycloak-Login weiter. Nach erfolgreicher Anmeldung leitet das Backend auf
+        `<redirect_uri>?code=<einmal-code>&state=<state>` weiter (Code 60 s gültig, einmal verwendbar),
+        bei Fehlern auf `<redirect_uri>?error=<code>&state=<state>` (`sso_failed`, `sso_unavailable`).
+        Es wird kein Web-Login-Cookie für die Web-Oberfläche gesetzt.
+      parameters:
+        - { name: redirect_uri, in: query, required: true, description: "Muss in PAED_APP_REDIRECT_URIS stehen (Standard paeddiary://auth)", schema: { type: string, example: 'paeddiary://auth' } }
+        - { name: code_challenge, in: query, required: true, description: "BASE64URL(SHA256(code_verifier))", schema: { type: string, minLength: 43, maxLength: 128 } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+        - { name: state, in: query, required: true, schema: { type: string, maxLength: 255 } }
+      responses:
+        '302': { description: Weiterleitung zu Keycloak }
+        '404': { description: SSO ist auf diesem Server nicht eingerichtet }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/sso/exchange:
+    post:
+      tags: [Auth]
+      summary: Einmal-Code gegen App-Token tauschen
+      security: []
+      description: |
+        Rate-Limit 10/min je IP. Antwort identisch zu `POST /auth/token`.
+        Der Code wird bei jedem Versuch verbraucht. Abgelaufener/benutzter Code → 422 `code`,
+        falscher Verifier → 422 `code_verifier`, fehlendes Recht `view paed diary` → 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, code_verifier, device_name]
+              properties:
+                code: { type: string }
+                code_verifier: { type: string, minLength: 43, maxLength: 128 }
+                device_name: { type: string, maxLength: 100, example: "iPad Klasse 4a" }
+      responses:
+        '201':
+          description: Token ausgestellt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Rate-Limit überschritten }
+  /auth/devices:
+    get:
+      tags: [Auth]
+      summary: Eigene App-Geräte (Tokens)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        device_name: { type: string }
+                        last_used_at: { type: string, format: date-time, nullable: true }
+                        created_at: { type: string, format: date-time }
+                        expires_at: { type: string, format: date-time, nullable: true }
+                        is_current: { type: boolean }
+  /auth/devices/{device_id}:
+    delete:
+      tags: [Auth]
+      summary: Eigenes Gerät abmelden (Token löschen)
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Abgemeldet }
+        '404': { $ref: '#/components/responses/NotFound' }
   /auth/me:
     get:
       tags: [Auth]
@@ -167,9 +281,15 @@ paths:
     get:
       tags: [Tagebuch]
       summary: Globale und eigene Kategorien inkl. Farbe
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '304': { description: Nicht geändert }
         '200':
           description: OK
+          headers:
+            ETag: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -189,6 +309,7 @@ paths:
         - { name: category_id, in: query, schema: { type: integer } }
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/UpdatedSince'
       responses:
         '200':
           description: OK (Laravel-Paginierung mit `links` und `meta`)
@@ -205,6 +326,8 @@ paths:
     post:
       tags: [Tagebuch]
       summary: Einzeleintrag anlegen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -228,6 +351,8 @@ paths:
       description: |
         Legt pro betroffener Klasse einen Eintrag an, der allen Schülern dieser Klasse zugeordnet ist
         (Datenmodell des Web-Frontends). Ist ein Schüler nicht zugänglich, wird nichts gespeichert (403).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -277,6 +402,8 @@ paths:
     put:
       tags: [Tagebuch]
       summary: Eintrag aktualisieren (alle Felder optional)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         content:
           application/json:
@@ -292,10 +419,21 @@ paths:
                   data: { $ref: '#/components/schemas/DiaryEntry' }
         '204': { description: Offener Eintrag wurde beim Abschließen vollständig aufgelöst (alle Schüler am Starttag pausiert) }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: "`expected_updated_at` veraltet – `data` enthält den aktuellen Eintrag"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/DiaryEntry' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [Tagebuch]
       summary: Eintrag löschen (Autor oder Sonderrecht)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '204': { description: Gelöscht }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -304,10 +442,13 @@ paths:
     get:
       tags: [Graduierung]
       summary: Stufenkatalog (aktive Systeme)
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
       parameters:
         - { name: grading_system_id, in: query, schema: { type: integer } }
         - { name: class_id, in: query, description: Stufen des Systems dieser Klasse, schema: { type: integer } }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '304': { description: Nicht geändert }
         '200':
           description: OK
           content:
@@ -342,19 +483,64 @@ paths:
                       current_stage: { $ref: '#/components/schemas/CurrentStage' }
                       stage_history: { type: array, items: { $ref: '#/components/schemas/StageHistoryItem' } }
                       completed_sessions: { type: array, items: { $ref: '#/components/schemas/GradingSession' } }
+  /classes/{class_id}/grading/sessions:
+    get:
+      tags: [Graduierung]
+      summary: Graduierungs-Sessions einer Klasse (ohne Fragen/Antworten, mit Fortschritt)
+      parameters:
+        - $ref: '#/components/parameters/ClassId'
+        - { name: status, in: query, schema: { type: string, enum: [open, completed] } }
+        - { name: type, in: query, schema: { type: string, enum: [group, individual] } }
+        - { name: mine, in: query, description: Nur eigene Sessions, schema: { type: boolean, default: false } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: OK (Laravel-Paginierung mit `links` und `meta`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GradingSessionListItem' } }
+                  links: { type: object }
+                  meta: { type: object }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /grading/sessions:
     post:
       tags: [Graduierung]
-      summary: Individuelle Bewertungssession starten (oder eigene offene fortsetzen)
+      summary: Bewertungssession starten (oder eigene offene fortsetzen)
+      description: |
+        - `{schueler_id}` → individuelle Session (unverändertes Verhalten).
+        - `{type: "group", class_id, …}` → Gruppensession. Eine Session gehört genau zu einer Klasse
+          (`klasse_id`); `schueler_ids` müssen dieser Klasse angehören (klassenübergreifende Lerngruppen
+          werden vom Datenmodell nicht unterstützt). Ohne `schueler_ids` nehmen alle Schüler der Klasse teil (wie im Web).
+          Existiert eine eigene offene Gruppensession für Klasse/Lerngruppe, wird sie fortgesetzt (200,
+          `meta.resumed = true`); neue `schueler_ids` werden ergänzt, ein übergebener `answer_order_mode` übernommen.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [schueler_id]
-              properties:
-                schueler_id: { type: integer }
+              oneOf:
+                - type: object
+                  title: Einzelsession
+                  required: [schueler_id]
+                  properties:
+                    type: { type: string, enum: [individual], default: individual }
+                    schueler_id: { type: integer }
+                - type: object
+                  title: Gruppensession
+                  required: [type, class_id]
+                  properties:
+                    type: { type: string, enum: [group] }
+                    class_id: { type: integer }
+                    schueler_ids: { type: array, items: { type: integer }, minItems: 1, maxItems: 200, description: "Standard: alle Schüler der Klasse" }
+                    answer_order_mode: { type: string, enum: [by_student, by_question], description: "Standard: by_student (neue Session) bzw. unverändert (fortgesetzte Session)" }
+                    group_id: { type: integer, nullable: true, description: Eigene Lerngruppe, muss die Klasse enthalten }
       responses:
         '201':
           description: Neu angelegt (`meta.resumed = false`)
@@ -366,6 +552,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '422': { description: Kein Graduierungssystem für die Klasse / Validierungsfehler }
   /grading/sessions/{session_id}:
     get:
@@ -375,11 +562,35 @@ paths:
         - { name: session_id, in: path, required: true, schema: { type: integer } }
       responses:
         '200':
-          description: OK (`meta.available_stages` = Stufen des Systems)
+          description: OK (`meta.available_stages`, `meta.students`, `meta.current_question_id`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GradingSessionResponse' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      tags: [Graduierung]
+      summary: Beantwortungsreihenfolge ändern (nur Ersteller, offene Session)
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer_order_mode]
+              properties:
+                answer_order_mode: { type: string, enum: [by_student, by_question], description: Individuelle Sessions nur by_student }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /grading/sessions/{session_id}/assessments:
     post:
       tags: [Graduierung]
@@ -387,8 +598,14 @@ paths:
       description: |
         Nur der Ersteller der Session. `grading_stage_id` nur zusammen mit `finalize: true`
         und mit Recht `manage grading systems`. Stufenwechsel erzeugt Historie und automatischen Tagebucheintrag.
+
+        **Gruppensessions:** `schueler_id` ist Pflicht und muss teilnehmen. `finalize` schließt nur diesen
+        Schüler ab (Stufenvergabe für diesen Schüler); die Session ist abgeschlossen, sobald alle Teilnehmer
+        abgeschlossen sind (`meta.session_completed`). Weitere Bewertungen eines abgeschlossenen Schülers → 409.
+        Im Web schließt „Session abschließen“ weiterhin die gesamte Session für alle Schüler ab.
       parameters:
         - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -401,14 +618,152 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GradingSessionResponse' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bzw. Bewertung des Schülers bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /grading/sessions/{session_id}/join-codes:
+    parameters:
+      - { name: session_id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Schüler-iPad]
+      summary: Beitrittscodes je Schüler erzeugen (nur Ersteller)
+      description: |
+        Code: 6 Zeichen ohne verwechselbare Zeichen, gültig bis Session-Ende, max. 8 h.
+        Noch gültige Codes werden erneut geliefert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/JoinCode' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { description: Session bereits abgeschlossen }
+    delete:
+      tags: [Schüler-iPad]
+      summary: Alle Codes und Schüler-Tokens der Session widerrufen (nur Ersteller)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Widerrufen }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /grading/sessions/{session_id}/current-question:
+    post:
+      tags: [Schüler-iPad]
+      summary: Frage für alle Schüler freigeben (Modus by_question, nur Ersteller)
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question_id]
+              properties:
+                question_id: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { session_id: { type: integer }, current_question_id: { type: integer } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /student/join:
+    post:
+      tags: [Schüler-iPad]
+      summary: Beitritt eines Schüler-Geräts per Code (öffentlich)
+      security: []
+      description: |
+        Rate-Limit 10/min je IP. Liefert ein Token mit der Ability `student-grading:{session_id}:{schueler_id}`,
+        gültig wie der Code. Das Token gehört einem Schüler-Gerät (nicht der Lehrkraft) und gilt ausschließlich
+        für `/student/*`. Ein erneuter Beitritt mit demselben Code ersetzt das bisherige Gerät.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, device_name]
+              properties:
+                code: { type: string, example: K7M-4QX, description: Bindestrich und Groß-/Kleinschreibung egal }
+                device_name: { type: string, maxLength: 100, example: iPad 07 }
+      responses:
+        '201':
+          description: Beigetreten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expires_at: { type: string, format: date-time }
+                  student: { type: object, properties: { firstname: { type: string } } }
+                  session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string, enum: [by_student, by_question] } } }
+        '422': { description: Code ungültig/abgelaufen oder Validierungsfehler }
+        '429': { description: Rate-Limit überschritten }
+  /student/session:
+    get:
+      tags: [Schüler-iPad]
+      summary: Freigegebene Fragen und eigene Selbsteinschätzungen (Schüler-Token)
+      description: Bei `by_question` nur Fragen bis einschließlich der freigegebenen Frage. Session abgeschlossen oder Codes widerrufen → 401.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StudentSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Kein Schüler-Token }
+  /student/session/answers:
+    post:
+      tags: [Schüler-iPad]
+      summary: Selbsteinschätzung abgeben (Schüler-Token)
+      description: Schreibt ausschließlich `self_rating` des eigenen Schülers. `rating_value`, `comment` und `schueler_id` sind unzulässig (422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question_id, self_rating]
+              properties:
+                question_id: { type: integer }
+                self_rating: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        '200':
+          description: Gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer }, answered_at: { type: string, format: date-time } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
   /diagnostic/areas:
     get:
       tags: [Diagnose]
       summary: Katalog der Diagnosebereiche, Kompetenzstufen & Kriterien
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '304': { description: Nicht geändert }
         '200':
           description: OK
           content:
@@ -425,6 +780,10 @@ paths:
       parameters:
         - $ref: '#/components/parameters/StudentId'
         - { name: include_archived_goals, in: query, schema: { type: boolean, default: false } }
+        - $ref: '#/components/parameters/UpdatedSince'
+      description: |
+        Mit `updated_since` nur seitdem geänderte Sitzungen und Entwicklungsziele; archivierte Ziele sind
+        dann immer enthalten, damit die App Archivierungen übernehmen kann. `current_criterion_goals` wird immer vollständig geliefert.
       responses:
         '200':
           description: OK
@@ -446,6 +805,8 @@ paths:
       description: |
         Existiert für Schüler und Bereich bereits eine offene Sitzung (z.B. im Web begonnen), wird diese
         fortgeführt (200, `meta.resumed_open_session = true`). Standardmäßig wird die Sitzung abgeschlossen (`complete`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -470,6 +831,8 @@ paths:
     put:
       tags: [Diagnose]
       summary: Status, Zieldatum, Titel oder Abschlussnotiz ändern
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -482,6 +845,7 @@ paths:
                 target_date: { type: string, format: date, nullable: true }
                 completion_notes: { type: string, nullable: true }
                 completed_at: { type: string, format: date, nullable: true, description: "Standard bei achieved/not_achieved: heute" }
+                expected_updated_at: { type: string, format: date-time, description: "Konfliktschutz: zuletzt gelesenes updated_at (abweichend → 409)" }
             example:
               status: achieved
               completion_notes: Ziel vorzeitig in der Freiarbeit erreicht.
@@ -495,11 +859,21 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/DevelopmentGoal' }
+        '409':
+          description: "`expected_updated_at` veraltet – `data` enthält das aktuelle Ziel"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/DevelopmentGoal' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [Diagnose]
       summary: Ziel archivieren (Standard) oder mit `force=true` endgültig löschen
       parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
         - { name: force, in: query, description: Erfordert `manage diagnostics`, schema: { type: boolean, default: false } }
       responses:
         '200':
@@ -530,6 +904,27 @@ paths:
               schema: { $ref: '#/components/schemas/Dossier' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /students/{student_id}/dossier.pdf:
+    get:
+      tags: [Dossier]
+      summary: Dossier als PDF (Logo, Schulname, Tagebuch nach Kategorie, Graduierung, Diagnose)
+      description: |
+        Gleiche Parameter, Rechte und Daten wie `/dossier`. Vertrauliche Einträge sind gekennzeichnet,
+        ohne `view diagnostics` fehlt der Diagnoseteil. Header:
+        `Content-Disposition: inline; filename="Dossier_<Nachname>_<Vorname>_<von>_<bis>.pdf"`, `Cache-Control: no-store`.
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - { name: from_date, in: query, schema: { type: string, format: date } }
+        - { name: to_date, in: query, schema: { type: string, format: date } }
+        - { name: include_confidential, in: query, schema: { type: boolean, default: true } }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
 components:
   securitySchemes:
@@ -547,6 +942,24 @@ components:
       in: path
       required: true
       schema: { type: integer }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: UUID; Wiederholungen liefern die gespeicherte Antwort (Header `Idempotent-Replayed`)
+      schema: { type: string, format: uuid }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag einer früheren Antwort → 304, wenn unverändert
+      schema: { type: string }
+    UpdatedSince:
+      name: updated_since
+      in: query
+      required: false
+      description: Delta-Abfrage – nur seit diesem Zeitpunkt geänderte Datensätze (ISO-8601, beliebige Zeitzone)
+      schema: { type: string, format: date-time }
   responses:
     Unauthenticated:
       description: Nicht authentifiziert
@@ -579,6 +992,75 @@ components:
       type: object
       properties:
         message: { type: string }
+    Instance:
+      type: object
+      properties:
+        name: { type: string, example: Grundschule Musterstadt }
+        logo_url: { type: string, nullable: true, example: 'https://mitarbeiter.schule.de/img/logo.png' }
+        primary_color: { type: string, example: '#1E40AF' }
+        api_version: { type: string, example: 1.1.0 }
+        min_app_version: { type: string, example: 1.0.0 }
+        auth:
+          type: object
+          properties:
+            password: { type: boolean }
+            sso: { type: boolean }
+            sso_label: { type: string, example: Mit Schulkonto anmelden }
+    TokenResponse:
+      type: object
+      properties:
+        token_type: { type: string, example: Bearer }
+        access_token: { type: string, example: "mb_1|abc..." }
+        expires_at: { type: string, format: date-time, nullable: true, description: "Gleitend: jetzt + 90 Tage, wird bei Nutzung verlängert" }
+        user: { $ref: '#/components/schemas/CurrentUser' }
+    GradingSessionListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [individual, group] }
+        answer_order_mode: { type: string, enum: [by_student, by_question] }
+        class_id: { type: integer }
+        schueler_id: { type: integer, nullable: true }
+        schueler_name: { type: string, nullable: true }
+        group_id: { type: integer, nullable: true }
+        grading_system: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        created_by_id: { type: integer }
+        created_by_name: { type: string }
+        is_owner: { type: boolean }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        is_completed: { type: boolean }
+        progress:
+          type: object
+          properties:
+            answered: { type: integer, description: Schüler-Frage-Paare mit Pädagogenbewertung }
+            total: { type: integer, description: Teilnehmer × aktive Fragen }
+            students_total: { type: integer }
+            students_finalized: { type: integer }
+    SessionStudent:
+      type: object
+      properties:
+        id: { type: integer }
+        firstname: { type: string }
+        lastname_initial: { type: string, nullable: true, example: M. }
+        finalized: { type: boolean }
+        finalized_at: { type: string, format: date-time, nullable: true }
+    JoinCode:
+      type: object
+      properties:
+        schueler_id: { type: integer }
+        firstname: { type: string }
+        code: { type: string, example: K7M-4QX }
+        qr_payload: { type: string, example: 'paeddiary://join?server=https://mitarbeiter.schule.de&code=K7M4QX' }
+        expires_at: { type: string, format: date-time }
+    StudentSession:
+      type: object
+      properties:
+        session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string }, current_question_id: { type: integer, nullable: true } } }
+        student: { type: object, properties: { firstname: { type: string } } }
+        questions: { type: array, items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } } }
+        self_ratings: { type: array, items: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer } } } }
+        waiting: { type: boolean, description: "by_question: alle freigegebenen Fragen beantwortet, warten auf die nächste Freigabe" }
     CurrentUser:
       type: object
       properties:
@@ -723,6 +1205,7 @@ components:
         content: { type: string }
         is_dossier_only: { type: boolean }
         is_completed: { type: boolean }
+        expected_updated_at: { type: string, format: date-time, description: "Konfliktschutz: zuletzt gelesenes updated_at (abweichend → 409)" }
     GradingStage:
       type: object
       properties:
@@ -754,6 +1237,8 @@ components:
         answer_order_mode: { type: string }
         class_id: { type: integer }
         schueler_id: { type: integer, nullable: true }
+        group_id: { type: integer, nullable: true }
+        current_question_id: { type: integer, nullable: true, description: Nur im Modus by_question }
         grading_system: { type: object, properties: { id: { type: integer }, name: { type: string } } }
         created_by_id: { type: integer }
         created_by_name: { type: string }
@@ -782,11 +1267,20 @@ components:
       type: object
       properties:
         data: { $ref: '#/components/schemas/GradingSession' }
-        meta: { type: object }
+        meta:
+          type: object
+          properties:
+            resumed: { type: boolean, description: Nur bei POST /grading/sessions }
+            available_stages: { type: array, items: { $ref: '#/components/schemas/GradingStage' } }
+            students: { type: array, items: { $ref: '#/components/schemas/SessionStudent' } }
+            current_question_id: { type: integer, nullable: true }
+            finalized: { type: boolean, description: Nur bei POST …/assessments }
+            session_completed: { type: boolean, description: Nur bei POST …/assessments }
+            current_stage: { $ref: '#/components/schemas/CurrentStage' }
     GradingAssessmentCreate:
       type: object
       properties:
-        schueler_id: { type: integer, description: "Pflicht bei Gruppen-Sessions" }
+        schueler_id: { type: integer, description: "Pflicht bei Gruppen-Sessions (muss teilnehmen)" }
         answers:
           type: array
           items:
@@ -798,7 +1292,7 @@ components:
               self_rating: { type: integer, minimum: 1, maximum: 5, nullable: true }
               comment: { type: string, nullable: true }
         teacher_assessment: { type: string, nullable: true, example: Die Kriterien für Graduierung II sind vollumfänglich erfüllt. }
-        finalize: { type: boolean, default: false }
+        finalize: { type: boolean, default: false, description: "Gruppensession: schließt nur diesen Schüler ab" }
         grading_stage_id: { type: integer, nullable: true, description: "Nur mit finalize=true; null entfernt die Stufe" }
     DiagnosticArea:
       type: object

@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\API\v1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\v1\IndexGradingSessionsRequest;
 use App\Http\Requests\API\v1\StoreGradingAssessmentRequest;
 use App\Http\Requests\API\v1\StoreGradingSessionRequest;
+use App\Http\Requests\API\v1\UpdateGradingSessionRequest;
+use App\Http\Resources\API\v1\GradingSessionListResource;
 use App\Http\Resources\API\v1\GradingSessionResource;
 use App\Http\Resources\API\v1\GradingStageResource;
 use App\Models\GradingCoachingNote;
 use App\Models\GradingDocumentationSession;
 use App\Models\GradingQuestion;
+use App\Models\GradingSessionStudent;
 use App\Models\GradingStage;
 use App\Models\GradingStudentAnswer;
 use App\Models\GradingSystem;
@@ -17,6 +21,7 @@ use App\Models\GradingTeacherAssessment;
 use App\Models\Klasse;
 use App\Models\Schueler;
 use App\Services\Api\StudentDataService;
+use App\Services\GradingSessionService;
 use App\Services\GradingStageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +34,8 @@ class GradingApiController extends Controller
 {
     public function __construct(
         private StudentDataService $data,
-        private GradingStageService $stageService
+        private GradingStageService $stageService,
+        private GradingSessionService $sessions
     ) {
     }
 
@@ -88,48 +94,74 @@ class GradingApiController extends Controller
     }
 
     /**
-     * POST /api/v1/grading/sessions – individuelle Bewertungssession starten.
-     * Existiert bereits eine offene Session des Benutzers für den Schüler, wird diese fortgesetzt (200).
+     * GET /api/v1/classes/{class}/grading/sessions?status=open|completed&type=&mine=
+     * Sessions der Klasse ohne Fragen/Antworten, mit Fortschritt.
+     */
+    public function classSessions(IndexGradingSessionsRequest $request, Klasse $klasse)
+    {
+        $this->authorize('viewClass', [Schueler::class, $klasse]);
+        $user = $request->user();
+
+        $sessions = GradingDocumentationSession::where('klasse_id', $klasse->id)
+            ->when($request->input('status') === 'open', fn ($q) => $q->whereNull('completed_at'))
+            ->when($request->input('status') === 'completed', fn ($q) => $q->whereNotNull('completed_at'))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->input('type')))
+            ->when($request->boolean('mine'), fn ($q) => $q->where('user_id', $user->id))
+            ->with(['user:id,name', 'gradingSystem:id,name', 'schueler:id,vorname,nachname'])
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->paginate((int) $request->input('per_page', 50))
+            ->withQueryString();
+
+        $sessions->getCollection()->each(fn ($s) => $s->setAttribute('progress', $this->sessions->progress($s)));
+
+        return GradingSessionListResource::collection($sessions);
+    }
+
+    /**
+     * POST /api/v1/grading/sessions
+     * - {schueler_id}: individuelle Session starten (eigene offene Session wird fortgesetzt, 200)
+     * - {type: "group", class_id, schueler_ids?, answer_order_mode?}: Gruppensession starten/fortsetzen
      */
     public function storeSession(StoreGradingSessionRequest $request): JsonResponse
     {
+        if ($request->isGroup()) {
+            return $this->storeGroupSession($request);
+        }
+
         $user = $request->user();
         $schueler = Schueler::with('klasse')->findOrFail($request->integer('schueler_id'));
         $this->authorize('update', $schueler);
 
         $klasse = $schueler->klasse;
         if (!$klasse || !$klasse->grading_system_id) {
-            return response()->json([
-                'message' => 'Die übermittelten Daten sind ungültig.',
-                'errors' => ['schueler_id' => ['Der Klasse des Schülers ist kein Graduierungssystem zugeordnet.']],
-            ], 422);
+            return $this->unprocessable('schueler_id', 'Der Klasse des Schülers ist kein Graduierungssystem zugeordnet.');
         }
 
-        $session = GradingDocumentationSession::where('user_id', $user->id)
-            ->where('klasse_id', $klasse->id)
-            ->where('type', 'individual')
-            ->where('schueler_id', $schueler->id)
-            ->whereNull('completed_at')
-            ->first();
+        [$session, $resumed] = $this->sessions->startIndividualSession($user, $klasse, $schueler->id);
 
-        $resumed = $session !== null;
+        return $this->sessionResponse($session, ['resumed' => $resumed], $resumed ? 200 : 201);
+    }
 
-        if (!$session) {
-            $session = GradingDocumentationSession::create([
-                'klasse_id' => $klasse->id,
-                'grading_system_id' => $klasse->grading_system_id,
-                'user_id' => $user->id,
-                'type' => 'individual',
-                'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
-                'schueler_id' => $schueler->id,
-                'started_at' => now(),
-            ]);
+    private function storeGroupSession(StoreGradingSessionRequest $request): JsonResponse
+    {
+        $klasse = Klasse::findOrFail($request->integer('class_id'));
+        $this->authorize('viewClass', [Schueler::class, $klasse]);
+
+        if (!$klasse->grading_system_id) {
+            return $this->unprocessable('class_id', 'Dieser Klasse ist kein Graduierungssystem zugeordnet.');
         }
 
-        return (new GradingSessionResource($this->loadSession($session)))
-            ->additional(['meta' => ['resumed' => $resumed]])
-            ->response()
-            ->setStatusCode($resumed ? 200 : 201);
+        [$session, $resumed] = $this->sessions->startGroupSession(
+            $request->user(),
+            $klasse,
+            $request->filled('group_id') ? $request->integer('group_id') : null,
+            $request->input('answer_order_mode'),
+            $request->has('schueler_ids') ? $request->input('schueler_ids') : null,
+            keepModeWhenMissing: true
+        );
+
+        return $this->sessionResponse($session, ['resumed' => $resumed], $resumed ? 200 : 201);
     }
 
     /**
@@ -139,16 +171,32 @@ class GradingApiController extends Controller
     {
         $this->authorize('view', $session);
 
-        $stages = GradingStage::where('grading_system_id', $session->grading_system_id)->orderBy('sort_order')->get();
+        return $this->sessionResponse($session);
+    }
 
-        return (new GradingSessionResource($this->loadSession($session)))->additional([
-            'meta' => ['available_stages' => GradingStageResource::collection($stages)],
-        ]);
+    /**
+     * PATCH /api/v1/grading/sessions/{session} – Beantwortungsreihenfolge ändern (nur Ersteller, offene Session).
+     */
+    public function updateSession(UpdateGradingSessionRequest $request, GradingDocumentationSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if ($session->isCompleted()) {
+            return response()->json(['message' => 'Die Session ist bereits abgeschlossen.'], 409);
+        }
+
+        if (!$this->sessions->changeAnswerOrderMode($session, $request->input('answer_order_mode'))) {
+            return $this->unprocessable('answer_order_mode', 'Für diese Session ist die gewählte Beantwortungsreihenfolge nicht verfügbar.');
+        }
+
+        return $this->sessionResponse($session);
     }
 
     /**
      * POST /api/v1/grading/sessions/{session}/assessments
      * Antworten & Pädagogenbewertung speichern, optional abschließen und Stufe vergeben.
+     * Gruppensessions: "finalize" schließt nur den angegebenen Schüler ab; die Session ist
+     * abgeschlossen, sobald alle Teilnehmer abgeschlossen sind.
      */
     public function storeAssessments(StoreGradingAssessmentRequest $request, GradingDocumentationSession $session): JsonResponse
     {
@@ -172,6 +220,12 @@ class GradingApiController extends Controller
             $schuelerId = $request->integer('schueler_id');
             if (!Schueler::whereKey($schuelerId)->where('klasse_id', $session->klasse_id)->exists()) {
                 return $this->unprocessable('schueler_id', 'Der Schüler gehört nicht zur Klasse der Session.');
+            }
+            if (!$this->sessions->isParticipant($session, $schuelerId)) {
+                return $this->unprocessable('schueler_id', 'Der Schüler nimmt nicht an dieser Session teil.');
+            }
+            if ($this->sessions->isFinalized($session, $schuelerId)) {
+                return response()->json(['message' => 'Die Bewertung dieses Schülers ist in der Session bereits abgeschlossen.'], 409);
             }
         }
         $schueler = Schueler::with('klasse')->findOrFail($schuelerId);
@@ -203,7 +257,7 @@ class GradingApiController extends Controller
             }
         }
 
-        DB::transaction(function () use ($answers, $session, $schueler, $request, $user, $finalize, $changeStage, $newStage) {
+        $sessionCompleted = DB::transaction(function () use ($answers, $session, $schueler, $request, $user, $finalize, $changeStage, $newStage) {
             $now = now();
 
             foreach ($answers as $answer) {
@@ -237,21 +291,65 @@ class GradingApiController extends Controller
                 );
             }
 
+            $sessionCompleted = false;
             if ($finalize) {
-                $session->update(['completed_at' => $now]);
+                $sessionCompleted = $this->sessions->finalizeStudent($session, $schueler, $user);
             }
 
             if ($changeStage && (int) $schueler->grading_stage_id !== (int) $newStage?->id) {
                 $this->stageService->changeStage($schueler, $newStage, $user, $schueler->klasse);
             }
+
+            return $sessionCompleted;
         });
 
         $schueler->refresh()->load('grading_stage');
 
-        return (new GradingSessionResource($this->loadSession($session->fresh())))->additional(['meta' => [
+        return $this->sessionResponse($session->fresh(), [
             'finalized' => $finalize,
+            'session_completed' => $sessionCompleted || $session->fresh()->isCompleted(),
             'current_stage' => $this->data->currentStage($schueler),
-        ]])->response();
+        ]);
+    }
+
+    /**
+     * Session-Antwort inkl. meta.available_stages, meta.students und meta.current_question_id.
+     */
+    private function sessionResponse(GradingDocumentationSession $session, array $meta = [], int $status = 200): JsonResponse
+    {
+        $stages = GradingStage::where('grading_system_id', $session->grading_system_id)->orderBy('sort_order')->get();
+
+        return (new GradingSessionResource($this->loadSession($session)))
+            ->additional(['meta' => array_merge([
+                'available_stages' => GradingStageResource::collection($stages),
+                'students' => $this->studentsMeta($session),
+                'current_question_id' => $session->usesQuestionOrder() && $session->current_question_id
+                    ? (int) $session->current_question_id
+                    : null,
+            ], $meta)])
+            ->response()
+            ->setStatusCode($status);
+    }
+
+    /**
+     * Teilnehmer mit Vorname, Nachname-Initiale und Abschlussstatus.
+     */
+    private function studentsMeta(GradingDocumentationSession $session): array
+    {
+        $finalizedAt = GradingSessionStudent::where('session_id', $session->id)
+            ->whereNotNull('finalized_at')
+            ->pluck('finalized_at', 'schueler_id');
+        $finalized = $this->sessions->finalizedIds($session);
+
+        return $this->sessions->participants($session)->map(fn (Schueler $s) => [
+            'id' => $s->id,
+            'firstname' => $s->vorname,
+            'lastname_initial' => $s->nachname !== null && $s->nachname !== '' ? mb_substr($s->nachname, 0, 1) . '.' : null,
+            'finalized' => $finalized->contains((int) $s->id),
+            'finalized_at' => isset($finalizedAt[$s->id])
+                ? \Carbon\Carbon::parse($finalizedAt[$s->id])->toIso8601String()
+                : $session->completed_at?->toIso8601String(),
+        ])->values()->all();
     }
 
     private function loadSession(GradingDocumentationSession $session): GradingDocumentationSession

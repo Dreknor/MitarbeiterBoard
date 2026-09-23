@@ -43,11 +43,39 @@ class Kernel extends HttpKernel
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
+        // API v1: Session nur für den Start des App-SSO-Logins (Keycloak-Redirect)
+        'api.session' => [
+            \App\Http\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+        ],
         'saml' => [
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
         ],
+    ];
+
+    /**
+     * Reihenfolge der Middleware (Framework-Standard).
+     * API v1: EnsureIdempotency läuft vor dem Route-Model-Binding, damit ein wiederholtes
+     * DELETE die gespeicherte Antwort statt 404 liefert.
+     *
+     * @var string[]
+     */
+    protected $middlewarePriority = [
+        \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+        \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        \Illuminate\Routing\Middleware\ThrottleRequestsWithRedis::class,
+        \Illuminate\Contracts\Session\Middleware\AuthenticatesSessions::class,
+        \App\Http\Middleware\EnsureIdempotency::class,
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        \Illuminate\Auth\Middleware\Authorize::class,
     ];
 
     /**
@@ -72,5 +100,9 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'personal.audit' => \App\Http\Middleware\PersonalAuditMiddleware::class,
         'json' => \App\Http\Middleware\ForceJsonResponse::class,
+        'idempotent' => \App\Http\Middleware\EnsureIdempotency::class,
+        'api.staff' => \App\Http\Middleware\EnsureStaffToken::class,
+        'api.student' => \App\Http\Middleware\EnsureStudentGradingToken::class,
+        'etag' => \App\Http\Middleware\SetETag::class,
     ];
 }

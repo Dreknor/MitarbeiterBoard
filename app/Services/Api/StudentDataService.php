@@ -147,6 +147,33 @@ class StudentDataService
     }
 
     /**
+     * Delta-Abfragen: ISO-8601-Zeitpunkt (beliebige Zeitzone) in die Zeitzone der Anwendung umrechnen,
+     * da Zeitstempel in der Datenbank ohne Zeitzone gespeichert sind.
+     */
+    public function sinceTimestamp(string $updatedSince): Carbon
+    {
+        return Carbon::parse($updatedSince)->setTimezone(config('app.timezone'));
+    }
+
+    /**
+     * Konfliktschutz: true, wenn der Client einen veralteten Stand (expected_updated_at) übermittelt.
+     * Verglichen wird sekundengenau (ISO-8601 mit beliebiger Zeitzone).
+     */
+    public function isStale(\Illuminate\Database\Eloquent\Model $model, ?string $expectedUpdatedAt): bool
+    {
+        if ($expectedUpdatedAt === null || $expectedUpdatedAt === '') {
+            return false;
+        }
+
+        $current = $model->updated_at;
+        if (!$current) {
+            return false;
+        }
+
+        return Carbon::parse($expectedUpdatedAt)->getTimestamp() !== $current->getTimestamp();
+    }
+
+    /**
      * Tagebucheinträge eines Schülers (vertrauliche Einträge gemäß Rechten gefiltert).
      */
     public function diaryEntriesQuery(Schueler $schueler, User $user, bool $includeConfidential = true)

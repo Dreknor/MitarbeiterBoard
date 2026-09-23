@@ -57,8 +57,20 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting()
     {
+        // Je Bearer-Token (App-Gerät) bzw. je IP – ohne by() teilten sich alle API-Clients ein gemeinsames Limit.
+        // Die Gruppe läuft vor auth:sanctum, daher wird das Token nur gehasht, nicht geprüft.
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60);
+            return Limit::perMinute(60)->by($request->bearerToken()
+                ? 'token:' . sha1($request->bearerToken())
+                : 'ip:' . $request->ip());
+        });
+
+        // API v1: Login der Pädagogen-App – 6/min je E-Mail+IP, 60/min je IP (viele Geräte im Schul-NAT)
+        RateLimiter::for('paed-app-login', function (Request $request) {
+            return [
+                Limit::perMinute(6)->by('login:' . mb_strtolower((string) $request->input('email')) . '|' . $request->ip()),
+                Limit::perMinute(60)->by('login-ip:' . $request->ip()),
+            ];
         });
 
         RateLimiter::for('calendar-write', function (Request $request) {

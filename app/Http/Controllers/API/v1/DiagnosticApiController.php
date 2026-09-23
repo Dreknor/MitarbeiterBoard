@@ -52,9 +52,15 @@ class DiagnosticApiController extends Controller
     public function history(Request $request, Schueler $schueler): JsonResponse
     {
         $this->authorize('viewDiagnostics', $schueler);
-        $request->validate(['include_archived_goals' => ['sometimes', 'in:true,false,1,0']]);
+        $request->validate([
+            'include_archived_goals' => ['sometimes', 'in:true,false,1,0'],
+            // Delta-Abfrage: nur seit diesem Zeitpunkt geänderte Sitzungen und Ziele (ISO-8601)
+            'updated_since' => ['sometimes', 'date'],
+        ]);
+        $since = $request->filled('updated_since') ? $this->data->sinceTimestamp($request->input('updated_since')) : null;
 
         $sessions = DiagnosticSession::where('schueler_id', $schueler->id)
+            ->when($since, fn ($q) => $q->where('updated_at', '>=', $since))
             ->with(['area:id,name', 'user:id,name', 'stageNotes.stage:id,name', 'assessments', 'developmentGoals.area:id,name', 'developmentGoals.creator:id,name'])
             ->orderByDesc('session_date')
             ->orderByDesc('id')
@@ -62,8 +68,10 @@ class DiagnosticApiController extends Controller
 
         return response()->json(['data' => [
             'sessions' => DiagnosticSessionResource::collection($sessions),
+            // Bei Delta-Abfragen sind archivierte Ziele immer enthalten, damit der Client Archivierungen erkennt
             'development_goals' => DiagnosticGoalResource::collection(
-                $this->data->developmentGoals($schueler, false, $request->boolean('include_archived_goals'))
+                $this->data->developmentGoals($schueler, false, $since !== null || $request->boolean('include_archived_goals'))
+                    ->when($since, fn ($goals) => $goals->filter(fn ($g) => $g->updated_at && $g->updated_at->gte($since))->values())
             ),
             'current_criterion_goals' => CurrentCriterionGoalResource::collection($this->data->currentCriterionGoals($schueler)),
         ]]);
@@ -170,6 +178,13 @@ class DiagnosticApiController extends Controller
     public function updateGoal(UpdateDiagnosticGoalRequest $request, DiagnosticDevelopmentGoal $goal)
     {
         $this->authorize('viewDiagnostics', $goal->schueler ?? abort(404));
+
+        if ($this->data->isStale($goal, $request->input('expected_updated_at'))) {
+            return response()->json([
+                'message' => 'Das Ziel wurde zwischenzeitlich geändert.',
+                'data' => (new DiagnosticGoalResource($goal->load(['area:id,name', 'creator:id,name'])))->resolve($request),
+            ], 409);
+        }
 
         $attributes = $request->safe()->only(['title', 'target_date', 'completion_notes', 'status']);
 

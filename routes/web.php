@@ -889,6 +889,7 @@ Route::group([
                     Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerView'])->name('paedDiary.schueler.view');
                     Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerData'])->name('paedDiary.schueler.data');
                     Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
+                    Route::get('paed-diary/schueler/{schueler}/dossier.pdf', [\App\Http\Controllers\PaedDiaryDossierController::class, 'pdf'])->name('paedDiary.schueler.dossier.pdf');
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class, 'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'updateEntry'])->name('paedDiary.entry.update');
                     Route::post('paed-diary/entry/{entry}/complete', [\App\Http\Controllers\PaedDiaryController::class, 'completeEntry'])->name('paedDiary.entry.complete');
@@ -1199,6 +1200,10 @@ Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])
         // Einwilligungen (Self-Service)
         Route::post('/einwilligungen/{type}/erteilen',   [App\Http\Controllers\Personal\ConsentController::class, 'grant'])  ->name('consents.grant');
         Route::post('/einwilligungen/{type}/widerrufen', [App\Http\Controllers\Personal\ConsentController::class, 'revoke']) ->name('consents.revoke');
+
+        // Pädagogen-App: eigene App-Geräte abmelden
+        Route::delete('/app-geraete/{token}', [App\Http\Controllers\PaedAppDeviceController::class, 'destroy'])
+            ->whereNumber('token')->name('app-devices.destroy');
 
         // Stundenzettel: Passwort-Bestätigung erforderlich
         Route::middleware('password.confirm')->group(function () {

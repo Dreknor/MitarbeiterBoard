@@ -12,6 +12,8 @@ class IndexPaedDiaryEntriesRequest extends ApiRequest
             'category_id' => ['sometimes', 'integer'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
+            // Delta-Abfrage: nur seit diesem Zeitpunkt geänderte Einträge (ISO-8601)
+            'updated_since' => ['sometimes', 'date'],
         ];
     }
 }

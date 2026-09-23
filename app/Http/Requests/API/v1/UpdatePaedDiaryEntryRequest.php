@@ -14,6 +14,8 @@ class UpdatePaedDiaryEntryRequest extends ApiRequest
             'content' => ['sometimes', 'string', 'min:1', 'max:20000'],
             'is_dossier_only' => ['sometimes', 'boolean'],
             'is_completed' => ['sometimes', 'boolean'],
+            // Konfliktschutz: updated_at, das der Client zuletzt gelesen hat (weicht es ab → 409)
+            'expected_updated_at' => ['sometimes', 'date'],
         ];
     }
 }

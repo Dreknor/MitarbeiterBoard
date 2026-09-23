@@ -1,7 +1,8 @@
 <?php
 
-// SANCTUM_EXPIRATION: Minuten (Standard 30 Tage); "null" = kein Ablauf (env() liefert dann null).
-$sanctumExpiration = env('SANCTUM_EXPIRATION', 60 * 24 * 30);
+// SANCTUM_EXPIRATION: optionale absolute Höchstlaufzeit ab Ausstellung (Minuten).
+// Standard null: Die Laufzeit steuert expires_at je Token (gleitend, PAED_APP_TOKEN_DAYS, siehe config/paed_app.php).
+$sanctumExpiration = env('SANCTUM_EXPIRATION');
 
 return [
 
@@ -21,11 +22,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Ablauf der Tokens (Minuten)
+    | Absolute Höchstlaufzeit der Tokens (Minuten, ab Ausstellung)
     |--------------------------------------------------------------------------
     |
-    | Standard: 30 Tage. Mit SANCTUM_EXPIRATION=null in der .env laufen Tokens
-    | nicht ab (nicht empfohlen, da die App personenbezogene Schülerdaten liest).
+    | App-Tokens erhalten ein eigenes expires_at (jetzt + PAED_APP_TOKEN_DAYS, Standard 90),
+    | das bei Nutzung höchstens einmal täglich verlängert wird. Ein hier gesetzter Wert
+    | begrenzt zusätzlich die Gesamtlaufzeit seit der Ausstellung (sonst: kein Limit).
     |
     */
 

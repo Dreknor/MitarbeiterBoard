@@ -15,6 +15,8 @@ class UpdateDiagnosticGoalRequest extends ApiRequest
             'target_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'completion_notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'completed_at' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            // Konfliktschutz: updated_at, das der Client zuletzt gelesen hat (weicht es ab → 409)
+            'expected_updated_at' => ['sometimes', 'date'],
         ];
     }
 

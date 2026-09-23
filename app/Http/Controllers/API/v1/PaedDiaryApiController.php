@@ -61,6 +61,9 @@ class PaedDiaryApiController extends Controller
             ->when($request->filled('from_date'), fn ($q) => $q->where('datum', '>=', $request->input('from_date')))
             ->when($request->filled('to_date'), fn ($q) => $q->where('datum', '<=', $request->input('to_date') . ' 23:59:59'))
             ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('updated_since'), fn ($q) => $q->where(
+                'paed_diary_entries.updated_at', '>=', $this->data->sinceTimestamp($request->input('updated_since'))
+            ))
             ->paginate((int) $request->input('per_page', 25))
             ->withQueryString();
 
@@ -163,6 +166,10 @@ class PaedDiaryApiController extends Controller
     {
         $this->authorize('update', $entry);
         $user = $request->user();
+
+        if ($this->data->isStale($entry, $request->input('expected_updated_at'))) {
+            return $this->conflict(new PaedDiaryEntryResource($this->loadEntry($entry)));
+        }
 
         $attributes = [];
         if ($request->has('content')) {
@@ -284,6 +291,14 @@ class PaedDiaryApiController extends Controller
     private function loadEntry(PaedDiaryEntry $entry): PaedDiaryEntry
     {
         return $entry->load(['category:id,name,color', 'user:id,name', 'schueler:schueler.id']);
+    }
+
+    private function conflict(PaedDiaryEntryResource $current): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Der Eintrag wurde zwischenzeitlich geändert.',
+            'data' => $current->resolve(request()),
+        ], 409);
     }
 
     private function unprocessable(string $field, string $message): JsonResponse
