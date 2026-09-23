@@ -14,9 +14,10 @@ class PaedAppDeviceController extends Controller
         // IDOR-Schutz: ausschließlich Tokens des angemeldeten Benutzers
         $deleted = $request->user()->tokens()->whereKey($token)->delete();
 
-        return redirect(route('self-service.index') . '#app')->with([
-            'type' => $deleted ? 'success' : 'warning',
-            'Meldung' => $deleted ? 'Das Gerät wurde abgemeldet.' : 'Das Gerät wurde nicht gefunden.',
-        ]);
+        // Zurück auf die aufrufende Seite (Mein Profil oder Profil bearbeiten)
+        return redirectBack(
+            $deleted ? 'success' : 'warning',
+            $deleted ? 'Das Gerät wurde abgemeldet.' : 'Das Gerät wurde nicht gefunden.'
+        );
     }
 }

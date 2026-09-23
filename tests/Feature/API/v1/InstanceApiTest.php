@@ -95,6 +95,36 @@ class InstanceApiTest extends ApiTestCase
     }
 
     /** @test */
+    public function profil_bearbeiten_zeigt_app_karte_und_geraete(): void
+    {
+        $this->withoutVite();
+        $user = $this->actingAsWithPermission('view paed diary');
+        $token = $user->createToken('iPad Klasse 4a', ['paed-app'], now()->addDays(90));
+
+        $this->get('/employes/self')
+            ->assertOk()
+            ->assertSee('Pädagogen-App')
+            ->assertSee('App verbinden')
+            ->assertSee('<svg', false)
+            ->assertSee('iPad Klasse 4a');
+
+        $this->from('/employes/self')
+            ->delete("/mein-profil/app-geraete/{$token->accessToken->id}")
+            ->assertRedirect('/employes/self')
+            ->assertSessionHas('type', 'success');
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    /** @test */
+    public function profil_bearbeiten_ohne_tagebuchrecht_ohne_app_karte(): void
+    {
+        $this->withoutVite();
+        $this->actingAsWithPermission();
+
+        $this->get('/employes/self')->assertOk()->assertDontSee('App verbinden');
+    }
+
+    /** @test */
     public function connect_url_zeigt_auf_diesen_server(): void
     {
         $this->assertSame(
