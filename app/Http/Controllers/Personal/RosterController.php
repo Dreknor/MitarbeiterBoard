@@ -329,7 +329,7 @@ class RosterController extends Controller
     public function exportPDF(Roster $roster)
     {
         if (auth()->user()->can('create roster') or auth()->user()->groups_rel->contains($roster->department)){
-            return $this->createPDF($roster)->stream($roster->start_date->copy()->format('Y_m_d') . '_dienstplan.pdf');
+            return $this->createPDF($roster)->stream($roster->start_date->copy()->format('Y_m_d') . '_dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf');
         }
         return redirectBack('danger', 'Berechtigung fehlt');
 
@@ -388,7 +388,7 @@ class RosterController extends Controller
             if ($employe->email) {
                 $rosterEmployePDF = $this->createPDFEmploye($roster, $employe)->save(storage_path('dienstplan_' . $employe->vorname . '.pdf'), 1);
                 $message = new SendRosterMail($employe->vorname, $employe->nachname, $roster->start_date->format('d.m.Y'), $name, [
-                    'dienstplan.pdf', 'dienstplan_' . $employe->vorname . '.pdf'
+                    'dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf', 'dienstplan_' . $employe->vorname . '.pdf'
                 ]);
                 Mail::to($employe->email)->queue($message);
                 Storage::delete('dienstplan_' . $employe->vorname . '.pdf');
@@ -421,7 +421,7 @@ class RosterController extends Controller
         // PDF erstellen
         $weekStart = $roster->start_date->copy();
         $weekEnd = $weekStart->copy()->endOfWeek();
-        $pdfPath = storage_path('app/dienstplan_' . $roster->id . '.pdf');
+        $pdfPath = storage_path('app/dienstplan_' . $roster->id . '_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf');
         $this->createPDF($roster)->save($pdfPath);
 
         // Nachricht vorbereiten
@@ -433,7 +433,7 @@ class RosterController extends Controller
         );
 
         // Datei zu Nextcloud hochladen und im Chat teilen
-        $targetPath = '/Dienstpläne/' . $roster->start_date->format('Y_m_d') . '_dienstplan.pdf';
+        $targetPath = '/Dienstpläne/' . $roster->start_date->format('Y_m_d') . '_dienstplan_Stand_'.now()->format('Y_m_d_H_i_s').'.pdf';
 
         Log::info('Attempting to upload roster to Nextcloud', [
             'roster_id' => $roster->id,
