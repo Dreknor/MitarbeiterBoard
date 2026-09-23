@@ -438,6 +438,185 @@ paths:
         '204': { description: Gelöscht }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /paed-diary/week:
+    get:
+      tags: [Tagebuch]
+      summary: Wochenansicht (Kalender) einer Klasse oder Lerngruppe
+      description: |
+        Entspricht der Web-Wochenansicht (Mo–Fr). `entries` enthält alle Einträge der Woche und zusätzlich
+        alle noch offenen Notizen aus früheren Wochen. Eine offene Notiz erscheint bei ihren Schülern
+        an jedem Tag ab `entry_date`, außer an Tagen mit Pause (`pauses`) oder Abwesenheit (`absences`);
+        abgeschlossene Einträge nur an ihrem `entry_date`. Vertrauliche Einträge sind nicht enthalten.
+        Nebenwirkung wie im Web: offene Notizen werden an Ferientagen und Klassen-Tagespausen automatisch pausiert.
+      parameters:
+        - { name: class_id, in: query, schema: { type: integer }, description: 'Klasse (oder `group_id`)' }
+        - { name: group_id, in: query, schema: { type: integer }, description: Eigene Lerngruppe (`learning_groups` aus `/classes`) }
+        - { name: week_start, in: query, schema: { type: string, format: date }, description: Beliebiger Tag der Woche; Standard aktuelle Woche }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryWeek' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/complete:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Tagebuch]
+      summary: Offene Notiz abschließen
+      description: |
+        Mit `schueler_id` (bei mehreren Schülern) wird die Notiz nur für diesen Schüler abgeschlossen; die übrigen
+        behalten sie offen. Beim Abschließen wird die Notiz auf alle nicht pausierten Tage bis `date` verteilt.
+        Wiederholungen (bereits abgeschlossen bzw. Schüler bereits herausgelöst) liefern 200 ohne Änderung.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date, description: Abschlusstag; Standard heute }
+                schueler_id: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entry_id: { type: integer }
+                      completed: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/pause:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Offene Notiz für einen Schüler an einem Tag pausieren bzw. wieder anzeigen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_id, date, paused]
+              properties:
+                schueler_id: { type: integer }
+                date: { type: string, format: date, description: 'Nicht vor `entry_date`' }
+                paused: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/absences:
+    put:
+      tags: [Tagebuch]
+      summary: Abwesenheit eines Schülers setzen/aufheben
+      description: Beim Setzen werden die offenen Notizen des Schülers an diesem Tag pausiert, beim Aufheben wieder angezeigt.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_id, date, absent]
+              properties:
+                schueler_id: { type: integer }
+                date: { type: string, format: date }
+                absent: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      schueler_id: { type: integer }
+                      date: { type: string, format: date }
+                      absent: { type: boolean }
+                      paused_entry_ids: { type: array, items: { type: integer } }
+                      resumed_entry_ids: { type: array, items: { type: integer } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/day-pauses:
+    put:
+      tags: [Tagebuch]
+      summary: Tagespause der Klasse/Lerngruppe setzen/aufheben (z. B. Wandertag)
+      description: Pausiert alle offenen Notizen der Klasse(n) an diesem Tag. Aufheben entfernt nur Pausen mit Grund „Veranstaltung“.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, paused]
+              properties:
+                class_id: { type: integer }
+                group_id: { type: integer }
+                date: { type: string, format: date }
+                paused: { type: boolean }
+                reason: { type: string, maxLength: 100, description: Standard „Veranstaltung“ }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/column-values:
+    put:
+      tags: [Tagebuch]
+      summary: Wert einer Abhak-Spalte setzen
+      description: "`boolean`: `1` oder leer · `ampel`: `1` ja, `2` in Bearbeitung, `3` nein, leer · `text`: frei (max. 255)"
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [column_id, schueler_id, date]
+              properties:
+                column_id: { type: integer }
+                schueler_id: { type: integer }
+                date: { type: string, format: date }
+                value: { type: string, nullable: true }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/tasks/{id}/close:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Tagebuch]
+      summary: Offene Aufgabe erledigen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /grading/stages:
     get:
       tags: [Graduierung]
@@ -992,6 +1171,142 @@ components:
       type: object
       properties:
         message: { type: string }
+    DiaryWeek:
+      type: object
+      properties:
+        week_start: { type: string, format: date, description: Montag }
+        week_end: { type: string, format: date, description: Freitag }
+        group: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              short_name: { type: string, nullable: true }
+              color: { type: string, nullable: true }
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              is_holiday: { type: boolean }
+              holiday_name: { type: string, nullable: true }
+        students:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              firstname: { type: string }
+              lastname: { type: string }
+              class_id: { type: integer }
+              current_grading:
+                type: object
+                nullable: true
+                properties:
+                  stage_id: { type: integer }
+                  stage_title: { type: string }
+                  symbol: { type: string, nullable: true }
+                  badge_url: { type: string, nullable: true }
+              absence_alerts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type: { type: string }
+                    label: { type: string }
+                    severity: { type: string }
+                    summary: { type: string }
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              class_id: { type: integer }
+              schueler_ids: { type: array, items: { type: integer } }
+              entry_date: { type: string, format: date }
+              content: { type: string }
+              category_id: { type: integer, nullable: true }
+              category_name: { type: string, nullable: true }
+              category_color: { type: string, nullable: true }
+              created_by_name: { type: string, nullable: true }
+              is_own: { type: boolean }
+              is_completed: { type: boolean }
+              completed_at: { type: string, format: date-time, nullable: true }
+        pauses:
+          type: array
+          items:
+            type: object
+            properties:
+              entry_id: { type: integer }
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+        absences:
+          type: array
+          items:
+            type: object
+            properties:
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+        day_pauses:
+          type: array
+          items:
+            type: object
+            properties:
+              class_id: { type: integer }
+              date: { type: string, format: date }
+              reason: { type: string }
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              class_id: { type: integer }
+              name: { type: string }
+              type: { type: string, enum: [boolean, ampel, text] }
+              category: { type: string, nullable: true }
+        column_values:
+          type: array
+          items:
+            type: object
+            properties:
+              column_id: { type: integer }
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+              value: { type: string, nullable: true }
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              schueler_id: { type: integer }
+              title: { type: string }
+              description: { type: string, nullable: true }
+              due_date: { type: string, format: date, nullable: true }
+              highlighted: { type: boolean }
+        appointments:
+          type: array
+          description: Termin-Vorkommen Mo–So (wiederkehrende Termine aufgelöst)
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              description: { type: string, nullable: true }
+              date: { type: string, format: date }
+              start_time: { type: string, nullable: true, example: '08:30' }
+              end_time: { type: string, nullable: true }
+              is_recurring: { type: boolean }
+              class_ids: { type: array, items: { type: integer } }
+              group_ids: { type: array, items: { type: integer } }
+              schueler_ids: { type: array, items: { type: integer }, description: Nur Schüler-Termine, wenn class_ids/group_ids leer }
+        hidden_category_ids: { type: array, items: { type: integer }, description: Vom Benutzer ausgeblendete Kategorien }
     Instance:
       type: object
       properties:

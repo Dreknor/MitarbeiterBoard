@@ -8,6 +8,7 @@ use App\Http\Controllers\API\v1\GradingApiController;
 use App\Http\Controllers\API\v1\GradingJoinApiController;
 use App\Http\Controllers\API\v1\InstanceApiController;
 use App\Http\Controllers\API\v1\PaedDiaryApiController;
+use App\Http\Controllers\API\v1\PaedDiaryWeekApiController;
 use App\Http\Controllers\API\v1\SsoApiController;
 use App\Http\Controllers\API\v1\StudentGradingApiController;
 use App\Http\Controllers\API\v1\StudentViewApiController;
@@ -96,6 +97,19 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('entry')->name('paed-diary.entries.update');
         Route::delete('paed-diary/entries/{entry}', [PaedDiaryApiController::class, 'destroy'])
             ->whereNumber('entry')->name('paed-diary.entries.destroy');
+
+        // Wochenansicht (Kalender): offene Notizen, Pausen, Abwesenheiten, Spalten, Termine
+        Route::get('paed-diary/week', [PaedDiaryWeekApiController::class, 'week'])->name('paed-diary.week');
+        Route::post('paed-diary/entries/{entry}/complete', [PaedDiaryWeekApiController::class, 'complete'])
+            ->whereNumber('entry')->name('paed-diary.entries.complete');
+        Route::put('paed-diary/entries/{entry}/pause', [PaedDiaryWeekApiController::class, 'pause'])
+            ->whereNumber('entry')->name('paed-diary.entries.pause');
+        Route::put('paed-diary/absences', [PaedDiaryWeekApiController::class, 'absence'])->name('paed-diary.absences');
+        Route::put('paed-diary/day-pauses', [PaedDiaryWeekApiController::class, 'dayPause'])->name('paed-diary.day-pauses');
+        Route::put('paed-diary/column-values', [PaedDiaryWeekApiController::class, 'columnValue'])
+            ->name('paed-diary.column-values');
+        Route::post('paed-diary/tasks/{task}/close', [PaedDiaryWeekApiController::class, 'closeTask'])
+            ->whereNumber('task')->name('paed-diary.tasks.close');
 
         // Bereich 3: Graduierung
         Route::get('grading/stages', [GradingApiController::class, 'stages'])

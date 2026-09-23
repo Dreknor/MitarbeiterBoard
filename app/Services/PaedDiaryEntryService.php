@@ -28,6 +28,54 @@ class PaedDiaryEntryService
     }
 
     /**
+     * Schließt eine offene Notiz ab (Web-Wochenansicht und API v1).
+     *
+     * Betrifft der Eintrag mehrere Schüler und wird `$schuelerId` übergeben, wird nur dieser
+     * Schüler abgeschlossen (eigener, abgeschlossener Eintrag); für die übrigen bleibt die Notiz offen.
+     * Muss innerhalb einer DB-Transaktion aufgerufen werden.
+     */
+    public function complete(PaedDiaryEntry $entry, Carbon $completedAt, ?int $schuelerId = null): void
+    {
+        if ($entry->completed_at) {
+            return;
+        }
+
+        $entry->loadMissing('schueler');
+        $allStudentIds = $entry->schueler->pluck('id')->all();
+
+        if ($schuelerId && in_array($schuelerId, $allStudentIds, true) && count($allStudentIds) > 1) {
+            // Eintrag betrifft mehrere Schüler: Nur den gewählten Schüler abschließen,
+            // der Eintrag bleibt für die übrigen Schüler unverändert offen.
+            $entry->schueler()->detach($schuelerId);
+
+            $completedEntry = PaedDiaryEntry::create([
+                'klasse_id' => $entry->klasse_id,
+                'user_id' => $entry->user_id,
+                'datum' => $entry->datum,
+                'content' => $entry->content,
+                'category_id' => $entry->category_id,
+                'dossier_only' => $entry->dossier_only,
+                'completed_at' => $completedAt,
+            ]);
+            $completedEntry->schueler()->sync([$schuelerId]);
+
+            // Bereits vorhandene Pausen dieses Schülers auf den neuen (abgeschlossenen) Eintrag übertragen,
+            // damit finalize() sie korrekt berücksichtigt.
+            $entry->pauses()->where('schueler_id', $schuelerId)
+                ->update(['paed_diary_entry_id' => $completedEntry->id]);
+
+            $completedEntry->load('schueler', 'pauses');
+            $this->finalize($completedEntry);
+        } else {
+            // Nur ein Schüler betroffen (oder kein schueler_id übergeben): kompletten Eintrag abschließen.
+            $entry->completed_at = $completedAt;
+            $entry->save();
+            $entry->load('schueler');
+            $this->finalize($entry);
+        }
+    }
+
+    /**
      * Finalisiert einen bisher offenen Eintrag beim Abschließen:
      * Für jeden Tag zwischen Startdatum und Abschlussdatum wird (unter Berücksichtigung
      * pausierter Tage je Schüler) ein eigener Eintrag angelegt.

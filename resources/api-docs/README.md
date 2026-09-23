@@ -57,6 +57,17 @@ Alle weiteren Requests: `Authorization: Bearer <token>`, `Accept: application/js
 | Katalog-Caching | `ETag`/`If-None-Match` → 304 bei `/paed-diary/categories`, `/diagnostic/areas`, `/grading/stages` |
 | Rate-Limit | Allgemein 60/min je Token (bzw. je IP ohne Token) |
 
+## Tagebuch: Wochenansicht (Kalender)
+
+- `GET /paed-diary/week?class_id=|group_id=&week_start=` – alle Daten der Web-Wochenansicht (Mo–Fr) in einer Antwort: Tage (inkl. Ferien), Schüler, Einträge der Woche + alle offenen Notizen, Pausen, Abwesenheiten, Tagespausen, Abhak-Spalten mit Werten, offene Aufgaben und Termine. Die Logik liegt in `App\Services\PaedDiaryCalendarService` und wird vom Web (`PaedDiaryController::weekData`) mitbenutzt – inkl. automatischer Pausen an Ferientagen und Klassen-Tagespausen.
+- Schreibende Endpunkte setzen einen **Zielzustand** statt umzuschalten (sicher für Wiederholungen aus der Offline-Warteschlange):
+  - `POST /paed-diary/entries/{id}/complete` (`date?`, `schueler_id?`)
+  - `PUT /paed-diary/entries/{id}/pause` (`schueler_id`, `date`, `paused`)
+  - `PUT /paed-diary/absences` (`schueler_id`, `date`, `absent`)
+  - `PUT /paed-diary/day-pauses` (`class_id`|`group_id`, `date`, `paused`, `reason?`)
+  - `PUT /paed-diary/column-values` (`column_id`, `schueler_id`, `date`, `value`)
+  - `POST /paed-diary/tasks/{id}/close`
+
 ## Graduierung: Gruppensessions
 
 - `POST /grading/sessions` mit `{type: "group", class_id, schueler_ids?, answer_order_mode?}`. Eine Session gehört genau zu **einer Klasse** (`grading_documentation_sessions.klasse_id`); alle `schueler_ids` müssen dieser Klasse angehören. Ohne `schueler_ids` nehmen alle Schüler der Klasse teil (wie im Web).

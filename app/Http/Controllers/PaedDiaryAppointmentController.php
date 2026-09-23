@@ -43,45 +43,13 @@ class PaedDiaryAppointmentController extends Controller
         }
         if (empty($classIds)) return response()->json(['appointments' => []]);
 
-        $start = Carbon::parse($data['start_date'])->startOfDay();
-        $end   = Carbon::parse($data['end_date'])->endOfDay();
-
-        $appointments = PaedDiaryAppointment::with([
-            'klassen:id,name',
-            'groups:id,name',
-            'schueler:id,vorname,nachname,klasse_id',
-            'exceptions',
-        ])
-            ->where(function ($q) use ($classIds, $groupId) {
-                $q->whereHas('klassen', fn ($qq) => $qq->whereIn('klassen.id', $classIds))
-                  ->orWhereHas('schueler', fn ($qq) => $qq->whereIn('schueler.klasse_id', $classIds));
-                if ($groupId) {
-                    $q->orWhereHas('groups', fn ($qq) => $qq->where('paed_diary_class_group_id', $groupId));
-                }
-            })
-            ->whereDate('start_date', '<=', $end->toDateString())
-            ->get();
-
-        $out = [];
-        foreach ($appointments as $app) {
-            $occ = $app->getOccurrencesInRange($start->copy(), $end->copy());
-            if (empty($occ)) continue;
-            $k = $app->klassen->map(fn ($k) => ['id' => $k->id, 'name' => $k->name]);
-            $g = $app->groups->map(fn ($gr) => ['id' => $gr->id, 'name' => $gr->name]);
-            $s = $app->schueler->map(fn ($st) => ['id' => $st->id, 'name' => $st->vorname . ' ' . $st->nachname, 'klasse_id' => $st->klasse_id]);
-            foreach ($occ as $o) {
-                $out[] = array_merge($o, [
-                    'klassen'       => $k,
-                    'groups'        => $g,
-                    'schueler'      => $s,
-                    'pause_entries' => (bool) $app->pause_entries,
-                    'recurring_type'     => $app->recurring_type,
-                    'recurring_interval' => $app->recurring_interval,
-                    'recurring_end_date' => $app->recurring_end_date?->toDateString(),
-                ]);
-            }
-        }
-        usort($out, fn ($a, $b) => $a['date'] === $b['date'] ? strcmp($a['start_time'] ?? '', $b['start_time'] ?? '') : strcmp($a['date'], $b['date']));
+        // Logik in PaedDiaryCalendarService (gemeinsam genutzt mit API v1)
+        $out = app(\App\Services\PaedDiaryCalendarService::class)->appointments(
+            array_values($classIds),
+            $groupId,
+            Carbon::parse($data['start_date']),
+            Carbon::parse($data['end_date'])
+        );
         return response()->json(['appointments' => $out]);
     }
 
