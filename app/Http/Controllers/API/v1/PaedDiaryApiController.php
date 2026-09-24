@@ -9,10 +9,12 @@ use App\Http\Requests\API\v1\StorePaedDiaryEntryRequest;
 use App\Http\Requests\API\v1\UpdatePaedDiaryEntryRequest;
 use App\Http\Resources\API\v1\PaedDiaryCategoryResource;
 use App\Http\Resources\API\v1\PaedDiaryEntryResource;
+use App\Models\Klasse;
 use App\Models\PaedDiaryCategory;
 use App\Models\PaedDiaryEntry;
 use App\Models\Schueler;
 use App\Models\User;
+use App\Services\Api\PaedDiarySearchService;
 use App\Services\Api\StudentDataService;
 use App\Services\PaedDiaryEntryService;
 use Carbon\Carbon;
@@ -31,7 +33,8 @@ class PaedDiaryApiController extends Controller
 {
     public function __construct(
         private StudentDataService $data,
-        private PaedDiaryEntryService $entries
+        private PaedDiaryEntryService $entries,
+        private PaedDiarySearchService $search
     ) {
     }
 
@@ -52,22 +55,45 @@ class PaedDiaryApiController extends Controller
 
     /**
      * GET /api/v1/students/{student}/paed-diary/entries – chronologisch (neueste zuerst), paginiert.
+     * Mit `search` Volltextsuche im Eintragstext (siehe PaedDiarySearchService).
      */
     public function studentEntries(IndexPaedDiaryEntriesRequest $request, Schueler $schueler)
     {
         $this->authorize('view', $schueler);
 
-        $entries = $this->data->diaryEntriesQuery($schueler, $request->user())
-            ->when($request->filled('from_date'), fn ($q) => $q->where('datum', '>=', $request->input('from_date')))
-            ->when($request->filled('to_date'), fn ($q) => $q->where('datum', '<=', $request->input('to_date') . ' 23:59:59'))
-            ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
-            ->when($request->filled('updated_since'), fn ($q) => $q->where(
-                'paed_diary_entries.updated_at', '>=', $this->data->sinceTimestamp($request->input('updated_since'))
-            ))
-            ->paginate((int) $request->input('per_page', 25))
-            ->withQueryString();
+        $query = $this->filtered($this->data->diaryEntriesQuery($schueler, $request->user()), $request);
 
-        return PaedDiaryEntryResource::collection($entries);
+        return $this->paginated($query, $request);
+    }
+
+    /**
+     * GET /api/v1/classes/{class}/paed-diary/entries – Klassen-Feed: alle Einträge der Schüler
+     * einer Klasse (auch von Kolleg*innen), neueste zuerst. Vertrauliche Einträge nur gemäß Rechten.
+     * Filter wie beim Schüler plus `author=own|others`; ohne Zeitraum werden die letzten 14 Tage geliefert.
+     */
+    public function classEntries(IndexPaedDiaryEntriesRequest $request, Klasse $klasse)
+    {
+        $this->authorize('viewClass', [Schueler::class, $klasse]);
+        $user = $request->user();
+
+        // Schülerbasiert (wie die Wochenansicht), damit Einträge nach Klassenwechseln erhalten bleiben.
+        $query = PaedDiaryEntry::query()
+            ->where(fn ($q) => $q
+                ->where('paed_diary_entries.klasse_id', $klasse->id)
+                ->orWhereHas('schueler', fn ($s) => $s->where('schueler.klasse_id', $klasse->id)))
+            ->confidentialFilter($user)
+            ->with(['category:id,name,color', 'user:id,name', 'schueler:schueler.id,vorname,nachname,klasse_id'])
+            ->when($request->input('author') === 'own', fn ($q) => $q->where('user_id', $user->id))
+            ->when($request->input('author') === 'others', fn ($q) => $q->where('user_id', '!=', $user->id))
+            ->orderByDesc('datum')
+            ->orderByDesc('id');
+
+        if (!$request->filled('from_date') && !$request->filled('to_date') && !$request->filled('search')
+            && !$request->filled('updated_since')) {
+            $query->where('datum', '>=', now()->subDays(13)->toDateString());
+        }
+
+        return $this->paginated($this->filtered($query, $request), $request, withStudents: true);
     }
 
     /**
@@ -249,6 +275,46 @@ class PaedDiaryApiController extends Controller
     }
 
     // ── Hilfsmethoden ────────────────────────────────────────────────────
+
+    /**
+     * Gemeinsame Filter der Eintragslisten (Zeitraum, Kategorie, Delta-Abfrage).
+     */
+    private function filtered($query, IndexPaedDiaryEntriesRequest $request)
+    {
+        return $query
+            ->when($request->filled('from_date'), fn ($q) => $q->where('datum', '>=', $request->input('from_date')))
+            ->when($request->filled('to_date'), fn ($q) => $q->where('datum', '<=', $request->input('to_date') . ' 23:59:59'))
+            ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('updated_since'), fn ($q) => $q->where(
+                'paed_diary_entries.updated_at', '>=', $this->data->sinceTimestamp($request->input('updated_since'))
+            ));
+    }
+
+    /**
+     * Seitenweise Ausgabe; mit `search` über die Volltextsuche (Text ist verschlüsselt gespeichert).
+     */
+    private function paginated($query, IndexPaedDiaryEntriesRequest $request, bool $withStudents = false)
+    {
+        $perPage = (int) $request->input('per_page', 25);
+        $meta = [];
+
+        if ($request->filled('search')) {
+            [$entries, $meta] = $this->search->paginate($query, (string) $request->input('search'), $perPage, max(1, $request->integer('page', 1)));
+        } else {
+            $entries = $query->paginate($perPage)->withQueryString();
+        }
+
+        if ($withStudents) {
+            // Schülernamen für den Feed (nur Vorname + Initial, wie in der App üblich)
+            $entries->getCollection()->each(fn (PaedDiaryEntry $e) => $e->setAttribute('students_brief', $e->schueler->map(fn ($s) => [
+                'id' => (int) $s->id,
+                'firstname' => $s->vorname,
+                'lastname_initial' => $s->nachname ? mb_substr($s->nachname, 0, 1) . '.' : null,
+            ])->values()));
+        }
+
+        return PaedDiaryEntryResource::collection($entries)->additional(['meta' => $meta]);
+    }
 
     private function createEntry(int $klasseId, array $schuelerIds, Request $request, User $user, ?int $categoryId): PaedDiaryEntry
     {

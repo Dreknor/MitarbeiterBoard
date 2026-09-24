@@ -67,6 +67,21 @@ Alle weiteren Requests: `Authorization: Bearer <token>`, `Accept: application/js
   - `PUT /paed-diary/day-pauses` (`class_id`|`group_id`, `date`, `paused`, `reason?`)
   - `PUT /paed-diary/column-values` (`column_id`, `schueler_id`, `date`, `value`)
   - `POST /paed-diary/tasks/{id}/close`
+- Pausen tragen `reason` (z. B. „Ferien“, „Termin“, „Wiedervorlage“), Termine zusätzlich `is_own`, `recurring_type`, `pause_entries`.
+
+## Tagebuch: Suche, Klassen-Feed und Planung
+
+- **Volltextsuche:** `search=` auf `GET /students/{id}/paed-diary/entries` und `GET /classes/{id}/paed-diary/entries`. Der Eintragstext ist verschlüsselt gespeichert, deshalb entschlüsselt `App\Services\Api\PaedDiarySearchService` die (nach Rechten, Zeitraum und Kategorie vorgefilterten) Einträge und sucht in PHP – höchstens 5000 neueste Einträge je Suche (`meta.search_truncated`). Umlaute und Groß-/Kleinschreibung sind egal, Füllwörter einer Frage werden ignoriert.
+- **Klassen-Feed:** `GET /classes/{id}/paed-diary/entries` – Einträge aller Kolleg*innen zu den Schülern der Klasse (Standard: letzte 14 Tage, `author=own|others`), mit `students` (Vorname + Initial).
+- **Aufgaben:** `POST /paed-diary/tasks` (`schueler_ids`, `title`, …; je Schüler eine Aufgabe), `PUT /paed-diary/tasks/{id}`. Logik in `PaedDiaryTaskService` (auch vom Web genutzt).
+- **Termine:** `POST /paed-diary/appointments`, `PUT|DELETE /paed-diary/appointments/{id}` (`mode=all|only_this|this_and_future`). Logik in `PaedDiaryAppointmentService` (auch vom Web genutzt), inkl. `pause_entries`.
+- **Wiedervorlage:** `PUT /paed-diary/entries/{id}/resubmission` (`resume_on`, `from?`, `schueler_id?`) legt Eintrags-Pausen mit Grund „Wiedervorlage“ an allen Schultagen bis zum Vortag an – ohne neue Tabelle, im Web sofort sichtbar. `resume_on: null` hebt auf.
+- **Schüler eines Eintrags:** `PUT|DELETE /paed-diary/entries/{id}/students/{schueler_id}` – nur Schüler der Klasse des Eintrags; der letzte Schüler bleibt.
+
+## Klassenübersichten
+
+- `GET /classes/{id}/grading/overview` – Stufenverteilung (Anzahl und Schüler je Stufe, ohne Stufe, fremde Stufen).
+- `GET /classes/{id}/diagnostic/overview?area_id=&min_count=` – je Kriterium die letzte Bewertung jedes Schülers; sortiert nach „kann es noch nicht“ (`dark_gray`) und „aktuelles Ziel“ (`gray`). Braucht `view diagnostics`.
 
 ## Graduierung: Gruppensessions
 

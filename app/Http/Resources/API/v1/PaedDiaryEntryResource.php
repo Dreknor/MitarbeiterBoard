@@ -28,6 +28,8 @@ class PaedDiaryEntryResource extends JsonResource
             'is_own' => $user ? (int) $this->user_id === (int) $user->id : false,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            // Nur im Klassen-Feed: Schüler des Eintrags (Vorname + Initial)
+            'students' => $this->when($this->resource->getAttribute('students_brief') !== null, fn () => $this->resource->getAttribute('students_brief')),
         ];
     }
 }

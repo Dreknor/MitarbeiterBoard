@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\API\v1\AuthApiController;
 use App\Http\Controllers\API\v1\ClassApiController;
+use App\Http\Controllers\API\v1\ClassOverviewApiController;
 use App\Http\Controllers\API\v1\DiagnosticApiController;
 use App\Http\Controllers\API\v1\DossierApiController;
 use App\Http\Controllers\API\v1\GradingApiController;
 use App\Http\Controllers\API\v1\GradingJoinApiController;
 use App\Http\Controllers\API\v1\InstanceApiController;
 use App\Http\Controllers\API\v1\PaedDiaryApiController;
+use App\Http\Controllers\API\v1\PaedDiaryPlanningApiController;
 use App\Http\Controllers\API\v1\PaedDiaryWeekApiController;
 use App\Http\Controllers\API\v1\SsoApiController;
 use App\Http\Controllers\API\v1\StudentGradingApiController;
@@ -85,6 +87,8 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('schueler')->name('students.view');
 
         // Bereich 2: Pädagogisches Tagebuch
+        Route::get('classes/{klasse}/paed-diary/entries', [PaedDiaryApiController::class, 'classEntries'])
+            ->whereNumber('klasse')->name('paed-diary.class-entries');
         Route::get('paed-diary/categories', [PaedDiaryApiController::class, 'categories'])
             ->middleware('etag')->name('paed-diary.categories');
         Route::get('students/{schueler}/paed-diary/entries', [PaedDiaryApiController::class, 'studentEntries'])
@@ -111,11 +115,30 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         Route::post('paed-diary/tasks/{task}/close', [PaedDiaryWeekApiController::class, 'closeTask'])
             ->whereNumber('task')->name('paed-diary.tasks.close');
 
+        // Planung: Aufgaben, Termine, Wiedervorlage, Schüler eines Eintrags
+        Route::post('paed-diary/tasks', [PaedDiaryPlanningApiController::class, 'storeTask'])->name('paed-diary.tasks.store');
+        Route::put('paed-diary/tasks/{task}', [PaedDiaryPlanningApiController::class, 'updateTask'])
+            ->whereNumber('task')->name('paed-diary.tasks.update');
+        Route::post('paed-diary/appointments', [PaedDiaryPlanningApiController::class, 'storeAppointment'])
+            ->name('paed-diary.appointments.store');
+        Route::put('paed-diary/appointments/{appointment}', [PaedDiaryPlanningApiController::class, 'updateAppointment'])
+            ->whereNumber('appointment')->name('paed-diary.appointments.update');
+        Route::delete('paed-diary/appointments/{appointment}', [PaedDiaryPlanningApiController::class, 'destroyAppointment'])
+            ->whereNumber('appointment')->name('paed-diary.appointments.destroy');
+        Route::put('paed-diary/entries/{entry}/resubmission', [PaedDiaryPlanningApiController::class, 'resubmission'])
+            ->whereNumber('entry')->name('paed-diary.entries.resubmission');
+        Route::put('paed-diary/entries/{entry}/students/{schueler}', [PaedDiaryPlanningApiController::class, 'attachStudent'])
+            ->whereNumber('entry')->whereNumber('schueler')->name('paed-diary.entries.students.attach');
+        Route::delete('paed-diary/entries/{entry}/students/{schueler}', [PaedDiaryPlanningApiController::class, 'detachStudent'])
+            ->whereNumber('entry')->whereNumber('schueler')->name('paed-diary.entries.students.detach');
+
         // Bereich 3: Graduierung
         Route::get('grading/stages', [GradingApiController::class, 'stages'])
             ->middleware('etag')->name('grading.stages');
         Route::get('students/{schueler}/grading/history', [GradingApiController::class, 'history'])
             ->whereNumber('schueler')->name('grading.history');
+        Route::get('classes/{klasse}/grading/overview', [ClassOverviewApiController::class, 'grading'])
+            ->whereNumber('klasse')->name('grading.class-overview');
         Route::get('classes/{klasse}/grading/sessions', [GradingApiController::class, 'classSessions'])
             ->whereNumber('klasse')->name('grading.class-sessions');
         Route::post('grading/sessions', [GradingApiController::class, 'storeSession'])->name('grading.sessions.store');
@@ -145,6 +168,8 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
                 ->whereNumber('goal')->name('diagnostic.goals.update');
             Route::delete('diagnostic/goals/{goal}', [DiagnosticApiController::class, 'destroyGoal'])
                 ->whereNumber('goal')->name('diagnostic.goals.destroy');
+            Route::get('classes/{klasse}/diagnostic/overview', [ClassOverviewApiController::class, 'diagnostic'])
+                ->whereNumber('klasse')->name('diagnostic.class-overview');
         });
 
         // Bereich 5: Dossier-Export (JSON und PDF)

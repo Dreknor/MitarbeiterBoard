@@ -15,7 +15,8 @@ Laravel 10 school intranet ("MitarbeiterBoard") for the Evangelisches Schulzentr
 
 - **REST API v1** (Pädagogen-App) under `/api/v1`, Laravel Sanctum bearer tokens (`auth:sanctum` + `permission:view paed diary`). Controllers in `app/Http/Controllers/API/v1/`, Form Requests in `app/Http/Requests/API/v1/`, Resources in `app/Http/Resources/API/v1/`, shared queries in `app/Services/Api/StudentDataService.php`. Spec: `resources/api-docs/openapi-v1.yaml`, tests: `tests/Feature/API/v1/`. Keep the OpenAPI file in sync when changing endpoints.
   - Teacher routes use `auth:sanctum`, `api.staff` (rejects student tokens, extends token lifetime), `permission:view paed diary` and `idempotent` (optional `Idempotency-Key`; runs before route-model binding via `Kernel::$middlewarePriority`). Student-iPad routes (`/api/v1/student/*`) use `auth:sanctum` + `api.student`; their tokens belong to `GradingStudentDevice`, never to a `User`.
-  - Shared logic for web and API: `GradingSessionService` (grading sessions), `GradingStageService` (stage changes), `Api\DossierService` (dossier JSON/PDF, view `pdf/dossier.blade.php`). App config: `config/paed_app.php`.
+  - Shared logic for web and API: `GradingSessionService` (grading sessions), `GradingStageService` (stage changes), `Api\DossierService` (dossier JSON/PDF, view `pdf/dossier.blade.php`), `PaedDiaryCalendarService` (week view), `PaedDiaryTaskService` (tasks), `PaedDiaryAppointmentService` (appointments).
+  - Diary content is encrypted at rest (`PaedDiaryEntry::setContentAttribute`), so full-text search cannot use SQL – `Api\PaedDiarySearchService` decrypts pre-filtered entries and matches in PHP (max. 5000 per search). App config: `config/paed_app.php`.
 
 ## Key Directories
 

@@ -124,6 +124,8 @@ class PaedDiaryWeekApiController extends Controller
                 'entry_id' => $p->paed_diary_entry_id,
                 'schueler_id' => $p->schueler_id,
                 'date' => $p->date->toDateString(),
+                // z. B. „Ferien“, „Termin“, „Wiedervorlage“ oder null (einzeln pausiert)
+                'reason' => $p->reason ?? null,
             ])->values(),
             'absences' => $week['absences']->map(fn ($a) => [
                 'schueler_id' => $a->schueler_id,
@@ -163,6 +165,9 @@ class PaedDiaryWeekApiController extends Controller
                 'start_time' => $this->time($a['start_time'] ?? null),
                 'end_time' => $this->time($a['end_time'] ?? null),
                 'is_recurring' => (bool) ($a['is_recurring'] ?? false),
+                'recurring_type' => $a['recurring_type'] ?? null,
+                'pause_entries' => (bool) ($a['pause_entries'] ?? false),
+                'is_own' => (int) ($a['user_id'] ?? 0) === (int) $user->id,
                 'class_ids' => collect($a['klassen'])->pluck('id')->values(),
                 'group_ids' => collect($a['groups'])->pluck('id')->values(),
                 'schueler_ids' => collect($a['schueler'])->pluck('id')->values(),

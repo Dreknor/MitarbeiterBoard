@@ -307,12 +307,13 @@ paths:
         - { name: from_date, in: query, schema: { type: string, format: date } }
         - { name: to_date, in: query, description: inklusiv, schema: { type: string, format: date } }
         - { name: category_id, in: query, schema: { type: integer } }
+        - $ref: '#/components/parameters/DiarySearch'
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
         - $ref: '#/components/parameters/UpdatedSince'
       responses:
         '200':
-          description: OK (Laravel-Paginierung mit `links` und `meta`)
+          description: OK (Laravel-Paginierung mit `links` und `meta`; bei `search` zusätzlich `meta.search_terms` und `meta.search_truncated`)
           content:
             application/json:
               schema:
@@ -320,8 +321,54 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/DiaryEntry' } }
                   links: { type: object }
-                  meta: { type: object }
+                  meta: { $ref: '#/components/schemas/DiaryListMeta' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /classes/{class_id}/paed-diary/entries:
+    get:
+      tags: [Tagebuch]
+      summary: Klassen-Feed – Einträge aller Kolleg*innen zu den Schülern einer Klasse
+      description: |
+        Alle Einträge zu Schülern der Klasse (schülerbasiert, auch nach Klassenwechseln), neueste zuerst.
+        Vertrauliche Einträge fremder Autoren nur mit Sonderrecht. Ohne Zeitraum, Suche oder `updated_since`
+        werden die letzten 14 Tage geliefert. Jeder Eintrag enthält zusätzlich `students` (Vorname + Initial).
+        Für Lerngruppen ruft die App den Feed je Klasse auf.
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+        - { name: from_date, in: query, schema: { type: string, format: date } }
+        - { name: to_date, in: query, description: inklusiv, schema: { type: string, format: date } }
+        - { name: category_id, in: query, schema: { type: integer } }
+        - { name: author, in: query, schema: { type: string, enum: [all, own, others], default: all } }
+        - $ref: '#/components/parameters/DiarySearch'
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/UpdatedSince'
+      responses:
+        '200':
+          description: OK (Laravel-Paginierung)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/DiaryEntry'
+                        - type: object
+                          properties:
+                            students:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer }
+                                  firstname: { type: string }
+                                  lastname_initial: { type: string, nullable: true, example: 'M.' }
+                  links: { type: object }
+                  meta: { $ref: '#/components/schemas/DiaryListMeta' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /paed-diary/entries:
     post:
       tags: [Tagebuch]
@@ -616,6 +663,196 @@ paths:
       responses:
         '200': { description: OK }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /paed-diary/tasks:
+    post:
+      tags: [Tagebuch]
+      summary: Aufgabe anlegen (je Schüler eine Aufgabe)
+      description: Alle Schüler müssen zugänglich sein, sonst 403 mit `forbidden_schueler_ids` und nichts wird gespeichert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_ids, title]
+              properties:
+                schueler_ids: { type: array, minItems: 1, maxItems: 100, items: { type: integer } }
+                title: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                due_date: { type: string, format: date, nullable: true }
+                highlighted: { type: boolean, default: false, description: Rot hervorheben (wichtig) }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/DiaryTask' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/tasks/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Aufgabe bearbeiten
+      description: Wie im Web werden `description` und `due_date` geleert, wenn sie fehlen; `highlighted` bleibt dann unverändert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                due_date: { type: string, format: date, nullable: true }
+                highlighted: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryTask' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/appointments:
+    post:
+      tags: [Tagebuch]
+      summary: Termin anlegen (Klasse, Lerngruppe oder einzelne Schüler, z. B. Elterngespräch)
+      description: |
+        Gleiche Logik wie im Web. Mit `pause_entries` werden offene Notizen der betroffenen Schüler an allen
+        Terminen (bis 90 Tage voraus) pausiert (Grund „Termin“). Klassen/Schüler ohne Zugriff → 403.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppointmentInput' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Appointment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/appointments/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Termin ändern (vollständig)
+      description: Erlaubt für Ersteller*in und Lehrkräfte mit Zugriff auf eine zugeordnete Klasse.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppointmentInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Appointment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tagebuch]
+      summary: Termin löschen (ganz, ein Vorkommen oder ab einem Vorkommen)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: mode, in: query, schema: { type: string, enum: [all, only_this, this_and_future], default: all } }
+        - { name: date, in: query, description: 'Vorkommen (Pflicht bei `only_this`/`this_and_future`)', schema: { type: string, format: date } }
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/resubmission:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Wiedervorlage einer offenen Notiz („ab Montag wieder zeigen“)
+      description: |
+        Blendet die Notiz an allen Schultagen (Mo–Fr) von `from` bis zum Vortag von `resume_on` aus – als Eintrags-Pausen
+        mit Grund „Wiedervorlage“, im Web wie in der App sichtbar. Eine bestehende Wiedervorlage ab `from` wird ersetzt
+        (wiederholbar); andere Pausen (Ferien, Termin, einzeln) bleiben. `resume_on: null` hebt die Wiedervorlage ab
+        `from` auf. Höchstens 120 Tage.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resume_on]
+              properties:
+                resume_on: { type: string, format: date, nullable: true, description: Ab diesem Tag wieder anzeigen }
+                from: { type: string, format: date, description: Standard heute (frühestens Beginn der Notiz) }
+                schueler_id: { type: integer, description: Nur für diesen Schüler; Standard alle Schüler der Notiz }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entry_id: { type: integer }
+                      schueler_ids: { type: array, items: { type: integer } }
+                      from: { type: string, format: date }
+                      resume_on: { type: string, format: date, nullable: true }
+                      paused_dates: { type: array, items: { type: string, format: date } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/students/{student_id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+      - $ref: '#/components/parameters/StudentId'
+    put:
+      tags: [Tagebuch]
+      summary: Schüler zu einem Eintrag hinzufügen
+      description: Nur Schüler derselben Klasse wie der Eintrag (Lerngruppen-Einträge bestehen aus einem Eintrag je Klasse). Wiederholbar.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/EntryStudents' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tagebuch]
+      summary: Schüler aus einem Eintrag entfernen
+      description: Entfernt auch seine Pausen dieser Notiz. Der letzte Schüler kann nicht entfernt werden (422) – dann den Eintrag löschen. Wiederholbar.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/EntryStudents' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /grading/stages:
     get:
@@ -662,6 +899,24 @@ paths:
                       current_stage: { $ref: '#/components/schemas/CurrentStage' }
                       stage_history: { type: array, items: { $ref: '#/components/schemas/StageHistoryItem' } }
                       completed_sessions: { type: array, items: { $ref: '#/components/schemas/GradingSession' } }
+  /classes/{class_id}/grading/overview:
+    get:
+      tags: [Graduierung]
+      summary: Stufenverteilung einer Klasse
+      description: Wie viele Schüler auf welcher Stufe des Graduierungssystems der Klasse sind (in Stufenreihenfolge).
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/GradingOverview' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /classes/{class_id}/grading/sessions:
     get:
       tags: [Graduierung]
@@ -1066,6 +1321,30 @@ paths:
         '204': { description: Endgültig gelöscht }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /classes/{class_id}/diagnostic/overview:
+    get:
+      tags: [Diagnose]
+      summary: Diagnose-Übersicht einer Klasse (Grundlage für Fördergruppen)
+      description: |
+        Je Kriterium zählt die jeweils letzte Bewertung jedes Schülers (neueste Sitzung): `white` = kann es,
+        `gray` = aktuelles Ziel, `dark_gray` = kann es noch nicht. Sortiert nach `dark_gray`, dann `gray` absteigend.
+        Kriterien, bei denen weniger als `min_count` Schüler (`gray` + `dark_gray`) noch nicht sicher sind, entfallen.
+        Erfordert zusätzlich `view diagnostics`.
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+        - { name: area_id, in: query, schema: { type: integer } }
+        - { name: min_count, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 1 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiagnosticClassOverview' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /students/{student_id}/dossier:
     get:
       tags: [Dossier]
@@ -1139,6 +1418,16 @@ components:
       required: false
       description: Delta-Abfrage – nur seit diesem Zeitpunkt geänderte Datensätze (ISO-8601, beliebige Zeitzone)
       schema: { type: string, format: date-time }
+    DiarySearch:
+      name: search
+      in: query
+      required: false
+      description: |
+        Volltextsuche in Eintragstext und Kategorie. Groß-/Kleinschreibung und Umlaute egal, alle Suchwörter müssen
+        (auch als Wortteil) vorkommen, Füllwörter einer Frage werden ignoriert („Wann hatten wir das mit dem Streit am
+        Klettergerüst?“ → `streit`, `klettergerust`). Da der Text verschlüsselt gespeichert ist, durchsucht der Server
+        höchstens die 5000 neuesten passenden Einträge (`meta.search_truncated`).
+      schema: { type: string, maxLength: 200 }
   responses:
     Unauthenticated:
       description: Nicht authentifiziert
@@ -1166,7 +1455,156 @@ components:
               errors:
                 type: object
                 additionalProperties: { type: array, items: { type: string } }
+    EntryStudents:
+      description: Aktuelle Schüler des Eintrags
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  entry_id: { type: integer }
+                  schueler_ids: { type: array, items: { type: integer } }
+                  updated_at: { type: string, format: date-time }
   schemas:
+    DiaryListMeta:
+      type: object
+      description: Laravel-Paginierung; bei `search` zusätzlich Suchinfos
+      properties:
+        current_page: { type: integer }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        search_terms: { type: array, items: { type: string }, description: Verwendete Suchwörter (normalisiert) }
+        search_truncated: { type: boolean, description: true = nicht alle älteren Einträge durchsucht }
+    DiaryTask:
+      type: object
+      properties:
+        id: { type: integer }
+        schueler_id: { type: integer }
+        klasse_id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        due_date: { type: string, format: date, nullable: true }
+        highlighted: { type: boolean }
+        status: { type: string, enum: [open, closed] }
+    AppointmentInput:
+      type: object
+      required: [title, start_date]
+      description: Mindestens eines von `class_ids`, `group_ids`, `schueler_ids`.
+      properties:
+        title: { type: string, maxLength: 150, example: Elterngespräch }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        start_date: { type: string, format: date }
+        start_time: { type: string, nullable: true, example: '14:00' }
+        end_time: { type: string, nullable: true, example: '14:30' }
+        is_recurring: { type: boolean, default: false }
+        recurring_type: { type: string, nullable: true, enum: [daily, weekly, monthly] }
+        recurring_interval: { type: integer, minimum: 1, maximum: 365, default: 1 }
+        recurring_end_date: { type: string, format: date, nullable: true }
+        pause_entries: { type: boolean, default: false, description: Offene Notizen der Betroffenen an den Terminen pausieren }
+        class_ids: { type: array, items: { type: integer } }
+        group_ids: { type: array, items: { type: integer } }
+        schueler_ids: { type: array, items: { type: integer } }
+    Appointment:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        start_date: { type: string, format: date }
+        start_time: { type: string, nullable: true }
+        end_time: { type: string, nullable: true }
+        is_recurring: { type: boolean }
+        recurring_type: { type: string, nullable: true }
+        recurring_interval: { type: integer }
+        recurring_end_date: { type: string, format: date, nullable: true }
+        pause_entries: { type: boolean }
+        class_ids: { type: array, items: { type: integer } }
+        group_ids: { type: array, items: { type: integer } }
+        schueler_ids: { type: array, items: { type: integer } }
+        is_own: { type: boolean }
+    StudentBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        firstname: { type: string }
+        lastname: { type: string }
+    GradingOverview:
+      type: object
+      properties:
+        class: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        grading_system: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+        students_total: { type: integer }
+        open_sessions_count: { type: integer }
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              level: { type: integer }
+              symbol: { type: string, nullable: true }
+              badge_image_url: { type: string, nullable: true }
+              count: { type: integer }
+              students: { type: array, items: { $ref: '#/components/schemas/StudentBrief' } }
+        other_stages:
+          type: array
+          description: Schüler mit einer Stufe aus einem anderen System (z. B. nach Klassenwechsel)
+          items:
+            allOf:
+              - $ref: '#/components/schemas/StudentBrief'
+              - type: object
+                properties:
+                  stage_title: { type: string }
+        without_stage: { type: array, items: { $ref: '#/components/schemas/StudentBrief' } }
+    DiagnosticClassOverview:
+      type: object
+      properties:
+        class: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        students_total: { type: integer }
+        assessed_students: { type: integer }
+        areas:
+          type: array
+          items: { type: object, properties: { id: { type: integer }, title: { type: string } } }
+        criteria:
+          type: array
+          items:
+            type: object
+            properties:
+              criterion_id: { type: integer }
+              code: { type: string }
+              description: { type: string }
+              stage_id: { type: integer, nullable: true }
+              stage_title: { type: string, nullable: true }
+              area_id: { type: integer, nullable: true }
+              area_title: { type: string, nullable: true }
+              counts:
+                type: object
+                properties:
+                  white: { type: integer }
+                  gray: { type: integer }
+                  dark_gray: { type: integer }
+                  assessed: { type: integer }
+              students_not_yet:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/StudentBrief'
+                    - type: object
+                      properties:
+                        assessed_on: { type: string, format: date, nullable: true }
+              students_partial:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/StudentBrief'
+                    - type: object
+                      properties:
+                        assessed_on: { type: string, format: date, nullable: true }
     Error:
       type: object
       properties:
@@ -1245,6 +1683,7 @@ components:
               entry_id: { type: integer }
               schueler_id: { type: integer }
               date: { type: string, format: date }
+              reason: { type: string, nullable: true, description: 'z. B. „Ferien“, „Termin“, „Wiedervorlage“; null = einzeln pausiert' }
         absences:
           type: array
           items:
@@ -1303,6 +1742,9 @@ components:
               start_time: { type: string, nullable: true, example: '08:30' }
               end_time: { type: string, nullable: true }
               is_recurring: { type: boolean }
+              recurring_type: { type: string, nullable: true, enum: [daily, weekly, monthly] }
+              pause_entries: { type: boolean }
+              is_own: { type: boolean, description: Selbst angelegt }
               class_ids: { type: array, items: { type: integer } }
               group_ids: { type: array, items: { type: integer } }
               schueler_ids: { type: array, items: { type: integer }, description: Nur Schüler-Termine, wenn class_ids/group_ids leer }

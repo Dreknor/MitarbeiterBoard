@@ -207,9 +207,13 @@ class PaedDiaryCalendarService
         $tasks = PaedDiaryTask::whereIn('schueler_id', $schuelerIds)->open()->with('schueler:id,vorname,nachname')->get();
 
         // Pausen für Tage der Woche laden (inkl. neu erstellte Ferien-Pausen)
+        // whereDate statt whereBetween: `date` wird je nach Datenbank mit Uhrzeit gespeichert (sonst fehlt der Freitag)
         $pauseRecords = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entries->pluck('id'))
-            ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get(['paed_diary_entry_id', 'schueler_id', 'date']);
+            ->whereDate('date', '>=', $weekStart->toDateString())
+            ->whereDate('date', '<=', $periodEnd->toDateString())
+            ->get(Schema::hasColumn('paed_diary_entry_pauses', 'reason')
+                ? ['paed_diary_entry_id', 'schueler_id', 'date', 'reason']
+                : ['paed_diary_entry_id', 'schueler_id', 'date']);
 
         // Abwesenheiten für die aktuelle Woche laden (schülerbasiert statt klasse_id-basiert, s.o.)
         $absencesForWeek = PaedDiarySchuelerAbsence::whereIn('schueler_id', $schuelerIds)

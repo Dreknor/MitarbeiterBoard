@@ -14,6 +14,10 @@ class IndexPaedDiaryEntriesRequest extends ApiRequest
             'page' => ['sometimes', 'integer', 'min:1'],
             // Delta-Abfrage: nur seit diesem Zeitpunkt geänderte Einträge (ISO-8601)
             'updated_since' => ['sometimes', 'date'],
+            // Volltextsuche (Eintragstext und Kategorie; alle Suchwörter müssen vorkommen)
+            'search' => ['sometimes', 'nullable', 'string', 'max:200'],
+            // Nur Klassen-Feed: eigene („own“) bzw. Einträge von Kolleg*innen („others“)
+            'author' => ['sometimes', 'in:all,own,others'],
         ];
     }
 }
