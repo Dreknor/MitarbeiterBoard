@@ -31,7 +31,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        // API v1: Die Tabelle personal_access_tokens wird über eine projektinterne Migration angelegt.
+        \Laravel\Sanctum\Sanctum::ignoreMigrations();
     }
 
     /**

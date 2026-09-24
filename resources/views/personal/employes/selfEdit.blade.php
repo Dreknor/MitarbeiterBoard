@@ -77,6 +77,10 @@
                         </ul>
                     </div>
                 </div>
+
+                @can('view paed diary')
+                    @include('personal.employes._paed_app_card')
+                @endcan
             </div>
             <div class="col-lg-8 col-md-7">
                 <div class="card">

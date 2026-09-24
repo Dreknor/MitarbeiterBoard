@@ -49,6 +49,10 @@ class Kernel extends ConsoleKernel
         // Cleanup expired grading tokens
         $schedule->command('grading:cleanup-tokens')->daily();
 
+        // Pädagogen-App: Idempotency-Keys (48 h) und abgelaufene App-Tokens aufräumen
+        $schedule->command('paed-app:prune-idempotency')->hourly();
+        $schedule->command('sanctum:prune-expired --hours=24')->daily();
+
         // VP-Raumbuchungen aufräumen (älter als X Tage, konfigurierbar via settings)
         $schedule->command('room-bookings:cleanup-vp')->weekly();
 

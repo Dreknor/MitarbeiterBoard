@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
+use App\Services\Api\AppSsoService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,17 @@ class KeycloakLoginController extends Controller
 {
 
     public function login()
+    {
+        // Ein normaler Web-Login verwirft einen evtl. abgebrochenen App-Login (Pädagogen-App)
+        app(AppSsoService::class)->forgetFlow();
+
+        return $this->redirectToKeycloak();
+    }
+
+    /**
+     * Startet den Keycloak-Redirect. Wird auch vom App-Login (GET /api/v1/auth/sso/start) genutzt.
+     */
+    public function redirectToKeycloak()
     {
         try {
             return Socialite::driver('keycloak')->scopes([
@@ -33,6 +45,11 @@ class KeycloakLoginController extends Controller
                 'url' => url()->current(),
             ]);
 
+            $appSso = app(AppSsoService::class);
+            if ($appSso->hasFlow()) {
+                return $appSso->errorRedirect('sso_unavailable');
+            }
+
             return redirect()->route('login')->with([
                 'type' => 'danger',
                 'Meldung' => 'Login failed']);
@@ -42,6 +59,8 @@ class KeycloakLoginController extends Controller
     }
     public function auth()
     {
+        $appSso = app(AppSsoService::class);
+
         try {
             $user = Socialite::driver('keycloak')->user();
 
@@ -51,12 +70,36 @@ class KeycloakLoginController extends Controller
                 'url' => url()->current(),
             ]);
 
+            if ($appSso->hasFlow()) {
+                return $appSso->errorRedirect('sso_failed');
+            }
+
             return redirect()->route('login')->with([
                 'type' => 'danger',
                 'Meldung' => 'Login failed']);
         }
 
+        $laravelUser = $this->resolveUser($user);
 
+        // Pädagogen-App: Einmal-Code statt Web-Login (kein Login-Cookie für die Web-Oberfläche)
+        if ($appSso->hasFlow()) {
+            return $appSso->completeFlow($laravelUser);
+        }
+
+        Log::info('OIDC: User logged in by KeyCloak: ' . $laravelUser->username);
+
+        Auth::loginUsingId($laravelUser->id);
+        session()->regenerate();
+
+        return redirect(url('/'));
+    }
+
+    /**
+     * Ordnet den Keycloak-Benutzer einem lokalen Benutzer zu (legt ihn bei Bedarf an).
+     * Gemeinsame Logik für Web- und App-Login.
+     */
+    private function resolveUser($user): User
+    {
         $laravelUser = User::where('username', $user->nickname)
             ->orWhere('email', $user->email)
             ->first();
@@ -126,13 +169,7 @@ class KeycloakLoginController extends Controller
             $laravelUser->roles()->attach($roles);
         }
 
-
-        Log::info('OIDC: User logged in by KeyCloak: ' . $laravelUser->username);
-
-        Auth::loginUsingId($laravelUser->id);
-        session()->regenerate();
-
-        return redirect(url('/'));
+        return $laravelUser;
     }
 
 }

@@ -200,176 +200,16 @@ class PaedDiaryController extends Controller
             $klassen = collect([$klasse]);
         }
         $weekStart = $request->filled('week_start') ? Carbon::parse($request->week_start)->startOfWeek() : Carbon::now()->startOfWeek();
-        $periodEnd = $weekStart->copy()->addDays(4);
-        $period = CarbonPeriod::create($weekStart, $periodEnd);
-        $days = collect();
-        $ferienDates = [];
 
-        foreach ($period as $date) {
-            $ferienInfo = is_ferien($date);
-            $isFerienTag = !is_null($ferienInfo);
-
-            // Debug-Logging
-            if ($isFerienTag) {
-                Log::info('Ferien gefunden für Datum: ' . $date->toDateString(), [
-                    'ferienInfo' => $ferienInfo,
-                    'is_object' => is_object($ferienInfo),
-                    'is_array' => is_array($ferienInfo)
-                ]);
-            }
-
-            // Sicherer Zugriff auf ferien_name - kann Objekt oder Array sein
-            $ferienName = null;
-            if ($isFerienTag) {
-                if (is_object($ferienInfo)) {
-                    $ferienName = $ferienInfo->name ?? $ferienInfo->slug ?? 'Ferien';
-                } elseif (is_array($ferienInfo)) {
-                    $ferienName = $ferienInfo['name'] ?? $ferienInfo['slug'] ?? 'Ferien';
-                } else {
-                    $ferienName = 'Ferien';
-                }
-            }
-
-            $days->push([
-                'date' => $date->toDateString(),
-                'label' => $date->format('D d.m.'),
-                'is_ferien' => $isFerienTag,
-                'ferien_name' => $ferienName
-            ]);
-
-            if ($isFerienTag) {
-                $ferienDates[] = $date->toDateString();
-            }
-        }
-
-        // Schüler aller Klassen laden
-        $schueler = \App\Models\Schueler::whereIn('klasse_id', $klassen->pluck('id'))->with('grading_stage')->orderBy('klasse_id')->orderBy('vorname')->orderBy('nachname')->get(['id', 'vorname', 'nachname', 'grading_stage_id', 'klasse_id']);
+        // Laden inkl. Ferien-/Tagespausen-Automatik – gemeinsam mit API v1 (Pädagogen-App)
+        $calendar = app(\App\Services\PaedDiaryCalendarService::class);
+        $week = $calendar->loadWeek($klassen, $weekStart);
+        $periodEnd = $week['week_end'];
+        $schueler = $week['schueler'];
         $schuelerIds = $schueler->pluck('id');
-
-        // Spaltenwerte der Woche zuerst schülerbasiert laden (unabhängig von der aktuellen
-        // Klasse!), damit auch Werte aus vorherigen Schuljahren/Klassen erhalten bleiben,
-        // wenn Lehrer in der Wochenansicht in die Vergangenheit zurückblättern.
-        $columnValues = PaedDiaryColumnValue::whereIn('schueler_id', $schuelerIds)
-            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get();
-        $historicalColumnIds = $columnValues->pluck('paed_diary_column_id')->unique();
-
-        // Spalten aller Klassen vereinigt: aktuelle Klassenspalten + alle Spalten, für die in
-        // dieser Woche tatsächlich historische Werte existieren (auch aus einer früheren Klasse
-        // der Schüler) - so bleibt die vollständige Historie für Lehrer jederzeit einsehbar.
-        $columns = PaedDiaryColumn::where(function ($q) use ($klassen, $historicalColumnIds) {
-                $q->whereIn('klasse_id', $klassen->pluck('id'))
-                  ->orWhereIn('id', $historicalColumnIds);
-            })
-            ->where(function ($q) use ($weekStart) {
-                $q->whereNull('deactivated_from')->orWhere('deactivated_from', '>', $weekStart->toDateString());
-            })
-            ->orderBy('klasse_id')->orderBy('sort_order')->get();
-
-        // Einträge der aktuellen Woche laden.
-        // WICHTIG: NICHT (mehr) nach klasse_id filtern, sondern nach den aktuell in dieser
-        // Klasse/Gruppe befindlichen Schülern (schueler_id)! Beim Schuljahreswechsel bleibt die
-        // Schueler-ID erhalten, aber klasse_id wird auf die neue Klasse aktualisiert - alte
-        // Einträge (z.B. aus dem letzten Schuljahr, wenn man in der Wochenansicht zurückblättert)
-        // referenzieren noch die damalige klasse_id. Eine klasse_id-Filterung würde diese
-        // Einträge sonst unsichtbar machen, obwohl der Schüler weiterhin korrekt zugeordnet ist.
-        $currentWeekEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
-            ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
-            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->where('dossier_only', false)
-            ->get();
-
-        // Zusätzlich alle offenen Einträge aus vorherigen Wochen laden (ebenfalls schülerbasiert, s.o.)
-        $previousOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
-            ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
-            ->where('datum', '<', $weekStart->toDateString())
-            ->whereNull('completed_at')
-            ->where('dossier_only', false)
-            ->get();
-
-        // Beide Collections zusammenführen
-        $entries = $currentWeekEntries->merge($previousOpenEntries);
-
-        // Auto-Pausierung: Offene Einträge während der Ferien pausieren
-        // WICHTIG: Ein Eintrag darf NICHT rückwirkend für sein eigenes Start-Datum (oder
-        // frühere Tage) pausiert werden – sonst verschwindet ein gerade erst erstellter,
-        // offener Eintrag sofort wieder aus der Ansicht, obwohl er heute (ggf. innerhalb
-        // eines laut Kalender noch laufenden Ferienzeitraums) bewusst angelegt wurde.
-        // Zusätzlich: Manche Kolleg*innen legen Einträge bewusst WÄHREND laufender Ferien an
-        // (z.B. Hort-/Ferienbetreuung). Wurde ein Eintrag selbst innerhalb eines Ferienzeitraums
-        // erstellt (created_at liegt in den Ferien), wird er grundsätzlich NIE automatisch
-        // pausiert - unabhängig vom konkreten Ferientag. Die Auto-Pause soll nur bereits vor den
-        // Ferien offene Einträge betreffen, die während der Ferien "liegen bleiben" würden.
-        if (!empty($ferienDates)) {
-            try {
-                // Prüfen ob reason-Spalte bereits existiert (Migration ggf. noch nicht gelaufen)
-                $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-                foreach ($entries as $entry) {
-                    if (is_null($entry->completed_at)) {
-                        // Wurde der Eintrag bewusst während laufender Ferien erstellt? Dann nie pausieren.
-                        $createdAt = $entry->created_at ?? $entry->datum;
-                        if (!is_null(is_ferien($createdAt->copy()))) {
-                            continue;
-                        }
-                        $entryStart = $entry->datum->copy()->startOfDay();
-                        foreach ($entry->schueler as $schueler_item) {
-                            foreach ($ferienDates as $ferienDate) {
-                                if (Carbon::parse($ferienDate)->lte($entryStart)) {
-                                    continue;
-                                }
-                                $pauseData = [
-                                    'paed_diary_entry_id' => $entry->id,
-                                    'schueler_id' => $schueler_item->id,
-                                    'date' => $ferienDate,
-                                ];
-                                $defaults = $reasonColumnExists ? ['reason' => 'Ferien'] : [];
-                                PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
-                            }
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::warning('Ferien-Auto-Pause fehlgeschlagen: ' . $e->getMessage());
-            }
-        }
-
-        // ── Klassen-Tag-Pausen (manuelle Veranstaltungs-Pausen) laden und anwenden ──
-        $classDayPauseRecords = collect();
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('paed_diary_class_day_pauses')) {
-                $classDayPauseRecords = PaedDiaryClassDayPause::whereIn('klasse_id', $klassen->pluck('id'))
-                    ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
-                    ->get();
-
-                // Gruppiert nach klasse_id: [klasseId => [dateStr, ...]]
-                $classDayPauseDates = $classDayPauseRecords
-                    ->groupBy('klasse_id')
-                    ->map(fn($items) => $items->pluck('date')->map(fn($d) => $d->toDateString())->toArray());
-
-                if ($classDayPauseRecords->isNotEmpty()) {
-                    $reasonColumnExists2 = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-                    foreach ($entries as $entry) {
-                        if (is_null($entry->completed_at)) {
-                            $pauseDates = $classDayPauseDates[$entry->klasse_id] ?? [];
-                            foreach ($entry->schueler as $schueler_item) {
-                                foreach ($pauseDates as $pauseDate) {
-                                    $pauseData = [
-                                        'paed_diary_entry_id' => $entry->id,
-                                        'schueler_id' => $schueler_item->id,
-                                        'date' => $pauseDate,
-                                    ];
-                                    $defaults = $reasonColumnExists2 ? ['reason' => 'Veranstaltung'] : [];
-                                    PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Klassen-Tag-Pause-Anwendung fehlgeschlagen: ' . $e->getMessage());
-            $classDayPauseRecords = collect();
-        }
+        $columns = $week['columns'];
+        $entries = $week['entries'];
+        $classDayPauseRecords = $week['class_day_pauses'];
 
         $entryData = $entries->map(fn($e) => [
             'id' => $e->id, 'date' => $e->datum->toDateString(), 'content' => $e->content,
@@ -382,7 +222,7 @@ class PaedDiaryController extends Controller
         ]);
 
         // Alle offenen Notizen laden (unabhängig vom Datum, auch aus vorhergehenden Wochen/Schuljahren).
-        // Ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s.o.).
+        // Ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s. PaedDiaryCalendarService).
         $allOpenEntries = PaedDiaryEntry::with(['schueler:id', 'user:id,name', 'category:id,name'])
             ->whereHas('schueler', fn($q) => $q->whereIn('schueler.id', $schuelerIds))
             ->whereNull('completed_at')
@@ -399,22 +239,17 @@ class PaedDiaryController extends Controller
             'category_id' => $e->category_id,
             'category' => (is_object($e->category)) ? $e->category->name : null
         ])->values();
-        // Spaltenwerte wurden bereits oben schülerbasiert geladen (inkl. Historie) - hier nur gruppieren.
+        // Spaltenwerte wurden bereits schülerbasiert geladen (inkl. Historie) - hier nur gruppieren.
         $valuesGrouped = [];
-        foreach ($columnValues as $v) {
+        foreach ($week['column_values'] as $v) {
             $valuesGrouped[$v->paed_diary_column_id][$v->schueler_id][$v->datum->toDateString()] = $v->value;
         }
-        // Aufgaben: ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s.o.)
-        $tasks = PaedDiaryTask::whereIn('schueler_id', $schuelerIds)->open()->with('schueler:id,vorname,nachname')->get()->map(fn($t) => [
+        $tasks = $week['tasks']->map(fn($t) => [
             'id' => $t->id, 'schueler_id' => $t->schueler_id, 'title' => $t->title,
             'description' => $t->description,
             'due_date' => $t->due_date?->toDateString(), 'highlighted' => $t->highlighted, 'klasse_id' => $t->klasse_id,
         ]);
-        // Pausen für Tage der Woche laden (inkl. neu erstellte Ferien-Pausen)
-        $pauseRecords = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entries->pluck('id'))
-            ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get(['paed_diary_entry_id','schueler_id','date']);
-        $pauses = $pauseRecords->map(fn($p)=>[
+        $pauses = $week['pauses']->map(fn($p)=>[
             'entry_id'=>$p->paed_diary_entry_id,
             'schueler_id'=>$p->schueler_id,
             'date'=>$p->date->toDateString(),
@@ -439,24 +274,16 @@ class PaedDiaryController extends Controller
             $hiddenCategoryIds = [];
         }
 
-        // Abwesenheiten für die aktuelle Woche laden (schülerbasiert statt klasse_id-basiert, s.o.)
-        $absencesForWeek = PaedDiarySchuelerAbsence::whereIn('schueler_id', $schuelerIds)
-            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get(['id', 'schueler_id', 'datum']);
-
-        $absencePatternWindowEnd = Carbon::now()->endOfDay();
-        $absencePatternWindowStart = $absencePatternWindowEnd->copy()->subDays((int) PaedDiarySchuelerAbsence::patternSettings()['weekday_window_days']);
-
         return response()->json([
             'is_group' => $isGroup,
             'group' => $isGroup ? ['id' => $group->id, 'name' => $group->name] : null,
-            'days' => $days,
+            'days' => $week['days'],
             'schueler' => $schueler->map(fn($s) => [
                 'id' => $s->id, 'name' => $s->vorname . ' ' . $s->nachname,
                 'klasse_id' => $s->klasse_id,
                 'klasse_name' => $klassen->firstWhere('id', $s->klasse_id)?->name,
                 'stage' => $s->grading_stage ? ['id' => $s->grading_stage->id, 'name' => $s->grading_stage->name, 'symbol' => $s->grading_stage->symbol, 'sort_order' => $s->grading_stage->sort_order, 'image_url' => $s->grading_stage->image_url] : null,
-                'absence_alerts' => PaedDiarySchuelerAbsence::patternSummaryForStudent($s->id, $absencePatternWindowStart, $absencePatternWindowEnd),
+                'absence_alerts' => $calendar->absenceAlerts($s->id),
             ]),
             'klassen' => $klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name, 'kuerzel' => $k->kuerzel, 'color' => $k->color]),
             'can_manage_grading' => Auth::user()->can('manage grading systems'),
@@ -472,7 +299,7 @@ class PaedDiaryController extends Controller
             'categories' => $categories,
             'show_column_categories' => $showColumnCategories,
             'hidden_category_ids'    => $hiddenCategoryIds,
-            'absences'               => $absencesForWeek->map(fn($a) => [
+            'absences'               => $week['absences']->map(fn($a) => [
                 'id'          => $a->id,
                 'schueler_id' => $a->schueler_id,
                 'datum'       => $a->datum->toDateString(),
@@ -641,7 +468,7 @@ class PaedDiaryController extends Controller
         if ($isGroup) {
             $group = PaedDiaryClassGroup::with('klassen:id')->where('id', $request->group_id)->where('user_id', $user->id)->firstOrFail();
             $userKlassenIds = $user->paed_klassen()->pluck('klassen.id');
-            $isDossierOnly = $request->has('dossier_only') ? true : false;
+            $isDossierOnly = $request->boolean('dossier_only');
             foreach ($group->klassen->whereIn('id', $userKlassenIds) as $klasse) {
                 $schuelerIds = Schueler::whereIn('id', $validated['schueler_ids'])
                     ->where('klasse_id', $klasse->id)->pluck('id')->all();
@@ -651,7 +478,7 @@ class PaedDiaryController extends Controller
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
+                    'completed_at' => ($isDossierOnly || $request->boolean('completed')) ? Carbon::now() : null,
                     'category_id' => $categoryId,
                     'dossier_only' => $isDossierOnly,
                 ]);
@@ -681,13 +508,13 @@ class PaedDiaryController extends Controller
 
         foreach ($byClass as $klasseId => $students) {
             try {
-                $isDossierOnly = $request->has('dossier_only') ? true : false;
+                $isDossierOnly = $request->boolean('dossier_only');
                 $entry = PaedDiaryEntry::create([
                     'klasse_id' => $klasseId,
                     'user_id' => $user->id,
                     'datum' => $dateObj->toDateString(),
                     'content' => trim($validated['content']),
-                    'completed_at' => ($isDossierOnly || $request->has('completed')) ? Carbon::now() : null,
+                    'completed_at' => ($isDossierOnly || $request->boolean('completed')) ? Carbon::now() : null,
                     'category_id' => $categoryId,
                     'dossier_only' => $isDossierOnly,
                 ]);
@@ -752,9 +579,9 @@ class PaedDiaryController extends Controller
         }
 
         $wasCompleted = (bool)$entry->completed_at;
-        $isDossierOnly = $request->has('dossier_only') ? true : false;
+        $isDossierOnly = $request->boolean('dossier_only');
         $completedAt = $entry->completed_at;
-        if ($isDossierOnly || $request->has('completed')) {
+        if ($isDossierOnly || $request->boolean('completed')) {
             if (!$entry->completed_at) {
                 $completedAt = \Carbon\Carbon::now();
             }
@@ -842,91 +669,26 @@ class PaedDiaryController extends Controller
             ->whereDate('datum', $datumString)
             ->first();
 
+        // Pausen-Logik in PaedDiaryCalendarService (gemeinsam genutzt mit API v1)
+        $calendar = app(\App\Services\PaedDiaryCalendarService::class);
+
         if ($existing) {
-            $removedEntryIds = $this->removeAbsencePauses($existing);
-            $existing->delete();
+            $result = $calendar->setAbsence((int) $existing->schueler_id, (int) $existing->klasse_id, $datumString, false, Auth::id());
             return response()->json([
                 'success'          => true,
                 'absent'           => false,
-                'removed_entry_ids' => $removedEntryIds,
+                'removed_entry_ids' => $result['removed_entry_ids'],
                 'schueler_id'      => $existing->schueler_id,
                 'datum'            => $existing->datum->toDateString(),
             ]);
         }
 
-        $absence = PaedDiarySchuelerAbsence::create([
-            'schueler_id' => $request->schueler_id,
-            'klasse_id'   => $request->klasse_id,
-            'datum'       => $datumString,
-            'marked_by'   => Auth::id(),
-        ]);
-
-        $createdPauses = $this->pauseEntriesForAbsence($absence);
+        $result = $calendar->setAbsence((int) $request->schueler_id, (int) $request->klasse_id, $datumString, true, Auth::id());
         return response()->json([
             'success' => true,
             'absent'  => true,
-            'pauses'  => $createdPauses,
+            'pauses'  => $result['pauses'],
         ]);
-    }
-
-    /**
-     * Pausiert alle offenen Einträge des Schülers für den Abwesenheitstag.
-     * Gibt die erstellten Pausen als Array zurück, damit das Frontend den Cache aktualisieren kann.
-     *
-     * @return array<int, array{entry_id: int, schueler_id: int, date: string}>
-     */
-    private function pauseEntriesForAbsence(PaedDiarySchuelerAbsence $absence): array
-    {
-        $datumStr = $absence->datum->toDateString();
-
-        $openEntries = PaedDiaryEntry::where('klasse_id', $absence->klasse_id)
-            ->whereNull('completed_at')
-            ->whereDate('datum', '<=', $datumStr)
-            ->whereHas('schueler', fn ($q) => $q->where('schueler.id', $absence->schueler_id))
-            ->pluck('id');
-
-        $created = [];
-        foreach ($openEntries as $entryId) {
-            PaedDiaryEntryPause::firstOrCreate([
-                'paed_diary_entry_id' => $entryId,
-                'schueler_id'         => $absence->schueler_id,
-                'date'                => $datumStr,
-            ]);
-            $created[] = [
-                'entry_id'    => $entryId,
-                'schueler_id' => $absence->schueler_id,
-                'date'        => $datumStr,
-            ];
-        }
-
-        return $created;
-    }
-
-    /**
-     * Entfernt alle durch Abwesenheit gesetzten Pausen des Schülers am Abwesenheitstag.
-     * Gibt die betroffenen entry_ids zurück, damit das Frontend den Cache bereinigen kann.
-     *
-     * @return int[] entry_ids der gelöschten Pausen
-     */
-    private function removeAbsencePauses(PaedDiarySchuelerAbsence $absence): array
-    {
-        $datumStr = $absence->datum->toDateString();
-
-        $entryIds = PaedDiaryEntry::where('klasse_id', $absence->klasse_id)
-            ->pluck('id');
-
-        $removedEntryIds = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-            ->where('schueler_id', $absence->schueler_id)
-            ->whereDate('date', $datumStr)
-            ->pluck('paed_diary_entry_id')
-            ->toArray();
-
-        PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-            ->where('schueler_id', $absence->schueler_id)
-            ->whereDate('date', $datumStr)
-            ->delete();
-
-        return $removedEntryIds;
     }
 
     public function storeColumn(Request $request)
@@ -1832,7 +1594,6 @@ class PaedDiaryController extends Controller
         $schueler = Schueler::findOrFail($data['schueler_id']);
         $klasse = $user->paed_klassen()->where('klassen.id', $schueler->klasse_id)->firstOrFail();
 
-        $previous = $schueler->grading_stage_id;
         $newStage = null;
         if (!empty($data['grading_stage_id'])) {
             $newStage = GradingStage::findOrFail($data['grading_stage_id']);
@@ -1842,61 +1603,19 @@ class PaedDiaryController extends Controller
             }
         }
 
-        // Update Schüler and create history + optional diary entry in a transaction
-        $paedEntryId = $data['paed_diary_entry_id'] ?? null;
-        DB::beginTransaction();
+        // Stufenwechsel inkl. Historie und automatischem Tagebucheintrag (gemeinsamer Service mit API v1)
         try {
-            // Update student
-            $schueler->grading_stage_id = $data['grading_stage_id'] ?? null;
-            $schueler->save();
-
-            // If no paed_diary_entry_id provided, create an automatic diary entry describing the change
-            if (empty($paedEntryId)) {
-                $prevStageName = null;
-                if (!empty($previous)) {
-                    $prev = GradingStage::find($previous);
-                    $prevStageName = $prev?->name;
-                }
-                $newStageName = $newStage?->name ?? null;
-                $userId = $user->id ?? null;
-                $studentName = $schueler->vorname . ' ' . $schueler->nachname;
-                $parts = [];
-                if ($prevStageName) $parts[] = 'von "' . $prevStageName . '"';
-                if ($newStageName) $parts[] = 'auf "' . $newStageName . '"';
-                $changeText = 'Stufe geändert ' . ($parts ? implode(' ', $parts) : '') . ' für ' . $studentName . '.';
-
-                $entry = PaedDiaryEntry::create([
-                    'klasse_id' => $klasse->id,
-                    'user_id' => $userId,
-                    'datum' => now(),
-                    'content' => $changeText,
-                    'completed_at' => Carbon::now()
-                ]);
-                // attach the student
-                $entry->schueler()->sync([$schueler->id]);
-                $paedEntryId = $entry->id;
-            }
-
-            // History anlegen und mit dem Tagebucheintrag verknüpfen
-            SchuelerGradingHistory::create([
-                'schueler_id' => $schueler->id,
-                'grading_system_id' => $klasse->grading_system_id,
-                'grading_stage_id' => $data['grading_stage_id'] ?? null,
-                'previous_grading_stage_id' => $previous,
-                'changed_by' => $user->id,
-                'paed_diary_entry_id' => $paedEntryId,
-                'created_at' => now()
-            ]);
-
-            DB::commit();
+            app(\App\Services\GradingStageService::class)->changeStage(
+                $schueler,
+                $newStage,
+                $user,
+                $klasse,
+                $data['paed_diary_entry_id'] ?? null
+            );
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('changeSchuelerStage failed: ' . $e->getMessage());
             return response()->json(['message' => 'Fehler beim Anlegen des Tagebucheintrags'], 500);
         }
-
-        // Cache invalideren
-        $this->forgetWeekCache($klasse->id, Carbon::now());
 
         return response()->json(['success' => true, 'new_stage' => $newStage ? ['id' => $newStage->id, 'name' => $newStage->name, 'symbol' => $newStage->symbol, 'image_url' => $newStage->image_url] : null]);
     }
@@ -1932,7 +1651,7 @@ class PaedDiaryController extends Controller
                 'stages' => GradingStage::where('grading_system_id', $klasse->grading_system_id)->orderBy('sort_order')->get(),
             ]);
 
-            return response()->json(['message' => $e], 500);
+            return response()->json(['message' => 'Stufen konnten nicht geladen werden.'], 500);
         }
 
     }
@@ -2039,40 +1758,9 @@ class PaedDiaryController extends Controller
 
         DB::beginTransaction();
         try {
-            $entry->loadMissing('schueler');
-            $allStudentIds = $entry->schueler->pluck('id')->all();
+            // Logik in PaedDiaryEntryService ausgelagert (gemeinsam genutzt mit API v1)
             $schuelerId = $request->filled('schueler_id') ? (int) $request->get('schueler_id') : null;
-
-            if ($schuelerId && in_array($schuelerId, $allStudentIds, true) && count($allStudentIds) > 1) {
-                // Eintrag betrifft mehrere Schüler: Nur den gewählten Schüler abschließen,
-                // der Eintrag bleibt für die übrigen Schüler unverändert offen.
-                $entry->schueler()->detach($schuelerId);
-
-                $completedEntry = PaedDiaryEntry::create([
-                    'klasse_id' => $entry->klasse_id,
-                    'user_id' => $entry->user_id,
-                    'datum' => $entry->datum,
-                    'content' => $entry->content,
-                    'category_id' => $entry->category_id,
-                    'dossier_only' => $entry->dossier_only,
-                    'completed_at' => $completedAt,
-                ]);
-                $completedEntry->schueler()->sync([$schuelerId]);
-
-                // Bereits vorhandene Pausen dieses Schülers auf den neuen (abgeschlossenen) Eintrag übertragen,
-                // damit finalizeEntry() sie korrekt berücksichtigt.
-                $entry->pauses()->where('schueler_id', $schuelerId)
-                    ->update(['paed_diary_entry_id' => $completedEntry->id]);
-
-                $completedEntry->load('schueler', 'pauses');
-                $this->finalizeEntry($completedEntry);
-            } else {
-                // Nur ein Schüler betroffen (oder kein schueler_id übergeben): kompletten Eintrag abschließen.
-                $entry->completed_at = $completedAt;
-                $entry->save();
-                $entry->load('schueler');
-                $this->finalizeEntry($entry);
-            }
+            app(\App\Services\PaedDiaryEntryService::class)->complete($entry, $completedAt, $schuelerId);
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -2092,67 +1780,8 @@ class PaedDiaryController extends Controller
      */
     private function finalizeEntry(PaedDiaryEntry $entry): void
     {
-        // Angepasst: pausierte Tage pro Schüler berücksichtigen
-        $klasseId = $entry->klasse_id;
-        $start = \Carbon\Carbon::parse($entry->datum)->startOfDay();
-        $completedDate = $entry->completed_at?->copy()->startOfDay();
-        if(!$completedDate){
-            // Wenn kein Abschlussdatum vorhanden, keine Finalisierung (Sicherheitsnetz)
-            return;
-        }
-        if ($completedDate->lt($start)) {
-            $completedDate = $start->copy();
-        }
-        $entry->loadMissing('schueler','pauses');
-        $allStudentIds = $entry->schueler->pluck('id')->all();
-        // Pausen gruppieren: [schueler_id][Y-m-d] => true
-        $pauseMap = [];
-        foreach($entry->pauses as $pause){
-            $pauseMap[$pause->schueler_id][$pause->date->toDateString()] = true;
-        }
-        // Start-Tag: entferne pausierte Schüler am Starttag aus Pivot
-        $startDateStr = $start->toDateString();
-        $keepStartStudents = array_filter($allStudentIds, fn($sid)=> empty($pauseMap[$sid][$startDateStr]));
-        if(count($keepStartStudents) !== count($allStudentIds)){
-            $entry->schueler()->sync($keepStartStudents);
-        }
-        // Falls keine Schüler mehr übrig -> Eintrag löschen
-        if(empty($keepStartStudents)){
-            $entry->schueler()->detach();
-            $entry->delete();
-        }
-        // Weitere Tage (exklusive Start) bis einschließlich completedDate
-        for($d = $start->copy()->addDay(); $d->lte($completedDate); $d->addDay()){
-            $dateStr = $d->toDateString();
-            // Schüler ohne Pause an diesem Tag
-            $activeStudents = array_filter($allStudentIds, function($sid) use ($pauseMap, $dateStr) { return empty($pauseMap[$sid][$dateStr]); });
-            if(empty($activeStudents)) continue; // nichts einzutragen
-            // Prüfen ob bereits ein Eintrag mit gleichem Inhalt (und gleicher Kategorie) für (alle) diese Schüler existiert
-            $existing = PaedDiaryEntry::where('klasse_id',$klasseId)
-                ->whereDate('datum',$dateStr)
-                ->where('content',$entry->content)
-                ->when($entry->category_id === null, function($q){ $q->whereNull('category_id'); }, function($q) use ($entry){ $q->where('category_id',$entry->category_id); })
-                ->whereHas('schueler', function($q) use ($activeStudents){ $q->whereIn('schueler.id',$activeStudents); })
-                ->first();
-            if($existing){
-                // sicherstellen dass alle activeStudents verknüpft sind
-                $merged = array_unique(array_merge($existing->schueler()->pluck('schueler.id')->all(), $activeStudents));
-                $existing->schueler()->sync($merged);
-                continue;
-            }
-            $newEntry = PaedDiaryEntry::create([
-                'klasse_id'=>$klasseId,
-                'user_id'=>$entry->user_id,
-                'datum'=>$dateStr,
-                'content'=>$entry->content,
-                'completed_at'=>$entry->completed_at,
-                'category_id'=>$entry->category_id,
-                'dossier_only'=>$entry->dossier_only,
-            ]);
-            $newEntry->schueler()->sync($activeStudents);
-        }
-        $this->forgetWeekCache($klasseId, $start);
-        $this->forgetWeekCache($klasseId, $completedDate);
+        // Logik in PaedDiaryEntryService ausgelagert (gemeinsam genutzt mit API v1)
+        app(\App\Services\PaedDiaryEntryService::class)->finalize($entry);
     }
 
     /**
@@ -2193,32 +1822,9 @@ class PaedDiaryController extends Controller
             $klassen = collect([$klasse]);
         }
 
-        $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-
-        $created = [];
+        // Logik in PaedDiaryCalendarService (gemeinsam genutzt mit API v1)
+        $created = app(\App\Services\PaedDiaryCalendarService::class)->pauseClassDay($klassen, $dateStr, $reason, $user->id);
         foreach ($klassen as $klasse) {
-            // Klassen-Tag-Pause anlegen (idempotent)
-            PaedDiaryClassDayPause::firstOrCreate(
-                ['klasse_id' => $klasse->id, 'date' => $dateStr],
-                ['reason' => $reason, 'paused_by' => $user->id]
-            );
-
-            // Alle offenen Einträge dieser Klasse bis einschl. dieses Tages pausieren
-            $openEntries = PaedDiaryEntry::where('klasse_id', $klasse->id)
-                ->whereNull('completed_at')
-                ->whereDate('datum', '<=', $dateStr)
-                ->with('schueler:id')
-                ->get();
-
-            foreach ($openEntries as $entry) {
-                foreach ($entry->schueler as $stu) {
-                    $pauseData = ['paed_diary_entry_id' => $entry->id, 'schueler_id' => $stu->id, 'date' => $dateStr];
-                    $defaults  = $reasonColumnExists ? ['reason' => $reason] : [];
-                    PaedDiaryEntryPause::firstOrCreate($pauseData, $defaults);
-                }
-            }
-
-            $created[] = ['klasse_id' => $klasse->id, 'date' => $dateStr, 'reason' => $reason];
             $this->forgetWeekCache($klasse->id, Carbon::parse($dateStr));
         }
 
@@ -2260,21 +1866,9 @@ class PaedDiaryController extends Controller
             $klassen = collect([$klasse]);
         }
 
-        $reasonColumnExists = \Illuminate\Support\Facades\Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-
+        // Logik in PaedDiaryCalendarService (gemeinsam genutzt mit API v1)
+        app(\App\Services\PaedDiaryCalendarService::class)->unpauseClassDay($klassen, $dateStr);
         foreach ($klassen as $klasse) {
-            // Klassen-Tag-Pause löschen
-            PaedDiaryClassDayPause::where('klasse_id', $klasse->id)->where('date', $dateStr)->delete();
-
-            // Nur durch class-day-pause erzeugte Eintrags-Pausen entfernen
-            $entryIds = PaedDiaryEntry::where('klasse_id', $klasse->id)->pluck('id');
-            $query = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-                ->where('date', $dateStr);
-            if ($reasonColumnExists) {
-                $query->where('reason', 'Veranstaltung');
-            }
-            $query->delete();
-
             $this->forgetWeekCache($klasse->id, Carbon::parse($dateStr));
         }
 

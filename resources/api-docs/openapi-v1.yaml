@@ -1,0 +1,2187 @@
+openapi: 3.0.3
+info:
+  title: MitarbeiterBoard – Pädagogen-App API
+  version: 1.1.0
+  description: |
+    REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier).
+
+    **Serverwahl:** `GET /instance` (öffentlich) liefert Schulname, Logo, API-Version und verfügbare Login-Arten.
+
+    **Authentifizierung:** Laravel Sanctum – `Authorization: Bearer <token>`.
+    Tokens werden über `POST /auth/token` (lokales Passwort) oder den SSO-Ablauf
+    `GET /auth/sso/start` → `POST /auth/sso/exchange` (Schulkonto/Keycloak, PKCE) ausgestellt.
+    App-Tokens laufen nach 90 Tagen ohne Nutzung ab (`PAED_APP_TOKEN_DAYS`); jede Nutzung verlängert
+    die Laufzeit (höchstens ein Schreibzugriff pro Tag). Abgelaufene Tokens → 401.
+
+    **Idempotenz:** Schreibende Aufrufe (POST/PUT/PATCH/DELETE, außer `/auth/*`) akzeptieren den optionalen
+    Header `Idempotency-Key` (UUID). Wiederholungen mit gleichem Key und gleichem Body liefern die gespeicherte
+    Antwort unverändert (Header `Idempotent-Replayed: true`); gleicher Key mit anderem Body → 422;
+    parallele Anfrage mit gleichem Key → 409. Gespeichert werden nur 2xx-Antworten (48 h).
+
+    **Konfliktschutz:** `PUT /paed-diary/entries/{id}` und `PUT /diagnostic/goals/{id}` akzeptieren
+    `expected_updated_at`. Weicht es vom gespeicherten Stand ab → 409 mit aktuellem Datensatz in `data`.
+
+    **Caching/Delta:** Kataloge (`/paed-diary/categories`, `/diagnostic/areas`, `/grading/stages`) liefern
+    einen `ETag`; mit `If-None-Match` → 304. Listen von Tagebuch und Diagnosehistorie unterstützen `updated_since`.
+
+    **Schüler-iPads:** Schüler-Tokens (`POST /student/join`) gelten ausschließlich für `/student/*`;
+    alle übrigen Endpunkte antworten mit 403.
+
+    **Rechte:**
+    - `view paed diary` – Grundvoraussetzung für alle Endpunkte (Lehrkräfte/Erzieher).
+      Zugriff auf Schüler der über `klasse_user` zugewiesenen Klassen.
+    - `view diagnostics` – Diagnosebereich (Bereich 4) und Diagnosedaten in View/Dossier.
+    - `manage grading systems` – Vergabe von Graduierungsstufen.
+    - `manage diagnostics` – endgültiges Löschen von Entwicklungszielen.
+    - `view all students` – klassenübergreifender Zugriff (Schulleitung).
+    - `view confidential diary entries` – vertrauliche Tagebucheinträge (`is_dossier_only`) fremder Autoren.
+    - Rolle `Admin` besitzt beide Sonderrechte implizit.
+
+    **Fehlerformat:** `{"message": "...", "errors": {"feld": ["..."]}}` – 401, 403, 404, 409, 422.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Instanz
+  - name: Auth
+  - name: Klassen
+  - name: Schüler-View
+  - name: Tagebuch
+  - name: Graduierung
+  - name: Diagnose
+  - name: Dossier
+  - name: Schüler-iPad
+    description: Selbsteinschätzung auf geteilten Schüler-iPads (Schüler-Token)
+
+paths:
+  /instance:
+    get:
+      tags: [Instanz]
+      summary: Instanz-Info für die Serverwahl (öffentlich)
+      security: []
+      description: Ohne Authentifizierung, Rate-Limit 30/min. Enthält keine personenbezogenen Daten.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+        '429': { description: Rate-Limit überschritten }
+
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Token ausstellen (Login)
+      security: []
+      description: |
+        Rate-Limit: 6/min je E-Mail+IP und 60/min je IP. Benötigt `view paed diary`.
+        403, wenn der Passwort-Login auf dem Server deaktiviert ist (`PAED_APP_PASSWORD_LOGIN=false`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device_name: { type: string, maxLength: 100, example: "iPad Klasse 4a" }
+      responses:
+        '201':
+          description: Token ausgestellt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Rate-Limit überschritten }
+    delete:
+      tags: [Auth]
+      summary: Aktuelles Token widerrufen (Logout)
+      responses:
+        '204': { description: Widerrufen }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /auth/sso/start:
+    get:
+      tags: [Auth]
+      summary: SSO-Login starten (im System-Browser öffnen)
+      security: []
+      description: |
+        Authorization Code + PKCE zwischen App und Backend; Keycloak bleibt unverändert.
+        Leitet zum Keycloak-Login weiter. Nach erfolgreicher Anmeldung leitet das Backend auf
+        `<redirect_uri>?code=<einmal-code>&state=<state>` weiter (Code 60 s gültig, einmal verwendbar),
+        bei Fehlern auf `<redirect_uri>?error=<code>&state=<state>` (`sso_failed`, `sso_unavailable`).
+        Es wird kein Web-Login-Cookie für die Web-Oberfläche gesetzt.
+      parameters:
+        - { name: redirect_uri, in: query, required: true, description: "Muss in PAED_APP_REDIRECT_URIS stehen (Standard paeddiary://auth)", schema: { type: string, example: 'paeddiary://auth' } }
+        - { name: code_challenge, in: query, required: true, description: "BASE64URL(SHA256(code_verifier))", schema: { type: string, minLength: 43, maxLength: 128 } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+        - { name: state, in: query, required: true, schema: { type: string, maxLength: 255 } }
+      responses:
+        '302': { description: Weiterleitung zu Keycloak }
+        '404': { description: SSO ist auf diesem Server nicht eingerichtet }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/sso/exchange:
+    post:
+      tags: [Auth]
+      summary: Einmal-Code gegen App-Token tauschen
+      security: []
+      description: |
+        Rate-Limit 10/min je IP. Antwort identisch zu `POST /auth/token`.
+        Der Code wird bei jedem Versuch verbraucht. Abgelaufener/benutzter Code → 422 `code`,
+        falscher Verifier → 422 `code_verifier`, fehlendes Recht `view paed diary` → 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, code_verifier, device_name]
+              properties:
+                code: { type: string }
+                code_verifier: { type: string, minLength: 43, maxLength: 128 }
+                device_name: { type: string, maxLength: 100, example: "iPad Klasse 4a" }
+      responses:
+        '201':
+          description: Token ausgestellt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Rate-Limit überschritten }
+  /auth/devices:
+    get:
+      tags: [Auth]
+      summary: Eigene App-Geräte (Tokens)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        device_name: { type: string }
+                        last_used_at: { type: string, format: date-time, nullable: true }
+                        created_at: { type: string, format: date-time }
+                        expires_at: { type: string, format: date-time, nullable: true }
+                        is_current: { type: boolean }
+  /auth/devices/{device_id}:
+    delete:
+      tags: [Auth]
+      summary: Eigenes Gerät abmelden (Token löschen)
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Abgemeldet }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Angemeldeter Benutzer inkl. Rechte
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CurrentUser' }
+
+  /classes:
+    get:
+      tags: [Klassen]
+      summary: Zugewiesene Klassen und Lerngruppen
+      parameters:
+        - name: all
+          in: query
+          description: Mit `view all students`/Admin alle Klassen liefern
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Class' }
+                  learning_groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        class_ids: { type: array, items: { type: integer } }
+  /classes/{class_id}/students:
+    get:
+      tags: [Klassen]
+      summary: Klassenliste mit Kompakt-Status
+      parameters:
+        - $ref: '#/components/parameters/ClassId'
+        - name: recent_days
+          in: query
+          description: Zeitraum für `recent_diary_entries_count` (Tage inkl. heute)
+          schema: { type: integer, minimum: 1, maximum: 90, default: 14 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ClassStudent' }
+                  meta:
+                    type: object
+                    properties:
+                      class: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+                      recent_days: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{student_id}/view:
+    get:
+      tags: [Schüler-View]
+      summary: Aggregiertes Dashboard-Profil eines Schülers
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - name: diary_limit
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 50, default: 10 }
+        - name: include_archived_goals
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK (ohne `data`-Hülle)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentView' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /paed-diary/categories:
+    get:
+      tags: [Tagebuch]
+      summary: Globale und eigene Kategorien inkl. Farbe
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '304': { description: Nicht geändert }
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DiaryCategory' }
+  /students/{student_id}/paed-diary/entries:
+    get:
+      tags: [Tagebuch]
+      summary: Tagebucheinträge eines Schülers (neueste zuerst, paginiert)
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - { name: from_date, in: query, schema: { type: string, format: date } }
+        - { name: to_date, in: query, description: inklusiv, schema: { type: string, format: date } }
+        - { name: category_id, in: query, schema: { type: integer } }
+        - $ref: '#/components/parameters/DiarySearch'
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/UpdatedSince'
+      responses:
+        '200':
+          description: OK (Laravel-Paginierung mit `links` und `meta`; bei `search` zusätzlich `meta.search_terms` und `meta.search_truncated`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/DiaryEntry' } }
+                  links: { type: object }
+                  meta: { $ref: '#/components/schemas/DiaryListMeta' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /classes/{class_id}/paed-diary/entries:
+    get:
+      tags: [Tagebuch]
+      summary: Klassen-Feed – Einträge aller Kolleg*innen zu den Schülern einer Klasse
+      description: |
+        Alle Einträge zu Schülern der Klasse (schülerbasiert, auch nach Klassenwechseln), neueste zuerst.
+        Vertrauliche Einträge fremder Autoren nur mit Sonderrecht. Ohne Zeitraum, Suche oder `updated_since`
+        werden die letzten 14 Tage geliefert. Jeder Eintrag enthält zusätzlich `students` (Vorname + Initial).
+        Für Lerngruppen ruft die App den Feed je Klasse auf.
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+        - { name: from_date, in: query, schema: { type: string, format: date } }
+        - { name: to_date, in: query, description: inklusiv, schema: { type: string, format: date } }
+        - { name: category_id, in: query, schema: { type: integer } }
+        - { name: author, in: query, schema: { type: string, enum: [all, own, others], default: all } }
+        - $ref: '#/components/parameters/DiarySearch'
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/UpdatedSince'
+      responses:
+        '200':
+          description: OK (Laravel-Paginierung)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/DiaryEntry'
+                        - type: object
+                          properties:
+                            students:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer }
+                                  firstname: { type: string }
+                                  lastname_initial: { type: string, nullable: true, example: 'M.' }
+                  links: { type: object }
+                  meta: { $ref: '#/components/schemas/DiaryListMeta' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /paed-diary/entries:
+    post:
+      tags: [Tagebuch]
+      summary: Einzeleintrag anlegen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiaryEntryCreate' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryEntry' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/bulk-entries:
+    post:
+      tags: [Tagebuch]
+      summary: Gruppen-/Klasseneintrag für mehrere Schüler
+      description: |
+        Legt pro betroffener Klasse einen Eintrag an, der allen Schülern dieser Klasse zugeordnet ist
+        (Datenmodell des Web-Frontends). Ist ein Schüler nicht zugänglich, wird nichts gespeichert (403).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiaryEntryBulkCreate' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/DiaryEntry' } }
+                  meta:
+                    type: object
+                    properties:
+                      entries_created: { type: integer }
+                      students_count: { type: integer }
+        '403':
+          description: Mindestens ein Schüler nicht zugänglich
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  forbidden_schueler_ids: { type: array, items: { type: integer } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Tagebuch]
+      summary: Einzelheiten eines Eintrags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryEntry' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Tagebuch]
+      summary: Eintrag aktualisieren (alle Felder optional)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiaryEntryUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryEntry' }
+        '204': { description: Offener Eintrag wurde beim Abschließen vollständig aufgelöst (alle Schüler am Starttag pausiert) }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: "`expected_updated_at` veraltet – `data` enthält den aktuellen Eintrag"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/DiaryEntry' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tagebuch]
+      summary: Eintrag löschen (Autor oder Sonderrecht)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /paed-diary/week:
+    get:
+      tags: [Tagebuch]
+      summary: Wochenansicht (Kalender) einer Klasse oder Lerngruppe
+      description: |
+        Entspricht der Web-Wochenansicht (Mo–Fr). `entries` enthält alle Einträge der Woche und zusätzlich
+        alle noch offenen Notizen aus früheren Wochen. Eine offene Notiz erscheint bei ihren Schülern
+        an jedem Tag ab `entry_date`, außer an Tagen mit Pause (`pauses`) oder Abwesenheit (`absences`);
+        abgeschlossene Einträge nur an ihrem `entry_date`. Vertrauliche Einträge sind nicht enthalten.
+        Nebenwirkung wie im Web: offene Notizen werden an Ferientagen und Klassen-Tagespausen automatisch pausiert.
+      parameters:
+        - { name: class_id, in: query, schema: { type: integer }, description: 'Klasse (oder `group_id`)' }
+        - { name: group_id, in: query, schema: { type: integer }, description: Eigene Lerngruppe (`learning_groups` aus `/classes`) }
+        - { name: week_start, in: query, schema: { type: string, format: date }, description: Beliebiger Tag der Woche; Standard aktuelle Woche }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryWeek' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/complete:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Tagebuch]
+      summary: Offene Notiz abschließen
+      description: |
+        Mit `schueler_id` (bei mehreren Schülern) wird die Notiz nur für diesen Schüler abgeschlossen; die übrigen
+        behalten sie offen. Beim Abschließen wird die Notiz auf alle nicht pausierten Tage bis `date` verteilt.
+        Wiederholungen (bereits abgeschlossen bzw. Schüler bereits herausgelöst) liefern 200 ohne Änderung.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date, description: Abschlusstag; Standard heute }
+                schueler_id: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entry_id: { type: integer }
+                      completed: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/pause:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Offene Notiz für einen Schüler an einem Tag pausieren bzw. wieder anzeigen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_id, date, paused]
+              properties:
+                schueler_id: { type: integer }
+                date: { type: string, format: date, description: 'Nicht vor `entry_date`' }
+                paused: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/absences:
+    put:
+      tags: [Tagebuch]
+      summary: Abwesenheit eines Schülers setzen/aufheben
+      description: Beim Setzen werden die offenen Notizen des Schülers an diesem Tag pausiert, beim Aufheben wieder angezeigt.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_id, date, absent]
+              properties:
+                schueler_id: { type: integer }
+                date: { type: string, format: date }
+                absent: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      schueler_id: { type: integer }
+                      date: { type: string, format: date }
+                      absent: { type: boolean }
+                      paused_entry_ids: { type: array, items: { type: integer } }
+                      resumed_entry_ids: { type: array, items: { type: integer } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/day-pauses:
+    put:
+      tags: [Tagebuch]
+      summary: Tagespause der Klasse/Lerngruppe setzen/aufheben (z. B. Wandertag)
+      description: Pausiert alle offenen Notizen der Klasse(n) an diesem Tag. Aufheben entfernt nur Pausen mit Grund „Veranstaltung“.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, paused]
+              properties:
+                class_id: { type: integer }
+                group_id: { type: integer }
+                date: { type: string, format: date }
+                paused: { type: boolean }
+                reason: { type: string, maxLength: 100, description: Standard „Veranstaltung“ }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/column-values:
+    put:
+      tags: [Tagebuch]
+      summary: Wert einer Abhak-Spalte setzen
+      description: "`boolean`: `1` oder leer · `ampel`: `1` ja, `2` in Bearbeitung, `3` nein, leer · `text`: frei (max. 255)"
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [column_id, schueler_id, date]
+              properties:
+                column_id: { type: integer }
+                schueler_id: { type: integer }
+                date: { type: string, format: date }
+                value: { type: string, nullable: true }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/tasks/{id}/close:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Tagebuch]
+      summary: Offene Aufgabe erledigen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /paed-diary/tasks:
+    post:
+      tags: [Tagebuch]
+      summary: Aufgabe anlegen (je Schüler eine Aufgabe)
+      description: Alle Schüler müssen zugänglich sein, sonst 403 mit `forbidden_schueler_ids` und nichts wird gespeichert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schueler_ids, title]
+              properties:
+                schueler_ids: { type: array, minItems: 1, maxItems: 100, items: { type: integer } }
+                title: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                due_date: { type: string, format: date, nullable: true }
+                highlighted: { type: boolean, default: false, description: Rot hervorheben (wichtig) }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/DiaryTask' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/tasks/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Aufgabe bearbeiten
+      description: Wie im Web werden `description` und `due_date` geleert, wenn sie fehlen; `highlighted` bleibt dann unverändert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                due_date: { type: string, format: date, nullable: true }
+                highlighted: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiaryTask' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/appointments:
+    post:
+      tags: [Tagebuch]
+      summary: Termin anlegen (Klasse, Lerngruppe oder einzelne Schüler, z. B. Elterngespräch)
+      description: |
+        Gleiche Logik wie im Web. Mit `pause_entries` werden offene Notizen der betroffenen Schüler an allen
+        Terminen (bis 90 Tage voraus) pausiert (Grund „Termin“). Klassen/Schüler ohne Zugriff → 403.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppointmentInput' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Appointment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/appointments/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Termin ändern (vollständig)
+      description: Erlaubt für Ersteller*in und Lehrkräfte mit Zugriff auf eine zugeordnete Klasse.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppointmentInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Appointment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tagebuch]
+      summary: Termin löschen (ganz, ein Vorkommen oder ab einem Vorkommen)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: mode, in: query, schema: { type: string, enum: [all, only_this, this_and_future], default: all } }
+        - { name: date, in: query, description: 'Vorkommen (Pflicht bei `only_this`/`this_and_future`)', schema: { type: string, format: date } }
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/resubmission:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Tagebuch]
+      summary: Wiedervorlage einer offenen Notiz („ab Montag wieder zeigen“)
+      description: |
+        Blendet die Notiz an allen Schultagen (Mo–Fr) von `from` bis zum Vortag von `resume_on` aus – als Eintrags-Pausen
+        mit Grund „Wiedervorlage“, im Web wie in der App sichtbar. Eine bestehende Wiedervorlage ab `from` wird ersetzt
+        (wiederholbar); andere Pausen (Ferien, Termin, einzeln) bleiben. `resume_on: null` hebt die Wiedervorlage ab
+        `from` auf. Höchstens 120 Tage.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resume_on]
+              properties:
+                resume_on: { type: string, format: date, nullable: true, description: Ab diesem Tag wieder anzeigen }
+                from: { type: string, format: date, description: Standard heute (frühestens Beginn der Notiz) }
+                schueler_id: { type: integer, description: Nur für diesen Schüler; Standard alle Schüler der Notiz }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entry_id: { type: integer }
+                      schueler_ids: { type: array, items: { type: integer } }
+                      from: { type: string, format: date }
+                      resume_on: { type: string, format: date, nullable: true }
+                      paused_dates: { type: array, items: { type: string, format: date } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /paed-diary/entries/{id}/students/{student_id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+      - $ref: '#/components/parameters/StudentId'
+    put:
+      tags: [Tagebuch]
+      summary: Schüler zu einem Eintrag hinzufügen
+      description: Nur Schüler derselben Klasse wie der Eintrag (Lerngruppen-Einträge bestehen aus einem Eintrag je Klasse). Wiederholbar.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/EntryStudents' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tagebuch]
+      summary: Schüler aus einem Eintrag entfernen
+      description: Entfernt auch seine Pausen dieser Notiz. Der letzte Schüler kann nicht entfernt werden (422) – dann den Eintrag löschen. Wiederholbar.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/EntryStudents' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /grading/stages:
+    get:
+      tags: [Graduierung]
+      summary: Stufenkatalog (aktive Systeme)
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
+      parameters:
+        - { name: grading_system_id, in: query, schema: { type: integer } }
+        - { name: class_id, in: query, description: Stufen des Systems dieser Klasse, schema: { type: integer } }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '304': { description: Nicht geändert }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GradingStage' } }
+                  meta:
+                    type: object
+                    properties:
+                      grading_systems:
+                        type: array
+                        items: { type: object, properties: { id: { type: integer }, name: { type: string }, active: { type: boolean } } }
+  /students/{student_id}/grading/history:
+    get:
+      tags: [Graduierung]
+      summary: Graduierungshistorie und abgeschlossene Sessions
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      current_stage: { $ref: '#/components/schemas/CurrentStage' }
+                      stage_history: { type: array, items: { $ref: '#/components/schemas/StageHistoryItem' } }
+                      completed_sessions: { type: array, items: { $ref: '#/components/schemas/GradingSession' } }
+  /classes/{class_id}/grading/overview:
+    get:
+      tags: [Graduierung]
+      summary: Stufenverteilung einer Klasse
+      description: Wie viele Schüler auf welcher Stufe des Graduierungssystems der Klasse sind (in Stufenreihenfolge).
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/GradingOverview' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /classes/{class_id}/grading/sessions:
+    get:
+      tags: [Graduierung]
+      summary: Graduierungs-Sessions einer Klasse (ohne Fragen/Antworten, mit Fortschritt)
+      parameters:
+        - $ref: '#/components/parameters/ClassId'
+        - { name: status, in: query, schema: { type: string, enum: [open, completed] } }
+        - { name: type, in: query, schema: { type: string, enum: [group, individual] } }
+        - { name: mine, in: query, description: Nur eigene Sessions, schema: { type: boolean, default: false } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: OK (Laravel-Paginierung mit `links` und `meta`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GradingSessionListItem' } }
+                  links: { type: object }
+                  meta: { type: object }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /grading/sessions:
+    post:
+      tags: [Graduierung]
+      summary: Bewertungssession starten (oder eigene offene fortsetzen)
+      description: |
+        - `{schueler_id}` → individuelle Session (unverändertes Verhalten).
+        - `{type: "group", class_id, …}` → Gruppensession. Eine Session gehört genau zu einer Klasse
+          (`klasse_id`); `schueler_ids` müssen dieser Klasse angehören (klassenübergreifende Lerngruppen
+          werden vom Datenmodell nicht unterstützt). Ohne `schueler_ids` nehmen alle Schüler der Klasse teil (wie im Web).
+          Existiert eine eigene offene Gruppensession für Klasse/Lerngruppe, wird sie fortgesetzt (200,
+          `meta.resumed = true`); neue `schueler_ids` werden ergänzt, ein übergebener `answer_order_mode` übernommen.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  title: Einzelsession
+                  required: [schueler_id]
+                  properties:
+                    type: { type: string, enum: [individual], default: individual }
+                    schueler_id: { type: integer }
+                - type: object
+                  title: Gruppensession
+                  required: [type, class_id]
+                  properties:
+                    type: { type: string, enum: [group] }
+                    class_id: { type: integer }
+                    schueler_ids: { type: array, items: { type: integer }, minItems: 1, maxItems: 200, description: "Standard: alle Schüler der Klasse" }
+                    answer_order_mode: { type: string, enum: [by_student, by_question], description: "Standard: by_student (neue Session) bzw. unverändert (fortgesetzte Session)" }
+                    group_id: { type: integer, nullable: true, description: Eigene Lerngruppe, muss die Klasse enthalten }
+      responses:
+        '201':
+          description: Neu angelegt (`meta.resumed = false`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '200':
+          description: Bestehende offene Session fortgesetzt (`meta.resumed = true`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Kein Graduierungssystem für die Klasse / Validierungsfehler }
+  /grading/sessions/{session_id}:
+    get:
+      tags: [Graduierung]
+      summary: Fragenkatalog & Zwischenstand
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK (`meta.available_stages`, `meta.students`, `meta.current_question_id`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      tags: [Graduierung]
+      summary: Beantwortungsreihenfolge ändern (nur Ersteller, offene Session)
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer_order_mode]
+              properties:
+                answer_order_mode: { type: string, enum: [by_student, by_question], description: Individuelle Sessions nur by_student }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /grading/sessions/{session_id}/assessments:
+    post:
+      tags: [Graduierung]
+      summary: Antworten speichern, Pädagogenbewertung abgeben, abschließen & Stufe vergeben
+      description: |
+        Nur der Ersteller der Session. `grading_stage_id` nur zusammen mit `finalize: true`
+        und mit Recht `manage grading systems`. Stufenwechsel erzeugt Historie und automatischen Tagebucheintrag.
+
+        **Gruppensessions:** `schueler_id` ist Pflicht und muss teilnehmen. `finalize` schließt nur diesen
+        Schüler ab (Stufenvergabe für diesen Schüler); die Session ist abgeschlossen, sobald alle Teilnehmer
+        abgeschlossen sind (`meta.session_completed`). Weitere Bewertungen eines abgeschlossenen Schülers → 409.
+        Im Web schließt „Session abschließen“ weiterhin die gesamte Session für alle Schüler ab.
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GradingAssessmentCreate' }
+      responses:
+        '200':
+          description: Gespeichert (`meta.finalized`, `meta.current_stage`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GradingSessionResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bzw. Bewertung des Schülers bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /grading/sessions/{session_id}/join-codes:
+    parameters:
+      - { name: session_id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Schüler-iPad]
+      summary: Beitrittscodes je Schüler erzeugen (nur Ersteller)
+      description: |
+        Code: 6 Zeichen ohne verwechselbare Zeichen, gültig bis Session-Ende, max. 8 h.
+        Noch gültige Codes werden erneut geliefert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/JoinCode' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bereits abgeschlossen }
+    delete:
+      tags: [Schüler-iPad]
+      summary: Alle Codes und Schüler-Tokens der Session widerrufen (nur Ersteller)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Widerrufen }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /grading/sessions/{session_id}/current-question:
+    post:
+      tags: [Schüler-iPad]
+      summary: Frage für alle Schüler freigeben (Modus by_question, nur Ersteller)
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question_id]
+              properties:
+                question_id: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { session_id: { type: integer }, current_question_id: { type: integer } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Session bereits abgeschlossen }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /student/join:
+    post:
+      tags: [Schüler-iPad]
+      summary: Beitritt eines Schüler-Geräts per Code (öffentlich)
+      security: []
+      description: |
+        Rate-Limit 10/min je IP. Liefert ein Token mit der Ability `student-grading:{session_id}:{schueler_id}`,
+        gültig wie der Code. Das Token gehört einem Schüler-Gerät (nicht der Lehrkraft) und gilt ausschließlich
+        für `/student/*`. Ein erneuter Beitritt mit demselben Code ersetzt das bisherige Gerät.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, device_name]
+              properties:
+                code: { type: string, example: K7M-4QX, description: Bindestrich und Groß-/Kleinschreibung egal }
+                device_name: { type: string, maxLength: 100, example: iPad 07 }
+      responses:
+        '201':
+          description: Beigetreten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expires_at: { type: string, format: date-time }
+                  student: { type: object, properties: { firstname: { type: string } } }
+                  session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string, enum: [by_student, by_question] } } }
+        '422': { description: Code ungültig/abgelaufen oder Validierungsfehler }
+        '429': { description: Rate-Limit überschritten }
+  /student/session:
+    get:
+      tags: [Schüler-iPad]
+      summary: Freigegebene Fragen und eigene Selbsteinschätzungen (Schüler-Token)
+      description: Bei `by_question` nur Fragen bis einschließlich der freigegebenen Frage. Session abgeschlossen oder Codes widerrufen → 401.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StudentSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Kein Schüler-Token }
+  /student/session/answers:
+    post:
+      tags: [Schüler-iPad]
+      summary: Selbsteinschätzung abgeben (Schüler-Token)
+      description: Schreibt ausschließlich `self_rating` des eigenen Schülers. `rating_value`, `comment` und `schueler_id` sind unzulässig (422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question_id, self_rating]
+              properties:
+                question_id: { type: integer }
+                self_rating: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        '200':
+          description: Gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer }, answered_at: { type: string, format: date-time } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /diagnostic/areas:
+    get:
+      tags: [Diagnose]
+      summary: Katalog der Diagnosebereiche, Kompetenzstufen & Kriterien
+      description: Liefert einen `ETag`; mit `If-None-Match` → 304.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '304': { description: Nicht geändert }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/DiagnosticArea' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /students/{student_id}/diagnostic/history:
+    get:
+      tags: [Diagnose]
+      summary: Diagnosesitzungen und Zielhistorie
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - { name: include_archived_goals, in: query, schema: { type: boolean, default: false } }
+        - $ref: '#/components/parameters/UpdatedSince'
+      description: |
+        Mit `updated_since` nur seitdem geänderte Sitzungen und Entwicklungsziele; archivierte Ziele sind
+        dann immer enthalten, damit die App Archivierungen übernehmen kann. `current_criterion_goals` wird immer vollständig geliefert.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sessions: { type: array, items: { $ref: '#/components/schemas/DiagnosticSession' } }
+                      development_goals: { type: array, items: { $ref: '#/components/schemas/DevelopmentGoal' } }
+                      current_criterion_goals: { type: array, items: { $ref: '#/components/schemas/CurrentCriterionGoal' } }
+  /diagnostic/sessions:
+    post:
+      tags: [Diagnose]
+      summary: Diagnosesitzung erfassen & Entwicklungsziele eintragen
+      description: |
+        Existiert für Schüler und Bereich bereits eine offene Sitzung (z.B. im Web begonnen), wird diese
+        fortgeführt (200, `meta.resumed_open_session = true`). Standardmäßig wird die Sitzung abgeschlossen (`complete`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiagnosticSessionCreate' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiagnosticSession' }
+                  meta: { type: object, properties: { resumed_open_session: { type: boolean } } }
+        '200': { description: Offene Sitzung fortgeführt }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /diagnostic/goals/{goal_id}:
+    parameters:
+      - { name: goal_id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Diagnose]
+      summary: Status, Zieldatum, Titel oder Abschlussnotiz ändern
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, maxLength: 500 }
+                status: { type: string, enum: [open, in_progress, achieved, not_achieved] }
+                target_date: { type: string, format: date, nullable: true }
+                completion_notes: { type: string, nullable: true }
+                completed_at: { type: string, format: date, nullable: true, description: "Standard bei achieved/not_achieved: heute" }
+                expected_updated_at: { type: string, format: date-time, description: "Konfliktschutz: zuletzt gelesenes updated_at (abweichend → 409)" }
+            example:
+              status: achieved
+              completion_notes: Ziel vorzeitig in der Freiarbeit erreicht.
+              completed_at: '2026-09-23'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DevelopmentGoal' }
+        '409':
+          description: "`expected_updated_at` veraltet – `data` enthält das aktuelle Ziel"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/DevelopmentGoal' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Diagnose]
+      summary: Ziel archivieren (Standard) oder mit `force=true` endgültig löschen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: force, in: query, description: Erfordert `manage diagnostics`, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Archiviert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DevelopmentGoal' }
+        '204': { description: Endgültig gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /classes/{class_id}/diagnostic/overview:
+    get:
+      tags: [Diagnose]
+      summary: Diagnose-Übersicht einer Klasse (Grundlage für Fördergruppen)
+      description: |
+        Je Kriterium zählt die jeweils letzte Bewertung jedes Schülers (neueste Sitzung): `white` = kann es,
+        `gray` = aktuelles Ziel, `dark_gray` = kann es noch nicht. Sortiert nach `dark_gray`, dann `gray` absteigend.
+        Kriterien, bei denen weniger als `min_count` Schüler (`gray` + `dark_gray`) noch nicht sicher sind, entfallen.
+        Erfordert zusätzlich `view diagnostics`.
+      parameters:
+        - { name: class_id, in: path, required: true, schema: { type: integer } }
+        - { name: area_id, in: query, schema: { type: integer } }
+        - { name: min_count, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 1 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DiagnosticClassOverview' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /students/{student_id}/dossier:
+    get:
+      tags: [Dossier]
+      summary: Aggregierter Export aller Module für Entwicklungsgespräche
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - { name: from_date, in: query, description: "Standard: Beginn des Schuljahres", schema: { type: string, format: date } }
+        - { name: to_date, in: query, description: "Standard: heute (inklusiv)", schema: { type: string, format: date } }
+        - { name: include_confidential, in: query, description: "Wirkt nur mit Sonderrecht; eigene vertrauliche Einträge sind immer enthalten, außer bei false", schema: { type: boolean, default: true } }
+      responses:
+        '200':
+          description: OK (ohne `data`-Hülle)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dossier' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /students/{student_id}/dossier.pdf:
+    get:
+      tags: [Dossier]
+      summary: Dossier als PDF (Logo, Schulname, Tagebuch nach Kategorie, Graduierung, Diagnose)
+      description: |
+        Gleiche Parameter, Rechte und Daten wie `/dossier`. Vertrauliche Einträge sind gekennzeichnet,
+        ohne `view diagnostics` fehlt der Diagnoseteil. Header:
+        `Content-Disposition: inline; filename="Dossier_<Nachname>_<Vorname>_<von>_<bis>.pdf"`, `Cache-Control: no-store`.
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - { name: from_date, in: query, schema: { type: string, format: date } }
+        - { name: to_date, in: query, schema: { type: string, format: date } }
+        - { name: include_confidential, in: query, schema: { type: boolean, default: true } }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    StudentId:
+      name: student_id
+      in: path
+      required: true
+      schema: { type: integer }
+    ClassId:
+      name: class_id
+      in: path
+      required: true
+      schema: { type: integer }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: UUID; Wiederholungen liefern die gespeicherte Antwort (Header `Idempotent-Replayed`)
+      schema: { type: string, format: uuid }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag einer früheren Antwort → 304, wenn unverändert
+      schema: { type: string }
+    UpdatedSince:
+      name: updated_since
+      in: query
+      required: false
+      description: Delta-Abfrage – nur seit diesem Zeitpunkt geänderte Datensätze (ISO-8601, beliebige Zeitzone)
+      schema: { type: string, format: date-time }
+    DiarySearch:
+      name: search
+      in: query
+      required: false
+      description: |
+        Volltextsuche in Eintragstext und Kategorie. Groß-/Kleinschreibung und Umlaute egal, alle Suchwörter müssen
+        (auch als Wortteil) vorkommen, Füllwörter einer Frage werden ignoriert („Wann hatten wir das mit dem Streit am
+        Klettergerüst?“ → `streit`, `klettergerust`). Da der Text verschlüsselt gespeichert ist, durchsucht der Server
+        höchstens die 5000 neuesten passenden Einträge (`meta.search_truncated`).
+      schema: { type: string, maxLength: 200 }
+  responses:
+    Unauthenticated:
+      description: Nicht authentifiziert
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Keine Berechtigung
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Nicht gefunden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Validierungsfehler
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: Die übermittelten Daten sind ungültig. }
+              errors:
+                type: object
+                additionalProperties: { type: array, items: { type: string } }
+    EntryStudents:
+      description: Aktuelle Schüler des Eintrags
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  entry_id: { type: integer }
+                  schueler_ids: { type: array, items: { type: integer } }
+                  updated_at: { type: string, format: date-time }
+  schemas:
+    DiaryListMeta:
+      type: object
+      description: Laravel-Paginierung; bei `search` zusätzlich Suchinfos
+      properties:
+        current_page: { type: integer }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        search_terms: { type: array, items: { type: string }, description: Verwendete Suchwörter (normalisiert) }
+        search_truncated: { type: boolean, description: true = nicht alle älteren Einträge durchsucht }
+    DiaryTask:
+      type: object
+      properties:
+        id: { type: integer }
+        schueler_id: { type: integer }
+        klasse_id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        due_date: { type: string, format: date, nullable: true }
+        highlighted: { type: boolean }
+        status: { type: string, enum: [open, closed] }
+    AppointmentInput:
+      type: object
+      required: [title, start_date]
+      description: Mindestens eines von `class_ids`, `group_ids`, `schueler_ids`.
+      properties:
+        title: { type: string, maxLength: 150, example: Elterngespräch }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        start_date: { type: string, format: date }
+        start_time: { type: string, nullable: true, example: '14:00' }
+        end_time: { type: string, nullable: true, example: '14:30' }
+        is_recurring: { type: boolean, default: false }
+        recurring_type: { type: string, nullable: true, enum: [daily, weekly, monthly] }
+        recurring_interval: { type: integer, minimum: 1, maximum: 365, default: 1 }
+        recurring_end_date: { type: string, format: date, nullable: true }
+        pause_entries: { type: boolean, default: false, description: Offene Notizen der Betroffenen an den Terminen pausieren }
+        class_ids: { type: array, items: { type: integer } }
+        group_ids: { type: array, items: { type: integer } }
+        schueler_ids: { type: array, items: { type: integer } }
+    Appointment:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        start_date: { type: string, format: date }
+        start_time: { type: string, nullable: true }
+        end_time: { type: string, nullable: true }
+        is_recurring: { type: boolean }
+        recurring_type: { type: string, nullable: true }
+        recurring_interval: { type: integer }
+        recurring_end_date: { type: string, format: date, nullable: true }
+        pause_entries: { type: boolean }
+        class_ids: { type: array, items: { type: integer } }
+        group_ids: { type: array, items: { type: integer } }
+        schueler_ids: { type: array, items: { type: integer } }
+        is_own: { type: boolean }
+    StudentBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        firstname: { type: string }
+        lastname: { type: string }
+    GradingOverview:
+      type: object
+      properties:
+        class: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        grading_system: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+        students_total: { type: integer }
+        open_sessions_count: { type: integer }
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              level: { type: integer }
+              symbol: { type: string, nullable: true }
+              badge_image_url: { type: string, nullable: true }
+              count: { type: integer }
+              students: { type: array, items: { $ref: '#/components/schemas/StudentBrief' } }
+        other_stages:
+          type: array
+          description: Schüler mit einer Stufe aus einem anderen System (z. B. nach Klassenwechsel)
+          items:
+            allOf:
+              - $ref: '#/components/schemas/StudentBrief'
+              - type: object
+                properties:
+                  stage_title: { type: string }
+        without_stage: { type: array, items: { $ref: '#/components/schemas/StudentBrief' } }
+    DiagnosticClassOverview:
+      type: object
+      properties:
+        class: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        students_total: { type: integer }
+        assessed_students: { type: integer }
+        areas:
+          type: array
+          items: { type: object, properties: { id: { type: integer }, title: { type: string } } }
+        criteria:
+          type: array
+          items:
+            type: object
+            properties:
+              criterion_id: { type: integer }
+              code: { type: string }
+              description: { type: string }
+              stage_id: { type: integer, nullable: true }
+              stage_title: { type: string, nullable: true }
+              area_id: { type: integer, nullable: true }
+              area_title: { type: string, nullable: true }
+              counts:
+                type: object
+                properties:
+                  white: { type: integer }
+                  gray: { type: integer }
+                  dark_gray: { type: integer }
+                  assessed: { type: integer }
+              students_not_yet:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/StudentBrief'
+                    - type: object
+                      properties:
+                        assessed_on: { type: string, format: date, nullable: true }
+              students_partial:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/StudentBrief'
+                    - type: object
+                      properties:
+                        assessed_on: { type: string, format: date, nullable: true }
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+    DiaryWeek:
+      type: object
+      properties:
+        week_start: { type: string, format: date, description: Montag }
+        week_end: { type: string, format: date, description: Freitag }
+        group: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              short_name: { type: string, nullable: true }
+              color: { type: string, nullable: true }
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              is_holiday: { type: boolean }
+              holiday_name: { type: string, nullable: true }
+        students:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              firstname: { type: string }
+              lastname: { type: string }
+              class_id: { type: integer }
+              current_grading:
+                type: object
+                nullable: true
+                properties:
+                  stage_id: { type: integer }
+                  stage_title: { type: string }
+                  symbol: { type: string, nullable: true }
+                  badge_url: { type: string, nullable: true }
+              absence_alerts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type: { type: string }
+                    label: { type: string }
+                    severity: { type: string }
+                    summary: { type: string }
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              class_id: { type: integer }
+              schueler_ids: { type: array, items: { type: integer } }
+              entry_date: { type: string, format: date }
+              content: { type: string }
+              category_id: { type: integer, nullable: true }
+              category_name: { type: string, nullable: true }
+              category_color: { type: string, nullable: true }
+              created_by_name: { type: string, nullable: true }
+              is_own: { type: boolean }
+              is_completed: { type: boolean }
+              completed_at: { type: string, format: date-time, nullable: true }
+        pauses:
+          type: array
+          items:
+            type: object
+            properties:
+              entry_id: { type: integer }
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+              reason: { type: string, nullable: true, description: 'z. B. „Ferien“, „Termin“, „Wiedervorlage“; null = einzeln pausiert' }
+        absences:
+          type: array
+          items:
+            type: object
+            properties:
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+        day_pauses:
+          type: array
+          items:
+            type: object
+            properties:
+              class_id: { type: integer }
+              date: { type: string, format: date }
+              reason: { type: string }
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              class_id: { type: integer }
+              name: { type: string }
+              type: { type: string, enum: [boolean, ampel, text] }
+              category: { type: string, nullable: true }
+        column_values:
+          type: array
+          items:
+            type: object
+            properties:
+              column_id: { type: integer }
+              schueler_id: { type: integer }
+              date: { type: string, format: date }
+              value: { type: string, nullable: true }
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              schueler_id: { type: integer }
+              title: { type: string }
+              description: { type: string, nullable: true }
+              due_date: { type: string, format: date, nullable: true }
+              highlighted: { type: boolean }
+        appointments:
+          type: array
+          description: Termin-Vorkommen Mo–So (wiederkehrende Termine aufgelöst)
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              description: { type: string, nullable: true }
+              date: { type: string, format: date }
+              start_time: { type: string, nullable: true, example: '08:30' }
+              end_time: { type: string, nullable: true }
+              is_recurring: { type: boolean }
+              recurring_type: { type: string, nullable: true, enum: [daily, weekly, monthly] }
+              pause_entries: { type: boolean }
+              is_own: { type: boolean, description: Selbst angelegt }
+              class_ids: { type: array, items: { type: integer } }
+              group_ids: { type: array, items: { type: integer } }
+              schueler_ids: { type: array, items: { type: integer }, description: Nur Schüler-Termine, wenn class_ids/group_ids leer }
+        hidden_category_ids: { type: array, items: { type: integer }, description: Vom Benutzer ausgeblendete Kategorien }
+    Instance:
+      type: object
+      properties:
+        name: { type: string, example: Grundschule Musterstadt }
+        logo_url: { type: string, nullable: true, example: 'https://mitarbeiter.schule.de/img/logo.png' }
+        primary_color: { type: string, example: '#1E40AF' }
+        api_version: { type: string, example: 1.1.0 }
+        min_app_version: { type: string, example: 1.0.0 }
+        auth:
+          type: object
+          properties:
+            password: { type: boolean }
+            sso: { type: boolean }
+            sso_label: { type: string, example: Mit Schulkonto anmelden }
+    TokenResponse:
+      type: object
+      properties:
+        token_type: { type: string, example: Bearer }
+        access_token: { type: string, example: "mb_1|abc..." }
+        expires_at: { type: string, format: date-time, nullable: true, description: "Gleitend: jetzt + 90 Tage, wird bei Nutzung verlängert" }
+        user: { $ref: '#/components/schemas/CurrentUser' }
+    GradingSessionListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [individual, group] }
+        answer_order_mode: { type: string, enum: [by_student, by_question] }
+        class_id: { type: integer }
+        schueler_id: { type: integer, nullable: true }
+        schueler_name: { type: string, nullable: true }
+        group_id: { type: integer, nullable: true }
+        grading_system: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        created_by_id: { type: integer }
+        created_by_name: { type: string }
+        is_owner: { type: boolean }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        is_completed: { type: boolean }
+        progress:
+          type: object
+          properties:
+            answered: { type: integer, description: Schüler-Frage-Paare mit Pädagogenbewertung }
+            total: { type: integer, description: Teilnehmer × aktive Fragen }
+            students_total: { type: integer }
+            students_finalized: { type: integer }
+    SessionStudent:
+      type: object
+      properties:
+        id: { type: integer }
+        firstname: { type: string }
+        lastname_initial: { type: string, nullable: true, example: M. }
+        finalized: { type: boolean }
+        finalized_at: { type: string, format: date-time, nullable: true }
+    JoinCode:
+      type: object
+      properties:
+        schueler_id: { type: integer }
+        firstname: { type: string }
+        code: { type: string, example: K7M-4QX }
+        qr_payload: { type: string, example: 'paeddiary://join?server=https://mitarbeiter.schule.de&code=K7M4QX' }
+        expires_at: { type: string, format: date-time }
+    StudentSession:
+      type: object
+      properties:
+        session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string }, current_question_id: { type: integer, nullable: true } } }
+        student: { type: object, properties: { firstname: { type: string } } }
+        questions: { type: array, items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } } }
+        self_ratings: { type: array, items: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer } } } }
+        waiting: { type: boolean, description: "by_question: alle freigegebenen Fragen beantwortet, warten auf die nächste Freigabe" }
+    CurrentUser:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        permissions:
+          type: object
+          properties:
+            view_diagnostics: { type: boolean }
+            manage_grading: { type: boolean }
+            view_all_students: { type: boolean }
+            view_confidential_entries: { type: boolean }
+    Class:
+      type: object
+      properties:
+        id: { type: integer, example: 12 }
+        name: { type: string, example: Klasse 4a }
+        short_name: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        school_year: { type: string, example: 2026/2027 }
+        grading_system_id: { type: integer, nullable: true }
+        students_count: { type: integer, example: 24 }
+    ClassStudent:
+      type: object
+      properties:
+        id: { type: integer }
+        firstname: { type: string }
+        lastname: { type: string }
+        current_grading:
+          type: object
+          nullable: true
+          properties:
+            stage_id: { type: integer }
+            stage_title: { type: string }
+            symbol: { type: string, nullable: true }
+            badge_url: { type: string, nullable: true }
+        active_diagnostic_goals_count: { type: integer, description: Nur mit `view diagnostics` }
+        recent_diary_entries_count: { type: integer }
+    CurrentStage:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        level: { type: integer, description: sort_order im Graduierungssystem }
+        symbol: { type: string, nullable: true }
+        badge_image_url: { type: string, nullable: true }
+        achieved_at: { type: string, format: date, nullable: true }
+    StudentView:
+      type: object
+      properties:
+        student:
+          type: object
+          properties:
+            id: { type: integer }
+            firstname: { type: string }
+            lastname: { type: string }
+            class_id: { type: integer }
+            class_name: { type: string }
+            date_of_birth: { type: string, format: date, nullable: true }
+        grading_overview:
+          type: object
+          properties:
+            grading_system: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+            current_stage: { $ref: '#/components/schemas/CurrentStage' }
+            has_open_session: { type: boolean }
+            open_session_id: { type: integer, nullable: true }
+            open_session_is_own: { type: boolean }
+        diagnostic_overview:
+          type: object
+          nullable: true
+          description: null ohne `view diagnostics`
+          properties:
+            active_goals_count: { type: integer }
+            active_goals: { type: array, items: { $ref: '#/components/schemas/DevelopmentGoal' } }
+            current_criterion_goals: { type: array, items: { $ref: '#/components/schemas/CurrentCriterionGoal' } }
+            last_assessment_date: { type: string, format: date, nullable: true }
+        recent_paed_diary_entries:
+          type: array
+          items: { $ref: '#/components/schemas/DiaryEntry' }
+        permissions:
+          type: object
+          properties:
+            can_edit: { type: boolean }
+            can_view_diagnostics: { type: boolean }
+            can_change_grading_stage: { type: boolean }
+            can_view_confidential_entries: { type: boolean }
+    DiaryCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        color: { type: string, nullable: true, example: '#3B82F6' }
+        is_global: { type: boolean }
+        is_hidden: { type: boolean }
+    DiaryEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        class_id: { type: integer }
+        schueler_ids: { type: array, items: { type: integer } }
+        category_id: { type: integer, nullable: true }
+        category_name: { type: string, nullable: true }
+        category_color: { type: string, nullable: true }
+        entry_date: { type: string, format: date }
+        content: { type: string }
+        is_dossier_only: { type: boolean }
+        is_completed: { type: boolean }
+        completed_at: { type: string, format: date-time, nullable: true }
+        created_by_id: { type: integer }
+        created_by_name: { type: string }
+        is_own: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    DiaryEntryCreate:
+      type: object
+      required: [schueler_id, entry_date, content]
+      properties:
+        schueler_id: { type: integer, example: 42 }
+        category_id: { type: integer, nullable: true, example: 3 }
+        entry_date: { type: string, format: date, example: '2026-09-23' }
+        content: { type: string, maxLength: 20000 }
+        is_dossier_only: { type: boolean, default: false }
+        is_completed: { type: boolean, default: true, description: "false = offene Notiz, läuft wie im Web über mehrere Tage weiter" }
+    DiaryEntryBulkCreate:
+      type: object
+      required: [schueler_ids, entry_date, content]
+      properties:
+        schueler_ids: { type: array, items: { type: integer }, minItems: 1, maxItems: 200, example: [42, 43, 45] }
+        category_id: { type: integer, nullable: true }
+        entry_date: { type: string, format: date }
+        content: { type: string }
+        is_dossier_only: { type: boolean, default: false }
+        is_completed: { type: boolean, default: true }
+    DiaryEntryUpdate:
+      type: object
+      properties:
+        schueler_ids: { type: array, items: { type: integer }, description: Müssen der Klasse des Eintrags angehören }
+        category_id: { type: integer, nullable: true }
+        entry_date: { type: string, format: date }
+        content: { type: string }
+        is_dossier_only: { type: boolean }
+        is_completed: { type: boolean }
+        expected_updated_at: { type: string, format: date-time, description: "Konfliktschutz: zuletzt gelesenes updated_at (abweichend → 409)" }
+    GradingStage:
+      type: object
+      properties:
+        id: { type: integer }
+        grading_system_id: { type: integer }
+        title: { type: string }
+        slug: { type: string }
+        symbol: { type: string, nullable: true }
+        level: { type: integer }
+        is_default: { type: boolean }
+        badge_image_url: { type: string, nullable: true }
+    StageHistoryItem:
+      type: object
+      properties:
+        id: { type: integer }
+        changed_at: { type: string, format: date-time }
+        stage_id: { type: integer, nullable: true }
+        stage_title: { type: string, nullable: true }
+        stage_badge_url: { type: string, nullable: true }
+        previous_stage_id: { type: integer, nullable: true }
+        previous_stage_title: { type: string, nullable: true }
+        changed_by_name: { type: string, nullable: true }
+        paed_diary_entry_id: { type: integer, nullable: true }
+    GradingSession:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [individual, group] }
+        answer_order_mode: { type: string }
+        class_id: { type: integer }
+        schueler_id: { type: integer, nullable: true }
+        group_id: { type: integer, nullable: true }
+        current_question_id: { type: integer, nullable: true, description: Nur im Modus by_question }
+        grading_system: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        created_by_id: { type: integer }
+        created_by_name: { type: string }
+        is_owner: { type: boolean }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        is_completed: { type: boolean }
+        questions:
+          type: array
+          items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } }
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              schueler_id: { type: integer }
+              question_id: { type: integer }
+              rating_value: { type: integer, nullable: true, description: Pädagogenbewertung 1–5 }
+              self_rating: { type: integer, nullable: true, description: Selbsteinschätzung 1–5 }
+              comment: { type: string, nullable: true }
+              assessed_at: { type: string, format: date-time, nullable: true }
+        teacher_assessments:
+          type: array
+          items: { type: object, properties: { schueler_id: { type: integer }, note: { type: string }, noted_at: { type: string, format: date-time } } }
+    GradingSessionResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/GradingSession' }
+        meta:
+          type: object
+          properties:
+            resumed: { type: boolean, description: Nur bei POST /grading/sessions }
+            available_stages: { type: array, items: { $ref: '#/components/schemas/GradingStage' } }
+            students: { type: array, items: { $ref: '#/components/schemas/SessionStudent' } }
+            current_question_id: { type: integer, nullable: true }
+            finalized: { type: boolean, description: Nur bei POST …/assessments }
+            session_completed: { type: boolean, description: Nur bei POST …/assessments }
+            current_stage: { $ref: '#/components/schemas/CurrentStage' }
+    GradingAssessmentCreate:
+      type: object
+      properties:
+        schueler_id: { type: integer, description: "Pflicht bei Gruppen-Sessions (muss teilnehmen)" }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [question_id]
+            properties:
+              question_id: { type: integer, example: 15 }
+              rating_value: { type: integer, minimum: 1, maximum: 5, nullable: true, example: 4 }
+              self_rating: { type: integer, minimum: 1, maximum: 5, nullable: true }
+              comment: { type: string, nullable: true }
+        teacher_assessment: { type: string, nullable: true, example: Die Kriterien für Graduierung II sind vollumfänglich erfüllt. }
+        finalize: { type: boolean, default: false, description: "Gruppensession: schließt nur diesen Schüler ab" }
+        grading_stage_id: { type: integer, nullable: true, description: "Nur mit finalize=true; null entfernt die Stufe" }
+    DiagnosticArea:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              code: { type: string }
+              goal_description: { type: string, nullable: true }
+              sort_order: { type: integer }
+              criteria:
+                type: array
+                items: { type: object, properties: { id: { type: integer }, code: { type: string }, description: { type: string }, sort_order: { type: integer } } }
+    DevelopmentGoal:
+      type: object
+      properties:
+        id: { type: integer }
+        schueler_id: { type: integer }
+        diagnostic_session_id: { type: integer, nullable: true }
+        area_id: { type: integer, nullable: true }
+        area_title: { type: string, nullable: true }
+        stage_id: { type: integer, nullable: true }
+        criterion_id: { type: integer, nullable: true }
+        title: { type: string }
+        target_date: { type: string, format: date, nullable: true }
+        status: { type: string, enum: [open, in_progress, achieved, not_achieved, archived] }
+        is_active: { type: boolean }
+        completion_notes: { type: string, nullable: true }
+        completed_at: { type: string, format: date, nullable: true }
+        archived_at: { type: string, format: date-time, nullable: true }
+        created_by_name: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CurrentCriterionGoal:
+      type: object
+      description: Im Web als "aktuelles Ziel" markiertes Katalogkriterium
+      properties:
+        assessment_id: { type: integer }
+        criterion_id: { type: integer }
+        code: { type: string }
+        description: { type: string }
+        stage_title: { type: string }
+        area_id: { type: integer }
+        area_title: { type: string }
+        rating: { type: string, nullable: true, enum: [white, gray, dark_gray] }
+        session_id: { type: integer }
+        session_date: { type: string, format: date }
+    DiagnosticSession:
+      type: object
+      properties:
+        id: { type: integer }
+        schueler_id: { type: integer }
+        area_id: { type: integer }
+        area_title: { type: string }
+        session_date: { type: string, format: date }
+        is_completed: { type: boolean }
+        completed_at: { type: string, format: date-time, nullable: true }
+        notes: { type: string, nullable: true }
+        created_by_name: { type: string, nullable: true }
+        stage_notes: { type: array, items: { type: object, properties: { stage_id: { type: integer }, stage_title: { type: string }, notes: { type: string } } } }
+        assessments: { type: array, items: { type: object, properties: { criterion_id: { type: integer }, rating: { type: string, nullable: true }, is_current_goal: { type: boolean } } } }
+        rating_summary: { type: object, properties: { white: { type: integer }, gray: { type: integer }, dark_gray: { type: integer }, total: { type: integer } } }
+        development_goals: { type: array, items: { $ref: '#/components/schemas/DevelopmentGoal' } }
+    DiagnosticSessionCreate:
+      type: object
+      required: [schueler_id, area_id]
+      properties:
+        schueler_id: { type: integer, example: 42 }
+        area_id: { type: integer, example: 1 }
+        stage_id: { type: integer, nullable: true, example: 11, description: Muss zum Bereich gehören }
+        session_date: { type: string, format: date, description: "Standard: heute (nur bei neuer Sitzung)" }
+        assessment_notes: { type: string, nullable: true, description: "Mit stage_id als Stufen-Notiz, sonst als Sitzungsnotiz" }
+        complete: { type: boolean, default: true }
+        assessments:
+          type: array
+          description: Ampelbewertung von Katalogkriterien (optional)
+          items:
+            type: object
+            required: [criterion_id]
+            properties:
+              criterion_id: { type: integer }
+              rating: { type: string, nullable: true, enum: [white, gray, dark_gray] }
+              is_current_goal: { type: boolean }
+        goals:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title: { type: string, maxLength: 500, example: Sachtexte mit Nebensätzen sinnentnehmend lesen }
+              target_date: { type: string, format: date, nullable: true, example: '2026-11-30' }
+              criterion_id: { type: integer, nullable: true, description: Optionaler Bezug auf ein Katalogkriterium }
+    Dossier:
+      type: object
+      properties:
+        student: { type: object }
+        period: { type: object, properties: { from_date: { type: string, format: date }, to_date: { type: string, format: date } } }
+        paed_diary:
+          type: object
+          properties:
+            entries_count: { type: integer }
+            by_category:
+              type: array
+              items: { type: object, properties: { category_id: { type: integer, nullable: true }, category_name: { type: string }, category_color: { type: string, nullable: true }, count: { type: integer } } }
+            entries: { type: array, items: { $ref: '#/components/schemas/DiaryEntry' } }
+            goals: { type: array, items: { type: object }, description: "Ziele „an denen ich arbeiten möchte“ aus dem Tagebuch" }
+        grading:
+          type: object
+          properties:
+            current_stage: { $ref: '#/components/schemas/CurrentStage' }
+            stage_history: { type: array, items: { $ref: '#/components/schemas/StageHistoryItem' } }
+            completed_sessions: { type: array, items: { $ref: '#/components/schemas/GradingSession' } }
+        diagnostic:
+          type: object
+          nullable: true
+          properties:
+            sessions: { type: array, items: { $ref: '#/components/schemas/DiagnosticSession' } }
+            development_goals: { type: array, items: { $ref: '#/components/schemas/DevelopmentGoal' } }
+            current_criterion_goals: { type: array, items: { $ref: '#/components/schemas/CurrentCriterionGoal' } }
+        meta:
+          type: object
+          properties:
+            generated_at: { type: string, format: date-time }
+            generated_by: { type: string }
+            includes_confidential: { type: boolean }
+            includes_diagnostics: { type: boolean }
