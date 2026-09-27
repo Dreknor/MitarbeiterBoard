@@ -67,6 +67,8 @@ export default defineConfig({
                 // Meetings-Modul (Tailwind-Migration)
                 'resources/views/meetings/**/*.blade.php',
                 'app/Http/Controllers/MeetingController.php',
+                'app/Http/Controllers/Meetings/*.php',
+                'resources/views/search/global.blade.php',
                 // Themenarchiv (Tailwind-Migration)
                 'resources/views/themes/archive.blade.php',
                 // Themen-Modul (Tailwind-Migration)

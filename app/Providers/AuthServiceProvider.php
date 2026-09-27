@@ -18,6 +18,7 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\DiagnosticSession::class => \App\Policies\DiagnosticPolicy::class,
         \App\Models\DiagnosticArea::class => \App\Policies\DiagnosticAreaPolicy::class,
         \App\Models\GradingDocumentationSession::class => \App\Policies\GradingDocumentationSessionPolicy::class,
+        \App\Models\Meeting::class => \App\Policies\MeetingPolicy::class,
 
         // API v1 (Pädagogen-App)
         \App\Models\Schueler::class       => \App\Policies\StudentPolicy::class,

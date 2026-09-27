@@ -137,7 +137,8 @@
                 {{-- ── BERATUNGEN (dynamisch nach Gruppen) ────────────── --}}
                 @php
                     $beratungSegments = ['themes', 'meetings', 'memory', 'archive', 'search', 'export'];
-                    $beratungActive = in_array(request()->segment(2), $beratungSegments);
+                    $beratungActive = in_array(request()->segment(2), $beratungSegments)
+                        || in_array(request()->segment(1), ['meetings', 'search']);
                 @endphp
                 <div x-data="{ open: {{ $beratungActive ? 'true' : 'false' }} }">
                     <button class="sidebar-toggle @if($beratungActive) active-parent @endif"
@@ -148,6 +149,13 @@
                         <i class="fas fa-chevron-down toggle-arrow"></i>
                     </button>
                     <div class="sidebar-submenu" x-show="open" x-collapse>
+
+                        {{-- Meetings gruppenübergreifend --}}
+                        <a href="{{ route('meetings.overview') }}"
+                           class="sidebar-link @if(request()->segment(1) == 'meetings') active @endif">
+                            <i class="far fa-calendar-alt"></i>
+                            <span>Meine Meetings</span>
+                        </a>
 
                         {{-- Globale Suche --}}
                         <a href="{{ url('/search') }}"

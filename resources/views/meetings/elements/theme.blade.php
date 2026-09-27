@@ -37,7 +37,7 @@
 
     {{-- Aktionen --}}
     <div class="flex items-center gap-1.5 shrink-0">
-        <a href="{{ url(request()->segment(1).'/themes/'.$theme->id) }}" class="mtg-btn mtg-btn-secondary mtg-btn-sm">
+        <a href="{{ isset($meeting) ? route('meetings.themes.show', [$meeting, $theme]) : url(request()->segment(1).'/themes/'.$theme->id) }}" class="mtg-btn mtg-btn-secondary mtg-btn-sm">
             <i class="far fa-eye"></i> <span class="hidden sm:inline">zeigen</span>
         </a>
         @isset($meeting)

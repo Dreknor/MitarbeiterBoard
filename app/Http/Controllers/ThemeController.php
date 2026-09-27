@@ -406,9 +406,10 @@ class ThemeController extends Controller
         $subscription = auth()->user()->subscriptions->where('subscriptionable_type', Theme::class)->where('subscriptionable_id', $theme->id)->first();
 
         return view('themes.show', [
-            'theme' => $theme->load(['protocols', 'tasks', 'type', 'priorities', 'tasks.taskable']),
+            'theme' => $theme->load(['protocols', 'type', 'priorities']),
             'subscription' => $subscription,
             'group' => $group,
+            'themeTasks' => app(\App\Services\Tasks\ThemeTaskService::class)->tasksForTheme($theme),
         ]);
     }
 

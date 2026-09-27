@@ -25,7 +25,7 @@ class MeetingInvitationMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(Meeting $meeting, Group $group, User $user, $messageText = null, $absender = null, $absenderEmail = null)
+    public function __construct(Meeting $meeting, ?Group $group, User $user, $messageText = null, $absender = null, $absenderEmail = null)
     {
         $this->meeting = $meeting;
         $this->group = $group;
@@ -140,9 +140,15 @@ class MeetingInvitationMail extends Mailable
             $lines[] = 'Raum: ' . $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
         }
 
-        if (!empty($this->group->meeting_url)) {
-            $lines[] = 'Meeting-Link: ' . $this->group->meeting_url;
+        if (!empty($this->meeting->location)) {
+            $lines[] = 'Ort: ' . $this->meeting->location;
         }
+
+        if (!empty($this->meeting->effectiveMeetingUrl())) {
+            $lines[] = 'Meeting-Link: ' . $this->meeting->effectiveMeetingUrl();
+        }
+
+        $lines[] = 'Details: ' . route('meetings.show', $this->meeting);
 
         foreach ($this->meeting->themes as $theme) {
             $lines[] = '- ' . $theme->theme . ' (' . $theme->duration . ' min)';
@@ -163,8 +169,12 @@ class MeetingInvitationMail extends Mailable
             $parts[] = $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
         }
 
-        if (!empty($this->group->meeting_url)) {
-            $parts[] = $this->group->meeting_url;
+        if (!empty($this->meeting->location)) {
+            $parts[] = $this->meeting->location;
+        }
+
+        if (!empty($this->meeting->effectiveMeetingUrl())) {
+            $parts[] = $this->meeting->effectiveMeetingUrl();
         }
 
         if (empty($parts)) {

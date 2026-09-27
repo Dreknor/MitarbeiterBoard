@@ -55,6 +55,12 @@ class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Aud
     {
         static::created(function ($protocol) {
             $theme = $protocol->theme;
+
+            // Freie Meeting-Themen: Abonnements laufen nicht über Gruppen-Links
+            if (! $theme?->group) {
+                return;
+            }
+
             foreach ($theme->subscriptionable as $subscription) {
                 if ($subscription->user != $protocol->ersteller){
                     Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme, $theme->group->name, $protocol));

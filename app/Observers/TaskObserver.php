@@ -5,75 +5,46 @@ namespace App\Observers;
 use App\Models\Task;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Leert die Aufgaben-Caches (Dashboard) aller betroffenen Personen.
+ */
 class TaskObserver
 {
-    /**
-     * Handle the Task "created" event.
-     */
     public function created(Task $task): void
     {
-       if ($task->taskable_type === 'App\Models\GroupTask') {
-           foreach ($task->taskable->group->users as $user) {
-                Cache::forget('tasks_'.$user->id);
-           }
-       } else {
-           Cache::forget('tasks_' . $task->taskable_id);
-       }
+        $this->forget($task);
     }
 
-    /**
-     * Handle the Task "updated" event.
-     */
     public function updated(Task $task): void
     {
-        if ($task->taskable_type === 'App\Models\GroupTask') {
-            foreach ($task->taskable->group->users as $user) {
-                Cache::forget('tasks_'.$user->id);
-            }
-        } else {
-            Cache::forget('tasks_' . $task->taskable_id);
-        }
+        $this->forget($task);
     }
 
-    /**
-     * Handle the Task "deleted" event.
-     */
     public function deleted(Task $task): void
     {
-        if ($task->taskable_type === 'App\Models\GroupTask') {
-            foreach ($task->taskable->group->users as $user) {
-                Cache::forget('tasks_'.$user->id);
-            }
-        } else {
-            Cache::forget('tasks_' . $task->taskable_id);
-        }
+        $this->forget($task);
     }
 
-    /**
-     * Handle the Task "restored" event.
-     */
     public function restored(Task $task): void
     {
-        if ($task->taskable_type === 'App\Models\GroupTask') {
-            foreach ($task->taskable->group->users as $user) {
-                Cache::forget('tasks_'.$user->id);
-            }
-        } else {
-            Cache::forget('tasks_' . $task->taskable_id);
-        }
+        $this->forget($task);
     }
 
-    /**
-     * Handle the Task "force deleted" event.
-     */
     public function forceDeleted(Task $task): void
     {
-        if ($task->taskable_type === 'App\Models\GroupTask') {
-            foreach ($task->taskable->group->users as $user) {
-                Cache::forget('tasks_'.$user->id);
-            }
-        } else {
+        $this->forget($task);
+    }
+
+    private function forget(Task $task): void
+    {
+        if ($task->isPersonal()) {
             Cache::forget('tasks_' . $task->taskable_id);
+
+            return;
+        }
+
+        foreach ($task->taskUsers()->pluck('users_id') as $userId) {
+            Cache::forget('group_tasks_' . $userId);
         }
     }
 }

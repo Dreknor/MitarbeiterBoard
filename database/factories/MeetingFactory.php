@@ -25,6 +25,15 @@ class MeetingFactory extends Factory
         ];
     }
 
+    /** Freies Meeting ohne Gruppe */
+    public function free(): static
+    {
+        return $this->state(fn () => [
+            'group_id'   => null,
+            'creator_id' => \App\Models\User::factory(),
+        ]);
+    }
+
     /** Vergangenes Meeting */
     public function past(): static
     {

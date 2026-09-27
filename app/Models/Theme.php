@@ -104,13 +104,25 @@ class Theme extends Model implements HasMedia
             ->withTimestamps();
     }
 
+    /**
+     * Freies Thema ohne Gruppe (nur über Meetings erreichbar).
+     */
+    public function isFree(): bool
+    {
+        return $this->group_id === null;
+    }
+
     //Events
     protected static function booted()
     {
         static::created(function ($theme) {
             $group = $theme->group;
 
-            //dd($group->subscriptionable);
+            // Freie Meeting-Themen haben keine Gruppen-Abonnements
+            if (! $group) {
+                return;
+            }
+
             foreach ($group->subscriptionable as $subscription) {
                 Mail::to($subscription->user)->queue(new NewThemeMail($theme->theme, $theme->id, $group->name));
             }

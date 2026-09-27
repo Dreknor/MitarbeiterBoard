@@ -16,7 +16,9 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="text-lg font-bold truncate">{{ $meeting->title }}</h3>
+                    <h3 class="text-lg font-bold truncate">
+                        <a href="{{ route('meetings.show', $meeting) }}" class="hover:underline">{{ $meeting->title }}</a>
+                    </h3>
                     @if($isCancelled)
                         <span class="mtg-badge bg-white/20 text-white">Abgesagt</span>
                     @elseif($isToday)
@@ -39,6 +41,10 @@
             </div>
 
             <div class="flex items-center gap-1.5 shrink-0">
+                <a href="{{ route('meetings.show', $meeting) }}"
+                   class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Detailseite öffnen">
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
                 <a href="{{ route('meetings.edit', ['group' => $group->name, 'meeting' => $meeting->id]) }}"
                    class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Bearbeiten">
                     <i class="fas fa-pen"></i>
@@ -82,10 +88,21 @@
             </div>
         @endif
 
-        @if($group->meeting_url)
+        @if($meeting->effectiveMeetingUrl())
             <p class="text-sm text-gray-600 mb-3">
                 <i class="fas fa-video mr-1 text-gray-400"></i>
-                <a href="{{ $group->meeting_url }}" target="_blank" class="text-blue-600 hover:underline break-all">{{ $group->meeting_url }}</a>
+                <a href="{{ $meeting->effectiveMeetingUrl() }}" target="_blank" class="text-blue-600 hover:underline break-all">{{ $meeting->effectiveMeetingUrl() }}</a>
+            </p>
+        @endif
+
+        @if($meeting->participantUsers->isNotEmpty() || $meeting->participantGroups->isNotEmpty() || $meeting->participantRoles->isNotEmpty())
+            <p class="text-sm text-gray-600 mb-3">
+                <i class="fas fa-user-plus mr-1 text-gray-400"></i>
+                Zusätzlich eingeladen:
+                {{ $meeting->participantUsers->pluck('name')
+                    ->concat($meeting->participantGroups->pluck('name'))
+                    ->concat($meeting->participantRoles->pluck('name'))
+                    ->implode(', ') }}
             </p>
         @endif
 
@@ -224,7 +241,7 @@
             <form action="{{ route('meetings.invite', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST">
                 @csrf
                 <div class="mtg-modal-body">
-                    <p class="text-sm text-gray-500 mb-3">Die Einladung wird an alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> versendet.</p>
+                    <p class="text-sm text-gray-500 mb-3">Die Einladung wird an alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> sowie an zusätzlich eingeladene Personen, Gruppen und Rollen versendet.</p>
                     <label class="mtg-label">Zusätzliche Nachricht (optional)</label>
                     <textarea name="message" class="mtg-textarea" rows="3" placeholder="Optionale Nachricht …"></textarea>
                 </div>

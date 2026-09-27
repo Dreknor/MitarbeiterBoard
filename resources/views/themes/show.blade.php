@@ -11,7 +11,7 @@
 @endphp
 
 @section('content')
-<div class="theme-wrapper" id="top" x-data="{ showShare: false, showTask: false }" x-cloak>
+<div class="theme-wrapper" id="top" x-data="{ showShare: false, showTask: {{ old('assign') !== null ? 'true' : 'false' }} }" x-cloak>
 
     {{-- Floating Timer --}}
     <div class="thm-timer" id="timer"><span id="duration">00:00:00</span></div>
@@ -290,29 +290,15 @@
                 @endif
 
                 <div>
-                    <h3 class="thm-section-title mb-2">Aufgaben</h3>
-                    <ul class="space-y-2">
-                        @forelse($theme->tasks->sortByDate('date', 'desc') as $task)
-                            @if(!is_null($task->taskable))
-                                <li class="p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                                    <div class="flex items-center gap-2 text-sm font-medium text-gray-800">
-                                        @if($task->completed or (get_class($task->taskable) == 'App\Models\Group' and $task->taskUsers->count() == "0"))
-                                            <i class="far fa-check-square text-emerald-500"></i>
-                                        @endif
-                                        {{ $task->date->format('d.m.Y') }} – {{ optional($task->taskable)->name }}
-                                    </div>
-                                    <p class="text-sm text-gray-600 mt-1">
-                                        {{ $task->task }}
-                                        @if($task->taskUsers->count() > 0)
-                                            <span class="text-xs text-gray-400">(noch offen: {{ $task->taskUsers->count() }})</span>
-                                        @endif
-                                    </p>
-                                </li>
-                            @endif
-                        @empty
-                            <li class="text-sm text-gray-400 italic">Keine Aufgaben</li>
-                        @endforelse
-                    </ul>
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <h3 class="thm-section-title">Aufgaben</h3>
+                        @if(! $theme->completed)
+                            <button type="button" class="thm-btn thm-btn-secondary thm-btn-sm" @click="showTask = true" title="Aufgabe vergeben">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        @endif
+                    </div>
+                    @include('tasks.partials.theme_tasks', ['tasks' => $themeTasks, 'ui' => 'thm'])
                 </div>
 
                 @can('view priorities')
@@ -396,35 +382,18 @@
     <div class="thm-modal-backdrop" x-show="showTask" x-transition.opacity @keydown.escape.window="showTask = false" style="display:none;">
         <div class="thm-modal thm-modal-lg" @click.outside="showTask = false">
             <div class="thm-modal-header">
-                <h3 class="thm-modal-title">Aufgabe hinzufügen</h3>
+                <h3 class="thm-modal-title">Aufgabe vergeben</h3>
                 <button type="button" class="thm-modal-close" @click="showTask = false" aria-label="Schließen">&times;</button>
             </div>
-            <form action="{{ url(request()->segment(1).'/'.$theme->id.'/tasks') }}" method="post" id="taskForm">
-                @csrf
-                <div class="thm-modal-body space-y-4">
-                    <div>
-                        <label for="taskdate" class="thm-label">Zu erledigen bis …</label>
-                        <input type="date" name="date" id="taskdate" min="{{ \Carbon\Carbon::now()->addDay()->format('Y-m-d') }}" value="{{ old('date') }}" class="thm-input" required>
-                    </div>
-                    <div>
-                        <label for="task" class="thm-label">Aufgabe</label>
-                        <input type="text" name="task" id="task" value="{{ old('task') }}" class="thm-input" required>
-                    </div>
-                    <div>
-                        <label for="taskable" class="thm-label">Aufgabe für …</label>
-                        <select class="thm-select" name="taskable" id="taskable">
-                            <option value="{{ request()->segment(1) }}">Gruppe {{ request()->segment(1) }}</option>
-                            @foreach($theme->group->users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="thm-modal-footer">
-                    <button type="button" class="thm-btn thm-btn-secondary" @click="showTask = false">Abbrechen</button>
-                    <button type="submit" class="thm-btn thm-btn-primary">Speichern</button>
-                </div>
-            </form>
+            <div class="thm-modal-body">
+                @include('tasks.partials.task_form', [
+                    'action'   => route('themes.tasks.store', ['groupname' => $group->name, 'theme' => $theme->id]),
+                    'users'    => $group->users->sortBy('name')->values(),
+                    'allLabel' => 'Ganze Gruppe',
+                    'ui'       => 'thm',
+                    'cancel'   => 'showTask = false',
+                ])
+            </div>
         </div>
     </div>
 </div>

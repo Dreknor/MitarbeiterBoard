@@ -608,6 +608,30 @@ Route::group([
                 Route::get('search', [SearchController::class, 'globalSearch']);
 
 
+                // Meetings gruppenübergreifend (Gruppen-Meetings + freie Besprechungen).
+                // Muss vor den {groupname}-Routen stehen, sonst greifen z. B. {groupname}/archive.
+                Route::prefix('meetings')->where(['meeting' => '[0-9]+', 'theme' => '[0-9]+', 'task' => '[0-9]+', 'protocol' => '[0-9]+'])->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'index'])->name('meetings.overview');
+                    Route::get('archive', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'archive'])->name('meetings.archive');
+                    Route::post('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'store'])->name('meetings.create');
+
+                    Route::get('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'show'])->name('meetings.show');
+                    Route::put('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'update'])->name('meetings.details.update');
+                    Route::delete('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroy'])->name('meetings.details.destroy');
+                    Route::post('{meeting}/cancel', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'cancel'])->name('meetings.details.cancel');
+                    Route::post('{meeting}/reactivate', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'reactivate'])->name('meetings.details.reactivate');
+                    Route::post('{meeting}/invite', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'invite'])->name('meetings.details.invite');
+                    Route::post('{meeting}/roles', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'storeTask'])->name('meetings.details.tasks.store');
+                    Route::delete('{meeting}/roles/{task}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroyTask'])->name('meetings.details.tasks.destroy');
+
+                    Route::post('{meeting}/agenda', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'store'])->name('meetings.agenda.store');
+                    Route::delete('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'remove'])->name('meetings.agenda.remove');
+                    Route::get('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'show'])->name('meetings.themes.show');
+                    Route::post('{meeting}/agenda/{theme}/protocols', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeProtocol'])->name('meetings.themes.protocols.store');
+                    Route::put('{meeting}/agenda/{theme}/protocols/{protocol}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'updateProtocol'])->name('meetings.themes.protocols.update');
+                    Route::post('{meeting}/agenda/{theme}/tasks', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeTask'])->name('meetings.themes.tasks.store');
+                });
+
                 //recurring Themes
                 Route::middleware('permission:manage recurring themes')->group(function () {
                     Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
@@ -740,8 +764,9 @@ Route::group([
 
 
                 //Tasks
-                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
-                Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
+                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store'])->name('themes.tasks.store');
+                Route::get('tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+                Route::delete('theme-tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
                 //Push-Notification
                 Route::post('{groupname?}/push', [PushController::class, 'store']);

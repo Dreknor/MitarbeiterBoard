@@ -142,7 +142,8 @@ class User extends Authenticatable implements HasMedia
      */
     public function group_tasks()
     {
-        return $this->hasMany(GroupTaskUser::class, 'users_id');
+        // Nur offene Zuständigkeiten – erledigte bleiben für den Verlauf erhalten
+        return $this->hasMany(GroupTaskUser::class, 'users_id')->whereNull('completed_at');
     }
 
     /**

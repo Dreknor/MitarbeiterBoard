@@ -17,7 +17,7 @@ class UpdateMeetingWithRoomBookingAction
     public function execute(Meeting $meeting, array $data, User $user): Meeting
     {
         return DB::transaction(function () use ($meeting, $data, $user) {
-            $meetingData = Arr::only($data, ['title', 'date', 'start_time', 'end_time']);
+            $meetingData = Arr::only($data, ['title', 'date', 'start_time', 'end_time', 'description', 'location', 'meeting_url']);
             $meeting->update($meetingData);
 
             Log::info('Meeting aktualisiert', [
