@@ -264,7 +264,6 @@
 .meeting-wrapper .mtg-hero-group     { border-left-color: #0ea5e9; }
 .meeting-wrapper .mtg-hero-cancelled { border-left-color: #ef4444; @apply bg-red-50/40; }
 .meeting-wrapper .mtg-hero-past      { border-left-color: #94a3b8; }
-.meeting-wrapper .mtg-btn-glass { @apply bg-white/15 hover:bg-white/25 text-white shadow-none; }
 
 /* Karten-Kopf */
 .meeting-wrapper .mtg-card-head {
@@ -379,7 +378,6 @@
 
 .meeting-wrapper a.mtg-link { color: #2563eb; font-weight: 500; }
 .meeting-wrapper a.mtg-link:hover { color: #1e40af; text-decoration: underline; }
-.meeting-wrapper .mtg-btn-light { @apply bg-white hover:bg-gray-100 text-gray-900; }
 .meeting-wrapper .mtg-picker-option.is-danger { @apply text-red-600 hover:bg-red-50; }
 .meeting-wrapper .mtg-row h3 { color: #111827; }
 .meeting-wrapper .mtg-row:hover h3 { color: #1d4ed8; }
