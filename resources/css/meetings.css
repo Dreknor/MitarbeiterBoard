@@ -96,13 +96,20 @@
 }
 .meeting-wrapper .mtg-card:hover { @apply shadow-md; }
 
-/* Meeting-Kopfband-Varianten */
+/* Meeting-Kopf (Gruppen-Karten) – dezent mit farbiger Akzentleiste */
 .meeting-wrapper .mtg-band {
-    @apply px-5 py-4 text-white;
+    @apply px-5 py-4 bg-white text-gray-900 border-b border-gray-100;
+    border-left: 4px solid transparent;
 }
-.meeting-wrapper .mtg-band-today     { @apply bg-gradient-to-r from-blue-600 to-indigo-600; }
-.meeting-wrapper .mtg-band-upcoming  { @apply bg-gradient-to-r from-slate-600 to-slate-700; }
-.meeting-wrapper .mtg-band-cancelled { @apply bg-gradient-to-r from-red-500 to-rose-600; }
+.meeting-wrapper .mtg-band-today     { border-left-color: #3b82f6; @apply bg-blue-50/40; }
+.meeting-wrapper .mtg-band-upcoming  { border-left-color: #cbd5e1; }
+.meeting-wrapper .mtg-band-cancelled { border-left-color: #ef4444; @apply bg-red-50/40; }
+
+/* Neutrale Icon-Aktionen */
+.meeting-wrapper .mtg-icon-ghost {
+    @apply bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 shadow-none;
+}
+.meeting-wrapper .mtg-icon-ghost.is-danger { @apply hover:bg-red-50 hover:text-red-600; }
 
 /* ---------------------------------------------------------------
  * Badges
