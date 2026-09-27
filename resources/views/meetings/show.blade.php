@@ -37,20 +37,20 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2 mb-2">
-                    <span class="mtg-badge bg-white/20 text-white">
+                    <span class="mtg-badge {{ $meeting->isFree() ? 'mtg-badge-free' : 'mtg-badge-group' }}">
                         <i class="fas {{ $meeting->isFree() ? 'fa-globe' : 'fa-users' }}"></i> {{ $meeting->contextLabel() }}
                     </span>
                     @if($isLive)
                         <span class="mtg-badge mtg-badge-live"><span class="mtg-live-dot"></span> läuft gerade</span>
                     @elseif($isCancelled)
-                        <span class="mtg-badge bg-white text-red-600">Abgesagt</span>
+                        <span class="mtg-badge mtg-badge-red">Abgesagt</span>
                     @elseif($meeting->date->isToday())
-                        <span class="mtg-badge bg-white/20 text-white">Heute</span>
+                        <span class="mtg-badge mtg-badge-blue">Heute</span>
                     @elseif($isPast)
-                        <span class="mtg-badge bg-white/20 text-white">Vergangen</span>
+                        <span class="mtg-badge mtg-badge-gray">Vergangen</span>
                     @endif
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-bold leading-tight break-words">{{ $meeting->title }}</h1>
+                <h1 class="text-2xl font-bold leading-tight break-words text-gray-900">{{ $meeting->title }}</h1>
                 <div class="mtg-meta mt-3">
                     <span><i class="far fa-calendar-alt"></i>{{ $meeting->date->locale('de')->isoFormat('dddd, D. MMMM YYYY') }}</span>
                     <span><i class="far fa-clock"></i>{{ $meeting->start_time }} – {{ $meeting->end_time }} Uhr</span>
@@ -68,14 +68,14 @@
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
                 @if($meeting->effectiveMeetingUrl())
-                    <a href="{{ $meeting->effectiveMeetingUrl() }}" target="_blank" rel="noopener" class="mtg-btn mtg-btn-light">
+                    <a href="{{ $meeting->effectiveMeetingUrl() }}" target="_blank" rel="noopener" class="mtg-btn mtg-btn-primary">
                         <i class="fas fa-video"></i> Beitreten
                     </a>
                 @endif
                 @if($canManage)
-                    <button type="button" class="mtg-btn mtg-btn-glass" @click="showEdit = true"><i class="fas fa-pen"></i> Bearbeiten</button>
+                    <button type="button" class="mtg-btn mtg-btn-secondary" @click="showEdit = true"><i class="fas fa-pen"></i> Bearbeiten</button>
                     <div class="relative" x-data="{ more: false }" @click.outside="more = false">
-                        <button type="button" class="mtg-btn-icon mtg-btn-glass" @click="more = !more" aria-label="Weitere Aktionen" :aria-expanded="more.toString()">
+                        <button type="button" class="mtg-btn-icon mtg-btn-secondary" @click="more = !more" aria-label="Weitere Aktionen" :aria-expanded="more.toString()">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <div x-show="more" x-transition.opacity style="display:none;"

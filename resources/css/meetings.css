@@ -248,14 +248,15 @@
 }
 @keyframes mtg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* Hero der Detailseite */
-.meeting-wrapper .mtg-hero { @apply rounded-2xl text-white px-5 py-5 sm:px-6 sm:py-6 shadow-sm; }
-.meeting-wrapper .mtg-hero-free { @apply bg-gradient-to-r from-violet-600 to-indigo-600; }
-.meeting-wrapper .mtg-hero-group { @apply bg-gradient-to-r from-sky-600 to-blue-700; }
-.meeting-wrapper .mtg-hero-cancelled { @apply bg-gradient-to-r from-red-500 to-rose-600; }
-.meeting-wrapper .mtg-hero-past { @apply bg-gradient-to-r from-slate-500 to-slate-700; }
-.meeting-wrapper .mtg-hero .mtg-meta { @apply text-white/90; }
-.meeting-wrapper .mtg-hero .mtg-meta i { @apply text-white/70; }
+/* Kopf der Detailseite – dezente Karte mit farbiger Akzentleiste */
+.meeting-wrapper .mtg-hero {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 sm:px-6;
+    border-left-width: 4px;
+}
+.meeting-wrapper .mtg-hero-free      { border-left-color: #8b5cf6; }
+.meeting-wrapper .mtg-hero-group     { border-left-color: #0ea5e9; }
+.meeting-wrapper .mtg-hero-cancelled { border-left-color: #ef4444; @apply bg-red-50/40; }
+.meeting-wrapper .mtg-hero-past      { border-left-color: #94a3b8; }
 .meeting-wrapper .mtg-btn-glass { @apply bg-white/15 hover:bg-white/25 text-white shadow-none; }
 
 /* Karten-Kopf */
