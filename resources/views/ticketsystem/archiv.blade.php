@@ -27,8 +27,8 @@
         </a>
     </div>
 
-    <div class="grid gap-5 lg:grid-cols-12 items-start">
-        <aside class="lg:col-span-5 xl:col-span-4 {{ $hasDetail ? 'hidden lg:block' : '' }}">
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
+        <aside class="min-w-0 lg:col-span-5 xl:col-span-4 {{ $hasDetail ? 'hidden lg:block' : '' }}">
             <section class="tkt-card">
                 <div class="tkt-card-head">
                     <h2 class="tkt-card-title"><i class="fas fa-archive"></i> Geschlossen</h2>

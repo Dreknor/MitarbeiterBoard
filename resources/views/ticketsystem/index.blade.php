@@ -73,10 +73,10 @@
         </div>
     @endif
 
-    <div class="grid gap-5 lg:grid-cols-12 items-start">
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
 
         {{-- ── Liste ─────────────────────────────────────────────── --}}
-        <aside class="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 {{ $hasDetail ? 'hidden lg:flex' : '' }}"
+        <aside class="min-w-0 lg:col-span-5 xl:col-span-4 flex flex-col gap-5 {{ $hasDetail ? 'hidden lg:flex' : '' }}"
                @if(!$hasDetail) :class="{ 'hidden lg:flex': create }" @endif>
 
             <section class="tkt-card" x-data="{ filtersOpen: {{ $activeFilters > 0 ? 'true' : 'false' }} }">
