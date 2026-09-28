@@ -815,7 +815,6 @@ Route::group([
 
                     Route::post('/recurring', [RecurringProcedureController::class, 'store']);
                     Route::delete('/recurring/{recurringProcedure}', [RecurringProcedureController::class, 'destroy']);
-                    Route::get('/recurring/{recurringProcedure}/start/{redirect?}', [RecurringProcedureController::class, 'start']);
 
                     //Procedures
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);

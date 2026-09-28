@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CreateCategoryRequest;
 use App\Http\Requests\CreatePositionRequest;
 use App\Models\Positions;
-use App\Models\Procedure_Category;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class PositionsController extends Controller
 {
@@ -22,27 +19,19 @@ class PositionsController extends Controller
         $position = new Positions($request->validated());
         $position->save();
 
-        Cache::forget('positions');
-
         return redirect()->back()->with([
             'type'=>'success',
             'Meldung'=>'Position wurde erstellt',
         ]);
     }
 
-    public function index()
-    {
-        // Phase 4: Positionen sind ein Tab im neuen Index – einfach weiterleiten.
-        return redirect(url('procedure'));
-    }
-
     public function addUser(Request $request, Positions $position)
     {
-        $user = User::where('id', $request->input('person_id'))->first();
+        $data = $request->validate([
+            'person_id' => 'required|integer|exists:users,id',
+        ]);
 
-        if (! $position->users->contains($user)) {
-            $position->users()->attach($user);
-        }
+        $position->users()->syncWithoutDetaching([$data['person_id']]);
 
         return redirect()->back()->with([
             'type'=>'success',

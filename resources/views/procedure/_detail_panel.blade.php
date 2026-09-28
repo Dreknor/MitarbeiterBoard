@@ -125,8 +125,8 @@
         {{-- Aktionen --}}
         <div class="mt-auto pt-4 border-t border-gray-100 space-y-2 shrink-0">
 
-            {{-- Schritt erledigen (AJAX, Phase 3) --}}
-            <template x-if="!selectedStep?.done">
+            {{-- Schritt erledigen (AJAX, Phase 3) – nur in laufenden Prozessen und mit Berechtigung --}}
+            <template x-if="selectedStep?.canComplete">
                 <button @click="completeStep()"
                         :disabled="completingStep"
                         class="btn-procedure-success text-sm w-full"
@@ -136,13 +136,20 @@
             </template>
 
             {{-- Wieder öffnen (AJAX, Phase 3, nur manage) --}}
-            <template x-if="selectedStep?.done && selectedStep?.canEdit">
+            <template x-if="selectedStep?.done && selectedStep?.canEdit && selectedStep?.isStarted">
                 <button @click="reopenStep()"
                         :disabled="reopeningStep"
                         class="btn-procedure-secondary text-sm w-full"
                         :class="{'opacity-50 cursor-not-allowed': reopeningStep}"
                         x-text="reopeningStep ? 'Wird geöffnet…' : '↩ Schritt wieder öffnen'">
                 </button>
+            </template>
+
+            {{-- Schritt bearbeiten (Position, Dauer, Fälligkeit, Vorgänger) --}}
+            <template x-if="selectedStep?.canEdit">
+                <a :href="selectedStep?.editUrl" class="btn-procedure-secondary text-sm w-full inline-block text-center no-underline">
+                    ✏ Schritt bearbeiten
+                </a>
             </template>
 
             {{-- Schritt löschen --}}
@@ -231,13 +238,33 @@
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5"
                          :class="{
                              'bg-green-100 text-green-700': item.type === 'completed',
-                             'bg-blue-100 text-blue-700':   item.type === 'comment'
+                             'bg-blue-100 text-blue-700':   item.type === 'comment',
+                             'bg-gray-100 text-gray-600':   !['completed', 'comment'].includes(item.type)
                          }"
-                         x-text="item.type === 'completed' ? '✓' : '💬'"></div>
+                         x-text="({completed: '✓', comment: '💬', reopened: '↩', user_added: '+', user_removed: '−', position_changed: '⇄'})[item.type] ?? '•'"></div>
                     <div class="flex-1 min-w-0">
                         <template x-if="item.type === 'completed'">
                             <p class="text-sm text-gray-700">
                                 Erledigt von <strong x-text="item.by?.name ?? 'Unbekannt'"></strong>
+                            </p>
+                        </template>
+                        <template x-if="item.type === 'reopened'">
+                            <p class="text-sm text-gray-700">
+                                Wieder geöffnet von <strong x-text="item.by?.name ?? 'Unbekannt'"></strong>
+                            </p>
+                        </template>
+                        <template x-if="item.type === 'user_added' || item.type === 'user_removed'">
+                            <p class="text-sm text-gray-700">
+                                <strong x-text="item.meta?.user_name ?? 'Unbekannt'"></strong>
+                                <span x-text="item.type === 'user_added' ? ' zugewiesen' : ' entfernt'"></span>
+                                <span class="text-gray-400" x-text="item.by ? ' von ' + item.by.name : ''"></span>
+                            </p>
+                        </template>
+                        <template x-if="item.type === 'position_changed'">
+                            <p class="text-sm text-gray-700">
+                                Position geändert:
+                                <span x-text="(item.meta?.old_position_name ?? '–') + ' → ' + (item.meta?.new_position_name ?? '–')"></span>
+                                <span class="text-gray-400" x-text="item.by ? ' von ' + item.by.name : ''"></span>
                             </p>
                         </template>
                         <template x-if="item.type === 'comment'">

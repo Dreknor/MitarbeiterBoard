@@ -30,9 +30,7 @@
                     <label for="description">
                         Beschreibung
                     </label>
-                    <textarea name="description" id="description" rows="6" class="form-control">
-                {{old('description', $step->description)}}
-            </textarea>
+                    <textarea name="description" id="description" rows="6" class="form-control">{{old('description', $step->description)}}</textarea>
                 </div>
                 <div class="form-row">
                     <div class="col-md-8 col-sm-12">
@@ -80,9 +78,9 @@
                         </label>
                         <select name="parent" class="custom-select" >
                             <option value=""> </option>
-                            @foreach($procedure->steps as $s)
+                            @foreach($procedure->steps->sortBy('name') as $s)
                                 @if($s->id != $step->id)
-                                    <option value="{{$s->id}}" @if($step->parent == $s->id) selected @endif>
+                                    <option value="{{$s->id}}" @if(old('parent', $step->parent) == $s->id) selected @endif>
                                         {{$s->name}}
                                     </option>
                                 @endif

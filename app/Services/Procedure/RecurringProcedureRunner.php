@@ -60,13 +60,23 @@ class RecurringProcedureRunner
 
             case 'vor_ferien':
             case 'nach_ferien':
-                $ferien = $this->findFerien($rp, $from->year);
-                if (!$ferien) return null;
-                $start = Carbon::createFromFormat('Y-m-d', $ferien->start);
-                $offsetWeeks = (int) ($rp->wochen ?? 0);
-                return $rp->faelligkeit_typ === 'vor_ferien'
-                    ? $start->copy()->subWeeks($offsetWeeks)
-                    : $start->copy()->addWeeks($offsetWeeks);
+                // Liegt der Termin dieses Jahres schon zurück, zählen die Ferien des Folgejahres.
+                foreach ([$from->year, $from->year + 1] as $year) {
+                    $ferien = $this->findFerien($rp, $year);
+                    if (!$ferien) continue;
+
+                    $start = Carbon::parse($ferien->start)->startOfDay();
+                    $offsetWeeks = (int) ($rp->wochen ?? 0);
+                    $candidate = $rp->faelligkeit_typ === 'vor_ferien'
+                        ? $start->copy()->subWeeks($offsetWeeks)
+                        : $start->copy()->addWeeks($offsetWeeks);
+
+                    // Toleranz von einem Tag, damit isMissedRun() einen verpassten Lauf nachholen kann.
+                    if ($candidate->gte($from->copy()->subDay())) {
+                        return $candidate;
+                    }
+                }
+                return null;
         }
 
         return null;
@@ -78,7 +88,7 @@ class RecurringProcedureRunner
     public function check(): void
     {
         $today = now()->startOfDay();
-        $rps = RecurringProcedure::where('active', true)->with('procedure.steps.position.users')->get();
+        $rps = RecurringProcedure::where('active', true)->with('procedure')->get();
 
         foreach ($rps as $rp) {
             try {
@@ -110,10 +120,17 @@ class RecurringProcedureRunner
             throw new \RuntimeException("RecurringProcedure {$rp->id} hat keine Vorlage.");
         }
 
+        if (!$rp->procedure->isTemplate()) {
+            throw new \RuntimeException("RecurringProcedure {$rp->id} verweist nicht auf eine Vorlage.");
+        }
+
+        // Wöchentliche Auslösungen brauchen das Datum im Namen, sonst sind die Instanzen nicht unterscheidbar.
+        $suffix = $rp->faelligkeit_typ === 'wochentag' ? now()->format('d.m.Y') : now()->format('Y');
+
         $instance = $this->procedureService->startFromTemplate(
             $rp->procedure,
             [
-                'name'       => $rp->name . ' - ' . now()->format('Y'),
+                'name'       => $rp->name . ' - ' . $suffix,
                 'started_at' => now(),
             ],
             $rp->procedure->author_id
@@ -139,16 +156,23 @@ class RecurringProcedureRunner
 
         $state = function_exists('settings') ? settings('ferien_state', 'holidays') : 'holidays';
 
-        $list = Cache::remember("ferien_runner_{$state}_{$year}", 60 * 60 * 24, function () use ($state, $year) {
+        // Nur erfolgreiche Antworten cachen – ein API-Ausfall soll nicht einen ganzen Tag
+        // lang zu "keine Ferien gefunden" führen.
+        $cacheKey = "ferien_runner_{$state}_{$year}";
+        $list = Cache::get($cacheKey);
+
+        if ($list === null) {
             try {
                 $resp = Http::timeout(5)->get("https://ferien-api.de/api/v1/holidays/{$state}/{$year}");
-                if (!$resp->ok()) return [];
-                return $resp->json() ?? [];
+                $list = $resp->ok() && is_array($resp->json()) ? $resp->json() : [];
+                if ($list !== []) {
+                    Cache::put($cacheKey, $list, now()->addDay());
+                }
             } catch (\Throwable $e) {
                 Log::warning('Ferien-API nicht erreichbar', ['error' => $e->getMessage()]);
-                return [];
+                $list = [];
             }
-        });
+        }
 
         foreach ($list as $f) {
             $f = (object) $f;

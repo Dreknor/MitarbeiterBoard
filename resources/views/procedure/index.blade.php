@@ -6,11 +6,12 @@
 
 @php
     $activeProcsJson = json_encode(
-        $procedures->load('category', 'steps')->map(function ($p) {
+        $procedures->map(function ($p) {
+            $today   = today();
             $total   = $p->steps->count();
             $done    = $p->steps->where('done', true)->count();
-            $overdue = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->isPast())->count();
-            $dueSoon = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && !$s->endDate->isPast() && $s->endDate->diffInDays(now()) <= 3)->count();
+            $overdue = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->lt($today))->count();
+            $dueSoon = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->gte($today) && $s->endDate->lte($today->copy()->addDays(3)))->count();
             return [
                 'id'             => $p->id,
                 'name'           => $p->name,
@@ -33,11 +34,6 @@
      x-data="procedureApp()"
      x-init="init()"
      x-cloak>
-
-    {{-- Flash --}}
-    @if(session('Meldung'))
-        <div class="alert-{{ session('type', 'info') }}">{{ session('Meldung') }}</div>
-    @endif
 
     {{-- Topbar --}}
     <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -197,7 +193,7 @@
                 </span>
                 @if($proceduresTemplate->where('category_id', $category->id)->count() === 0)
                 <form action="{{ url('procedure/categories/'.$category->id) }}" method="post" class="inline"
-                      onsubmit="return confirm('Kategorie »{{ $category->name }}« wirklich löschen?')">
+                      onsubmit="return confirm(@js('Kategorie »'.$category->name.'« wirklich löschen?'))">
                     @csrf @method('DELETE')
                     <button type="submit" class="text-red-400 hover:text-red-600 text-xs px-2 py-1">🗑 löschen</button>
                 </form>
@@ -207,7 +203,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 @foreach($proceduresTemplate->where('category_id', $category->id) as $template)
                 <div class="procedure-card"
-                     x-show="!search || '{{ strtolower(str_replace("'", "\\'", $template->name)) }}'.includes(search.toLowerCase())">
+                     x-show="!search || @js(mb_strtolower($template->name)).includes(search.toLowerCase())">
                     <div class="flex items-start justify-between gap-2 mb-2">
                         <h3 class="font-semibold text-sm text-gray-900 leading-snug flex-1">{{ $template->name }}</h3>
                         <span class="badge-step-open shrink-0">Vorlage</span>
@@ -224,7 +220,7 @@
                             <button type="submit" class="btn-procedure-secondary text-xs py-1 px-3">⧉ Kopieren</button>
                         </form>
                         <form action="{{ url('procedure/'.$template->id) }}" method="post" class="inline"
-                              onsubmit="return confirm('Vorlage »{{ $template->name }}« löschen?')">
+                              onsubmit="return confirm(@js('Vorlage »'.$template->name.'« löschen?'))">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn-procedure-danger text-xs py-1 px-3">🗑</button>
                         </form>
@@ -270,9 +266,6 @@
             </button>
             <form x-show="show" action="{{ url('procedure/create/template') }}" method="post" class="mt-4 space-y-4">
                 @csrf
-                @if($errors->any())
-                <div class="alert-error"><ul class="list-disc list-inside text-sm">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
-                @endif
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="procedure-label">Name <span class="text-red-500">*</span></label>
@@ -326,7 +319,7 @@
                                 @elseif($rp->faelligkeit_typ === 'vor_ferien') {{ $rp->wochen }} Wochen vor den {{ $rp->ferien }}
                                 @elseif($rp->faelligkeit_typ === 'nach_ferien') {{ $rp->wochen }} Wochen nach den {{ $rp->ferien }}
                                 @elseif($rp->faelligkeit_typ === 'wochentag') Alle {{ $rp->weekday_interval ?? 1 }} Woche(n), {{ ['Mo','Di','Mi','Do','Fr','Sa','So'][$rp->weekday ?? 0] }}
-                                @elseif($rp->faelligkeit_typ === 'schuljahres_stichtag') Am {{ $rp->schuljahres_tag }}.{{ $rp->schuljahres_monat ? '/'.$rp->schuljahres_monat : '' }} jedes Schuljahres
+                                @elseif($rp->faelligkeit_typ === 'schuljahres_stichtag') Jährlich am {{ $rp->schuljahres_tag }}. {{ $monate[$rp->schuljahres_monat] ?? '' }}
                                 @endif
                                 @if($rp->next_trigger_at) &middot; Nächste Auslösung: <strong>{{ $rp->next_trigger_at->format('d.m.Y') }}</strong> @endif
                                 @if($rp->last_triggered_at) &middot; Zuletzt: {{ $rp->last_triggered_at->format('d.m.Y') }} @endif
@@ -459,7 +452,7 @@
                                 <div class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">{{ substr($user->name,0,1) }}</div>
                                 <span class="text-gray-700">{{ $user->name }}</span>
                                 <form action="{{ url('procedure/positions/'.$position->id.'/remove/'.$user->id) }}" method="post" class="inline">
-                                    @csrf
+                                    @csrf @method('DELETE')
                                     <button type="submit" class="text-gray-400 hover:text-red-500 ml-0.5 leading-none" title="Entfernen">×</button>
                                 </form>
                             </div>

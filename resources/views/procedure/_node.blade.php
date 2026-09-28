@@ -5,9 +5,11 @@
     $depth    = $depth ?? 0;
     $canEdit  = $canEdit ?? false;
     $procedureId = $procedure->id ?? ($step->procedure_id ?? 0);
+    $isRunning   = isset($procedure) && $procedure->started_at !== null && $procedure->ended_at === null;
 
-    $isOverdue = !$isDone && $step->endDate && $step->endDate->isPast();
-    $isDueSoon = !$isDone && !$isOverdue && $step->endDate && $step->endDate->diffInDays(now()) <= 3;
+    // Fällig am Stichtag ist noch nicht überfällig (endDate ist ein reines Datum)
+    $isOverdue = !$isDone && $step->endDate && $step->endDate->lt(today());
+    $isDueSoon = !$isDone && !$isOverdue && $step->endDate && $step->endDate->lte(today()->addDays(3));
     $hasDate   = $step->endDate !== null;
 
     // Schritt-Daten als JSON für Alpine-Panel (sicher kodiert)
@@ -23,12 +25,15 @@
         'position'          => $step->position ? ['id' => $step->position->id, 'name' => $step->position->name] : null,
         'users'             => $step->users->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'initial' => mb_substr($u->name, 0, 1)])->values()->all(),
         'canEdit'           => $canEdit,
+        'canComplete'       => $isRunning && !$isDone && auth()->user()->can('complete', $step),
+        'isStarted'         => isset($procedure) && $procedure->started_at !== null,
         'doneUrl'           => url('procedure/step/'.$stepId.'/done'),
         'completeUrl'       => url('procedure/steps/'.$stepId.'/complete'),
         'reopenUrl'         => url('procedure/steps/'.$stepId.'/reopen'),
         'removeUserBase'    => url('procedure/step/'.$stepId.'/users'),
         'addUserUrl'        => url('procedure/step/addUser'),
         'deleteUrl'         => url('procedure/step/'.$stepId.'/delete'),
+        'editUrl'           => url('procedure/step/'.$stepId.'/edit'),
     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 @endphp
 

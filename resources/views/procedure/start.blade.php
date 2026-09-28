@@ -21,11 +21,11 @@
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <h2 class="text-lg font-bold text-gray-900">
-                                <span class="text-gray-400 font-normal text-base">{{ $procedure->category->name }}:</span>
+                                <span class="text-gray-400 font-normal text-base">{{ $procedure->category->name ?? 'Prozess' }}:</span>
                                 {{ $procedure->name }}
                             </h2>
                             @if($procedure->description)
-                            <p class="text-sm text-gray-500 mt-1">{!! $procedure->description !!}</p>
+                            <p class="text-sm text-gray-500 mt-1 whitespace-pre-line">{{ $procedure->description }}</p>
                             @endif
                         </div>
                         <button @click="editingHeader = true" type="button"
@@ -65,11 +65,11 @@
             @else
                 {{-- Normaler Titel (Template oder kein Bearbeitungsrecht) --}}
                 <h2 class="text-lg font-bold text-gray-900">
-                    <span class="text-gray-400 font-normal text-base">{{ $procedure->category->name }}:</span>
+                    <span class="text-gray-400 font-normal text-base">{{ $procedure->category->name ?? 'Prozess' }}:</span>
                     {{ $procedure->name }}
                 </h2>
                 @if($procedure->description)
-                <p class="text-sm text-gray-500 mt-1">{{ $procedure->description }}</p>
+                <p class="text-sm text-gray-500 mt-1 whitespace-pre-line">{{ $procedure->description }}</p>
                 @endif
             @endif
         </div>
@@ -152,6 +152,23 @@
                 <button @click="openAddStep(null)" class="btn-procedure-success text-xs py-1.5 px-3">
                     <i class="fas fa-plus"></i> Schritt hinzufügen
                 </button>
+                @if($procedure->ended_at === null)
+                <form action="{{ url('procedure/'.$procedure->id.'/end') }}" method="post" class="ml-auto flex gap-2 items-center"
+                      onsubmit="return confirm('Prozess vorzeitig beenden? Alle offenen Schritte werden als erledigt markiert.')">
+                    @csrf
+                    <input type="text" name="reason" maxlength="255" placeholder="Grund (optional)" class="input-procedure text-xs py-1.5 w-48">
+                    <button type="submit" class="btn-procedure-danger text-xs py-1.5 px-3">
+                        <i class="fas fa-stop"></i> Prozess beenden
+                    </button>
+                </form>
+                @endif
+            </div>
+            @endif
+
+            @if($procedure->ended_at !== null)
+            <div class="procedure-card mb-4 text-sm text-gray-600">
+                Dieser Prozess wurde am {{ $procedure->ended_at->format('d.m.Y') }} abgeschlossen.
+                @if($procedure->ended_reason) Grund: {{ $procedure->ended_reason }} @endif
             </div>
             @endif
 

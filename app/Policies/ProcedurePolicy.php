@@ -25,24 +25,7 @@ class ProcedurePolicy
 
     public function view(User $user, Procedure $procedure): bool
     {
-        if ($user->can('manage procedures')) {
-            return true;
-        }
-        if (!$user->can('view assigned procedures')) {
-            return false;
-        }
-
-        $hasAssignedStep = $procedure->steps()
-            ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
-            ->exists();
-        if ($hasAssignedStep) {
-            return true;
-        }
-
-        if ($user->position_id ?? null) {
-            return $procedure->steps()->where('position_id', $user->position_id)->exists();
-        }
-        return false;
+        return Procedure::whereKey($procedure->getKey())->sichtbarFuer($user)->exists();
     }
 
     public function create(User $user): bool
