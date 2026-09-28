@@ -110,6 +110,8 @@ function initEditors() {
 
     const small = window.matchMedia('(max-width: 640px)').matches;
 
+    const mobileToolbar = 'bold italic | bullist numlist | link | removeformat';
+
     window.tinymce.init({
         selector: '.ticket-wrapper textarea.ticket-editor',
         language: 'de',
@@ -121,8 +123,16 @@ function initEditors() {
         toolbar_mode: 'sliding',
         plugins: ['advlist autolink lists link charmap', 'paste table code'],
         toolbar: small
-            ? 'bold italic | bullist numlist | link | removeformat'
+            ? mobileToolbar
             : 'undo redo | bold italic underline forecolor | bullist numlist outdent indent | link table | removeformat',
+        // TinyMCE 5.0 nutzt auf Touch-Geräten sonst das veraltete "mobile"-Theme
+        // (graue Fläche, Vollbild-Editor). Das normale Theme funktioniert dort gut.
+        mobile: {
+            theme: 'silver',
+            menubar: false,
+            plugins: ['autolink lists link paste'],
+            toolbar: mobileToolbar,
+        },
         paste_data_images: false,
         table_default_attributes: { border: '1' },
         content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.5; }',
