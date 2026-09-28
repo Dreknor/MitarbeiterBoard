@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Schema;
  * Ticketsystem überarbeitet:
  * - tickets.closed_at / closed_by für Archiv und Nachvollziehbarkeit
  * - tickets_pinned eindeutig pro Ticket+User (vorher entstanden Duplikate beim Anpinnen)
+ * - ticket_comments.system markiert automatische Verlaufseinträge (Status, Zuweisung …)
  */
 return new class extends Migration
 {
@@ -21,6 +22,24 @@ return new class extends Migration
 
             $table->foreign('closed_by')->references('id')->on('users')->nullOnDelete();
         });
+
+        Schema::table('ticket_comments', function (Blueprint $table) {
+            $table->boolean('system')->default(false)->after('internal');
+        });
+
+        // Automatische Einträge ohne Autor (z. B. automatisches Schließen)
+        DB::table('ticket_comments')->whereNull('user_id')->update(['system' => true]);
+
+        // Vom bisherigen Code erzeugte Statuseinträge anhand des festen Textes erkennen
+        DB::table('ticket_comments')
+            ->where(function ($q) {
+                $q->where('comment', 'Ticket closed')
+                    ->orWhere('comment', 'Ticket ist wieder offen')
+                    ->orWhere('comment', 'like', 'Ticket ist auf Warten bis %')
+                    ->orWhere('comment', 'like', 'Ticket zugewiesen an %')
+                    ->orWhere('comment', 'like', 'Ticket von % an % übertragen');
+            })
+            ->update(['system' => true]);
 
         DB::table('tickets')
             ->where('status', 'closed')
@@ -46,6 +65,10 @@ return new class extends Migration
     {
         Schema::table('tickets_pinned', function (Blueprint $table) {
             $table->dropUnique(['ticket_id', 'user_id']);
+        });
+
+        Schema::table('ticket_comments', function (Blueprint $table) {
+            $table->dropColumn('system');
         });
 
         Schema::table('tickets', function (Blueprint $table) {

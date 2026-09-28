@@ -13,10 +13,11 @@ class TicketComment extends Model implements HasMedia
     use HasFactory;
     use InteractsWithMedia;
 
-    protected $fillable = ['ticket_id', 'user_id', 'comment', 'internal'];
+    protected $fillable = ['ticket_id', 'user_id', 'comment', 'internal', 'system'];
 
     protected $casts = [
         'internal' => 'boolean',
+        'system' => 'boolean',
     ];
 
     public function ticket()
@@ -45,11 +46,11 @@ class TicketComment extends Model implements HasMedia
     }
 
     /**
-     * Systemkommentare (automatisches Schließen etc.) haben keinen Autor.
+     * Automatische Verlaufseinträge (Status, Zuweisung, automatisches Schließen …).
      */
     public function isSystem(): bool
     {
-        return $this->user_id === null;
+        return (bool) $this->system || $this->user_id === null;
     }
 
     public function getAuthorNameAttribute(): string

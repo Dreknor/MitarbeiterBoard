@@ -44,7 +44,13 @@ class TicketController extends Controller
             ->open()
             ->with(['user', 'category', 'assigned'])
             ->withMax('comments', 'created_at')
-            ->withCount('comments');
+            // Nur echte Antworten zählen; interne sieht nur, wer sie lesen darf
+            ->withCount(['comments' => function ($q) use ($isEditor) {
+                $q->where('system', false);
+                if (!$isEditor) {
+                    $q->where('internal', false);
+                }
+            }]);
 
         if ($isEditor) {
             match ($filters['scope']) {
@@ -89,6 +95,7 @@ class TicketController extends Controller
                 'open' => Ticket::open()->count(),
                 'unassigned' => Ticket::open()->whereNull('assigned_to')->count(),
                 'mine' => Ticket::open()->where('assigned_to', $user->id)->count(),
+                'waiting' => Ticket::where('status', Ticket::STATUS_WAITING)->count(),
                 'overdue' => Ticket::where('status', Ticket::STATUS_WAITING)->where('waiting_until', '<', now())->count(),
             ];
         }
@@ -370,7 +377,7 @@ class TicketController extends Controller
             'closedBy',
             'media',
             'comments' => function ($q) use ($showInternal) {
-                $q->with(['user', 'media'])->latest()->latest('id');
+                $q->with(['user', 'media'])->oldest()->oldest('id');
                 if (!$showInternal) {
                     $q->where('internal', false);
                 }

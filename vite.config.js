@@ -41,6 +41,10 @@ export default defineConfig({
                 // Themen-Modul (Tailwind-Migration)
                 'resources/css/themes.css',
                 'resources/js/themes.js',
+
+                // Ticketsystem (Tailwind-Migration)
+                'resources/css/tickets.css',
+                'resources/js/tickets.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -74,6 +78,9 @@ export default defineConfig({
                 // Themen-Modul (Tailwind-Migration)
                 'resources/views/themes/**/*.blade.php',
                 'app/Http/Controllers/ThemeController.php',
+                // Ticketsystem (Tailwind-Migration)
+                'resources/views/ticketsystem/**/*.blade.php',
+                'app/Http/Controllers/Ticketsystem/*.php',
             ],
         }),
     ],

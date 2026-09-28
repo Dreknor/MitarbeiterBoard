@@ -1,58 +1,67 @@
-<div class="card mb-3">
-    <div class="card-header bg-gradient-directional-blue text-white">
-        <h6 class="mb-0">Neues Ticket erstellen</h6>
+{{-- Formular "Neues Ticket" (innerhalb von .ticket-wrapper) --}}
+<section class="tkt-card">
+    <div class="tkt-card-head">
+        <div>
+            <h2 class="tkt-card-title"><i class="fas fa-plus-circle"></i> Neues Ticket</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Beschreibe dein Anliegen möglichst genau – das Support-Team wird benachrichtigt.</p>
+        </div>
     </div>
-    <div class="card-body">
-        <form action="{{ route('tickets.store') }}" method="post" enctype="multipart/form-data" class="ticket-editor-form">
-            @csrf
-            <div class="form-group">
-                <label for="title">Titel<span class="text-danger">*</span></label>
-                <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title"
-                       value="{{ old('title') }}" maxlength="255" required>
-                @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            </div>
-            <div class="form-row">
-                @if($categories->isNotEmpty())
-                    <div class="col-md-6 col-12">
-                        <div class="form-group">
-                            <label for="category">Kategorie<span class="text-danger">*</span></label>
-                            <select class="form-control @error('category_id') is-invalid @enderror" id="category" name="category_id" required>
-                                <option value="">Bitte wählen</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-                @endif
-                <div class="col-md-6 col-12">
-                    <div class="form-group">
-                        <label for="priority">Priorität<span class="text-danger">*</span></label>
-                        <select class="form-control @error('priority') is-invalid @enderror" id="priority" name="priority" required>
-                            @foreach(\App\Models\Ticket::PRIORITY_LABELS as $value => $label)
-                                <option value="{{ $value }}" @selected(old('priority', 'medium') == $value)>{{ ucfirst($label) }}</option>
-                            @endforeach
-                        </select>
-                        @error('priority')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
+
+    <form action="{{ route('tickets.store') }}" method="post" enctype="multipart/form-data"
+          class="tkt-card-body flex flex-col gap-5" data-ticket-form>
+        @csrf
+
+        <div>
+            <label for="title" class="tkt-label">Betreff <span class="tkt-required">*</span></label>
+            <input type="text" id="title" name="title" value="{{ old('title') }}" maxlength="255" required
+                   class="tkt-input @error('title') is-invalid @enderror" placeholder="z. B. Beamer in Raum 204 zeigt kein Bild"
+                   autocomplete="off">
+            @error('title')<p class="tkt-error">{{ $message }}</p>@enderror
+        </div>
+
+        <div class="grid gap-5 {{ $categories->isNotEmpty() ? 'md:grid-cols-2' : '' }}">
+            @if($categories->isNotEmpty())
+                <div>
+                    <label for="category" class="tkt-label">Kategorie <span class="tkt-required">*</span></label>
+                    <select id="category" name="category_id" required class="tkt-select @error('category_id') is-invalid @enderror">
+                        <option value="">Bitte wählen …</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('category_id')<p class="tkt-error">{{ $message }}</p>@enderror
                 </div>
-            </div>
+            @endif
 
-            <div class="form-group">
-                <label for="description">Beschreibung<span class="text-danger">*</span></label>
-                <textarea class="form-control ticket-editor" id="description" name="description">{{ old('description') }}</textarea>
-                @error('description')<div class="text-danger small">{{ $message }}</div>@enderror
+            <div>
+                <span class="tkt-label" id="priority-label">Dringlichkeit <span class="tkt-required">*</span></span>
+                <div class="tkt-segment" role="radiogroup" aria-labelledby="priority-label">
+                    @foreach(['low' => ['Niedrig', 'fa-arrow-down'], 'medium' => ['Normal', 'fa-minus'], 'high' => ['Hoch', 'fa-arrow-up']] as $value => [$label, $icon])
+                        <input type="radio" name="priority" id="priority_{{ $value }}" value="{{ $value }}" @checked(old('priority', 'medium') === $value)>
+                        <label for="priority_{{ $value }}" class="is-{{ $value }}"><i class="fas {{ $icon }} text-xs"></i> {{ $label }}</label>
+                    @endforeach
+                </div>
+                @error('priority')<p class="tkt-error">{{ $message }}</p>@enderror
             </div>
+        </div>
 
-            <div class="form-group">
-                <label for="customFile">Dateien anhängen <small class="text-muted">(max. 10 Dateien, je 20 MB)</small></label>
-                <input type="file" name="files[]" id="customFile" multiple>
-                @error('files')<div class="text-danger small">{{ $message }}</div>@enderror
-                @error('files.*')<div class="text-danger small">{{ $message }}</div>@enderror
-            </div>
+        <div>
+            <label for="description" class="tkt-label">Beschreibung <span class="tkt-required">*</span></label>
+            <textarea id="description" name="description" class="tkt-textarea ticket-editor"
+                      placeholder="Was ist passiert? Seit wann? Wo genau?">{{ old('description') }}</textarea>
+            <p class="tkt-error hidden" data-editor-error>Bitte eine Beschreibung eingeben.</p>
+            @error('description')<p class="tkt-error">{{ $message }}</p>@enderror
+        </div>
 
-            <button type="submit" class="btn btn-primary">Ticket erstellen</button>
-        </form>
-    </div>
-</div>
+        <div>
+            <span class="tkt-label">Anhänge <span class="font-normal text-gray-400">(z. B. Fotos oder Screenshots)</span></span>
+            @include('ticketsystem.partials.file-picker')
+        </div>
+
+        <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            <button type="submit" class="tkt-btn tkt-btn-primary w-full sm:w-auto">
+                <i class="fas fa-paper-plane"></i> <span data-loading-label="Wird erstellt …">Ticket erstellen</span>
+            </button>
+        </div>
+    </form>
+</section>

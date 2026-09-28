@@ -357,6 +357,7 @@ class TicketService
         return $ticket->comments()->create([
             'comment' => e($text),
             'internal' => false,
+            'system' => true,
             'user_id' => $by?->id,
         ]);
     }
