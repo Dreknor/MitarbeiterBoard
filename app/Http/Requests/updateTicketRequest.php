@@ -4,14 +4,14 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class createTicketCategoryRequest extends FormRequest
+class updateTicketRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return $this->user()->can('edit tickets');
+        return $this->user()->can('manage', $this->route('ticket'));
     }
 
     /**
@@ -22,12 +22,9 @@ class createTicketCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:ticket_categories,name',
+            'title' => 'sometimes|required|string|max:255',
+            'category_id' => 'sometimes|nullable|integer|exists:ticket_categories,id',
+            'priority' => 'sometimes|required|in:low,medium,high',
         ];
-    }
-
-    public function attributes(): array
-    {
-        return ['name' => 'Name'];
     }
 }

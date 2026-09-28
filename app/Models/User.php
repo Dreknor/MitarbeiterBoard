@@ -424,7 +424,7 @@ class User extends Authenticatable implements HasMedia
 
     public function pinned_tickets()
     {
-        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id');
+        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id')->withTimestamps();
     }
 
     public function superior()

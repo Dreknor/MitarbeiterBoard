@@ -4,35 +4,290 @@ namespace App\Http\Controllers\Ticketsystem;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\createTicketRequest;
-use App\Mail\TicketAssignmentMail;
-use App\Mail\newTicketMail;
+use App\Http\Requests\updateTicketRequest;
 use App\Models\Group;
-use App\Models\Protocol;
-use App\Models\Theme;
 use App\Models\Ticket;
-use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Services\Tickets\TicketService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Spatie\Permission\Models\Permission;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class TicketController extends Controller
 {
+    public function __construct(private TicketService $tickets)
+    {
+        $this->middleware('permission:view tickets');
+    }
 
+    /**
+     * Offene Tickets (Bearbeiter: alle, sonst nur eigene) inkl. Filter.
+     * Rechts wird entweder das Formular für ein neues Ticket oder $showTicket angezeigt.
+     */
+    public function index(Request $request, ?Ticket $showTicket = null)
+    {
+        $user = $request->user();
+        $isEditor = $user->can('edit tickets');
 
+        $filters = [
+            'scope' => $request->query('scope', 'all'),
+            'category' => $request->query('category'),
+            'priority' => $request->query('priority'),
+            'status' => $request->query('status'),
+            'q' => trim((string) $request->query('q', '')),
+            'sort' => $request->query('sort', 'activity'),
+        ];
+
+        $query = Ticket::query()
+            ->visibleTo($user)
+            ->open()
+            ->with(['user', 'category', 'assigned'])
+            ->withMax('comments', 'created_at')
+            ->withCount('comments');
+
+        if ($isEditor) {
+            match ($filters['scope']) {
+                'mine' => $query->where('assigned_to', $user->id),
+                'unassigned' => $query->whereNull('assigned_to'),
+                'created' => $query->where('user_id', $user->id),
+                default => null,
+            };
+        }
+
+        if (filled($filters['category'])) {
+            $query->where('category_id', $filters['category']);
+        }
+
+        if (in_array($filters['priority'], array_keys(Ticket::PRIORITY_LABELS), true)) {
+            $query->where('priority', $filters['priority']);
+        }
+
+        if (in_array($filters['status'], [Ticket::STATUS_OPEN, Ticket::STATUS_WAITING], true)) {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['q'] !== '') {
+            $this->applySearch($query, $filters['q']);
+        }
+
+        $tickets = $query->get();
+
+        $priorityRank = ['high' => 0, 'medium' => 1, 'low' => 2];
+        $tickets = match ($filters['sort']) {
+            'priority' => $tickets->sortBy([
+                fn ($a, $b) => ($priorityRank[$a->priority] ?? 3) <=> ($priorityRank[$b->priority] ?? 3),
+                fn ($a, $b) => $b->last_activity <=> $a->last_activity,
+            ]),
+            'created' => $tickets->sortByDesc('created_at'),
+            default => $tickets->sortByDesc(fn ($t) => $t->last_activity?->timestamp ?? 0),
+        };
+
+        $stats = null;
+        if ($isEditor) {
+            $stats = [
+                'open' => Ticket::open()->count(),
+                'unassigned' => Ticket::open()->whereNull('assigned_to')->count(),
+                'mine' => Ticket::open()->where('assigned_to', $user->id)->count(),
+                'overdue' => Ticket::where('status', Ticket::STATUS_WAITING)->where('waiting_until', '<', now())->count(),
+            ];
+        }
+
+        return view('ticketsystem.index', [
+            'tickets' => $tickets->values(),
+            'categories' => $this->tickets->categories(),
+            'show_ticket' => $showTicket ? $this->prepareForDisplay($showTicket, $user) : null,
+            'assignable' => $isEditor ? $this->tickets->editors() : collect(),
+            'pinned' => $user->pinned_tickets()->visibleTo($user)->with('category')->get(),
+            'filters' => $filters,
+            'stats' => $stats,
+        ]);
+    }
+
+    public function show(Request $request, Ticket $ticket)
+    {
+        $this->authorize('view', $ticket);
+
+        return $this->index($request, $ticket);
+    }
+
+    public function store(createTicketRequest $request)
+    {
+        $ticket = $this->tickets->create(
+            $request->user(),
+            $request->validated(),
+            $request->file('files', []),
+        );
+
+        return redirect()->route('tickets.show', $ticket)->with([
+            'type' => 'success',
+            'Meldung' => 'Ticket wurde erstellt.',
+        ]);
+    }
+
+    /**
+     * Titel, Kategorie oder Priorität ändern (nur Bearbeiter).
+     */
+    public function update(updateTicketRequest $request, Ticket $ticket)
+    {
+        $this->tickets->updateDetails($ticket, $request->validated(), $request->user());
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Ticket aktualisiert.',
+        ]);
+    }
+
+    public function assign(Request $request, Ticket $ticket)
+    {
+        $this->authorize('manage', $ticket);
+
+        $data = $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+        ]);
+
+        $assignee = null;
+        if (!empty($data['user_id'])) {
+            $assignee = User::findOrFail($data['user_id']);
+
+            if (!$assignee->can('edit tickets')) {
+                return redirect()->back()->with([
+                    'type' => 'danger',
+                    'Meldung' => $assignee->name.' darf keine Tickets bearbeiten.',
+                ]);
+            }
+        }
+
+        $this->tickets->assign($ticket, $assignee, $request->user());
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => $assignee ? 'Ticket an '.$assignee->name.' zugewiesen.' : 'Zuweisung aufgehoben.',
+        ]);
+    }
+
+    public function close(Request $request, Ticket $ticket)
+    {
+        $this->authorize('close', $ticket);
+
+        $data = $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $reason = filled($data['reason'] ?? null) ? 'Ticket geschlossen: '.$data['reason'] : null;
+        $this->tickets->close($ticket, $request->user(), $reason);
+
+        return redirect()->route('tickets.index')->with([
+            'type' => 'success',
+            'Meldung' => 'Ticket geschlossen.',
+        ]);
+    }
+
+    public function reopen(Request $request, Ticket $ticket)
+    {
+        $this->authorize('reopen', $ticket);
+
+        $this->tickets->reopen($ticket, $request->user());
+
+        return redirect()->route('tickets.show', $ticket)->with([
+            'type' => 'success',
+            'Meldung' => 'Ticket wurde wieder geöffnet.',
+        ]);
+    }
+
+    /**
+     * Ticket für den aktuellen Nutzer anpinnen bzw. lösen.
+     */
+    public function pin(Request $request, Ticket $ticket)
+    {
+        $this->authorize('view', $ticket);
+
+        $pinned = $this->tickets->togglePin($ticket, $request->user());
+
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => $pinned ? 'Ticket angepinnt.' : 'Ticket gelöst.',
+        ]);
+    }
+
+    /**
+     * Anhang eines Tickets oder Kommentars ausliefern – nur für Personen, die das
+     * Ticket (bzw. den internen Kommentar) sehen dürfen.
+     */
+    public function file(Ticket $ticket, Media $media)
+    {
+        $this->authorize('view', $ticket);
+
+        $belongsToTicket = match ($media->model_type) {
+            Ticket::class => (int) $media->model_id === (int) $ticket->id,
+            TicketComment::class => ($comment = TicketComment::find($media->model_id)) !== null
+                && (int) $comment->ticket_id === (int) $ticket->id
+                && (!$comment->internal || auth()->user()->can('viewInternal', $ticket)),
+            default => false,
+        };
+
+        abort_unless($belongsToTicket, 404);
+
+        $path = $media->getPath();
+        abort_unless(is_file($path), 404, 'Datei nicht gefunden');
+
+        $response = response()->file($path, ['Content-Type' => $media->mime_type]);
+        $response->setContentDisposition('inline', $media->file_name, \Illuminate\Support\Str::ascii($media->file_name));
+
+        return $response;
+    }
+
+    /**
+     * Geschlossene Tickets (Bearbeiter: alle, sonst nur eigene).
+     */
+    public function archived(Request $request, ?Ticket $showTicket = null)
+    {
+        $user = $request->user();
+        $search = trim((string) $request->query('q', ''));
+
+        $query = Ticket::query()
+            ->visibleTo($user)
+            ->closed()
+            ->with(['category', 'user'])
+            ->orderByDesc('closed_at')
+            ->orderByDesc('updated_at');
+
+        if ($search !== '') {
+            $this->applySearch($query, $search);
+        }
+
+        return view('ticketsystem.archiv', [
+            'tickets' => $query->paginate(50)->withQueryString(),
+            'categories' => $this->tickets->categories(),
+            'show_ticket' => $showTicket ? $this->prepareForDisplay($showTicket, $user) : null,
+            'assignable' => collect(),
+            'search' => $search,
+        ]);
+    }
+
+    public function showClosedTicket(Request $request, Ticket $ticket)
+    {
+        $this->authorize('view', $ticket);
+
+        if (!$ticket->isClosed()) {
+            return redirect()->route('tickets.show', $ticket);
+        }
+
+        return $this->archived($request, $ticket);
+    }
+
+    /**
+     * Einmaliger Import der Themen einer Gruppe als Tickets.
+     */
     public function createTicketsFromThemes($group)
     {
-        // Fetch themes from the selected group
-        $group = Group::where('name', $group)->first();
+        abort_unless(auth()->user()->can('edit tickets'), 403);
 
-        $themes = $group->themes()->get();
+        $group = Group::where('name', $group)->firstOrFail();
 
-        foreach ($themes as $theme) {
+        $imported = 0;
+        foreach ($group->themes()->get() as $theme) {
             try {
-                // Determine priority based on theme priority
                 $priority = 'low';
                 if ($theme->priority > 75) {
                     $priority = 'high';
@@ -40,364 +295,86 @@ class TicketController extends Controller
                     $priority = 'medium';
                 }
 
-                // Create a new ticket
                 $ticket = new Ticket([
                     'title' => $theme->theme,
-                    'description' => $theme->information,
+                    'description' => $theme->information ?? '',
                     'priority' => $priority,
-                    'user_id' => $theme->creator_id, // Set theme creator as ticket creator
-                    'created_at' => $theme->created_at,
-                    'updated_at' => $theme->updated_at,
+                    'user_id' => $theme->creator_id,
                     'assigned_to' => $theme->assigned_to,
-                    'status' => ($theme->completed) ? 'closed' : 'open',
+                    'status' => $theme->completed ? Ticket::STATUS_CLOSED : Ticket::STATUS_OPEN,
+                    'closed_at' => $theme->completed ? $theme->updated_at : null,
                 ]);
+                $ticket->created_at = $theme->created_at;
+                $ticket->updated_at = $theme->updated_at;
                 $ticket->save();
 
-                // Fetch protocols and create comments
-                $protocols = $theme->protocols;
-                foreach ($protocols as $protocol) {
+                foreach ($theme->protocols as $protocol) {
                     $comment = new TicketComment([
                         'comment' => $protocol->protocol,
                         'ticket_id' => $ticket->id,
-                        'user_id' => $protocol->creator_id, // Set protocol creator as comment creator
-                        'created_at' => $protocol->created_at,
-                        'updated_at' => $protocol->updated_at,
+                        'user_id' => $protocol->creator_id,
                     ]);
+                    $comment->created_at = $protocol->created_at;
+                    $comment->updated_at = $protocol->updated_at;
                     $comment->save();
                 }
+
+                $imported++;
             } catch (\Exception $e) {
-                Log::error('Ticketsystem: Ticket konnte nicht erstellt werden: ',
-                    [
-                        'group' => $group->name,
-                        'theme' => $theme->theme,
-                        'error' => $e->getMessage(),
-                    ]
-                );
-            }
-
-
-
-
-        }
-
-        return redirect()->route('tickets.index');
-    }
-
-    public function __construct()
-    {
-        $this->middleware('can:view tickets');
-    }
-
-    //ToDo: Close Ticket when waiting_until is reached
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index($ticket = null)
-    {
-        if (auth()->user()->can('edit tickets')) {
-            $tickets = Ticket::query()
-                ->Open()
-                ->with('user')
-                ->with('category')
-                ->with('assigned')
-                ->with('comments')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-
-        } else {
-            $tickets = auth()->user()->tickets;
-            $tickets = $tickets->filter(function ($ticket) {
-                return $ticket->status != 'closed';
-            })->load('category', 'assigned')->sortByDesc('comments.created_at');
-
-        }
-
-        $categories = Cache::remember('ticket_categories', 3600, function () {
-            return TicketCategory::all();
-        });
-
-        $permission = Permission::where('name', 'edit tickets')->first();
-
-        $users = User::whereHas('permissions', function ($query) use ($permission) {
-            $query->where('id', $permission->id);
-        })->orWhereHas('roles', function ($query) use ($permission) {
-            $query->whereHas('permissions', function ($query) use ($permission) {
-                $query->where('id', $permission->id);
-            });
-        })->get();
-
-        return view('ticketsystem.index',
-            [
-                'tickets' => $tickets,
-                'categories' => TicketCategory::all(),
-                'show_ticket' => $ticket,
-                'assignable' => $users
-            ]
-        );
-    }
-
-    /**
-     * show ticket
-     */
-
-    public function show(Ticket $ticket)
-    {
-        return $this->index($ticket->load('comments'));
-    }
-
-
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(createTicketRequest $request)
-    {
-        $ticket = new Ticket($request->validated());
-        $ticket->user_id = auth()->id();
-        $ticket->save();
-
-
-        try {
-            $ticket->addAllMediaFromRequest()
-                ->each(fn($fileAdder) => $fileAdder->toMediaCollection('ticket_files'));
-
-        } catch (\Exception $e) {
-            Log::error('Ticketsystem: Datei nicht hochgeladen: ',
-                [
-                    'ticket' => $ticket->id,
-                    'user' => auth()->user()->id,
-                    'email' => auth()->user()->email,
+                Log::error('Ticketsystem: Ticket konnte nicht erstellt werden: ', [
+                    'group' => $group->name,
+                    'theme' => $theme->theme,
                     'error' => $e->getMessage(),
-                    'files' => $request->file('ticket_files'),
-                ]
-            );
-            return redirect()->back()->with('error', 'Datei konnte nicht hochgeladen werden');
-        }
-
-        try {
-            $permission = Permission::where('name', 'edit tickets')->first();
-            $users = User::whereHas('permissions', function ($query) use ($permission) {
-                $query->where('id', $permission->id);
-            })->orWhereHas('roles', function ($query) use ($permission) {
-                $query->whereHas('permissions', function ($query) use ($permission) {
-                    $query->where('id', $permission->id);
-                });
-            })->get();
-
-            Log::debug('Ticketsystem: Ticket-Mail wird versendet: ',
-                [
-                    'ticket' => $ticket->title,
-                    'user' => auth()->user()->id,
-                    'email' => auth()->user()->email,
-                ]
-
-            );
-
-            foreach ($users as $user) {
-                $user->notify(new \App\Notifications\Push(
-                    'Neues Ticket',
-                    'Ein neues Ticket wurde erstellt: ' . $ticket->title
-                ));
-                Mail::to($user->email)->queue(new newTicketMail($ticket));
-            }
-        } catch (\Exception $e) {
-           Log::error('Ticketsystem: Ticket-Mail konnte nicht versendet werden: ',
-           [
-
-                    'ticket' => $ticket->title,
-                    'user' => $user->id,
-                    'email' => $user->email,
-                    'error' => $e->getMessage(),
-                ]
-            );
-        }
-
-
-        return redirect()->route('tickets.index');
-    }
-
-
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ticket $ticket)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ticket $ticket)
-    {
-        //
-    }
-
-    public function assign(Ticket $ticket, User $user)
-    {
-        $previousAssignedUser = $ticket->assigned;
-
-        $ticket->assigned_to = $user->id;
-        $ticket->save();
-
-        // Create comment based on whether this is a reassignment or initial assignment
-        if ($previousAssignedUser) {
-            $ticket->comments()->create([
-                'user_id' => auth()->id(),
-                'comment' => 'Ticket von ' . $previousAssignedUser->name . ' an ' . $user->name . ' übertragen'
-            ]);
-        } else {
-            $ticket->comments()->create([
-                'user_id' => auth()->id(),
-                'comment' => 'Ticket zugewiesen an ' . $user->name
-            ]);
-        }
-
-        // Send email to new assignee if it's not the current user
-        if (auth()->user()->id != $user->id) {
-            try {
-                Mail::to($user->email)->queue(new TicketAssignmentMail($ticket));
-            } catch (\Exception $e) {
-                Log::error(
-                    'Ticketsystem: Ticket-Mail konnte nicht versendet werden: ',
-                    [
-                        'ticket' => $ticket->title,
-                        'user' => $user->id,
-                        'email' => $user->email,
-                        'error' => $e->getMessage(),
-                    ]
-                );
+                ]);
             }
         }
 
-        // Notify previous assignee about reassignment
-        if ($previousAssignedUser && $previousAssignedUser->id != auth()->user()->id && $previousAssignedUser->id != $user->id) {
-            try {
-                $previousAssignedUser->notify(new \App\Notifications\Push(
-                    'Ticket neu zugewiesen',
-                    'Das Ticket "' . $ticket->title . '" wurde an ' . $user->name . ' übertragen'
-                ));
-            } catch (\Exception $e) {
-                Log::error(
-                    'Ticketsystem: Push-Benachrichtigung konnte nicht versendet werden: ',
-                    [
-                        'ticket' => $ticket->title,
-                        'user' => $previousAssignedUser->id,
-                        'error' => $e->getMessage(),
-                    ]
-                );
-            }
-        }
-
-        return redirect()->back();
-    }
-
-    public function close(Ticket $ticket)
-    {
-        $ticket->status = 'closed';
-        $ticket->save();
-
-        $ticket->comments()->create([
-            'user_id' => auth()->id(),
-            'comment' => 'Ticket closed'
+        return redirect()->route('tickets.index')->with([
+            'type' => 'success',
+            'Meldung' => $imported.' Themen als Tickets importiert.',
         ]);
-
-        return redirect()->route('tickets.index')->with('success', 'Ticket geschlossen');
-    }
-
-    /*
-     * pin and unpin ticket for user
-     *
-     *
-     */
-
-    public function pin(Ticket $ticket)
-    {
-        auth()->user()->pinned_tickets()->attach($ticket->id);
-
-        return redirect()->back();
     }
 
     /**
-     * list archived tickets
+     * Scheduler: wartende Tickets nach Ablauf der Frist automatisch schließen.
      */
-    public function archived($ticket = null)
-    {
-        if (auth()->user()->can('edit tickets')) {
-            $tickets = Ticket::query()
-                ->where('status', 'closed')
-                ->with('user')
-                ->with('category')
-                ->with('assigned')
-                ->with('comments')
-                ->orderBy('created_at', 'desc')
-                ->get();
-        } else {
-            $tickets = auth()->user()->tickets->where('status', 'closed')->load('category', 'assigned')->sortByDesc('comments.created_at');
-        }
-
-        $categories = Cache::remember('ticket_categories', 3600, function () {
-            return TicketCategory::all();
-        });
-
-        return view('ticketsystem.archiv',
-            [
-                'tickets' => $tickets,
-                'categories' => TicketCategory::all(),
-                'show_ticket' => $ticket
-            ]
-        );
-    }
-
-    public function showClosedTicket(Ticket $ticket)
-    {
-        return $this->archived($ticket->load('comments'));
-    }
-
     public function closeTicketAfterTime()
     {
-
-        if (settings('ticket_closed_automatic')) {
-
-            $days = settings('ticket_closed_automatic_days') ?? 7;
-
-            $tickets = Ticket::query()
-                ->where('status', 'waiting')
-                ->where('waiting_until', '<', now()->subDays($days))
-                ->get();
-
-            foreach ($tickets as $ticket) {
-                $ticket->status = 'closed';
-                $ticket->save();
-
-                Log::info('Ticketsystem: Ticket wurde automatisch geschlossen: ',
-                    [
-                        'ticket' => $ticket->title,
-                        'user' => auth()->user()->id,
-                        'email' => auth()->user()->email,
-                    ]
-                );
-
-                $comment = new TicketComment([
-                    'comment' => 'Das Ticket wurde automatisch geschlossen, da keine Rückmeldung erfolgte',
-                    'ticket_id' => $ticket->id,
-                    'user_id' => null,
-                    'internal' => false
-                ]);
-                $comment->save();
-            }
-
-
-        }
-
-
-
-
-
+        $this->tickets->closeExpiredWaiting();
     }
 
+    private function applySearch($query, string $search): void
+    {
+        $query->where(function ($q) use ($search) {
+            $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+            $q->where('title', 'like', $like)
+                ->orWhere('description', 'like', $like);
 
+            if (ctype_digit(ltrim($search, '#'))) {
+                $q->orWhere('id', (int) ltrim($search, '#'));
+            }
+        });
+    }
+
+    /**
+     * Lädt Kommentare (ohne interne für Nicht-Bearbeiter), Dateien und Relationen.
+     */
+    private function prepareForDisplay(Ticket $ticket, User $user): Ticket
+    {
+        $showInternal = $user->can('viewInternal', $ticket);
+
+        return $ticket->load([
+            'user',
+            'assigned',
+            'category',
+            'closedBy',
+            'media',
+            'comments' => function ($q) use ($showInternal) {
+                $q->with(['user', 'media'])->latest()->latest('id');
+                if (!$showInternal) {
+                    $q->where('internal', false);
+                }
+            },
+        ]);
+    }
 }

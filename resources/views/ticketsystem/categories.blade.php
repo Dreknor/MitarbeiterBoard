@@ -15,9 +15,10 @@
                             @csrf
                             <div class="form-group">
                                 <label for="name">Neue Kategorie hinzufügen:</label>
-                                <input type="text" name="name" id="name" class="form-control" placeholder="Name der Kategorie" required>
+                                <input type="text" name="name" id="name" class="form-control" placeholder="Name der Kategorie" maxlength="255" value="{{ old('name') }}" required>
                             </div>
-                            <button type="submit" class="btn btn-success btn-sm" onclick="fn()"> <!-- Hinzufügen-Button -->
+                            @error('name')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                            <button type="submit" class="btn btn-success btn-sm">
                                 <i class="fa fa-plus" aria-hidden="true"></i> Hinzufügen
                             </button>
                         </form>
@@ -28,6 +29,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Name</th>
+                                <th>Tickets (offen / gesamt)</th>
                                 <th>Aktionen</th>
                             </tr>
                             </thead>
@@ -36,8 +38,9 @@
                                 <tr>
                                     <td>{{ $category->id }}</td>
                                     <td>{{ $category->name }}</td>
+                                    <td>{{ $category->open_tickets_count }} / {{ $category->tickets_count }}</td>
                                     <td>
-                                        <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteModal" data-id="{{ $category->id }}">
+                                        <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteModal" data-id="{{ $category->id }}" data-count="{{ $category->tickets_count }}">
                                             <i class="fa fa-trash" aria-hidden="true"></i> Löschen
                                         </button>
                                     </td>
@@ -63,6 +66,7 @@
                 </div>
                 <div class="modal-body">
                     Möchten Sie die Kategorie wirklich löschen?
+                    <p class="text-muted small mb-0" id="deleteModalHint"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
@@ -86,6 +90,8 @@
             var action = '{{ url('tickets/categories') }}/' + id;
             var modal = $(this);
             modal.find('#deleteForm').attr('action', action);
+            var count = button.data('count');
+            modal.find('#deleteModalHint').text(count > 0 ? count + ' Ticket(s) verlieren dadurch ihre Kategorie.' : '');
         });
     </script>
 @endpush
