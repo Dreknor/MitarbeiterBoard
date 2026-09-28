@@ -1152,6 +1152,21 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
         Route::post('/termine', [\App\Http\Controllers\CalendarController::class, 'store'])
             ->name('calendar.store')
             ->middleware('throttle:calendar-write');
+        Route::get('/raum-verfuegbarkeit', [\App\Http\Controllers\CalendarController::class, 'raumVerfuegbarkeit'])
+            ->name('calendar.rooms.availability');
+
+        // ICS-Import (Vorschau mit Auswahl + Hinweisen, danach Import nach OX)
+        Route::middleware('permission:import calendar events|manage calendar')->prefix('import')->group(function () {
+            Route::post('/', [\App\Http\Controllers\CalendarImportController::class, 'vorschau'])
+                ->name('calendar.import.preview');
+            Route::get('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'show'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.show');
+            Route::post('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'store'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.store')
+                ->middleware('throttle:calendar-write');
+        });
     });
 
     // Bearbeiten/Löschen (edit calendar events)

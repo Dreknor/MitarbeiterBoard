@@ -34,14 +34,19 @@ class CalendarComposer
             ->whereNull('rrule')
             ->with('kalender')
             ->orderBy('beginn')
-            ->limit(5)
-            ->get();
+            ->limit(20)
+            ->get()
+            // Kopien eines Terminverbunds (mehrere Kalender) nur einmal anzeigen
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id)
+            ->take(5);
 
         // Wiederkehrende Termine serverseitig expandieren (nächste 30 Tage) – TODO 25
         $rruleTermine = OxTermin::whereIn('ox_calendar_id', $sichtbareKalenderIds)
             ->whereNotNull('rrule')
             ->with('kalender')
-            ->get();
+            ->get()
+            // Kopien eines Terminverbunds (mehrere Kalender) nur einmal anzeigen
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
 
         $expandierteTermine = collect();
         foreach ($rruleTermine as $termin) {

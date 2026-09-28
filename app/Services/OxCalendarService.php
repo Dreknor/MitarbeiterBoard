@@ -430,6 +430,7 @@ class OxCalendarService
      *   exdates: ?array,
      *   status: ?string,
      *   uid: string,
+     *   verbund_uid: ?string,
      * }
      */
     public function parseIcal(string $icalData): array
@@ -491,6 +492,7 @@ class OxCalendarService
         $status = isset($vevent->STATUS) ? (string) $vevent->STATUS : null;
 
         return [
+            'verbund_uid'  => isset($vevent->{'X-MB-VERBUND'}) ? (string) $vevent->{'X-MB-VERBUND'} : null,
             'titel'        => isset($vevent->SUMMARY) ? (string) $vevent->SUMMARY : 'Ohne Titel',
             'beschreibung' => isset($vevent->DESCRIPTION) ? (string) $vevent->DESCRIPTION : null,
             'ort'          => isset($vevent->LOCATION) ? (string) $vevent->LOCATION : null,
@@ -805,6 +807,9 @@ class OxCalendarService
             'details'        => ['calendar_name' => $calendar->name],
         ]);
 
+        // Verbünde, deren Termine sich geändert haben (für Raumbuchungs-Abgleich)
+        $betroffeneVerbuende = [];
+
         try {
             // Fallback-Kette
             $changes          = $this->resolveChanges($calendar);
@@ -822,7 +827,10 @@ class OxCalendarService
                         ->where('ox_uid', $parsed['uid'])
                         ->exists();
 
-                    $this->upsertTermin($calendar, $eventInfo, $icalData);
+                    $termin = $this->upsertTermin($calendar, $eventInfo, $icalData);
+                    if ($termin->verbund_uid) {
+                        $betroffeneVerbuende[] = $termin->verbund_uid;
+                    }
 
                     $existed ? $result['updated']++ : $result['created']++;
                 } catch (\Exception $e) {
@@ -837,7 +845,10 @@ class OxCalendarService
             // Gelöschte Events verarbeiten
             foreach ($changes['deleted'] as $href) {
                 try {
-                    $this->softDeleteTerminByHref($calendar, $href);
+                    $betroffeneVerbuende = array_merge(
+                        $betroffeneVerbuende,
+                        $this->softDeleteTerminByHref($calendar, $href)
+                    );
                     $result['deleted']++;
                 } catch (\Exception $e) {
                     $result['errors']++;
@@ -851,6 +862,8 @@ class OxCalendarService
             }
 
             $calendar->update(['letzte_synchronisation' => now()]);
+
+            $this->raumbuchungenAbgleichen($betroffeneVerbuende);
 
             // Cache invalidieren
             $this->invalidateEventsCache($calendar->id);
@@ -1131,27 +1144,35 @@ class OxCalendarService
     {
         $parsed = $this->parseIcal($icalData);
 
+        $werte = [
+            'ox_etag'      => $eventInfo['etag'] ?? null,
+            'ox_href'      => $eventInfo['href'],
+            'titel'        => $parsed['titel'],
+            'beschreibung' => $parsed['beschreibung'],
+            'ort'          => $parsed['ort'],
+            'beginn'       => $parsed['beginn'],
+            'ende'         => $parsed['ende'],
+            'timezone'     => $parsed['timezone'],
+            'ganztaegig'   => $parsed['ganztaegig'],
+            'rrule'        => $parsed['rrule'],
+            'exdates'      => $parsed['exdates'],
+            'status'       => $parsed['status'],
+            'raw_ical'     => $icalData,
+        ];
+
+        // Verbund-Kennung nur übernehmen, wenn OX sie mitliefert – eine lokal
+        // gesetzte Verknüpfung geht sonst bei Servern ohne X-Property-Support verloren.
+        if (!empty($parsed['verbund_uid'])) {
+            $werte['verbund_uid'] = $parsed['verbund_uid'];
+        }
+
         /** @var OxTermin $termin */
         $termin = OxTermin::withTrashed()->updateOrCreate(
             [
                 'ox_calendar_id' => $calendar->id,
                 'ox_uid'         => $parsed['uid'],
             ],
-            [
-                'ox_etag'      => $eventInfo['etag'] ?? null,
-                'ox_href'      => $eventInfo['href'],
-                'titel'        => $parsed['titel'],
-                'beschreibung' => $parsed['beschreibung'],
-                'ort'          => $parsed['ort'],
-                'beginn'       => $parsed['beginn'],
-                'ende'         => $parsed['ende'],
-                'timezone'     => $parsed['timezone'],
-                'ganztaegig'   => $parsed['ganztaegig'],
-                'rrule'        => $parsed['rrule'],
-                'exdates'      => $parsed['exdates'],
-                'status'       => $parsed['status'],
-                'raw_ical'     => $icalData,
-            ]
+            $werte
         );
 
         // Soft-deleted Termin bei Re-Sync wiederherstellen
@@ -1182,14 +1203,49 @@ class OxCalendarService
 
     /**
      * Termin per CalDAV-Href soft-deleten.
+     *
+     * @return string[] Verbund-Kennungen der gelöschten Termine
      */
-    protected function softDeleteTerminByHref(OxCalendar $calendar, string $href): void
+    protected function softDeleteTerminByHref(OxCalendar $calendar, string $href): array
     {
+        $verbuende = [];
+
         OxTermin::where('ox_calendar_id', $calendar->id)
             ->where('ox_href', $href)
-            ->each(function (OxTermin $termin) {
+            ->each(function (OxTermin $termin) use (&$verbuende) {
+                if ($termin->verbund_uid) {
+                    $verbuende[] = $termin->verbund_uid;
+                }
                 $termin->delete(); // SoftDelete
             });
+
+        return $verbuende;
+    }
+
+    /**
+     * Raumbuchungen von Terminverbünden an Änderungen aus OX anpassen.
+     * Fehler dürfen den Kalender-Sync nie abbrechen.
+     *
+     * @param  string[]  $verbundUids
+     */
+    protected function raumbuchungenAbgleichen(array $verbundUids): void
+    {
+        $mitBuchung = \App\Models\RoomBooking::query()
+            ->whereIn('ox_verbund_uid', array_unique($verbundUids))
+            ->where('cancelled', false)
+            ->pluck('ox_verbund_uid')
+            ->unique();
+
+        foreach ($mitBuchung as $verbundUid) {
+            try {
+                app(\App\Services\Calendar\KalenderRaumService::class)->abgleichNachSync($verbundUid);
+            } catch (\Throwable $e) {
+                Log::warning('Kalender-Sync: Raumbuchungs-Abgleich fehlgeschlagen', [
+                    'verbund_uid' => $verbundUid,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -1275,6 +1331,7 @@ class OxCalendarService
         $termin = OxTermin::create([
             'ox_calendar_id' => $calendar->id,
             'ox_uid'         => $uid,
+            'verbund_uid'    => $data['verbund_uid'] ?? null,
             'ox_etag'        => $etag,
             'ox_href'        => $eventHref,
             'titel'          => $data['titel'],
@@ -1285,7 +1342,7 @@ class OxCalendarService
             'timezone'       => 'Europe/Berlin',
             'ganztaegig'     => $data['ganztaegig'] ?? false,
             'rrule'          => $data['rrule'] ?? null,
-            'exdates'        => null,
+            'exdates'        => $data['exdates'] ?? null,
             'status'         => 'CONFIRMED',
             'erstellt_von'   => auth()->id(),
             'raw_ical'       => $icalData,
@@ -1327,6 +1384,8 @@ class OxCalendarService
             return $this->promoteLocalTermin($termin, $data);
         }
 
+        $data['verbund_uid'] = $data['verbund_uid'] ?? $termin->verbund_uid;
+
         // iCal bauen (basierend auf raw_ical wenn vorhanden, sonst neu)
         $icalData = $termin->raw_ical
             ? $this->updateExistingIcal($termin->raw_ical, $data)
@@ -1352,6 +1411,7 @@ class OxCalendarService
 
         // Lokalen Cache aktualisieren
         $termin->update([
+            'verbund_uid'  => $data['verbund_uid'],
             'ox_etag'      => $response->header('ETag'),
             'titel'        => $data['titel'],
             'beschreibung' => $data['beschreibung'] ?? null,
@@ -1414,6 +1474,7 @@ class OxCalendarService
         // Lokalen Eintrag mit CalDAV-Metadaten + neuen Daten aktualisieren
         $termin->update([
             'ox_uid'       => $uid,
+            'verbund_uid'  => $data['verbund_uid'] ?? $termin->verbund_uid,
             'ox_etag'      => $response->header('ETag'),
             'ox_href'      => $eventHref,
             'titel'        => $data['titel'],
@@ -1505,27 +1566,14 @@ class OxCalendarService
         $vcalendar->PRODID   = '-//MitarbeiterBoard//Kalender//DE';
         $vcalendar->VERSION  = '2.0';
 
-        $veventData = [
+        $vevent = $vcalendar->add('VEVENT', [
             'UID'     => $data['uid'],
             'SUMMARY' => $data['titel'],
             'DTSTAMP' => new \DateTime('now', new \DateTimeZone('UTC')),
-        ];
+        ]);
 
-        // Datum/Zeit
-        if (!empty($data['ganztaegig'])) {
-            $veventData['DTSTART'] = new \DateTime($data['beginn']);
-            $veventData['DTEND']   = new \DateTime($data['ende']);
-        } else {
-            $veventData['DTSTART'] = new \DateTime($data['beginn'], new \DateTimeZone('Europe/Berlin'));
-            $veventData['DTEND']   = new \DateTime($data['ende'], new \DateTimeZone('Europe/Berlin'));
-        }
-
-        $vevent = $vcalendar->add('VEVENT', $veventData);
-
-        if (!empty($data['ganztaegig'])) {
-            $vevent->DTSTART['VALUE'] = 'DATE';
-            $vevent->DTEND['VALUE']   = 'DATE';
-        }
+        $this->setzeZeitraum($vevent, $data);
+        $this->setzeVerbund($vevent, $data['verbund_uid'] ?? null);
 
         if (!empty($data['beschreibung'])) {
             $vevent->DESCRIPTION = $data['beschreibung'];
@@ -1540,9 +1588,50 @@ class OxCalendarService
         // RRULE
         if (!empty($data['rrule'])) {
             $vevent->RRULE = $data['rrule'];
+
+            foreach ((array) ($data['exdates'] ?? []) as $exdate) {
+                $vevent->add('EXDATE', new \DateTime($exdate));
+            }
         }
 
         return $vcalendar->serialize();
+    }
+
+    /**
+     * DTSTART/DTEND setzen. Ganztägige Termine als VALUE=DATE (DTEND exklusiv),
+     * sonst als lokale Zeit mit TZID Europe/Berlin.
+     */
+    protected function setzeZeitraum(\Sabre\VObject\Component\VEvent $vevent, array $data): void
+    {
+        unset($vevent->DTSTART, $vevent->DTEND);
+
+        if (!empty($data['ganztaegig'])) {
+            $beginn = new \DateTime(substr((string) $data['beginn'], 0, 10));
+            $ende   = new \DateTime(substr((string) $data['ende'], 0, 10));
+            if ($ende <= $beginn) {
+                $ende = (clone $beginn)->modify('+1 day');
+            }
+            $vevent->add('DTSTART', $beginn, ['VALUE' => 'DATE']);
+            $vevent->add('DTEND', $ende, ['VALUE' => 'DATE']);
+            return;
+        }
+
+        $tz = new \DateTimeZone('Europe/Berlin');
+        $vevent->add('DTSTART', new \DateTime($data['beginn'], $tz));
+        $vevent->add('DTEND', new \DateTime($data['ende'], $tz));
+    }
+
+    /**
+     * Verbund-Kennung als X-Property ablegen, damit die Verknüpfung
+     * mehrerer Kalender-Kopien den Roundtrip über OX übersteht.
+     */
+    protected function setzeVerbund(\Sabre\VObject\Component\VEvent $vevent, ?string $verbundUid): void
+    {
+        unset($vevent->{'X-MB-VERBUND'});
+
+        if ($verbundUid) {
+            $vevent->add('X-MB-VERBUND', $verbundUid);
+        }
     }
 
     /**
@@ -1604,12 +1693,10 @@ class OxCalendarService
         }
 
         // Datum/Zeit aktualisieren
-        $vevent->DTSTART = new \DateTime($data['beginn'], new \DateTimeZone('Europe/Berlin'));
-        $vevent->DTEND   = new \DateTime($data['ende'], new \DateTimeZone('Europe/Berlin'));
+        $this->setzeZeitraum($vevent, $data);
 
-        if (!empty($data['ganztaegig'])) {
-            $vevent->DTSTART['VALUE'] = 'DATE';
-            $vevent->DTEND['VALUE']   = 'DATE';
+        if (array_key_exists('verbund_uid', $data)) {
+            $this->setzeVerbund($vevent, $data['verbund_uid']);
         }
 
         if (!empty($data['rrule'])) {

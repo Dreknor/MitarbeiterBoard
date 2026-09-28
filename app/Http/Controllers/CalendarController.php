@@ -6,6 +6,8 @@ use App\Models\OxCalendar;
 use App\Models\OxTermin;
 use App\Models\User;
 use App\Models\UserIcalFeed;
+use App\Services\Calendar\KalenderRaumService;
+use App\Services\Calendar\TerminVerbundService;
 use App\Services\OxCalendarService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Sabre\VObject\Reader;
 
 class CalendarController extends Controller
@@ -33,21 +36,31 @@ class CalendarController extends Controller
             ->where('setting', 'calendar_default_ansicht')
             ->value('value') ?? 'timeGridWeek';
 
+        $service = app(OxCalendarService::class);
+        $raum    = app(KalenderRaumService::class);
+
         // Schreibbare Kalender für den aktuellen User
-        $schreibbareKalender = $kalender->filter(function ($cal) use ($user) {
-            return $this->canWriteCalendar($user, $cal);
-        });
+        $schreibbareKalender = $kalender->filter(fn ($cal) => $service->canWriteCalendar($user, $cal))->values();
+        $canCreate = $user->can('create calendar events') && $schreibbareKalender->isNotEmpty();
 
         // Persönliche iCal-Feeds des Users
         $icalFeeds = $user->icalFeeds()->where('aktiv', true)->get();
 
+        $feedToken = \App\Models\Setting::where('module', 'Kalender')
+            ->where('setting', 'feed_token_' . $user->id)
+            ->value('value');
+
         return view('calendar.index', [
             'kalender'            => $kalender,
             'icalFeeds'           => $icalFeeds,
+            'feedToken'           => $feedToken,
             'schreibbareKalender' => $schreibbareKalender,
             'defaultView'         => $defaultView,
-            'canCreate'           => $user->can('create calendar events') && $schreibbareKalender->isNotEmpty(),
-            'canEdit'             => $schreibbareKalender->isNotEmpty(),
+            'canCreate'           => $canCreate,
+            'canEdit'             => $kalender->contains(fn ($cal) => $service->canEditTermin($user, $cal)),
+            'canImport'           => $canCreate && $user->canAny(['import calendar events', 'manage calendar']),
+            'raeume'              => $raum->darfRaeumeSehen($user) ? $raum->raumListe() : collect(),
+            'canBookRooms'        => $raum->darfRaeumeBuchen($user),
             'userColors'          => [],
         ]);
     }
@@ -84,26 +97,35 @@ class CalendarController extends Controller
 
         // ── OxTermin-Events (gecacht) ────────────────────────────────────────────
         $service    = app(OxCalendarService::class);
-        $oxCacheKey = $service->eventsCacheKey(md5($start . $end . $user->id . $oxIds->sort()->join(',')));
+        $oxCacheKey = $service->eventsCacheKey(md5($start . $end . $user->id . ($calendarsParam === '' ? '*' : $oxIds->sort()->join(','))));
 
-        $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds) {
+        $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds, $calendarsParam) {
             $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
 
-            if ($oxIds->isNotEmpty()) {
-                $filterIds = $oxIds->intersect($sichtbareIds);
-            } else {
-                $filterIds = $sichtbareIds;
-            }
+            // Parameter gesetzt (auch 'none') → strikt filtern; fehlt er → alle sichtbaren
+            $filterIds = $calendarsParam !== ''
+                ? $oxIds->intersect($sichtbareIds)
+                : $sichtbareIds;
 
+            // Mehrtägige Termine, die vor dem Fenster beginnen, aber hineinragen, einschließen
             $termine = OxTermin::whereIn('ox_calendar_id', $filterIds)
                 ->where(function ($query) use ($start, $end) {
-                    $query->whereBetween('beginn', [$start, $end])
-                        ->orWhereNotNull('rrule');
+                    $query->where(function ($q) use ($start, $end) {
+                        $q->where('beginn', '<', $end)->where('ende', '>', $start);
+                    })->orWhereNotNull('rrule');
                 })
                 ->with('kalender')
+                ->orderBy('ox_calendar_id')
+                ->orderBy('id')
                 ->get();
 
-            return $termine->map(function (OxTermin $termin) {
+            // Kopien eines Terminverbunds nur einmal anzeigen (Farbe des ersten sichtbaren Kalenders)
+            $gruppen = $termine->groupBy(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
+
+            return $gruppen->map(function (Collection $kopien) {
+                /** @var OxTermin $termin */
+                $termin = $kopien->first();
+
                 $event = [
                     'id'            => $termin->id,
                     'title'         => $termin->titel,
@@ -115,6 +137,11 @@ class CalendarController extends Controller
                         'terminId'     => $termin->id,
                         'calendarId'   => $termin->ox_calendar_id,
                         'calendarName' => $termin->kalender->name ?? '',
+                        'kalender'     => $kopien->map(fn (OxTermin $k) => [
+                            'id'    => $k->ox_calendar_id,
+                            'name'  => $k->kalender->name ?? '',
+                            'farbe' => $k->kalender->farbe ?? '#3b82f6',
+                        ])->values(),
                         'ort'          => $termin->ort,
                         'beschreibung' => $termin->beschreibung,
                         'status'       => $termin->status,
@@ -175,7 +202,25 @@ class CalendarController extends Controller
             }
         }
 
-        return response()->json($oxEvents->concat($icalEvents)->values());
+        // ── Raumbelegung (Raumplanung) ───────────────────────────────────────────
+        $raumEvents = collect();
+        $roomIds    = collect(explode(',', (string) $request->query('rooms', '')))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter()
+            ->unique()
+            ->take(20)
+            ->values();
+
+        $raumService = app(KalenderRaumService::class);
+        if ($roomIds->isNotEmpty() && $raumService->darfRaeumeSehen($user)) {
+            $raumEvents = $raumService->belegungEvents(
+                $roomIds->all(),
+                Carbon::parse($start),
+                Carbon::parse($end)
+            );
+        }
+
+        return response()->json($oxEvents->concat($icalEvents)->concat($raumEvents)->values());
     }
 
     /**
@@ -192,15 +237,30 @@ class CalendarController extends Controller
 
         $termin->load(['kalender', 'teilnehmer', 'ersteller']);
 
+        $service  = app(OxCalendarService::class);
+        $verbund  = $termin->verbund()->filter(fn (OxTermin $k) => $sichtbareIds->contains($k->ox_calendar_id));
+        $buchung  = $termin->raumBuchung();
+
+        // Ganztägige Termine: DTEND ist exklusiv – im Formular wird das letzte Tag angezeigt.
+        $endeFormular = $termin->ganztaegig
+            ? $termin->ende->copy()->subDay()->max($termin->beginn)->format('Y-m-d')
+            : $termin->ende->format('Y-m-d\TH:i');
+
         return response()->json([
             'id'          => $termin->id,
             'titel'       => $termin->titel,
             'beschreibung' => $termin->beschreibung,
             'ort'         => $termin->ort,
             'beginn'      => $termin->beginn->timezone('Europe/Berlin')->format('d.m.Y H:i'),
-            'ende'        => $termin->ende->timezone('Europe/Berlin')->format('d.m.Y H:i'),
+            'ende'        => $termin->ganztaegig
+                ? $termin->ende->copy()->subDay()->max($termin->beginn)->format('d.m.Y')
+                : $termin->ende->timezone('Europe/Berlin')->format('d.m.Y H:i'),
             'beginn_iso'  => $termin->beginn->toIso8601String(),
             'ende_iso'    => $termin->ende->toIso8601String(),
+            'beginn_formular' => $termin->ganztaegig
+                ? $termin->beginn->format('Y-m-d')
+                : $termin->beginn->format('Y-m-d\TH:i'),
+            'ende_formular'   => $endeFormular,
             'ganztaegig'  => $termin->ganztaegig,
             'status'      => $termin->status,
             'rrule'       => $termin->rrule,
@@ -218,8 +278,19 @@ class CalendarController extends Controller
                 'id'   => $termin->ersteller->id,
                 'name' => $termin->ersteller->name,
             ] : null,
-            'can_edit'    => $user->can('edit calendar events')
-                && $this->canWriteCalendar($user, $termin->kalender),
+            'verbund'     => $verbund->map(fn (OxTermin $k) => [
+                'termin_id' => $k->id,
+                'id'        => $k->ox_calendar_id,
+                'name'      => $k->kalender->name ?? '',
+                'farbe'     => $k->kalender->farbe ?? '#3b82f6',
+                'can_edit'  => $service->canEditTermin($user, $k->kalender),
+            ])->values(),
+            'raum'        => $buchung ? [
+                'id'   => $buchung->room_id,
+                'name' => $buchung->room?->name,
+                'zeit' => \Carbon\Carbon::parse($buchung->start)->format('H:i') . '–' . \Carbon\Carbon::parse($buchung->end)->format('H:i'),
+            ] : null,
+            'can_edit'    => $service->canEditTermin($user, $termin->kalender),
             'updated_at'  => $termin->updated_at->toIso8601String(),
         ]);
     }
@@ -260,7 +331,8 @@ class CalendarController extends Controller
             ->whereNull('rrule')
             ->with('kalender')
             ->orderBy('beginn')
-            ->get();
+            ->get()
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
 
         // ── 2. Wiederkehrende Termine (RRULE) – Vorkommen im Zeitfenster ─────
         //    Wir laden alle RRULE-Termine dieser Kalender und expandieren sie
@@ -268,7 +340,8 @@ class CalendarController extends Controller
         $rruleTermine = OxTermin::whereIn('ox_calendar_id', $calendarIds)
             ->whereNotNull('rrule')
             ->with('kalender')
-            ->get();
+            ->get()
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
 
         /** @var Collection $expandierteTermine
          *  Jedes Element: ['termin' => OxTermin, 'beginn' => Carbon, 'ende' => Carbon]
@@ -363,7 +436,8 @@ class CalendarController extends Controller
             ->where('beginn', '>=', now()->subYear())
             ->where('beginn', '<=', now()->addYear())
             ->orderBy('beginn')
-            ->get();
+            ->get()
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
 
         $lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ESZ Radebeul//Kalender//DE", "CALSCALE:GREGORIAN"];
         foreach ($termine as $t) {
@@ -411,8 +485,11 @@ class CalendarController extends Controller
             })
             ->with('kalender')
             ->orderBy('beginn', 'desc')
-            ->limit(20)
-            ->get();
+            ->limit(40)
+            ->get()
+            ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id)
+            ->take(20)
+            ->values();
 
         return response()->json($treffer->map(fn ($t) => [
             'id'        => $t->id,
@@ -540,44 +617,42 @@ class CalendarController extends Controller
     // =========================================================================
 
     /**
-     * Neuen Termin anlegen.
+     * Neuen Termin anlegen – in einem oder mehreren Kalendern, optional mit Raumbuchung.
      */
     public function store(Request $request)
     {
         $user    = auth()->user();
         $service = app(OxCalendarService::class);
 
-        $validated = $request->validate([
-            'ox_calendar_id' => 'required|integer|exists:ox_calendars,id',
-            'titel'          => 'required|string|max:255',
-            'beginn'         => 'required|date',
-            'ende'           => 'required|date|after_or_equal:beginn',
-            'ort'            => 'nullable|string|max:255',
-            'beschreibung'   => 'nullable|string|max:5000',
-            'ganztaegig'     => 'boolean',
-            'rrule'          => 'nullable|string|max:500',
-        ]);
+        $validated = $request->validate(array_merge($this->terminRegeln(), [
+            'kalender_ids'   => 'required_without:ox_calendar_id|array|min:1|max:20',
+            'kalender_ids.*' => 'integer|distinct|exists:ox_calendars,id',
+            'ox_calendar_id' => 'required_without:kalender_ids|integer|exists:ox_calendars,id',
+        ]), $this->terminMeldungen());
 
-        $kalender = OxCalendar::findOrFail($validated['ox_calendar_id']);
+        $kalender = OxCalendar::whereIn('id', $this->kalenderIdsAus($validated))->with('groups')->get();
 
-        if (!$service->canWriteCalendar($user, $kalender)) {
-            abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
+        foreach ($kalender as $kal) {
+            if (!$service->canWriteCalendar($user, $kal)) {
+                abort(403, 'Keine Schreibberechtigung für den Kalender "' . $kal->name . '".');
+            }
         }
 
-        try {
-            $termin = $service->createTermin($kalender, array_merge($validated, [
-                'ganztaegig' => $request->boolean('ganztaegig'),
-            ]));
+        $daten = $this->terminDaten($validated, $request);
 
-            return redirectBack('success', 'Termin "' . $termin->titel . '" wurde angelegt.');
-        } catch (\RuntimeException $e) {
-            Log::warning('Termin erstellen fehlgeschlagen', ['error' => $e->getMessage()]);
-            return redirectBack('danger', 'Termin konnte nicht angelegt werden: ' . $e->getMessage());
-        }
+        $ergebnis = app(TerminVerbundService::class)
+            ->anlegen($user, $kalender, $daten, $validated['room_id'] ?? null);
+
+        return $this->ergebnisMeldung(
+            $ergebnis,
+            'Termin "' . $daten['titel'] . '" wurde angelegt',
+            'Termin konnte nicht angelegt werden'
+        );
     }
 
     /**
      * Termin aktualisieren (mit Optimistic Locking via expected_updated_at).
+     * Änderungen gelten für alle Kopien des Terminverbunds.
      */
     public function update(Request $request, OxTermin $termin)
     {
@@ -598,26 +673,28 @@ class CalendarController extends Controller
             );
         }
 
-        $validated = $request->validate([
-            'titel'        => 'required|string|max:255',
-            'beginn'       => 'required|date',
-            'ende'         => 'required|date|after_or_equal:beginn',
-            'ort'          => 'nullable|string|max:255',
-            'beschreibung' => 'nullable|string|max:5000',
-            'ganztaegig'   => 'boolean',
-            'rrule'        => 'nullable|string|max:500',
-        ]);
+        $validated = $request->validate(array_merge($this->terminRegeln(), [
+            'kalender_ids'   => 'sometimes|array|min:1|max:20',
+            'kalender_ids.*' => 'integer|distinct|exists:ox_calendars,id',
+        ]), $this->terminMeldungen());
 
-        try {
-            $service->updateTermin($termin, array_merge($validated, [
-                'ganztaegig' => $request->boolean('ganztaegig'),
-            ]));
-
-            return redirectBack('success', 'Termin "' . $termin->titel . '" wurde aktualisiert.');
-        } catch (\RuntimeException $e) {
-            Log::warning('Termin bearbeiten fehlgeschlagen', ['error' => $e->getMessage()]);
-            return redirectBack('danger', 'Termin konnte nicht aktualisiert werden: ' . $e->getMessage());
+        $daten = $this->terminDaten($validated, $request);
+        if ($request->has('raum_aendern')) {
+            $daten['room_id'] = $validated['room_id'] ?? null;
         }
+
+        $ergebnis = app(TerminVerbundService::class)->aktualisieren(
+            $user,
+            $termin,
+            $daten,
+            $validated['kalender_ids'] ?? null
+        );
+
+        return $this->ergebnisMeldung(
+            $ergebnis,
+            'Termin "' . $daten['titel'] . '" wurde aktualisiert',
+            'Termin konnte nicht aktualisiert werden'
+        );
     }
 
     /**
@@ -655,33 +732,39 @@ class CalendarController extends Controller
         }
 
         try {
-            $service->updateTermin($termin, [
-                'titel'        => $termin->titel,
-                'beschreibung' => $termin->beschreibung,
-                'ort'          => $termin->ort,
-                'beginn'       => $validated['beginn'],
-                'ende'         => $validated['ende'],
-                'ganztaegig'   => $request->boolean('ganztaegig', $termin->ganztaegig),
-                'rrule'        => $termin->rrule,
-            ]);
+            $ergebnis = app(TerminVerbundService::class)->verschieben(
+                $user,
+                $termin,
+                Carbon::parse($validated['beginn'])->timezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                Carbon::parse($validated['ende'])->timezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                $request->boolean('ganztaegig', $termin->ganztaegig)
+            );
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        }
 
+        if ($ergebnis['termine']->isEmpty()) {
+            Log::warning('Termin verschieben fehlgeschlagen', ['fehler' => $ergebnis['fehler']]);
             return response()->json([
-                'success'    => true,
-                'message'    => 'Termin wurde verschoben.',
-                'updated_at' => $termin->fresh()->updated_at->toIso8601String(),
-            ]);
-        } catch (\RuntimeException $e) {
-            Log::warning('Termin verschieben fehlgeschlagen', ['error' => $e->getMessage()]);
-            return response()->json([
-                'error' => 'Termin konnte nicht verschoben werden: ' . $e->getMessage(),
+                'error' => 'Termin konnte nicht verschoben werden: ' . TerminVerbundService::fehlerText($ergebnis['fehler']),
             ], 500);
         }
+
+        return response()->json([
+            'success'    => true,
+            'message'    => empty($ergebnis['fehler'])
+                ? 'Termin wurde verschoben.'
+                : 'Termin wurde verschoben, aber nicht überall: ' . TerminVerbundService::fehlerText($ergebnis['fehler']),
+            'updated_at' => $termin->fresh()->updated_at->toIso8601String(),
+        ]);
     }
 
     /**
-     * Termin löschen.
+     * Termin löschen. Standard: alle Kopien des Verbunds; mit nur_dieser=1 nur diese Kopie.
      */
-    public function destroy(OxTermin $termin)
+    public function destroy(Request $request, OxTermin $termin)
     {
         $user    = auth()->user();
         $service = app(OxCalendarService::class);
@@ -691,15 +774,134 @@ class CalendarController extends Controller
             abort(403, 'Keine Schreibberechtigung für diesen Kalender.');
         }
 
-        $titel = $termin->titel;
+        $titel    = $termin->titel;
+        $ergebnis = app(TerminVerbundService::class)->loeschen($user, $termin, !$request->boolean('nur_dieser'));
 
-        try {
-            $service->deleteTermin($termin);
-            return redirectBack('success', 'Termin "' . $titel . '" wurde gelöscht.');
-        } catch (\RuntimeException $e) {
-            Log::warning('Termin löschen fehlgeschlagen', ['error' => $e->getMessage()]);
-            return redirectBack('danger', 'Termin konnte nicht gelöscht werden: ' . $e->getMessage());
+        if ($ergebnis['geloescht'] === 0) {
+            Log::warning('Termin löschen fehlgeschlagen', ['fehler' => $ergebnis['fehler']]);
+            return redirectBack('danger', 'Termin konnte nicht gelöscht werden: ' . TerminVerbundService::fehlerText($ergebnis['fehler']));
         }
+
+        if (!empty($ergebnis['fehler'])) {
+            return redirectBack('warning', 'Termin "' . $titel . '" wurde teilweise gelöscht. Fehler: ' . TerminVerbundService::fehlerText($ergebnis['fehler']));
+        }
+
+        return redirectBack('success', 'Termin "' . $titel . '" wurde gelöscht.');
+    }
+
+    /**
+     * Verfügbarkeit der buchbaren Räume für das Terminformular (JSON).
+     */
+    public function raumVerfuegbarkeit(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'beginn'    => 'required|date',
+            'ende'      => 'required|date|after:beginn',
+            'termin_id' => 'nullable|integer|exists:ox_termine,id',
+        ]);
+
+        $verbundUid = isset($validated['termin_id'])
+            ? OxTermin::whereKey($validated['termin_id'])->value('verbund_uid')
+            : null;
+
+        return response()->json(app(KalenderRaumService::class)->verfuegbarkeit(
+            Carbon::parse($validated['beginn']),
+            Carbon::parse($validated['ende']),
+            $verbundUid
+        ));
+    }
+
+    /**
+     * Gemeinsame Validierungsregeln für Termin anlegen/bearbeiten.
+     */
+    protected function terminRegeln(): array
+    {
+        return [
+            'titel'        => 'required|string|max:255',
+            'beginn'       => 'required|date',
+            'ende'         => 'required|date|after_or_equal:beginn',
+            'ort'          => 'nullable|string|max:255',
+            'beschreibung' => 'nullable|string|max:5000',
+            'ganztaegig'   => 'boolean',
+            'rrule'        => 'nullable|string|max:500',
+            'room_id'      => 'nullable|integer|exists:rooms,id',
+        ];
+    }
+
+    protected function terminMeldungen(): array
+    {
+        return [
+            'kalender_ids.required_without' => 'Bitte mindestens einen Kalender auswählen.',
+            'kalender_ids.min'              => 'Bitte mindestens einen Kalender auswählen.',
+            'ende.after_or_equal'           => 'Das Ende darf nicht vor dem Beginn liegen.',
+        ];
+    }
+
+    /**
+     * @return int[]
+     */
+    protected function kalenderIdsAus(array $validated): array
+    {
+        return collect($validated['kalender_ids'] ?? [$validated['ox_calendar_id']])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Formulardaten in Service-Daten umwandeln.
+     * Ganztägig: Das Formular liefert das letzte Datum inklusiv, iCal erwartet DTEND exklusiv.
+     */
+    protected function terminDaten(array $validated, Request $request): array
+    {
+        $ganztaegig = $request->boolean('ganztaegig');
+        $beginn     = Carbon::parse($validated['beginn']);
+        $ende       = Carbon::parse($validated['ende']);
+
+        if ($ganztaegig) {
+            $beginn = $beginn->startOfDay();
+            $ende   = $ende->startOfDay()->addDay();
+            if ($ende->lte($beginn)) {
+                $ende = $beginn->copy()->addDay();
+            }
+        }
+
+        return [
+            'titel'        => $validated['titel'],
+            'beschreibung' => $validated['beschreibung'] ?? null,
+            'ort'          => $validated['ort'] ?? null,
+            'beginn'       => $beginn->format('Y-m-d H:i:s'),
+            'ende'         => $ende->format('Y-m-d H:i:s'),
+            'ganztaegig'   => $ganztaegig,
+            'rrule'        => $validated['rrule'] ?? null,
+        ];
+    }
+
+    /**
+     * Flash-Meldung aus einem Verbund-Ergebnis (inkl. Teilfehlern pro Kalender).
+     */
+    protected function ergebnisMeldung(array $ergebnis, string $erfolg, string $misserfolg)
+    {
+        if ($ergebnis['termine']->isEmpty()) {
+            Log::warning($misserfolg, ['fehler' => $ergebnis['fehler']]);
+            return redirectBack('danger', $misserfolg . ': ' . TerminVerbundService::fehlerText($ergebnis['fehler']));
+        }
+
+        $kalenderNamen = $ergebnis['termine']->map(fn (OxTermin $t) => $t->kalender?->name)->filter()->unique();
+        $text = $erfolg;
+        if ($kalenderNamen->count() > 1) {
+            $text .= ' (' . $kalenderNamen->implode(', ') . ')';
+        }
+        if (!empty($ergebnis['buchung'])) {
+            $text .= ' – Raum ' . ($ergebnis['buchung']->room?->name ?? '') . ' gebucht';
+        }
+
+        if (!empty($ergebnis['fehler'])) {
+            return redirectBack('warning', $text . '. Nicht übernommen: ' . TerminVerbundService::fehlerText($ergebnis['fehler']));
+        }
+
+        return redirectBack('success', $text . '.');
     }
 
     // =========================================================================
@@ -848,53 +1050,11 @@ class CalendarController extends Controller
     }
 
     /**
-     * Sichtbare Kalender für einen User ermitteln.
-     * 1. Admin (manage calendar) → alle sichtbaren Kalender
-     * 2. Kalender ohne Gruppen  → öffentlich (view calendar reicht)
-     * 3. Kalender mit Gruppen   → User muss in mind. einer Gruppe sein
+     * Sichtbare Kalender für einen User (Regelwerk siehe OxCalendarService::sichtbareKalender).
      */
     protected function sichtbareKalender(User $user): Collection
     {
-        return OxCalendar::where('sichtbar', true)
-            ->with('groups')
-            ->get()
-            ->filter(function (OxCalendar $calendar) use ($user) {
-                if ($user->can('manage calendar')) {
-                    return true;
-                }
-
-                if ($calendar->groups->isEmpty()) {
-                    return $user->can('view calendar');
-                }
-
-                $calendarGroupIds = $calendar->groups->pluck('id');
-                $userGroupIds     = $user->groups()->pluck('id');
-                return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
-            });
-    }
-
-    /**
-     * Prüft ob ein User in einen bestimmten Kalender schreiben darf.
-     */
-    protected function canWriteCalendar(User $user, OxCalendar $calendar): bool
-    {
-        if (!$user->can('create calendar events') || !$calendar->schreibbar) {
-            return false;
-        }
-
-        if ($user->can('manage calendar')) {
-            return true;
-        }
-
-        if ($calendar->groups->isEmpty()) {
-            return true;
-        }
-
-        $userGroupIds = $user->groups()->pluck('id');
-        return $calendar->groups()
-            ->wherePivot('schreibbar', true)
-            ->whereIn('groups.id', $userGroupIds)
-            ->exists();
+        return app(OxCalendarService::class)->sichtbareKalender($user);
     }
 }
 
