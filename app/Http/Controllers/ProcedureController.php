@@ -5,29 +5,30 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateProcedureTemplateRequest;
 use App\Http\Requests\CreateStepRequest;
 use App\Http\Requests\EditStepRequest;
-use App\Mail\newStepMail;
-use App\Mail\StepErinnerungMail;
-use App\Models\Absence;
 use App\Models\Positions;
 use App\Models\Procedure;
 use App\Models\Procedure_Category;
 use App\Models\Procedure_Step;
 use App\Models\ProcedureStepHistory;
+use App\Models\ProcedureTemplate;
 use App\Models\RecurringProcedure;
 use App\Models\User;
+use App\Services\Procedure\ProcedureNotificationService;
+use App\Services\Procedure\ProcedureService;
+use App\Services\Procedure\ProcedureStepService;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 
 class ProcedureController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ProcedureService $procedureService,
+        private readonly ProcedureStepService $stepService,
+        private readonly ProcedureNotificationService $notifications,
+    ) {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
 
@@ -41,56 +42,31 @@ class ProcedureController extends Controller
     }
 
     /**
-     * Prüft, ob der Nutzer Zugriff auf einen bestimmten Prozess hat
+     * Lädt alle Schritte eines Prozesses in einer Query (inkl. Position und Verantwortliche)
+     * und baut die `childs`-Relationen im Speicher auf. Vermeidet N+1-Queries beim
+     * rekursiven Rendern des Schritt-Baums – unabhängig von der Baumtiefe.
      */
-    private function canAccessProcedure(Procedure $procedure, User $user = null): bool
+    private function loadStepTree(Procedure $procedure): Procedure
     {
-        $user = $user ?? auth()->user();
+        $steps = $procedure->steps()
+            ->with('position', 'users')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
-        // Admins mit manage procedures haben immer Zugriff
-        if ($user->can('manage procedures')) {
-            return true;
+        $byParent = $steps->groupBy('parent');
+
+        foreach ($steps as $step) {
+            $step->setRelation('childs', new EloquentCollection($byParent->get($step->id, collect())->all()));
         }
 
-        // Nutzer ohne view assigned procedures haben keinen Zugriff
-        if (!$user->can('view assigned procedures')) {
-            return false;
-        }
-
-        // Prüfe ob Nutzer in einem Schritt des Prozesses zugewiesen ist
-        $hasAssignedStep = $procedure->steps()
-            ->whereHas('users', function ($query) use ($user) {
-                $query->where('users.id', $user->id);
-            })
-            ->exists();
-
-        if ($hasAssignedStep) {
-            return true;
-        }
-
-        // Prüfe ob Nutzer eine Position hat, die in einem Schritt verwendet wird
-        if ($user->position_id) {
-            $hasPositionStep = $procedure->steps()
-                ->where('position_id', $user->position_id)
-                ->exists();
-
-            if ($hasPositionStep) {
-                return true;
-            }
-        }
-
-        return false;
+        return $procedure->setRelation('steps', $steps)->loadMissing('category');
     }
 
-    /**
-     * Prüft, ob der Nutzer einen Prozess bearbeiten darf
-     */
-    private function canEditProcedure(Procedure $procedure = null, User $user = null): bool
+    private function positions(): EloquentCollection
     {
-        $user = $user ?? auth()->user();
-        return $user->can('manage procedures');
+        return Positions::orderBy('name')->get();
     }
-
 
     public function delete(Procedure $procedure)
     {
@@ -101,31 +77,20 @@ class ProcedureController extends Controller
             ]);
         }
 
-        $category = $procedure->category;
-
-        $procedure->delete();
-
-        try {
-            if (\App\Models\Procedure::withTrashed()->where('category_id', $category->id)->count() < 1) {
-                $category->delete();
-            }
-        } catch (\Exception $e) {
-            // Kategorie-Löschung ignorieren wenn FK-Constraints greifen (z.B. SQLite-Tests)
-            \Illuminate\Support\Facades\Log::debug('Kategorie konnte nicht gelöscht werden', [
-                'category_id' => $category->id,
-                'reason'      => $e->getMessage(),
-            ]);
+        if ($procedure->isTemplate()) {
+            $this->procedureService->deleteTemplate($procedure);
+        } else {
+            $procedure->delete();
         }
 
         return redirect()->back()->with([
             'type'=>'warning',
-            'Meldung'=> 'Prozess wurde gelöscht.'
+            'Meldung'=> $procedure->isTemplate() ? 'Vorlage wurde gelöscht.' : 'Prozess wurde gelöscht.'
         ]);
     }
 
-
-
-    public function destroy(Procedure_Step $step){
+    public function destroy(Procedure_Step $step)
+    {
         // Nur Admins können Schritte löschen
         if (!auth()->user()->can('manage procedures')) {
             return redirect()->back()->with([
@@ -134,52 +99,22 @@ class ProcedureController extends Controller
             ]);
         }
 
-        try {
+        $procedure = $step->procedure;
+
+        DB::transaction(function () use ($step) {
             $step->users()->detach();
-
+            // Kinder rücken eine Ebene nach oben
             $step->childs()->update(['parent' => $step->parent]);
-            $procedure = $step->procedure;
             $step->delete();
-
-            if ($procedure->isTemplate()) {
-                return redirect(url('procedure/'.$procedure->id.'/edit'))->with([
-                    'type'=>'warning',
-                    'Meldung'=> 'Schritt wurde gelöscht.'
-                ]);
-            } else {
-                return redirect()->back()->with([
-                    'type'=>'warning',
-                    'Meldung'=> 'Schritt wurde gelöscht.'
-                ]);
-
-            }
-
-        } catch (\Exception $exception){
-            return redirect()->back()->with([
-               'type'=>'danger',
-               'Meldung'=> 'Konnte nicht gelöscht werden.'
-            ]);
-        }
-
-
-    }
-
-    public function index_templates()
-    {
-        // Nur Admins können Templates verwalten
-        if (!auth()->user()->can('manage procedures')) {
-            abort(403, 'Keine Berechtigung Vorlagen zu verwalten.');
-        }
-
-        $proceduresTemplate = Procedure::vorlagen()->with('category')->get();
-
-        $caregories = Cache::remember('categories', 60 * 5, function () {
-            return Procedure_Category::all();
         });
 
-        return view('procedure.template', [
-            'proceduresTemplate'=>$proceduresTemplate,
-            'categories'=>$caregories,
+        $redirect = $procedure && $procedure->isTemplate()
+            ? redirect(url('procedure/'.$procedure->id.'/edit'))
+            : redirect()->back();
+
+        return $redirect->with([
+            'type'=>'warning',
+            'Meldung'=> 'Schritt wurde gelöscht.'
         ]);
     }
 
@@ -187,64 +122,39 @@ class ProcedureController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->can('manage procedures')) {
-            // Admins sehen alle laufenden Prozesse
-            $procedures = Procedure::whereNotNull('started_at')
-                ->whereNull('ended_at')
-                ->get();
-        } else {
-            // Normale Nutzer sehen nur zugewiesene Prozesse
-            $steps = $user->steps;
-            $steps = $steps->unique('procedure_id');
-            $procedureIds = $steps->pluck('procedure_id');
-
-            // Zusätzlich Prozesse mit Steps für die Position des Nutzers
-            if ($user->position_id) {
-                $positionProcedureIds = Procedure_Step::where('position_id', $user->position_id)
-                    ->whereHas('procedure', function($query) {
-                        $query->whereNotNull('started_at')->whereNull('ended_at');
-                    })
-                    ->pluck('procedure_id')
-                    ->unique();
-
-                $procedureIds = $procedureIds->merge($positionProcedureIds)->unique();
-            }
-
-            $procedures = Procedure::whereIn('id', $procedureIds)
-                ->whereNotNull('started_at')
-                ->whereNull('ended_at')
-                ->get();
-        }
-
-        $proceduresTemplate = Procedure::vorlagen()->with('category')->get();
-
-        $caregories = Cache::remember('categories', 60 * 5, function () {
-            return Procedure_Category::all();
-        });
-
-        $positions = Positions::with('users')->orderBy('name')->get();
-
-        $users = User::orderBy('name')->get();
-
-        $recurringProcedures = RecurringProcedure::with('procedure.category')
-            ->orderBy('name')
+        $procedures = Procedure::laufend()
+            ->sichtbarFuer($user)
+            ->with('category', 'steps')
+            ->orderByDesc('started_at')
             ->get();
 
-        $monate = [
+        $viewData = [
+            'procedures'          => $procedures,
+            'proceduresTemplate'  => collect(),
+            'categories'          => collect(),
+            'positions'           => collect(),
+            'users'               => collect(),
+            'recurringProcedures' => collect(),
+        ];
+
+        // Verwaltungs-Tabs (Vorlagen, Automatisierung) sehen nur Admins – Daten nur dann laden.
+        if ($user->can('manage procedures')) {
+            $viewData = array_merge($viewData, [
+                'proceduresTemplate'  => Procedure::vorlagen()->with('category')->orderBy('name')->get(),
+                'categories'          => Procedure_Category::orderBy('name')->get(),
+                'positions'           => Positions::with('users')->orderBy('name')->get(),
+                'users'               => User::orderBy('name')->get(),
+                'recurringProcedures' => RecurringProcedure::with('procedure.category')->orderBy('name')->get(),
+            ]);
+        }
+
+        $viewData['monate'] = [
             1 => 'Januar', 2 => 'Februar', 3 => 'März', 4 => 'April',
             5 => 'Mai', 6 => 'Juni', 7 => 'Juli', 8 => 'August',
             9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Dezember',
         ];
 
-        return view('procedure.index', [
-            'procedures'          => $procedures,
-            'proceduresTemplate'  => $proceduresTemplate,
-            'categories'          => $caregories,
-            'positions'           => $positions,
-            'users'               => $users,
-            'recurringProcedures' => $recurringProcedures,
-            'monate'              => $monate,
-        ]);
+        return view('procedure.index', $viewData);
     }
 
     public function storeTemplate(CreateProcedureTemplateRequest $request)
@@ -257,11 +167,7 @@ class ProcedureController extends Controller
             ]);
         }
 
-        $template = new Procedure($request->validated());
-        $template->author_id = auth()->id();
-        $template->save();
-
-        Cache::forget('prozeduresTemplate');
+        $template = $this->procedureService->createTemplate($request->validated(), auth()->id())['legacy'];
 
         return redirect(url('procedure/'.$template->id.'/edit'))->with([
             'type'=>'success',
@@ -269,139 +175,34 @@ class ProcedureController extends Controller
         ]);
     }
 
-    public function edit($procedure)
+    public function edit(Procedure $procedure)
     {
-        // Prozess direkt aus DB laden (kein Cache wegen häufigen Updates)
-        $procedure = Procedure::find($procedure);
-
-        if (!$procedure) {
-            abort(404);
-        }
-
-        // Zugriffskontrolle
-        if (!$this->canAccessProcedure($procedure)) {
-            abort(403, 'Keine Berechtigung diesen Prozess zu sehen.');
-        }
-
-        $positions = Cache::remember('positions', 60 * 60, function () {
-            return Positions::all();
-        });
+        $this->authorize('view', $procedure);
 
         return view('procedure.edit', [
-            'procedure'=>$procedure->load(
-                'steps',
-                'steps.position',
-                'steps.parent_rel',
-                'steps.users',
-                'steps.childs.position',
-                'steps.childs.parent_rel',
-                'steps.childs.users'
-            ),
-            'positions'=>$positions,
-            'canEdit'=>$this->canEditProcedure($procedure),
+            'procedure' => $this->loadStepTree($procedure),
+            'positions' => $this->positions(),
+            'canEdit'   => auth()->user()->can('manage procedures'),
         ]);
     }
 
-    public function start($procedure)
+    public function start(Procedure $procedure)
     {
-        // Prozess direkt aus DB laden (kein Cache wegen häufigen Updates)
-        $procedure = Procedure::find($procedure);
+        $this->authorize('view', $procedure);
 
-        if (!$procedure) {
-            abort(404);
-        }
-
-        // Zugriffskontrolle
-        if (!$this->canAccessProcedure($procedure)) {
-            abort(403, 'Keine Berechtigung diesen Prozess zu sehen.');
-        }
-
-        $positions = Cache::remember('positions', 60 * 60, function () {
-            return Positions::all();
-        });
-
-        $users = User::all();
-
-        // Positionen ermitteln, die im Template mehreren Personen zugeordnet sind
+        // Positionen, die im Template mehreren Personen zugeordnet sind
         // – dafür muss beim Start eine Auswahl getroffen werden.
-        $multiPositions = collect();
-        if ($procedure->started_at === null) {
-            $multiPositions = $this->getMultiUserPositions($procedure);
-        }
+        $multiPositions = $procedure->isTemplate()
+            ? $this->procedureService->multiUserPositions($procedure)
+            : collect();
 
         return view('procedure.start', [
-            'procedure'=>$procedure->load(
-                'steps',
-                'steps.position',
-                'steps.parent_rel',
-                'steps.users',
-                'steps.childs.position',
-                'steps.childs.parent_rel'
-                , 'steps.childs.users'
-            ),
-            'positions'=>$positions,
-            'users' => $users,
-            'canEdit'=>$this->canEditProcedure($procedure),
+            'procedure'      => $this->loadStepTree($procedure),
+            'positions'      => $this->positions(),
+            'users'          => User::orderBy('name')->get(),
+            'canEdit'        => auth()->user()->can('manage procedures'),
             'multiPositions' => $multiPositions,
         ]);
-    }
-
-    /**
-     * Ermittelt alle Positionen, die in den Schritten des Prozesses verwendet werden
-     * und denen mehr als eine Person zugeordnet ist. Für diese Positionen muss beim
-     * (Neu-)Start des Prozesses eine Auswahl getroffen werden, welche Person(en)
-     * hinterlegt werden sollen.
-     */
-    private function getMultiUserPositions(Procedure $procedure): Collection
-    {
-        $positionIds = $procedure->steps->pluck('position_id')->filter()->unique();
-
-        if ($positionIds->isEmpty()) {
-            return collect();
-        }
-
-        return Positions::whereIn('id', $positionIds)
-            ->with('users')
-            ->orderBy('name')
-            ->get()
-            ->filter(fn($position) => $position->users->count() > 1)
-            ->values();
-    }
-
-    /**
-     * Liefert die Personen, die einem Schritt anhand seiner Position zugeordnet werden sollen.
-     * Wurde für die Position eine Auswahl getroffen (Mehrfachauswahl bei mehreren zugeordneten
-     * Personen), werden nur die ausgewählten Personen zurückgegeben. Andernfalls werden alle
-     * der Position zugeordneten Personen verwendet (z.B. wenn nur eine Person zugeordnet ist).
-     */
-    private function resolveStepUsers($position, array $selectedUsersByPosition = [])
-    {
-        if (!$position) {
-            return collect();
-        }
-
-        if (isset($selectedUsersByPosition[$position->id])) {
-            return User::whereIn('id', $selectedUsersByPosition[$position->id])->get();
-        }
-
-        return $position->users;
-    }
-
-    public function recursiveSteps($steps, $parent, array $selectedUsersByPosition = [])
-    {
-        foreach ($steps as $step) {
-            $newStep = $step->replicate();
-            $newStep->procedure_id = $parent->procedure_id;
-            $newStep->parent = $parent->id;
-            $newStep->save();
-
-            $users = $this->resolveStepUsers($newStep->position, $selectedUsersByPosition);
-            $newStep->users()->attach($users);
-
-            if (count($step->childs) > 0) {
-                $this->recursiveSteps($step->childs, $newStep, $selectedUsersByPosition);
-            }
-        }
     }
 
     public function startNow(Request $request, Procedure $procedure)
@@ -414,16 +215,26 @@ class ProcedureController extends Controller
             ]);
         }
 
+        if (!$procedure->isTemplate()) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Nur Vorlagen können gestartet werden.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'name'       => 'required|string|max:255',
+            'started_at' => 'required|date',
+        ]);
+
         // Positionen mit mehreren zugeordneten Personen ermitteln und Auswahl validieren
-        $multiPositions = $this->getMultiUserPositions($procedure);
         $selectedInput = $request->input('selected_users', []);
         $selectedUsersByPosition = [];
 
-        foreach ($multiPositions as $position) {
-            $validIds = $position->users->pluck('id');
+        foreach ($this->procedureService->multiUserPositions($procedure) as $position) {
             $selectedIds = collect($selectedInput[$position->id] ?? [])
-                ->map(fn($id) => (int) $id)
-                ->intersect($validIds)
+                ->map(fn ($id) => (int) $id)
+                ->intersect($position->users->pluck('id'))
                 ->values();
 
             if ($selectedIds->isEmpty()) {
@@ -436,43 +247,18 @@ class ProcedureController extends Controller
             $selectedUsersByPosition[$position->id] = $selectedIds->all();
         }
 
-        $startedProcedure = $procedure->replicate();
-        $startedProcedure->name = $request->input('name');
-        $startedProcedure->started_at = $request->input('started_at');
-        $startedProcedure->author_id = auth()->id();
-        $startedProcedure->save();
+        $startedProcedure = $this->procedureService->startFromTemplate(
+            $procedure,
+            $validated,
+            auth()->id(),
+            auth()->id(),
+            $selectedUsersByPosition
+        );
 
-        $copySteps = [];
-
-        foreach ($procedure->steps->where('parent', null) as $step) {
-            $newStep = $step->replicate();
-            $newStep->procedure_id = $startedProcedure->id;
-            $newStep->endDate = $startedProcedure->started_at->addDays($startedProcedure->durationDays);
-            $newStep->save();
-
-            $users = $this->resolveStepUsers($step->position, $selectedUsersByPosition);
-
-            if ($users->contains('id', auth()->id())) {
-                $newStep->users()->attach(auth()->user());
-            } else {
-                $newStep->users()->attach($users);
-                foreach ($users as $user) {
-                    Mail::to($user)->queue(new newStepMail(
-                        $user->name,
-                        Carbon::now()->addDays($newStep->durationDays)->format('d.m.Y'),
-                        $newStep->name,
-                        $newStep->procedure->name,
-                        $step->procedure->id));
-                }
-            }
-
-
-
-
-            $this->recursiveSteps($step->childs, $newStep, $selectedUsersByPosition);
-        }
-
-        return redirect('procedure/'.$startedProcedure->id.'/start');
+        return redirect('procedure/'.$startedProcedure->id.'/start')->with([
+            'type'    => 'success',
+            'Meldung' => 'Prozess wurde gestartet.',
+        ]);
     }
 
     public function addStep(CreateStepRequest $request, Procedure $procedure)
@@ -487,37 +273,34 @@ class ProcedureController extends Controller
 
         $step = new Procedure_Step($request->validated());
         $step->procedure_id = $procedure->id;
+        $step->sort_order = (int) Procedure_Step::where('procedure_id', $procedure->id)
+            ->where('parent', $step->parent)
+            ->max('sort_order') + 1;
 
-        // Bei laufenden Prozessen: endDate setzen und Benutzer automatisch zuweisen
-        if ($procedure->started_at !== null) {
-            if ($request->filled('endDate')) {
-                $step->endDate = $request->input('endDate');
+        if ($procedure->isTemplate()) {
+            $step->endDate = null;
+            $step->save();
+        } else {
+            // Laufender Prozess: Der Schritt ist sofort aktiv, wenn er keinen Vorgänger hat
+            // oder der Vorgänger bereits erledigt ist. Sonst wird er erst mit Abschluss
+            // des Vorgängers fällig (endDate + Mail setzt dann ProcedureStepService::complete).
+            $parent = $step->parent ? Procedure_Step::find($step->parent) : null;
+            $isActive = !$parent || $parent->done;
+
+            if ($isActive && !$step->endDate) {
+                $step->endDate = Carbon::today()->addDays((int) $step->durationDays);
             }
             $step->save();
 
-            // Benutzer der zugewiesenen Position automatisch anhängen
-            $position = \App\Models\Positions::find($step->position_id);
-            if ($position) {
-                $users = $position->users;
-                if ($users->isNotEmpty()) {
-                    $step->users()->attach($users);
-                    foreach ($users as $user) {
-                        try {
-                            Mail::to($user)->queue(new newStepMail(
-                                $user->name,
-                                $step->endDate ? \Carbon\Carbon::parse($step->endDate)->format('d.m.Y') : '–',
-                                $step->name,
-                                $procedure->name,
-                                $procedure->id
-                            ));
-                        } catch (\Exception $e) {
-                            Log::warning('Prozesse: E-Mail konnte nicht gesendet werden', ['user' => $user->id, 'error' => $e->getMessage()]);
-                        }
-                    }
+            $position = Positions::with('users')->find($step->position_id);
+            if ($position && $position->users->isNotEmpty()) {
+                $step->users()->attach($position->users->pluck('id')->all());
+
+                if ($isActive) {
+                    $step->load('users', 'procedure');
+                    $this->notifications->notifyStepAssigned($step, auth()->user());
                 }
             }
-        } else {
-            $step->save();
         }
 
         return redirect()->back()->with([
@@ -533,16 +316,10 @@ class ProcedureController extends Controller
             abort(403, 'Keine Berechtigung Schritte zu bearbeiten.');
         }
 
-        $positions = Cache::remember('positions', 60 * 60, function () {
-            return Positions::all();
-        });
-
-        $procedure = $step->procedure()->with('steps')->first();
-
         return view('procedure.editStep', [
-            'step'=>$step,
-            'procedure'=>$procedure,
-            'positions'=>$positions,
+            'step'      => $step,
+            'procedure' => $step->procedure()->with('steps')->first(),
+            'positions' => $this->positions(),
         ]);
     }
 
@@ -556,57 +333,51 @@ class ProcedureController extends Controller
             ]);
         }
 
+        $data = $request->validated();
+
+        if (!empty($data['parent']) && $this->stepService->isDescendant($step, (int) $data['parent'])) {
+            return redirect()->back()->withInput()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Ein Schritt kann nicht auf sich selbst oder einen seiner Nachfolger folgen.',
+            ]);
+        }
+
         $oldPositionId = $step->position_id;
-        $step->update($request->validated());
+        $step->update($data);
+
+        $positionChanged = (int) $step->position_id !== (int) $oldPositionId;
+        $procedure = $step->procedure;
 
         // Positions-Änderung im Verlauf festhalten
-        if ($request->position_id != $oldPositionId) {
-            \App\Models\ProcedureStepHistory::logPositionChanged(
+        if ($positionChanged) {
+            ProcedureStepHistory::logPositionChanged(
                 $step->id,
-                $oldPositionId ? \App\Models\Positions::find($oldPositionId) : null,
+                $oldPositionId ? Positions::find($oldPositionId) : null,
                 $step->position,
                 auth()->id()
             );
         }
 
-        $procedure = $step->fresh()->procedure;
-
         // Bei laufenden Prozessen: Zuweisungen bei Positionswechsel aktualisieren
-        if ($procedure->started_at !== null && $request->position_id != $oldPositionId) {
-            // Alte Zuweisungen entfernen und neue Position eintragen
+        if (!$procedure->isTemplate() && $positionChanged) {
             $step->users()->detach();
 
-            $position = \App\Models\Positions::find($step->position_id);
-            if ($position) {
-                $users = $position->users;
-                if ($users->isNotEmpty()) {
-                    $step->users()->attach($users);
-                    foreach ($users as $user) {
-                        try {
-                            Mail::to($user)->queue(new newStepMail(
-                                $user->name,
-                                $step->endDate ? $step->endDate->format('d.m.Y') : '–',
-                                $step->name,
-                                $procedure->name,
-                                $procedure->id
-                            ));
-                        } catch (\Exception $e) {
-                            Log::warning('Prozesse: E-Mail konnte nicht gesendet werden', ['user' => $user->id, 'error' => $e->getMessage()]);
-                        }
-                    }
+            $users = $step->position?->users ?? collect();
+            if ($users->isNotEmpty()) {
+                $step->users()->attach($users->pluck('id')->all());
+
+                // Nur benachrichtigen, wenn der Schritt bereits aktiv (fällig) ist.
+                if (!$step->done && $step->endDate) {
+                    $step->load('users', 'procedure');
+                    $this->notifications->notifyStepAssigned($step, auth()->user());
                 }
             }
         }
 
         // Weiterleitung: bei laufenden Prozessen zur Prozessansicht, sonst zur Vorlage
-        if ($procedure->started_at !== null) {
-            return redirect(url('procedure/'.$procedure->id.'/start'))->with([
-                'type' => 'success',
-                'Meldung' => 'Schritt gespeichert.',
-            ]);
-        }
+        $target = $procedure->isTemplate() ? '/edit' : '/start';
 
-        return redirect(url('procedure/'.$step->procedure_id.'/edit'))->with([
+        return redirect(url('procedure/'.$procedure->id.$target))->with([
             'type' => 'success',
             'Meldung' => 'Schritt gespeichert.',
         ]);
@@ -614,13 +385,6 @@ class ProcedureController extends Controller
 
     public function done(Procedure_Step $step)
     {
-        if (!auth()->check()) {
-            return redirect()->back()->with([
-                'type' => 'danger',
-                'Meldung' => 'Keine Berechtigung.'
-            ]);
-        }
-
         $currentUser = auth()->user();
 
         // Prüfe ob Nutzer die Permission zum Abschließen hat
@@ -632,59 +396,36 @@ class ProcedureController extends Controller
         }
 
         // Normale Nutzer dürfen nur ihre eigenen zugewiesenen Schritte abschließen
-        $isAssigned = $step->users->contains('id', $currentUser->id);
-        if (!$currentUser->can('manage procedures') && !$isAssigned) {
+        if (!$currentUser->can('complete', $step)) {
             return redirect()->back()->with([
                 'type' => 'danger',
                 'Meldung' => 'Sie können nur Ihre eigenen zugewiesenen Schritte abschließen.'
             ]);
         }
 
-        $step->update([
-            'done'         => 1,
-            'completed_at' => Carbon::now(),
-            'completed_by' => $currentUser->id,
-        ]);
-
-        // Event auslösen (Personal-Modul Hooks etc.)
-        if (class_exists(\App\Events\Personal\ProcedureStepCompleted::class)) {
-            event(new \App\Events\Personal\ProcedureStepCompleted(
-                $step->procedure_id,
-                $step->id,
-                $currentUser->id
-            ));
+        if ($step->procedure === null || $step->procedure->isTemplate() || $step->procedure->ended_at !== null) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Schritte können nur in laufenden Prozessen erledigt werden.'
+            ]);
         }
 
-        if (count(Procedure_Step::where('procedure_id', $step->procedure_id)->where('done', 0)->get()) < 1) {
-            $step->procedure->update([
-               'ended_at'   => Carbon::now(),
+        if ($step->done) {
+            return redirect()->back()->with([
+                'type' => 'info',
+                'Meldung' => 'Schritt ist bereits erledigt.'
             ]);
+        }
 
+        if ($this->stepService->complete($step, $currentUser)) {
             return redirect(url('procedure'))->with([
-                'type'=> 'Success',
+                'type'=> 'success',
                 'Meldung' => 'Prozess vollständig abgeschlossen',
             ]);
         }
 
-        foreach ($step->childs as $child) {
-            if (!$child->users->contains('id', auth()->id())) {
-                foreach ($child->users as $user) {
-                    Mail::to($user)->send(new newStepMail(
-                        $user->name,
-                        Carbon::now()->addDays($child->durationDays)->format('d.m.Y'),
-                        $child->name,
-                        $child->procedure->name,
-                        $step->procedure->id));
-                }
-            }
-
-            $child->update([
-               'endDate' => Carbon::now()->addDays($child->durationDays),
-            ]);
-        }
-
         return redirect()->back()->with([
-            'type'=> 'Success',
+            'type'=> 'success',
             'Meldung' => 'Schritt erledigt und nachfolgende Verantwortliche informiert',
         ]);
     }
@@ -699,9 +440,12 @@ class ProcedureController extends Controller
             ]);
         }
 
-        $step->users()->detach($user);
+        $this->stepService->removeUser($step, $user, auth()->user());
 
-        return redirect()->back();
+        return redirect()->back()->with([
+            'type' => 'success',
+            'Meldung' => 'Benutzer entfernt.'
+        ]);
     }
 
     public function addUser(Request $request)
@@ -715,35 +459,25 @@ class ProcedureController extends Controller
         }
 
         $data = $request->validate([
-            'step' => 'required|integer',
-            'person_id' => 'required|integer'
+            'step' => 'required|integer|exists:procedure_steps,id',
+            'person_id' => 'required|integer|exists:users,id'
         ]);
 
-        $step = Procedure_Step::find($data['step']);
-        if (!$step) {
-            return redirect()->back()->with([
-                'type' => 'danger',
-                'Meldung' => 'Schritt nicht gefunden.'
-            ]);
-        }
+        $step = Procedure_Step::findOrFail($data['step']);
 
-        $user = User::find($data['person_id']);
-        if (!$user) {
-            return redirect()->back()->with([
-                'type' => 'danger',
-                'Meldung' => 'Benutzer nicht gefunden.'
-            ]);
-        }
-
-        // Verhindere doppelte Zuweisung
-        if ($step->users->contains('id', $user->id)) {
+        if ($this->stepService->assignUsers($step, [(int) $data['person_id']], auth()->user()) === 0) {
             return redirect()->back()->with([
                 'type' => 'info',
                 'Meldung' => 'Benutzer ist bereits zugewiesen.'
             ]);
         }
 
-        $step->users()->attach($user->id);
+        // Neu zugewiesene Person informieren, wenn der Schritt bereits fällig ist
+        if (!$step->done && $step->endDate && !$step->procedure->isTemplate()) {
+            $step->setRelation('users', User::whereKey($data['person_id'])->get());
+            $step->load('procedure');
+            $this->notifications->notifyStepAssigned($step, auth()->user());
+        }
 
         return redirect()->back()->with([
             'type' => 'success',
@@ -751,71 +485,16 @@ class ProcedureController extends Controller
         ]);
     }
 
+    /**
+     * Scheduler (werktags): Sammel-Erinnerung an alle Personen mit fälligen Schritten.
+     */
     public function remindStepMail(): void
     {
-        $usersWithPendingSteps = $this->getUsersWithPendingSteps();
-
-        foreach ($usersWithPendingSteps as $user) {
-            if (!$user->hasAbsence(Carbon::now())) {
-                $pendingSteps = $this->formatPendingSteps($user);
-                $this->sendReminderEmail($user, $pendingSteps);
-            }
-        }
+        $this->notifications->sendDueReminders();
     }
 
-    private function getUsersWithPendingSteps(): Collection
+    public function endProcedure(Request $request, Procedure $procedure)
     {
-        return User::whereHas('steps', function (Builder $query) {
-            $query->where('endDate', '<=', Carbon::now())
-                ->where('done', 0);
-        })->get();
-    }
-
-    private function formatPendingSteps(User $user): array
-    {
-        $steps = $user->steps()
-            ->with('procedure')
-            ->where('endDate', '<=', Carbon::now())
-            ->where('done', 0)
-            ->get();
-
-        return $steps->map(function ($step) {
-            return [
-                'endDate' => $step->endDate->format('d.m.Y'),
-                'procedureName' => $step->procedure->name,
-                'procedureId' => $step->procedure_id,
-                'stepName' => $step->name,
-                'stepId' => $step->id
-            ];
-        })->toArray();
-    }
-
-    private function sendReminderEmail(User $user, array $pendingSteps): void
-    {
-        Log::debug('Prozesse: Erinnerungsemail senden', ['user' => $user, 'pendingSteps' => $pendingSteps]);;
-        Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
-    }
-
-    // Public wrapper so the reminder can be triggered for a single user from CLI (Artisan) or elsewhere.
-    public function sendReminderEmailForUser(User $user): void
-    {
-        // If the user is currently absent, do not send a reminder.
-        if (method_exists($user, 'hasAbsence') && $user->hasAbsence(Carbon::now())) {
-            Log::info('Prozesse: Erinnerung nicht gesendet, Benutzer abwesend', ['user' => $user->id]);
-            return;
-        }
-
-        $pendingSteps = $this->formatPendingSteps($user);
-
-        if (empty($pendingSteps)) {
-            Log::info('Prozesse: Keine ausstehenden Schritte für Benutzer', ['user' => $user->id]);
-            return;
-        }
-
-        $this->sendReminderEmail($user, $pendingSteps);
-    }
-
-    public function endProcedure(Procedure $procedure){
         // Nur Admins können Prozesse beenden
         if (!auth()->user()->can('manage procedures')) {
             return redirect()->back()->with([
@@ -824,14 +503,20 @@ class ProcedureController extends Controller
             ]);
         }
 
-        $procedure->steps()->where('done', '=',0)->update(['done' => 1]);
-        $procedure->update([
-            'ended_at' => Carbon::now()
-        ]);
+        if ($procedure->isTemplate() || $procedure->ended_at !== null) {
+            return redirect()->back()->with([
+                'type'    => 'danger',
+                'Meldung' => 'Nur laufende Prozesse können beendet werden.',
+            ]);
+        }
 
-        return redirect()->back()->with([
+        $validated = $request->validate(['reason' => 'nullable|string|max:255']);
+
+        $this->procedureService->endProcedure($procedure, $validated['reason'] ?? null);
+
+        return redirect(url('procedure'))->with([
             'type' => 'warning',
-            'Meldung' => 'Prozess'. $procedure->name.' wurde beendet'
+            'Meldung' => 'Prozess "'.$procedure->name.'" wurde beendet.'
         ]);
     }
 
@@ -847,11 +532,15 @@ class ProcedureController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:5000',
         ]);
 
-        // Update durchführen
         $procedure->update($validated);
+
+        // Vorlagen-Datensatz (procedure_templates) synchron halten
+        if ($procedure->isTemplate() && $procedure->template_id) {
+            ProcedureTemplate::whereKey($procedure->template_id)->update($validated);
+        }
 
         return redirect()->back()->with([
             'type' => 'success',

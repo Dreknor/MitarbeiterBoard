@@ -54,6 +54,38 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        if ($request->is('api/v1/*')) {
+            $apiResponse = $this->renderApiV1Exception($exception);
+            if ($apiResponse) {
+                return $apiResponse;
+            }
+        }
+
         return parent::render($request, $exception);
+    }
+
+    /**
+     * API v1: Einheitliche, deutschsprachige Fehlermeldungen ohne interne Klassennamen.
+     */
+    protected function renderApiV1Exception(Throwable $exception): ?\Illuminate\Http\JsonResponse
+    {
+        if ($exception instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return response()->json(['message' => 'Die angeforderte Ressource wurde nicht gefunden.'], 404);
+        }
+
+        if ($exception instanceof \Illuminate\Auth\Access\AuthorizationException
+            || $exception instanceof \Spatie\Permission\Exceptions\UnauthorizedException) {
+            return response()->json(['message' => 'Keine Berechtigung für diese Aktion.'], 403);
+        }
+
+        if ($exception instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException) {
+            return response()->json(['message' => $exception->getMessage() ?: 'Keine Berechtigung für diese Aktion.'], 403);
+        }
+
+        if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
+            return response()->json(['message' => 'Nicht authentifiziert.'], 401);
+        }
+
+        return null;
     }
 }

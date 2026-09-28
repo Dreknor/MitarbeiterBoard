@@ -89,6 +89,12 @@ class MailController extends Controller
                     $tasks = $tasks->push($group_task->task);
                 }
 
+                // Keine doppelten oder bereits erledigten (null) Aufgaben erinnern
+                $tasks = $tasks->filter()->unique('id')->values();
+                if ($tasks->isEmpty()) {
+                    continue;
+                }
+
 
 
                 Mail::to($user)->queue(new remindTaskMail($user->name, $tasks));

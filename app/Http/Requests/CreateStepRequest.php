@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateStepRequest extends FormRequest
 {
@@ -24,7 +25,8 @@ class CreateStepRequest extends FormRequest
     public function rules()
     {
         return [
-            'parent' => 'nullable|exists:procedure_steps,id',
+            // Vorgänger muss zum selben Prozess gehören
+            'parent' => ['nullable', Rule::exists('procedure_steps', 'id')->where('procedure_id', $this->route('procedure')?->id)],
             'position_id' => 'required|exists:positions,id',
             'name'=>    'required|string|max:60',
             'description'=>'string|nullable',

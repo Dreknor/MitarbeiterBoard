@@ -33,7 +33,13 @@ class TicketFactory extends Factory
     /** Geschlossenes Ticket */
     public function closed(): static
     {
-        return $this->state(fn () => ['status' => 'closed']);
+        return $this->state(fn () => ['status' => 'closed', 'closed_at' => now()]);
+    }
+
+    /** Wartet auf Rückmeldung bis zum angegebenen Zeitpunkt */
+    public function waiting($until = null): static
+    {
+        return $this->state(fn () => ['status' => 'waiting', 'waiting_until' => $until ?? now()->addWeek()]);
     }
 }
 

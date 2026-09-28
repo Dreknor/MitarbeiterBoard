@@ -11,7 +11,7 @@ class createTicketCategoryRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('edit tickets');
+        return $this->user()->can('edit tickets');
     }
 
     /**
@@ -22,7 +22,12 @@ class createTicketCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:ticket_categories',
+            'name' => 'required|string|max:255|unique:ticket_categories,name',
         ];
+    }
+
+    public function attributes(): array
+    {
+        return ['name' => 'Name'];
     }
 }

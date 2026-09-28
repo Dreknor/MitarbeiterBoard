@@ -17,14 +17,16 @@ class newTaskMail extends Mailable
     public $name;
     public $group;
     public $groupname;
+    public $url;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($name, $date, $task, $theme, $group, $groupname)
+    public function __construct($name, $date, $task, $theme, $group, $groupname, $url = null)
     {
+        $this->url = $url;
         $this->name = $name;
         $this->date = $date;
         $this->task = $task;
@@ -47,6 +49,7 @@ class newTaskMail extends Mailable
             'theme' =>$this->theme,
             'group' =>$this->group,
             'groupname' =>$this->groupname,
+            'url' => $this->url,
         ]);
     }
 }

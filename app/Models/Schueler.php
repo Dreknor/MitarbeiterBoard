@@ -72,4 +72,56 @@ class Schueler extends Model
     {
         return $this->hasMany(\App\Models\PaedDiaryGoal::class, 'schueler_id')->orderByDesc('created_at');
     }
+
+    // ── API v1 (Pädagogen-App) ───────────────────────────────────────────
+
+    /** Tagebucheinträge (Pivot paed_diary_entry_schueler) */
+    public function paedDiaryEntries()
+    {
+        return $this->belongsToMany(\App\Models\PaedDiaryEntry::class, 'paed_diary_entry_schueler');
+    }
+
+    /** Diagnosesitzungen */
+    public function diagnosticSessions()
+    {
+        return $this->hasMany(\App\Models\DiagnosticSession::class, 'schueler_id');
+    }
+
+    /** Individuelle Entwicklungsziele (Diagnose) */
+    public function developmentGoals()
+    {
+        return $this->hasMany(\App\Models\DiagnosticDevelopmentGoal::class, 'schueler_id');
+    }
+
+    /** Individuelle Graduierungs-Sessions */
+    public function gradingDocumentationSessions()
+    {
+        return $this->hasMany(\App\Models\GradingDocumentationSession::class, 'schueler_id');
+    }
+
+    /**
+     * Scope: Schüler einer Klasse.
+     */
+    public function scopeForClass($query, int $classId)
+    {
+        return $query->where($this->qualifyColumn('klasse_id'), $classId);
+    }
+
+    /**
+     * Scope: Schüler aus den Klassen, denen die Lehrkraft (klasse_user) zugeordnet ist.
+     */
+    public function scopeForTeacher($query, int $teacherId)
+    {
+        return $query->whereIn($this->qualifyColumn('klasse_id'), function ($sub) use ($teacherId) {
+            $sub->select('klasse_id')->from('klasse_user')->where('user_id', $teacherId);
+        });
+    }
+
+    /**
+     * Scope: Für den Benutzer sichtbare Schüler (alle bei klassenübergreifenden Rechten).
+     */
+    public function scopeVisibleFor($query, User $user)
+    {
+        return $user->canAccessAllStudents() ? $query : $query->forTeacher($user->id);
+    }
 }

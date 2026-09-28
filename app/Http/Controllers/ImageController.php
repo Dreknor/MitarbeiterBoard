@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Theme;
+use App\Models\Ticket;
+use App\Models\TicketComment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -19,6 +21,17 @@ class ImageController extends Controller
 
     public function getImage(Media $media_id)
     {
+        // Ticket-Anhänge nur über die Ticket-Route mit Berechtigungsprüfung ausliefern
+        if (in_array($media_id->model_type, [Ticket::class, TicketComment::class], true)) {
+            $ticket = $media_id->model_type === Ticket::class
+                ? $media_id->model
+                : $media_id->model?->ticket;
+
+            abort_unless(auth()->check() && $ticket, 404);
+
+            return redirect()->route('tickets.files', [$ticket, $media_id]);
+        }
+
         // Eingeloggte Nutzer dürfen immer; sonst nur wenn öffentlich geteilt.
         // optional() verhindert Fatal Error wenn model null ist.
         if (auth()->check() || optional($media_id->model)->share !== null) {

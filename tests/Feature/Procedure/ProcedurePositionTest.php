@@ -19,18 +19,31 @@ class ProcedurePositionTest extends TestCase
     {
         $this->actingAsWithPermission('manage procedures');
 
-        $response = $this->get('/procedure/positions');
-
-        $response->assertStatus(200);
+        // Phase 4: Positionen sind ein Tab der Übersicht
+        $this->get('/procedure/positions')->assertRedirect(url('procedure') . '#automation');
+        $this->get('/procedure')->assertOk();
     }
 
     public function test_nutzer_ohne_manage_wird_abgewiesen(): void
     {
         $this->actingAsWithPermission('view assigned procedures');
+        $position = Positions::factory()->create();
+        $user     = User::factory()->create();
 
-        $response = $this->get('/procedure/positions');
+        $response = $this->post("/procedure/positions/{$position->id}/add", ['person_id' => $user->id]);
 
         $response->assertStatus(403);
+        $this->assertDatabaseMissing('position_user', ['position_id' => $position->id, 'user_id' => $user->id]);
+    }
+
+    public function test_person_zuweisen_ohne_auswahl_schlaegt_fehl(): void
+    {
+        $this->actingAsWithPermission('manage procedures');
+        $position = Positions::factory()->create();
+
+        $response = $this->post("/procedure/positions/{$position->id}/add", ['person_id' => '']);
+
+        $response->assertSessionHasErrors(['person_id']);
     }
 
     // ─── Position anlegen ────────────────────────────────────────────────────
@@ -102,7 +115,7 @@ class ProcedurePositionTest extends TestCase
         $user     = User::factory()->create();
         $position->users()->attach($user->id);
 
-        $response = $this->get("/procedure/positions/{$position->id}/remove/{$user->id}");
+        $response = $this->delete("/procedure/positions/{$position->id}/remove/{$user->id}");
 
         $response->assertRedirect();
         $this->assertDatabaseMissing('position_user', [

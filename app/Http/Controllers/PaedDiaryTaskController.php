@@ -6,7 +6,7 @@ use App\Http\Controllers\Traits\PaedDiaryHelperTrait;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\PaedDiaryTask;
 use App\Models\Schueler;
-use Carbon\Carbon;
+use App\Services\PaedDiaryTaskService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -51,11 +51,9 @@ class PaedDiaryTaskController extends Controller
                     ? Schueler::whereIn('id', $schuelerIds)->where('klasse_id', $klasse->id)->pluck('id')->all()
                     : Schueler::where('klasse_id', $klasse->id)->pluck('id')->all();
                 if (empty($ids)) continue;
-                foreach ($ids as $sid) {
-                    $task      = PaedDiaryTask::create(['klasse_id' => $klasse->id, 'schueler_id' => $sid, 'title' => $data['title'], 'description' => $data['description'] ?? null, 'due_date' => $data['due_date'] ?? null, 'status' => 'open', 'highlighted' => $highlighted, 'created_by' => $user->id]);
-                    $created[] = ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id];
+                foreach ($this->tasks()->createForStudents($klasse->id, $ids, $data, $user->id, $highlighted) as $task) {
+                    $created[] = $this->brief($task);
                 }
-                $this->forgetWeekCache($klasse->id, Carbon::now());
             }
             return response()->json(['success' => true, 'tasks' => $created]);
         }
@@ -66,11 +64,9 @@ class PaedDiaryTaskController extends Controller
                 ? Schueler::whereIn('id', $schuelerIds)->where('klasse_id', $klasse->id)->pluck('id')->all()
                 : Schueler::where('klasse_id', $klasse->id)->pluck('id')->all();
             if (empty($ids)) return response()->json(['message' => 'Keine gültigen Schüler'], 422);
-            foreach ($ids as $sid) {
-                $task      = PaedDiaryTask::create(['klasse_id' => $klasse->id, 'schueler_id' => $sid, 'title' => $data['title'], 'description' => $data['description'] ?? null, 'due_date' => $data['due_date'] ?? null, 'status' => 'open', 'highlighted' => $highlighted, 'created_by' => $user->id]);
-                $created[] = ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id];
+            foreach ($this->tasks()->createForStudents($klasse->id, $ids, $data, $user->id, $highlighted) as $task) {
+                $created[] = $this->brief($task);
             }
-            $this->forgetWeekCache($klasse->id, Carbon::now());
             return response()->json(['success' => true, 'tasks' => $created]);
         }
 
@@ -78,9 +74,9 @@ class PaedDiaryTaskController extends Controller
             $validSchueler = Schueler::whereIn('id', $schuelerIds)->get(['id', 'klasse_id'])->filter(fn ($s) => in_array($s->klasse_id, $allowedClassIds));
             if ($validSchueler->isEmpty()) return response()->json(['message' => 'Keine gültigen Schüler'], 422);
             foreach ($validSchueler as $s) {
-                $task      = PaedDiaryTask::create(['klasse_id' => $s->klasse_id, 'schueler_id' => $s->id, 'title' => $data['title'], 'description' => $data['description'] ?? null, 'due_date' => $data['due_date'] ?? null, 'status' => 'open', 'highlighted' => $highlighted, 'created_by' => $user->id]);
-                $created[] = ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id];
-                $this->forgetWeekCache($s->klasse_id, Carbon::now());
+                foreach ($this->tasks()->createForStudents((int) $s->klasse_id, [$s->id], $data, $user->id, $highlighted) as $task) {
+                    $created[] = $this->brief($task);
+                }
             }
             return response()->json(['success' => true, 'tasks' => $created]);
         }
@@ -91,8 +87,7 @@ class PaedDiaryTaskController extends Controller
     public function closeTask(PaedDiaryTask $task)
     {
         Auth::user()->paed_klassen()->where('klassen.id', $task->klasse_id)->firstOrFail();
-        $task->update(['status' => 'closed', 'highlighted' => false, 'closed_at' => now()]);
-        $this->forgetWeekCache($task->klasse_id, Carbon::now());
+        $this->tasks()->close($task);
         return response()->json(['success' => true]);
     }
 
@@ -105,9 +100,18 @@ class PaedDiaryTaskController extends Controller
             'due_date'    => ['nullable', 'date'],
             'highlighted' => ['nullable', 'boolean'],
         ]);
-        $task->update(['title' => $data['title'], 'description' => $data['description'] ?? null, 'due_date' => $data['due_date'] ?? null, 'highlighted' => $data['highlighted'] ?? $task->highlighted]);
-        $this->forgetWeekCache($task->klasse_id, Carbon::now());
+        $this->tasks()->update($task, $data);
         return response()->json(['success' => true, 'task' => ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'description' => $task->description, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id]]);
     }
-}
 
+    private function tasks(): PaedDiaryTaskService
+    {
+        return app(PaedDiaryTaskService::class);
+    }
+
+    /** Antwortformat wie bisher (ohne Beschreibung). */
+    private function brief(PaedDiaryTask $task): array
+    {
+        return ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id];
+    }
+}

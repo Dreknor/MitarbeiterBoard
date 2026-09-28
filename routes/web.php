@@ -195,14 +195,16 @@ Route::group([
                         Route::resource('categories', \App\Http\Controllers\Ticketsystem\TicketCategoryController::class)->middleware('permission:edit tickets')->only(['index', 'store', 'destroy']);
                         Route::post('comments/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketCommentController::class, 'store'])->name('tickets.comments.store');
                     });
-                    Route::get('import/tickets/group/{group}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'createTicketsFromThemes']);
+                    Route::get('import/tickets/group/{group}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'createTicketsFromThemes'])->middleware('permission:edit tickets');
                     Route::get('tickets/archiv', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'archived'])->name('tickets.archive');
                     Route::get('tickets/archiv/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'showClosedTicket'])->name('tickets.archiveTicket');
-                    Route::resource('tickets', \App\Http\Controllers\Ticketsystem\TicketController::class)->except('create', 'edit');
-                    Route::get('tickets/{ticket}/close', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'close'])->name('tickets.close');
-                    Route::get('tickets/{ticket}/assign/{user}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'assign'])->name('tickets.assign');
-                    /*Pin a Ticket*/
-                    Route::get('tickets/{ticket}/pin', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'pin'])->name('tickets.pin');
+                    Route::resource('tickets', \App\Http\Controllers\Ticketsystem\TicketController::class)->only('index', 'show', 'store', 'update');
+                    Route::post('tickets/{ticket}/close', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'close'])->name('tickets.close');
+                    Route::post('tickets/{ticket}/reopen', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'reopen'])->name('tickets.reopen');
+                    Route::get('tickets/{ticket}/files/{media}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'file'])->name('tickets.files');
+                    Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'assign'])->name('tickets.assign');
+                    /*Pin a Ticket (Umschalter)*/
+                    Route::post('tickets/{ticket}/pin', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'pin'])->name('tickets.pin');
                 });
 
 
@@ -608,6 +610,30 @@ Route::group([
                 Route::get('search', [SearchController::class, 'globalSearch']);
 
 
+                // Meetings gruppenübergreifend (Gruppen-Meetings + freie Besprechungen).
+                // Muss vor den {groupname}-Routen stehen, sonst greifen z. B. {groupname}/archive.
+                Route::prefix('meetings')->where(['meeting' => '[0-9]+', 'theme' => '[0-9]+', 'task' => '[0-9]+', 'protocol' => '[0-9]+'])->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'index'])->name('meetings.overview');
+                    Route::get('archive', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'archive'])->name('meetings.archive');
+                    Route::post('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'store'])->name('meetings.create');
+
+                    Route::get('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'show'])->name('meetings.show');
+                    Route::put('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'update'])->name('meetings.details.update');
+                    Route::delete('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroy'])->name('meetings.details.destroy');
+                    Route::post('{meeting}/cancel', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'cancel'])->name('meetings.details.cancel');
+                    Route::post('{meeting}/reactivate', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'reactivate'])->name('meetings.details.reactivate');
+                    Route::post('{meeting}/invite', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'invite'])->name('meetings.details.invite');
+                    Route::post('{meeting}/roles', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'storeTask'])->name('meetings.details.tasks.store');
+                    Route::delete('{meeting}/roles/{task}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroyTask'])->name('meetings.details.tasks.destroy');
+
+                    Route::post('{meeting}/agenda', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'store'])->name('meetings.agenda.store');
+                    Route::delete('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'remove'])->name('meetings.agenda.remove');
+                    Route::get('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'show'])->name('meetings.themes.show');
+                    Route::post('{meeting}/agenda/{theme}/protocols', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeProtocol'])->name('meetings.themes.protocols.store');
+                    Route::put('{meeting}/agenda/{theme}/protocols/{protocol}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'updateProtocol'])->name('meetings.themes.protocols.update');
+                    Route::post('{meeting}/agenda/{theme}/tasks', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeTask'])->name('meetings.themes.tasks.store');
+                });
+
                 //recurring Themes
                 Route::middleware('permission:manage recurring themes')->group(function () {
                     Route::resource('{groupname}/themes/recurring', RecurringThemeController::class)->except('show');
@@ -740,8 +766,9 @@ Route::group([
 
 
                 //Tasks
-                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
-                Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
+                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store'])->name('themes.tasks.store');
+                Route::get('tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+                Route::delete('theme-tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
                 //Push-Notification
                 Route::post('{groupname?}/push', [PushController::class, 'store']);
@@ -788,7 +815,6 @@ Route::group([
 
                     Route::post('/recurring', [RecurringProcedureController::class, 'store']);
                     Route::delete('/recurring/{recurringProcedure}', [RecurringProcedureController::class, 'destroy']);
-                    Route::get('/recurring/{recurringProcedure}/start/{redirect?}', [RecurringProcedureController::class, 'start']);
 
                     //Procedures
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
@@ -889,6 +915,7 @@ Route::group([
                     Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerView'])->name('paedDiary.schueler.view');
                     Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerData'])->name('paedDiary.schueler.data');
                     Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
+                    Route::get('paed-diary/schueler/{schueler}/dossier.pdf', [\App\Http\Controllers\PaedDiaryDossierController::class, 'pdf'])->name('paedDiary.schueler.dossier.pdf');
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class, 'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'updateEntry'])->name('paedDiary.entry.update');
                     Route::post('paed-diary/entry/{entry}/complete', [\App\Http\Controllers\PaedDiaryController::class, 'completeEntry'])->name('paedDiary.entry.complete');
@@ -1052,22 +1079,26 @@ Route::group([
                         });
 
                         // Legacy routes for backward compatibility (deprecated)
-                        Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
-                        Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
-                        Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
-                        Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
+                        // Sicherheitsfix: Diese Legacy-Routen waren nur mit "view diagnostics" geschützt,
+                        // obwohl sie Katalogdaten ändern. Jetzt – wie der Admin-Bereich – nur mit "manage diagnostics".
+                        Route::middleware(['permission:manage diagnostics'])->group(function () {
+                            Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
+                            Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
+                            Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
+                            Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
 
-                        // Stages
-                        Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
-                        Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
-                        Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
-                        Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
+                            // Stages
+                            Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
+                            Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
+                            Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
+                            Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
 
-                        // Goals
-                        Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
-                        Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
-                        Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
-                        Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                            // Goals
+                            Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
+                            Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
+                            Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
+                            Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                        });
                     });
                 });
 
@@ -1122,6 +1153,21 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
         Route::post('/termine', [\App\Http\Controllers\CalendarController::class, 'store'])
             ->name('calendar.store')
             ->middleware('throttle:calendar-write');
+        Route::get('/raum-verfuegbarkeit', [\App\Http\Controllers\CalendarController::class, 'raumVerfuegbarkeit'])
+            ->name('calendar.rooms.availability');
+
+        // ICS-Import (Vorschau mit Auswahl + Hinweisen, danach Import nach OX)
+        Route::middleware('permission:import calendar events|manage calendar')->prefix('import')->group(function () {
+            Route::post('/', [\App\Http\Controllers\CalendarImportController::class, 'vorschau'])
+                ->name('calendar.import.preview');
+            Route::get('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'show'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.show');
+            Route::post('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'store'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.store')
+                ->middleware('throttle:calendar-write');
+        });
     });
 
     // Bearbeiten/Löschen (edit calendar events)
@@ -1195,6 +1241,10 @@ Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])
         // Einwilligungen (Self-Service)
         Route::post('/einwilligungen/{type}/erteilen',   [App\Http\Controllers\Personal\ConsentController::class, 'grant'])  ->name('consents.grant');
         Route::post('/einwilligungen/{type}/widerrufen', [App\Http\Controllers\Personal\ConsentController::class, 'revoke']) ->name('consents.revoke');
+
+        // Pädagogen-App: eigene App-Geräte abmelden
+        Route::delete('/app-geraete/{token}', [App\Http\Controllers\PaedAppDeviceController::class, 'destroy'])
+            ->whereNumber('token')->name('app-devices.destroy');
 
         // Stundenzettel: Passwort-Bestätigung erforderlich
         Route::middleware('password.confirm')->group(function () {

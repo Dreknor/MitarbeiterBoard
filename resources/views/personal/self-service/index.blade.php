@@ -26,7 +26,7 @@
 
     {{-- Tab-Navigation --}}
     <div class="flex border-b border-gray-200 mb-6 overflow-x-auto">
-        @foreach([
+        @foreach(array_filter([
             ['key' => 'uebersicht',      'label' => 'Übersicht'],
             ['key' => 'vertraege',       'label' => 'Verträge'],
             ['key' => 'urlaub',          'label' => 'Urlaub & Abwesenheiten'],
@@ -34,7 +34,8 @@
             ['key' => 'qualifikationen', 'label' => 'Qualifikationen'],
             ['key' => 'gespraeche',      'label' => 'Gespräche'],
             ['key' => 'einwilligungen',  'label' => 'Einwilligungen'],
-        ] as $tab)
+            auth()->user()->can('view paed diary') ? ['key' => 'app', 'label' => 'Pädagogen-App'] : null,
+        ]) as $tab)
         <button @click="setTab('{{ $tab['key'] }}')"
                 :class="isActive('{{ $tab['key'] }}') ? 'personal-tab personal-tab-active' : 'personal-tab personal-tab-inactive'">
             {{ $tab['label'] }}
@@ -85,6 +86,13 @@
     <div x-show="isActive('einwilligungen')">
         @include('personal.self-service._tab_einwilligungen')
     </div>
+
+    {{-- Tab: Pädagogen-App (App verbinden, Meine App-Geräte) --}}
+    @can('view paed diary')
+    <div x-show="isActive('app')">
+        @include('personal.self-service._tab_app')
+    </div>
+    @endcan
 
 </div>
 @endsection

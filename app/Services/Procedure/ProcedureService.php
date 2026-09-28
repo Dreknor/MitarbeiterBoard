@@ -2,11 +2,14 @@
 
 namespace App\Services\Procedure;
 
+use App\Models\Positions;
 use App\Models\Procedure;
 use App\Models\Procedure_Step;
 use App\Models\ProcedureTemplate;
-use App\Models\ProcedureTemplateStep;
+use App\Models\RecurringProcedure;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,12 +60,16 @@ class ProcedureService
      * Repliziert alle Schritte rekursiv und versendet Benachrichtigungen.
      *
      * @param Procedure $template  Legacy-Vorlage (`procedures.started_at IS NULL`)
+     * @param int|null  $excludeUserId  Startende Person: Ist sie Inhaber der Position, übernimmt
+     *                                  sie den Schritt allein und erhält keine Mail.
+     * @param array<int, int[]> $selectedUsersByPosition  position_id => User-IDs; explizite Auswahl
+     *                                  bei Positionen mit mehreren Inhabern (hat Vorrang vor $excludeUserId).
      */
-    public function startFromTemplate(Procedure $template, array $params, ?int $authorId = null, ?int $excludeUserId = null): Procedure
+    public function startFromTemplate(Procedure $template, array $params, ?int $authorId = null, ?int $excludeUserId = null, array $selectedUsersByPosition = []): Procedure
     {
-        return DB::transaction(function () use ($template, $params, $authorId, $excludeUserId) {
+        return DB::transaction(function () use ($template, $params, $authorId, $excludeUserId, $selectedUsersByPosition) {
             /** @var Procedure $started */
-            $started = $template->replicate(['template_id']);
+            $started = $template->replicate(['template_id', 'ended_at', 'ended_reason']);
             $started->name        = $params['name'] ?? $template->name;
             $started->started_at  = $params['started_at'] ?? now();
             $started->ended_at    = null;
@@ -70,10 +77,16 @@ class ProcedureService
             $started->template_id = $template->template_id ?? optional($template->template)->id;
             $started->save();
 
-            $exclude = $excludeUserId ? \App\Models\User::find($excludeUserId) : null;
+            $exclude = $excludeUserId ? User::find($excludeUserId) : null;
 
-            foreach ($template->steps()->whereNull('parent')->get() as $rootStep) {
-                $this->replicateStepTree($rootStep, $started, null, $exclude);
+            $rootSteps = $template->steps()
+                ->whereNull('parent')
+                ->with('position.users')
+                ->orderBy('sort_order')->orderBy('id')
+                ->get();
+
+            foreach ($rootSteps as $rootStep) {
+                $this->replicateStepTree($rootStep, $started, null, $exclude, $selectedUsersByPosition);
             }
 
             return $started->fresh();
@@ -82,10 +95,10 @@ class ProcedureService
 
     /**
      * Repliziert einen Schritt (mit Kindern) in einen gestarteten Prozess.
-     * Setzt `endDate` korrekt für die erste Ebene, weist Position-Mitglieder zu
+     * Setzt `endDate` für die erste Ebene, weist Position-Mitglieder zu
      * und versendet die Mails.
      */
-    private function replicateStepTree(Procedure_Step $source, Procedure $target, ?int $parentId, ?\App\Models\User $exclude): Procedure_Step
+    private function replicateStepTree(Procedure_Step $source, Procedure $target, ?int $parentId, ?User $exclude, array $selectedUsersByPosition): Procedure_Step
     {
         $new = $source->replicate(['done', 'completed_at', 'completed_by', 'endDate']);
         $new->procedure_id     = $target->id;
@@ -104,24 +117,54 @@ class ProcedureService
         $new->save();
 
         if ($source->position) {
-            $users = $source->position->users;
-            if ($exclude && $users->contains('id', $exclude->id)) {
+            $selected = $selectedUsersByPosition[$source->position->id] ?? null;
+
+            if ($selected !== null) {
+                // Explizite Auswahl beim Start: genau diese Personen zuweisen.
+                $new->users()->attach(array_values(array_unique(array_map('intval', $selected))));
+                $notify = true;
+            } elseif ($exclude && $source->position->users->contains('id', $exclude->id)) {
+                // Startende Person hat die Position inne → übernimmt den Schritt selbst.
                 $new->users()->attach($exclude->id);
+                $notify = false;
             } else {
-                $new->users()->attach($users->pluck('id')->all());
-                if (!$parentId) {
-                    // Mails nur für Wurzelschritte – Kinder erhalten Mail erst beim Erledigen des Parents.
-                    $new->load('users', 'procedure');
-                    $this->notifications->notifyStepAssigned($new, $exclude);
-                }
+                $new->users()->attach($source->position->users->pluck('id')->all());
+                $notify = true;
+            }
+
+            // Mails nur für Wurzelschritte – Kinder erhalten Mail erst beim Erledigen des Parents.
+            if ($notify && !$parentId) {
+                $new->load('users', 'procedure');
+                $this->notifications->notifyStepAssigned($new, $exclude);
             }
         }
 
-        foreach ($source->childs as $child) {
-            $this->replicateStepTree($child, $target, $new->id, $exclude);
+        $children = $source->childs()->with('position.users')->orderBy('sort_order')->orderBy('id')->get();
+        foreach ($children as $child) {
+            $this->replicateStepTree($child, $target, $new->id, $exclude, $selectedUsersByPosition);
         }
 
         return $new;
+    }
+
+    /**
+     * Ermittelt die in den Schritten einer Vorlage verwendeten Positionen, denen mehr als
+     * eine Person zugeordnet ist. Für diese muss beim Start eine Auswahl getroffen werden.
+     */
+    public function multiUserPositions(Procedure $template): EloquentCollection
+    {
+        $positionIds = $template->steps()->whereNotNull('position_id')->distinct()->pluck('position_id');
+
+        if ($positionIds->isEmpty()) {
+            return new EloquentCollection();
+        }
+
+        return Positions::whereIn('id', $positionIds)
+            ->with('users')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Positions $position) => $position->users->count() > 1)
+            ->values();
     }
 
     /**
@@ -207,7 +250,8 @@ class ProcedureService
     }
 
     /**
-     * Löscht eine Vorlage (Legacy + neue Tabelle) per Soft-Delete.
+     * Löscht eine Vorlage (Legacy + neue Tabelle) per Soft-Delete und pausiert
+     * darauf basierende wiederkehrende Prozesse.
      */
     public function deleteTemplate(Procedure $template): void
     {
@@ -215,6 +259,8 @@ class ProcedureService
             if ($template->template_id) {
                 ProcedureTemplate::where('id', $template->template_id)->delete();
             }
+            // Wiederkehrende Auslösungen ohne Vorlage würden täglich fehlschlagen → pausieren.
+            RecurringProcedure::where('procedure_id', $template->id)->update(['active' => false]);
             $template->delete();
         });
     }

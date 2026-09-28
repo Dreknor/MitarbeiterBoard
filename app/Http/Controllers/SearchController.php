@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Group;
 use App\Models\Protocol;
+use App\Services\Search\GlobalSearchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -14,45 +15,16 @@ class SearchController extends Controller
     }
 
 
-    public function searchGlobal( Request $request){
-        // get the search term
-        $text = '%'.$request->input('text').'%';
-        $text_protocol = '*'.$request->input('text').'*';
+    /**
+     * Globale Suche (Nachrichten, Gruppen-Themen, Meetings, Meeting-Themen & Protokolle).
+     */
+    public function searchGlobal(Request $request, GlobalSearchService $search)
+    {
+        $request->validate(['text' => ['required', 'string', 'max:200']]);
 
-        $results['Nachrichten'] = auth()->user()->posts()
-            ->where('header', 'LIKE', $text)
-            ->orWhere('text', 'LIKE', $text)
-            ->get()->unique();
-
-        foreach (auth()->user()->groups_rel as $group){
-            $results[$group->name] = DB::table('themes')
-                ->where('group_id', $group->id)
-                ->where(function ($query) use ($text) {
-                    $query->where('theme', 'Like', $text)
-                        ->orWhere('goal', 'Like', $text)
-                        ->orWhere('information', 'Like', $text);
-                })
-                ->orderByDesc('date')
-                ->get();
-
-            // search the protocols table
-
-            $resultsProtocol = Protocol::whereHas('theme', function ($query) use ($group){
-                return $query->where('group_id', $group->id);
-            })
-                ->whereRaw('MATCH (protocol) AGAINST (? IN BOOLEAN MODE)', [$text_protocol])
-                ->get();
-
-            if ($resultsProtocol->count() > 0) {
-                foreach ($resultsProtocol as $protocol) {
-                    $themes[] = $protocol->theme;
-                }
-                $results['Protokolle_'.$group->name] = $themes;
-            }
-        }
-
-        // return the results
-        return response()->json($results);
+        return response()->json([
+            'sections' => $search->search(auth()->user(), (string) $request->input('text')),
+        ]);
     }
 
     public function search($groupname, Request $request)

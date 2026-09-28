@@ -18,7 +18,7 @@
                         &nbsp;·&nbsp;
                         <i class="fas fa-clock opacity-60 mr-1"></i>
                         <span class="{{ $ticket->waiting_until->isPast() ? 'text-red-600 font-medium' : '' }}">
-                            {{ $ticket->waiting_until->format('d.m.Y H:i') }}
+                            bis {{ $ticket->waiting_until->format('d.m.Y') }}
                         </span>
                     @endif
                 </div>

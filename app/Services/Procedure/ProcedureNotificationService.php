@@ -8,6 +8,7 @@ use App\Models\Procedure_Step;
 use App\Models\ProcedureStepComment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -73,6 +74,61 @@ class ProcedureNotificationService
             return;
         }
         Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
+    }
+
+    /**
+     * Täglicher Erinnerungslauf: Jede Person mit fälligen/überfälligen offenen Schritten
+     * in laufenden Prozessen erhält eine Sammelmail (Abwesende werden übersprungen).
+     *
+     * @return int Anzahl der erinnerten Personen.
+     */
+    public function sendDueReminders(): int
+    {
+        $sent = 0;
+
+        User::whereHas('steps', fn (Builder $q) => $this->dueStepsConstraint($q))
+            ->get()
+            ->each(function (User $user) use (&$sent) {
+                if ($user->hasAbsence(Carbon::now())) {
+                    return;
+                }
+                $pending = $this->pendingStepsFor($user);
+                if ($pending !== []) {
+                    $this->sendReminder($user, $pending);
+                    $sent++;
+                }
+            });
+
+        return $sent;
+    }
+
+    /**
+     * Fällige/überfällige offene Schritte einer Person, aufbereitet für die Erinnerungsmail.
+     * Schritte aus beendeten, gelöschten oder nicht gestarteten Prozessen werden ignoriert.
+     */
+    public function pendingStepsFor(User $user): array
+    {
+        return $user->steps()
+            ->with('procedure')
+            ->where(fn (Builder $q) => $this->dueStepsConstraint($q))
+            ->orderBy('endDate')
+            ->get()
+            ->map(fn (Procedure_Step $step) => [
+                'endDate'       => $step->endDate->format('d.m.Y'),
+                'procedureName' => $step->procedure->name,
+                'procedureId'   => $step->procedure_id,
+                'stepName'      => $step->name,
+                'stepId'        => $step->id,
+            ])
+            ->all();
+    }
+
+    private function dueStepsConstraint(Builder $query): Builder
+    {
+        return $query->where('done', false)
+            ->whereNotNull('endDate')
+            ->whereDate('endDate', '<=', Carbon::today())
+            ->whereHas('procedure', fn (Builder $p) => $p->laufend());
     }
 
     /**

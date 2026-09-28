@@ -16,6 +16,7 @@ use App\Models\OxTerminTeilnehmer;
  * @property int         $id
  * @property int         $ox_calendar_id
  * @property string      $ox_uid             iCal UID
+ * @property string|null $verbund_uid        Verknüpft Kopien desselben Termins in mehreren Kalendern
  * @property string|null $ox_etag
  * @property string|null $ox_href
  * @property string      $titel
@@ -44,6 +45,7 @@ class OxTermin extends Model
     protected $fillable = [
         'ox_calendar_id',
         'ox_uid',
+        'verbund_uid',
         'ox_etag',
         'ox_href',
         'titel',
@@ -95,5 +97,38 @@ class OxTermin extends Model
     public function teilnehmer(): HasMany
     {
         return $this->hasMany(OxTerminTeilnehmer::class, 'ox_termin_id');
+    }
+
+    /**
+     * Alle Kopien dieses Termins (inkl. sich selbst) über alle Kalender.
+     * Ohne verbund_uid besteht der Verbund nur aus dem Termin selbst.
+     */
+    public function verbund(): \Illuminate\Database\Eloquent\Collection
+    {
+        if (!$this->verbund_uid) {
+            return new \Illuminate\Database\Eloquent\Collection([$this]);
+        }
+
+        return static::query()
+            ->where('verbund_uid', $this->verbund_uid)
+            ->with('kalender')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Aktive Raumbuchung des Terminverbunds (falls vorhanden).
+     */
+    public function raumBuchung(): ?RoomBooking
+    {
+        if (!$this->verbund_uid) {
+            return null;
+        }
+
+        return RoomBooking::query()
+            ->where('ox_verbund_uid', $this->verbund_uid)
+            ->where('cancelled', false)
+            ->with('room')
+            ->first();
     }
 }

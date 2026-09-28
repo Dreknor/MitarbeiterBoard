@@ -38,7 +38,7 @@ class ProcedureReminderTest extends TestCase
         ]);
         $step->users()->attach($empfaenger->id);
 
-        $response = $this->get('/procedure/stepMail');
+        $this->runReminderSchedule();
 
         Mail::assertQueued(StepErinnerungMail::class, function ($mail) use ($empfaenger) {
             return $mail->hasTo($empfaenger->email);
@@ -63,7 +63,7 @@ class ProcedureReminderTest extends TestCase
         ]);
         $step->users()->attach($empfaenger->id);
 
-        $this->get('/procedure/stepMail');
+        $this->runReminderSchedule();
 
         Mail::assertNotQueued(StepErinnerungMail::class);
     }
@@ -86,7 +86,7 @@ class ProcedureReminderTest extends TestCase
         ]);
         $step->users()->attach($empfaenger->id);
 
-        $this->get('/procedure/stepMail');
+        $this->runReminderSchedule();
 
         Mail::assertNotQueued(StepErinnerungMail::class);
     }
@@ -179,6 +179,55 @@ class ProcedureReminderTest extends TestCase
 
         Mail::assertNotQueued(StepErinnerungMail::class);
     }
+
+    // ─── Regressionen ────────────────────────────────────────────────────────
+
+    public function test_remind_step_mail_ignoriert_schritte_geloeschter_und_beendeter_prozesse(): void
+    {
+        Mail::fake();
+
+        $empfaenger = User::factory()->create();
+
+        $geloescht = Procedure::factory()->gestartet()->create();
+        $beendet   = Procedure::factory()->abgeschlossen()->create();
+
+        foreach ([$geloescht, $beendet] as $prozess) {
+            $step = Procedure_Step::factory()->create([
+                'procedure_id' => $prozess->id,
+                'done'         => false,
+                'endDate'      => now()->subDays(2),
+            ]);
+            $step->users()->attach($empfaenger->id);
+        }
+        $geloescht->delete();
+
+        // Darf nicht an der fehlenden (soft-deleted) Prozess-Relation scheitern
+        $this->runReminderSchedule();
+
+        Mail::assertNotQueued(StepErinnerungMail::class);
+    }
+
+    public function test_remind_step_mail_erinnert_am_faelligkeitstag(): void
+    {
+        Mail::fake();
+
+        $empfaenger = User::factory()->create();
+        $prozess    = Procedure::factory()->gestartet()->create();
+        $step = Procedure_Step::factory()->create([
+            'procedure_id' => $prozess->id,
+            'done'         => false,
+            'endDate'      => today(),
+        ]);
+        $step->users()->attach($empfaenger->id);
+
+        $this->runReminderSchedule();
+
+        Mail::assertQueued(StepErinnerungMail::class, fn ($mail) => $mail->hasTo($empfaenger->email));
+    }
+
+    /** Ruft den Erinnerungslauf so auf, wie ihn der Scheduler (Console/Kernel) startet. */
+    private function runReminderSchedule(): void
+    {
+        $this->app->call('App\\Http\\Controllers\\ProcedureController@remindStepMail');
+    }
 }
-
-

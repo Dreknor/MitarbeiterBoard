@@ -1,11 +1,11 @@
 <div x-show="showIcalFeedModal"
      x-cloak
-     class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
+     class="cal-modal-backdrop"
      @click.self="showIcalFeedModal = false"
-     @keydown.escape.window="showIcalFeedModal = false">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+     @keydown.escape.window="showIcalFeedModal && (showIcalFeedModal = false)">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" @click.stop>
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">📡 iCal-Feed abonnieren</h2>
+            <h2 class="text-lg font-semibold text-gray-900">iCal-Feed abonnieren</h2>
             <button type="button"
                     @click="showIcalFeedModal = false"
                     class="text-gray-400 hover:text-gray-600">

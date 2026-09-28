@@ -11,6 +11,7 @@ use App\Models\GradingSystem;
 use App\Models\Klasse;
 use App\Models\Schueler;
 use App\Models\PaedDiaryClassGroup;
+use App\Services\GradingSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,45 +79,14 @@ class GradingDocumentationController extends Controller
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
         }
 
-        // Prüfen ob bereits eine offene Session für diese Klasse/Gruppe existiert
-        $existingSession = GradingDocumentationSession::where('user_id', $user->id)
-            ->where('klasse_id', $klasse->id)
-            ->where('type', 'group')
-            ->where('group_id', $request->group_id)
-            ->whereNull('completed_at')
-            ->first();
-
-        if ($existingSession) {
-            if ($existingSession->answer_order_mode !== $answerOrderMode) {
-                $existingSession->update([
-                    'answer_order_mode' => $answerOrderMode,
-                ]);
-                $existingSession->refresh();
-            }
-
-            // Bestehende Session fortsetzen
-            return response()->json([
-                'session' => $existingSession,
-                'redirect' => route('gradingDocumentation.groupSession', $existingSession->id),
-                'resumed' => true
-            ]);
-        }
-
-        // Neue Session erstellen
-        $session = GradingDocumentationSession::create([
-            'klasse_id' => $klasse->id,
-            'grading_system_id' => $klasse->grading_system_id,
-            'user_id' => $user->id,
-            'type' => 'group',
-            'answer_order_mode' => $answerOrderMode,
-            'group_id' => $request->group_id,
-            'started_at' => now(),
-        ]);
+        // Offene eigene Session für Klasse/Gruppe fortsetzen oder neu anlegen (gemeinsame Logik mit der API)
+        [$session, $resumed] = app(GradingSessionService::class)
+            ->startGroupSession($user, $klasse, $request->group_id, $answerOrderMode);
 
         return response()->json([
             'session' => $session,
             'redirect' => route('gradingDocumentation.groupSession', $session->id),
-            'resumed' => false
+            'resumed' => $resumed
         ]);
     }
 
@@ -340,45 +310,14 @@ class GradingDocumentationController extends Controller
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
         }
 
-        // Prüfen ob bereits eine offene Session für diesen Schüler existiert
-        $existingSession = GradingDocumentationSession::where('user_id', $user->id)
-            ->where('klasse_id', $klasse->id)
-            ->where('type', 'individual')
-            ->where('schueler_id', $request->schueler_id)
-            ->whereNull('completed_at')
-            ->first();
-
-        if ($existingSession) {
-            if ($existingSession->answer_order_mode !== GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT) {
-                $existingSession->update([
-                    'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
-                ]);
-                $existingSession->refresh();
-            }
-
-            // Bestehende Session fortsetzen
-            return response()->json([
-                'session' => $existingSession,
-                'redirect' => route('gradingDocumentation.individualSession', $existingSession->id),
-                'resumed' => true
-            ]);
-        }
-
-        // Neue Session erstellen
-        $session = GradingDocumentationSession::create([
-            'klasse_id' => $klasse->id,
-            'grading_system_id' => $klasse->grading_system_id,
-            'user_id' => $user->id,
-            'type' => 'individual',
-            'answer_order_mode' => GradingDocumentationSession::ANSWER_ORDER_BY_STUDENT,
-            'schueler_id' => $request->schueler_id,
-            'started_at' => now(),
-        ]);
+        // Offene eigene Session für den Schüler fortsetzen oder neu anlegen (gemeinsame Logik mit der API)
+        [$session, $resumed] = app(GradingSessionService::class)
+            ->startIndividualSession($user, $klasse, (int) $request->schueler_id);
 
         return response()->json([
             'session' => $session,
             'redirect' => route('gradingDocumentation.individualSession', $session->id),
-            'resumed' => false
+            'resumed' => $resumed
         ]);
     }
 
@@ -641,19 +580,11 @@ class GradingDocumentationController extends Controller
             'answer_order_mode' => 'required|in:' . implode(',', GradingDocumentationSession::ANSWER_ORDER_MODES),
         ]);
 
-        $answerOrderMode = GradingDocumentationSession::normalizeAnswerOrderMode($request->input('answer_order_mode'));
-
-        if (!$session->canUseAnswerOrderMode($answerOrderMode)) {
+        if (!app(GradingSessionService::class)->changeAnswerOrderMode($session, (string) $request->input('answer_order_mode'))) {
             return response()->json([
                 'message' => 'Für diese Session ist die gewählte Beantwortungsreihenfolge nicht verfügbar.'
             ], 422);
         }
-
-        $session->update([
-            'answer_order_mode' => $answerOrderMode,
-        ]);
-
-        $session->refresh();
 
         return response()->json([
             'message' => 'Die Beantwortungsreihenfolge wurde aktualisiert.',

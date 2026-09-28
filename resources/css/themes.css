@@ -10,6 +10,7 @@
 @import "tailwindcss/utilities" layer(utilities);
 
 @source "../views/themes/**/*.blade.php";
+@source "../views/tasks/partials/*.blade.php";
 
 [x-cloak] { display: none !important; }
 

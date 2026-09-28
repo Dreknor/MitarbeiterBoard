@@ -25,6 +25,7 @@ class GradingDocumentationSession extends Model
         'user_id',
         'type',
         'answer_order_mode',
+        'current_question_id',
         'group_id',
         'schueler_id',
         'started_at',
@@ -94,6 +95,20 @@ class GradingDocumentationSession extends Model
     public function coachingNotes()
     {
         return $this->hasMany(GradingCoachingNote::class, 'session_id');
+    }
+
+    /**
+     * Teilnehmende Schüler einer Gruppensession (nur über die API festgelegt).
+     * Ohne Einträge umfasst eine Gruppensession alle Schüler der Klasse (wie im Web).
+     */
+    public function participants()
+    {
+        return $this->hasMany(GradingSessionStudent::class, 'session_id');
+    }
+
+    public function joinCodes()
+    {
+        return $this->hasMany(GradingJoinCode::class, 'session_id');
     }
 
     public function isCompleted()

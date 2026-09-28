@@ -40,6 +40,13 @@
                         <span class="hidden sm:inline">Excel Export</span>
                         <span class="sm:hidden">Export</span>
                     </button>
+                    <button id="exportDossierPdfBtn"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium shadow-md"
+                            title="Dossier als PDF (gewählter Zeitraum)">
+                        <i class="fas fa-file-pdf"></i>
+                        <span class="hidden sm:inline">Dossier (PDF)</span>
+                        <span class="sm:hidden">PDF</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1937,6 +1944,14 @@
     // Event Listeners
     loadDataBtn.addEventListener('click', loadData);
     exportWordBtn.addEventListener('click', exportWord);
+
+    // Dossier als PDF (gleiche Aufbereitung wie in der Pädagogen-App)
+    document.getElementById('exportDossierPdfBtn').addEventListener('click', function () {
+        const params = new URLSearchParams();
+        if (dateFromInput.value) params.append('from_date', dateFromInput.value);
+        if (dateToInput.value) params.append('to_date', dateToInput.value);
+        window.open(`/paed-diary/schueler/${schuelerID}/dossier.pdf?${params}`, '_blank');
+    });
 
     last1WeekBtn.addEventListener('click', () => {
         setDateRange(7);

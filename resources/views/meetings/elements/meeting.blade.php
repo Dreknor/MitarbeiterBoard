@@ -16,19 +16,21 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="text-lg font-bold truncate">{{ $meeting->title }}</h3>
+                    <h3 class="text-lg font-bold truncate text-gray-900">
+                        <a href="{{ route('meetings.show', $meeting) }}" class="hover:underline">{{ $meeting->title }}</a>
+                    </h3>
                     @if($isCancelled)
-                        <span class="mtg-badge bg-white/20 text-white">Abgesagt</span>
+                        <span class="mtg-badge mtg-badge-red">Abgesagt</span>
                     @elseif($isToday)
-                        <span class="mtg-badge bg-white/20 text-white">Heute</span>
+                        <span class="mtg-badge mtg-badge-blue">Heute</span>
                     @endif
                 </div>
-                <div class="text-sm text-white/90 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span><i class="far fa-calendar-alt mr-1"></i>{{ $meeting->date->format('d.m.Y') }}</span>
-                    <span><i class="far fa-clock mr-1"></i>{{ $meeting->start_time }} – {{ $meeting->end_time }}</span>
+                <div class="mtg-meta mt-1">
+                    <span><i class="far fa-calendar-alt"></i>{{ $meeting->date->format('d.m.Y') }}</span>
+                    <span><i class="far fa-clock"></i>{{ $meeting->start_time }} – {{ $meeting->end_time }}</span>
                     @if($meeting->roomBooking && $meeting->roomBooking->room)
                         <span>
-                            <i class="fas fa-door-open mr-1"></i>
+                            <i class="fas fa-door-open"></i>
                             {{ $meeting->roomBooking->room->name }}
                             @if($meeting->roomBooking->room->room_number)
                                 (Nr. {{ $meeting->roomBooking->room->room_number }})
@@ -39,15 +41,19 @@
             </div>
 
             <div class="flex items-center gap-1.5 shrink-0">
+                <a href="{{ route('meetings.show', $meeting) }}"
+                   class="mtg-btn-icon mtg-icon-ghost" title="Detailseite öffnen">
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
                 <a href="{{ route('meetings.edit', ['group' => $group->name, 'meeting' => $meeting->id]) }}"
-                   class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Bearbeiten">
+                   class="mtg-btn-icon mtg-icon-ghost" title="Bearbeiten">
                     <i class="fas fa-pen"></i>
                 </a>
                 @if(! $isCancelled)
                     <form action="{{ route('meetings.cancel', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST"
                           onsubmit="return confirm('Meeting wirklich absagen?');">
                         @csrf
-                        <button type="submit" class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Absagen">
+                        <button type="submit" class="mtg-btn-icon mtg-icon-ghost" title="Absagen">
                             <i class="fas fa-ban"></i>
                         </button>
                     </form>
@@ -55,7 +61,7 @@
                     <form action="{{ route('meetings.reactivate', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST"
                           onsubmit="return confirm('Absage aufheben und Meeting wieder aktivieren?');">
                         @csrf
-                        <button type="submit" class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Wieder aktivieren">
+                        <button type="submit" class="mtg-btn-icon mtg-icon-ghost" title="Wieder aktivieren">
                             <i class="fas fa-undo"></i>
                         </button>
                     </form>
@@ -64,7 +70,7 @@
                       onsubmit="return confirm('Meeting endgültig löschen? Die zugeordneten Themen bleiben erhalten.');">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="mtg-btn-icon bg-white/15 hover:bg-white/25 text-white" title="Löschen">
+                    <button type="submit" class="mtg-btn-icon mtg-icon-ghost is-danger" title="Löschen">
                         <i class="fas fa-trash"></i>
                     </button>
                 </form>
@@ -82,10 +88,21 @@
             </div>
         @endif
 
-        @if($group->meeting_url)
+        @if($meeting->effectiveMeetingUrl())
             <p class="text-sm text-gray-600 mb-3">
                 <i class="fas fa-video mr-1 text-gray-400"></i>
-                <a href="{{ $group->meeting_url }}" target="_blank" class="text-blue-600 hover:underline break-all">{{ $group->meeting_url }}</a>
+                <a href="{{ $meeting->effectiveMeetingUrl() }}" target="_blank" class="text-blue-600 hover:underline break-all">{{ $meeting->effectiveMeetingUrl() }}</a>
+            </p>
+        @endif
+
+        @if($meeting->participantUsers->isNotEmpty() || $meeting->participantGroups->isNotEmpty() || $meeting->participantRoles->isNotEmpty())
+            <p class="text-sm text-gray-600 mb-3">
+                <i class="fas fa-user-plus mr-1 text-gray-400"></i>
+                Zusätzlich eingeladen:
+                {{ $meeting->participantUsers->pluck('name')
+                    ->concat($meeting->participantGroups->pluck('name'))
+                    ->concat($meeting->participantRoles->pluck('name'))
+                    ->implode(', ') }}
             </p>
         @endif
 
@@ -224,7 +241,7 @@
             <form action="{{ route('meetings.invite', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST">
                 @csrf
                 <div class="mtg-modal-body">
-                    <p class="text-sm text-gray-500 mb-3">Die Einladung wird an alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> versendet.</p>
+                    <p class="text-sm text-gray-500 mb-3">Die Einladung wird an alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> sowie an zusätzlich eingeladene Personen, Gruppen und Rollen versendet.</p>
                     <label class="mtg-label">Zusätzliche Nachricht (optional)</label>
                     <textarea name="message" class="mtg-textarea" rows="3" placeholder="Optionale Nachricht …"></textarea>
                 </div>

@@ -8,19 +8,21 @@ use App\Models\Group;
 use App\Models\Meeting;
 use App\Models\MeetingTask;
 use App\Models\Room;
-use App\Models\RoomBooking;
 use App\Models\Theme;
 use App\Services\Meetings\CreateMeetingWithRoomBookingAction;
+use App\Services\Meetings\MeetingService;
 use App\Services\Meetings\UpdateMeetingWithRoomBookingAction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MeetingController extends Controller
 {
+    public function __construct(private readonly MeetingService $meetings)
+    {
+    }
+
     /**
      * Prüft, ob ein Meeting gerade läuft (heute + innerhalb des Zeitfensters und nicht abgesagt).
      */
@@ -69,12 +71,12 @@ class MeetingController extends Controller
         $today         = now()->toDateString();
         $meetingsToday = Meeting::where('date', $today)
             ->where('group_id', $group->id)
-            ->with(['themes', 'roomBooking.room', 'meetingTasks.user', 'invitationSender'])
+            ->with(['themes', 'roomBooking.room', 'meetingTasks.user', 'invitationSender', 'participantUsers', 'participantGroups', 'participantRoles'])
             ->get();
         $otherMeetings = Meeting::query()
             ->where('group_id', $group->id)
             ->where('date', '>', $today)
-            ->with(['roomBooking.room', 'meetingTasks.user', 'invitationSender'])
+            ->with(['themes', 'roomBooking.room', 'meetingTasks.user', 'invitationSender', 'participantUsers', 'participantGroups', 'participantRoles'])
             ->upcoming()
             ->get();
 
@@ -194,15 +196,14 @@ class MeetingController extends Controller
             return $denied;
         }
 
-        // Verknüpfung zu Themen lösen (die Themen selbst bleiben erhalten)
-        $meeting->themes()->detach();
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
+        }
 
-        RoomBooking::query()
-            ->where('meeting_id', $meeting->id)
-            ->where('cancelled', false)
-            ->update(['cancelled' => true]);
-
-        $meeting->delete();
+        $this->meetings->delete($meeting);
 
         return redirect()->route('meetings.index', ['group' => $group->name])->with([
             'type'    => 'success',
@@ -232,11 +233,7 @@ class MeetingController extends Controller
             ]);
 
             $theme = Theme::findOrFail((int) $request->input('existing_theme_id'));
-
-            if (! $meeting->themes()->where('theme_id', $theme->id)->exists()) {
-                $meeting->themes()->attach($theme->id);
-                $theme->update(['date' => $meeting->date]);
-            }
+            $this->meetings->attachTheme($meeting, $theme);
         }
         // Neues Thema anlegen
         else {
@@ -285,22 +282,7 @@ class MeetingController extends Controller
             ]);
         }
 
-        $meeting->update([
-            'cancelled'    => true,
-            'cancelled_by' => auth()->id(),
-            'cancelled_at' => now(),
-        ]);
-
-        RoomBooking::query()
-            ->where('meeting_id', $meeting->id)
-            ->where('cancelled', false)
-            ->update(['cancelled' => true]);
-
-        Log::info('Meeting abgesagt und Raumbuchung freigegeben', [
-            'meeting_id' => $meeting->id,
-            'group_id'   => $group->id,
-            'user_id'    => auth()->id(),
-        ]);
+        $this->meetings->cancel($meeting, auth()->user());
 
         return redirect()->route('meetings.index', ['group' => $groupname])->with([
             'type'    => 'success',
@@ -325,11 +307,7 @@ class MeetingController extends Controller
             ]);
         }
 
-        $meeting->update([
-            'cancelled'    => false,
-            'cancelled_by' => null,
-            'cancelled_at' => null,
-        ]);
+        $this->meetings->reactivate($meeting);
 
         return redirect()->back()->with([
             'type'    => 'success',
@@ -347,6 +325,13 @@ class MeetingController extends Controller
             return $denied;
         }
 
+        if ((int) $meeting->group_id !== (int) $group->id) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Meeting gehört nicht zur ausgewählten Gruppe',
+            ]);
+        }
+
         $meeting->themes()->detach($themeId);
 
         return redirect()->back()->with([
@@ -356,7 +341,7 @@ class MeetingController extends Controller
     }
 
     /**
-     * Versendet Einladungen an alle User der Gruppe für ein Meeting
+     * Versendet Einladungen an alle Teilnehmenden (Gruppenmitglieder und zusätzlich Eingeladene).
      */
     public function sendInvitation(Request $request, $groupname, $meetingId)
     {
@@ -365,68 +350,10 @@ class MeetingController extends Controller
             return $denied;
         }
 
-        $meeting = Meeting::with(['themes', 'roomBooking.room'])->where('group_id', $group->id)->findOrFail($meetingId);
-        $message = $request->input('message');
-        $users   = $group->users;
+        $meeting = Meeting::where('group_id', $group->id)->findOrFail($meetingId);
+        $result  = $this->meetings->sendInvitations($meeting, $request->input('message'), auth()->user());
 
-        $gesendet   = 0;
-        $fehlerhaft = [];
-
-        foreach ($users as $user) {
-            if (empty($user->email)) {
-                Log::warning('Meeting-Einladung: Kein E-Mail-Adresse für Benutzer', [
-                    'user_id'    => $user->id,
-                    'user_name'  => $user->name,
-                    'meeting_id' => $meeting->id,
-                ]);
-                $fehlerhaft[] = $user->name . ' (keine E-Mail-Adresse)';
-                continue;
-            }
-
-            try {
-                Mail::to($user->email)->queue(
-                    new \App\Mail\MeetingInvitationMail($meeting, $group, $user, $message, auth()->user()->name, auth()->user()->email)
-                );
-                $gesendet++;
-            } catch (\Throwable $e) {
-                Log::error('Meeting-Einladung: Fehler beim Einreihen der Mail', [
-                    'user_id'    => $user->id,
-                    'user_email' => $user->email,
-                    'meeting_id' => $meeting->id,
-                    'error'      => $e->getMessage(),
-                ]);
-                $fehlerhaft[] = $user->name . ' (' . $user->email . ')';
-            }
-        }
-
-        // Historie nur speichern, wenn mindestens eine Mail eingereiht wurde
-        if ($gesendet > 0) {
-            $meeting->update([
-                'invitation_sent_at' => now(),
-                'invitation_sent_by' => auth()->id(),
-            ]);
-            Log::info('Meeting-Einladungen eingereiht', [
-                'meeting_id'   => $meeting->id,
-                'gesendet'     => $gesendet,
-                'fehlerhaft'   => count($fehlerhaft),
-                'versender_id' => auth()->id(),
-            ]);
-        }
-
-        if (! empty($fehlerhaft)) {
-            $meldung = "Einladungen wurden an {$gesendet} Mitglieder eingereiht. "
-                . 'Folgende Empfänger konnten nicht berücksichtigt werden: '
-                . implode(', ', $fehlerhaft);
-            $typ = $gesendet > 0 ? 'warning' : 'danger';
-        } else {
-            $meldung = "Einladungen wurden an {$gesendet} Gruppenmitglieder eingereiht.";
-            $typ     = 'success';
-        }
-
-        return redirect()->back()->with([
-            'type'    => $typ,
-            'Meldung' => $meldung,
-        ]);
+        return redirect()->back()->with($this->meetings->invitationFlash($result));
     }
 
     /**
