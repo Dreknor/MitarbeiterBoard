@@ -33,6 +33,11 @@ class AppServiceProvider extends ServiceProvider
     {
         // API v1: Die Tabelle personal_access_tokens wird über eine projektinterne Migration angelegt.
         \Laravel\Sanctum\Sanctum::ignoreMigrations();
+
+        // Zeitwirtschaft: Vertrags-/Kontodaten pro Request zwischenspeichern
+        $this->app->scoped(\App\Services\Personal\Zeit\ArbeitszeitService::class);
+        $this->app->scoped(\App\Services\Personal\Zeit\UrlaubskontoService::class);
+        $this->app->scoped(\App\Services\Personal\Zeit\ZeitZugriff::class);
     }
 
     /**

@@ -184,6 +184,128 @@ class FreeMeetingTest extends TestCase
     }
 
     /** @test */
+    public function neues_thema_kann_einer_eingeladenen_gruppe_zugeordnet_werden(): void
+    {
+        $creator = User::factory()->create();
+        $gast    = User::factory()->create();
+        $gruppe  = Group::factory()->create();
+        $type    = Type::factory()->create();
+        $meeting = $this->freeMeeting($creator, ['users' => [$gast->id], 'groups' => [$gruppe->id]]);
+
+        $this->actingAs($creator)->get(route('meetings.show', $meeting))
+            ->assertOk()
+            ->assertSee('Gruppe ' . $gruppe->name);
+
+        $this->actingAs($gast)->post(route('meetings.agenda.store', $meeting), [
+            'theme'    => 'Hofpausen',
+            'goal'     => 'Aufsichtsplan klären',
+            'duration' => 15,
+            'type'     => $type->id,
+            'group_id' => $gruppe->id,
+        ])->assertRedirect(route('meetings.show', $meeting));
+
+        $theme = Theme::where('theme', 'Hofpausen')->firstOrFail();
+        $this->assertSame($gruppe->id, $theme->group_id);
+        $this->assertTrue($meeting->themes()->whereKey($theme->id)->exists());
+    }
+
+    /** @test */
+    public function neues_thema_kann_keiner_nicht_eingeladenen_gruppe_zugeordnet_werden(): void
+    {
+        $creator = User::factory()->create();
+        $fremd   = Group::factory()->create();
+        $type    = Type::factory()->create();
+        $meeting = $this->freeMeeting($creator);
+
+        $this->actingAs($creator)->post(route('meetings.agenda.store', $meeting), [
+            'theme'    => 'Eingeschleust',
+            'goal'     => 'Ziel',
+            'duration' => 15,
+            'type'     => $type->id,
+            'group_id' => $fremd->id,
+        ])->assertSessionHas('type', 'warning');
+
+        $this->assertDatabaseMissing('themes', ['theme' => 'Eingeschleust']);
+    }
+
+    /** @test */
+    public function gruppen_meeting_kann_thema_an_eingeladene_gruppe_geben_aber_nicht_frei_anlegen(): void
+    {
+        $creator     = User::factory()->create();
+        $eigene      = Group::factory()->create();
+        $eingeladen  = Group::factory()->create();
+        $eigene->users()->attach($creator->id);
+        $type        = Type::factory()->create();
+        $meeting     = Meeting::factory()->create(['group_id' => $eigene->id, 'creator_id' => $creator->id]);
+        app(MeetingService::class)->syncParticipants($meeting, ['groups' => [$eingeladen->id]]);
+
+        $service = app(MeetingService::class);
+        $this->assertFalse($service->isValidThemeGroup($meeting, null));
+        $this->assertTrue($service->isValidThemeGroup($meeting, $eigene->id));
+        $this->assertTrue($service->isValidThemeGroup($meeting, $eingeladen->id));
+
+        $payload = ['goal' => 'Ziel', 'duration' => 15, 'type' => $type->id];
+
+        $this->actingAs($creator)->post(route('meetings.agenda.store', $meeting), $payload + ['theme' => 'Standard'])
+            ->assertRedirect(route('meetings.show', $meeting));
+        $this->assertSame($eigene->id, Theme::where('theme', 'Standard')->firstOrFail()->group_id);
+
+        $this->actingAs($creator)->post(route('meetings.agenda.store', $meeting), $payload + ['theme' => 'Weitergegeben', 'group_id' => $eingeladen->id])
+            ->assertRedirect(route('meetings.show', $meeting));
+        $this->assertSame($eingeladen->id, Theme::where('theme', 'Weitergegeben')->firstOrFail()->group_id);
+    }
+
+    /** @test */
+    public function freies_thema_kann_in_eingeladene_gruppe_umgehaengt_werden(): void
+    {
+        $creator = User::factory()->create();
+        $gast    = User::factory()->create();
+        $gruppe  = Group::factory()->create();
+        $meeting = $this->freeMeeting($creator, ['users' => [$gast->id], 'groups' => [$gruppe->id]]);
+        $theme   = Theme::factory()->create(['group_id' => null, 'creator_id' => $creator->id, 'completed' => 0]);
+        $meeting->themes()->attach($theme->id);
+
+        $this->actingAs($gast)->get(route('meetings.themes.show', [$meeting, $theme]))
+            ->assertOk()
+            ->assertSee('Zuordnung ändern');
+
+        $this->actingAs($gast)->put(route('meetings.themes.move', [$meeting, $theme]), ['group_id' => $gruppe->id])
+            ->assertRedirect(route('meetings.themes.show', [$meeting, $theme]))
+            ->assertSessionHas('type', 'success');
+        $this->assertSame($gruppe->id, (int) $theme->fresh()->group_id);
+
+        // und zurück zum freien Thema
+        $this->actingAs($gast)->put(route('meetings.themes.move', [$meeting, $theme]), ['group_id' => ''])
+            ->assertSessionHas('type', 'success');
+        $this->assertNull($theme->fresh()->group_id);
+    }
+
+    /** @test */
+    public function umhaengen_ist_nur_in_gruppen_des_meetings_und_fuer_teilnehmende_moeglich(): void
+    {
+        $creator = User::factory()->create();
+        $fremd   = User::factory()->create();
+        $fremdeGruppe = Group::factory()->create();
+        $meeting = $this->freeMeeting($creator);
+        $theme   = Theme::factory()->create(['group_id' => null, 'creator_id' => $creator->id, 'completed' => 0]);
+        $meeting->themes()->attach($theme->id);
+
+        $this->actingAs($creator)->put(route('meetings.themes.move', [$meeting, $theme]), ['group_id' => $fremdeGruppe->id])
+            ->assertSessionHas('type', 'warning');
+        $this->actingAs($fremd)->put(route('meetings.themes.move', [$meeting, $theme]), ['group_id' => $fremdeGruppe->id])
+            ->assertForbidden();
+
+        // Gruppenthema einer nicht eingeladenen Gruppe darf nicht aus ihr herausgelöst werden
+        $gruppenThema = Theme::factory()->create(['group_id' => $fremdeGruppe->id, 'completed' => 0]);
+        $meeting->themes()->attach($gruppenThema->id);
+        $this->actingAs($creator)->put(route('meetings.themes.move', [$meeting, $gruppenThema]), ['group_id' => ''])
+            ->assertSessionHas('type', 'warning');
+
+        $this->assertNull($theme->fresh()->group_id);
+        $this->assertSame($fremdeGruppe->id, (int) $gruppenThema->fresh()->group_id);
+    }
+
+    /** @test */
     public function nicht_teilnehmende_sehen_keine_meeting_themen(): void
     {
         $creator = User::factory()->create();

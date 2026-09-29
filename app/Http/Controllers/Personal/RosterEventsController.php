@@ -19,192 +19,150 @@ use Illuminate\Support\Str;
 
 class RosterEventsController extends Controller
 {
+    public function __construct(private readonly \App\Services\Personal\Zeit\RosterService $rosters)
+    {
+    }
 
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param CreateTaskRequest $request
-     * @return \Illuminate\Http\RedirectResponse
+     * Termin für eine oder mehrere Personen anlegen. Ohne Person landet er in der Merkliste.
+     * Personen mit Überschneidung werden übersprungen und gemeldet.
      */
     public function store(CreateTaskRequest $request, Roster $roster)
     {
+        $this->authorize('manage', $roster);
+        $this->pruefeTag($roster, $request->date);
 
-        $events = $roster->events;
-        $employes = $roster->department->employes;
+        $mitarbeitende = $this->rosters->mitarbeitende($roster)->keyBy('id');
+        $personen = collect($request->input('employes', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $mitarbeitende->has($id));
+        $uebersprungen = [];
 
-
-        foreach ($request->employes as $employe) {
-
-            $task = new RosterEvents($request->validated());
-            $task->roster_id = $roster->id;
-            $task->employe_id = $employe;
-
-            if (!$events->searchRosterEvent($employes->where('id', $employe)->first(), Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->start))->count() > 0 and !$events->searchRosterEvent($employes->where('id', $employe)->first(), Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end)->subMinute())->count() > 0) {
-                $task->save();
-
-            }
+        if ($personen->isEmpty()) {
+            RosterEvents::create($request->safe()->only(['event', 'date', 'start', 'end']) + ['roster_id' => $roster->id, 'employe_id' => null]);
         }
-        return redirectBack('success', 'Termin gespeichert', '#' . $task->date->format('Y-m-d'));
+
+        foreach ($personen as $id) {
+            if ($this->kollision($roster, $id, $request->date, $request->start, $request->end)) {
+                $uebersprungen[] = $mitarbeitende[$id]->vorname ?? $mitarbeitende[$id]->name;
+                continue;
+            }
+            RosterEvents::create($request->safe()->only(['event', 'date', 'start', 'end']) + ['roster_id' => $roster->id, 'employe_id' => $id]);
+        }
+
+        return $this->antwort($request, $roster, $request->date, $uebersprungen === []
+            ? ['success', 'Termin gespeichert.']
+            : ['warning', 'Termin gespeichert – übersprungen wegen Überschneidung: '.implode(', ', $uebersprungen).'.']);
     }
 
-
     /**
-     * Update the specified resource in storage.
-     *
-     * @param Request $request
-     * @param RosterEvents $rosterEvent
-     * @return \Illuminate\Http\RedirectResponse
+     * Termin ändern. Werden mehrere Personen gewählt, bekommt jede weitere eine eigene Kopie.
      */
     public function update(EditRosterEventRequest $request, RosterEvents $rosterEvent)
     {
+        $roster = $rosterEvent->roster;
+        $this->authorize('manage', $roster);
+        $this->pruefeTag($roster, $request->date);
 
-        if (count($request->employes) == 1) {
-            $attributes = $request->validated();
-            $attributes['employe_id'] = $request->employes[0];
+        $mitarbeitende = $this->rosters->mitarbeitende($roster)->keyBy('id');
+        $personen = collect($request->input('employes', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $mitarbeitende->has($id))->values();
+        $daten = $request->safe()->only(['event', 'date', 'start', 'end']);
+        $uebersprungen = [];
 
-            if (Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end)->lessThan(Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end))) {
-                $attributes['start'] = $request->end;
-                $attributes['end'] = $request->start;
+        $erste = $personen->shift();
+        if ($erste !== null && $this->kollision($roster, $erste, $request->date, $request->start, $request->end, $rosterEvent->id)) {
+            return $this->antwort($request, $roster, $request->date, ['warning', 'Überschneidung mit einem anderen Termin von '.($mitarbeitende[$erste]->vorname ?? '').' – nicht gespeichert.']);
+        }
+        $rosterEvent->update($daten + ['employe_id' => $erste]);
 
+        foreach ($personen as $id) {
+            if ($this->kollision($roster, $id, $request->date, $request->start, $request->end)) {
+                $uebersprungen[] = $mitarbeitende[$id]->vorname ?? $mitarbeitende[$id]->name;
+                continue;
             }
-            $rosterEvent->update($attributes);
-
-        } else {
-            $events = $rosterEvent->roster->events;
-            $employes = $rosterEvent->roster->department->employes;
-
-            foreach ($request->employes as $key => $employe) {
-                if ($key === array_key_first($request->employes)) {
-                    $attributes = $request->validated();
-                    $attributes['employe_id'] = $employe;
-                    if (Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end)->lessThan(Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end))) {
-                        $attributes['start'] = $request->end;
-                        $attributes['end'] = $request->start;
-
-                    }
-                    $rosterEvent->update($attributes);
-                } else {
-                    if (!$events->searchRosterEvent($employes->where('id', $employe)->first(), Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->start))->count() > 0 and !$events->searchRosterEvent($employes->where('id', $employe)->first(), Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end))->count() > 0) {
-                        $task = new RosterEvents($request->validated());
-                        $task->roster_id = $rosterEvent->roster_id;
-                        $task->employe_id = $employe;
-
-
-                        if (Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end)->lessThan(Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end))) {
-                            $attributes['start'] = $request->end;
-                            $attributes['end'] = $request->start;
-
-                        }
-
-                        $task->save();
-                    } elseif (optional($events->searchRosterEvent($employes->where('id', $employe)->first(), Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->start))->first())->id == $rosterEvent->id) {
-                        $attributes = $request->validated();
-                        $attributes['employe_id'] = $employe;
-                        if (Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end)->lessThan(Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end))) {
-                            $attributes['start'] = $request->end;
-                            $attributes['end'] = $request->start;
-
-                        }
-                        $rosterEvent->update($attributes);
-                    }
-                }
-
-
-            }
-
-
+            RosterEvents::create($daten + ['roster_id' => $roster->id, 'employe_id' => $id]);
         }
 
-        return redirectBack(null, null, '#' . $rosterEvent->date->format('Y-m-d'));
-
-
-    }
-
-    public function dropUpdate(Request $request)
-    {
-        if (!auth()->check() || !auth()->user()->can('create roster')) {
-            return response(['error' => 'forbidden'], 403);
-        }
-        $request->validate([
-            'task' => 'required|string',
-            'employe_id' => 'required|integer|exists:users,id',
-            'date' => 'required|date',
-            'start' => 'required|date_format:H:i',
-            'end' => 'nullable|date_format:H:i'
-        ]);
-
-        $task = RosterEvents::where('id', \Illuminate\Support\Str::after($request->task, 'task_'))->first();
-        if(!$task){ return response(['error'=>'not_found'],404); }
-
-        $events = $task->roster->events; // bereits geladen (Collection)
-        $employes = $task->roster->department->employes;
-
-        $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->start);
-        if($newStart->format('H:i') < '08:00') { $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 08:00'); }
-        if($newStart->format('H:i') > '14:30') { $newStart = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 14:15'); }
-
-        if($request->filled('end')) {
-            $newEnd = Carbon::createFromFormat('Y-m-d H:i', $request->date . ' ' . $request->end);
-            if($newEnd->lessThanOrEqualTo($newStart)) { $newEnd = $newStart->copy()->addMinutes(15); }
-        } else {
-            $newEnd = $newStart->copy()->addMinutes($task->duration);
-        }
-        if($newEnd->format('H:i') > '14:30') {
-            $newEnd = Carbon::createFromFormat('Y-m-d H:i', $request->date.' 14:30');
-        }
-
-        $employe = $employes->where('id', $request->employe_id)->first();
-        $conflictStart = $events->searchRosterEvent($employe, $newStart->copy()->addMinute())->where('id','!=',$task->id)->count() > 0;
-        $conflictEnd = $events->searchRosterEvent($employe, $newEnd->copy()->subMinute())->where('id','!=',$task->id)->count() > 0;
-        $conflict = $conflictStart || $conflictEnd;
-
-        if(!$conflict){
-            $task->update([
-                'employe_id' => $request->employe_id,
-                'date' => $request->date,
-                'start' => $newStart,
-                'end' => $newEnd,
-            ]);
-        }
-
-        $fresh = $task->fresh();
-        return response([
-            'id' => $fresh->id,
-            'employe_id' => $fresh->employe_id,
-            'date' => $fresh->date->format('Y-m-d'),
-            'event' => $fresh->event,
-            'start' => $fresh->start->format('H:i'),
-            'end' => $fresh->end->format('H:i'),
-            'conflict' => $conflict
-        ]);
+        return $this->antwort($request, $roster, $request->date, $uebersprungen === []
+            ? ['success', 'Termin gespeichert.']
+            : ['warning', 'Gespeichert – übersprungen wegen Überschneidung: '.implode(', ', $uebersprungen).'.']);
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param RosterEvents $rosterEvent
-     * @return \Illuminate\Http\RedirectResponse
+     * Drag & Drop im Raster (JSON).
      */
-    public function destroy(RosterEvents $rosterEvent)
+    public function dropUpdate(Request $request)
     {
-        $day = $rosterEvent->date->format('Y-m-d');
+        $data = $request->validate([
+            'task' => ['required'],
+            'employe_id' => ['nullable', 'integer', 'exists:users,id'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'start' => ['required', 'date_format:H:i'],
+            'end' => ['nullable', 'date_format:H:i'],
+        ]);
+
+        $task = RosterEvents::find((int) Str::after((string) $data['task'], 'task_'));
+        if ($task === null) {
+            return response()->json(['error' => 'not_found'], 404);
+        }
+        $roster = $task->roster;
+        $this->authorize('manage', $roster);
+        $this->pruefeTag($roster, $data['date']);
+
+        if ($data['employe_id'] !== null && !$this->rosters->mitarbeitende($roster)->contains('id', $data['employe_id'])) {
+            return response()->json(['error' => 'invalid_employe'], 422);
+        }
+
+        [$fensterStart, $fensterEnde] = $roster->department->rosterDayWindow();
+        $start = max($data['start'], $fensterStart);
+        $dauer = $task->duration;
+        $ende = $data['end'] ?? Carbon::createFromFormat('H:i', $start)->addMinutes($dauer)->format('H:i');
+        if ($ende <= $start) {
+            $ende = Carbon::createFromFormat('H:i', $start)->addMinutes(15)->format('H:i');
+        }
+
+        $konflikt = $data['employe_id'] !== null && $this->kollision($roster, (int) $data['employe_id'], $data['date'], $start, $ende, $task->id);
+
+        if (!$konflikt) {
+            $task->update([
+                'employe_id' => $data['employe_id'],
+                'date' => $data['date'],
+                'start' => $start.':00',
+                'end' => $ende.':00',
+            ]);
+        }
+
+        $frisch = $task->fresh();
+
+        return response()->json([
+            'id' => $frisch->id,
+            'employe_id' => $frisch->employe_id,
+            'date' => $frisch->date->format('Y-m-d'),
+            'event' => $frisch->event,
+            'start' => $frisch->start->format('H:i'),
+            'end' => $frisch->end->format('H:i'),
+            'conflict' => $konflikt,
+        ]);
+    }
+
+    public function destroy(Request $request, RosterEvents $rosterEvent)
+    {
+        $roster = $rosterEvent->roster;
+        $this->authorize('manage', $roster);
+        $tag = $rosterEvent->date->format('Y-m-d');
         $rosterEvent->delete();
 
-        return redirectBack('warning', 'Aufgabe wurde gelöscht', '#' . $day);
+        return $this->antwort($request, $roster, $tag, ['warning', 'Termin wurde gelöscht.']);
     }
 
     public function trashDay(Roster $roster, TrashRosterDayRequest $request)
     {
-        if ($roster->id == $request->roster_id) {
-            $roster->events()->whereDate('date', $request->date)->delete();
-            $roster->working_times()->whereDate('date', $request->date)->delete();
-            Cache::forget('roster_'.$roster->id.'_'.Carbon::createFromFormat('Y-m-d',$request->date)->format('Ymd'));
+        $this->authorize('manage', $roster);
+        $this->pruefeTag($roster, $request->date);
 
-            return redirectBack('success', 'Alle Termine wurden gelöscht.', '#' . $request->date);
-        }
+        $roster->events()->whereDate('date', $request->date)->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))->get()->each->delete();
+        $roster->working_times()->whereDate('date', $request->date)->get()->each->delete();
 
-        return redirectBack('warning', 'Termine konnten nicht gelöscht werden.', '#' . $request->date);
+        return $this->antwort($request, $roster, $request->date, ['success', 'Alle Dienste und Termine des Tages wurden entfernt.']);
     }
 
     protected function termineFuerRosterImport(int $kalenderId, Carbon $startDate, Carbon $endDate): Collection
@@ -288,19 +246,42 @@ class RosterEventsController extends Controller
         ];
     }
 
-    public function remember(RosterEvents $event)
+    /**
+     * Termin in die Merkliste verschieben (Zuordnung aufheben).
+     */
+    public function remember(Request $request, RosterEvents $event)
     {
-        if (auth()->user()->can('create roster')) {
-            Cache::forget('roster_'.$event->roster_id.'_'.$event->date->format('Ymd'));
-            $event->update([
-                'employe_id' => null
-            ]);
+        $this->authorize('manage', $event->roster);
+        $event->update(['employe_id' => null]);
 
+        return $this->antwort($request, $event->roster, $event->date->format('Y-m-d'), ['success', 'Termin liegt jetzt in der Merkliste.']);
+    }
 
-            return redirectBack('success', 'Termin gemerkt', '#'.$event->date->format('Y-m-d'));
+    private function pruefeTag(Roster $roster, string $datum): void
+    {
+        $tag = Carbon::parse($datum)->startOfDay();
+        abort_if($tag->lt($roster->start_date->copy()->startOfDay()) || $tag->gt($roster->weekEnd()), 422, 'Das Datum liegt außerhalb der Dienstplanwoche.');
+    }
+
+    private function kollision(Roster $roster, int $employeId, string $datum, string $start, string $ende, ?int $ausser = null): bool
+    {
+        return $roster->events()
+            ->where('employe_id', $employeId)
+            ->whereDate('date', $datum)
+            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))
+            ->when($ausser, fn ($q) => $q->where('id', '!=', $ausser))
+            ->where('start', '<', substr($ende, 0, 5).':00')
+            ->where('end', '>', substr($start, 0, 5).':00')
+            ->exists();
+    }
+
+    private function antwort(Request $request, Roster $roster, string $datum, array $meldung)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['type' => $meldung[0], 'message' => $meldung[1]]);
         }
 
-        return redirectBack('warning', 'Berechtigung.');
+        return redirect(route('roster.show', $roster->id).'#tag-'.$datum)->with(['type' => $meldung[0], 'Meldung' => $meldung[1]]);
     }
 
     /**
@@ -308,6 +289,7 @@ class RosterEventsController extends Controller
      */
     public function importFromCalendarPreview(Request $request, Roster $roster)
     {
+        $this->authorize('manage', $roster);
         $user      = auth()->user();
         $kalender  = $this->sichtbareKalender($user);
         $startDate = $roster->start_date->copy()->startOfDay();
@@ -346,6 +328,8 @@ class RosterEventsController extends Controller
      */
     public function importFromCalendar(Request $request, Roster $roster)
     {
+        $this->authorize('manage', $roster);
+        [$fensterStart, $fensterEnde] = $roster->department->rosterDayWindow();
         $request->validate([
             'ox_termin_ids'   => 'required|array|min:1',
             'ox_termin_ids.*' => 'required|string',
@@ -399,14 +383,14 @@ class RosterEventsController extends Controller
             }
 
             if ($termin->ganztaegig) {
-                $start = '08:00:00';
-                $end   = '14:30:00';
+                $start = $fensterStart.':00';
+                $end   = $fensterEnde.':00';
             } else {
                 $start = $startTime ?: $termin->beginn->format('H:i:s');
                 $end   = $endTime ?: $termin->ende->format('H:i:s');
 
-                if ($start < '08:00:00') { $start = '08:00:00'; }
-                if ($end > '14:30:00')   { $end   = '14:30:00'; }
+                if ($start < $fensterStart.':00') { $start = $fensterStart.':00'; }
+                if ($end > $fensterEnde.':00')    { $end   = $fensterEnde.':00'; }
                 if ($end <= $start)      { $end   = (new \DateTime($start))->modify('+15 minutes')->format('H:i:s'); }
             }
 

@@ -2,22 +2,35 @@
 
 namespace App\Models\personal;
 
+use App\Models\Absence;
 use App\Models\User;
+use App\Services\Personal\Zeit\ArbeitszeitService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Cache;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * Buchung eines Tages im Arbeitszeitnachweis.
+ *
+ * - Zeitbuchung: start/end (+ Pause in Minuten)
+ * - Gutschrift: percent_of_workingtime (Anteil der Tages-Sollzeit, z. B. Urlaub 100 %)
+ * source: NULL = manuell, "terminal", "dienstplan", "urlaub", "abwesenheit"
+ * ("urlaub"/"abwesenheit" werden automatisch abgeglichen, siehe TimesheetService).
+ */
 class TimesheetDays extends Model implements Auditable
 {
     use SoftDeletes;
     use \Znck\Eloquent\Traits\BelongsToThrough;
     use \OwenIt\Auditing\Auditable;
 
-
+    public const SOURCE_URLAUB = 'urlaub';
+    public const SOURCE_ABWESENHEIT = 'abwesenheit';
+    public const SOURCE_DIENSTPLAN = 'dienstplan';
+    public const SOURCE_TERMINAL = 'terminal';
 
     protected $fillable = [
-        'timesheet_id','date', 'start', 'end', 'pause', 'percent_of_workingtime', 'comment'
+        'timesheet_id', 'date', 'start', 'end', 'pause', 'percent_of_workingtime', 'comment',
+        'source', 'holiday_id', 'absence_id',
     ];
 
     protected $casts = [
@@ -25,8 +38,17 @@ class TimesheetDays extends Model implements Auditable
       'start' => 'datetime:H:i',
       'end' => 'datetime:H:i',
     ];
+
     public function timesheet(){
         return $this->belongsTo(Timesheet::class);
+    }
+
+    public function holiday(){
+        return $this->belongsTo(Holiday::class);
+    }
+
+    public function absence(){
+        return $this->belongsTo(Absence::class);
     }
 
     public function employe(){
@@ -36,31 +58,37 @@ class TimesheetDays extends Model implements Auditable
         ]);
     }
 
-    public function getDurationAttribute()
+    public function getIsCreditAttribute(): bool
     {
-        $seconds = 0;
-        if (!is_null($this->start) and !is_null($this->end)){
-            $seconds = $this->start->diffInSeconds($this->end);
-        }
-
-        if ($this->percent_of_workingtime != null){
-            $employment =  Cache::remember('employments_date_'.$this->timesheet->id.'_'.$this->date,60, function (){
-                return $this->timesheet->employe->employments_date($this->date)->sum('percent');
-            });
-
-            $seconds = (percent_to_seconds($employment)/5)/100 * $this->percent_of_workingtime;
-        }
-
-        return Cache::remember('timesheet_duration_'.$this->id, 60*60*24, function () use ($seconds){
-            return $seconds - ($this->pause*60);
-        });
+        return $this->percent_of_workingtime !== null && $this->percent_of_workingtime !== '';
     }
 
-    protected static function booted(): void
+    public function getIsAutomaticAttribute(): bool
     {
-        static::updated(function ($item) {
-            Cache::forget('timesheet_duration_'.$item->id);
-        });
+        return in_array($this->source, [self::SOURCE_URLAUB, self::SOURCE_ABWESENHEIT], true);
     }
 
+    /**
+     * Dauer in Sekunden: gearbeitete Zeit abzüglich Pause bzw. Gutschrift
+     * (Anteil der Tages-Sollzeit laut Arbeitszeitmodell – an freien Tagen 0).
+     */
+    public function getDurationAttribute(): float
+    {
+        if ($this->is_credit) {
+            $employe = $this->timesheet?->employe;
+            if ($employe === null || $this->date === null) {
+                return 0.0;
+            }
+
+            $soll = app(ArbeitszeitService::class)->sollSekunden($employe, $this->date);
+
+            return $soll / 100 * (float) $this->percent_of_workingtime;
+        }
+
+        if ($this->start === null || $this->end === null) {
+            return 0.0;
+        }
+
+        return max(0, $this->start->diffInSeconds($this->end) - ((int) $this->pause * 60));
+    }
 }

@@ -65,6 +65,7 @@ class MeetingDetailController extends Controller
             'canManage'        => $user->can('manage', $meeting),
             'assignableThemes' => $this->meetings->assignableThemes($meeting, $user),
             'types'            => Type::all(),
+            'themeGroups'      => $this->meetings->themeGroupOptions($meeting),
             'options'          => $this->meetings->participantOptions(),
             'selection'        => $this->meetings->participantSelection($meeting),
             'bookableRooms'    => Room::query()->where('bookable', true)->orderBy('room_number')->orderBy('name')->get(),

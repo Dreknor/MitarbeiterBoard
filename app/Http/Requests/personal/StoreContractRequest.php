@@ -28,6 +28,9 @@ class StoreContractRequest extends FormRequest
             'end'                   => ['nullable', 'date', 'after_or_equal:start'],
             'hours'                 => ['required', 'numeric', 'min:1', 'max:168'],
             'hour_type_id'          => ['nullable', 'integer', 'exists:hour_types,id'],
+            // Arbeitstage (ISO 1 = Mo … 7 = So) – Grundlage für Soll-Zeit und Urlaubstage
+            'workdays'              => ['nullable', 'array', 'min:1'],
+            'workdays.*'            => ['integer', 'between:1,7'],
             'department_id'         => ['nullable', 'integer', 'exists:groups,id'],
             'probation_end'         => ['nullable', 'date'],
             'notice_period'         => ['nullable', 'string', 'max:50'],

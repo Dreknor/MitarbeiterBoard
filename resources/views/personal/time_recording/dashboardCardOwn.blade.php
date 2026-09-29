@@ -48,15 +48,14 @@
     <div class="card-footer border-top">
         <div class="row">
             <div class="col">
-                @if($logout == 1)
-                    <a href="{{url('timesheets/'.auth()->id().'/logout')}}" class="btn btn-bg-gradient-x-blue-green">Abmelden</a>
-                @else
-                    <a href="{{url('timesheets/'.auth()->id().'/login')}}" class="btn btn-bg-gradient-x-blue-green">Anmelden</a>
-                @endif
+                <form action="{{ route('timesheets.stamp') }}" method="post" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-bg-gradient-x-blue-green">{{ $logout == 1 ? 'Gehen' : 'Kommen' }}</button>
+                </form>
             </div>
             <div class="col">
                 <div class="float-right">
-                    <a href="{{url('timesheets/'.auth()->id())}}" class="btn btn-primary">zum Arbeitszeitnachweis</a>
+                    <a href="{{ route('timesheets.show', auth()->id()) }}" class="btn btn-primary">zum Arbeitszeitnachweis</a>
                 </div>
             </div>
         </div>

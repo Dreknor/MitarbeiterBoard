@@ -37,7 +37,7 @@ class CreateEmployeRequest extends FormRequest
             'google_calendar_link' => ['nullable', 'string'],
             'caldav_working_time' => ['nullable', 'integer', 'min:0', 'max:1'],
             'caldav_events' => ['nullable', 'integer', 'min:0', 'max:1'],
-            'time_recording_key' => ['nullable',  'integer', 'digits: 10', 'unique:employes_data,secret_key'],
+            'time_recording_key' => ['nullable',  'integer', 'digits: 10', 'unique:employes_data,time_recording_key,'.($this->route('employe')?->employe_data?->id ?? 'NULL')],
             'secret_key' => ['nullable',  'integer', 'digits_between:6,10'],
             'mail_timesheet' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
             'send_mails_if_absence' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],

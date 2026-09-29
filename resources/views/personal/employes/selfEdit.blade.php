@@ -45,7 +45,7 @@
                                     Key-ID: {{$employe->employe_data?->time_recording_key}}
                                 </li>
                                 <li class="list-group-item">
-                                    Pin: {{$employe->employe_data?->secret_key}}
+                                    Pin: {{ $employe->employe_data?->hasPin() ? 'gesetzt' : 'nicht gesetzt' }}
                                 </li>
                                 <li class="list-group-item" id="Holidayclaim_list_item">
                                     Urlaubsanspruch: {{$employe->getHolidayClaim()}}

@@ -123,14 +123,13 @@ Route::post('inventory/item/{uuid}', [ItemsController::class,'scanUpdate']);
 /*
 * digitale Arbeitszeiterfassung
 */
-Route::prefix('time_recording')->group(callback: function (){
+Route::prefix('time_recording')->middleware('time_recording.terminal')->group(callback: function (){
     Route::get('start', [TimeRecordingController::class, 'start'])->name('time_recording.start');
-    Route::post('start', [TimeRecordingController::class, 'read_key'])->name('time_recording.read_key');
-    Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
-    Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
+    Route::post('start', [TimeRecordingController::class, 'read_key'])->middleware('throttle:20,1')->name('time_recording.read_key');
+    Route::post('login', [TimeRecordingController::class, 'login'])->middleware('throttle:10,1')->name('time_recording.login');
     Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
 
-    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->name('time_recording.storeSecret');
+    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->middleware('throttle:10,1')->name('time_recording.storeSecret');
 });
 
 
@@ -217,6 +216,12 @@ Route::group([
 
 
                 Route::middleware(['permission:edit employe'])->group(function () {
+                    // Vorgesetzte & Stellvertretungen (Zuständigkeit für Urlaub und Arbeitszeitnachweise)
+                    Route::get('personal/vorgesetzte', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'index'])->name('personal.vorgesetzte.index');
+                    Route::post('personal/vorgesetzte', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'update'])->name('personal.vorgesetzte.update');
+                    Route::post('personal/vorgesetzte/{leitung}/stellvertretungen', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'addDeputy'])->name('personal.vorgesetzte.deputies.store');
+                    Route::delete('personal/vorgesetzte/{leitung}/stellvertretungen/{deputy}', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'removeDeputy'])->name('personal.vorgesetzte.deputies.destroy');
+
                     // Bulk-Update für Urlaubsanspruch nach Gruppen (muss vor resource Route stehen)
                     Route::get('employes/bulk-holiday-claim', [EmployeController::class, 'bulkHolidayClaimForm'])->name('employes.bulk-holiday-claim');
                     Route::post('employes/bulk-holiday-claim', [EmployeController::class, 'bulkUpdateHolidayClaim'])->name('employes.bulk-holiday-claim.update');
@@ -229,39 +234,61 @@ Route::group([
                 });
 
 
+                /*
+                 * Zeitwirtschaft – Urlaub, Arbeitszeitnachweis, Dienstplan
+                 * Alle schreibenden Aktionen sind POST/PUT/DELETE (CSRF-geschützt).
+                 * Rechte: HolidayPolicy, TimesheetPolicy, RosterPolicy.
+                 */
+
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
                     // Spezifische Routen zuerst (vor parametrisierten Routen)
-                    Route::get('holidays/manage', [HolidayController::class, 'manage'])->middleware(['permission:approve holidays']);
-                    Route::post('holidays/manage/delete/{holiday}', [HolidayController::class, 'manageDelete'])->middleware(['permission:approve holidays']);
-                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
-                    Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
-                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
+                    Route::get('holidays/manage', [HolidayController::class, 'manage'])->name('holidays.manage');
+                    Route::get('holidays/preview', [HolidayController::class, 'preview'])->name('holidays.preview');
+                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export'])->whereNumber('year')->name('holidays.export');
+                    Route::get('holidays/konto/{employe}/{year?}', [HolidayController::class, 'account'])->whereNumber(['employe', 'year'])->name('holidays.account');
+                    Route::post('holidays/konto/{employe}/buchungen', [HolidayController::class, 'storeAccountEntry'])->name('holidays.account.entries.store');
+                    Route::delete('holidays/konto/buchungen/{entry}', [HolidayController::class, 'destroyAccountEntry'])->name('holidays.account.entries.destroy');
 
-                    Route::resource('holidays', HolidayController::class);
+                    Route::post('holidays', [HolidayController::class, 'store'])->name('holidays.store');
+                    Route::post('holidays/{holiday}/approve', [HolidayController::class, 'approve'])->name('holidays.approve');
+                    Route::post('holidays/{holiday}/reject', [HolidayController::class, 'reject'])->name('holidays.reject');
+                    Route::post('holidays/{holiday}/cancel', [HolidayController::class, 'requestCancellation'])->name('holidays.cancel');
+                    Route::post('holidays/{holiday}/cancel-decision', [HolidayController::class, 'decideCancellation'])->name('holidays.cancel-decision');
+                    Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
+
+                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index'])->whereNumber(['month', 'year'])->name('holidays.index');
                 });
 
 
-                //Timesheets
-                Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
-                Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
-                Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
-                Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
-                Route::get('timesheets/{user}/{timesheet}/unlock', [TimesheetController::class, 'unlock']);
-                Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
-                Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
-
-
+                //Timesheets – Arbeitszeitnachweise
+                Route::get('timesheets', [TimesheetController::class, 'index'])->name('timesheets.index');
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
-                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
-                Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
-                Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
-                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay']);
-                Route::put('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'updateDay']);
-                Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
-                Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
-                Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
-                Route::post('timesheets/{user}/{timesheet}/{date}/apply-roster', [TimesheetController::class, 'applyRosterSuggestion']);
+                Route::post('timesheets/stempeln', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet', 'throttle:10,1'])->name('timesheets.stamp');
+                Route::get('timesheets/overview/{user}', [TimesheetController::class, 'overviewTimesheetsUser'])->whereNumber('user')->name('timesheets.overview');
+                Route::post('timesheets/recalculate/{user}', [TimesheetController::class, 'updateTimesheets'])->whereNumber('user')->name('timesheets.recalculate-all');
+
+                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay'])->name('timesheets.day.edit');
+                Route::put('timesheets/day/{timesheetDay}', [TimesheetController::class, 'updateDay'])->name('timesheets.day.update');
+                Route::delete('timesheets/day/{timesheetDay}', [TimesheetController::class, 'deleteDay'])->name('timesheets.day.destroy');
+
+                // {timesheet} muss zu {user} gehören (verhindert Zugriff auf fremde Nachweise über die eigene ID)
+                Route::prefix('timesheets/{user}/{timesheet}')->whereNumber(['user', 'timesheet'])->scopeBindings()->group(function () {
+                    Route::get('export', [TimesheetController::class, 'export'])->name('timesheets.export');
+                    Route::post('recalculate', [TimesheetController::class, 'updateSheet'])->name('timesheets.recalculate');
+                    Route::post('apply-roster', [TimesheetController::class, 'applyRosterMonth'])->name('timesheets.plan-month');
+                    Route::post('submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
+                    Route::post('lock', [TimesheetController::class, 'lock'])->name('timesheets.lock');
+                    Route::post('return', [TimesheetController::class, 'returnToEmploye'])->name('timesheets.return');
+                    Route::post('unlock', [TimesheetController::class, 'unlock'])->name('timesheets.unlock');
+
+                    Route::get('{date}/add', [TimesheetController::class, 'addDay'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.create');
+                    Route::post('{date}', [TimesheetController::class, 'storeDay'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.store');
+                    Route::post('{date}/absence', [TimesheetController::class, 'addFromAbsence'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.absence');
+                    Route::post('{date}/apply-roster', [TimesheetController::class, 'applyRosterSuggestion'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.plan');
+                });
+
+                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show'])->whereNumber('user')->where('date', '\d{4}-\d{2}')->name('timesheets.show');
 
                 //Anstellungen
                 Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
@@ -269,30 +296,40 @@ Route::group([
                 Route::post('addresses/{employe}', [AddressController::class, 'update']);
 
 
+                // Dienstplan – Ansicht für Mitarbeitende
+                Route::get('mein-dienstplan', [RosterController::class, 'mine'])->name('roster.mine');
+                Route::post('mein-dienstplan/abo', [RosterController::class, 'feedToken'])->name('roster.feed-token');
                 Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
+                Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
 
                 Route::middleware(['permission:create roster'])->group(function () {
                     //Roster - Dienstpläne
-                    Route::resource('roster', RosterController::class)
-                        ->except(['create'])
-                        ->names([
-                            'index' => 'roster.index',
-                            'show' => 'roster.show',
-                        ]);
+                    Route::get('roster', [RosterController::class, 'index'])->name('roster.index');
+                    Route::post('roster', [RosterController::class, 'store'])->name('roster.store');
                     Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
-                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
-                    Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
-                    Route::get('roster/{roster}/export/nextcloud', [RosterController::class, 'sendRosterToNextcloudTalk'])->name('roster.export.nextcloud');
-                    Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
-                    Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
-                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
+                    Route::put('roster/department/{department}/settings', [RosterController::class, 'updateSettings'])->name('roster.department.settings');
+                    //Create Checks
+                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
+                    Route::delete('roster/checks/{check}', [RosterCheckController::class, 'destroy'])->name('roster.checks.destroy');
+                    Route::delete('roster/news/{news}', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
+                    Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'update'])->name('roster.taskRequirements.update');
+                    Route::delete('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'destroy'])->name('roster.taskRequirements.destroy');
 
-                    Route::get('roster/{roster}/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
+                    Route::get('roster/{roster}', [RosterController::class, 'show'])->whereNumber('roster')->name('roster.show');
+                    Route::get('roster/{roster}/data', [RosterController::class, 'data'])->name('roster.data');
+                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
+                    Route::post('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
+                    Route::post('roster/{roster}/unpublish', [RosterController::class, 'unpublish'])->name('roster.unpublish');
+                    Route::post('roster/{roster}/notify-changes', [RosterController::class, 'notifyChanges'])->name('roster.notify-changes');
+                    Route::post('roster/{roster}/copy', [RosterController::class, 'copy'])->name('roster.copy');
+                    Route::post('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
+                    Route::post('roster/{roster}/export/nextcloud', [RosterController::class, 'sendRosterToNextcloudTalk'])->name('roster.export.nextcloud');
+                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
 
                     // Auto-Umplanung
                     Route::get('roster/{roster}/auto-plan', [RosterController::class, 'autoPlan'])->name('roster.autoPlan');
                     Route::post('roster/{roster}/auto-plan/apply', [RosterController::class, 'applyAutoPlan'])->name('roster.autoPlan.apply');
-                    Route::get('roster/{roster}/auto-plan/undo', [RosterController::class, 'undoAutoPlan'])->name('roster.autoPlan.undo');
+                    Route::post('roster/{roster}/auto-plan/undo', [RosterController::class, 'undoAutoPlan'])->name('roster.autoPlan.undo');
 
                     // Kalender-Import
                     Route::get('roster/{roster}/import-calendar', [RosterEventsController::class, 'importFromCalendarPreview'])->name('roster.importCalendar.preview');
@@ -300,22 +337,15 @@ Route::group([
 
                     // Task Requirements
                     Route::post('roster/{roster}/task-requirements', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'store'])->name('roster.taskRequirements.store');
-                    Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'update'])->name('roster.taskRequirements.update');
-                    Route::delete('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'destroy'])->name('roster.taskRequirements.destroy');
 
-                    //Create Checks
-                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
-                    //Publish Roster
-                    Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
-
-                    Route::post('working_time', [WorkingTimeController::class, 'store']);
-                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);
+                    Route::post('working_time', [WorkingTimeController::class, 'store'])->name('roster.working-time.store');
+                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay'])->name('roster.trash-day');
                     //events
-                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store']);
-                    Route::get('tasks/{event}/remember', [RosterEventsController::class, 'remember']);
-                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update']);
-                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate']);
-                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy']);
+                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate'])->name('roster.events.drop');
+                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store'])->name('roster.events.store');
+                    Route::post('tasks/{event}/remember', [RosterEventsController::class, 'remember'])->name('roster.events.remember');
+                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update'])->name('roster.events.update');
+                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy'])->name('roster.events.destroy');
                 });
 
                 // ── Hortstunden-Planung ───────────────────────────────────────────────
@@ -629,6 +659,7 @@ Route::group([
                     Route::post('{meeting}/agenda', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'store'])->name('meetings.agenda.store');
                     Route::delete('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'remove'])->name('meetings.agenda.remove');
                     Route::get('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'show'])->name('meetings.themes.show');
+                    Route::put('{meeting}/agenda/{theme}/group', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'move'])->name('meetings.themes.move');
                     Route::post('{meeting}/agenda/{theme}/protocols', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeProtocol'])->name('meetings.themes.protocols.store');
                     Route::put('{meeting}/agenda/{theme}/protocols/{protocol}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'updateProtocol'])->name('meetings.themes.protocols.update');
                     Route::post('{meeting}/agenda/{theme}/tasks', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeTask'])->name('meetings.themes.tasks.store');
@@ -1207,6 +1238,11 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
 // iCal-Feed (Token-geschützt, KEIN Auth-Middleware) – wird in TODO 12 ergänzt
 Route::get('/calendar/feed/{token}.ics', [\App\Http\Controllers\CalendarController::class, 'feed'])
     ->name('calendar.feed');
+
+// Persönlicher Dienstplan als Kalender-Abo (Token-geschützt, ohne Login)
+Route::get('/dienstplan/feed/{token}.ics', [\App\Http\Controllers\Personal\RosterController::class, 'feed'])
+    ->middleware('throttle:60,1')
+    ->name('roster.feed');
 
 // Personal-Modul: Temporäre Test-Route (Phase 0 – nach Verifizierung entfernen)
 Route::get('/personal/test-ui', function () {

@@ -23,16 +23,13 @@
                                 @can('approve holidays')
                                     <div class="row border-top">
                                             <div class="col-12 p-auto">
-                                                    <form action="{{url('holidays/'.$holiday->id)}}" method="post">
+                                                    <form action="{{ route('holidays.approve', $holiday) }}" method="post" class="d-inline">
                                                         @csrf
-                                                        @method('put')
-                                                        <select class="custom-select" name="action">
-                                                            <option value="approved">genehmigen</option>
-                                                            <option value="rejected">ablehnen</option>
-                                                        </select>
-                                                        <button type="submit" class="btn-link">
-                                                            <i class="fas fa-check"></i> speichern
-                                                        </button>
+                                                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check"></i> genehmigen</button>
+                                                    </form>
+                                                    <form action="{{ route('holidays.reject', $holiday) }}" method="post" class="d-inline">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i> ablehnen</button>
                                                     </form>
                                             </div>
                                         </div>
@@ -61,7 +58,7 @@
         </div>
     </div>
     <div class="card-footer">
-        <a href="{{url('holidays')}}" class="btn btn-primary">
+        <a href="{{ route('holidays.index') }}" class="btn btn-primary">
             Urlaub beantragen
         </a>
     </div>

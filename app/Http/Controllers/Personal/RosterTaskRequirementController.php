@@ -12,7 +12,7 @@ class RosterTaskRequirementController extends Controller
 {
     public function store(Request $request, Roster $roster)
     {
-        $this->authorize('create roster');
+        $this->authorize('manage', $roster);
         $data = $request->validate([
             'event_name' => 'required|string|max:120',
             'required_start' => 'nullable|date_format:H:i',
@@ -27,7 +27,7 @@ class RosterTaskRequirementController extends Controller
 
     public function update(Request $request, RosterTaskRequirement $requirement)
     {
-        $this->authorize('create roster');
+        $this->authorize('manageDepartment', [Roster::class, (int) $requirement->department_id]);
         $data = $request->validate([
             'event_name' => 'required|string|max:120',
             'required_start' => 'nullable|date_format:H:i',
@@ -41,7 +41,7 @@ class RosterTaskRequirementController extends Controller
 
     public function destroy(RosterTaskRequirement $requirement)
     {
-        $this->authorize('create roster');
+        $this->authorize('manageDepartment', [Roster::class, (int) $requirement->department_id]);
         $requirement->delete();
         return back()->with('success','Anforderung gelöscht');
     }

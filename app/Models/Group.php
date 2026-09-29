@@ -21,7 +21,7 @@ class Group extends Model
     use HasRelationships;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url', 'roster_day_start', 'roster_day_end'];
     protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
 
     protected $casts = [
@@ -37,6 +37,19 @@ class Group extends Model
     public function users()
     {
         return $this->belongsToMany(User::class);
+    }
+
+    /**
+     * Tagesfenster des Dienstplan-Rasters (Standard 08:00–14:30).
+     *
+     * @return array{0: string, 1: string} ['H:i', 'H:i']
+     */
+    public function rosterDayWindow(): array
+    {
+        $start = $this->roster_day_start ? substr((string) $this->roster_day_start, 0, 5) : '08:00';
+        $ende = $this->roster_day_end ? substr((string) $this->roster_day_end, 0, 5) : '14:30';
+
+        return $ende > $start ? [$start, $ende] : ['08:00', '14:30'];
     }
 
     public function presences(): \Illuminate\Database\Eloquent\Relations\HasMany
@@ -161,20 +174,18 @@ class Group extends Model
             $end = $date;
         }
 
-
+        // Verträge dieser Abteilung, die den Zeitraum berühren. Der Vertragsstatus wird bewusst nicht
+        // geprüft: er ist nicht datiert, sonst verschwänden Personen auch aus alten Dienstplänen.
         $employes = $this->employes()
-            ->where([
-            ['employments.start', '<=', $end],
-            ['employments.end', '=', null],
-                ['department_id', '=', $this->id]
-        ])->orWhere(
-            [
-                ['employments.start', '<=', $end],
-                ['employments.end', '>=', $date],
-                ['department_id', '=', $this->id]
-            ])->get();
+            ->where('employments.department_id', $this->id)
+            ->where('employments.start', '<=', $end)
+            ->where(function ($query) use ($date) {
+                $query->whereNull('employments.end')->orWhere('employments.end', '>=', $date);
+            })
+            ->whereNull('employments.deleted_at')
+            ->get();
 
-        return $employes->unique('id');
+        return $employes->unique('id')->values();
     }
 
     public function oxCalendars(): BelongsToMany

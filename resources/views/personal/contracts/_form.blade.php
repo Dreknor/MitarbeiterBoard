@@ -82,6 +82,21 @@
                value="{{ old('hours', $employment->hours ?? '') }}">
     </div>
 
+    {{-- Arbeitstage (Arbeitszeitmodell) --}}
+    @php($arbeitstage = old('workdays', isset($employment) ? $employment->arbeitstage() : [1, 2, 3, 4, 5]))
+    <div>
+        <span class="block text-sm font-medium text-gray-700 mb-1">Arbeitstage</span>
+        <div class="flex flex-wrap gap-1.5">
+            @foreach([1 => 'Mo', 2 => 'Di', 3 => 'Mi', 4 => 'Do', 5 => 'Fr', 6 => 'Sa', 7 => 'So'] as $nr => $kurz)
+                <label class="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
+                    <input type="checkbox" name="workdays[]" value="{{ $nr }}" @checked(in_array($nr, array_map('intval', (array) $arbeitstage), true))>
+                    {{ $kurz }}
+                </label>
+            @endforeach
+        </div>
+        <p class="text-xs text-gray-500 mt-1">Die Soll-Arbeitszeit verteilt sich gleichmäßig auf diese Tage; Urlaub zählt nur an diesen Tagen.</p>
+    </div>
+
     {{-- Probezeit --}}
     <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Probezeit bis</label>

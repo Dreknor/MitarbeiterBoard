@@ -164,8 +164,84 @@ class MeetingService
     }
 
     /**
-     * Legt ein neues Thema an. Bei Gruppen-Meetings gehört es zur Gruppe,
-     * bei freien Meetings ist es ein freies Thema.
+     * Gruppen, denen ein neues Agenda-Thema zugeordnet werden kann:
+     * die Meeting-Gruppe sowie alle eingeladenen Gruppen. So bleiben nicht
+     * abgeschlossene Themen im Themenspeicher der Gruppe erhalten.
+     *
+     * @return Collection<int, Group>
+     */
+    public function themeGroupOptions(Meeting $meeting): Collection
+    {
+        $meeting->loadMissing(['group', 'participantGroups']);
+
+        return collect([$meeting->group])
+            ->merge($meeting->participantGroups)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Ist die gewählte Gruppe (null = freies Thema) für ein neues Thema zulässig?
+     * Freie Themen gibt es nur in freien Meetings.
+     */
+    public function isValidThemeGroup(Meeting $meeting, ?int $groupId): bool
+    {
+        if ($groupId === null) {
+            return $meeting->isFree();
+        }
+
+        return $this->themeGroupOptions($meeting)->contains('id', $groupId);
+    }
+
+    /**
+     * Zielgruppen, in die ein Agenda-Thema umgehängt werden darf (null = freies Thema).
+     * Nur offene Themen des Meetings, deren aktuelle Zuordnung selbst im Meeting-Kontext
+     * liegt (frei, Meeting-Gruppe oder eingeladene Gruppe) – fremde Gruppenthemen bleiben unberührt.
+     *
+     * @return Collection<int, int|null>
+     */
+    public function themeMoveTargets(Meeting $meeting, Theme $theme): Collection
+    {
+        if ($theme->completed || ! $meeting->themes()->whereKey($theme->id)->exists()) {
+            return collect();
+        }
+
+        $currentGroupId = $theme->group_id !== null ? (int) $theme->group_id : null;
+        if (! $this->isValidThemeGroup($meeting, $currentGroupId) && $currentGroupId !== null) {
+            return collect();
+        }
+
+        $targets = $this->themeGroupOptions($meeting)->pluck('id')->map(fn ($id) => (int) $id);
+        if ($meeting->isFree()) {
+            $targets->prepend(null);
+        }
+
+        return $targets->reject(fn ($id) => $id === $currentGroupId)->values();
+    }
+
+    /**
+     * Hängt ein Agenda-Thema in eine andere Gruppe (oder macht es frei).
+     *
+     * @return bool false, wenn das Ziel nicht zulässig ist
+     */
+    public function moveTheme(Meeting $meeting, Theme $theme, ?int $groupId): bool
+    {
+        if (! $this->themeMoveTargets($meeting, $theme)->contains(fn ($id) => $id === $groupId)) {
+            return false;
+        }
+
+        $theme->group_id = $groupId;
+        $theme->save();
+
+        return true;
+    }
+
+    /**
+     * Legt ein neues Thema an. Ohne Angabe von `group_id` gehört es bei
+     * Gruppen-Meetings zur Gruppe, bei freien Meetings ist es ein freies Thema.
+     * Mit `group_id` wird es einer eingeladenen Gruppe zugeordnet
+     * (vorher per isValidThemeGroup() prüfen).
      */
     public function createTheme(Meeting $meeting, array $data, User $user): Theme
     {
@@ -175,7 +251,7 @@ class MeetingService
             'information' => $data['information'] ?? null,
             'duration'    => $data['duration'],
         ]);
-        $theme->group_id   = $meeting->group_id;
+        $theme->group_id   = array_key_exists('group_id', $data) ? $data['group_id'] : $meeting->group_id;
         $theme->type_id    = $data['type'];
         $theme->creator_id = $user->id;
         $theme->date       = $meeting->date;

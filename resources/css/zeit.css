@@ -1,0 +1,319 @@
+/*
+ * Zeitwirtschaft (Urlaub, Arbeitszeitnachweis, Dienstplan, Zeiterfassung) – Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .zeit-wrapper gescopet, Komponenten mit Präfix zw-
+ *   - Interaktion via Alpine.js (global aus sidebar.js) + zeit.js
+ *   - Mobile first: Tabellen werden unter md/lg zu Karten, das Dienstplan-Raster
+ *     wird am Smartphone zur Tages-/Personenliste.
+ *
+ * Kaskade (wie tickets.css): Bootstrap 4 / paper-dashboard.css sind ungelayert und
+ * würden gelayerte Utilities schlagen. Daher Utilities ungelayert + !important,
+ * nur die Zeitwirtschafts-Views werden gescannt (source(none)).
+ * Elemente mit Display-Utility (flex, grid …) brauchen `x-show.important`.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/personal/holidays/**/*.blade.php";
+@source "../views/personal/timesheets/**/*.blade.php";
+@source "../views/personal/rosters/**/*.blade.php";
+@source "../views/personal/time_recording/**/*.blade.php";
+@source "../views/personal/zeit/**/*.blade.php";
+@source "../js/zeit.js";
+@source "../js/zeit/**/*.js";
+/* Klassennamen, die mit Bootstrap kollidieren, nicht erzeugen */
+@source not inline("container collapse table");
+
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets
+ * ------------------------------------------------------------- */
+.zeit-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1600px;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 640px) { .zeit-wrapper { padding: 1rem .75rem 5rem; } }
+.zeit-wrapper *, .zeit-wrapper *::before, .zeit-wrapper *::after { box-sizing: border-box; }
+.zeit-wrapper :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.35; color: inherit; }
+.zeit-wrapper p { margin: 0; }
+.zeit-wrapper a { color: inherit; text-decoration: none; }
+.zeit-wrapper a:hover { text-decoration: none; }
+.zeit-wrapper ul, .zeit-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.zeit-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.zeit-wrapper label { margin: 0; }
+.zeit-wrapper form { margin: 0; }
+.zeit-wrapper table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.zeit-wrapper th, .zeit-wrapper td { vertical-align: middle; }
+.zeit-wrapper dl, .zeit-wrapper dd { margin: 0; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2.5 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.5rem;
+}
+.zeit-wrapper .zw-btn-sm { @apply px-3 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2.25rem; }
+.zeit-wrapper .zw-btn-primary   { @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white focus-visible:ring-blue-500; }
+.zeit-wrapper .zw-btn-success   { @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white focus-visible:ring-emerald-500; }
+.zeit-wrapper .zw-btn-danger    { @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white focus-visible:ring-red-500; }
+.zeit-wrapper .zw-btn-warning   { @apply bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white focus-visible:ring-amber-400; }
+.zeit-wrapper .zw-btn-secondary { @apply bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 focus-visible:ring-blue-400; border: 1px solid #e5e7eb; }
+.zeit-wrapper .zw-btn-ghost     { @apply bg-transparent hover:bg-gray-100 text-gray-600 shadow-none focus-visible:ring-gray-300; }
+.zeit-wrapper .zw-btn-danger-ghost { @apply bg-transparent hover:bg-red-50 text-red-600 shadow-none focus-visible:ring-red-300; }
+.zeit-wrapper .zw-btn-icon {
+    @apply inline-flex items-center justify-center rounded-xl w-10 h-10 p-0 transition-colors cursor-pointer
+           text-gray-500 hover:bg-gray-100 hover:text-gray-900
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+    border-width: 0;
+}
+.zeit-wrapper .zw-btn-icon.is-sm { @apply w-8 h-8 rounded-lg text-sm; }
+
+/* ---------------------------------------------------------------
+ * Formular-Elemente (16px auf Mobilgeräten verhindert iOS-Zoom)
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-input,
+.zeit-wrapper .zw-select,
+.zeit-wrapper .zw-textarea {
+    @apply block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900
+           shadow-sm placeholder:text-gray-400 sm:text-sm
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none
+           disabled:bg-gray-50 disabled:text-gray-500;
+    min-height: 2.5rem;
+    height: auto;
+}
+.zeit-wrapper .zw-select { @apply pr-8; }
+.zeit-wrapper .zw-textarea { min-height: 5rem; }
+.zeit-wrapper .zw-input.is-invalid,
+.zeit-wrapper .zw-select.is-invalid { @apply border-red-400 focus:border-red-500 focus:ring-red-500/30; }
+.zeit-wrapper .zw-label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+.zeit-wrapper .zw-hint { @apply text-xs text-gray-500 mt-1; }
+.zeit-wrapper .zw-error { @apply text-xs font-medium text-red-600 mt-1; }
+.zeit-wrapper .zw-check {
+    @apply inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm cursor-pointer select-none transition-colors;
+}
+.zeit-wrapper .zw-check:has(input:checked) { @apply border-blue-400 bg-blue-50 text-blue-800; }
+.zeit-wrapper .zw-check input { @apply w-4 h-4; }
+
+/* Segment-Auswahl (Radio als Buttongruppe) */
+.zeit-wrapper .zw-segment { @apply relative grid gap-1 p-1 rounded-xl bg-gray-100; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.zeit-wrapper .zw-segment input { position: absolute; opacity: 0; pointer-events: none; }
+.zeit-wrapper .zw-segment label {
+    @apply flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold text-gray-600 cursor-pointer transition-colors text-center;
+    min-height: 2.25rem;
+}
+.zeit-wrapper .zw-segment input:checked + label { @apply bg-white text-gray-900 shadow-sm; }
+.zeit-wrapper .zw-segment input:focus-visible + label { @apply ring-2 ring-blue-400; }
+
+/* ---------------------------------------------------------------
+ * Karten, Kopf, Tabs
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-card { @apply bg-white rounded-2xl shadow-sm border border-gray-100; }
+.zeit-wrapper .zw-card-head {
+    @apply flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 border-b border-gray-100;
+}
+.zeit-wrapper .zw-card-title { @apply text-base font-bold text-gray-900 flex items-center gap-2; }
+.zeit-wrapper .zw-card-title i { @apply text-gray-400; }
+.zeit-wrapper .zw-card-body { @apply px-4 py-4 sm:px-5; }
+.zeit-wrapper .zw-section-title { @apply text-xs font-semibold uppercase tracking-wide text-gray-500; }
+.zeit-wrapper .zw-page-title { @apply text-xl sm:text-2xl font-bold text-gray-900; }
+.zeit-wrapper .zw-page-sub { @apply text-sm text-gray-500 mt-0.5; }
+
+.zeit-wrapper .zw-tabs { @apply flex gap-1 overflow-x-auto border-b border-gray-200; scrollbar-width: none; }
+.zeit-wrapper .zw-tabs::-webkit-scrollbar { display: none; }
+.zeit-wrapper .zw-tab {
+    @apply inline-flex items-center gap-2 shrink-0 px-4 py-2.5 text-sm font-semibold text-gray-500 border-b-2 border-transparent
+           hover:text-gray-800 transition-colors;
+    margin-bottom: -1px;
+}
+.zeit-wrapper .zw-tab.is-active { @apply text-blue-700 border-blue-600; }
+
+/* Pills (horizontal scrollbar auf Mobilgeräten) */
+.zeit-wrapper .zw-pills { @apply flex gap-2 overflow-x-auto pb-1 -mx-1 px-1; scrollbar-width: none; }
+.zeit-wrapper .zw-pills::-webkit-scrollbar { display: none; }
+.zeit-wrapper .zw-pill {
+    @apply inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold
+           bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-700 transition-colors;
+}
+.zeit-wrapper .zw-pill.is-active { @apply bg-blue-600 text-white border-blue-600 hover:text-white; }
+
+/* ---------------------------------------------------------------
+ * Badges, Kennzahlen, Hinweise
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-badge { @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap; }
+.zeit-wrapper .zw-badge-gray   { @apply bg-gray-100 text-gray-700; }
+.zeit-wrapper .zw-badge-blue   { @apply bg-blue-100 text-blue-700; }
+.zeit-wrapper .zw-badge-green  { @apply bg-emerald-100 text-emerald-700; }
+.zeit-wrapper .zw-badge-amber  { @apply bg-amber-100 text-amber-800; }
+.zeit-wrapper .zw-badge-red    { @apply bg-red-100 text-red-700; }
+.zeit-wrapper .zw-badge-violet { @apply bg-violet-100 text-violet-700; }
+
+.zeit-wrapper .zw-stat { @apply flex flex-col gap-0.5 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm; }
+.zeit-wrapper .zw-stat-value { @apply text-xl sm:text-2xl font-bold text-gray-900 leading-tight; }
+.zeit-wrapper .zw-stat-label { @apply text-xs text-gray-500 leading-tight; }
+.zeit-wrapper .zw-stat.is-positive .zw-stat-value { @apply text-emerald-700; }
+.zeit-wrapper .zw-stat.is-negative .zw-stat-value { @apply text-red-600; }
+
+.zeit-wrapper .zw-alert { @apply flex gap-3 rounded-xl border px-4 py-3 text-sm; }
+.zeit-wrapper .zw-alert-info    { @apply bg-blue-50 border-blue-200 text-blue-900; }
+.zeit-wrapper .zw-alert-warning { @apply bg-amber-50 border-amber-200 text-amber-900; }
+.zeit-wrapper .zw-alert-danger  { @apply bg-red-50 border-red-200 text-red-900; }
+.zeit-wrapper .zw-alert-success { @apply bg-emerald-50 border-emerald-200 text-emerald-900; }
+
+.zeit-wrapper .zw-empty { @apply flex flex-col items-center justify-center gap-2 px-4 py-10 text-center text-sm text-gray-400; }
+.zeit-wrapper .zw-empty i { @apply text-3xl opacity-40; }
+
+/* ---------------------------------------------------------------
+ * Listen / responsive Tabellen
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-table { @apply w-full text-sm text-left text-gray-700; }
+.zeit-wrapper .zw-table thead th {
+    @apply bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-2.5 border-b border-gray-200 whitespace-nowrap;
+}
+.zeit-wrapper .zw-table tbody td { @apply px-4 py-3 border-b border-gray-100; }
+.zeit-wrapper .zw-table tbody tr:last-child td { border-bottom-width: 0; }
+.zeit-wrapper .zw-table tbody tr:hover td { @apply bg-gray-50/70; }
+.zeit-wrapper .zw-list > * + * { @apply border-t border-gray-100; }
+.zeit-wrapper .zw-row { @apply flex items-center gap-3 px-4 py-3 sm:px-5; }
+
+/* ---------------------------------------------------------------
+ * Dialog (Alpine) – am Smartphone als Bottom-Sheet
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-dialog-backdrop { @apply fixed inset-0 bg-gray-900/40 flex items-end sm:items-center justify-center p-0 sm:p-4; z-index: 1060; }
+.zeit-wrapper .zw-dialog {
+    @apply bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col;
+    max-height: 92vh;
+}
+.zeit-wrapper .zw-dialog.is-wide { @apply sm:max-w-2xl; }
+.zeit-wrapper .zw-dialog-head { @apply flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100; }
+.zeit-wrapper .zw-dialog-body { @apply px-5 py-4 overflow-y-auto; }
+.zeit-wrapper .zw-dialog-foot { @apply flex flex-wrap items-center justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl; }
+
+/* ---------------------------------------------------------------
+ * Urlaub: Monats-Teamkalender
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-cal { @apply overflow-x-auto; -webkit-overflow-scrolling: touch; }
+.zeit-wrapper .zw-cal table { min-width: max-content; }
+.zeit-wrapper .zw-cal th, .zeit-wrapper .zw-cal td {
+    @apply text-center text-xs border-b border-r border-gray-100;
+    min-width: 2rem; height: 2.25rem; padding: 0;
+}
+.zeit-wrapper .zw-cal thead th { @apply bg-gray-50 font-semibold text-gray-600 sticky top-0; z-index: 2; }
+.zeit-wrapper .zw-cal .zw-cal-name {
+    @apply sticky left-0 bg-white text-left text-sm font-medium text-gray-800 px-3 whitespace-nowrap border-r border-gray-200;
+    min-width: 9rem; max-width: 14rem; z-index: 3; overflow: hidden; text-overflow: ellipsis;
+}
+.zeit-wrapper .zw-cal thead .zw-cal-name { @apply bg-gray-50; z-index: 4; }
+.zeit-wrapper .zw-cal .is-frei { background-color: #f1f5f9; color: #94a3b8; }
+.zeit-wrapper .zw-cal .is-ferien { background-color: #eff6ff; }
+.zeit-wrapper .zw-cal .is-heute { box-shadow: inset 0 0 0 2px #3b82f6; }
+.zeit-wrapper .zw-cal .zw-cal-u { @apply block mx-auto rounded-md; width: 1.5rem; height: 1.5rem; line-height: 1.5rem; font-size: 10px; }
+.zeit-wrapper .zw-cal .u-genehmigt { @apply bg-emerald-500 text-white; }
+.zeit-wrapper .zw-cal .u-beantragt { @apply bg-amber-400 text-white; }
+.zeit-wrapper .zw-cal .u-storno    { @apply bg-violet-400 text-white; }
+.zeit-wrapper .zw-legend-dot { @apply inline-block rounded-md; width: .875rem; height: .875rem; }
+
+/* ---------------------------------------------------------------
+ * Dienstplan-Raster (Desktop)
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-roster-scroll { @apply overflow-x-auto; -webkit-overflow-scrolling: touch; }
+.zeit-wrapper .zw-roster-grid { display: grid; grid-auto-flow: column; min-width: max-content; }
+.zeit-wrapper .zw-roster-col { @apply border-r border-gray-200 bg-white flex flex-col; width: 9.5rem; }
+.zeit-wrapper .zw-roster-col.is-time { width: 3.5rem; @apply bg-gray-50; }
+.zeit-wrapper .zw-roster-col.is-side { width: 13rem; @apply bg-gray-50; }
+.zeit-wrapper .zw-roster-head { @apply px-2 py-2 border-b border-gray-200 text-sm font-semibold text-gray-800; height: 3rem; }
+.zeit-wrapper .zw-roster-wt {
+    @apply px-2 py-1 border-b border-gray-200 text-xs cursor-pointer hover:bg-blue-50 transition-colors;
+    height: 3.25rem;
+}
+.zeit-wrapper .zw-roster-wt.is-empty { @apply text-gray-400; }
+.zeit-wrapper .zw-timeline {
+    position: relative;
+    background-image: repeating-linear-gradient(to bottom, #ffffff 0, #ffffff 19px, #f1f5f9 19px, #f1f5f9 20px);
+    cursor: crosshair;
+    user-select: none;
+    touch-action: pan-x pan-y;
+}
+.zeit-wrapper .zw-timeline.is-drop-target { outline: 2px dashed #3b82f6; outline-offset: -2px; }
+.zeit-wrapper .zw-timeline .zw-hour { position: absolute; left: 0; right: 0; height: 1px; background: #cbd5e1; pointer-events: none; }
+.zeit-wrapper .zw-time-label { position: absolute; right: 4px; font-size: 10px; color: #64748b; transform: translateY(-50%); }
+.zeit-wrapper .zw-ev {
+    position: absolute; left: 3px; right: 3px; overflow: hidden; z-index: 5;
+    @apply rounded-md px-1.5 py-0.5 text-[11px] leading-tight text-white bg-blue-500 shadow-sm cursor-grab;
+    border-left: 3px solid rgba(0,0,0,.18);
+    touch-action: none;
+}
+.zeit-wrapper .zw-ev:hover { @apply bg-blue-600; z-index: 6; }
+.zeit-wrapper .zw-ev.is-pause { @apply bg-slate-400; }
+.zeit-wrapper .zw-ev.is-abwesend { @apply bg-amber-100 text-amber-900 cursor-default; border-left-color: #f59e0b; }
+.zeit-wrapper .zw-ev.is-dragging { opacity: .6; }
+.zeit-wrapper .zw-ev.is-conflict { @apply bg-red-500; animation: zw-shake .3s; }
+.zeit-wrapper .zw-selection { position: absolute; left: 0; right: 0; z-index: 4; pointer-events: none; @apply bg-blue-200/50 border border-blue-400 rounded; }
+.zeit-wrapper .zw-selection.is-conflict { @apply bg-red-200/50 border-red-400; }
+.zeit-wrapper .zw-roster-foot { @apply px-2 py-1.5 border-t border-gray-200 text-xs text-gray-600 cursor-pointer hover:bg-blue-50; min-height: 2.5rem; }
+.zeit-wrapper .zw-konflikt { @apply flex items-start gap-1 text-[11px] leading-tight text-red-700; }
+@keyframes zw-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+/* Mobil: Tagesleiste */
+.zeit-wrapper .zw-daybar { @apply grid grid-cols-7 gap-1; }
+.zeit-wrapper .zw-daybar button {
+    @apply flex flex-col items-center rounded-xl py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200;
+}
+.zeit-wrapper .zw-daybar button.is-active { @apply bg-blue-600 border-blue-600 text-white; }
+.zeit-wrapper .zw-daybar button .zw-dot { @apply w-1.5 h-1.5 rounded-full bg-red-500 mt-0.5; }
+
+/* Floating Action Button (mobil) */
+.zeit-wrapper .zw-fab {
+    @apply fixed right-4 bottom-5 lg:hidden inline-flex items-center justify-center rounded-full w-14 h-14 bg-blue-600 text-white shadow-lg text-xl;
+    z-index: 1040;
+}
+
+/* ---------------------------------------------------------------
+ * Arbeitszeitnachweis: Tageszeilen
+ * ------------------------------------------------------------- */
+.zeit-wrapper .zw-day { @apply grid gap-2 px-4 py-3 sm:px-5 border-b border-gray-100; grid-template-columns: 1fr; }
+@media (min-width: 1024px) {
+    .zeit-wrapper .zw-day { grid-template-columns: 9rem minmax(0, 1.4fr) minmax(0, 1fr) 7rem 6rem 9rem; align-items: center; }
+}
+.zeit-wrapper .zw-day.is-frei { @apply bg-slate-50; }
+.zeit-wrapper .zw-day.is-heute { @apply bg-blue-50/60; box-shadow: inset 3px 0 0 #3b82f6; }
+.zeit-wrapper .zw-day.is-offen { box-shadow: inset 3px 0 0 #f59e0b; }
+.zeit-wrapper .zw-entry { @apply inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-200 px-2 py-1 text-xs font-medium text-gray-800; }
+.zeit-wrapper .zw-entry.is-credit { @apply bg-emerald-50 border-emerald-200 text-emerald-800; }
+.zeit-wrapper .zw-entry.is-open { @apply bg-amber-50 border-amber-300 text-amber-900; }
+.zeit-wrapper .zw-entry.is-plan { @apply bg-violet-50 border-violet-200 text-violet-800; }
+
+/* ---------------------------------------------------------------
+ * Terminal (Zeiterfassung, Vollbild)
+ * ------------------------------------------------------------- */
+.zeit-terminal { min-height: 100vh; background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%); color: #fff; }
+.zeit-terminal .zw-pin-key {
+    @apply flex items-center justify-center rounded-2xl bg-white/15 hover:bg-white/25 active:bg-white/35 text-3xl font-bold text-white select-none transition-colors;
+    height: 4.5rem;
+    border: 1px solid rgba(255,255,255,.25);
+}
+.zeit-terminal .zw-pin-dot { @apply w-4 h-4 rounded-full border-2 border-white/70; }
+.zeit-terminal .zw-pin-dot.is-filled { @apply bg-white border-white; }
+.zeit-terminal .zw-timer { @apply h-1.5 rounded-full bg-white/20 overflow-hidden; }
+.zeit-terminal .zw-timer span { @apply block h-full bg-white/80; animation: zw-timer linear forwards; }
+@keyframes zw-timer { from { width: 100%; } to { width: 0; } }
+
+/* ---------------------------------------------------------------
+ * Druck
+ * ------------------------------------------------------------- */
+@media print {
+    .zeit-wrapper .zw-no-print { display: none !important; }
+    .zeit-wrapper { padding: 0; }
+}

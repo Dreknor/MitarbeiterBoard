@@ -18,23 +18,23 @@
                                 <div class="text-sm font-medium text-gray-800">{{ $holiday->employe->name }}</div>
                                 <div class="text-xs text-gray-500">
                                     {{ $holiday->start_date->format('d.m.Y') }} – {{ $holiday->end_date->format('d.m.Y') }}
-                                    &middot; {{ $holiday->start_date->diffInDays($holiday->end_date) + 1 }} Tag(e)
+                                    &middot; {{ $holiday->days_label }}
                                 </div>
                             </div>
                         </div>
-                        <form action="{{ url('holidays/' . $holiday->id) }}" method="post" class="flex items-center gap-2">
-                            @csrf
-                            @method('put')
-                            <select name="action"
-                                    class="flex-1 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500">
-                                <option value="approved">genehmigen</option>
-                                <option value="rejected">ablehnen</option>
-                            </select>
-                            <button type="submit"
-                                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">
-                                <i class="fas fa-check mr-1"></i> Speichern
-                            </button>
-                        </form>
+                        <div class="flex items-center gap-2">
+                            <form action="{{ route('holidays.approve', $holiday) }}" method="post" class="flex-1">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">
+                                    <i class="fas fa-check mr-1"></i> Genehmigen
+                                </button>
+                            </form>
+                            <a href="{{ route('holidays.index') }}#entscheiden"
+                               class="flex-1 text-center px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 no-underline">
+                                Ablehnen …
+                            </a>
+                        </div>
                     </div>
                 @endif
             @endforeach
@@ -60,7 +60,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="text-xs text-gray-500">
-                        {{ $holiday->start_date->diffInDays($holiday->end_date) + 1 }} Tag(e)
+                        {{ $holiday->days_label }}
                     </div>
                 </div>
                 <div class="shrink-0">
@@ -96,7 +96,7 @@
 
 {{-- Footer --}}
 <div class="px-4 py-3 border-t border-gray-100">
-    <a href="{{ url('holidays') }}"
+    <a href="{{ route('holidays.index') }}"
        class="flex items-center justify-center gap-1 text-sm text-blue-600 hover:text-blue-800 no-underline font-medium">
         Urlaub beantragen →
     </a>

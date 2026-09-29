@@ -1,77 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=@if(isset($initial_scale)){{$initial_scale}}@else{1.0}@endif">
-    <meta name="csrf-token" content="{{csrf_token()}}">
-
-    <link rel="shortcut icon" href="{{asset('img/favicon.ico')}}" type="image/x-icon">
-    <META HTTP-EQUIV="refresh" CONTENT="600; URL={{route('time_recording.start')}}">
-    <title>{{env('APP_NAME')}}</title>
-
-    <!-- CSS Files -->
-    <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet" />
-    <link href="{{asset('css/paper-dashboard.css?v=2.0.0')}}" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
-    <link href="{{asset('css/palette-gradient.css')}}" rel="stylesheet" />
-
-
-    <!--<script src="https://kit.fontawesome.com/c8f58e3eb6.js"></script>-->
-    <link href="{{asset('css/priority.css')}}" rel="stylesheet" />
-    <link href="{{asset('css/time_recording.css')}}" rel="stylesheet" />
-    @stack('css')
-
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="shortcut icon" href="{{ asset('img/favicon.ico') }}" type="image/x-icon">
+    {{-- Terminal kehrt nach 10 Minuten Inaktivität immer zum Start zurück --}}
+    <meta http-equiv="refresh" content="600; URL={{ route('time_recording.start') }}">
+    <title>Zeiterfassung – {{ config('app.name') }}</title>
+    <link rel="stylesheet" href="{{ asset('css/all.css') }}">
+    @vite(['resources/css/zeit.css'])
+    <style>
+        html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    </style>
 </head>
-
-<body id="app-layout">
-    <div class="content bg-dark">
-
-
-        @if(session('Meldung'))
-            <div class="container">
-                <div class="row">
-                    <div class="col-12" >
-                        <div class="alert alert-{{session('type')}} alert-dismissible" role="alert">
-                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                            {{session('Meldung')}}
-
-                        </div>
-                    </div>
-                </div>
+<body class="zeit-terminal">
+<div class="zeit-wrapper" style="color:#fff; max-width: 42rem;">
+    <header class="flex items-center justify-between gap-3 mb-6">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex w-11 h-11 items-center justify-center rounded-2xl bg-white/15 text-xl"><i class="fas fa-user-clock"></i></span>
+            <div>
+                <div class="text-lg font-bold leading-tight">Zeiterfassung</div>
+                <div class="text-sm text-white/70">{{ config('app.name') }}</div>
             </div>
-        @endif
-        @yield('content')
+        </div>
+        <div class="text-right">
+            <div class="text-3xl font-bold tabular-nums leading-none" id="uhr">{{ now()->format('H:i') }}</div>
+            <div class="text-sm text-white/70">{{ now()->locale('de')->isoFormat('dddd, D. MMMM') }}</div>
+        </div>
+    </header>
 
+    @if(session('Meldung'))
+        <div class="mb-4 rounded-2xl px-4 py-3 text-base font-medium {{ in_array(session('type'), ['danger', 'warning']) ? 'bg-red-500/90' : 'bg-white/20' }}">
+            {{ session('Meldung') }}
+        </div>
+    @endif
+    @if($errors->any())
+        <div class="mb-4 rounded-2xl bg-red-500/90 px-4 py-3 text-base font-medium">
+            @foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+        </div>
+    @endif
 
-
-    </div>
-
-    @stack('modals')
-<!-- JavaScripts -->
-
-<script src="{{asset('js/core/jquery.min.js')}}"></script>
-<script src="{{asset('js/core/jquery-ui.min.js')}}"></script>
-<script src="{{asset('js/core/popper.min.js')}}"></script>
-<script src="{{asset('js/core/bootstrap.min.js')}}"></script>
-<script src="{{asset('js/plugins/perfect-scrollbar.jquery.min.js')}}"></script>
-
-
-<!-- Chart JS
-    <script src="{{asset('js/plugins/chartjs.min.js')}}"></script>
-    -->
-
-<!--  Notifications Plugin    -->
-<script src="{{asset('js/plugins/bootstrap-notify.js')}}"></script>
-
-<!-- Control Center for Now Ui Dashboard: parallax effects, scripts for the example pages etc -->
-<script src="{{asset('js/paper-dashboard.min.js?v=2.0.0')}}"></script>
-
-@auth
-    <script src="{{ asset('js/enable-push.js') }}" defer></script>
-@endauth
-@yield('js')
+    @yield('content')
+</div>
+<script>
+    (function () {
+        const uhr = document.getElementById('uhr');
+        setInterval(() => { uhr.textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }, 10000);
+    })();
+</script>
 @stack('js')
-
 </body>
 </html>

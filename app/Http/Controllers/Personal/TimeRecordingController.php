@@ -7,206 +7,163 @@ use App\Http\Requests\checkTimeRecordingPinRequest;
 use App\Http\Requests\getTimeRecordingKeyRequest;
 use App\Http\Requests\storeSecretKeyRequest;
 use App\Models\personal\EmployeData;
-use App\Models\User;
+use App\Services\Personal\Zeit\TimeRecordingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
+/**
+ * Zeiterfassung: Terminal (Chip + PIN) und Kommen/Gehen aus dem Dashboard.
+ *
+ * Der gescannte Chip wird ausschließlich in der Session des Terminals gehalten
+ * (2 Minuten gültig) – nie global. PIN-Fehlversuche sperren den Chip für 15 Minuten.
+ */
 class TimeRecordingController extends Controller
 {
-    public function checkin_checkout()
+    private const SESSION_KEY = 'time_recording.employe_data_id';
+    private const SESSION_EXPIRES = 'time_recording.expires_at';
+    private const MAX_PIN_ATTEMPTS = 5;
+
+    public function __construct(private readonly TimeRecordingService $recording)
     {
-        if (!auth()->user() or !auth()->user()->can('has timesheet')){
-                return redirect()->route('home')->with(
-                [
-                    'type'=>'warning',
-                    'Meldung'=>'Keine Berechtigung'
-                ]
-            );
-        }
-
-        $timesheet = auth()->user()->timesheets()->where([
-            'month'=>now()->month,
-            'year'=>now()->year
-        ])->first();
-
-        if (is_null($timesheet)){
-            $latest = auth()->user()->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
-            $timesheet = auth()->user()->timesheets()->create([
-                'month'=>now()->month,
-                'year'=>now()->year,
-                'holidays_old' => $latest?->holidays_old + $latest?->holidays_new,
-                'working_time_account' => (is_null($latest)) ? 0 : $latest?->working_time_account,
-            ]);
-        }
-
-        $timesheet_day = $timesheet->timesheet_days()->whereDate('date', now()->format('Y-m-d'))->orderBy('end')->first();
-
-        if (is_null($timesheet_day)){
-            $timesheet_day = $timesheet->timesheet_days()->create([
-                'date' => now()->format('Y-m-d'),
-                'start' => now(),
-                'timesheet_id' => $timesheet->id,
-                'comment' => 'digitale Zeiterfassung'
-            ]);
-        } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
-            $timesheet_day->update([
-                'end' => now(),
-                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
-            ]);
-
-            $timesheet->updateTime();
-        } else {
-            $timesheet_day = $timesheet->timesheet_days()->create([
-                'date' => now()->format('Y-m-d'),
-                'start' => now(),
-                'timesheet_id' => $timesheet->id,
-                'comment' => 'digitale Zeiterfassung'
-            ]);
-        }
-
-        return redirect()->route('home')->with(
-            [
-                'type'=>'success',
-                'Meldung'=>'Erfolgreich eingestempelt'
-            ]
-        );
-
     }
 
-    //
+    /**
+     * Kommen/Gehen für den angemeldeten Benutzer (Dashboard).
+     */
+    public function checkin_checkout(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user?->can('has timesheet')) {
+            return redirect()->route('home')->with(['type' => 'warning', 'Meldung' => 'Keine Berechtigung']);
+        }
+
+        [$day, $aktion] = $this->recording->stempeln($user);
+
+        $meldung = $aktion === TimeRecordingService::KOMMEN
+            ? 'Kommen um '.$day->start->format('H:i').' Uhr erfasst.'
+            : 'Gehen um '.$day->end->format('H:i').' Uhr erfasst.';
+
+        return redirect()->route('home')->with(['type' => 'success', 'Meldung' => $meldung]);
+    }
+
     public function start()
     {
-        return view('personal.time_recording.start',[
-            'initial_scale' => 0.75,
-        ]);
-    }
+        $this->forgetTerminalSession();
 
-
-    public function storeSecret(storeSecretKeyRequest $request)
-    {
-        $key = Cache::get('time_recording_key');
-
-        if (is_null($key)){
-            return redirect()->route('time_recording.logout')->with(
-                [
-                    'type'=>'warning',
-                    'Meldung'=>'Ungültiger Schlüssel'
-                ]
-            );
-        }
-
-        $user = EmployeData::query()->where('time_recording_key', $key)->first();
-        $user->update([
-            'secret_key' => $request->secret_key
-        ]);
-        return redirect()->route('time_recording.start')->with(
-            [
-                'type'=>'success',
-                'Meldung'=>'Pin erfolgreich gespeichert'
-            ]
-        );
+        return view('personal.time_recording.start');
     }
 
     public function read_key(getTimeRecordingKeyRequest $request)
     {
+        $data = EmployeData::query()->where('time_recording_key', $request->key)->first();
 
-        $user = EmployeData::query()->where('time_recording_key', $request->key)->first();
-
-        if (!$user) {
-            return redirect()->back()->withErrors(['key' => 'Ungültiger Schlüssel']);
+        if ($data === null || $data->user === null) {
+            return redirect()->route('time_recording.start')->withErrors(['key' => 'Unbekannter Chip.']);
         }
 
-        Cache::add('time_recording_key', $request->key, now()->addMinutes(2) );
-
-        if (is_null($user->secret_key)){
-            return view('personal.time_recording.set_secret', [
-                'user' => $user->user,
-                'initial_scale' => 0.75,
+        if (RateLimiter::tooManyAttempts($this->pinLimiterKey($data), self::MAX_PIN_ATTEMPTS)) {
+            return redirect()->route('time_recording.start')->withErrors([
+                'key' => 'Zu viele falsche PIN-Eingaben. Bitte in '.ceil(RateLimiter::availableIn($this->pinLimiterKey($data)) / 60).' Minuten erneut versuchen.',
             ]);
         }
 
+        $request->session()->put(self::SESSION_KEY, $data->id);
+        $request->session()->put(self::SESSION_EXPIRES, now()->addMinutes(2)->timestamp);
 
-
-        return view('personal.time_recording.get_secret', [
-            'user' => $user->user,
-            'initial_scale' => 0.75,
+        return view($data->hasPin() ? 'personal.time_recording.get_secret' : 'personal.time_recording.set_secret', [
+            'user' => $data->user,
         ]);
     }
 
-    public function login(checkTimeRecordingPinRequest $request){
-        $key = Cache::get('time_recording_key');
-        $user = EmployeData::query()->where([
-            'time_recording_key'=> $key,
-            'secret_key'=>$request->secret_key
-            ])->first();
+    public function storeSecret(storeSecretKeyRequest $request)
+    {
+        $data = $this->terminalEmployeData($request);
 
-
-        if (is_null($user)){
-            Cache::forget('time_recording_key');
-            return redirect()->back()->with(
-                [
-                    'type'=>'warning',
-                    'Meldung'=>'Ungültiger Schlüssel oder Geheimcode'
-                ]
-            );
+        if ($data === null) {
+            return redirect()->route('time_recording.start')->with(['type' => 'warning', 'Meldung' => 'Sitzung abgelaufen. Bitte Chip erneut scannen.']);
         }
 
-        $timesheet = $user->user->timesheets()->where([
-            'month'=>now()->month,
-            'year'=>now()->year
-        ])->first();
+        // Eine bestehende PIN kann am Terminal nicht überschrieben werden (nur in der Personalverwaltung).
+        if ($data->hasPin()) {
+            $this->forgetTerminalSession();
+            Log::warning('Zeiterfassung: Versuch, bestehende PIN am Terminal zu überschreiben', ['employe_data_id' => $data->id, 'ip' => $request->ip()]);
 
-        if (is_null($timesheet)){
-            $latest = $user->user->timesheets()->orderByDesc('year')->orderByDesc('month')->first();
-            $timesheet = $user->user->timesheets()->create([
-                'month'=>now()->month,
-                'year'=>now()->year,
-                'holidays_old' => $latest->holidays_old + $latest->holidays_new,
-                'working_time_account' => $latest->working_time_account,
-            ]);
+            return redirect()->route('time_recording.start')->with(['type' => 'danger', 'Meldung' => 'Für diesen Chip ist bereits eine PIN gesetzt.']);
         }
 
-        $timesheet_day = $timesheet->timesheet_days()->whereDate('date', now()->format('Y-m-d'))->orderBy('end')->first();
+        $data->update(['secret_key' => $request->secret_key]);
+        $this->forgetTerminalSession();
 
-        if (is_null($timesheet_day)){
-            $timesheet_day = $timesheet->timesheet_days()->create([
-                'date' => now()->format('Y-m-d'),
-                'start' => now(),
-                'timesheet_id' => $timesheet->id,
-                'comment' => 'digitale Zeiterfassung'
-            ]);
-        } elseif (!is_null($timesheet_day) and is_null($timesheet_day->end)){
-            $timesheet_day->update([
-                'end' => now(),
-                'pause' => now()->diffInMinutes($timesheet_day->start) > 6 * 60 ? 30 : NULL
-            ]);
+        return redirect()->route('time_recording.start')->with(['type' => 'success', 'Meldung' => 'PIN gespeichert. Bitte Chip erneut scannen.']);
+    }
 
-            $timesheet->updateTime();
-        } else {
-            $timesheet_day = $timesheet->timesheet_days()->create([
-                'date' => now()->format('Y-m-d'),
-                'start' => now(),
-                'timesheet_id' => $timesheet->id,
-                'comment' => 'digitale Zeiterfassung'
-            ]);
+    public function login(checkTimeRecordingPinRequest $request)
+    {
+        $data = $this->terminalEmployeData($request);
+
+        if ($data === null) {
+            return redirect()->route('time_recording.start')->with(['type' => 'warning', 'Meldung' => 'Sitzung abgelaufen. Bitte Chip erneut scannen.']);
         }
 
+        $limiterKey = $this->pinLimiterKey($data);
 
+        if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_PIN_ATTEMPTS)) {
+            $this->forgetTerminalSession();
 
+            return redirect()->route('time_recording.start')->withErrors(['key' => 'Zu viele falsche PIN-Eingaben. Der Chip ist vorübergehend gesperrt.']);
+        }
+
+        if (!$data->checkPin((string) $request->secret_key)) {
+            RateLimiter::hit($limiterKey, 15 * 60);
+            $this->forgetTerminalSession();
+
+            return redirect()->route('time_recording.start')->withErrors(['key' => 'PIN falsch.']);
+        }
+
+        RateLimiter::clear($limiterKey);
+        $this->forgetTerminalSession();
+
+        $user = $data->user;
+        [$timesheetDay, $aktion] = $this->recording->stempeln($user);
 
         return view('personal.time_recording.login', [
-            'user'=>$user->user,
-            'timesheet_day'=>$timesheet_day,
-            'timesheet'=>$timesheet,
-            'dayBefore' => $timesheet->timesheet_days()->whereDate('date', now()->subDay()->format('Y-m-d'))->where('end', null)->first(),
-            'initial_scale' => 0.75,
+            'user' => $user,
+            'timesheet_day' => $timesheetDay,
+            'aktion' => $aktion,
+            'timesheet' => $timesheetDay->timesheet->fresh(),
+            'dayBefore' => $this->recording->offenVomVortag($user),
         ]);
     }
 
-    public function logout(){
-        Cache::forget('time_recording_key');
+    public function logout()
+    {
+        $this->forgetTerminalSession();
+
         return redirect()->route('time_recording.start');
     }
 
+    private function terminalEmployeData(Request $request): ?EmployeData
+    {
+        $id = $request->session()->get(self::SESSION_KEY);
+        $expires = (int) $request->session()->get(self::SESSION_EXPIRES, 0);
 
+        if ($id === null || $expires < now()->timestamp) {
+            $this->forgetTerminalSession();
+            return null;
+        }
+
+        return EmployeData::find($id);
+    }
+
+    private function forgetTerminalSession(): void
+    {
+        session()->forget([self::SESSION_KEY, self::SESSION_EXPIRES]);
+    }
+
+    private function pinLimiterKey(EmployeData $data): string
+    {
+        return 'time-recording-pin:'.$data->id;
+    }
 }

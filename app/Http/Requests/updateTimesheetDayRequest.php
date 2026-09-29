@@ -31,7 +31,7 @@ class updateTimesheetDayRequest extends FormRequest
                 'required', 'date_format:H:i', 'after:start'
             ],
             'pause' => [
-                'nullable', 'integer', 'min:0'
+                'nullable', 'integer', 'min:0', 'max:600'
             ],
             'comment' => [
                 'nullable', 'string', 'max:60'

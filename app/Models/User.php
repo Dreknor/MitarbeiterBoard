@@ -225,7 +225,7 @@ class User extends Authenticatable implements HasMedia
         $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
 
         if ($claim == null){
-            $claim = Setting::query()->where('setting', 'holiday_claim')->first()->value;
+            $claim = (int) (settings('holiday_claim') ?? 0);
         } else {
             $claim = $claim->holiday_claim;
         }
@@ -292,27 +292,21 @@ class User extends Authenticatable implements HasMedia
 
     }
 
+    /**
+     * Gibt es einen (nicht abgelehnten) Urlaub, der den Zeitraum berührt?
+     * Erkennt auch Urlaube, die den Zeitraum vollständig umschließen.
+     */
     public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
 
         if (is_null($end_date)){
             $end_date = $start_date;
         }
 
-            $holidays = $this->holidays;
-
-            $found = $holidays->filter(function ($item) use ($start_date, $end_date){
-                if (($item->start_date->between($start_date, $end_date)
-                    or $item->end_date->between($start_date, $end_date)) and !$item->rejected )
-                {
-                    return $item;
-                }
-            })->first();
-
-            if ($found != null){
-                return true;
-            } else {
-                return false;
-            }
+        return $this->holidays()
+            ->where('rejected', false)
+            ->whereDate('start_date', '<=', $end_date->toDateString())
+            ->whereDate('end_date', '>=', $start_date->toDateString())
+            ->exists();
     }
 
     public function timesheets(){
@@ -435,6 +429,22 @@ class User extends Authenticatable implements HasMedia
     public function subordinates()
     {
         return $this->hasMany(User::class, 'superior_id');
+    }
+
+    /**
+     * Stellvertretungen dieser Leitung (dürfen genehmigen, was die Leitung darf).
+     */
+    public function deputies()
+    {
+        return $this->belongsToMany(User::class, 'user_deputies', 'user_id', 'deputy_id')->withTimestamps();
+    }
+
+    /**
+     * Leitungen, die dieser Benutzer vertritt.
+     */
+    public function deputyFor()
+    {
+        return $this->belongsToMany(User::class, 'user_deputies', 'deputy_id', 'user_id')->withTimestamps();
     }
 
     /**

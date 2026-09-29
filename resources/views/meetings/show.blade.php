@@ -365,13 +365,30 @@
                             <label class="mtg-label" for="new_information">Informationen</label>
                             <textarea id="new_information" name="information" class="mtg-textarea" rows="3" :disabled="themeTab !== 'new'">{{ old('information') }}</textarea>
                         </div>
-                        <p class="mtg-hint">
-                            @if($meeting->isFree())
-                                <i class="fas fa-globe"></i> Das Thema wird als <strong>freies Thema</strong> angelegt und ist für alle Teilnehmenden sichtbar.
-                            @else
-                                <i class="fas fa-users"></i> Das Thema wird in der Gruppe <strong>{{ $meeting->contextLabel() }}</strong> angelegt.
-                            @endif
-                        </p>
+                        @if($meeting->isFree() ? $themeGroups->isNotEmpty() : $themeGroups->count() > 1)
+                            <div>
+                                <label class="mtg-label" for="new_group">Zuordnung</label>
+                                <select id="new_group" name="group_id" class="mtg-select" :disabled="themeTab !== 'new'">
+                                    @if($meeting->isFree())
+                                        <option value="">Freies Thema (nur in diesem Meeting)</option>
+                                    @endif
+                                    @foreach($themeGroups as $themeGroup)
+                                        <option value="{{ $themeGroup->id }}" @selected((string) old('group_id', $meeting->group_id) === (string) $themeGroup->id)>Gruppe {{ $themeGroup->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mtg-hint">
+                                    <i class="fas fa-users"></i> Einer Gruppe zugeordnete Themen landen in deren Themenliste und bleiben dort erhalten, wenn sie hier nicht abgeschlossen werden.
+                                </p>
+                            </div>
+                        @else
+                            <p class="mtg-hint">
+                                @if($meeting->isFree())
+                                    <i class="fas fa-globe"></i> Das Thema wird als <strong>freies Thema</strong> angelegt und ist für alle Teilnehmenden sichtbar.
+                                @else
+                                    <i class="fas fa-users"></i> Das Thema wird in der Gruppe <strong>{{ $meeting->contextLabel() }}</strong> angelegt.
+                                @endif
+                            </p>
+                        @endif
                     </div>
 
                     <div x-show="themeTab === 'existing'" style="display:none;">

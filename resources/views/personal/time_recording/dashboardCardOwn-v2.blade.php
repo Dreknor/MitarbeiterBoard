@@ -1,21 +1,24 @@
 {{-- Zeiterfassung (Eigene) Card v2 – nur Body-Inhalt (cardWrapper übernimmt Header) --}}
 {{-- E4: Wochensaldo mit Soll-/Ist-Vergleich --}}
 
-{{-- An-/Abmelde-CTA --}}
+{{-- Kommen/Gehen (POST, CSRF-geschützt) --}}
 <div class="px-4 py-3 border-b border-gray-100">
-    @if($logout == 1)
-        <a href="{{ url('timesheets/' . auth()->id() . '/logout') }}"
-           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
-                  bg-red-100 text-red-700 hover:bg-red-200 transition-colors no-underline">
-            <i class="fas fa-sign-out-alt"></i> Jetzt abmelden
-        </a>
-    @else
-        <a href="{{ url('timesheets/' . auth()->id() . '/login') }}"
-           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
-                  bg-green-100 text-green-700 hover:bg-green-200 transition-colors no-underline">
-            <i class="fas fa-sign-in-alt"></i> Jetzt anmelden
-        </a>
-    @endif
+    <form action="{{ route('timesheets.stamp') }}" method="post">
+        @csrf
+        @if($logout == 1)
+            <button type="submit"
+                    class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
+                           bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                <i class="fas fa-sign-out-alt"></i> Gehen
+            </button>
+        @else
+            <button type="submit"
+                    class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
+                           bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                <i class="fas fa-sign-in-alt"></i> Kommen
+            </button>
+        @endif
+    </form>
 </div>
 
 {{-- Wochensaldo --}}
@@ -74,7 +77,7 @@
 
 {{-- Footer --}}
 <div class="px-4 py-3 border-t border-gray-100">
-    <a href="{{ url('timesheets/' . auth()->id()) }}"
+    <a href="{{ route('timesheets.show', auth()->id()) }}"
        class="flex items-center justify-center gap-1 text-sm text-blue-600 hover:text-blue-800 no-underline font-medium">
         Zum Arbeitszeitnachweis →
     </a>

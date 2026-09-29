@@ -101,12 +101,17 @@ class EmployeController extends Controller
     {
 
         $settings = $employe->employe_data;
+        $validated = $request->validated();
+        // Leeres PIN-Feld bedeutet "unverändert lassen"
+        if (empty($validated['secret_key'] ?? null)) {
+            unset($validated['secret_key']);
+        }
         if (is_null($settings)){
-            $settings = new EmployeData($request->validated());
+            $settings = new EmployeData($validated);
             $settings->user_id = $employe->id;
             $settings->save();
         } else {
-            $settings->update($request->validated() );
+            $settings->update($validated);
         }
 
         if (($settings->caldav_working_time == 1 or $settings->caldav_events == 1) and $settings->caldav_uuid == null){
@@ -151,7 +156,8 @@ class EmployeController extends Controller
         }
 
         if ($request->secret_key != null){
-            $employe->employe_data()->update([
+            // Über das Model speichern, damit die PIN gehasht wird
+            $employe->employe_data?->update([
                 'secret_key' => $request->secret_key
             ]);
         }

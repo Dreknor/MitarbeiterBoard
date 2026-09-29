@@ -2,617 +2,372 @@
 
 namespace App\Http\Controllers\Personal;
 
+use App\Enums\AnomalyRuleType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createTimesheetDayRequest;
 use App\Http\Requests\updateTimesheetDayRequest;
 use App\Mail\SendMonthlyTimesheetMail;
-use App\Models\Absence;
-use App\Models\personal\RosterEvents;
-use App\Models\personal\TimesheetAnomaly;
 use App\Models\personal\Timesheet;
+use App\Models\personal\TimesheetAnomaly;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
 use App\Notifications\Push;
+use App\Services\Personal\TimeValidationService;
+use App\Services\Personal\Zeit\TimesheetService;
+use App\Services\Personal\Zeit\ZeitZugriff;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\View;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-use App\Services\Personal\PersonalScopeService;
-use App\Services\Personal\TimeValidationService;
+use Illuminate\Support\Str;
 
+/**
+ * Arbeitszeitnachweise. Rechte: TimesheetPolicy, Logik: TimesheetService.
+ * Routen mit {user}/{timesheet} sind per scopeBindings() verknüpft – ein fremder
+ * Nachweis kann nicht über die eigene Benutzer-ID angesprochen werden.
+ */
 class TimesheetController extends Controller
 {
-
     public function __construct(
-        private readonly PersonalScopeService $scopeService,
+        private readonly TimesheetService $timesheets,
         private readonly TimeValidationService $validationService,
-    ) {}
+        private readonly ZeitZugriff $zugriff,
+    ) {
+    }
 
-    /**
-     * Display a listing of the resource.
-     *
-     * @return RedirectResponse | View
-     */
-    public function index()
+    public function index(Request $request)
     {
-        if (!auth()->user()->can('lock timesheets') and auth()->user()->can('has timesheet')){
-            return redirect(url('timesheets/'.auth()->id()));
-        }
-        if (!auth()->user()->can('lock timesheets') and !auth()->user()->can('has timesheet')){
-            return redirect()->back();
+        $actor = $request->user();
+
+        $mitarbeitende = User::whereHas('employments')
+            ->with(['employments', 'timesheets' => fn ($q) => $q->orderByDesc('year')->orderByDesc('month')])
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $u) => $u->id !== $actor->id && $u->can('has timesheet') && $this->zugriff->verwaltetNachweiseVon($actor, $u))
+            ->values();
+
+        if ($mitarbeitende->isEmpty()) {
+            abort_unless($actor->can('has timesheet'), 403);
+
+            return redirect()->route('timesheets.show', $actor->id);
         }
 
-        if (auth()->user()->can('lock timesheets') and auth()->user()->can('edit employe')){
-            $users = User::whereHas('employments')->get();
-        } else {
-            $users = User::whereHas('employments')
-                ->where('superior_id', auth()->id())->get();
-        }
-
-
-        foreach ($users as $key => $user){
-           if (!$user->can('has timesheet')){
-            $users->forget($key);
-           }
-        }
+        $vormonat = now()->subMonth();
 
         return view('personal.timesheets.selectEmploye', [
-            'employes' => $users
+            'employes' => $mitarbeitende,
+            'vormonat' => $vormonat,
+            'eigener' => $actor->can('has timesheet'),
         ]);
     }
 
-    public function berechtigt(User $user, $function)
+    public function show(Request $request, User $user, $date = null)
     {
-        $is_same_user = (auth()->id() == $user->id) ? true : false;
-        $edit_employe = (auth()->user()->can('edit employe')) ? true : false;
-        $lock_timesheets = (auth()->user()->can('lock timesheets')) ? true : false;
+        $this->authorize('viewEmploye', [Timesheet::class, $user]);
 
-        $is_supervisor = (auth()->id() == $user->superior_id) ? true : false;
-
-        switch ($function){
-            case 'lock':
-                if ($is_same_user or ($lock_timesheets and $is_supervisor)){
-
-                    return true;
-                }
-                Log::debug('Timesheets - Kein Zugriff aus diesen Mitarbeiter', [
-                    'function' => 'berechtigt',
-                    'Benutzer' => auth()->user(),
-                    'Angestellter' => $user,
-                    'Rechte' => [
-                        'edit employe' => auth()->user()->can('edit employe'),
-                        'lock timesheets' => auth()->user()->can('lock timesheets'),
-                    ]
-                ]);
-                return false;
-                break;
-
-            case 'edit':
-                if (($edit_employe) or ($is_supervisor and $lock_timesheets) or $is_same_user) {
-                    return true;
-                }
-                Log::debug('Timesheets - Kein Zugriff aus diesen Mitarbeiter', [
-                    'function' => 'berechtigt - edit',
-                    'Benutzer' => auth()->user(),
-                    'Angestellter' => $user,
-                    'Rechte' => [
-                        'edit employe' => auth()->user()->can('edit employe'),
-                        'lock timesheets' => auth()->user()->can('lock timesheets'),
-                    ],
-                    'is_same_user' => $is_same_user,
-                    'is_supervisor' => $is_supervisor . ' - ' . auth()->id() .' -> '. $user->superior_id,
-                    'edit_employe' => $edit_employe,
-                    'lock_timesheets' => $lock_timesheets,
-
-                ]);
-                return false;
-                break;
-        }
-        return false;
-    }
-
-    public function storeDay(createTimesheetDayRequest $request, User $user, Timesheet $timesheet, $day){
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
+        if ($user->employments()->count() < 1 && $user->timesheets()->count() < 1) {
+            return redirectBack('warning', 'Für '.$user->name.' ist keine Anstellung eingetragen.');
         }
 
-
-
-        $day = Carbon::createFromFormat('Y-m-d', $day);
-        $timesheetDay = new TimesheetDays($request->validated());
-        $timesheetDay->timesheet_id=$timesheet->id;
-        $timesheetDay->date=$day;
-        $timesheetDay->save();
-
-        $this->clearMissingClockOutAnomaly($timesheet, $day);
-        $timesheet->updateTime();
-
-        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
-
-    }
-
-    public function addFromAbsence(User $user, Timesheet $timesheet, $day, $absence){
-
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
+        $monat = $date ? Carbon::createFromFormat('Y-m-d', $date.'-01')->startOfDay() : Carbon::today()->startOfMonth();
+        if ($monat->gt(Carbon::today()->startOfMonth()->addMonth())) {
+            return redirect()->route('timesheets.show', [$user->id, Carbon::today()->format('Y-m')]);
         }
 
-
-
-        if( !array_key_exists($absence, config('config.abwesenheiten_arbeitszeit'))){
-            return redirectBack('warning', 'Fehler bei der Auswahl');
-        }
-        $day = Carbon::createFromFormat('Y-m-d', $day);
-        $timesheetDay = new TimesheetDays([
-            'percent_of_workingtime' => config("config.abwesenheiten_arbeitszeit.$absence"),
-            'comment' => $absence
-        ]);
-
-        $timesheetDay->timesheet_id=$timesheet->id;
-        $timesheetDay->date=$day;
-        $timesheetDay->save();
-
-        $this->clearMissingClockOutAnomaly($timesheet, $day);
-        $timesheet->updateTime();
-
-        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with(['success', 'Arbeitszeit gespeichert']);
-
-    }
-
-
-    public function deleteDay(User $user, Timesheet $timesheet, TimesheetDays $timesheetDay){
-
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-
-
-        $day = $timesheetDay->date;
-
-        if ($timesheetDay->timesheet_id == $timesheet->id and $timesheet->employe_id == $user->id){
-            $timesheetDay->delete();
-            $this->rebuildDayAnomalies($timesheet, $day);
-            $timesheet->updateTime();
-            return redirect(url('timesheets/'.$timesheet->employe_id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag gelöscht');
-        }
-        return redirectBack('warning', 'Fehler bei der Zuordnung');
-    }
-
-    /**
-     * add new Day
-     *
-     */
-
-    public function addDay(User $user, Timesheet $timesheet, $day){
-
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-
-        $day = Carbon::createFromFormat('Y-m-d', $day);
-
-        return view('personal.timesheets.addDay',[
-            'day' => $day,
-            'user' => $user,
-            'timesheet' => $timesheet,
-            'suggestion' => $this->rosterSuggestionForDay($user, $day),
-        ]);
-
-    }
-
-    /**
-     * Ermittelt aus dem Dienstplan (WorkingTime) den Vorschlag für Beginn/Ende
-     * eines Tages, damit Mitarbeiter fehlende Zeiten schnell nachtragen können.
-     *
-     * @return array{start: ?string, end: ?string}
-     */
-    private function rosterSuggestionForDay(User $user, Carbon $day): array
-    {
-        $withTimes = $user->working_times()
-            ->whereDate('date', $day->format('Y-m-d'))
-            ->get()
-            ->filter(fn ($w) => $w->start !== null && $w->end !== null);
-
-        if ($withTimes->isEmpty()) {
-            return ['start' => null, 'end' => null];
-        }
-
-        return [
-            'start' => $withTimes->min(fn ($w) => $w->start)->format('H:i'),
-            'end'   => $withTimes->max(fn ($w) => $w->end)->format('H:i'),
-        ];
-    }
-
-    /**
-     * Übernimmt die Dienstplanzeiten (WorkingTime) für einen Tag als Zeitbuchung.
-     * Ergänzt eine unvollständige Buchung (fehlender Ausstieg) oder legt eine neue
-     * Buchung an, falls für den Tag noch keine erfasst wurde.
-     */
-    public function applyRosterSuggestion(User $user, Timesheet $timesheet, $day)
-    {
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-        $day = Carbon::createFromFormat('Y-m-d', $day);
-        $suggestion = $this->rosterSuggestionForDay($user, $day);
-
-        if ($suggestion['start'] === null || $suggestion['end'] === null){
-            return redirectBack('warning', 'Für diesen Tag liegen keine Dienstplanzeiten vor.');
-        }
-
-        // Unvollständige Buchung (Start ohne Ende) ergänzen statt Duplikat anzulegen
-        $incomplete = TimesheetDays::where('timesheet_id', $timesheet->id)
-            ->whereDate('date', $day->format('Y-m-d'))
-            ->whereNotNull('start')
-            ->whereNull('end')
-            ->first();
-
-        if ($incomplete !== null){
-            $incomplete->update(['end' => $suggestion['end']]);
-        } else {
-            $timesheetDay = new TimesheetDays([
-                'start' => $suggestion['start'],
-                'end'   => $suggestion['end'],
-                'comment' => 'aus Dienstplan übernommen',
-            ]);
-            $timesheetDay->timesheet_id = $timesheet->id;
-            $timesheetDay->date = $day;
-            $timesheetDay->save();
-        }
-
-        $this->clearMissingClockOutAnomaly($timesheet, $day);
-        $timesheet->updateTime();
-
-        return redirect(url('timesheets/'.$user->id.'/'.$day->format('Y-m').'#'.$day->copy()->startOfWeek()->format('Y-m-d')))
-            ->with('type', 'success')
-            ->with('Meldung', 'Dienstplanzeiten wurden übernommen ('.$suggestion['start'].' - '.$suggestion['end'].' Uhr).');
-    }
-
-    public function editDay(TimesheetDays $timesheetDay){
-
-        $timesheetDay->load('timesheet');
-        $user = $timesheetDay->timesheet->employe;
-
-
-
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-        return view('personal.timesheets.editDay',[
-            'timesheet_day' => $timesheetDay,
-            'day' => $timesheetDay->date,
-        ]);
-    }
-
-    public function updateDay(updateTimesheetDayRequest $request, TimesheetDays $timesheetDay){
-
-        $user = $timesheetDay->employe;
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-
-        $timesheetDay->update($request->validated());
-
-        $timesheetDay->timesheet->updateTime();
-
-        return redirect(url('timesheets/'.$timesheetDay->timesheet->employe_id.'/'.$timesheetDay->date->format('Y-m').'#'.$timesheetDay->date->copy()->startOfWeek()->format('Y-m-d')))->with('success', 'Eintrag aktualisiert');
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\personal\Timesheet  $timesheet
-     * @return RedirectResponse
-     */
-    public function show(User $user, $date = null)
-    {
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-        if ($user->employments->count() < 1){
-            return redirectBack('warning', 'Keine Anstellung eingetragen');
-        }
-
-
-        if ($date == null){
-           $act_month = Carbon::today();
-        } else {
-
-            $act_month = Carbon::createFromFormat('Y-m', $date);
-
-        }
-
-
-
-
-        $old = $act_month->copy()->subMonth();
-        $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
-            return Timesheet::where('employe_id', $user->id)
-                ->where('year', $old->year)
-                ->where('month', $old->month)
-                ->first();
-        });
-
-        $timesheet = Timesheet::firstOrCreate([
-                'employe_id' => $user->id,
-                'year' => $act_month->year,
-                'month' => $act_month->month,
-            ], [
-            'working_time_account' => 0
-        ]);
-
-
-        if (($timesheet->wasRecentlyCreated === true or $timesheet->timesheet_days->count() == null) and $act_month->copy()->endOfMonth()->lessThanOrEqualTo(Carbon::today()->endOfMonth())){
-            $working_times = $user->working_times->filter(function ($working_time) use ($act_month){
-                if ($working_time->roster?->type != 'template'){
-                    return $working_time->date->greaterThanOrEqualTo($act_month->startOfMonth()) and $working_time->date->lessThanOrEqualTo($act_month->endOfMonth());
-                }
-            });
-
-            $newTimesheetDays = [];
-
-            //Pausen holen
-            $pausen = RosterEvents::where('employe_id', $user->id)
-                ->where('event', 'LIKE', 'pause')
-                ->whereBetween('date', [$act_month->copy()->startOfMonth()->format('Y-m-d'),$act_month->copy()->endOfMonth()->format('Y-m-d')])
-                ->get();
-
-            foreach ($working_times as $working_time){
-                if ($working_time->start != null and $working_time->end != null){
-                    $pause = $pausen->filter(function ($event) use($working_time){
-                        return $event->date->format('Y-m-d') == $working_time->date->format('Y-m-d');
-                    });
-                    $newTimesheetDays[]=[
-                        'timesheet_id' => $timesheet->id,
-                        'date'  => $working_time->date,
-                        'start' => $working_time->start,
-                        'end' => $working_time->end,
-                        'pause' => $pause?->sum('duration'),
-                        'comment' => 'aus Dienstplan erstellt'
-                    ];
-                }
+        $timesheet = $this->timesheets->forMonth($user, $monat);
+        if (!$timesheet->is_locked) {
+            $this->timesheets->bisherigBefuellen($timesheet);
+            $this->timesheets->syncMonat($timesheet);
+            if ($request->user()->can('edit', $timesheet)) {
+                $this->timesheets->planAutomatisch($timesheet);
             }
-
-            $config= config('config.abwesenheiten_arbeitszeit');
-            //Abwesenheiten
-            $absences = Absence::whereIn('reason', array_keys($config))
-                ->where('users_id', $user->id)
-                ->whereDate('start', '>=', $act_month->copy()->startOfMonth()->format('Y-m-d'))
-                ->whereDate('end', '<=', $act_month->copy()->endOfMonth()->format('Y-m-d'))
-                ->get();
-            TimesheetDays::insert($newTimesheetDays);
-
-            $newTimesheetDays = [];
-
-            foreach ($absences as $absence){
-                for ($day=$absence->start; $day->lessThanOrEqualTo($absence->end); $day->addDay()){
-                    $newTimesheetDays[]=[
-                        'timesheet_id' => $timesheet->id,
-                        'date'  => $day->format('Y-m-d'),
-                        'percent_of_workingtime' => $config[$absence->reason],
-                        'comment' => $absence->reason
-                    ];
-                }
-            }
-
-            TimesheetDays::insert($newTimesheetDays);
-
-
+            $this->timesheets->recalculate($timesheet, false);
+            $timesheet->refresh();
         }
 
-        $timesheet_days = $timesheet?->timesheet_days;
+        $ersterMonat = $user->employments()->min('start');
+        $monate = [];
+        for ($m = Carbon::today()->startOfMonth()->addMonth(); $ersterMonat && $m->gte(Carbon::parse($ersterMonat)->startOfMonth()) && count($monate) < 120; $m->subMonth()) {
+            $monate[] = $m->copy();
+        }
 
-        $timesheet->updateTime();
-
-        // Offene Auffälligkeiten (fehlende/unvollständige Zeitbuchungen an Dienstplantagen)
-        // inkl. Dienstplan-Vorschlag, damit der Mitarbeiter zur Nacherfassung aufgefordert werden kann.
-        $missingEntries = TimesheetAnomaly::forEmploye($user->id)
-            ->forPeriod($act_month->month, $act_month->year)
-            ->where('rule_type', \App\Enums\AnomalyRuleType::MissingClockOut->value)
+        $fehlend = TimesheetAnomaly::forEmploye($user->id)
+            ->forPeriod($monat->month, $monat->year)
+            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
             ->whereDate('date', '<=', Carbon::today()->toDateString())
             ->unresolved()
             ->orderBy('date')
             ->get();
 
         return view('personal.timesheets.timesheet', [
-            'timesheet_old' => $timesheet_old,
-            'timesheet' => $timesheet,
-            'timesheet_days' => $timesheet_days,
-            'balance' => $timesheet->working_time_account,
             'employe' => $user,
-            'month' => $act_month,
-            'missingEntries' => $missingEntries,
+            'timesheet' => $timesheet,
+            'timesheet_old' => $this->timesheets->vorgaenger($timesheet),
+            'zeilen' => $this->timesheets->monatsZeilen($timesheet),
+            'month' => $monat,
+            'monate' => $monate,
+            'missingEntries' => $fehlend,
+            'abwesenheitsGruende' => config('config.abwesenheiten_arbeitszeit', []),
+            'istEigener' => $request->user()->id === $user->id,
+            'eingefroren' => $this->timesheets->istEingefroren($timesheet) && !$timesheet->is_locked,
+            'altesModell' => $this->timesheets->istHistorisch($timesheet),
         ]);
+    }
 
+    public function addDay(User $user, Timesheet $timesheet, string $date)
+    {
+        $this->authorize('edit', $timesheet);
+        $tag = $this->tag($timesheet, $date);
+
+        if ($tag->gt(Carbon::today())) {
+            return redirectBack('warning', 'Arbeitszeiten können nicht für zukünftige Tage eingetragen werden.');
+        }
+
+        return view('personal.timesheets.addDay', [
+            'day' => $tag,
+            'user' => $user,
+            'timesheet' => $timesheet,
+            'suggestion' => $this->timesheets->planFuerZeitraum($user, $tag, $tag)->get($tag->toDateString()),
+        ]);
+    }
+
+    public function storeDay(createTimesheetDayRequest $request, User $user, Timesheet $timesheet, string $date)
+    {
+        $this->authorize('edit', $timesheet);
+        $tag = $this->tag($timesheet, $date);
+
+        $this->timesheets->buchen($timesheet, $tag, $request->validated());
+        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+
+        return $this->zurueck($user, $tag, 'Arbeitszeit gespeichert.');
+    }
+
+    public function addFromAbsence(Request $request, User $user, Timesheet $timesheet, string $date)
+    {
+        $this->authorize('edit', $timesheet);
+        $tag = $this->tag($timesheet, $date);
+        $data = $request->validate(['absence' => ['required', 'string', 'max:60']]);
+
+        $this->timesheets->gutschreiben($timesheet, $tag, $data['absence']);
+        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+
+        return $this->zurueck($user, $tag, $data['absence'].' eingetragen.');
+    }
+
+    public function applyRosterSuggestion(User $user, Timesheet $timesheet, string $date)
+    {
+        $this->authorize('edit', $timesheet);
+        $tag = $this->tag($timesheet, $date);
+
+        $zeile = $this->timesheets->planUebernehmen($timesheet, $tag);
+        if ($zeile === null) {
+            return redirectBack('warning', 'Für diesen Tag liegen keine Dienstplanzeiten vor.');
+        }
+        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+
+        return $this->zurueck($user, $tag, 'Dienstplanzeiten übernommen ('.$zeile->start->format('H:i').'–'.$zeile->end->format('H:i').' Uhr).');
+    }
+
+    public function applyRosterMonth(User $user, Timesheet $timesheet)
+    {
+        $this->authorize('edit', $timesheet);
+        $anzahl = $this->timesheets->planUebernehmenMonat($timesheet);
+
+        return redirectBack($anzahl > 0 ? 'success' : 'info', $anzahl > 0
+            ? $anzahl.' Tag(e) aus dem Dienstplan übernommen.'
+            : 'Keine offenen Tage mit Dienstplanzeiten gefunden.');
+    }
+
+    public function editDay(TimesheetDays $timesheetDay)
+    {
+        $this->authorize('edit', $timesheetDay->timesheet);
+        abort_if($timesheetDay->is_credit, 404);
+
+        return view('personal.timesheets.editDay', [
+            'timesheet_day' => $timesheetDay,
+            'timesheet' => $timesheetDay->timesheet,
+            'day' => $timesheetDay->date,
+        ]);
+    }
+
+    public function updateDay(updateTimesheetDayRequest $request, TimesheetDays $timesheetDay)
+    {
+        $timesheet = $timesheetDay->timesheet;
+        $this->authorize('edit', $timesheet);
+        abort_if($timesheetDay->is_credit, 404);
+
+        $this->timesheets->aendern($timesheetDay, $request->validated());
+
+        return $this->zurueck($timesheet->employe, $timesheetDay->date, 'Eintrag aktualisiert.');
+    }
+
+    public function deleteDay(TimesheetDays $timesheetDay)
+    {
+        $timesheet = $timesheetDay->timesheet;
+        $this->authorize('edit', $timesheet);
+
+        $tag = $timesheetDay->date->copy();
+        $this->timesheets->loeschen($timesheetDay);
+        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+
+        return $this->zurueck($timesheet->employe, $tag, 'Eintrag gelöscht.');
+    }
+
+    public function updateSheet(Request $request, User $user, Timesheet $timesheet)
+    {
+        $this->authorize('edit', $timesheet);
+
+        $this->timesheets->syncMonat($timesheet);
+        $this->timesheets->recalculate($timesheet, true, true);
+        $this->validationService->runForEmployee($user, $timesheet->monthStart(), $request->user(), false);
+
+        return redirectBack('success', 'Nachweis neu berechnet und geprüft.');
+    }
+
+    public function updateTimesheets(Request $request, User $user)
+    {
+        abort_unless($this->zugriff->verwaltetNachweiseVon($request->user(), $user), 403);
+
+        // Ausdrückliche Neuberechnung aller offenen Monate der Reihe nach (wie bisher)
+        foreach ($user->timesheets()->whereNull('locked_at')->orderBy('year')->orderBy('month')->get() as $ts) {
+            if ($ts->monthStart()->gt(now()->endOfMonth())) {
+                break;
+            }
+            $this->timesheets->recalculate($ts, false, true);
+        }
+
+        return redirectBack('success', 'Stundenkonto neu berechnet.');
+    }
+
+    // ---- Workflow ----
+
+    public function submit(Request $request, User $user, Timesheet $timesheet)
+    {
+        $this->authorize('submit', $timesheet);
+        $this->timesheets->einreichen($timesheet, $request->user());
+
+        return redirectBack('success', 'Nachweis eingereicht. Die prüfende Person wird benachrichtigt.');
+    }
+
+    public function lock(Request $request, User $user, Timesheet $timesheet)
+    {
+        $this->authorize('lock', $timesheet);
+        $this->timesheets->abschliessen($timesheet, $request->user());
+
+        return redirectBack('success', 'Nachweis bestätigt und abgeschlossen.');
+    }
+
+    public function returnToEmploye(Request $request, User $user, Timesheet $timesheet)
+    {
+        $this->authorize('returnToEmploye', $timesheet);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+        $this->timesheets->zurueckgeben($timesheet, $request->user(), $data['reason']);
+
+        return redirectBack('success', 'Nachweis zur Korrektur zurückgegeben.');
+    }
+
+    public function unlock(User $user, Timesheet $timesheet)
+    {
+        $this->authorize('unlock', $timesheet);
+        $this->timesheets->entsperren($timesheet);
+
+        return redirectBack('success', 'Sperre aufgehoben – der Nachweis kann wieder bearbeitet werden.');
+    }
+
+    // ---- Übersicht & Export ----
+
+    public function overviewTimesheetsUser(User $user)
+    {
+        $this->authorize('viewEmploye', [Timesheet::class, $user]);
+
+        return view('personal.timesheets.overview', [
+            'user' => $user,
+            'timesheets' => $user->timesheets()->with('lockedBy')->orderByDesc('year')->orderByDesc('month')->get(),
+        ]);
     }
 
     public function export(User $user, Timesheet $timesheet)
     {
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-        $act_month = Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month);
+        $this->authorize('view', $timesheet);
 
-
-        //keine Anstellung in diesem Monat
-        if ($user->employments_date($act_month)->count() <1){
-            return redirectBack('warning', 'Keine Anstellung in dem gewählten Monat');
-        }
-        //nur bis aktuellem Monat
-        if ($act_month->copy()->endOfMonth()->greaterThan(Carbon::today()->endOfMonth())){
-            return redirectBack('warning', 'Dieses Datum liegt in der Zukunft');
+        if ($timesheet->monthStart()->gt(Carbon::today())) {
+            return redirectBack('warning', 'Dieser Monat liegt in der Zukunft.');
         }
 
-        $old = $act_month->copy()->subMonth();
-        $timesheet_old = Cache::remember('timesheet_'.$user->id.'_'.$old->year.'_'.$old->month, 60, function () use ($user, $old){
-            return Timesheet::where('employe_id', $user->id)
-                ->where('year', $old->year)
-                ->where('month', $old->month)
-                ->first();
-        });
-
-        $timesheet = Timesheet::firstOrCreate([
-                'employe_id' => $user->id,
-                'year' => $act_month->year,
-                'month' => $act_month->month,
-            ]);
-
-        $timesheet_days = $timesheet->timesheet_days;
-
-        $pdf = PDF::loadView('personal.timesheets.pdf', [
-            'timesheet_old' => $timesheet_old,
-            'timesheet' => $timesheet,
-            'timesheet_days' => $timesheet_days,
-            'employe' => $user,
-            'month' => $act_month
-        ]);
-        return $pdf->download('AZN_'.$user->familienname.'_'.$timesheet->year.'_'.$timesheet->month.'.pdf');
+        return $this->pdf($timesheet)->download($this->dateiname($timesheet));
     }
-
-    public function timesheet_mail()
-    {
-        foreach (User::all() as $user){
-            set_time_limit(180);
-            if ($user->can('has timesheet') and $user->employments_date(Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth())->count() > 0){
-                Log::debug('Sende Arbeitszeitnachweis an '.$user->email);
-                try {
-                    if (!is_null($user->employe_data) and $user->employe_data->mail_timesheet){
-                        $date = Carbon::now()->subMonth();
-                        $timesheet = Timesheet::where([
-                            'employe_id' => $user->id,
-                            'year' => $date->year,
-                            'month' => $date->month,
-                        ])->first();
-                        if (!is_null($timesheet)) {
-                            $timesheet_days = $timesheet->timesheet_days;
-
-                            $old = $date->copy()->subMonth();
-
-                            $timesheet_old = Cache::remember('timesheet_' . $user->id . '_' . $old->year . '_' . $old->month, 60, function () use ($user, $old) {
-                                return Timesheet::where('employe_id', $user->id)
-                                    ->where('year', $old->year)
-                                    ->where('month', $old->month)
-                                    ->first();
-                            });
-
-                            $pdf = PDF::loadView('personal.timesheets.pdf', [
-                                'timesheet' => $timesheet,
-                                'timesheet_old' => $timesheet_old,
-                                'timesheet_days' => $timesheet_days,
-                                'employe' => $user,
-                                'month' => $date
-                            ]);
-
-                            $pdf->save(storage_path('timesheet.pdf'), 1);
-
-                            try {
-                                if ($user->superior_id != null){
-                                    $superior = User::find($user->superior_id);
-                                    if ($superior != null and $superior->email != null){
-                                        Log::debug('Sende Arbeitszeitnachweis an '.$user->email.' mit CC an '.$superior->email);
-                                        Mail::to($user->email)->cc($superior->email)->send(new SendMonthlyTimesheetMail($user, $date));
-                                    }
-                                } else {
-                                    Log::debug('Sende Arbeitszeitnachweis an '.$user->email . "da kein Supervisor vorhanden ist");
-                                    Mail::to($user->email)->send(new SendMonthlyTimesheetMail($user, $date));
-                                }
-
-                            } catch (\Exception $e) {
-                                Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
-                                    'user' => $user->id,
-                                    'email' => $user->email,
-                                    'exception' => $e->getMessage()
-                                ]);
-
-                            }
-
-                            if (File::exists(storage_path('timesheet.pdf'))) {
-                                File::delete(storage_path('timesheet.pdf'));
-                            }
-                        }
-
-                    }
-                } catch (\Exception $e) {
-                    $admin = User::whereHas('roles', function ($query) {
-                        $query->where('name', 'admin');
-                    })->first();
-
-                    $admin->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Fehler beim Versenden des Arbeitszeitnachweises für ' . $user->name . ' ' . $user->familienname . ' ' . $date->format('Y-m')));
-                    Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
-                        'user' => $user,
-                        'exception' => $e->getMessage()
-                    ]);
-                    continue;
-                }
-
-            }
-        }
-
-    }
-
-
-
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\personal\Timesheet  $timesheet
-     * @return RedirectResponse
+     * Monatliche Mail mit dem Nachweis des Vormonats (Scheduler).
      */
-    public function updateSheet(User $user,  Timesheet $timesheet)
+    public function timesheet_mail()
     {
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
+        $monat = Carbon::now()->subMonth()->startOfMonth();
+
+        foreach (User::whereHas('timesheets', fn ($q) => $q->where('year', $monat->year)->where('month', $monat->month))->get() as $user) {
+            if (!$user->can('has timesheet') || !$user->employe_data?->mail_timesheet) {
+                continue;
+            }
+
+            $timesheet = $user->timesheets()->where('year', $monat->year)->where('month', $monat->month)->first();
+            $pfad = storage_path('app/tmp/azn_'.$user->id.'_'.Str::random(16).'.pdf');
+
+            try {
+                File::ensureDirectoryExists(dirname($pfad));
+                $this->pdf($timesheet)->save($pfad, true);
+
+                $mail = Mail::to($user->email);
+                $superior = $user->superior;
+                if ($superior?->email) {
+                    $mail->cc($superior->email);
+                }
+                $mail->send(new SendMonthlyTimesheetMail($user, $monat, $pfad));
+            } catch (\Throwable $e) {
+                Log::error('Fehler beim Versenden des Arbeitszeitnachweises', ['user' => $user->id, 'exception' => $e->getMessage()]);
+                User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()?->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Arbeitszeitnachweis für '.$user->name.' ('.$monat->format('m/Y').') konnte nicht versendet werden.'));
+            } finally {
+                File::delete($pfad);
+            }
         }
-
-        $timesheet->updateTime();
-        $this->validationService->runForEmployee($user, Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month), auth()->user(), false);
-
-        return redirectBack('success', 'Aktuslisierung erfolgt');
     }
 
+    // =========================================================================
 
-    public function updateTimesheets(User $user){
-
-
-        if (!$this->berechtigt($user, 'edit')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-
-
-
-
-        $timesheets = $user->timesheets;
-        $timesheets = $timesheets->sortBy([
-            ['year', 'asc'],
-            ['month', 'asc'],
+    private function pdf(Timesheet $timesheet)
+    {
+        return PDF::loadView('personal.timesheets.pdf', [
+            'timesheet' => $timesheet,
+            'timesheet_old' => $this->timesheets->vorgaenger($timesheet),
+            'zeilen' => $this->timesheets->monatsZeilen($timesheet, false),
+            'employe' => $timesheet->employe,
+            'month' => $timesheet->monthStart(),
         ]);
+    }
 
+    private function dateiname(Timesheet $timesheet): string
+    {
+        return 'AZN_'.Str::slug($timesheet->employe->familienname ?? $timesheet->employe->name).'_'.$timesheet->year.'_'.str_pad((string) $timesheet->month, 2, '0', STR_PAD_LEFT).'.pdf';
+    }
 
-        foreach ($timesheets as $timesheet){
-            $timesheet->updateTime();
-            $this->validationService->runForEmployee($user, Carbon::createFromFormat('Y-m', $timesheet->year.'-'.$timesheet->month), auth()->user(), false);
+    private function tag(Timesheet $timesheet, string $date): Carbon
+    {
+        try {
+            $tag = Carbon::createFromFormat('Y-m-d', $date)->startOfDay();
+        } catch (\Throwable) {
+            abort(404);
         }
-        return redirectBack('success', 'Aktualisierung erfolgreich');
+
+        abort_if($tag->year !== (int) $timesheet->year || $tag->month !== (int) $timesheet->month, 404);
+
+        return $tag;
+    }
+
+    private function zurueck(User $user, Carbon $tag, string $meldung)
+    {
+        return redirect(route('timesheets.show', [$user->id, $tag->format('Y-m')]).'#tag-'.$tag->toDateString())
+            ->with(['type' => 'success', 'Meldung' => $meldung]);
     }
 
     private function clearMissingClockOutAnomaly(Timesheet $timesheet, Carbon $day): void
@@ -620,61 +375,8 @@ class TimesheetController extends Controller
         TimesheetAnomaly::forEmploye($timesheet->employe_id)
             ->forPeriod($day->month, $day->year)
             ->whereDate('date', $day->toDateString())
-            ->where('rule_type', \App\Enums\AnomalyRuleType::MissingClockOut->value)
+            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
             ->unresolved()
             ->delete();
     }
-
-    private function rebuildDayAnomalies(Timesheet $timesheet, Carbon $day): void
-    {
-        $this->clearMissingClockOutAnomaly($timesheet, $day);
-    }
-
-    public function lock(User $user, Timesheet $timesheet){
-
-
-
-        if (!$this->berechtigt($user, 'lock')){
-            return redirectBack('warning', 'Keine Berechtigung');
-        }
-
-
-
-
-
-        $timesheet->update([
-            'locked_at' => Carbon::now(),
-            'locked_by' => auth()->id()
-        ]);
-
-        return redirectBack('success', 'Nachweis gespeichert und geschlossen');
-    }
-
-
-    public function unlock(User $user, Timesheet $timesheet){
-        if (!auth()->user()->can('edit employe')){
-            return redirectBack('warning', 'Recht fehlt');
-        }
-
-        $timesheet->update([
-            'locked_at' => null,
-            'locked_by' => null
-        ]);
-
-        return redirectBack('success', 'Sperre aufgehoben');
-
-
-    }
-
-    public function overviewTimesheetsUser (User $user){
-            if (!$this->berechtigt($user, 'edit')){
-                return redirectBack('warning', 'Keine Berechtigung');
-            }
-
-            return \view('personal.timesheets.overview', [
-                'user' => $user,
-                'timesheets' => $user->timesheets->sortBy(['year', 'month'])
-            ]);
-    }
-
 }

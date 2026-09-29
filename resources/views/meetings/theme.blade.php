@@ -200,6 +200,24 @@
                     </a>
                     <p class="mtg-hint">Dort stehen Umfragen, Aufgaben, Teilen und Dateiverwaltung zur Verfügung.</p>
                 @endif
+
+                @if($moveTargets->isNotEmpty() || $canMakeFree)
+                    <form action="{{ route('meetings.themes.move', [$meeting, $theme]) }}" method="POST" class="space-y-2 pt-3 border-t border-gray-100">
+                        @csrf
+                        @method('PUT')
+                        <label class="mtg-label" for="move_group">Gruppe ändern</label>
+                        <select id="move_group" name="group_id" class="mtg-select">
+                            @foreach($moveTargets as $targetGroup)
+                                <option value="{{ $targetGroup->id }}">Gruppe {{ $targetGroup->name }}</option>
+                            @endforeach
+                            @if($canMakeFree)
+                                <option value="">Freies Thema (nur in diesem Meeting)</option>
+                            @endif
+                        </select>
+                        <button type="submit" class="mtg-btn mtg-btn-secondary mtg-btn-sm w-full"><i class="fas fa-exchange-alt"></i> Zuordnung ändern</button>
+                        <p class="mtg-hint">Einer Gruppe zugeordnete Themen bleiben in deren Themenliste erhalten, wenn sie hier nicht abgeschlossen werden.</p>
+                    </form>
+                @endif
             </section>
 
             {{-- Aufgaben --}}

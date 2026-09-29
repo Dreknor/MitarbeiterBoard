@@ -272,9 +272,8 @@ class TimeValidationService
      */
     public function dailyTargetSeconds(User $employe, Carbon $date): float
     {
-        $percent = $employe->employments_date($date)->sum('percent');
-
-        return percent_to_seconds($percent) / 5; // 5 Arbeitstage/Woche, analog Timesheet::updateTime()
+        // Einheitliches Arbeitszeitmodell (Vertrag, Arbeitstage, Feiertage) – identisch zum Arbeitszeitnachweis
+        return app(\App\Services\Personal\Zeit\ArbeitszeitService::class)->sollSekunden($employe, $date);
     }
 
     /**
@@ -320,15 +319,13 @@ class TimeValidationService
             $key = $day->format('Y-m-d');
             $entries = $timesheetDays->filter(fn ($d) => $d->date->format('Y-m-d') === $key);
 
-            $worked = $entries->filter(fn ($d) => $d->start !== null && $d->end !== null)->sum('duration');
-            $credit = $entries->filter(fn ($d) => $d->percent_of_workingtime !== null)->sum('duration');
+            $soll = $this->dailyTargetSeconds($employe, $day);
+            $worked = $entries->filter(fn ($d) => !$d->is_credit && $d->start !== null && $d->end !== null)->sum('duration');
+            $credit = $entries->filter(fn ($d) => $d->is_credit)->sum(fn ($d) => $soll / 100 * (float) $d->percent_of_workingtime);
 
             $istSeconds += max($worked, 0);
             $creditSeconds += max($credit, 0);
-
-            if ($day->isWeekday() && !is_holiday($day)) {
-                $sollSeconds += $this->dailyTargetSeconds($employe, $day);
-            }
+            $sollSeconds += $soll;
         }
 
         return [

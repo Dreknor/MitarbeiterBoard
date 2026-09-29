@@ -16,8 +16,11 @@ class RosterEvents extends Model
     use SoftDeletes;
 
 
-    protected $fillable = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id'];
-    protected $visible = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id'];
+    protected $fillable = ['date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id', 'source'];
+
+    /** Automatisch gesetzte Abwesenheits-Markierung (Urlaub, krank …) */
+    public const SOURCE_ABWESENHEIT = 'abwesenheit';
+    protected $visible = ['id', 'date', 'start', 'end', 'employe_id', 'roster_id', 'event', 'ox_termin_id', 'source'];
 
     protected $casts =[
         'date' => 'datetime:Y-m-d'
@@ -38,11 +41,48 @@ class RosterEvents extends Model
         return $this->belongsTo(OxTermin::class, 'ox_termin_id');
     }
 
+    public function getIsAbwesenheitAttribute(): bool
+    {
+        return $this->source === self::SOURCE_ABWESENHEIT;
+    }
+
     public function getDurationAttribute()
     {
         return $this->start->diffInMinutes($this->end);
     }
 
+
+    /**
+     * Zeiten immer als H:i:s speichern (Formulare liefern H:i, die Getter erwarten H:i:s).
+     */
+    public function setStartAttribute($value): void
+    {
+        $this->attributes['start'] = self::normalisiereZeit($value);
+    }
+
+    public function setEndAttribute($value): void
+    {
+        $this->attributes['end'] = self::normalisiereZeit($value);
+    }
+
+    private static function normalisiereZeit($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i:s');
+        }
+        $value = trim((string) $value);
+        if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
+            return str_pad($value, 5, '0', STR_PAD_LEFT).':00';
+        }
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $value)) {
+            return str_pad($value, 8, '0', STR_PAD_LEFT);
+        }
+
+        return \Carbon\Carbon::parse($value)->format('H:i:s');
+    }
 
     //Casts Time
 

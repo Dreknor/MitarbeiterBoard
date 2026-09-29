@@ -233,9 +233,12 @@
                 </div>
 
                 {{-- ── PERSONAL (Untermenü) ────────────────────────────── --}}
-                @canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays'])
+                @php
+                    $zeigtMeinDienstplan = auth()->user()->working_times()->exists();
+                @endphp
+                @if(auth()->user()->canany(['create roster', 'edit employe', 'has timesheet', 'has holidays', 'approve holidays']) || $zeigtMeinDienstplan)
                     @php
-                        $personalActive = in_array(request()->segment(1), ['roster', 'timesheets', 'employes', 'holidays']);
+                        $personalActive = in_array(request()->segment(1), ['roster', 'timesheets', 'employes', 'holidays', 'mein-dienstplan']);
                     @endphp
                     <div x-data="{ open: {{ $personalActive ? 'true' : 'false' }} }">
                         <button class="sidebar-toggle @if($personalActive) active-parent @endif"
@@ -258,22 +261,34 @@
                                     <span>Dienstpläne</span>
                                 </a>
                             @endcan
+                            @if($zeigtMeinDienstplan)
+                                <a href="{{ route('roster.mine') }}"
+                                   class="sidebar-link @if(request()->segment(1) == 'mein-dienstplan') active @endif">
+                                    <i class="fas fa-calendar-week"></i>
+                                    <span>Mein Dienstplan</span>
+                                </a>
+                            @endif
                             @can('edit employe')
                                 <a href="{{ route('employes.index') }}"
                                    class="sidebar-link @if(Route::currentRouteName() == 'employes.index' || Route::currentRouteName() == 'employes.show') active @endif">
                                     <i class="fas fa-users"></i>
                                     <span>Personal Übersicht</span>
                                 </a>
+                                <a href="{{ route('personal.vorgesetzte.index') }}"
+                                   class="sidebar-link @if(Route::currentRouteName() == 'personal.vorgesetzte.index') active @endif">
+                                    <i class="fas fa-sitemap"></i>
+                                    <span>Vorgesetzte</span>
+                                </a>
                             @endcan
                             @can('lock timesheets')
-                                <a href="{{ url('timesheets/select/employe') }}"
+                                <a href="{{ route('timesheets.index') }}"
                                    class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) != auth()->id() && request()->segment(2) != 'import') active @endif">
                                     <i class="fas fa-clock"></i>
                                     <span>Arbeitszeitnachweise</span>
                                 </a>
                             @endcan
                             @can('has timesheet')
-                                <a href="{{ url('timesheets/'.auth()->id()) }}"
+                                <a href="{{ route('timesheets.show', auth()->id()) }}"
                                    class="sidebar-link @if(request()->segment(1) == 'timesheets' && request()->segment(2) == auth()->id()) active @endif">
                                     <i class="fas fa-file-alt"></i>
                                     <span>Meine Zeitnachweise</span>
@@ -295,7 +310,7 @@
                             @endcan
                         </div>
                     </div>
-                @endcanany
+                @endif
 
                 {{-- Kalender (OX-Integration) --}}
                 @canany(['view calendar', 'manage calendar'])

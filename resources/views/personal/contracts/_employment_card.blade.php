@@ -34,6 +34,10 @@
                         <span class="text-gray-400">({{ number_format($employment->percent, 1) }}%)</span>
                     </dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">Arbeitstage</dt>
+                    <dd class="font-medium">{{ collect($employment->arbeitstage())->map(fn ($t) => ['', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][$t])->implode(', ') }}</dd>
+                </div>
                 @if($employment->probation_end)
                 <div>
                     <dt class="text-gray-500">Probezeit bis</dt>

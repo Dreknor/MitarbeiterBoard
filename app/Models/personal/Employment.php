@@ -38,6 +38,8 @@ class Employment extends Model implements Auditable
         'employment_type', 'contract_type', 'status', 'status_reason', 'termination_reason',
         'probation_end', 'notice_period', 'salary_group', 'salary_level',
         'is_amendment', 'amendment_description', 'is_internal_transfer',
+        // Arbeitszeitmodell (ISO-Wochentage, NULL = Mo–Fr)
+        'workdays',
     ];
 
     protected $casts = [
@@ -51,6 +53,7 @@ class Employment extends Model implements Auditable
         'termination_reason' => TerminationReason::class,
         'is_amendment'       => 'boolean',
         'is_internal_transfer' => 'boolean',
+        'workdays'           => 'array',
     ];
 
     protected $with = ['hour_type'];
@@ -210,6 +213,20 @@ class Employment extends Model implements Auditable
     }
 
     // ---- Accessors ----
+
+    /**
+     * Arbeitstage dieses Vertrags als ISO-Wochentage (1 = Montag … 7 = Sonntag).
+     *
+     * @return int[]
+     */
+    public function arbeitstage(): array
+    {
+        $tage = array_values(array_unique(array_map('intval', (array) ($this->workdays ?? []))));
+        $tage = array_values(array_filter($tage, fn (int $t) => $t >= 1 && $t <= 7));
+        sort($tage);
+
+        return $tage === [] ? [1, 2, 3, 4, 5] : $tage;
+    }
 
     public function getPercentAttribute(): float
     {

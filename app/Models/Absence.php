@@ -14,7 +14,7 @@ class Absence extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['users_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];
+    protected $fillable = ['users_id', 'holiday_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];
 
     protected $casts = [
         'start' =>  'date',
@@ -38,7 +38,8 @@ class Absence extends Model
     {
         parent::boot();
         static::creating(function ($absence) {
-            $absence->creator_id = auth()->id();
+            // Im Scheduler/Queue gibt es keinen angemeldeten Benutzer – dann den übergebenen Ersteller behalten
+            $absence->creator_id = auth()->id() ?? $absence->creator_id;
 
             if (Str::contains($absence->reason, config('absences.absence_reason_sick'))){
                 if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
@@ -82,6 +83,10 @@ class Absence extends Model
                 $vertretungsplanAbsence->save();
             }
         });
+    }
+
+    public function holiday(){
+        return $this->belongsTo(\App\Models\personal\Holiday::class, 'holiday_id');
     }
 
     public function user(){

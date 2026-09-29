@@ -1,135 +1,19 @@
 @extends('personal.time_recording.layout')
+
 @section('content')
-    <div class="container">
-        <!--vertical align on parent using my-auto-->
-        <div class="row h-100">
-            <div class="col-sm-12 my-auto">
-                <div class="card bg-gradient-directional-teal">
-                    <div class="card-header m-auto text-white border-bottom">
-                        <h2>
-                            digitale Zeiterfassung - {{$user->name}}
-                        </h2>
-                    </div>
-                    <div class="card-body text-white" style="min-height: 15vH">
-                        <div class="row">
-                            <div class="col-6 text-center">
-                                Bitte gib deinen Pin ein.
-                            </div>
-                            <div class="col-6 text-center">
-                                <div id="pin_show"  class="mx-auto text-center text-light">
-                                    Pin:
-                                </div>
-                            </div>
-                        </div>
+    <div class="rounded-3xl bg-white/10 px-6 py-8 text-center">
+        <p class="text-white/70">Hallo</p>
+        <h1 class="text-2xl font-bold mb-2">{{ $user->name }}</h1>
+        <p class="mb-6 text-lg" id="pin-hinweis">Bitte PIN eingeben</p>
 
+        @include('personal.time_recording._pinpad', ['felder' => ['secret_key'], 'texte' => ['Bitte PIN eingeben']])
 
-                        <div class="w-100 mx-auto">
-                            <div class="row">
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(1)">1</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(2)">2</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(3)">3</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(4)">4</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(5)">5</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(6)">6</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(7)">7</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(8)">8</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(9)">9</button>
-                                </div>
-                                <div class="col-2 mx-auto">
-                                    <button class="btn btn-lg btn-info" onclick="addNumber(0)">0</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-6 mx-auto">
-                                    <button class="btn btn-block btn-success" onclick="submitForm()">absenden</button>
-                                </div>
+        <form action="{{ route('time_recording.login') }}" method="post" id="pinForm" autocomplete="off">
+            @csrf
+            <input type="hidden" name="secret_key">
+        </form>
 
-                                <div class="col-6 mx-auto">
-                                    <button class="btn btn-block btn-danger" onclick="clearInput()">Eingabe löschen</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="w-25 mx-auto">
-                                <div class="text-center text-light">
-                                    Läuft ab in:
-                                    <div class="autologouttimer">
-                                        <div id="progressbar" class="progressbar color-red"></div>
-                                        <span>1 Min.</span>
-                                    </div><br/>
-                                </div>
-                            </div>
-                        </div>
-
-                        @if ($errors->any())
-                            <p>
-                            <div class="alert alert-danger">
-                                <ul>
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                            </p>
-                        @endif
-
-                        <form action="{{route('time_recording.login')}}" method="post" class="form-horizontal"  autocomplete="off" id="pinForm">
-                            @csrf
-                            <input type="hidden" id="secret_key" name="secret_key"   aria-autocomplete="none">
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <div class="zw-timer mt-8"><span style="animation-duration: 60s;"></span></div>
+        <a href="{{ route('time_recording.logout') }}" class="inline-block mt-6 text-white/80 underline">Abbrechen</a>
     </div>
-
 @endsection
-@push('js')
-    <script>
-        function addNumber(number) {
-            let secret_key = document.getElementById('secret_key');
-            secret_key.value += number;
-            let pin_show = document.getElementById('pin_show');
-            pin_show.innerHTML += '*';
-        }
-
-        function clearInput(){
-            let secret_key = document.getElementById('secret_key');
-            secret_key.value = '';
-            let pin_show = document.getElementById('pin_show');
-            pin_show.innerHTML = 'Pin: ';
-        }
-
-        function submitForm() {
-            $('#pinForm').submit();
-
-        }
-
-        $(document).ready(function() {
-            /* Change time here to make the animation longer */
-            $('#progressbar').animate({width: '0'}, 60000, 'linear', function () {
-                window.location.href = "{{route('time_recording.logout')}}";
-            });
-        });
-    </script>
-@endpush

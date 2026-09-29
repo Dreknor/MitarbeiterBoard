@@ -32,6 +32,8 @@ class createRosterRequest extends FormRequest
             'type' => ['required', 'in:normal,template'],
             'used_template' => ['nullable', 'exists:rosters,id'],
             'department_id' => ['required', 'exists:groups,id'],
+            'weitere_wochen' => ['nullable', 'array', 'max:26'],
+            'weitere_wochen.*' => ['date'],
         ];
     }
 }

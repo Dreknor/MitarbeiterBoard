@@ -39,18 +39,50 @@ class WorkingTime extends Model
     }
 
 
+    /**
+     * Zeiten immer als H:i:s speichern (Formulare liefern H:i, die Getter erwarten H:i:s).
+     */
+    public function setStartAttribute($value): void
+    {
+        $this->attributes['start'] = self::normalisiereZeit($value);
+    }
+
+    public function setEndAttribute($value): void
+    {
+        $this->attributes['end'] = self::normalisiereZeit($value);
+    }
+
+    private static function normalisiereZeit($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i:s');
+        }
+        $value = trim((string) $value);
+        if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
+            return str_pad($value, 5, '0', STR_PAD_LEFT).':00';
+        }
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $value)) {
+            return str_pad($value, 8, '0', STR_PAD_LEFT);
+        }
+
+        return \Carbon\Carbon::parse($value)->format('H:i:s');
+    }
+
     //Casts Time
     public function getStartAttribute()
     {
         if (!is_null($this->attributes['start'])) {
-            return Carbon::createFromFormat('Y-m-d H:i:s', $this->attributes['date'] . ' ' . $this->attributes['start']);
+            return Carbon::createFromFormat('Y-m-d H:i:s', $this->date->format('Y-m-d') . ' ' . $this->attributes['start']);
         }
     }
 
     public function getEndAttribute()
     {
         if (!is_null($this->attributes['end'])) {
-            return Carbon::createFromFormat('Y-m-d H:i:s', $this->attributes['date'] . ' ' . $this->attributes['end']);
+            return Carbon::createFromFormat('Y-m-d H:i:s', $this->date->format('Y-m-d') . ' ' . $this->attributes['end']);
         }
     }
 
@@ -70,7 +102,7 @@ class WorkingTime extends Model
             if (!is_null($events)) {
                 $events = $events->whereInstanceOf(RosterEvents::class);
                 $break = $events->filter(function ($event) {
-                    if ($event->date->format('Y-m-d') == $this->attributes['date'] and Str::contains($event->event, ['pause', 'Pause']) and $event->employe_id == $this->attributes['employe_id']) {
+                    if ($event->date->format('Y-m-d') == $this->date->format('Y-m-d') and Str::contains($event->event, ['pause', 'Pause']) and $event->employe_id == $this->attributes['employe_id']) {
                         return $event;
                     }
                 });
@@ -94,7 +126,7 @@ class WorkingTime extends Model
 
         $events_filtered = $events_filtered->filter(function ($event) {
 
-            return ($event->date->format('Y-m-d') == $this->attributes['date']) && ($event->start->format('H:i:s') < $this->attributes['start']);
+            return ($event->date->format('Y-m-d') == $this->date->format('Y-m-d')) && ($event->start->format('H:i:s') < $this->attributes['start']);
 
         });
 

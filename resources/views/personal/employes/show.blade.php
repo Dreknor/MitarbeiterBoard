@@ -245,10 +245,12 @@
                             </li>
                             <li class="" id="Holidayclaim_list_item">
                                 Urlaubsanspruch: {{$employe->getHolidayClaim()}}
+                                (Rest {{ now()->year }}: {{ \App\Services\Personal\Zeit\UrlaubskontoService::format(app(\App\Services\Personal\Zeit\UrlaubskontoService::class)->rest($employe, now()->year)) }})
                             </li>
                             <li class="">
                                  Stundenkonto: {{convertTime($employe->timesheet_latest?->working_time_account)}} h
-                                (<a href="{{url('timesheets/update/employe/'.$employe->id)}}" class="card-link">aktualiseren</a>)
+                                <form action="{{ route('timesheets.recalculate-all', $employe->id) }}" method="post" class="d-inline">@csrf<button type="submit" class="btn btn-link p-0 card-link">neu berechnen</button></form>
+                                 · <a href="{{ route('holidays.account', $employe->id) }}" class="card-link">Urlaubskonto</a>
                             </li>
                             <li class="">
                                  montaliche Benachrichtigung Arbeitszeit: {{($employe->employe_data?->mail_timesheet == 1) ? 'ja' : 'nein' }}
@@ -270,7 +272,7 @@
                                         <label class="label-control">
                                             Arbeitszeit - Pin
                                         </label>
-                                        <input name="secret_key" type="password" value="{{$employe->employe_data?->secret_key}}" class="form-control">
+                                        <input name="secret_key" type="password" inputmode="numeric" autocomplete="new-password" value="" placeholder="{{ $employe->employe_data?->hasPin() ? 'gesetzt – leer lassen für unverändert' : 'nicht gesetzt' }}" class="form-control">
                                     </div>
                                     <div class="row">
                                         <label class="label-control">

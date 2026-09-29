@@ -6,511 +6,389 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createHolidayRequest;
 use App\Models\Group;
 use App\Models\personal\Holiday;
+use App\Models\personal\HolidayAccountEntry;
 use App\Models\User;
+use App\Services\Personal\Zeit\HolidayService;
+use App\Services\Personal\Zeit\UrlaubskontoService;
+use App\Services\Personal\Zeit\ZeitZugriff;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Collection;
 
+/**
+ * Urlaubsverwaltung: Antrag, Genehmigung, Stornierung, Teamkalender und Urlaubskonto.
+ * Schreibende Logik liegt im HolidayService, Rechte in der HolidayPolicy.
+ */
 class HolidayController extends Controller
 {
+    public function __construct(
+        private readonly HolidayService $holidays,
+        private readonly UrlaubskontoService $konto,
+        private readonly ZeitZugriff $zugriff,
+    ) {
+    }
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index( $month = null, $year = null)
+    public function index(Request $request, $month = null, $year = null)
     {
-        if (!auth()->user()->can('has holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        $actor = $request->user();
+        abort_unless($actor->can('has holidays') || $actor->can('approve holidays'), 403);
+
+        $monat = $this->monat($month, $year);
+        $monatsEnde = $monat->copy()->endOfMonth();
+
+        $kalenderNutzer = $this->kalenderNutzer($actor, $monat, $monatsEnde);
+        $kalenderUrlaube = Holiday::query()
+            ->nichtAbgelehnt()
+            ->whereIn('employe_id', $kalenderNutzer->pluck('id'))
+            ->ueberschneidet($monat->toDateString(), $monatsEnde->toDateString())
+            ->get()
+            ->groupBy('employe_id');
+
+        $tage = [];
+        for ($tag = $monat->copy(); $tag->lte($monatsEnde); $tag->addDay()) {
+            $ferien = is_ferien($tag);
+            $tage[] = [
+                'date' => $tag->copy(),
+                'frei' => $tag->isWeekend() || (bool) is_holiday($tag),
+                'feiertag' => is_holiday($tag)['title'] ?? null,
+                'ferien' => $ferien ? (is_array($ferien) ? ($ferien['name'] ?? 'Ferien') : ($ferien->name ?? 'Ferien')) : null,
+            ];
         }
 
-
-        if ($month == null or $year == null){
-            $startMonth = Carbon::now()->startOfMonth();
-            $endMonth = Carbon::now()->endOfMonth();
-        } else {
-            $startMonth = Carbon::createFromFormat('m-Y', $month.'-'.$year)->startOfMonth();
-            $endMonth = Carbon::createFromFormat('m-Y', $month.'-'.$year)->endOfMonth();
-        }
-
-
-        // Performance-Optimierung: Eager Loading und bessere Query
-        if (settings('show_holidays') == 1 or auth()->user()->can('approve holidays'))
-        {
-            $holidays = Holiday::query()
-                ->with(['employe.groups_rel'])
-                ->where(function($query) use ($startMonth, $endMonth) {
-                    $query->whereBetween('start_date', [$startMonth, $endMonth])
-                          ->orWhereBetween('end_date', [$startMonth, $endMonth])
-                          ->orWhere(function($q) use ($startMonth, $endMonth) {
-                              $q->where('start_date', '<=', $startMonth)
-                                ->where('end_date', '>=', $endMonth);
-                          });
-                })
-                ->where('rejected', false)
-                ->orderBy('start_date')
-                ->get();
-        }else{
-            // Supervisor kann seine eigenen Urlaube und die seiner Mitarbeiter sehen
-            $subordinateIds = auth()->user()->subordinates()->pluck('id')->toArray();
-            $employeeIds = array_merge([auth()->id()], $subordinateIds);
-
-            $holidays = Holiday::whereIn('employe_id', $employeeIds)
-                ->with(['employe.groups_rel'])
-                ->where(function($query) use ($startMonth, $endMonth) {
-                    $query->whereBetween('start_date', [$startMonth, $endMonth])
-                          ->orWhereBetween('end_date', [$startMonth, $endMonth])
-                          ->orWhere(function($q) use ($startMonth, $endMonth) {
-                              $q->where('start_date', '<=', $startMonth)
-                                ->where('end_date', '>=', $endMonth);
-                          });
-                })
-                ->where('rejected', false)
-                ->orderBy('start_date')
-                ->get();
-        }
-        $users = collect([]);
-        if (auth()->user()->can('approve holidays')){
-            $usersAll = User::permission('has holidays')
-                ->with([
-                    'groups_rel',
-                    'holidays' => function($query) {
-                        $query->with('approved_by');
-                    }
-                ])
-                ->get();
-
-            foreach ($usersAll as $user){
-                if ($user->employments_date($startMonth->startOfMonth(), $endMonth->endOfMonth())->count() > 0){
-                    $users->push($user);
-                } elseif ($user->employments->count() == 0){
-                    $users->push($user);
-                }
-            }
-        } elseif( settings('show_holidays', 'holidays') == 1) {
-
-            $usersAll = User::query()
-                ->permission('has holidays')
-                ->with([
-                    'groups_rel',
-                    'holidays' => function($query) {
-                        $query->with('approved_by');
-                    }
-                ])
-                ->get();
-
-            foreach ($usersAll as $user){
-                $groups = auth()->user()->groups_rel;
-
-                if ($user->groups_rel->intersect($groups)->count() > 0){
-                    $users->push($user);
-                }
-
-            }
-        } else {
-            // Supervisor kann seine unterstellten Mitarbeiter sehen
-            $subordinates = auth()->user()->subordinates()
-                ->permission('has holidays')
-                ->with([
-                    'groups_rel',
-                    'holidays' => function($query) {
-                        $query->with('approved_by');
-                    }
-                ])
-                ->get();
-
-            $users = collect([auth()->user()])->merge($subordinates);
-        }
-
-        foreach ($holidays as $holiday){
-            if ($holiday->days == null) {
-                $holiday->update([
-                    'days' => workdays($holiday->start_date, $holiday->end_date)
-                ]);
-            }
-        }
-
-        // Performance-Optimierung: Erstelle eine Map für schnellen Zugriff
-        $holidayMap = [];
-        foreach ($holidays as $holiday) {
-            if (!$holiday->employe) continue;
-
-            $userId = $holiday->employe_id;
-            if (!isset($holidayMap[$userId])) {
-                $holidayMap[$userId] = [];
-            }
-            $holidayMap[$userId][] = $holiday;
-        }
+        $eigeneAntraege = $actor->holidays()
+            ->withTrashed()
+            ->whereYear('start_date', $monat->year)
+            ->orderBy('start_date')
+            ->get();
 
         return view('personal.holidays.index', [
-            'holidays' => $holidays,
-            'holidayMap' => $holidayMap,
-            'month' => $startMonth,
-            'users' => $users->sortBy('name'),
-            'unapproved' => auth()->user()->can('approve holidays') ? Holiday::with(['employe', 'employe.groups_rel'])->where('approved', false)->where('rejected', false)->get() : []
+            'monat' => $monat,
+            'tage' => $tage,
+            'kalenderNutzer' => $kalenderNutzer,
+            'kalenderUrlaube' => $kalenderUrlaube,
+            'gruppen' => $actor->groups_rel()->orderBy('name')->get(['groups.id', 'groups.name']),
+            'konto' => $actor->can('has holidays') ? $this->konto->uebersicht($actor, $monat->year) : null,
+            'eigeneAntraege' => $eigeneAntraege,
+            'antragFuer' => $this->antragsNutzer($actor),
+            'darfFuerAlle' => $actor->can('createForAll', Holiday::class),
+            'zuEntscheiden' => $this->zuEntscheiden($actor),
         ]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Live-Vorschau im Antragsformular (Tage, Rest, Überschneidungen im Team).
      */
-    public function create()
+    public function preview(Request $request): JsonResponse
     {
-        return redirect()->back();
+        $data = $request->validate([
+            'employe_id' => ['required', 'integer', 'exists:users,id'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'half_day' => ['nullable', 'boolean'],
+        ]);
+
+        $employe = User::findOrFail($data['employe_id']);
+        $this->authorize('createFor', [Holiday::class, $employe]);
+
+        $start = Carbon::parse($data['start_date']);
+        $ende = Carbon::parse($data['end_date']);
+
+        if ($start->diffInDays($ende) > 400) {
+            return response()->json(['message' => 'Zeitraum zu lang.'], 422);
+        }
+
+        return response()->json($this->holidays->vorschau($employe, $start, $ende, (bool) ($data['half_day'] ?? false)));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(createHolidayRequest $request)
     {
+        $actor = $request->user();
+        $start = Carbon::parse($request->start_date);
+        $ende = Carbon::parse($request->end_date);
+        $halberTag = $request->boolean('half_day');
 
-        if(!auth()->user()->can('has holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
+        if ($request->employe_id === 'all') {
+            $this->authorize('createForAll', Holiday::class);
 
-        // Prüfen ob der Benutzer berechtigt ist, für diesen Mitarbeiter Urlaub zu erfassen
-        if ($request->employe_id != auth()->id()) {
-            $targetUser = User::find($request->employe_id);
-
-            // Erlaubt wenn: approve holidays Recht ODER Vorgesetzter des Mitarbeiters
-            $canCreateForEmployee = auth()->user()->can('approve holidays') ||
-                                   ($targetUser && auth()->user()->isSupervisorOf($targetUser));
-
-            if (!$canCreateForEmployee) {
-                return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-            }
-        }
-
-        if ($request->end_date < $request->start_date){
-            return redirectBack('danger', 'Enddatum kann nicht vor dem Startdatum liegen.');
-        }
-
-        if ($request->employe_id != 'all'){
-            try {
-                $user = User::findOrFail($request->employe_id);
-
-                if ($user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))){
-                    return redirectBack('danger', 'Der Mitarbeiter hat bereits Urlaub an diesem Tag.');
-                }
-
-                $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
-
-                $start = Carbon::createFromFormat('Y-m-d',$request->start_date);
-                $end = Carbon::createFromFormat('Y-m-d',$request->end_date);
-
-                if ($start->year != $end->year){
-
-                    $user->holidays()->create([
-                        'start_date' => $start,
-                        'end_date' => $start->copy()->endOfYear(),
-                        'approved' => auth()->user()->can('approve holidays'),
-                        'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                        'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                        'days' => workdays($start, $start->copy()->endOfYear())
-                    ]);
-
-                    $user->holidays()->create(
-                        [
-                            'start_date' => $end->copy()->startOfYear(),
-                            'end_date' => $end,
-                            'approved' => auth()->user()->can('approve holidays'),
-                            'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                            'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                            'days' => workdays($end->copy()->startOfYear(), $end)
-                        ]);
-
-                } else {
-                    $user->holidays()->create([
-                        'start_date' => $request->start_date,
-                        'end_date' => $request->end_date,
-                        'approved' => auth()->user()->can('approve holidays'),
-                        'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                        'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                        'days' => workdays(Carbon::createFromFormat('Y-m-d', $request->start_date), Carbon::createFromFormat('Y-m-d', $request->end_date))
-                    ]);
-                }
-                return redirect(url('holidays/'.$date->month.'/'.$date->year))
-                    ->with([
-                        'type' => 'success',
-                        'Meldung' => 'Urlaub wurde erfolgreich beantragt.'
-                    ]);
-            } catch (\Exception $e){
-                Log::error('Fehler beim Eintragen des Urlaubs: ', [
-                    'Benutzer' => $user->name,
-                    'start_date' => $request->start_date,
-                    'end_date'  => $request->end_date,
-                    'exception' => $e
-                ]);
-
-                return redirectBack('danger', 'Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.');
-            }
-
-        } else {
-            $date = Carbon::createFromFormat('Y-m-d',$request->start_date);
-
-            $cookie = $request->cookie('group');
-            $group = Group::query()->where('name', $cookie)->first();
-            if ($group != null and $cookie != null){
-                $users = User::permission('has holidays')->whereHas('groups_rel', function ($query) use ($group){
-                    $query->where('name', $group);
-                })->get();
-
-            } else {
-                $users = User::permission('has holidays')->get();
-            }
-
-            $holidays = [];
-            foreach ($users as $user){
-
-                $start = Carbon::createFromFormat('Y-m-d',$request->start_date);
-                $end = Carbon::createFromFormat('Y-m-d',$request->end_date);
-
-                if (!$user->hasHoliday(Carbon::createFromFormat('Y-m-d',$request->start_date), Carbon::createFromFormat('Y-m-d',$request->end_date))) {
-                    if ($start->year != $end->year) {
-
-                        $user->holidays()->create([
-                            'start_date' => $start,
-                            'end_date' => $start->copy()->endOfYear(),
-                            'approved' => auth()->user()->can('approve holidays'),
-                            'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                            'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                            'days' => workdays($start, $start->copy()->endOfYear())
-                        ],
-                            [
-                                'start_date' => $end->copy()->startOfYear(),
-                                'end_date' => $end,
-                                'approved' => auth()->user()->can('approve holidays'),
-                                'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                                'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                                'days' => workdays($end->copy()->startOfYear(), $end)
-                            ]);
-                    } else {
-                        $user->holidays()->create([
-                            'start_date' => $request->start_date,
-                            'end_date' => $request->end_date,
-                            'approved' => auth()->user()->can('approve holidays'),
-                            'approved_by' => auth()->user()->can('approve holidays') ? auth()->id() : null,
-                            'approved_at' => auth()->user()->can('approve holidays') ? Carbon::now() : null,
-                            'days' => workdays(Carbon::createFromFormat('Y-m-d', $request->start_date), Carbon::createFromFormat('Y-m-d', $request->end_date))
-                        ]);
-                    }
-                }
-
-            }
-
-            Holiday::insert($holidays);
-
-            return redirect(url('holidays/'.$date->month.'/'.$date->year))->with([
-                'type' => 'success',
-                'Meldung' => 'Urlaub wurde für alle erfolgreich eingetragen.']);
-        }
-
-
-
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Holiday $holiday)
-    {
-        return redirect()->back();
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Holiday $holiday)
-    {
-        return redirect()->back();
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Holiday $holiday)
-    {
-        if (!auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
-
-        if ($request->action == 'rejected'){
-            $holiday->update([
-                'rejected' => true,
-                'approved' => false,
-                'approved_by' => auth()->id(),
-                'approved_at' => Carbon::now(),
-            ]);
-
-            return redirectBack('success', 'Urlaub wurde abgelehnt.');
-        }
-
-        $holiday->update([
-            'approved' => true,
-            'approved_by' => auth()->id(),
-            'approved_at' => Carbon::now(),
-        ]);
-
-        return redirectBack('success', 'Urlaub wurde erfolgreich genehmigt.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function delete(Holiday $holiday)
-    {
-        if ($holiday->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
-
-        if ($holiday->start_date->isPast()){
-            return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
-        }
-
-        $holiday->delete();
-
-
-        return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
-    }
-
-    public function export($year = null, $group = null){
-
-        if (!auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
-
-        if ($year == null){
-            $startMonth = Carbon::now()->startOfYear();
-            $endMonth = Carbon::now()->endOfYear();
-        } else {
-            $startMonth = Carbon::createFromFormat('Y', $year)->startOfYear();
-            $endMonth = Carbon::createFromFormat('Y', $year)->endOfYear();
-        }
-
-            $holidays = Holiday::query()
-                ->with(['employe', 'employe.groups_rel'])
-                ->whereBetween('start_date', [$startMonth, $endMonth])
-                ->orWhereBetween('end_date', [$startMonth, $endMonth])
+            $gruppe = $request->filled('group_id') ? Group::find($request->group_id) : null;
+            $mitarbeitende = User::permission('has holidays')
+                ->when($gruppe, fn ($q) => $q->whereHas('groups_rel', fn ($g) => $g->where('groups.id', $gruppe->id)))
                 ->get();
 
+            $anzahl = $this->holidays->fuerMehrereEintragen($actor, $mitarbeitende, $start, $ende, $request->comment);
 
-            if ($group != null){
-                $users = User::permission('has holidays')->whereHas('groups_rel', function ($query) use ($group){
-                    $query->where('name', $group);
-                })->get();
+            return redirect()->route('holidays.index', [$start->month, $start->year])
+                ->with(['type' => 'success', 'Meldung' => $anzahl.' Urlaubseinträge angelegt'.($gruppe ? ' (Gruppe '.$gruppe->name.')' : '').'.']);
+        }
 
-            } else {
-                $users = User::permission('has holidays')->get();
-            }
+        $employe = User::findOrFail($request->employe_id);
+        $this->authorize('createFor', [Holiday::class, $employe]);
 
-            $pdf = \PDF::loadView('personal.holidays.export', [
-                        'holidays' => $holidays,
-                        'monthStart' => $startMonth,
-                        'users' => $users->sortBy('name'),
-                    ])
-                    ->setOption(
-                        'orientation',
-                        'landscape')
-                    ->setOption(
-                        'margin-bottom',
-                        10)
-                    ->setOption(
-                        'margin-top',
-                        10)
-                    ->setOption(
-                        'margin-left',
-                        10)
-                    ->setOption(
-                        'margin-right',
-                        10);
+        $antraege = $this->holidays->beantragen($actor, $employe, $start, $ende, $halberTag, $request->comment);
+        $genehmigt = $antraege->every(fn (Holiday $h) => $h->approved);
 
-        return $pdf->download('urlaub_'.$year.'.pdf');
-    }
-
-    public function updateDays(Holiday $holiday){
-        $holiday->update([
-            'days' => workdays($holiday->start_date, $holiday->end_date)
+        return redirect()->route('holidays.index', [$start->month, $start->year])->with([
+            'type' => 'success',
+            'Meldung' => $genehmigt ? 'Urlaub wurde eingetragen und genehmigt.' : 'Urlaub wurde beantragt. Die zuständige Person wird benachrichtigt.',
         ]);
     }
 
-    public function destroy(Holiday $holiday)
+    public function approve(Request $request, Holiday $holiday)
     {
-        if ($holiday->employe_id != auth()->id() and !auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
+        $this->authorize('approve', $holiday);
+        $this->holidays->genehmigen($holiday, $request->user());
 
-        if ($holiday->start_date->isPast()){
-            return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
-        }
+        return redirectBack('success', 'Urlaub von '.$holiday->employe->name.' genehmigt.');
+    }
 
-        $holiday->delete();
+    public function reject(Request $request, Holiday $holiday)
+    {
+        $this->authorize('reject', $holiday);
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+        $this->holidays->ablehnen($holiday, $request->user(), $data['reason'] ?? null);
 
-        return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
+        return redirectBack('success', 'Urlaub von '.$holiday->employe->name.' abgelehnt.');
+    }
+
+    public function requestCancellation(Request $request, Holiday $holiday)
+    {
+        $this->authorize('requestCancellation', $holiday);
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+        $this->holidays->stornoBeantragen($holiday, $request->user(), $data['reason'] ?? null);
+
+        return redirectBack('success', 'Stornierung beantragt.');
+    }
+
+    public function decideCancellation(Request $request, Holiday $holiday)
+    {
+        $this->authorize('decideCancellation', $holiday);
+        $data = $request->validate(['decision' => ['required', 'in:approve,deny']]);
+        $this->holidays->stornoEntscheiden($holiday, $request->user(), $data['decision'] === 'approve');
+
+        return redirectBack('success', $data['decision'] === 'approve' ? 'Urlaub storniert.' : 'Stornierung abgelehnt – der Urlaub bleibt bestehen.');
+    }
+
+    public function destroy(Request $request, Holiday $holiday)
+    {
+        $this->authorize('delete', $holiday);
+        $name = $holiday->employe?->name ?? 'Unbekannt';
+        $this->holidays->stornieren($holiday, $request->user());
+
+        return redirectBack('success', 'Urlaub von '.$name.' ab '.$holiday->start_date->format('d.m.Y').' wurde entfernt.');
     }
 
     /**
-     * Zeigt die Verwaltungsseite für genehmigte Urlaube an
+     * Verwaltung: Anträge filtern und Urlaubskonten aller zuständigen Mitarbeitenden.
      */
     public function manage(Request $request)
     {
-        if (!auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
-        }
+        $actor = $request->user();
+        abort_unless($actor->can('approve holidays'), 403);
 
-        // Alle Benutzer mit Urlaub-Berechtigung für den Filter
-        $users = User::permission('has holidays')
-            ->orderBy('name')
-            ->get();
+        $jahr = (int) $request->input('year', now()->year);
+        $mitarbeitende = $this->verwalteteNutzer($actor);
+        $status = $request->input('status', 'alle');
 
-        // Aktuelles Jahr und nächstes Jahr als Zeitraum
-        $currentYearStart = Carbon::now()->startOfYear();
-        $nextYearEnd = Carbon::now()->addYear()->endOfYear();
+        $antraege = Holiday::query()
+            ->with(['employe', 'approved_by_user'])
+            ->whereIn('employe_id', $mitarbeitende->pluck('id'))
+            ->ueberschneidet(Carbon::create($jahr, 1, 1)->toDateString(), Carbon::create($jahr, 12, 31)->toDateString())
+            ->when($request->filled('user_id'), fn ($q) => $q->where('employe_id', $request->integer('user_id')))
+            ->when($status === 'offen', fn ($q) => $q->offen())
+            ->when($status === 'genehmigt', fn ($q) => $q->genehmigt())
+            ->when($status === 'abgelehnt', fn ($q) => $q->where('rejected', true))
+            ->when($status === 'storno', fn ($q) => $q->whereNotNull('cancellation_requested_at'))
+            ->when($request->boolean('future_only'), fn ($q) => $q->whereDate('end_date', '>=', today()))
+            ->orderByDesc('start_date')
+            ->paginate(50)
+            ->withQueryString();
 
-        // Query für genehmigte Urlaube (nur aktuelles und nächstes Jahr)
-        $query = Holiday::with(['employe', 'employe.groups_rel'])
-            ->where('approved', true)
-            ->where('rejected', false)
-            ->where(function($q) use ($currentYearStart, $nextYearEnd) {
-                $q->whereBetween('start_date', [$currentYearStart, $nextYearEnd])
-                  ->orWhereBetween('end_date', [$currentYearStart, $nextYearEnd]);
-            });
-
-        // Filter nach Benutzer
-        if ($request->has('user_id') && $request->user_id != '') {
-            $query->where('employe_id', $request->user_id);
-        }
-
-        // Filter für zukünftige Urlaube
-        if ($request->has('future_only') && $request->future_only == '1') {
-            $query->where('start_date', '>=', Carbon::now()->startOfDay());
-        }
-
-        $holidays = $query->orderBy('start_date', 'desc')->paginate(50);
+        $konten = $request->input('tab') === 'konten'
+            ? $mitarbeitende->map(fn (User $u) => ['user' => $u] + $this->konto->uebersicht($u, $jahr))
+            : collect();
 
         return view('personal.holidays.manage', [
-            'holidays' => $holidays,
-            'users' => $users,
-            'selectedUserId' => $request->user_id ?? '',
-            'futureOnly' => $request->future_only ?? '0'
+            'jahr' => $jahr,
+            'antraege' => $antraege,
+            'mitarbeitende' => $mitarbeitende,
+            'konten' => $konten,
+            'tab' => $request->input('tab', 'antraege'),
+            'filter' => [
+                'user_id' => $request->input('user_id', ''),
+                'status' => $status,
+                'future_only' => $request->boolean('future_only'),
+            ],
         ]);
     }
 
     /**
-     * Löscht einen genehmigten Urlaub (auch wenn er in der Vergangenheit liegt)
+     * Urlaubskonto einer Person (eigenes oder – mit Recht – fremdes) inkl. Buchungen.
      */
-    public function manageDelete(Holiday $holiday)
+    public function account(Request $request, User $employe, ?int $year = null)
     {
-        if (!auth()->user()->can('approve holidays')){
-            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        $actor = $request->user();
+        abort_unless($actor->id === $employe->id || $this->zugriff->darfUrlaubGenehmigen($actor, $employe) || $actor->can('manageAccount', [Holiday::class, $employe]), 403);
+
+        $jahr = $year ?? now()->year;
+
+        return view('personal.holidays.account', [
+            'employe' => $employe,
+            'jahr' => $jahr,
+            'konto' => $this->konto->uebersicht($employe, $jahr),
+            'antraege' => $employe->holidays()->withTrashed()->with('approved_by_user')
+                ->ueberschneidet(Carbon::create($jahr, 1, 1)->toDateString(), Carbon::create($jahr, 12, 31)->toDateString())
+                ->orderBy('start_date')->get(),
+            'buchungen' => HolidayAccountEntry::with('creator')->where('employe_id', $employe->id)->where('year', $jahr)->latest()->get(),
+            'darfBuchen' => $actor->can('manageAccount', [Holiday::class, $employe]),
+        ]);
+    }
+
+    public function storeAccountEntry(Request $request, User $employe)
+    {
+        $this->authorize('manageAccount', [Holiday::class, $employe]);
+
+        $data = $request->validate([
+            'year' => ['required', 'integer', 'between:2000,2100'],
+            'days' => ['required', 'numeric', 'between:-100,100', 'not_in:0'],
+            'type' => ['required', 'in:'.implode(',', array_keys(HolidayAccountEntry::TYPES))],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        HolidayAccountEntry::create($data + ['employe_id' => $employe->id, 'created_by' => $request->user()->id]);
+        $this->konto->vergessen($employe);
+
+        return redirectBack('success', 'Buchung gespeichert.');
+    }
+
+    public function destroyAccountEntry(Request $request, HolidayAccountEntry $entry)
+    {
+        $this->authorize('manageAccount', [Holiday::class, $entry->employe]);
+        $entry->delete();
+
+        return redirectBack('success', 'Buchung gelöscht.');
+    }
+
+    public function export(Request $request, $year = null, $group = null)
+    {
+        abort_unless($request->user()->can('approve holidays'), 403);
+
+        $jahr = $year ? (int) $year : now()->year;
+        $start = Carbon::create($jahr, 1, 1);
+        $ende = Carbon::create($jahr, 12, 31);
+
+        $mitarbeitende = $this->verwalteteNutzer($request->user())
+            ->when($group, fn (Collection $c) => $c->filter(fn (User $u) => $u->groups_rel->contains(fn ($g) => (string) $g->id === (string) $group || $g->name === $group)));
+
+        $urlaube = Holiday::query()
+            ->nichtAbgelehnt()
+            ->with(['employe', 'employe.groups_rel'])
+            ->whereIn('employe_id', $mitarbeitende->pluck('id'))
+            ->ueberschneidet($start->toDateString(), $ende->toDateString())
+            ->get();
+
+        $pdf = \PDF::loadView('personal.holidays.export', [
+            'holidays' => $urlaube,
+            'monthStart' => $start,
+            'users' => $mitarbeitende->sortBy('name'),
+        ])
+            ->setOption('orientation', 'landscape')
+            ->setOption('margin-bottom', 10)
+            ->setOption('margin-top', 10)
+            ->setOption('margin-left', 10)
+            ->setOption('margin-right', 10);
+
+        return $pdf->download('urlaub_'.$jahr.'.pdf');
+    }
+
+    // =========================================================================
+
+    private function monat($month, $year): Carbon
+    {
+        if ($month === null || $year === null || !ctype_digit((string) $month) || !ctype_digit((string) $year)) {
+            return Carbon::now()->startOfMonth();
         }
 
-        $employeName = $holiday->employe ? $holiday->employe->name : 'Unbekannt';
-        $startDate = $holiday->start_date->format('d.m.Y');
+        $month = max(1, min(12, (int) $month));
+        $year = max(2000, min(2100, (int) $year));
 
-        $holiday->delete();
+        return Carbon::create($year, $month, 1)->startOfDay();
+    }
 
-        return redirectBack('success', "Urlaub von {$employeName} ab {$startDate} wurde erfolgreich gelöscht.");
+    /**
+     * Wer erscheint im Teamkalender?
+     */
+    private function kalenderNutzer(User $actor, Carbon $von, Carbon $bis): Collection
+    {
+        $basis = User::permission('has holidays')->with(['groups_rel', 'employments'])->orderBy('name');
+
+        if ($actor->can('approve all holidays') || $actor->can('edit employe')) {
+            $nutzer = $basis->get();
+        } elseif ((string) settings('show_holidays', 'holidays') === '1') {
+            $gruppen = $actor->groups_rel->pluck('id');
+            $nutzer = $basis->whereHas('groups_rel', fn ($q) => $q->whereIn('groups.id', $gruppen))->get();
+        } else {
+            $nutzer = $basis->where('id', $actor->id)->get()
+                ->merge($this->unterstellteMitUrlaub($actor)->load(['groups_rel', 'employments']));
+        }
+
+        // Nur Personen mit Vertrag im Monat (oder ganz ohne hinterlegten Vertrag)
+        return $nutzer->unique('id')->filter(function (User $u) use ($von, $bis) {
+            return $u->employments->isEmpty()
+                || $u->employments->contains(fn ($e) => $e->start->lte($bis) && ($e->end === null || $e->end->gte($von)));
+        })->values();
+    }
+
+    /**
+     * Für wen darf der Benutzer Urlaub eintragen?
+     */
+    private function antragsNutzer(User $actor): Collection
+    {
+        $nutzer = collect($actor->can('has holidays') ? [$actor] : []);
+
+        if ($actor->can('approve all holidays') && $actor->can('approve holidays')) {
+            return $nutzer->merge(User::permission('has holidays')->where('id', '!=', $actor->id)->orderBy('name')->get())->unique('id')->values();
+        }
+
+        return $nutzer->merge($this->unterstellteMitUrlaub($actor))->unique('id')->values();
+    }
+
+    private function unterstellteMitUrlaub(User $actor): Collection
+    {
+        $ids = $this->zugriff->unterstellteIds($actor);
+
+        return $ids === [] ? collect() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
+    }
+
+    /**
+     * Mitarbeitende, deren Urlaub der Benutzer verwaltet.
+     */
+    private function verwalteteNutzer(User $actor): Collection
+    {
+        if ($actor->can('approve all holidays') || $actor->can('edit employe')) {
+            return User::permission('has holidays')->with('groups_rel')->orderBy('name')->get();
+        }
+
+        return $this->unterstellteMitUrlaub($actor)->load('groups_rel');
+    }
+
+    /**
+     * Offene Anträge und Stornierungswünsche, über die der Benutzer entscheiden darf.
+     */
+    private function zuEntscheiden(User $actor): Collection
+    {
+        if (!$actor->can('approve holidays')) {
+            return collect();
+        }
+
+        return Holiday::query()
+            ->with('employe')
+            ->where('employe_id', '!=', $actor->id)
+            ->where(fn ($q) => $q->where(fn ($o) => $o->offen())->orWhereNotNull('cancellation_requested_at'))
+            ->where('rejected', false)
+            ->orderBy('start_date')
+            ->get()
+            ->filter(fn (Holiday $h) => $h->employe !== null && $this->zugriff->darfUrlaubGenehmigen($actor, $h->employe))
+            ->values();
     }
 }

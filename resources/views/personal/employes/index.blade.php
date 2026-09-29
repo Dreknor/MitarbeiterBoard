@@ -28,6 +28,7 @@
                 @can('edit employe')
                     <div class="row mt-2">
                         <div class="col">
+                            <a href="{{ route('personal.vorgesetzte.index') }}" class="btn btn-outline-primary btn-sm mr-1"><i class="fas fa-sitemap"></i> Vorgesetzte &amp; Stellvertretungen</a>
                             <a href="{{ route('employes.bulk-holiday-claim') }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-users"></i> Urlaubsanspruch für Gruppen festlegen
                             </a>

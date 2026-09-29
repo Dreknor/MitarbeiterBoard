@@ -56,7 +56,17 @@ class MeetingThemeController extends Controller
                 'information' => ['nullable', 'string', 'max:20000'],
                 'duration'    => ['required', 'integer', 'min:5', 'max:240'],
                 'type'        => ['required', 'exists:types,id'],
+                'group_id'    => ['nullable', 'integer'],
             ]);
+
+            $data['group_id'] = $request->filled('group_id') ? $request->integer('group_id') : $meeting->group_id;
+
+            if (! $this->meetings->isValidThemeGroup($meeting, $data['group_id'])) {
+                return redirect()->back()->withInput()->with([
+                    'type'    => 'warning',
+                    'Meldung' => 'Das Thema kann dieser Gruppe nicht zugeordnet werden.',
+                ]);
+            }
 
             $theme = $this->meetings->createTheme($meeting, $data, $user);
         }
@@ -79,6 +89,35 @@ class MeetingThemeController extends Controller
         ]);
     }
 
+    /**
+     * Thema einer anderen Gruppe des Meetings zuordnen, damit es dort
+     * im Themenspeicher erhalten bleibt.
+     */
+    public function move(Request $request, Meeting $meeting, Theme $theme): RedirectResponse
+    {
+        $this->authorize('contribute', $meeting);
+        $this->authorize('viewTheme', [$meeting, $theme]);
+
+        $request->validate(['group_id' => ['nullable', 'integer']]);
+        $groupId = $request->filled('group_id') ? $request->integer('group_id') : null;
+
+        if (! $this->meetings->moveTheme($meeting, $theme, $groupId)) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Das Thema kann dieser Gruppe nicht zugeordnet werden.',
+            ]);
+        }
+
+        $theme->load('group');
+
+        return redirect()->route('meetings.themes.show', [$meeting, $theme])->with([
+            'type'    => 'success',
+            'Meldung' => $theme->group
+                ? 'Thema gehört jetzt zur Gruppe „' . $theme->group->name . '“.'
+                : 'Thema ist jetzt ein freies Thema.',
+        ]);
+    }
+
     public function show(Meeting $meeting, Theme $theme)
     {
         $this->authorize('viewTheme', [$meeting, $theme]);
@@ -90,6 +129,11 @@ class MeetingThemeController extends Controller
         $position = $agenda->search(fn (Theme $t) => $t->id === $theme->id);
 
         $user = auth()->user();
+
+        // Mögliche Zielgruppen (null = freies Thema) zum Umhängen des Themas
+        $moveTargets = $user->can('contribute', $meeting)
+            ? $this->meetings->themeMoveTargets($meeting, $theme)
+            : collect();
 
         return view('meetings.theme', [
             'meeting'      => $meeting,
@@ -105,6 +149,8 @@ class MeetingThemeController extends Controller
             'editableTime' => (int) config('config.protocols.editableTime', 15),
             'tasks'        => $this->tasks->tasksForTheme($theme),
             'participants' => $meeting->resolvedParticipants(),
+            'moveTargets'  => $this->meetings->themeGroupOptions($meeting)->whereIn('id', $moveTargets->filter()->all())->values(),
+            'canMakeFree'  => $moveTargets->contains(fn ($id) => $id === null),
         ]);
     }
 

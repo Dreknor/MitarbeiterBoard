@@ -2,85 +2,37 @@
 
 namespace App\Observers;
 
-use App\Models\Absence;
 use App\Models\personal\Holiday;
-use Carbon\Carbon;
+use App\Services\Personal\Zeit\HolidayService;
+use Illuminate\Support\Facades\Cache;
 
+/**
+ * Gleicht nach jeder relevanten Änderung eines Urlaubs Abwesenheit (Vertretungsplan),
+ * Arbeitszeitnachweis und Dienstplan ab – unabhängig davon, woher die Änderung kommt
+ * (Service, Import, Factory). Abwesenheiten sind über absences.holiday_id fest verknüpft.
+ */
 class HolidayObserver
 {
-    /**
-     * Handle the personalHoliday "created" event.
-     */
-    public function created(Holiday $holiday): void
-    {
+    private const RELEVANT = ['approved', 'rejected', 'start_date', 'end_date', 'half_day', 'employe_id'];
 
-        if (settings('absence_auto_create', 'holidays') == true){
-            if ($holiday->approved){
-                Absence::firstOrCreate([
-                    'users_id' => $holiday->employe_id,
-                    'creator_id' => auth()->id(),
-                    'reason' => 'Urlaub',
-                    'start' => $holiday->start_date,
-                    'end' => $holiday->end_date,
-                ]);
-            }
+    public function saved(Holiday $holiday): void
+    {
+        Cache::forget('user_holidays_'.$holiday->employe_id);
+
+        if ($holiday->wasRecentlyCreated || $holiday->wasChanged(self::RELEVANT)) {
+            app(HolidayService::class)->abgleichen($holiday);
         }
     }
 
-    /**
-     * Handle the Holiday "updated" event.
-     */
-    public function updated(Holiday $holiday): void
-    {
-
-        if (settings('absence_auto_create', 'holidays') == true){
-            if ($holiday->approved){
-                Absence::firstOrCreate([
-                    'users_id' => $holiday->employe_id,
-                    'creator_id' => auth()->id(),
-                    'reason' => 'Urlaub',
-                    'start' => $holiday->start_date,
-                    'end' => $holiday->end_date,
-                ]);
-            }
-        }
-
-        for ($x = $holiday->start_date; $x <= $holiday->end_date; $x->addDay()) {
-            \Cache::forget('holiday_'.auth()->id().'_'.$x->format('Y-m-d'));
-        }
-    }
-
-    /**
-     * Handle the Holiday "deleted" event.
-     */
     public function deleted(Holiday $holiday): void
     {
-        if (settings('absence_auto_create', 'holidays') == true){
-            if ($holiday->approved){
-                Absence::where([
-                    'users_id' => $holiday->employe_id,
-                    'creator_id' => auth()->id(),
-                    'reason' => 'Urlaub',
-                    'start' => $holiday->start_date,
-                    'end' => $holiday->end_date,
-                ])->delete();
-            }
-        }
+        Cache::forget('user_holidays_'.$holiday->employe_id);
+        app(HolidayService::class)->abgleichen($holiday);
     }
 
-    /**
-     * Handle the personalHoliday "restored" event.
-     */
     public function restored(Holiday $holiday): void
     {
-        //
-    }
-
-    /**
-     * Handle the personalHoliday "force deleted" event.
-     */
-    public function forceDeleted(Holiday $holiday): void
-    {
-        //
+        Cache::forget('user_holidays_'.$holiday->employe_id);
+        app(HolidayService::class)->abgleichen($holiday);
     }
 }

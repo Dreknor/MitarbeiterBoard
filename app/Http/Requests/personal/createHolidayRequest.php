@@ -7,24 +7,33 @@ use Illuminate\Foundation\Http\FormRequest;
 class createHolidayRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Die eigentliche Berechtigung (für wen darf erfasst werden) prüft die HolidayPolicy.
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('has holidays');
+        return $this->user()->can('has holidays') || $this->user()->can('approve holidays');
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
-     */
     public function rules(): array
     {
         return [
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'employe_id' => 'required',
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'employe_id' => ['required', function ($attribute, $value, $fail) {
+                if ($value !== 'all' && !ctype_digit((string) $value)) {
+                    $fail('Ungültige Auswahl.');
+                }
+            }],
+            'half_day' => ['nullable', 'boolean'],
+            'comment' => ['nullable', 'string', 'max:255'],
+            'group_id' => ['nullable', 'integer', 'exists:groups,id'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'end_date.after_or_equal' => 'Das Enddatum darf nicht vor dem Startdatum liegen.',
         ];
     }
 }

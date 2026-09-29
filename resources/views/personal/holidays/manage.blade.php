@@ -1,227 +1,183 @@
 @extends('layouts.app')
 
 @section('title')
-    Urlaubsverwaltung - Genehmigte Urlaube verwalten
+    Urlaubsverwaltung
 @endsection
 
 @section('site-title')
-    Urlaubsverwaltung - Genehmigte Urlaube verwalten
+    Urlaubsverwaltung
 @endsection
+
+@push('css')
+    @vite(['resources/css/zeit.css', 'resources/js/zeit.js'])
+@endpush
+
+@php
+    $fmt = fn ($wert) => \App\Services\Personal\Zeit\UrlaubskontoService::format((float) $wert);
+    $statusBadge = ['beantragt' => 'zw-badge-amber', 'genehmigt' => 'zw-badge-green', 'abgelehnt' => 'zw-badge-red', 'storno_beantragt' => 'zw-badge-violet'];
+    $query = fn (array $mehr) => request()->fullUrlWithQuery($mehr);
+@endphp
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row mb-3">
-            <div class="col-12">
-                <a href="{{ url('holidays') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
-                </a>
-            </div>
+<div class="zeit-wrapper">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+        <div class="min-w-0">
+            <a href="{{ route('holidays.index') }}" class="text-sm text-blue-600 hover:text-blue-800"><i class="fas fa-arrow-left mr-1"></i>Urlaub</a>
+            <h1 class="zw-page-title mt-1">Urlaubsverwaltung {{ $jahr }}</h1>
+            <p class="zw-page-sub">{{ $mitarbeitende->count() }} Person(en) in deiner Zuständigkeit</p>
         </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-tasks"></i> Genehmigte Urlaube verwalten
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <!-- Filterbereich -->
-                        <form method="GET" action="{{ url('holidays/manage') }}" class="mb-4">
-                            <div class="row">
-                                <div class="col-md-5">
-                                    <div class="form-group">
-                                        <label for="user_id">
-                                            <i class="fas fa-user"></i> Mitarbeiter filtern
-                                        </label>
-                                        <select name="user_id" id="user_id" class="form-control">
-                                            <option value="">-- Alle Mitarbeiter --</option>
-                                            @foreach($users as $user)
-                                                <option value="{{ $user->id }}" {{ $selectedUserId == $user->id ? 'selected' : '' }}>
-                                                    {{ $user->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="future_only">
-                                            <i class="fas fa-calendar-alt"></i> Zeitraum
-                                        </label>
-                                        <select name="future_only" id="future_only" class="form-control">
-                                            <option value="0" {{ $futureOnly == '0' ? 'selected' : '' }}>Alle Urlaube</option>
-                                            <option value="1" {{ $futureOnly == '1' ? 'selected' : '' }}>Nur zukünftige Urlaube</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>&nbsp;</label>
-                                        <div>
-                                            <button type="submit" class="btn btn-primary btn-block">
-                                                <i class="fas fa-filter"></i> Filtern
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- Ergebnisanzeige -->
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>{{ $holidays->total() }}</strong> genehmigte(r) Urlaub(e) gefunden
-                            <span class="d-block mt-1 small">
-                                <i class="fas fa-calendar"></i> Angezeigt werden nur Urlaube des Jahres {{ now()->year }} und {{ now()->year + 1 }}
-                            </span>
-                        </div>
-
-                        <!-- Urlaubstabelle -->
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Mitarbeiter</th>
-                                        <th>Gruppe(n)</th>
-                                        <th>Von</th>
-                                        <th>Bis</th>
-                                        <th>Tage</th>
-                                        <th>Genehmigt am</th>
-                                        <th>Genehmigt von</th>
-                                        <th>Status</th>
-                                        <th class="text-center">Aktionen</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($holidays as $holiday)
-                                        @if($holiday->employe)
-                                        <tr class="{{ $holiday->start_date->isPast() ? 'table-secondary' : '' }}">
-                                            <td>
-                                                <strong>{{ $holiday->employe->name }}</strong>
-                                            </td>
-                                            <td>
-                                                @if($holiday->employe->groups_rel && $holiday->employe->groups_rel->count() > 0)
-                                                    @foreach($holiday->employe->groups_rel as $group)
-                                                        <span class="badge badge-info">{{ $group->name }}</span>
-                                                    @endforeach
-                                                @else
-                                                    <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                            <td>{{ $holiday->start_date->format('d.m.Y') }}</td>
-                                            <td>{{ $holiday->end_date->format('d.m.Y') }}</td>
-                                            <td>
-                                                <span class="badge badge-primary">{{ $holiday->days }} Tag(e)</span>
-                                            </td>
-                                            <td>
-                                                @if($holiday->approved_at)
-                                                    {{ $holiday->approved_at->format('d.m.Y H:i') }}
-                                                @else
-                                                    <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($holiday->approved_by && $holiday->approved_by_user)
-                                                    {{ $holiday->approved_by_user->name }}
-                                                @else
-                                                    <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($holiday->start_date->isPast())
-                                                    <span class="badge badge-secondary">
-                                                        <i class="fas fa-history"></i> Vergangen
-                                                    </span>
-                                                @else
-                                                    <span class="badge badge-success">
-                                                        <i class="fas fa-calendar-check"></i> Zukünftig
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                <button class="btn btn-sm btn-danger"
-                                                        data-toggle="modal"
-                                                        data-target="#deleteModal-{{ $holiday->id }}"
-                                                        title="Urlaub löschen">
-                                                    <i class="fas fa-trash"></i> Löschen
-                                                </button>
-
-                                                <!-- Lösch-Modal -->
-                                                <div class="modal fade" id="deleteModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header bg-danger text-white">
-                                                                <h5 class="modal-title">
-                                                                    <i class="fas fa-exclamation-triangle"></i> Urlaub wirklich löschen?
-                                                                </h5>
-                                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                                                                    <span aria-hidden="true">&times;</span>
-                                                                </button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <div class="alert alert-warning">
-                                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                                    <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
-                                                                </div>
-                                                                <p><strong>Mitarbeiter:</strong> {{ $holiday->employe->name }}</p>
-                                                                <p><strong>Zeitraum:</strong> {{ $holiday->start_date->format('d.m.Y') }} - {{ $holiday->end_date->format('d.m.Y') }}</p>
-                                                                <p><strong>Tage:</strong> {{ $holiday->days }}</p>
-                                                                @if($holiday->start_date->isPast())
-                                                                    <p class="text-danger">
-                                                                        <i class="fas fa-info-circle"></i>
-                                                                        Hinweis: Dieser Urlaub liegt in der Vergangenheit.
-                                                                    </p>
-                                                                @endif
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                                                                    <i class="fas fa-times"></i> Abbrechen
-                                                                </button>
-                                                                <form action="{{ url('holidays/manage/delete/' . $holiday->id) }}" method="POST" class="d-inline">
-                                                                    @csrf
-                                                                    <button type="submit" class="btn btn-danger">
-                                                                        <i class="fas fa-trash"></i> Ja, löschen
-                                                                    </button>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        @endif
-                                    @empty
-                                        <tr>
-                                            <td colspan="9" class="text-center text-muted py-4">
-                                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                                                <p>Keine genehmigten Urlaube mit den ausgewählten Filtern gefunden.</p>
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        @if($holidays->hasPages())
-                            <div class="d-flex justify-content-center mt-4">
-                                {{ $holidays->appends(request()->query())->links() }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
+        <div class="flex items-center gap-1">
+            @can('edit employe')
+                <a href="{{ route('personal.vorgesetzte.index') }}" class="zw-btn zw-btn-sm zw-btn-secondary mr-2"><i class="fas fa-sitemap"></i><span class="hidden sm:inline">Vorgesetzte &amp; Stellvertretungen</span></a>
+            @endcan
+            <a href="{{ $query(['year' => $jahr - 1, 'page' => null]) }}" class="zw-btn-icon" title="Vorjahr"><i class="fas fa-chevron-left"></i></a>
+            <span class="font-semibold px-2">{{ $jahr }}</span>
+            <a href="{{ $query(['year' => $jahr + 1, 'page' => null]) }}" class="zw-btn-icon" title="Folgejahr"><i class="fas fa-chevron-right"></i></a>
         </div>
     </div>
-@endsection
 
-@push('js')
-<script>
-    // Auto-Submit bei Änderung der Filter
-    $('#user_id, #future_only').change(function() {
-        $(this).closest('form').submit();
-    });
-</script>
-@endpush
+    <nav class="zw-tabs mb-5">
+        <a href="{{ $query(['tab' => 'antraege', 'page' => null]) }}" class="zw-tab {{ $tab !== 'konten' ? 'is-active' : '' }}"><i class="fas fa-list"></i> Anträge</a>
+        <a href="{{ $query(['tab' => 'konten', 'page' => null]) }}" class="zw-tab {{ $tab === 'konten' ? 'is-active' : '' }}"><i class="fas fa-wallet"></i> Urlaubskonten</a>
+    </nav>
+
+    @if($tab === 'konten')
+        <section class="zw-card">
+            @if($konten->isEmpty())
+                <div class="zw-empty"><i class="fas fa-users"></i> Keine Personen in deiner Zuständigkeit.</div>
+            @else
+                {{-- Desktop: Tabelle --}}
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="zw-table">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-right">Anspruch</th>
+                            <th class="text-right">Übertrag</th>
+                            <th class="text-right">Buchungen</th>
+                            <th class="text-right">Genehmigt</th>
+                            <th class="text-right">Offen</th>
+                            <th class="text-right">Verfallen</th>
+                            <th class="text-right">Rest</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($konten as $k)
+                            <tr>
+                                <td class="font-medium text-gray-900">{{ $k['user']->name }}</td>
+                                <td class="text-right">{{ $fmt($k['anspruch']) }}</td>
+                                <td class="text-right">{{ $fmt($k['uebertrag']) }}</td>
+                                <td class="text-right">{{ $fmt($k['buchungen']) }}</td>
+                                <td class="text-right">{{ $fmt($k['genommen']) }}</td>
+                                <td class="text-right">{{ $fmt($k['beantragt']) }}</td>
+                                <td class="text-right">{{ $fmt($k['verfallen']) }}@if($k['verfall_droht'] > 0) <span class="zw-badge zw-badge-amber ml-1" title="droht zu verfallen">{{ $fmt($k['verfall_droht']) }}</span>@endif</td>
+                                <td class="text-right font-bold {{ $k['rest'] < 0 ? 'text-red-600' : 'text-emerald-700' }}">{{ $fmt($k['rest']) }}</td>
+                                <td class="text-right"><a href="{{ route('holidays.account', [$k['user']->id, $jahr]) }}" class="zw-btn zw-btn-sm zw-btn-ghost">Details</a></td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                {{-- Mobil: Karten --}}
+                <ul class="md:hidden zw-list">
+                    @foreach($konten as $k)
+                        <li>
+                            <a href="{{ route('holidays.account', [$k['user']->id, $jahr]) }}" class="zw-row">
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-gray-900 truncate">{{ $k['user']->name }}</div>
+                                    <div class="text-xs text-gray-500">Anspruch {{ $fmt($k['anspruch']) }} · Übertrag {{ $fmt($k['uebertrag']) }} · genehmigt {{ $fmt($k['genommen']) }}@if($k['beantragt'] > 0) · offen {{ $fmt($k['beantragt']) }}@endif</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold {{ $k['rest'] < 0 ? 'text-red-600' : 'text-emerald-700' }}">{{ $fmt($k['rest']) }}</div>
+                                    <div class="text-[10px] uppercase text-gray-400">Rest</div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-300"></i>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    @else
+        <form method="get" class="zw-card mb-4 px-4 py-3 sm:px-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <input type="hidden" name="year" value="{{ $jahr }}">
+            <input type="hidden" name="tab" value="antraege">
+            <div class="lg:col-span-2">
+                <label class="zw-label" for="user_id">Person</label>
+                <select name="user_id" id="user_id" class="zw-select">
+                    <option value="">Alle</option>
+                    @foreach($mitarbeitende as $person)
+                        <option value="{{ $person->id }}" @selected((string) $filter['user_id'] === (string) $person->id)>{{ $person->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="zw-label" for="status">Status</label>
+                <select name="status" id="status" class="zw-select">
+                    @foreach(['alle' => 'Alle', 'offen' => 'Beantragt', 'genehmigt' => 'Genehmigt', 'abgelehnt' => 'Abgelehnt', 'storno' => 'Stornierung beantragt'] as $wert => $text)
+                        <option value="{{ $wert }}" @selected($filter['status'] === $wert)>{{ $text }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <label class="zw-check">
+                <input type="checkbox" name="future_only" value="1" @checked($filter['future_only'])>
+                nur laufende/künftige
+            </label>
+            <button type="submit" class="zw-btn zw-btn-primary"><i class="fas fa-filter"></i> Filtern</button>
+        </form>
+
+        <section class="zw-card">
+            @if($antraege->isEmpty())
+                <div class="zw-empty"><i class="fas fa-search"></i> Keine Anträge für diese Auswahl.</div>
+            @else
+                <ul class="zw-list">
+                    @foreach($antraege as $antrag)
+                        <li class="px-4 py-3 sm:px-5 flex flex-wrap items-center gap-x-4 gap-y-2" x-data="{ ablehnen: false }">
+                            <div class="flex-1 min-w-[12rem]">
+                                <div class="font-semibold text-gray-900">{{ $antrag->employe?->name ?? 'Unbekannt' }}</div>
+                                <div class="text-sm text-gray-600">
+                                    {{ $antrag->start_date->format('d.m.Y') }}@if(!$antrag->start_date->isSameDay($antrag->end_date)) – {{ $antrag->end_date->format('d.m.Y') }}@endif
+                                    · {{ $antrag->days_label }}
+                                </div>
+                                @if($antrag->approved_by_user && !$antrag->is_pending)
+                                    <div class="text-xs text-gray-400">{{ $antrag->rejected ? 'abgelehnt' : 'genehmigt' }} von {{ $antrag->approved_by_user->name }} am {{ $antrag->approved_at?->format('d.m.Y') }}</div>
+                                @endif
+                                @if($antrag->rejection_reason)<div class="text-xs text-red-600">{{ $antrag->rejection_reason }}</div>@endif
+                            </div>
+                            <span class="zw-badge {{ $statusBadge[$antrag->status] }}">{{ $antrag->status_label }}</span>
+                            <div class="flex flex-wrap items-center gap-1">
+                                @if($antrag->is_pending)
+                                    @can('approve', $antrag)
+                                        <form action="{{ route('holidays.approve', $antrag) }}" method="post">@csrf
+                                            <button type="submit" class="zw-btn zw-btn-sm zw-btn-success"><i class="fas fa-check"></i><span class="hidden sm:inline">Genehmigen</span></button>
+                                        </form>
+                                        <button type="button" class="zw-btn zw-btn-sm zw-btn-secondary" @click="ablehnen = !ablehnen"><i class="fas fa-times"></i><span class="hidden sm:inline">Ablehnen</span></button>
+                                    @endcan
+                                @endif
+                                @can('delete', $antrag)
+                                    <form action="{{ route('holidays.destroy', $antrag) }}" method="post" data-confirm="Urlaub von {{ $antrag->employe?->name }} ab {{ $antrag->start_date->format('d.m.Y') }} wirklich entfernen? Abwesenheit und Arbeitszeitnachweis werden angepasst.">
+                                        @csrf @method('delete')
+                                        <button type="submit" class="zw-btn zw-btn-sm zw-btn-danger-ghost" title="Entfernen"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                @endcan
+                                @if($antrag->employe)
+                                    <a href="{{ route('holidays.account', [$antrag->employe_id, $jahr]) }}" class="zw-btn zw-btn-sm zw-btn-ghost" title="Urlaubskonto"><i class="fas fa-wallet"></i></a>
+                                @endif
+                            </div>
+                            @if($antrag->is_pending)
+                                <form x-show.important="ablehnen" x-cloak action="{{ route('holidays.reject', $antrag) }}" method="post" class="basis-full flex flex-col sm:flex-row gap-2">
+                                    @csrf
+                                    <input type="text" name="reason" maxlength="255" class="zw-input" placeholder="Begründung">
+                                    <button type="submit" class="zw-btn zw-btn-danger shrink-0">Ablehnen</button>
+                                </form>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="px-4 py-3 border-t border-gray-100">{{ $antraege->links() }}</div>
+            @endif
+        </section>
+    @endif
+</div>
+@endsection

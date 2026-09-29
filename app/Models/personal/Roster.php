@@ -15,7 +15,7 @@ class Roster extends Model
     use CascadeSoftDeletes;
     use SoftDeletes;
 
-    protected $fillable = ['start_date', 'type', 'comment', 'department_id', 'published'];
+    protected $fillable = ['start_date', 'type', 'comment', 'department_id', 'published', 'published_at', 'published_by'];
     protected $visible = ['start_date', 'type', 'comment'];
 
     protected $cascadeDeletes = ['working_times', 'events'];
@@ -23,6 +23,7 @@ class Roster extends Model
     protected $casts = [
         'start_date' => 'datetime',
         'published' => 'boolean',
+        'published_at' => 'datetime',
     ];
 
     public function department()
@@ -43,6 +44,34 @@ class Roster extends Model
     public function news()
     {
         return $this->hasMany(RosterNews::class);
+    }
+
+    public function aenderungen()
+    {
+        return $this->hasMany(RosterChange::class)->latest();
+    }
+
+    public function publishedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'published_by');
+    }
+
+    public function weekEnd(): \Carbon\Carbon
+    {
+        return $this->start_date->copy()->endOfWeek();
+    }
+
+    /**
+     * @return \Carbon\Carbon[]
+     */
+    public function days(): array
+    {
+        $days = [];
+        for ($i = 0; $i < 7; $i++) {
+            $days[] = $this->start_date->copy()->startOfDay()->addDays($i);
+        }
+
+        return $days;
     }
 
     public function working_times_day(DateTime $day)

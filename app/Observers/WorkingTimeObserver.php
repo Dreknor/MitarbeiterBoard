@@ -2,69 +2,64 @@
 
 namespace App\Observers;
 
-
 use App\Models\personal\WorkingTime;
+use App\Services\Personal\Zeit\RosterService;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Arbeitszeiten im Dienstplan: Tages-Cache leeren und Änderungen an
+ * veröffentlichten Plänen protokollieren (Grundlage der Änderungsmitteilung).
+ */
 class WorkingTimeObserver
 {
-    /**
-     * Handle the WorkingTime "created" event.
-     *
-     * @param  \App\Models\personal\WorkingTime   $workingTime
-     * @return void
-     */
     public function created(WorkingTime $workingTime)
     {
-        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
-
+        $this->forget($workingTime);
+        $this->log($workingTime, 'Dienst eingetragen: '.$this->zeit($workingTime));
     }
 
-    /**
-     * Handle the WorkingTime "updated" event.
-     *
-     * @param  \App\Models\personal\WorkingTime   $workingTime
-     * @return void
-     */
     public function updated(WorkingTime $workingTime)
     {
-        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
+        $this->forget($workingTime);
 
+        if ($workingTime->wasChanged(['start', 'end', 'function', 'date'])) {
+            $this->log($workingTime, 'Dienst geändert: '.$this->zeit($workingTime));
+        }
     }
 
-    /**
-     * Handle the WorkingTime "deleted" event.
-     *
-     * @param  \App\Models\personal\WorkingTime   $workingTime
-     * @return void
-     */
     public function deleted(WorkingTime $workingTime)
     {
-        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
-
+        $this->forget($workingTime);
+        $this->log($workingTime, 'Dienst entfernt');
     }
 
-    /**
-     * Handle the WorkingTime "restored" event.
-     *
-     * @param  \App\Models\personal\WorkingTime   $workingTime
-     * @return void
-     */
     public function restored(WorkingTime $workingTime)
     {
-        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
-
+        $this->forget($workingTime);
     }
 
-    /**
-     * Handle the WorkingTime "force deleted" event.
-     *
-     * @param  \App\Models\personal\WorkingTime  $workingTime
-     * @return void
-     */
     public function forceDeleted(WorkingTime $workingTime)
     {
-        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
+        $this->forget($workingTime);
+    }
 
+    private function forget(WorkingTime $workingTime): void
+    {
+        Cache::forget('roster_'.$workingTime->roster_id.'_'.$workingTime->date->format('Ymd'));
+    }
+
+    private function zeit(WorkingTime $workingTime): string
+    {
+        if ($workingTime->start === null || $workingTime->end === null) {
+            return 'frei';
+        }
+
+        return $workingTime->start->format('H:i').'–'.$workingTime->end->format('H:i').' Uhr'
+            .($workingTime->function ? ' ('.$workingTime->function.')' : '');
+    }
+
+    private function log(WorkingTime $workingTime, string $text): void
+    {
+        app(RosterService::class)->protokollieren($workingTime->roster_id, $workingTime->employe_id, $workingTime->date, $text);
     }
 }

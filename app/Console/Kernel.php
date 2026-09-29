@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
         RemindProcedureUser::class,
         \App\Console\Commands\Personal\ReEncryptPersonalData::class,
         \App\Console\Commands\Personal\AuditTimesheets::class,
+        \App\Console\Commands\Personal\PruefeZeitUmstellung::class,
     ];
 
     /**

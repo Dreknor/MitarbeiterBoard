@@ -35,6 +35,10 @@ class AuthServiceProvider extends ServiceProvider
         // Personal-Modul (Phase 2)
         \App\Models\personal\PersonalDocument::class => \App\Policies\Personal\PersonalDocumentPolicy::class,
         \App\Models\personal\Training::class         => \App\Policies\Personal\TrainingPolicy::class,
+        // Zeitwirtschaft
+        \App\Models\personal\Holiday::class   => \App\Policies\Personal\HolidayPolicy::class,
+        \App\Models\personal\Timesheet::class => \App\Policies\Personal\TimesheetPolicy::class,
+        \App\Models\personal\Roster::class    => \App\Policies\Personal\RosterPolicy::class,
         // Policies für zukünftige Phase-3+ Modelle
         // \App\Models\personal\EmployeeReview::class   => \App\Policies\Personal\EmployeeReviewPolicy::class,
         // \App\Models\personal\BemCase::class          => \App\Policies\Personal\BemCasePolicy::class,

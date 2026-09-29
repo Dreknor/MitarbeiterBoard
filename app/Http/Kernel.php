@@ -99,6 +99,7 @@ class Kernel extends HttpKernel
         'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'personal.audit' => \App\Http\Middleware\PersonalAuditMiddleware::class,
+        'time_recording.terminal' => \App\Http\Middleware\TimeRecordingTerminal::class,
         'json' => \App\Http\Middleware\ForceJsonResponse::class,
         'idempotent' => \App\Http\Middleware\EnsureIdempotency::class,
         'api.staff' => \App\Http\Middleware\EnsureStaffToken::class,

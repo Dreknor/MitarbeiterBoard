@@ -33,7 +33,7 @@
 
 {{-- Footer --}}
 <div class="px-4 py-3 border-t border-gray-100">
-    <a href="{{ url('timesheets') }}"
+    <a href="{{ route('timesheets.index') }}"
        class="flex items-center justify-center gap-1 text-sm text-blue-600 hover:text-blue-800 no-underline font-medium">
         Alle Arbeitszeitnachweise →
     </a>

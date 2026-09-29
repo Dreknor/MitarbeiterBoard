@@ -204,7 +204,7 @@ class CalendarControllerTest extends TestCase
 
     public function test_wiederkehrende_termin_vorkommen_werden_im_roster_import_angezeigt_und_importiert(): void
     {
-        $this->actingAsWithPermission('create roster', 'view calendar');
+        $this->actingAsWithPermission('create roster', 'manage all rosters', 'view calendar');
 
         $calendar = OxCalendar::factory()->create(['sichtbar' => true]);
         $roster = Roster::factory()->create([
@@ -240,7 +240,7 @@ class CalendarControllerTest extends TestCase
 
     public function test_wiederkehrender_termin_aus_vorheriger_woche_erscheint_in_der_preview(): void
     {
-        $this->actingAsWithPermission('create roster', 'view calendar');
+        $this->actingAsWithPermission('create roster', 'manage all rosters', 'view calendar');
 
         $calendar = OxCalendar::factory()->create(['sichtbar' => true]);
         $roster = Roster::factory()->create([

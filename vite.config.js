@@ -45,6 +45,10 @@ export default defineConfig({
                 // Ticketsystem (Tailwind-Migration)
                 'resources/css/tickets.css',
                 'resources/js/tickets.js',
+
+                // Zeitwirtschaft: Urlaub, Arbeitszeitnachweis, Dienstplan, Terminal
+                'resources/css/zeit.css',
+                'resources/js/zeit.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -81,6 +85,8 @@ export default defineConfig({
                 // Ticketsystem (Tailwind-Migration)
                 'resources/views/ticketsystem/**/*.blade.php',
                 'app/Http/Controllers/Ticketsystem/*.php',
+                // Zeitwirtschaft
+                'app/Services/Personal/Zeit/*.php',
             ],
         }),
     ],

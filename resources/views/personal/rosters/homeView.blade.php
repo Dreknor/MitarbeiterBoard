@@ -1,6 +1,7 @@
 <div class="card">
-    <div class="card-header">
-        <h6>Dienstplan</h6>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Dienstplan</h6>
+        <a href="{{ route('roster.mine') }}" class="small">Mein Dienstplan →</a>
     </div>
     <div class="card-body">
         @foreach($rosters as $roster)
@@ -24,13 +25,15 @@
                         <a href="{{route('roster.export.pdf', $roster->id)}}">Dienstplan vom {{$roster->start_date->format('d.m.Y')}} </a>
                     </div>
                 </div>
-                <div class="col-auto">
-                    <div class="pull-right">
-                        <a href="{{route('roster.show', $roster->id)}}">
-                            <i class="fa fa-edit"></i>
-                        </a>
+                @can('manage', $roster)
+                    <div class="col-auto">
+                        <div class="pull-right">
+                            <a href="{{route('roster.show', $roster->id)}}">
+                                <i class="fa fa-edit"></i>
+                            </a>
+                        </div>
                     </div>
-                </div>
+                @endcan
             </div>
         @endforeach
     </div>

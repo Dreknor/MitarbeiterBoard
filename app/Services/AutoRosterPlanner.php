@@ -49,7 +49,8 @@ class AutoRosterPlanner
         }
 
         $workingTimes = $roster->working_times()->get();
-        $events       = $roster->events()->get();
+        // Automatische Abwesenheits-Markierungen (Urlaub, krank, Feiertag) sind keine umzuplanenden Termine
+        $events       = $roster->events()->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))->get();
         // Requirements jetzt nach WorkingTime->function (event_name Feld entspricht Funktionsnamen)
         $requirements = $roster->department->roster_task_requirements()->get()->keyBy(function($r){ return mb_strtolower($r->event_name); });
 

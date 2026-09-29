@@ -1,242 +1,535 @@
 @extends('layouts.app')
 
 @section('title')
-    Dienstplan bearbeiten
+    {{ $roster->is_template ? 'Vorlage' : 'Dienstplan' }} {{ $department->name }}
 @endsection
 
 @section('site-title')
-    @if(!$roster->is_template)
-        Dienstplan bearbeiten
-    @else
-        Vorlage bearbeiten
-    @endif
+    Dienstplanung
 @endsection
 
+@push('css')
+    @vite(['resources/css/zeit.css', 'resources/js/zeit.js'])
+@endpush
+
+@php
+    $wochenEnde = $roster->weekEnd();
+    $editorDaten = [
+        'rosterId' => $roster->id,
+        'days' => collect($days)->map(fn ($d) => [
+            'date' => $d->toDateString(),
+            'label' => $d->locale('de')->isoFormat('dddd, DD.MM.'),
+            'kurz' => $d->locale('de')->isoFormat('dd'),
+            'tag' => $d->format('d.m.'),
+            'feiertag' => is_holiday($d)['title'] ?? null,
+        ])->values(),
+        'employes' => $employes->map(fn ($e) => ['id' => $e->id, 'name' => $e->name, 'vorname' => $e->vorname ?: $e->name])->values(),
+        'fenster' => $fenster,
+        'raster' => $raster,
+        'offeneAenderungen' => $offeneAenderungen,
+        'urls' => [
+            'data' => route('roster.data', $roster->id),
+            'drop' => route('roster.events.drop'),
+            'eventStore' => route('roster.events.store', $roster->id),
+            'events' => url('tasks'),
+            'workingTime' => route('roster.working-time.store'),
+            'trashDay' => route('roster.trash-day', $roster->id),
+        ],
+    ];
+    $kopierWochen = collect(range(1, 12))->map(fn ($i) => $roster->start_date->copy()->startOfWeek()->addWeeks($i));
+@endphp
+
 @section('content')
-    <div class="container-fluid">
-        @include('personal.rosters.elements.info')
-        <div class=" sticky-top">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row">
-                        @php($navLabels=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Wochenende'])
-                        @foreach($navLabels as $idx => $label)
-                            @if(isset($days[$idx]))
-                                <div class="col">
-                                    <a href="#{{$days[$idx]->format('Y-m-d')}}" class="btn btn-sm btn-block btn-outline-primary">{{$label}}</a>
-                                </div>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
+<script type="application/json" id="dienstplan-daten">@json($editorDaten)</script>
+
+<div class="zeit-wrapper" x-data="dienstplanEditor(JSON.parse(document.getElementById('dienstplan-daten').textContent))" @keydown.escape.window="schliessen()">
+
+    {{-- Kopf --}}
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div class="min-w-0">
+            <a href="{{ route('roster.index') }}" class="text-sm text-blue-600 hover:text-blue-800"><i class="fas fa-arrow-left mr-1"></i>Dienstpläne</a>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
+                @if($vorherige)
+                    <a href="{{ route('roster.show', $vorherige->id) }}" class="zw-btn-icon is-sm" title="vorherige Woche"><i class="fas fa-chevron-left"></i></a>
+                @endif
+                <h1 class="zw-page-title">
+                    {{ $department->name }} ·
+                    @if($roster->is_template) Vorlage @else KW {{ $roster->start_date->isoWeek() }} @endif
+                </h1>
+                @if($naechste)
+                    <a href="{{ route('roster.show', $naechste->id) }}" class="zw-btn-icon is-sm" title="nächste Woche"><i class="fas fa-chevron-right"></i></a>
+                @endif
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
+                <span>{{ $roster->start_date->format('d.m.') }}–{{ $wochenEnde->format('d.m.Y') }}</span>
+                @if($roster->comment)<span>· {{ $roster->comment }}</span>@endif
+                @unless($roster->is_template)
+                    @if($roster->published)
+                        <span class="zw-badge zw-badge-green"><i class="fas fa-check"></i> veröffentlicht{{ $roster->published_at ? ' am '.$roster->published_at->format('d.m.') : '' }}</span>
+                    @else
+                        <span class="zw-badge zw-badge-gray">Entwurf – für Mitarbeitende noch nicht sichtbar</span>
+                    @endif
+                @endunless
             </div>
         </div>
 
-        @foreach($days as $day)
-            @php($dayKey = $day->format('Y-m-d'))
-            @cache('roster_'.$roster->id.'_'.$day->format('Ymd'))
-                <div id="{{$dayKey}}"></div>
-                <div class="card @if($roster->is_template) bg-info bg-accent-2 @endif">
-                    <div class="card-header">
-                        <div @class(['card-title'])>
-                            <div class="d-flex w-100 justify-content-between">
-                                {{$day->locale('de')->dayName}}
-                                @if(!$roster->is_template), den {{$day->format('d.m.Y')}}@endif
-                                <small>
-                                    <a @class(['trashDay', 'm-2', 'text-danger']) data-day="{{$dayKey}}" href="#">
-                                        <i class="fa fa-trash"></i>
-                                    </a>
-                                    <a href="{{route('toggleDayView', [$roster->id,$dayKey])}}" class="m-2">
-                                        @if(session()->exists($dayKey))
-                                            <i class="fa fa-expand-arrows-alt"></i>
-                                        @else
-                                            <i class="fa fa-compress-arrows-alt"></i>
-                                        @endif
-                                    </a>
-                                </small>
+        <div class="flex flex-wrap items-center gap-2">
+            @unless($roster->is_template)
+                @if(!$roster->published)
+                    <form action="{{ route('roster.publish', $roster->id) }}" method="post" data-confirm="Plan veröffentlichen? Alle eingeplanten Personen werden benachrichtigt.">
+                        @csrf
+                        <button type="submit" class="zw-btn zw-btn-success"><i class="fas fa-bullhorn"></i> Veröffentlichen</button>
+                    </form>
+                @else
+                    <form action="{{ route('roster.notify-changes', $roster->id) }}" method="post" x-show="offeneAenderungen > 0" x-cloak>
+                        @csrf
+                        <button type="submit" class="zw-btn zw-btn-warning"><i class="fas fa-paper-plane"></i> Änderungen mitteilen (<span x-text="offeneAenderungen"></span>)</button>
+                    </form>
+                @endif
+            @endunless
+
+            <div class="relative" x-data="{ menu: false }" @click.outside="menu = false">
+                <button type="button" class="zw-btn zw-btn-secondary" @click="menu = !menu" :aria-expanded="menu.toString()"><i class="fas fa-ellipsis-h"></i> Mehr</button>
+                <div x-show="menu" x-cloak x-transition class="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                    @unless($roster->is_template)
+                        <a href="{{ route('roster.export.pdf', $roster->id) }}" target="_blank" class="block px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-file-pdf w-5 text-gray-400"></i> PDF anzeigen</a>
+                        <form action="{{ route('roster.export.mail', $roster->id) }}" method="post" data-confirm="Plan per E-Mail an alle Mitarbeitenden der Abteilung senden?">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-envelope w-5 text-gray-400"></i> Per E-Mail senden</button>
+                        </form>
+                        @if(config('nextcloud.enabled'))
+                            <form action="{{ route('roster.export.nextcloud', $roster->id) }}" method="post">
+                                @csrf
+                                <button type="submit" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-comment w-5 text-gray-400"></i> An Nextcloud Talk senden</button>
+                            </form>
+                        @endif
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="{{ route('roster.importCalendar.preview', $roster->id) }}" class="block px-4 py-2 text-sm hover:bg-gray-50"><i class="far fa-calendar-plus w-5 text-gray-400"></i> Termine aus Kalender</a>
+                        <a href="{{ route('roster.autoPlan', $roster->id) }}" class="block px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-magic w-5 text-gray-400"></i> Auto-Umplanung</a>
+                    @endunless
+                    <button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" @click="menu = false; dialog = 'kopieren'"><i class="far fa-copy w-5 text-gray-400"></i> In weitere Wochen kopieren</button>
+                    @if($roster->published)
+                        <form action="{{ route('roster.unpublish', $roster->id) }}" method="post" data-confirm="Veröffentlichung zurückziehen? Mitarbeitende sehen den Plan dann nicht mehr.">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-eye-slash w-5 text-gray-400"></i> Veröffentlichung zurückziehen</button>
+                        </form>
+                    @endif
+                    <div class="border-t border-gray-100 my-1"></div>
+                    <form action="{{ route('roster.delete', $roster->id) }}" method="post" data-confirm="{{ $roster->is_template ? 'Vorlage' : 'Dienstplan' }} löschen?">
+                        @csrf @method('delete')
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fas fa-trash w-5"></i> Löschen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Ansicht + Tage --}}
+    <div class="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+        <div class="zw-segment lg:w-56 shrink-0">
+            <input type="radio" id="ansicht-tag" value="tag" x-model="ansicht">
+            <label for="ansicht-tag"><i class="fas fa-stream"></i> Tag</label>
+            <input type="radio" id="ansicht-woche" value="woche" x-model="ansicht">
+            <label for="ansicht-woche"><i class="fas fa-th"></i> Woche</label>
+        </div>
+        <div class="zw-daybar flex-1" x-show.important="ansicht === 'tag'">
+            <template x-for="(d, i) in days" :key="d.date">
+                <button type="button" :class="i === tagIndex && 'is-active'" @click="tagIndex = i" :title="d.label + (d.feiertag ? ' – ' + d.feiertag : '')">
+                    <span x-text="d.kurz"></span>
+                    <span class="font-normal opacity-80" x-text="d.tag"></span>
+                    <span class="zw-dot" x-show="hatKonflikteAm(d.date)"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    {{-- ================= TAG ================= --}}
+    <section x-show="ansicht === 'tag'">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h2 class="text-lg font-bold text-gray-900">
+                <span x-text="tag.label"></span>
+                <span class="zw-badge zw-badge-blue ml-1" x-show="tag.feiertag" x-text="tag.feiertag"></span>
+            </h2>
+            <div class="flex items-center gap-2">
+                <button type="button" class="zw-btn zw-btn-sm zw-btn-primary hidden lg:inline-flex" @click="neuerTermin()"><i class="fas fa-plus"></i> Termin</button>
+                <button type="button" class="zw-btn zw-btn-sm zw-btn-danger-ghost" @click="tagLeeren()"><i class="fas fa-eraser"></i><span class="hidden sm:inline">Tag leeren</span></button>
+            </div>
+        </div>
+
+        @if($employes->isEmpty())
+            <div class="zw-card"><div class="zw-empty"><i class="fas fa-users"></i> Für diese Woche hat niemand einen Vertrag in {{ $department->name }}.</div></div>
+        @endif
+
+        {{-- Desktop: Zeitraster --}}
+        <div class="hidden lg:block zw-card overflow-hidden">
+            <div class="zw-roster-scroll">
+                <div class="zw-roster-grid">
+                    {{-- Zeitspalte --}}
+                    <div class="zw-roster-col is-time">
+                        <div class="zw-roster-head"></div>
+                        <div class="zw-roster-wt text-[10px] text-gray-400 cursor-default hover:bg-transparent">Dienst</div>
+                        <div class="relative" :style="`height:${hoehe}px`">
+                            <template x-for="m in stundenLinien" :key="m">
+                                <span class="zw-time-label" :style="linieStil(m)" x-text="String(Math.floor(m / 60)).padStart(2, '0') + ':00'"></span>
+                            </template>
+                        </div>
+                        <div class="zw-roster-foot cursor-default hover:bg-transparent"></div>
+                    </div>
+
+                    {{-- Personen --}}
+                    <template x-for="emp in employes" :key="emp.id">
+                        <div class="zw-roster-col">
+                            <div class="zw-roster-head">
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="truncate" x-text="emp.vorname" :title="emp.name"></span>
+                                    <i class="fas fa-exclamation-circle text-red-500" x-show="konflikteFuer(emp.id, tag.date).length" :title="konflikteFuer(emp.id, tag.date).join('\n')"></i>
+                                </div>
+                                <div class="text-[11px] font-normal text-gray-500">
+                                    <span x-text="stundenVon(emp.id).geplant.toLocaleString('de-DE')"></span> / <span x-text="stundenVon(emp.id).vertrag.toLocaleString('de-DE')"></span> h Woche
+                                </div>
+                            </div>
+                            <div class="zw-roster-wt" :class="!zeitFuer(emp.id, tag.date)?.start && 'is-empty'" @click="zeitBearbeiten(emp.id, tag.date)" role="button" tabindex="0" @keydown.enter="zeitBearbeiten(emp.id, tag.date)">
+                                <div class="font-semibold" x-text="zeitLabel(zeitFuer(emp.id, tag.date))"></div>
+                                <div class="truncate text-gray-500" x-text="zeitFuer(emp.id, tag.date)?.function || ''"></div>
+                            </div>
+                            <div class="zw-timeline" data-timeline :data-employe="emp.id" :data-date="tag.date" :style="`height:${hoehe}px`"
+                                 @pointerdown="auswahlStart($event, emp.id, tag.date)" @pointermove="auswahlBewegen($event)" @pointerup="auswahlEnde()">
+                                <template x-for="m in stundenLinien" :key="m">
+                                    <div class="zw-hour" :style="linieStil(m)"></div>
+                                </template>
+                                <div class="zw-selection" x-show="auswahl && auswahl.empId === emp.id && auswahl.date === tag.date" :style="auswahlStil()"></div>
+                                <template x-for="e in eventsFuer(emp.id, tag.date)" :key="e.id">
+                                    <div class="zw-ev" tabindex="0"
+                                         :class="{ 'is-abwesend': e.abwesend, 'is-pause': e.pause, 'is-dragging': drag && drag.moved && drag.id === e.id }"
+                                         :style="stil(e)" :title="`${e.event} ${e.start}–${e.end}`"
+                                         @pointerdown="ziehenStart($event, e)" @keydown.enter="bearbeiten(e)">
+                                        <div class="font-semibold truncate" x-text="e.event"></div>
+                                        <div class="opacity-80" x-text="`${e.start}–${e.end}`"></div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="zw-roster-foot">
+                                <template x-for="k in konflikteFuer(emp.id, tag.date)" :key="k">
+                                    <div class="zw-konflikt"><i class="fas fa-exclamation-triangle mt-0.5"></i><span x-text="k"></span></div>
+                                </template>
                             </div>
                         </div>
-                        <p class='description'>
-                            {{is_holiday($day)? 'Feiertag' : ''}}
-                        </p>
-                    </div>
-                    <div @class(["card-body", 'd-none' => session($dayKey) == true]) id="dayRoster_{{$dayKey}}">
-                        <div class="card-group ">
-                            @include('personal.rosters.elements.time')
-                            @foreach($employes as $employe)
-                                @php($wt = $wtIndex[$employe->id][$dayKey] ?? null)
-                                @php($empDayEvents = ($events->where('employe_id',$employe->id)->filter(fn($e)=>$e->date->format('Y-m-d')===$dayKey)))
-                                <div class="card border roster-col @if(!$loop->first) border-left-0 @endif">
-                                    <div class="card-header border-bottom" style="height:45px;">
-                                        @if($employe->geburtstag?->isBirthday($day)) <i class="fa-solid fa-cake-candles"></i> @endif
-                                            {{$employe->vorname}}
-                                        @if($employe->geburtstag?->isBirthday($day)) <i class="fa-solid fa-cake-candles"></i> @endif
-                                        @if($wt?->needs_break($events))
-                                            <div @class(['description','d-inline','pull-right','text-danger'])><small>Pause fehlt</small></div>
-                                        @endif
-                                        @php($empEvents = $events->where('employe_id',$employe->id))
-                                        @if($wt?->diff_start_first_event($empEvents))
-                                            <div @class(['description','d-inline','pull-right','text-danger'])><small>Arbeitszeit falsch</small></div>
-                                        @endif
-                                    </div>
-                                    <div @class(['card-body','border-bottom','pt-0','pb-0','info'=>$wt?->needs_break($events)]) style="max-height:50px;min-height:50px;">
-                                        <div @class(['row','h-100'])>
-                                            <div class="col m-0 p-1 workingTime" data-date="{{$dayKey}}" data-employe="{{$employe->id}}" @if($wt) data-start="{{$wt->start?->format('H:i')}}" data-end="{{$wt->end?->format('H:i')}}" data-function="{{$wt->function}}" @endif>
-                                                {{$wt?->start?->format('H:i') ?? ' '}}
-                                            </div>
-                                            <div class="col m-0 p-1 workingTime" data-date="{{$dayKey}}" data-employe="{{$employe->id}}" @if($wt) data-start="{{$wt->start?->format('H:i')}}" data-end="{{$wt->end?->format('H:i')}}" data-function="{{$wt->function}}" @endif>
-                                                {{$wt?->end?->format('H:i') ?? ' '}}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div @class(['card-body','p-0','m-0']) style="height:534px;">
-                                        <div class="timeline" data-employe="{{$employe->id}}" data-date="{{$dayKey}}">
-                                            @php($dayStart='08:00')
-                                            @php($dayEnd='14:30')
-                                            @php($pxPerMinute = 20/15)
-                                            {{-- Stundenlinien --}}
-                                            @for($h=8;$h<=14;$h++)
-                                                @php($offset = (($h*60)-480)*$pxPerMinute)
-                                                <div class="timeline-hour-line" style="top:{{$offset}}px;">
-                                                    <span class="timeline-hour-label">{{sprintf('%02d:00',$h)}}</span>
-                                                </div>
-                                            @endfor
-                                            {{-- Halb-Stunde 14:30 Markierung --}}
-                                            @php($halfOffset = ((14*60+30)-480)*$pxPerMinute)
-                                            <div class="timeline-half-hour-line" style="top:{{$halfOffset}}px;"><span class="timeline-hour-label">14:30</span></div>
-                                            @foreach($empDayEvents as $ev)
-                                                @php($start = max($ev->start->format('H:i'), $dayStart))
-                                                @php($endDisplay = min($ev->end->format('H:i'), $dayEnd))
-                                                @php($startMinutes = (int)substr($start,0,2)*60 + (int)substr($start,3,2))
-                                                @php($endMinutes = (int)substr($endDisplay,0,2)*60 + (int)substr($endDisplay,3,2))
-                                                @php($top = ($startMinutes - 480) * $pxPerMinute)
-                                                @php($height = max(4, ($endMinutes - $startMinutes) * $pxPerMinute))
-                                                <div class="roster-event Termin"
-                                                     draggable="true"
-                                                     id="task_{{$ev->id}}"
-                                                     data-id="{{$ev->id}}"
-                                                     data-start="{{$ev->start->format('H:i')}}"
-                                                     data-end="{{$ev->end->format('H:i')}}"
-                                                     data-original-start="{{$ev->start->format('H:i')}}"
-                                                     data-original-end="{{$ev->end->format('H:i')}}"
-                                                     data-date="{{$dayKey}}"
-                                                     data-event="{{$ev->event}}"
-                                                     data-employe="{{$ev->employe_id}}"
-                                                     style="top:{{$top}}px; height:{{$height}}px;">
-                                                    <span class="ev-label">{{$ev->event}}</span>
-                                                    @if($ev->end->format('H:i') > $dayEnd)
-                                                        <small class="text-muted">(bis {{$ev->end->format('H:i')}})</small>
-                                                    @endif
-                                                </div>
-                                            @endforeach
-                                            <div class="selection-overlay d-none"></div>
-                                            <div class="time-indicator d-none"><span class="ti-label"></span></div>
-                                        </div>
-                                    </div>
-                                    <div @class(['card-footer','border-top','m-0','workingTime']) style="max-height:60px;min-height:60px;" data-date="{{$dayKey}}" data-employe="{{$employe->id}}" @if($wt) data-start="{{$wt->start?->format('H:i')}}" data-end="{{$wt->end?->format('H:i')}}" data-function="{{$wt->function}}" @endif>
-                                        <div @class(['aufgabe']) id="{{$employe->id.'_'.$dayKey.'_function'}}">{{$wt?->function}}</div>
-                                    </div>
+                    </template>
+
+                    {{-- Seitenspalte: Merkliste + Checks --}}
+                    <div class="zw-roster-col is-side">
+                        <div class="zw-roster-head flex items-center justify-between">
+                            <span>Merkliste</span>
+                            <button type="button" class="zw-btn-icon is-sm" title="Termin ohne Zuordnung" @click="neuerTermin(null)"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="p-2 flex flex-col gap-1.5">
+                            <template x-for="e in merkliste(tag.date)" :key="e.id">
+                                <div class="rounded-lg border border-dashed border-gray-300 bg-white px-2 py-1.5 text-xs cursor-grab hover:border-blue-400"
+                                     style="touch-action:none" @pointerdown="ziehenStart($event, e)" tabindex="0" @keydown.enter="bearbeiten(e)" title="In eine Spalte ziehen oder anklicken">
+                                    <div class="font-semibold" x-text="e.event"></div>
+                                    <div class="text-gray-500" x-text="`${e.start}–${e.end}`"></div>
                                 </div>
-                            @endforeach
-
-                            @includeWhen($events->where('employe_id', null)->where('date', $day)->count() > 0,'personal.rosters.elements.bookmarks')
-                            @includeWhen($roster->department->roster_checks->count() > 0,'personal.rosters.elements.checks')
-
+                            </template>
+                            <p class="text-xs text-gray-400" x-show="merkliste(tag.date).length === 0">Leer – nicht zugewiesene Termine landen hier.</p>
+                        </div>
+                        <div class="px-2 pt-3 pb-2 border-t border-gray-200 mt-2" x-show="checksAm(tag.date).length">
+                            <p class="zw-section-title mb-1.5">Checks</p>
+                            <template x-for="[name, ok] in checksAm(tag.date)" :key="name">
+                                <div class="flex items-start gap-1.5 text-xs mb-1" :class="ok ? 'text-emerald-700' : 'text-red-600'">
+                                    <i class="fas mt-0.5" :class="ok ? 'fa-check-circle' : 'fa-times-circle'"></i><span x-text="name"></span>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
-            @endcache
-        @endforeach
+            </div>
+            <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">
+                <i class="fas fa-mouse-pointer mr-1"></i> Im Raster ziehen = neuer Termin · Termin ziehen = verschieben (auch in andere Spalten) · Klick = bearbeiten · Dienstzeile anklicken = Arbeitszeit setzen
+            </p>
+        </div>
 
-        @include('personal.rosters.modals.taskModal')
-        @include('personal.rosters.modals.editTaskModal')
-        @include('personal.rosters.modals.workTimeModal')
-        @include('personal.rosters.modals.trashDayModal')
+        {{-- Smartphone/Tablet: Liste je Person --}}
+        <div class="lg:hidden flex flex-col gap-3">
+            <template x-for="emp in employes" :key="emp.id">
+                <div class="zw-card">
+                    <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+                        <div class="min-w-0">
+                            <div class="font-semibold text-gray-900 truncate" x-text="emp.name"></div>
+                            <div class="text-xs text-gray-500"><span x-text="stundenVon(emp.id).geplant.toLocaleString('de-DE')"></span> / <span x-text="stundenVon(emp.id).vertrag.toLocaleString('de-DE')"></span> h Woche</div>
+                        </div>
+                        <button type="button" class="zw-btn zw-btn-sm zw-btn-secondary shrink-0" @click="zeitBearbeiten(emp.id, tag.date)">
+                            <i class="far fa-clock"></i> <span x-text="zeitLabel(zeitFuer(emp.id, tag.date))"></span>
+                        </button>
+                    </div>
+                    <div class="px-4 py-2 flex flex-col gap-1.5">
+                        <p class="text-xs text-gray-500" x-show="zeitFuer(emp.id, tag.date)?.function" x-text="'Aufgabe: ' + (zeitFuer(emp.id, tag.date)?.function || '')"></p>
+                        <template x-for="e in eventsFuer(emp.id, tag.date)" :key="e.id">
+                            <button type="button" class="flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm"
+                                    :class="e.abwesend ? 'bg-amber-50 text-amber-900 cursor-default' : (e.pause ? 'bg-slate-100 text-slate-700' : 'bg-blue-50 text-blue-900')"
+                                    @click="bearbeiten(e)">
+                                <span class="w-24 shrink-0 tabular-nums text-xs" x-text="`${e.start}–${e.end}`"></span>
+                                <span class="font-medium flex-1" x-text="e.event"></span>
+                                <i class="fas fa-chevron-right text-xs opacity-40" x-show="!e.abwesend"></i>
+                            </button>
+                        </template>
+                        <p class="text-xs text-gray-400" x-show="eventsFuer(emp.id, tag.date).length === 0">Keine Termine</p>
+                        <template x-for="k in konflikteFuer(emp.id, tag.date)" :key="k">
+                            <div class="zw-konflikt text-xs"><i class="fas fa-exclamation-triangle mt-0.5"></i><span x-text="k"></span></div>
+                        </template>
+                        <button type="button" class="self-start text-sm font-semibold text-blue-600 py-1" @click="neuerTermin(emp.id)"><i class="fas fa-plus mr-1"></i>Termin</button>
+                    </div>
+                </div>
+            </template>
 
+            <div class="zw-card" x-show="merkliste(tag.date).length || checksAm(tag.date).length">
+                <div class="px-4 py-3 flex flex-col gap-2">
+                    <template x-if="merkliste(tag.date).length">
+                        <div>
+                            <p class="zw-section-title mb-1.5">Merkliste</p>
+                            <template x-for="e in merkliste(tag.date)" :key="e.id">
+                                <button type="button" class="w-full flex items-center gap-3 rounded-lg border border-dashed border-gray-300 px-3 py-2 mb-1.5 text-left text-sm" @click="bearbeiten(e)">
+                                    <span class="w-24 shrink-0 text-xs tabular-nums" x-text="`${e.start}–${e.end}`"></span>
+                                    <span class="flex-1 font-medium" x-text="e.event"></span>
+                                    <span class="text-xs text-blue-600">zuweisen</span>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="checksAm(tag.date).length">
+                        <div>
+                            <p class="zw-section-title mb-1.5">Checks</p>
+                            <template x-for="[name, ok] in checksAm(tag.date)" :key="name">
+                                <div class="flex items-start gap-1.5 text-sm mb-1" :class="ok ? 'text-emerald-700' : 'text-red-600'">
+                                    <i class="fas mt-0.5" :class="ok ? 'fa-check-circle' : 'fa-times-circle'"></i><span x-text="name"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- ================= WOCHE ================= --}}
+    <section x-show="ansicht === 'woche'" x-cloak class="zw-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="zw-table">
+                <thead>
+                <tr>
+                    <th class="sticky left-0 bg-gray-50 z-10">Person</th>
+                    <template x-for="(d, i) in days" :key="d.date">
+                        <th class="text-center cursor-pointer hover:text-blue-700" @click="tagIndex = i; ansicht = 'tag'">
+                            <span x-text="d.kurz"></span> <span class="font-normal" x-text="d.tag"></span>
+                            <div class="font-normal normal-case text-blue-700" x-show="d.feiertag" x-text="d.feiertag"></div>
+                        </th>
+                    </template>
+                    <th class="text-right">Std.</th>
+                </tr>
+                </thead>
+                <tbody>
+                <template x-for="emp in employes" :key="emp.id">
+                    <tr>
+                        <td class="sticky left-0 bg-white z-10 font-medium whitespace-nowrap" x-text="emp.name"></td>
+                        <template x-for="(d, i) in days" :key="d.date">
+                            <td class="text-center cursor-pointer align-top" @click="tagIndex = i; ansicht = 'tag'"
+                                :class="konflikteFuer(emp.id, d.date).length ? 'bg-red-50' : (abwesenheitAm(emp.id, d.date) ? 'bg-amber-50' : '')"
+                                :title="konflikteFuer(emp.id, d.date).join('\n')">
+                                <template x-if="abwesenheitAm(emp.id, d.date)">
+                                    <div class="text-xs font-semibold text-amber-800" x-text="abwesenheitAm(emp.id, d.date).event"></div>
+                                </template>
+                                <div class="text-xs whitespace-nowrap" :class="zeitFuer(emp.id, d.date)?.start ? 'font-semibold text-gray-900' : 'text-gray-300'" x-text="zeitFuer(emp.id, d.date)?.start ? zeitLabel(zeitFuer(emp.id, d.date)) : '–'"></div>
+                                <div class="text-[11px] text-gray-500 truncate max-w-[8rem] mx-auto" x-text="zeitFuer(emp.id, d.date)?.function || ''"></div>
+                                <div class="text-[11px] text-blue-700" x-show="anzahlAm(emp.id, d.date)" x-text="anzahlAm(emp.id, d.date) + ' Termin(e)'"></div>
+                                <i class="fas fa-exclamation-triangle text-red-500 text-xs" x-show="konflikteFuer(emp.id, d.date).length"></i>
+                            </td>
+                        </template>
+                        <td class="text-right whitespace-nowrap text-sm"
+                            :class="stundenVon(emp.id).geplant > stundenVon(emp.id).vertrag + 0.01 ? 'text-red-600 font-semibold' : 'text-gray-700'">
+                            <span x-text="stundenVon(emp.id).geplant.toLocaleString('de-DE')"></span>
+                            <span class="text-gray-400">/ <span x-text="stundenVon(emp.id).vertrag.toLocaleString('de-DE')"></span></span>
+                        </td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </div>
+        <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">Zelle anklicken, um den Tag zu bearbeiten. Stunden: geplant (ohne Pausen) / laut Vertrag in dieser Abteilung.</p>
+    </section>
+
+    {{-- ================= Hinweise & Änderungen ================= --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+        <section class="zw-card" x-data="{ neu: false }">
+            <div class="zw-card-head">
+                <h2 class="zw-card-title"><i class="fas fa-sticky-note"></i> Hinweise zum Plan</h2>
+                <button type="button" class="zw-btn zw-btn-sm zw-btn-ghost" @click="neu = !neu"><i class="fas fa-plus"></i> Hinweis</button>
+            </div>
+            <form x-show.important="neu" x-cloak action="{{ route('roster.news.add', $roster->id) }}" method="post" class="zw-card-body flex flex-col sm:flex-row gap-2 border-b border-gray-100">
+                @csrf
+                <input type="text" name="news" class="zw-input" required maxlength="255" placeholder="Erscheint auf dem PDF">
+                <button type="submit" class="zw-btn zw-btn-primary shrink-0">Speichern</button>
+            </form>
+            @if($roster->news->isEmpty())
+                <div class="zw-empty py-6"><i class="far fa-sticky-note"></i> Keine Hinweise.</div>
+            @else
+                <ul class="zw-list">
+                    @foreach($roster->news as $news)
+                        <li class="zw-row">
+                            <span class="flex-1 text-sm">{{ $news->news }}</span>
+                            <form action="{{ route('roster.news.delete', $news->id) }}" method="post" data-confirm="Hinweis löschen?">
+                                @csrf @method('delete')
+                                <button type="submit" class="zw-btn-icon is-sm text-red-600" title="Löschen"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+
+        @if($roster->published)
+            <section class="zw-card">
+                <div class="zw-card-head">
+                    <h2 class="zw-card-title"><i class="fas fa-history"></i> Änderungen seit Veröffentlichung</h2>
+                </div>
+                @if($aenderungen->isEmpty())
+                    <div class="zw-empty py-6"><i class="fas fa-check"></i> Keine Änderungen.</div>
+                @else
+                    <ul class="zw-list max-h-80 overflow-y-auto">
+                        @foreach($aenderungen as $aenderung)
+                            <li class="zw-row text-sm">
+                                <span class="w-2 h-2 rounded-full shrink-0 {{ $aenderung->notified_at ? 'bg-gray-300' : 'bg-amber-500' }}" title="{{ $aenderung->notified_at ? 'mitgeteilt' : 'noch nicht mitgeteilt' }}"></span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-gray-900">{{ $aenderung->employe?->name ?? '–' }}: {{ $aenderung->description }}</div>
+                                    <div class="text-xs text-gray-500">{{ $aenderung->date?->locale('de')->isoFormat('dd, DD.MM.') }} · {{ $aenderung->created_at->format('d.m. H:i') }}</div>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </section>
+        @endif
+    </div>
+
+    {{-- Floating Button (mobil) --}}
+    <button type="button" class="zw-fab" x-show.important="ansicht === 'tag'" @click="neuerTermin()" aria-label="Neuer Termin"><i class="fas fa-plus"></i></button>
+
+    {{-- Toast --}}
+    <div x-show="toast" x-cloak x-transition class="fixed left-1/2 -translate-x-1/2 bottom-24 lg:bottom-6 z-[1070] max-w-md w-[calc(100%-2rem)]">
+        <div class="zw-alert shadow-lg" :class="{ 'zw-alert-success': toast?.type === 'success', 'zw-alert-warning': toast?.type === 'warning', 'zw-alert-danger': toast?.type === 'danger', 'zw-alert-info': toast?.type === 'info' }">
+            <span class="flex-1" x-text="toast?.text"></span>
+            <button type="button" @click="toast = null" aria-label="Schließen"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    {{-- ================= Dialog: Termin ================= --}}
+    <div class="zw-dialog-backdrop" x-show.important="dialog === 'event'" x-cloak x-transition.opacity @click.self="schliessen()">
+        <form class="zw-dialog" @submit.prevent="speichernTermin()" role="dialog" aria-modal="true">
+            <div class="zw-dialog-head">
+                <h3 class="text-base font-bold" x-text="ev.id ? 'Termin bearbeiten' : 'Neuer Termin'"></h3>
+                <button type="button" class="zw-btn-icon is-sm" @click="schliessen()" aria-label="Schließen"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="zw-dialog-body flex flex-col gap-4">
+                <div>
+                    <label class="zw-label" for="ev-name">Bezeichnung</label>
+                    <input type="text" id="ev-name" x-ref="eventName" x-model="ev.event" list="event-namen" class="zw-input" required maxlength="190">
+                    <datalist id="event-namen">
+                        @foreach($eventNamen as $name)<option value="{{ $name }}"></option>@endforeach
+                        <option value="Pause"></option>
+                    </datalist>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-3 sm:col-span-1">
+                        <label class="zw-label" for="ev-date">Tag</label>
+                        <select id="ev-date" x-model="ev.date" class="zw-select">
+                            <template x-for="d in days" :key="d.date"><option :value="d.date" x-text="d.kurz + ', ' + d.tag" :selected="d.date === ev.date"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="zw-label" for="ev-start">Beginn</label>
+                        <input type="time" id="ev-start" x-model="ev.start" class="zw-input" required step="300">
+                    </div>
+                    <div>
+                        <label class="zw-label" for="ev-end">Ende</label>
+                        <input type="time" id="ev-end" x-model="ev.end" class="zw-input" required step="300">
+                    </div>
+                </div>
+                <div>
+                    <span class="zw-label">Personen <span class="font-normal text-gray-400">(keine = Merkliste)</span></span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="emp in employes" :key="emp.id">
+                            <button type="button" class="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                                    :class="ev.employes.includes(emp.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400'"
+                                    @click="toggleEmploye(emp.id)" x-text="emp.vorname" :title="emp.name"></button>
+                        </template>
+                    </div>
+                </div>
+                <p class="zw-error" x-show="fehler" x-text="fehler"></p>
+            </div>
+            <div class="zw-dialog-foot">
+                <button type="button" class="zw-btn zw-btn-danger-ghost mr-auto" x-show="ev.id" @click="loeschenTermin()"><i class="fas fa-trash"></i> Löschen</button>
+                <button type="button" class="zw-btn zw-btn-secondary" x-show="ev.id && ev.employes.length" @click="merken()"><i class="far fa-bookmark"></i> Merkliste</button>
+                <button type="button" class="zw-btn zw-btn-secondary" @click="schliessen()">Abbrechen</button>
+                <button type="submit" class="zw-btn zw-btn-primary" :disabled="busy"><i class="fas fa-save"></i> Speichern</button>
+            </div>
+        </form>
+    </div>
+
+    {{-- ================= Dialog: Arbeitszeit ================= --}}
+    <div class="zw-dialog-backdrop" x-show.important="dialog === 'zeit'" x-cloak x-transition.opacity @click.self="schliessen()">
+        <form class="zw-dialog" @submit.prevent="speichernZeit()" role="dialog" aria-modal="true">
+            <div class="zw-dialog-head">
+                <div>
+                    <h3 class="text-base font-bold">Arbeitszeit</h3>
+                    <p class="text-sm text-gray-500"><span x-text="zt.name"></span> · <span x-text="days.find(d => d.date === zt.date)?.label"></span></p>
+                </div>
+                <button type="button" class="zw-btn-icon is-sm" @click="schliessen()" aria-label="Schließen"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="zw-dialog-body grid grid-cols-2 gap-3">
+                <div>
+                    <label class="zw-label" for="zt-start">Beginn</label>
+                    <input type="time" id="zt-start" x-model="zt.start" class="zw-input" step="300">
+                </div>
+                <div>
+                    <label class="zw-label" for="zt-end">Ende</label>
+                    <input type="time" id="zt-end" x-model="zt.end" class="zw-input" step="300">
+                </div>
+                <div class="col-span-2">
+                    <label class="zw-label" for="zt-function">Aufgabe</label>
+                    <input type="text" id="zt-function" x-model="zt.function" class="zw-input" maxlength="190" placeholder="z. B. Frühdienst, Leitung …">
+                </div>
+                <p class="col-span-2 zw-error" x-show="fehler" x-text="fehler"></p>
+            </div>
+            <div class="zw-dialog-foot">
+                <button type="button" class="zw-btn zw-btn-secondary mr-auto" @click="speichernZeit(true)"><i class="fas fa-bed"></i> Frei</button>
+                <button type="button" class="zw-btn zw-btn-secondary" @click="schliessen()">Abbrechen</button>
+                <button type="submit" class="zw-btn zw-btn-primary" :disabled="busy"><i class="fas fa-save"></i> Speichern</button>
+            </div>
+        </form>
+    </div>
+
+    {{-- ================= Dialog: Kopieren ================= --}}
+    <div class="zw-dialog-backdrop" x-show.important="dialog === 'kopieren'" x-cloak x-transition.opacity @click.self="schliessen()">
+        <form class="zw-dialog" action="{{ route('roster.copy', $roster->id) }}" method="post" role="dialog" aria-modal="true">
+            @csrf
+            <div class="zw-dialog-head">
+                <h3 class="text-base font-bold">In weitere Wochen kopieren</h3>
+                <button type="button" class="zw-btn-icon is-sm" @click="schliessen()" aria-label="Schließen"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="zw-dialog-body">
+                <p class="text-sm text-gray-600 mb-3">Dienste und Termine werden als neue Entwürfe angelegt. Feiertage und Abwesenheiten werden in jeder Woche automatisch berücksichtigt; bereits vorhandene Wochen werden übersprungen.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    @foreach($kopierWochen as $woche)
+                        <label class="zw-check">
+                            <input type="checkbox" name="wochen[]" value="{{ $woche->toDateString() }}">
+                            KW {{ $woche->isoWeek() }} <span class="text-gray-400 text-xs">{{ $woche->format('d.m.') }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+            <div class="zw-dialog-foot">
+                <button type="button" class="zw-btn zw-btn-secondary" @click="schliessen()">Abbrechen</button>
+                <button type="submit" class="zw-btn zw-btn-primary"><i class="far fa-copy"></i> Kopieren</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
-
-@push('js')
-    <script type="text/javascript" src="{{asset('js/bootstrap-select.min.js')}}"></script>
-    <script type="text/javascript" src="{{asset('js/functions.js')}}"></script>
-    <script type="text/javascript">
-        $('.Termin').on('click', function () {
-            document.getElementById('editTaskForm').action = "{{url('tasks/')}}" + '/' + $(this).data('id');
-            document.getElementById('delteTaskForm').action = "{{url('tasks/')}}" + '/' + $(this).data('id');
-            document.getElementById('rememberEvent').href = "{{url('tasks/')}}" + '/' + $(this).data('id') + '/remember';
-            $('#editDate').val($(this).data('date'));
-            $('#editEvent').val($(this).data('event'));
-            $('#editStart').val($(this).data('start'));
-            $('#editEnd').val($(this).data('end'));
-            $(":checkbox").prop('checked', false).parent().removeClass('active');
-            $('input[type="checkbox"][value="' + $(this).data('employe') + '"]').prop("checked", true).parent().addClass('active');
-            $('#editTaskModal').modal('show');
-        })
-        $('.workingTime').on('click', function () {
-            $('#WorkingTimeDate').val($(this).data('date'))
-            $('#working_time_employe_id').val($(this).data('employe'))
-            $('#working_time_start').val($(this).data('start'))
-            $('#working_time_end').val($(this).data('end'))
-            $('#working_time_function').val($(this).data('function'))
-            $('#workTimeModal').modal('show')
-        })
-        $('.trashDay').on('click', function (ev) { ev.preventDefault(); $('#trashDate').val($(this).data('day')); $('#trashDayModal').modal('show') })
-        $('#addNews').on('click', function (ev) { ev.preventDefault(); $('#addNewsForm').toggleClass('d-none'); $(this).toggleClass('d-none') })
-    </script>
-@endpush
-
-@push('css')
-    <link href="{{asset('css/bootstrap-select.css')}}" rel="stylesheet">
-    <link href="{{asset('css/style.css')}}" rel="stylesheet"/>
-    <style>
-        :root { --px-per-minute: 1.3333333333; }
-        .timeline{position:relative;height:520px;background:repeating-linear-gradient(to bottom,#fafafa 0,#fafafa 14px,#f0f0f0 14px,#f0f0f0 28px);border-left:1px solid #ccc;overflow:hidden;}
-        .timeline-hour-line,.timeline-half-hour-line{position:absolute;left:0;right:0;height:1px;background:#bdbdbd;z-index:5;}
-        .timeline-half-hour-line{background:#d2d2d2;border-top:1px dashed #c5c5c5;}
-        .timeline-hour-label{position:absolute;left:2px;top:-7px;font-size:9px;color:#555;background:#fff;padding:0 2px;}
-        .roster-event{position:absolute;left:4px;right:4px;background:#2196f3;color:#fff;font-size:11px;line-height:1.1;padding:2px 4px;border-radius:3px;cursor:move;overflow:hidden;z-index:20;transition:box-shadow .15s, background .15s;}
-        .roster-event.dragging{opacity:.85;box-shadow:0 0 0 2px rgba(255,255,255,0.4);}
-        .roster-event.conflict{outline:2px solid #ff5722;background:#ff7043;}
-        .roster-event.conflict-preview{outline:2px solid #ff9800;background:#ffa726;}
-        .selection-overlay{position:absolute;left:0;right:0;background:rgba(0,188,212,0.25);border:1px solid rgba(0,188,212,0.6);pointer-events:none;z-index:40;transition:background .15s,border-color .15s;}
-        .selection-overlay.conflict{background:rgba(244,67,54,0.25);border-color:#f44336;}
-        .time-indicator{position:absolute;left:0;right:0;height:1px;background:#ff5722;z-index:35;}
-        .time-indicator .ti-label{position:absolute;right:2px;top:-7px;font-size:10px;background:#ff5722;color:#fff;padding:0 3px;border-radius:2px;}
-        .drag-target{outline:2px dashed #00bcd4;}
-    </style>
-@endpush
-
-@push('js')
-    <script>
-        (function(){
-            const PX_PER_MIN = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-minute')) || (20/15);
-            const DAY_START_MIN = 8*60; const DAY_END_MIN = 14*60+30;
-            function snap(min){return Math.floor(min/15)*15;}
-            function minutesToTime(m){const h=(m/60|0).toString().padStart(2,'0');const mi=(m%60).toString().padStart(2,'0');return h+':'+mi;}
-            function timeStrToMin(t){return parseInt(t.substring(0,2))*60+parseInt(t.substring(3,5));}
-            function topFromTimeStr(t){return (timeStrToMin(t)-DAY_START_MIN)*PX_PER_MIN;}
-            function heightFromTimes(start,end){return (timeStrToMin(end)-timeStrToMin(start))*PX_PER_MIN;}
-            function hasConflict(tl,startMin,endMin,ignoreId){
-                const rangeOk = (aS,aE,bS,bE)=> !(aE<=bS || aS>=bE);
-                const evs = tl.querySelectorAll('.roster-event');
-                for(const ev of evs){
-                    if(ev.id===ignoreId) continue;
-                    const s=timeStrToMin(ev.dataset.start); const e=timeStrToMin(ev.dataset.end);
-                    if(rangeOk(startMin,endMin,s,e)) return true;
-                }
-                return false;
-            }
-            // Modal Öffnen
-            $(document).on('click','.roster-event',function(){ const el=$(this); $('#editTaskForm').attr('action',"{{url('tasks/')}}/"+el.data('id')); $('#delteTaskForm').attr('action',"{{url('tasks/')}}/"+el.data('id')); $('#rememberEvent').attr('href',"{{url('tasks/')}}/"+el.data('id')+'/remember'); $('#editDate').val(el.data('date')); $('#editEvent').val(el.data('event')); $('#editStart').val(el.data('start')); $('#editEnd').val(el.data('end')); $(":checkbox").prop('checked',false).parent().removeClass('active'); $('input[type="checkbox"][value="'+el.data('employe')+'"]').prop('checked',true).parent().addClass('active'); $('#editTaskModal').modal('show'); });
-            // Auswahl neuer Event + Hover Linie
-            document.querySelectorAll('.timeline').forEach(tl=>{ let startY=null, sel=tl.querySelector('.selection-overlay'); const indicator=tl.querySelector('.time-indicator'); const label=indicator.querySelector('.ti-label'); let lastY=0; function updateIndicator(y){lastY=y; let min=snap(Math.round(y/PX_PER_MIN)+DAY_START_MIN); if(min<DAY_START_MIN)min=DAY_START_MIN; if(min>DAY_END_MIN)min=DAY_END_MIN; indicator.style.top=(min-DAY_START_MIN)*PX_PER_MIN+'px'; label.textContent=minutesToTime(min);} tl.addEventListener('mouseenter',()=>indicator.classList.remove('d-none')); tl.addEventListener('mouseleave',()=>{indicator.classList.add('d-none'); if(startY!==null) finishSelection({offsetY:lastY});}); tl.addEventListener('mousemove',e=>{updateIndicator(e.offsetY); if(startY!==null){const cur=e.offsetY; const top=Math.min(startY,cur); const h=Math.abs(cur-startY); sel.style.top=top+'px'; sel.style.height=Math.max(2,h)+'px'; // Vorschau-Konflikt
-                        const startMin=snap(Math.round(top/PX_PER_MIN)+DAY_START_MIN); let endMin=snap(Math.round((top+h)/PX_PER_MIN)+DAY_START_MIN+14); if(endMin<=startMin) endMin=startMin+15; if(endMin>DAY_END_MIN) endMin=DAY_END_MIN; sel.classList.toggle('conflict', hasConflict(tl,startMin,endMin,null)); }}); tl.addEventListener('mousedown',e=>{if(e.target!==tl)return; startY=e.offsetY; sel.classList.remove('d-none'); sel.classList.remove('conflict'); sel.style.top=startY+'px'; sel.style.height='2px';}); function finishSelection(e){ if(startY===null)return; const endY=e.offsetY; const topPx=Math.min(startY,endY); const bottomPx=Math.max(startY,endY); const startMin=snap(Math.round(topPx/PX_PER_MIN)+DAY_START_MIN); let endMin=snap(Math.round(bottomPx/PX_PER_MIN)+DAY_START_MIN+14); if(endMin<=startMin)endMin=startMin+15; if(endMin>DAY_END_MIN)endMin=DAY_END_MIN; const conflict=hasConflict(tl,startMin,endMin,null); sel.classList.add('d-none'); startY=null; if(conflict){ return; } const date=tl.dataset.date; const employe=tl.dataset.employe; $('#date').val(date); $('#start').val(minutesToTime(startMin)); $('#end').val(minutesToTime(endMin)); $(":checkbox").prop('checked',false).parent().removeClass('active'); $('input[type="checkbox"][value="'+employe+'"]').prop('checked',true).parent().addClass('active'); $('#taskModal').modal('show'); } tl.addEventListener('mouseup',finishSelection); tl.addEventListener('mouseleave',e=>{ if(startY!==null) finishSelection(e); }); tl.addEventListener('dragover',e=>{ if(!window.__dragEv)return; e.preventDefault(); setDragTarget(tl); const tlRect=tl.getBoundingClientRect(); let newTop=e.clientY - tlRect.top - window.__dragOffsetY; if(newTop<0)newTop=0; const maxTopPx=(DAY_END_MIN-DAY_START_MIN-15)*PX_PER_MIN; if(newTop>maxTopPx)newTop=maxTopPx; const snappedStart=snap(Math.round(newTop/PX_PER_MIN)+DAY_START_MIN); window.__dragCurrentTopPx=(snappedStart-DAY_START_MIN)*PX_PER_MIN; window.__dragEv.style.top=window.__dragCurrentTopPx+'px'; // Konflikt Vorschau
-                        const dur = timeStrToMin(window.__dragEv.dataset.end)-timeStrToMin(window.__dragEv.dataset.start); const endMin = snappedStart + dur; const conflict = hasConflict(tl,snappedStart,endMin,window.__dragEv.id); window.__dragEv.classList.toggle('conflict-preview', conflict); }); tl.addEventListener('dragleave',e=>{ if(window.__dragTarget===tl){ tl.classList.remove('drag-target'); }}); });
-            // Drag & Drop
-            window.__dragEv=null; window.__dragOffsetY=0; window.__dragTarget=null; window.__dragCurrentTopPx=0; function setDragTarget(tl){ if(window.__dragTarget===tl) return; if(window.__dragTarget) window.__dragTarget.classList.remove('drag-target'); window.__dragTarget=tl; tl.classList.add('drag-target'); }
-            document.addEventListener('dragstart',e=>{ const el=e.target.closest('.roster-event'); if(!el)return; window.__dragEv=el; el.classList.add('dragging'); el.classList.remove('conflict','conflict-preview'); const rect=el.getBoundingClientRect(); window.__dragOffsetY=e.clientY-rect.top; window.__dragCurrentTopPx=parseFloat(el.style.top)||0; window.__dragTarget=el.closest('.timeline'); window.__dragTarget.classList.add('drag-target'); });
-            document.addEventListener('dragend',e=>{ if(!window.__dragEv) return; const tl=window.__dragTarget||window.__dragEv.closest('.timeline'); tl.classList.remove('drag-target'); const startMin=snap(Math.round(window.__dragCurrentTopPx/PX_PER_MIN)+DAY_START_MIN); const dur = timeStrToMin(window.__dragEv.dataset.end)-timeStrToMin(window.__dragEv.dataset.start); const endMin=startMin+dur; const conflict=hasConflict(tl,startMin,endMin,window.__dragEv.id); const evEl=window.__dragEv; if(conflict){ // revert
-                    evEl.classList.remove('dragging'); evEl.classList.add('conflict'); evEl.style.top=topFromTimeStr(evEl.dataset.start)+'px'; window.__dragEv=null; window.__dragTarget=null; return; }
-                const startStr=minutesToTime(startMin); const employeId=tl.dataset.employe; const dateStr=tl.dataset.date; $.ajax({type:'PATCH', url:'{{url('tasks/update')}}', data:{_token:'{{csrf_token()}}', _method:'PATCH', employe_id:employeId, task: evEl.id, start:startStr, date:dateStr}, success:function(resp){ evEl.classList.remove('dragging','conflict-preview'); if(evEl.dataset.employe!=employeId){ tl.appendChild(evEl); } evEl.dataset.employe=employeId; evEl.dataset.date=dateStr; evEl.dataset.start=resp.start; evEl.dataset.end=resp.end; evEl.style.top=topFromTimeStr(resp.start)+'px'; evEl.style.height=heightFromTimes(resp.start,resp.end)+'px'; evEl.classList.toggle('conflict', !!resp.conflict); }, error:function(){ evEl.classList.add('conflict'); }, complete:function(){ window.__dragEv=null; window.__dragTarget=null; }}); });
-        })();
-    </script>
-@endpush

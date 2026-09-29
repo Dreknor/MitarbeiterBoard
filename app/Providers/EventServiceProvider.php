@@ -82,6 +82,7 @@ class EventServiceProvider extends ServiceProvider
         Task::observe(TaskObserver::class);
 
         Holiday::observe(HolidayObserver::class);
+        \App\Models\Absence::observe(\App\Observers\AbsenceTimeObserver::class);
 
         Event::listen('Aacotroneo\Saml2\Events\Saml2LoginEvent', function (Saml2LoginEvent $event) {
             $messageId = $event->getSaml2Auth()->getLastMessageId();

@@ -1,3 +1,4 @@
+@php([$pdfStart, $pdfEnde] = $roster->department->rosterDayWindow())
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -51,7 +52,7 @@
                         <tr>
                             <td>
                                 <ul>
-                                    @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y 8:00')); $time->format('H:i') < '14:30'; $time->addMinutes(30))
+                                    @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y').' '.$pdfStart); $time->format('H:i') < $pdfEnde; $time->addMinutes(30))
                                         <li @class(['leererTermin'])>
                                             {{$time->format('H:i')}}
                                         </li>
@@ -92,18 +93,18 @@
                             <tr>
                                 <td colspan="2">
                                     <ul>
-                                        @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y 8:00')); $time->format('H:i') < '14:30'; $time->addMinutes(15))
+                                        @for($time=\Carbon\Carbon::parse($day->copy()->format('d.m.Y').' '.$pdfStart); $time->format('H:i') < $pdfEnde; $time->addMinutes(15))
                                             @if($events->searchRosterEvent($employe, $time)->count() > 0 and $events->searchRosterEvent($employe, $time)->first()->start == $time)
                                                 <li @class(['Termin'])
-                                                    @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' 14:00')))
+                                                    @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' '.$pdfEnde)))
                                                     style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->duration / 15) * 3 }}mm; "
                                                     @else
-                                                    style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' 14:30')) / 15) * 3 }}mm;"
+                                                    style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' '.$pdfEnde)) / 15) * 3 }}mm;"
                                                     @endif
                                                 >
                                                     <div class="innerText">
                                                         {{\Illuminate\Support\Str::limit($events->searchRosterEvent($employe, $time)->first()->event, 40, ' (...)')}}
-                                                        @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > '14:30')
+                                                        @if($events->searchRosterEvent($employe, $time)->first()->end->format('H:i') > $pdfEnde)
                                                             (bis {{$events->searchRosterEvent($employe, $time)->first()->end->format('H:i')}}
                                                             Uhr)
                                                         @endif
