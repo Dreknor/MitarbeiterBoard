@@ -2,13 +2,13 @@
 
 @section('content')
     <form action="{{ route('time_recording.read_key') }}" method="post" autocomplete="off" id="chipForm"
-          class="rounded-3xl bg-white/10 px-6 py-10 text-center" style="min-height: 50vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem;">
+          class="rounded-3xl bg-white/10 px-4 py-5 text-center sm:px-6 sm:py-7" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.75rem; width:100%;">
         @csrf
-        <i class="fas fa-id-card" style="font-size: 4rem; opacity: .85;"></i>
-        <h1 class="text-2xl font-bold" id="hinweis">Bitte Chip an das Lesegerät halten</h1>
-        <p class="text-white/70">Danach die persönliche PIN eingeben.</p>
+        <i class="fas fa-id-card text-4xl opacity-[.85] sm:text-5xl"></i>
+        <h1 class="text-lg font-bold sm:text-xl" id="hinweis">Bitte Chip an das Lesegerät halten</h1>
+        <p class="zeit-terminal-subline text-sm text-white/70 sm:text-base">Danach die persönliche PIN eingeben.</p>
         <input type="password" id="key_input" name="key" autofocus autocomplete="off" inputmode="none"
-               class="w-full max-w-sm rounded-2xl border-0 bg-white/90 px-4 py-3 text-center text-lg text-gray-900"
+               class="w-full max-w-sm rounded-2xl border-0 bg-white/90 px-4 py-2 text-center text-base text-gray-900 sm:py-2.5 sm:text-lg"
                placeholder="Chip scannen" aria-label="Chip-Nummer">
     </form>
 @endsection

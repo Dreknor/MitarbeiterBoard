@@ -1,15 +1,15 @@
 {{-- PIN-Pad (ohne Framework, damit das Terminal minimal bleibt) --}}
-<div id="pinpad" class="mx-auto" style="max-width: 22rem;">
-    <div class="flex items-center justify-center gap-3 mb-6" id="pin-dots" aria-live="polite">
+<div id="pinpad" class="mx-auto w-full max-w-[17rem] sm:max-w-[20rem]">
+    <div class="mb-3 flex items-center justify-center gap-2.5 sm:mb-4" id="pin-dots" aria-live="polite">
         @for($i = 0; $i < 6; $i++)<span class="zw-pin-dot"></span>@endfor
     </div>
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-3 gap-1.5 sm:gap-2.5">
         @foreach([1, 2, 3, 4, 5, 6, 7, 8, 9] as $ziffer)
             <button type="button" class="zw-pin-key" data-ziffer="{{ $ziffer }}">{{ $ziffer }}</button>
         @endforeach
-        <button type="button" class="zw-pin-key" data-aktion="loeschen" aria-label="Letzte Ziffer löschen" style="font-size:1.5rem;"><i class="fas fa-backspace"></i></button>
+        <button type="button" class="zw-pin-key" data-aktion="loeschen" aria-label="Letzte Ziffer löschen" style="font-size:1.2rem;"><i class="fas fa-backspace"></i></button>
         <button type="button" class="zw-pin-key" data-ziffer="0">0</button>
-        <button type="button" class="zw-pin-key" data-aktion="ok" aria-label="Bestätigen" style="background: rgba(16,185,129,.9); font-size:1.5rem;"><i class="fas fa-check"></i></button>
+        <button type="button" class="zw-pin-key" data-aktion="ok" aria-label="Bestätigen" style="background: rgba(16,185,129,.9); font-size:1.2rem;"><i class="fas fa-check"></i></button>
     </div>
 </div>
 

@@ -298,16 +298,67 @@
 /* ---------------------------------------------------------------
  * Terminal (Zeiterfassung, Vollbild)
  * ------------------------------------------------------------- */
-.zeit-terminal { min-height: 100vh; background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%); color: #fff; }
+.zeit-terminal {
+    height: 100dvh;
+    background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+    color: #fff;
+    overflow: hidden;
+}
+.zeit-terminal .zeit-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: .35rem;
+    padding: .75rem;
+}
+.zeit-terminal .zeit-terminal-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.zeit-terminal .zeit-terminal-content > * { width: 100%; }
+.zeit-terminal .zeit-terminal-subline { display: block; }
+.zeit-terminal .zeit-terminal-message,
+.zeit-terminal .zeit-terminal-errors {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
 .zeit-terminal .zw-pin-key {
-    @apply flex items-center justify-center rounded-2xl bg-white/15 hover:bg-white/25 active:bg-white/35 text-3xl font-bold text-white select-none transition-colors;
-    height: 4.5rem;
+    @apply flex items-center justify-center rounded-2xl bg-white/15 hover:bg-white/25 active:bg-white/35 text-2xl font-bold text-white select-none transition-colors;
+    height: 4rem;
     border: 1px solid rgba(255,255,255,.25);
 }
-.zeit-terminal .zw-pin-dot { @apply w-4 h-4 rounded-full border-2 border-white/70; }
+.zeit-terminal .zw-pin-dot { @apply w-3.5 h-3.5 rounded-full border-2 border-white/70; }
 .zeit-terminal .zw-pin-dot.is-filled { @apply bg-white border-white; }
 .zeit-terminal .zw-timer { @apply h-1.5 rounded-full bg-white/20 overflow-hidden; }
 .zeit-terminal .zw-timer span { @apply block h-full bg-white/80; animation: zw-timer linear forwards; }
+
+@media (max-width: 640px), (max-height: 760px) {
+    .zeit-terminal .zeit-wrapper { padding: .5rem; gap: .25rem; }
+    .zeit-terminal .zeit-terminal-subline { display: none; }
+    .zeit-terminal .zeit-terminal-message,
+    .zeit-terminal .zeit-terminal-errors {
+        -webkit-line-clamp: 1;
+        font-size: .875rem;
+        padding-top: .4rem;
+        padding-bottom: .4rem;
+    }
+    .zeit-terminal header { margin-bottom: .25rem !important; }
+    .zeit-terminal .zw-pin-key {
+        height: 3.35rem;
+        font-size: 1.5rem;
+    }
+    .zeit-terminal .zw-pin-dot {
+        width: .75rem;
+        height: .75rem;
+    }
+}
 @keyframes zw-timer { from { width: 100%; } to { width: 0; } }
 
 /* ---------------------------------------------------------------
