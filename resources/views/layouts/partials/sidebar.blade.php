@@ -270,9 +270,9 @@
                             @endif
                             @can('edit employe')
                                 <a href="{{ route('employes.index') }}"
-                                   class="sidebar-link @if(Route::currentRouteName() == 'employes.index' || Route::currentRouteName() == 'employes.show') active @endif">
+                                   class="sidebar-link @if(request()->routeIs('employes.index', 'employes.show') || request()->is('personal/mitarbeiter/*')) active @endif">
                                     <i class="fas fa-users"></i>
-                                    <span>Personal Übersicht</span>
+                                    <span>Mitarbeitende</span>
                                 </a>
                                 <a href="{{ route('personal.vorgesetzte.index') }}"
                                    class="sidebar-link @if(Route::currentRouteName() == 'personal.vorgesetzte.index') active @endif">

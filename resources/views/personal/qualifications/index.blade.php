@@ -8,30 +8,20 @@
     Qualifikationen – {{ $employe->vorname }} {{ $employe->familienname }}
 @endsection
 
+@section('title')
+    Personalverwaltung
+@endsection
+
 @section('content')
 <div class="personal-wrapper">
 
-    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <p class="text-gray-500 text-sm">
-            Qualifikationen von <span class="font-medium text-gray-700">{{ $employe->name }}</span>
-        </p>
-        <div class="flex gap-2 flex-wrap">
-            <a href="{{ route('personal.qualifications.matrix') }}"
-               class="btn-personal-secondary text-sm">📊 Qualifikationsmatrix</a>
-            @can('manage qualifications')
-            <a href="{{ route('personal.qualification-types.index') }}"
-               class="btn-personal-secondary text-sm">⚙️ Typen verwalten</a>
-            @endcan
-            <a href="{{ route('personal.personalakte.show', $employe->id) }}"
-               class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
-        </div>
-    </div>
-
-    @if(session('Meldung'))
-    <div class="rounded-lg p-4 mb-4 {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200' }}">
-        {{ session('Meldung') }}
-    </div>
-    @endif
+    @include('personal.partials._akte_header', [
+        'active'  => 'qualifikationen',
+        'actions' => '<a href="' . e(route('personal.qualifications.matrix')) . '" class="btn-personal-secondary text-sm">📊 Qualifikationsmatrix</a>'
+            . (auth()->user()->can('manage qualifications')
+                ? '<a href="' . e(route('personal.qualification-types.index')) . '" class="btn-personal-secondary text-sm">⚙️ Typen verwalten</a>'
+                : ''),
+    ])
 
     {{-- Fehlende Pflichtqualifikationen --}}
     @if($missing->isNotEmpty())

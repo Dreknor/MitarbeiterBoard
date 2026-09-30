@@ -19,7 +19,9 @@ class EmployeeNameChanged
     public function __construct(
         public readonly User $user,
         public readonly string $oldName,
-        public readonly string $newName
+        public readonly string $newName,
+        public readonly ?string $oldFamilienname = null,
+        public readonly ?string $oldVorname = null
     ) {}
 }
 

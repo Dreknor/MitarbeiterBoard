@@ -17,7 +17,6 @@ use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\PeadDiaryWeekController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
-use App\Http\Controllers\Personal\EmploymentController;
 use App\Http\Controllers\Personal\HolidayController;
 use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
@@ -222,6 +221,9 @@ Route::group([
                     Route::post('personal/vorgesetzte/{leitung}/stellvertretungen', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'addDeputy'])->name('personal.vorgesetzte.deputies.store');
                     Route::delete('personal/vorgesetzte/{leitung}/stellvertretungen/{deputy}', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'removeDeputy'])->name('personal.vorgesetzte.deputies.destroy');
 
+                    // Stammdaten bearbeiten – Unterseite der Personalakte (/personal/mitarbeiter/{employe})
+                    Route::get('personal/mitarbeiter/{employe}/stammdaten', [EmployeController::class, 'stammdaten'])->whereNumber('employe')->middleware('personal.audit')->name('personal.personalakte.stammdaten');
+
                     // Bulk-Update für Urlaubsanspruch nach Gruppen (muss vor resource Route stehen)
                     Route::get('employes/bulk-holiday-claim', [EmployeController::class, 'bulkHolidayClaimForm'])->name('employes.bulk-holiday-claim');
                     Route::post('employes/bulk-holiday-claim', [EmployeController::class, 'bulkUpdateHolidayClaim'])->name('employes.bulk-holiday-claim.update');
@@ -229,7 +231,7 @@ Route::group([
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
                         'index' => 'employes.index',
-                    ])->except('create');
+                    ])->only(['index', 'show', 'update']);
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
 
@@ -290,8 +292,7 @@ Route::group([
 
                 Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show'])->whereNumber('user')->where('date', '\d{4}-\d{2}')->name('timesheets.show');
 
-                //Anstellungen
-                Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
+                // Anstellungen: siehe personal.contracts.* (ContractController)
 
                 Route::post('addresses/{employe}', [AddressController::class, 'update']);
 
@@ -919,8 +920,6 @@ Route::group([
 
 
                     Route::resource('settings', SettingController::class)->only(['index', 'store']);
-
-                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
                 });
 
 
@@ -1257,7 +1256,10 @@ Route::middleware(['auth', 'permission:view personal_data', 'personal.audit', 't
     ->name('personal.')
     ->group(function () {
         Route::get('/mitarbeiter/{employe}', [App\Http\Controllers\Personal\PersonalakteController::class, 'show'])
-            ->name('personalakte.show');
+            ->whereNumber('employe')->name('personalakte.show');
+        // Änderungsverlauf (Audit) der Personalakte – eigenes Recht, da sensibel
+        Route::get('/mitarbeiter/{employe}/verlauf', [App\Http\Controllers\Personal\PersonalakteController::class, 'verlauf'])
+            ->whereNumber('employe')->middleware('permission:view personal_audit')->name('personalakte.verlauf');
     });
 
 // ═══════════════════════════════════════════════════════════════════════════

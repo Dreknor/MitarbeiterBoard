@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\Personal\ReEncryptPersonalData::class,
         \App\Console\Commands\Personal\AuditTimesheets::class,
         \App\Console\Commands\Personal\PruefeZeitUmstellung::class,
+        \App\Console\Commands\Personal\BeendeAbgelaufeneVertraege::class,
     ];
 
     /**
@@ -103,6 +104,17 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             app(\App\Services\Personal\QualificationService::class)->checkExpiringQualifications();
         })->dailyAt('07:30')->name('personal-expiring-qualifications')->withoutOverlapping();
+
+        // Wiedervorlagen (Probezeit, Vertragsende, Aufbewahrungsfristen) an die Personalverwaltung melden
+        $schedule->call(function () {
+            app(\App\Services\Personal\PersonalReminderService::class)->notifyDue();
+        })->dailyAt('07:45')->name('personal-reminders')->withoutOverlapping();
+
+        // Abgelaufene Verträge vor der Prüfengine auf "beendet" setzen (Offboarding nur ohne Folgevertrag)
+        $schedule->command('personal:vertraege-abschliessen')
+            ->dailyAt('02:30')
+            ->name('personal-vertraege-abschliessen')
+            ->withoutOverlapping(30);
 
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')

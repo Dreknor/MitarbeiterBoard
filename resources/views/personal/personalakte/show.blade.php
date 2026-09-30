@@ -5,7 +5,7 @@
 @endpush
 
 @section('site-title')
-    {{ $employe->vorname ?? $employe->name }} {{ $employe->familienname ?? '' }} – Personalakte
+    {{ $employe->vorname }} {{ $employe->familienname }} – Personalakte
 @endsection
 
 @section('title')
@@ -15,207 +15,191 @@
 @section('content')
 <div class="personal-wrapper">
 
-    {{-- Seitenkopf (Titel steht bereits in der Topbar → hier nur Avatar + Meta + Actions) --}}
-    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div class="flex items-center gap-4">
-            <div class="personal-avatar">
-                {{ strtoupper(substr($employe->name, 0, 1)) }}
-            </div>
-            <div>
-                <p class="text-gray-700 font-semibold">{{ $employe->vorname ?? $employe->name }} {{ $employe->familienname ?? '' }}</p>
-                <p class="text-gray-500 text-sm">{{ $employe->email }}</p>
-                @if($employe->employments->isNotEmpty())
-                    <p class="text-gray-400 text-xs mt-0.5">
-                        {{ $employe->employments->map(fn($e) => $e->department->name ?? '–')->implode(', ') }}
-                    </p>
-                @endif
-            </div>
+    @include('personal.partials._akte_header', ['active' => 'uebersicht'])
+
+    {{-- Handlungsbedarf --}}
+    @foreach($hinweise as $hinweis)
+    <div class="rounded-lg p-3 mb-2 text-sm border
+        {{ $hinweis['type'] === 'danger' ? 'bg-red-50 text-red-800 border-red-200' : ($hinweis['type'] === 'warning' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 'bg-blue-50 text-blue-800 border-blue-200') }}">
+        {{ $hinweis['text'] }}
+    </div>
+    @endforeach
+    @if($hinweise->isNotEmpty())<div class="mb-4"></div>@endif
+
+    {{-- Kennzahlen --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="personal-stat">
+            <span class="personal-stat-label">Stellenanteil</span>
+            <span class="personal-stat-value">{{ $percent }} %</span>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ route('employes.index') }}" class="btn-personal-secondary text-sm">← Alle Mitarbeiter</a>
-            @can('edit employe')
-                <a href="{{ route('employes.show', $employe->id) }}" class="btn-personal-secondary text-sm">
-                    ✏️ Stammdaten bearbeiten
-                </a>
-            @endcan
+        <div class="personal-stat">
+            <span class="personal-stat-label">Wochenstunden</span>
+            <span class="personal-stat-value">{{ $hours }}</span>
+        </div>
+        <div class="personal-stat">
+            <span class="personal-stat-label">Laufende Anstellungen</span>
+            <span class="personal-stat-value">{{ $laufend->count() }}</span>
+        </div>
+        <div class="personal-stat">
+            <span class="personal-stat-label">Beschäftigt seit</span>
+            <span class="personal-stat-value text-lg">{{ $firstStart ? \Carbon\Carbon::parse($firstStart)->format('d.m.Y') : '–' }}</span>
         </div>
     </div>
 
-    @if(session('Meldung'))
-    <div class="rounded-lg p-4 mb-4 {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200' }}">
-        {{ session('Meldung') }}
-    </div>
-    @endif
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
-    {{-- Stammdaten-Übersicht --}}
+        {{-- Stammdaten-Übersicht --}}
+        <div class="personal-card lg:col-span-1">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold text-gray-700">Stammdaten</h2>
+                @can('edit employe')
+                    <a href="{{ route('personal.personalakte.stammdaten', $employe->id) }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">Bearbeiten →</a>
+                @endcan
+            </div>
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                    <dt class="text-gray-400 text-xs">Geburtsdatum</dt>
+                    <dd class="font-medium text-gray-800">
+                        {{ optional($employe->geburtstag)->format('d.m.Y') ?? '–' }}
+                        @if($employe->geburtstag)<span class="text-gray-400 font-normal">({{ $employe->geburtstag->age }})</span>@endif
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs">Geschlecht</dt>
+                    <dd class="font-medium text-gray-800">{{ $employe->employe_data?->geschlecht ?? '–' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs">Geburtsort</dt>
+                    <dd class="font-medium text-gray-800">{{ $employe->employe_data?->geburtsort ?: '–' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs">Staatsangehörigkeit</dt>
+                    <dd class="font-medium text-gray-800">{{ $employe->employe_data?->staatsangehoerigkeit ?: '–' }}</dd>
+                </div>
+                <div class="col-span-2">
+                    <dt class="text-gray-400 text-xs">Sozialversicherungsnummer</dt>
+                    <dd class="font-medium text-gray-800">{{ $employe->employe_data?->sozialversicherungsnummer ?: '–' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs">Schwerbehindert</dt>
+                    <dd class="font-medium text-gray-800">{{ $employe->employe_data?->schwerbehindert ? 'ja' : 'nein' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        {{-- Anstellungen (Kurzübersicht) --}}
+        <div class="personal-card lg:col-span-2">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h2 class="text-base font-semibold text-gray-700">Anstellungen</h2>
+                <div class="flex gap-4 text-sm">
+                    @can('view contracts')
+                        <a href="{{ route('personal.contracts.index', $employe->id) }}" class="text-blue-600 hover:text-blue-700 font-medium">Alle Verträge →</a>
+                    @endcan
+                    @can('createFor', [\App\Models\personal\Employment::class, $employe])
+                        <a href="{{ route('personal.contracts.create', $employe->id) }}" class="text-blue-600 hover:text-blue-700 font-medium">+ Neue Anstellung</a>
+                    @endcan
+                </div>
+            </div>
+            @if($employments->isNotEmpty())
+            <div class="overflow-x-auto">
+                <table class="table-personal">
+                    <thead>
+                        <tr>
+                            <th>Bereich</th>
+                            <th>Art</th>
+                            <th>Stunden</th>
+                            <th>Zeitraum</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($employments as $employment)
+                        <tr>
+                            <td class="font-medium text-gray-800">{{ $employment->department->name ?? '–' }}</td>
+                            <td>
+                                {{ $employment->employment_type?->label() ?? '–' }}
+                                @if($employment->contract_type?->isBefristet())<span class="text-xs text-gray-400">(befristet)</span>@endif
+                            </td>
+                            <td class="whitespace-nowrap">{{ $employment->hours ?? '–' }} Std. <span class="text-gray-400">({{ round($employment->percent, 1) }} %)</span></td>
+                            <td class="whitespace-nowrap">
+                                {{ optional($employment->start)->format('d.m.Y') ?? '–' }}
+                                @if($employment->end) – {{ $employment->end->format('d.m.Y') }}@endif
+                            </td>
+                            <td>
+                                @php $zukunft = $employment->start && $employment->start->isFuture(); @endphp
+                                <span class="{{ $zukunft ? 'badge-blue' : ($employment->status?->value === 'ruhend' ? 'badge-yellow' : 'badge-green') }}">
+                                    {{ $zukunft ? 'ab ' . $employment->start->format('d.m.Y') : ($employment->status?->label() ?? '–') }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @else
+                <p class="text-sm text-gray-500">Keine laufenden oder künftigen Anstellungen.</p>
+            @endif
+        </div>
+    </div>
+
+    {{-- Laufende Prozesse & Wiedervorlagen --}}
+    @if($links->isNotEmpty() || $reminders->isNotEmpty())
     <div class="personal-card mb-6">
-        <h2 class="text-base font-semibold text-gray-700 mb-3">Stammdaten</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-                <span class="block text-gray-400 text-xs">Geburtsdatum</span>
-                <span class="font-medium text-gray-800">
-                    {{ optional($employe->geburtstag)->format('d.m.Y') ?? '–' }}
-                </span>
-            </div>
-            <div>
-                <span class="block text-gray-400 text-xs">Geschlecht</span>
-                <span class="font-medium text-gray-800">
-                    {{ $employe->employe_data?->geschlecht ?? '–' }}
-                </span>
-            </div>
-            <div>
-                <span class="block text-gray-400 text-xs">SV-Nummer</span>
-                <span class="font-medium text-gray-800">
-                    {{ $employe->employe_data?->sozialversicherungsnummer ?? '–' }}
-                </span>
-            </div>
-            <div>
-                <span class="block text-gray-400 text-xs">Staatsangehörigkeit</span>
-                <span class="font-medium text-gray-800">
-                    {{ $employe->employe_data?->staatsangehoerigkeit ?? '–' }}
-                </span>
-            </div>
-        </div>
-    </div>
-
-    {{-- Modul-Karten --}}
-    <h2 class="text-base font-semibold text-gray-700 mb-3">Module</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-
-        {{-- Verträge --}}
-        @can('view contracts')
-        <a href="{{ route('personal.contracts.index', $employe->id) }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-xl shrink-0">
-                📋
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">Verträge & Anstellungen</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Aktive und vergangene Arbeitsverhältnisse</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Dokumente --}}
-        @can('view personal_documents')
-        <a href="{{ route('personal.documents.index', $employe->id) }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 text-xl shrink-0">
-                📁
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-amber-700 transition-colors">Dokumente</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Arbeitsverträge, Zeugnisse, Bescheinigungen</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Qualifikationen --}}
-        @can('view qualifications')
-        <a href="{{ route('personal.qualifications.index', $employe->id) }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600 text-xl shrink-0">
-                🎓
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-green-700 transition-colors">Qualifikationen</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Abschlüsse, Zertifikate, Lizenzen</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Fortbildungen --}}
-        @can('view trainings')
-        <a href="{{ route('personal.trainings.index') }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 text-xl shrink-0">
-                📚
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">Fortbildungen</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Teilnahmen und Katalog</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Prüfengine: Zeiterfassung & Vertragsänderungen --}}
-        @can('view timesheet anomalies')
-        <a href="{{ route('personal.timesheet-validation.index', $employe->id) }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600 text-xl shrink-0">
-                🛡️
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-red-700 transition-colors">Prüfengine</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Zeiterfassung, Dienstplan & Vertragsänderungen prüfen</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Organigramm --}}
-        @can('view orgchart')
-        <a href="{{ route('personal.orgchart.index') }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600 text-xl shrink-0">
-                🏢
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">Organigramm</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Hierarchie & Stellenstruktur</p>
-            </div>
-        </a>
-        @endcan
-
-        {{-- Einwilligungen (Admin) --}}
-        @can('manage personal_consents')
-        <a href="{{ route('personal.consents.admin') }}"
-           class="personal-card hover:shadow-md transition-shadow flex items-start gap-4 no-underline group">
-            <div class="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 text-xl shrink-0">
-                🔏
-            </div>
-            <div>
-                <h3 class="font-semibold text-gray-900 group-hover:text-rose-700 transition-colors">DSGVO-Einwilligungen</h3>
-                <p class="text-gray-500 text-sm mt-0.5">Übersicht aller Einwilligungen</p>
-            </div>
-        </a>
-        @endcan
-
-    </div>
-
-    {{-- Aktive Anstellungen (Kurzübersicht) --}}
-    @if($employe->employments->isNotEmpty())
-    <div class="personal-card">
-        <h2 class="text-base font-semibold text-gray-700 mb-3">Aktive Anstellungen</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-100">
-                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Bereich</th>
-                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Stunden</th>
-                        <th class="text-left py-2 text-gray-500 font-medium">Seit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($employe->employments as $employment)
-                    <tr class="border-b border-gray-50 last:border-0">
-                        <td class="py-2 pr-4 font-medium text-gray-800">{{ $employment->department->name ?? '–' }}</td>
-                        <td class="py-2 pr-4 text-gray-600">{{ $employment->hours ?? '–' }} Std.</td>
-                        <td class="py-2 text-gray-600">{{ optional($employment->start)->format('d.m.Y') ?? '–' }}</td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        @can('view contracts')
-        <div class="mt-3">
-            <a href="{{ route('personal.contracts.index', $employe->id) }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                Alle Verträge ansehen →
-            </a>
-        </div>
-        @endcan
+        <h2 class="text-base font-semibold text-gray-700 mb-3">Prozesse & Wiedervorlagen</h2>
+        <ul class="text-sm space-y-1.5">
+            @foreach($links as $link)
+            <li class="flex items-center gap-2 flex-wrap">
+                <span class="badge-gray">{{ $link->type?->label() }}</span>
+                @canany(['manage procedures', 'view assigned procedures'])
+                    <a href="{{ url('procedure') }}" class="text-blue-600 hover:underline">{{ $link->procedure?->name ?? 'Prozess #' . $link->procedure_id }}</a>
+                @else
+                    <span>{{ $link->procedure?->name ?? 'Prozess #' . $link->procedure_id }}</span>
+                @endcanany
+                <span class="text-gray-400">· {{ $link->status?->label() }}</span>
+            </li>
+            @endforeach
+            @foreach($reminders as $reminder)
+            <li class="flex items-center gap-2 flex-wrap">
+                <span class="{{ $reminder->due_date->isPast() ? 'badge-red' : 'badge-yellow' }}">Wiedervorlage</span>
+                <span>{{ $reminder->label() }} am {{ $reminder->due_date->format('d.m.Y') }}</span>
+                @if($reminder->note)<span class="text-gray-400">– {{ $reminder->note }}</span>@endif
+            </li>
+            @endforeach
+        </ul>
     </div>
     @endif
+
+    {{-- Weitere Module zur Person --}}
+    @php
+        $module = collect([
+            ['can' => auth()->user()->canAny(['has holidays', 'approve holidays']), 'url' => fn () => route('holidays.account', $employe->id),
+             'icon' => '🏖️', 'farbe' => 'bg-sky-50 text-sky-600', 'titel' => 'Urlaub', 'text' => 'Urlaubskonto, Anspruch und Anträge'],
+            ['can' => auth()->user()->can('viewEmploye', [\App\Models\personal\Timesheet::class, $employe]), 'url' => fn () => route('timesheets.show', $employe->id),
+             'icon' => '⏱️', 'farbe' => 'bg-indigo-50 text-indigo-600', 'titel' => 'Arbeitszeitnachweis', 'text' => 'Monatsnachweise, Soll/Ist und Überstunden'],
+            ['can' => auth()->user()->can('view timesheet anomalies'), 'url' => fn () => route('personal.timesheet-validation.index', $employe->id),
+             'icon' => '🛡️', 'farbe' => 'bg-red-50 text-red-600', 'titel' => 'Prüfengine', 'text' => 'Zeiterfassung, Dienstplan & Vertragsänderungen prüfen'],
+            ['can' => auth()->user()->can('view trainings'), 'url' => fn () => route('personal.trainings.index'),
+             'icon' => '📚', 'farbe' => 'bg-purple-50 text-purple-600', 'titel' => 'Fortbildungen', 'text' => 'Teilnahmen und Katalog'],
+            ['can' => auth()->user()->can('manage personal_consents'), 'url' => fn () => route('personal.consents.admin'),
+             'icon' => '🔏', 'farbe' => 'bg-rose-50 text-rose-600', 'titel' => 'DSGVO-Einwilligungen', 'text' => 'Übersicht aller Einwilligungen'],
+        ])->filter(fn ($m) => $m['can']);
+    @endphp
+    @if($module->isNotEmpty())
+    <h2 class="text-base font-semibold text-gray-700 mb-3">Weitere Module</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        @foreach($module as $m)
+        <a href="{{ $m['url']() }}" class="personal-card flex items-start gap-4 group">
+            <div class="w-10 h-10 rounded-lg {{ $m['farbe'] }} flex items-center justify-center text-xl shrink-0" aria-hidden="true">{{ $m['icon'] }}</div>
+            <div>
+                <h3 class="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{{ $m['titel'] }}</h3>
+                <p class="text-gray-500 text-sm mt-0.5">{{ $m['text'] }}</p>
+            </div>
+        </a>
+        @endforeach
+    </div>
+    @endif
+
+    @include('personal.partials._wirkung')
 
 </div>
 @endsection
-

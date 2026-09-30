@@ -81,7 +81,7 @@ class ContractManagementTest extends TestCase
     public function effective_hours_are_calculated_correctly(): void
     {
         $schoolType = SchoolType::factory()->create(['default_deputat' => 28]);
-        $employment = Employment::factory()->create(['hours' => 14]); // 50% Stelle
+        $employment = Employment::factory()->create(['hours' => 20]);
 
         $detail = TeacherDetail::factory()->create([
             'employment_id'      => $employment->id,
@@ -91,8 +91,8 @@ class ContractManagementTest extends TestCase
             'anrechnungsstunden' => 1,
         ]);
 
-        // (14/28 × 28) - 2 - 1 = 14 - 2 - 1 = 11
-        $this->assertEquals(11.0, $detail->effective_hours);
+        // Deputat 28 − Ermäßigung 2 − Anrechnung 1 = 25
+        $this->assertEquals(25.0, $detail->effective_hours);
     }
 
     /** @test */

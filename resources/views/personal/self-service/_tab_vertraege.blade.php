@@ -1,12 +1,18 @@
 <div class="space-y-4">
     <h3 class="font-semibold text-gray-900">Meine Anstellungen</h3>
 
-    @forelse($rawEmploye->employments as $emp)
+    {{-- Eigene Seite ($employments) oder Reiter der Übersicht ($rawEmploye) --}}
+    @php
+        $meineAnstellungen = $employments ?? $rawEmploye->employments;
+        $canViewSalary = $canViewSalary ?? auth()->user()->can('view salary');
+    @endphp
+
+    @forelse($meineAnstellungen->sortByDesc('start') as $emp)
     <div class="personal-card">
         <div class="flex items-start justify-between mb-3">
             <div>
                 <span class="font-semibold">{{ $emp->employment_type?->label() ?? 'Anstellung' }}</span>
-                <span class="badge-{{ $emp->status?->value === 'aktiv' ? 'green' : 'yellow' }} ml-2">
+                <span class="badge-{{ match($emp->status?->value) { 'aktiv' => 'green', 'ruhend' => 'yellow', default => 'gray' } }} ml-2">
                     {{ $emp->status?->label() }}
                 </span>
                 @if($emp->contract_type)

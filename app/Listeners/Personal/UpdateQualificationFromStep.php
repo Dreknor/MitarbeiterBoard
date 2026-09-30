@@ -3,16 +3,18 @@
 namespace App\Listeners\Personal;
 
 use App\Events\Personal\ProcedureStepCompleted;
+use App\Services\Personal\PersonalProcessService;
 
 /**
- * Aktualisiert Qualifikationen wenn ein Prozessschritt abgeschlossen wird.
- * Implementierung folgt in Phase 3 (P3-01).
+ * Meldet erledigte Prozessschritte an die Personalverwaltung zurück
+ * (Abschluss von On-/Offboarding, Qualifikation aus Schrittname).
  */
 class UpdateQualificationFromStep
 {
+    public function __construct(private readonly PersonalProcessService $processes) {}
+
     public function handle(ProcedureStepCompleted $event): void
     {
-        // Stub – Implementierung folgt in Phase 3
+        $this->processes->handleStepCompleted($event->procedureId, $event->stepId, $event->userId);
     }
 }
-

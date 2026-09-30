@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEmployeDataRequest extends FormRequest
 {
@@ -30,18 +31,37 @@ class UpdateEmployeDataRequest extends FormRequest
             'date_start' => [
                 'required', 'date',
             ],
+            // Ein Key darf nur einer Person gehören – sonst ist die Anmeldung am Zeiterfassungs-Terminal mehrdeutig
             'time_recording_key' => [
                 'nullable', 'numeric', 'digits_between:6,12',
+                Rule::unique('employes_data', 'time_recording_key')->ignore($this->route('employe')?->employe_data?->id),
             ],
             'secret_key' => [
                 'nullable', 'numeric', 'digits_between:6,10',
             ],
             'mail_timesheet' => [
-                'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
+                'nullable', 'boolean',
+            ],
+            'google_calendar_link' => [
+                'nullable', 'string', 'max:1000',
+            ],
+            'caldav_working_time' => [
+                'nullable', 'boolean',
+            ],
+            'caldav_events' => [
+                'nullable', 'boolean',
             ],
             'send_mails_if_absence' => [
-                'nullable', 'numeric', 'digits:1', 'min:0', 'max:1',
+                'nullable', 'boolean',
             ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'time_recording_key.unique' => 'Dieser Zeiterfassungs-Key ist bereits einer anderen Person zugeordnet.',
+            'holidayClaim.required'     => 'Bitte den Urlaubsanspruch angeben.',
         ];
     }
 }

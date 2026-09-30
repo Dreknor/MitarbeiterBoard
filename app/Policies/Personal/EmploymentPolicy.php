@@ -24,7 +24,18 @@ class EmploymentPolicy
     {
         if ($employment->employe_id === $user->id) return true;
         return $user->can('view contracts')
+            && $employment->employe !== null
             && app(PersonalScopeService::class)->canAccess($user, $employment->employe);
+    }
+
+    /**
+     * Darf der User die Verträge dieses Mitarbeiters einsehen (auch wenn noch keine Anstellung existiert)?
+     */
+    public function viewFor(User $user, User $employe): bool
+    {
+        if ($employe->id === $user->id) return true;
+        return $user->can('view contracts')
+            && app(PersonalScopeService::class)->canAccess($user, $employe);
     }
 
     /**
@@ -42,6 +53,15 @@ class EmploymentPolicy
     public function create(User $user): bool
     {
         return $user->can('edit contracts');
+    }
+
+    /**
+     * Darf der User für genau diesen Mitarbeiter eine Anstellung anlegen? (Bearbeitungs-Scope)
+     */
+    public function createFor(User $user, User $employe): bool
+    {
+        return $user->can('edit contracts')
+            && app(PersonalScopeService::class)->canAccess($user, $employe, 'edit');
     }
 
     /**

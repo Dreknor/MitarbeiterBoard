@@ -54,19 +54,15 @@ class TeacherDetail extends Model implements Auditable
     // --- Accessors ---
 
     /**
-     * Berechnet effektive Pflichtstunden (Accessor).
-     * Formel: (employment.hours / school_type.default_deputat) × deputat_hours − reduction_hours − anrechnungsstunden
+     * Effektive Unterrichtsstunden pro Woche.
+     * Formel: Deputat − Ermäßigung − Anrechnungsstunden
+     * (Das Deputat ist bereits die vertraglich vereinbarte Unterrichtsverpflichtung; die Wochenstunden
+     * des Vertrags werden daraus abgeleitet – siehe ContractService::wochenstundenAusDeputat.)
      */
     public function getEffectiveHoursAttribute(): float
     {
-        $defaultDeputat = (float) ($this->schoolType?->default_deputat ?? 0);
-        if ($defaultDeputat <= 0) return 0.0;
-
-        $teilzeitFaktor = (float) $this->employment->hours / $defaultDeputat;
         return max(0.0, round(
-            ($teilzeitFaktor * (float) $this->deputat_hours)
-            - (float) $this->reduction_hours
-            - (float) $this->anrechnungsstunden,
+            (float) $this->deputat_hours - (float) $this->reduction_hours - (float) $this->anrechnungsstunden,
             2
         ));
     }
