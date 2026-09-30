@@ -54,7 +54,7 @@
                 </div>
                 <div>
                     <label class="personal-label" for="geschlecht">Geschlecht *</label>
-                    @php($geschlecht = old('geschlecht', $data->geschlecht))
+                    @php $geschlecht = old('geschlecht', $data->geschlecht); @endphp
                     <select id="geschlecht" name="geschlecht" class="personal-input" required>
                         <option value="" disabled @selected(!$geschlecht)>— wählen —</option>
                         @foreach(['weiblich', 'männlich', 'anderes'] as $g)
@@ -100,34 +100,19 @@
                         <option value="1" @selected($ja('send_mail_if_absence', $employe->send_mails_if_absence) === '1')>ja</option>
                     </select>
                 </div>
-                <div>
-                    <label class="personal-label" for="caldav_working_time">iCal: Arbeitszeiten</label>
-                    <select id="caldav_working_time" name="caldav_working_time" class="personal-input" required>
-                        <option value="0" @selected($ja('caldav_working_time', $data->caldav_working_time) === '0')>nein</option>
-                        <option value="1" @selected($ja('caldav_working_time', $data->caldav_working_time) === '1')>ja</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="personal-label" for="caldav_events">iCal: Termine</label>
-                    <select id="caldav_events" name="caldav_events" class="personal-input" required>
-                        <option value="0" @selected($ja('caldav_events', $data->caldav_events) === '0')>nein</option>
-                        <option value="1" @selected($ja('caldav_events', $data->caldav_events) === '1')>ja</option>
-                    </select>
-                </div>
-                <div class="md:col-span-3">
-                    <label class="personal-label" for="google_calendar_link">Google-Kalender-ID</label>
+                <div class="md:col-span-2">
+                    <label class="personal-label" for="google_calendar_link">Google-Kalender-ID (Arbeitszeiten)</label>
                     <input id="google_calendar_link" type="text" class="personal-input" name="google_calendar_link" autocomplete="off"
                            value="{{ old('google_calendar_link', $data->google_calendar_link) }}">
                 </div>
                 <div class="md:col-span-3 text-sm">
-                    <span class="text-gray-500">Kalender-Abo:</span>
-                    @if($data->caldav_uuid)
-                        <a href="{{ url('ical/' . $employe->id . '/' . $data->caldav_uuid) }}" class="text-blue-600 hover:underline break-all">
-                            {{ url('ical/' . $employe->id . '/' . $data->caldav_uuid) }}
-                        </a>
+                    <span class="text-gray-500">Dienstplan-Kalenderabo:</span>
+                    @if($employe->roster_feed_token)
+                        <span class="badge-green">eingerichtet</span>
                     @else
-                        <span class="text-gray-400">keine Freigabe</span>
+                        <span class="text-gray-400">nicht eingerichtet</span>
                     @endif
+                    <span class="text-xs text-gray-400">(richtet die Person selbst unter „Mein Dienstplan“ ein)</span>
                 </div>
             </div>
 
@@ -171,6 +156,43 @@
                     @endcan
                 </div>
             </div>
+
+            @php $anschrift = $employe->address; @endphp
+            <form method="post" action="{{ route('employes.address.update', $employe->id) }}" class="personal-card">
+                @csrf
+                @method('put')
+                <h2 class="text-base font-semibold text-gray-900 mb-4">Anschrift</h2>
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="col-span-3">
+                        <label class="personal-label" for="strasse">Straße</label>
+                        <input id="strasse" name="strasse" type="text" class="personal-input" autocomplete="off"
+                               value="{{ old('strasse', $anschrift?->strasse) }}">
+                    </div>
+                    <div>
+                        <label class="personal-label" for="nr">Nr.</label>
+                        <input id="nr" name="nr" type="text" class="personal-input" autocomplete="off"
+                               value="{{ old('nr', $anschrift?->nr) }}">
+                    </div>
+                    <div>
+                        <label class="personal-label" for="plz">PLZ</label>
+                        <input id="plz" name="plz" type="text" class="personal-input" autocomplete="off"
+                               value="{{ old('plz', $anschrift?->plz) }}">
+                    </div>
+                    <div class="col-span-3">
+                        <label class="personal-label" for="ort">Ort</label>
+                        <input id="ort" name="ort" type="text" class="personal-input" autocomplete="off"
+                               value="{{ old('ort', $anschrift?->ort) }}">
+                    </div>
+                    <div class="col-span-4">
+                        <label class="personal-label" for="land">Land</label>
+                        <input id="land" name="land" type="text" class="personal-input" autocomplete="off"
+                               value="{{ old('land', $anschrift?->land ?? 'Deutschland') }}">
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t border-gray-100">
+                    <button type="submit" class="btn-personal-primary">Anschrift speichern</button>
+                </div>
+            </form>
 
             <form method="post" action="{{ route('employes.data.update', $employe->id) }}" class="personal-card">
                 @csrf

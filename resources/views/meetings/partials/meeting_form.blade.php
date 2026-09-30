@@ -12,7 +12,7 @@
         : '';
 @endphp
 
-<div class="space-y-4" x-data="{ groupId: '{{ $defaultGroup }}' }">
+<div class="space-y-4" x-data="{ groupId: @js((string) $defaultGroup) }">
     @if($errors->any())
         <div class="mtg-alert mtg-alert-warning mb-0">{{ $errors->first() }}</div>
     @endif

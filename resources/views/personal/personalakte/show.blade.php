@@ -80,6 +80,17 @@
                     <dt class="text-gray-400 text-xs">Sozialversicherungsnummer</dt>
                     <dd class="font-medium text-gray-800">{{ $employe->employe_data?->sozialversicherungsnummer ?: '–' }}</dd>
                 </div>
+                <div class="col-span-2">
+                    <dt class="text-gray-400 text-xs">Anschrift</dt>
+                    <dd class="font-medium text-gray-800">
+                        @if($employe->address && ($employe->address->strasse || $employe->address->ort))
+                            {{ trim($employe->address->strasse . ' ' . $employe->address->nr) }}<br>
+                            {{ trim($employe->address->plz . ' ' . $employe->address->ort) }}
+                        @else
+                            –
+                        @endif
+                    </dd>
+                </div>
                 <div>
                     <dt class="text-gray-400 text-xs">Schwerbehindert</dt>
                     <dd class="font-medium text-gray-800">{{ $employe->employe_data?->schwerbehindert ? 'ja' : 'nein' }}</dd>

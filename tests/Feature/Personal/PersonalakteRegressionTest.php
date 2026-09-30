@@ -211,6 +211,64 @@ class PersonalakteRegressionTest extends TestCase
         ])->assertSessionHasErrors('time_recording_key');
     }
 
+    /** @test */
+    public function address_is_saved_once_per_person_and_shown_in_the_akte(): void
+    {
+        $this->hr('edit employe');
+        $employe = User::factory()->create();
+
+        $this->put(route('employes.address.update', $employe->id), ['strasse' => 'Hauptstraße', 'nr' => '1', 'plz' => '01445', 'ort' => 'Radebeul'])
+            ->assertSessionHas('type', 'success');
+        $this->put(route('employes.address.update', $employe->id), ['strasse' => 'Nebenweg', 'nr' => '2', 'plz' => '01445', 'ort' => 'Radebeul']);
+
+        $this->assertDatabaseCount('addresses', 1);
+        $this->assertDatabaseHas('addresses', ['employe_id' => $employe->id, 'strasse' => 'Nebenweg']);
+
+        $this->get(route('personal.personalakte.show', $employe->id))->assertOk()->assertSee('Nebenweg 2');
+        $this->get(route('personal.personalakte.stammdaten', $employe->id))->assertOk()->assertSee('value="Nebenweg"', false);
+    }
+
+    /** @test */
+    public function address_requires_edit_employe_permission(): void
+    {
+        $this->actingAsWithPermission();
+        $employe = User::factory()->create();
+
+        $this->put(route('employes.address.update', $employe->id), ['strasse' => 'X'])->assertForbidden();
+        $this->assertDatabaseCount('addresses', 0);
+    }
+
+    // ---------------------------------------------------------------- Eigene Daten
+
+    /** @test */
+    public function own_profile_page_renders_and_saves_feed_url(): void
+    {
+        $this->withoutVite();
+        $user = $this->actingAsWithPermission();
+
+        $this->get(route('employes.self'))->assertOk()->assertSee('Persönliche Daten');
+
+        $this->put(route('employes.self.update'), [
+            'vorname' => 'Erika', 'familienname' => 'Muster', 'geburtstag' => '1980-05-01', 'geschlecht' => 'weiblich',
+            'send_mail_if_absence' => 1, 'atom_feed_url' => 'https://example.org/feed.xml',
+        ])->assertSessionHas('Meldung');
+
+        $user->refresh();
+        $this->assertSame('https://example.org/feed.xml', $user->atom_feed_url);
+        $this->assertTrue((bool) $user->send_mails_if_absence);
+        $this->assertSame('Muster', $user->employe_data->familienname);
+    }
+
+    /** @test */
+    public function profile_photo_must_be_an_image(): void
+    {
+        $this->actingAsWithPermission();
+
+        $this->post(route('employes.self.photo'), [
+            'file' => \Illuminate\Http\UploadedFile::fake()->create('schad.html', 5, 'text/html'),
+        ])->assertSessionHasErrors('file');
+    }
+
     // ---------------------------------------------------------------- Übersicht & Akte
 
     /** @test */

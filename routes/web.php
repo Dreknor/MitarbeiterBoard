@@ -233,6 +233,7 @@ Route::group([
                         'index' => 'employes.index',
                     ])->only(['index', 'show', 'update']);
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
+                    Route::put('employes/{employe}/anschrift', [AddressController::class, 'update'])->name('employes.address.update');
                 });
 
 
@@ -293,8 +294,7 @@ Route::group([
                 Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show'])->whereNumber('user')->where('date', '\d{4}-\d{2}')->name('timesheets.show');
 
                 // Anstellungen: siehe personal.contracts.* (ContractController)
-
-                Route::post('addresses/{employe}', [AddressController::class, 'update']);
+                // Anschrift: siehe employes.address.update (Gruppe "edit employe")
 
 
                 // Dienstplan – Ansicht für Mitarbeitende
@@ -1242,11 +1242,6 @@ Route::get('/calendar/feed/{token}.ics', [\App\Http\Controllers\CalendarControll
 Route::get('/dienstplan/feed/{token}.ics', [\App\Http\Controllers\Personal\RosterController::class, 'feed'])
     ->middleware('throttle:60,1')
     ->name('roster.feed');
-
-// Personal-Modul: Temporäre Test-Route (Phase 0 – nach Verifizierung entfernen)
-Route::get('/personal/test-ui', function () {
-    return view('personal.test-ui');
-})->middleware('auth')->name('personal.test-ui');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Personalakte-Hub: Übersichtsseite je Mitarbeiter (alle Sub-Module)

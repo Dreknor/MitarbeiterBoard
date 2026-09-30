@@ -9,7 +9,7 @@
     $people   = $users->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values();
 @endphp
 <form action="{{ $action }}" method="POST"
-      x-data="{ assign: '{{ old('assign', 'all') }}', filter: '', selected: @js($selected), submitting: false,
+      x-data="{ assign: @js((string) old('assign', 'all')), filter: '', selected: @js($selected), submitting: false,
                 people: @js($people),
                 get visible() { const q = this.filter.toLowerCase(); return this.people.filter(p => !q || p.name.toLowerCase().includes(q)); },
                 toggle(id) { this.selected = this.selected.includes(id) ? this.selected.filter(x => x !== id) : [...this.selected, id]; } }"

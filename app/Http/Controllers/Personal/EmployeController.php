@@ -13,7 +13,6 @@ use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
 use App\Models\User;
 use App\Services\Personal\Zeit\UrlaubskontoService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -21,6 +20,9 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class EmployeController extends Controller
 {
+    /** Maximale Größe des Profilfotos in KB. */
+    private const MAX_FOTO_KB = 5120;
+
     /**
      * Display a listing of the resource.
      *
@@ -138,18 +140,6 @@ class EmployeController extends Controller
             $settings->update($validated);
         }
 
-        if (($settings->caldav_working_time == 1 or $settings->caldav_events == 1) and $settings->caldav_uuid == null){
-            $settings->update([
-                'caldav_uuid' => Str::uuid()
-            ]);
-        }
-
-        if (($settings->caldav_working_time == 0 and $settings->caldav_events == 0) and $settings->caldav_uuid != null){
-            $settings->update([
-                'caldav_uuid' => null
-            ]);
-        }
-
         if ($request->filled('send_mail_if_absence')) {
             $employe->update([
                 'send_mails_if_absence' => (bool) $request->send_mail_if_absence
@@ -174,7 +164,7 @@ class EmployeController extends Controller
         }
 
         // Nur übermittelte Felder ändern. filled() statt "!= null": sonst würde "0" (= nein) nie gespeichert.
-        $fields = collect(['time_recording_key', 'secret_key', 'mail_timesheet', 'google_calendar_link', 'caldav_working_time', 'caldav_events'])
+        $fields = collect(['time_recording_key', 'secret_key', 'mail_timesheet', 'google_calendar_link'])
             ->filter(fn ($field) => $request->filled($field))
             ->mapWithKeys(fn ($field) => [$field => $request->input($field)])
             ->all();
@@ -206,78 +196,57 @@ class EmployeController extends Controller
         ]);
     }
 
-
-
-    public function ical($employe, $uuid){
-        $employe = User::findOrFail($employe);
-        if (isset($uuid) and $employe?->settings?->caldav_uuid == $uuid){
-            $icalObject = "BEGIN:VCALENDAR
-               VERSION:2.0
-               METHOD:PUBLISH
-               PRODID:-//" . config('app.name') . "//Termine//DE\n
-               ";
-
-            if ($employe?->settings?->caldav_events == 1){
-                $events = $employe->roster_events()->whereDate('date', '>=', Carbon::now()->startOfDay())->get();
-                foreach ($events as $event){
-                    $icalObject.=$event->getICal();
-                }
-            }
-
-            if ($employe?->settings?->caldav_working_time == 1){
-                $working_times = $employe->working_times()->whereDate('date', '>=', Carbon::now()->startOfDay())->get();
-                foreach ($working_times as $working_time){
-                    $icalObject.=$working_time->getICal();
-                }
-            }
-
-
-            // close calendar
-            $icalObject .= "END:VCALENDAR";
-
-            // Set the headers
-            header('Content-type: text/calendar; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . config('app.name') . '_'.$employe->familienname. '.ics"');
-
-            $icalObject = str_replace(' ', '', $icalObject);
-            $icalObject = str_replace('__', ' ', $icalObject);
-
-            return $icalObject;
-        }
-
-        abort(404);
-    }
-
     public function show_self(){
+        $user = auth()->user();
+
         return view('personal.employes.selfEdit', [
-            'employe' => auth()->user(),
+            'employe'      => $user,
+            'data'         => $user->employe_data ?? new EmployeData([
+                'familienname' => Str::contains($user->name, ' ') ? Str::afterLast($user->name, ' ') : $user->name,
+                'vorname'      => Str::contains($user->name, ' ') ? Str::beforeLast($user->name, ' ') : '',
+            ]),
+            'employments'  => $user->employments()->active()->with('department:id,name')->orderBy('start')->get(),
+            'firstStart'   => $user->employments()->min('start'),
+            'holidayClaim' => $user->getHolidayClaim(),
+            'groups'       => collect($user->groups()),
+            'maxFotoKb'    => self::MAX_FOTO_KB,
         ]);
     }
 
     public function update_self(selfUpdateProfileRequest $request){
 
         $user = auth()->user();
-        $data = $user->employe_data;
-        if (is_null($data)){
-            $data = new EmployeData($request->validated());
-            $data->user_id = $user->id;
-            $data->save();
-        } else {
-            $data->update($request->validated() );
-        }
+        $validated = $request->validated();
 
-        $user->update([
+        $data = $user->employe_data ?? new EmployeData(['user_id' => $user->id]);
+        $data->fill($validated);
+        $data->user_id = $user->id;
+        $data->save();
+
+        $userData = [
             'name' => $request->vorname . ' ' . $request->familienname,
-            'send_mails_if_absence' => $request->send_mail_if_absence
-        ]);
+            // Leer = Standard-Feed
+            'atom_feed_url' => $validated['atom_feed_url'] ?? null,
+        ];
+        if ($request->filled('send_mail_if_absence')) {
+            $userData['send_mails_if_absence'] = (bool) $validated['send_mail_if_absence'];
+        }
+        $user->update($userData);
 
         return redirect()->back()->with([
             'type' => 'success',
-            'message' => 'Daten aktualisiert'
+            'Meldung' => 'Daten aktualisiert.'
         ]);
     }
 
     public function photo(Request $request){
+        $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,gif', 'max:' . self::MAX_FOTO_KB],
+        ], [
+            'file.image' => 'Bitte ein Bild (JPG, PNG oder GIF) hochladen.',
+            'file.max'   => 'Das Foto ist zu groß.',
+        ]);
+
         $user = auth()->user();
         $user->clearMediaCollection('profile');
         $user->addMedia($request->file('file'))->toMediaCollection('profile');
@@ -286,7 +255,7 @@ class EmployeController extends Controller
 
         return redirect()->back()->with([
             'type' => 'success',
-            'message' => 'Foto aktualisiert'
+            'Meldung' => 'Foto aktualisiert.'
         ]);
     }
 

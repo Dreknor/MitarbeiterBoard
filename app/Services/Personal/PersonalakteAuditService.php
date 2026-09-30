@@ -8,6 +8,7 @@ use App\Enums\EmploymentStatusReason;
 use App\Enums\EmploymentType;
 use App\Enums\TerminationReason;
 use App\Models\Group;
+use App\Models\personal\Address;
 use App\Models\personal\ContractAudit;
 use App\Models\personal\Consent;
 use App\Models\personal\EmployeData;
@@ -67,6 +68,7 @@ class PersonalakteAuditService
         'school_type_id' => 'Schulart', 'deputat_hours' => 'Deputat (Std.)', 'reduction_hours' => 'Ermäßigung (Std.)',
         'reduction_reason' => 'Ermäßigungsgrund', 'anrechnungsstunden' => 'Anrechnungsstunden',
         'valid_from' => 'Gültig ab', 'valid_until' => 'Gültig bis',
+        'strasse' => 'Straße', 'nr' => 'Hausnummer', 'plz' => 'PLZ', 'ort' => 'Ort', 'land' => 'Land',
         'title' => 'Titel', 'sync_status' => 'Nextcloud-Sync', 'expiry_date' => 'Ablaufdatum',
         'acquired_date' => 'Erworben am', 'notes' => 'Notiz', 'granted_at' => 'Erteilt am', 'revoked_at' => 'Widerrufen am',
     ];
@@ -102,6 +104,13 @@ class PersonalakteAuditService
                 continue;
             }
             $this->fromAudits($entries, $class, $ids, $category, $titleFn, $showSalary);
+        }
+
+        if ($want('stammdaten')) {
+            $addressIds = Address::withTrashed()->where('employe_id', $employe->id)->pluck('id');
+            if ($addressIds->isNotEmpty()) {
+                $this->fromAudits($entries, Address::class, $addressIds, 'stammdaten', fn ($a) => 'Anschrift', $showSalary);
+            }
         }
 
         if ($want('vertrag') && $employmentIds->isNotEmpty()) {

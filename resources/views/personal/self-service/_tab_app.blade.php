@@ -39,11 +39,11 @@
                     @endif
                 </div>
             </div>
-            <form method="POST" action="{{ route('self-service.app-devices.destroy', $device->id) }}" class="shrink-0">
+            <form method="POST" action="{{ route('self-service.app-devices.destroy', $device->id) }}" class="shrink-0"
+                  onsubmit="return confirm({{ \Illuminate\Support\Js::from('Gerät „' . $device->name . '“ wirklich abmelden?') }})">
                 @csrf
                 @method('DELETE')
                 <button type="submit"
-                        onclick="return confirm('Gerät „{{ addslashes($device->name) }}“ wirklich abmelden?')"
                         class="btn-personal-secondary text-sm">
                     Abmelden
                 </button>
