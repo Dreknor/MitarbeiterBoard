@@ -122,41 +122,68 @@
                value="{{ old('notice_period', $employment->notice_period ?? '') }}">
     </div>
 
-    {{-- Nachfolge-Vertrag (nur beim Anlegen) --}}
-    @if(!isset($employment) && isset($replaceable) && $replaceable->isNotEmpty())
-    <div class="md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Ersetzt Anstellung</label>
-        <select name="replaced_employment_id" class="input-personal">
-            <option value="">— keine (zusätzliche Anstellung) —</option>
-            @foreach($replaceable as $r)
-            <option value="{{ $r->id }}" {{ old('replaced_employment_id') == $r->id ? 'selected' : '' }}>
-                {{ $r->department?->name ?? '—' }} · {{ $r->hours }}h · seit {{ $r->start?->format('d.m.Y') }}{{ $r->end ? ' bis ' . $r->end->format('d.m.Y') : '' }}
-            </option>
-            @endforeach
-        </select>
-        <p class="text-xs text-gray-500 mt-1">Die ausgewählte Anstellung wird automatisch am Vortag des Beginns beendet (ohne Offboarding).</p>
-    </div>
-    @endif
-
     {{-- Bemerkung --}}
     <div class="md:col-span-2">
         <label class="block text-sm font-medium text-gray-700 mb-1">Bemerkung</label>
         <textarea name="comment" class="input-personal" rows="2">{{ old('comment', $employment->comment ?? '') }}</textarea>
     </div>
 
-    {{-- Änderungsvertrag --}}
-    <div class="flex items-center gap-2">
-        <input type="hidden" name="is_amendment" value="0">
-        <input type="checkbox" name="is_amendment" value="1" id="is_amendment"
-               {{ old('is_amendment', $employment->is_amendment ?? false) ? 'checked' : '' }}>
-        <label for="is_amendment" class="text-sm text-gray-700">Änderungsvertrag</label>
-    </div>
+    {{-- Änderungsvertrag / interner Wechsel: Beschreibung und ersetzte Anstellung --}}
+    {{-- Inline-@php: die Datei nutzt bereits @php(...), Blöcke würden von Blade falsch kompiliert --}}
+    @php($istAenderung = (bool) old('is_amendment', $employment->is_amendment ?? false))
+    @php($istWechsel = (bool) old('is_internal_transfer', $employment->is_internal_transfer ?? false))
+    @php($mitErsetzung = !isset($employment) && isset($replaceable) && $replaceable->isNotEmpty())
+    <div class="md:col-span-2 rounded-lg border border-gray-200 p-4"
+         x-data="{ aenderung: @js($istAenderung), wechsel: @js($istWechsel) }">
+        <div class="flex flex-wrap gap-x-6 gap-y-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="hidden" name="is_amendment" value="0">
+                <input type="checkbox" name="is_amendment" value="1" x-model="aenderung" @checked($istAenderung)>
+                Änderungsvertrag
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="hidden" name="is_internal_transfer" value="0">
+                <input type="checkbox" name="is_internal_transfer" value="1" x-model="wechsel" @checked($istWechsel)>
+                Interner Wechsel
+            </label>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">
+            Änderungs- und Wechselverträge setzen eine bestehende Anstellung fort – es wird kein Onboarding gestartet.
+        </p>
 
-    <div>
-        <input type="hidden" name="is_internal_transfer" value="0">
-        <input type="checkbox" name="is_internal_transfer" value="1" id="is_internal_transfer"
-               {{ old('is_internal_transfer', $employment->is_internal_transfer ?? false) ? 'checked' : '' }}>
-        <label for="is_internal_transfer" class="text-sm text-gray-700 ml-2">Interner Wechsel</label>
+        <div x-show="aenderung || wechsel" x-cloak class="grid grid-cols-1 gap-4 mt-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung der Änderung</label>
+                <input type="text" name="amendment_description" maxlength="255" class="input-personal"
+                       placeholder="z. B. Stundenerhöhung von 20 auf 30 Std. / Wechsel von Hort zu Grundschule"
+                       value="{{ old('amendment_description', $employment->amendment_description ?? '') }}">
+            </div>
+
+            @if(isset($employment) && $employment->replacedEmployment)
+            <p class="text-sm text-gray-600">
+                Ersetzt Anstellung: {{ $employment->replacedEmployment->department?->name ?? '—' }} · {{ $employment->replacedEmployment->hours }}h ·
+                {{ $employment->replacedEmployment->start?->format('d.m.Y') }} – {{ $employment->replacedEmployment->end?->format('d.m.Y') ?? 'offen' }}
+            </p>
+            @endif
+        </div>
+
+        {{-- Nachfolge-Vertrag (nur beim Anlegen): Pflicht bei Änderungsvertrag/internem Wechsel --}}
+        @if($mitErsetzung)
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Ersetzt Anstellung<span x-show="aenderung || wechsel"> *</span>
+            </label>
+            <select name="replaced_employment_id" class="input-personal" x-bind:required="aenderung || wechsel">
+                <option value="" x-text="aenderung || wechsel ? '— wählen —' : '— keine (zusätzliche Anstellung) —'">— keine (zusätzliche Anstellung) —</option>
+                @foreach($replaceable as $r)
+                <option value="{{ $r->id }}" {{ old('replaced_employment_id') == $r->id ? 'selected' : '' }}>
+                    {{ $r->department?->name ?? '—' }} · {{ $r->hours }}h · seit {{ $r->start?->format('d.m.Y') }}{{ $r->end ? ' bis ' . $r->end->format('d.m.Y') : '' }}
+                </option>
+                @endforeach
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Die ausgewählte Anstellung wird automatisch am Vortag des Beginns beendet (ohne Offboarding).</p>
+        </div>
+        @endif
     </div>
 
 </div>

@@ -43,7 +43,7 @@ class ContractController extends Controller
         $this->authorize('viewFor', [Employment::class, $employe]);
 
         $employments = $employe->employments()
-            ->with(['department', 'salaryTable', 'currentTeacherDetail.subjects', 'currentTeacherDetail.schoolType', 'hour_type'])
+            ->with(['department', 'salaryTable', 'currentTeacherDetail.subjects', 'currentTeacherDetail.schoolType', 'hour_type', 'replacedEmployment.department'])
             ->latest('start')
             ->get();
 

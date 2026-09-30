@@ -106,6 +106,72 @@ class ContractWorkflowTest extends TestCase
     }
 
     /** @test */
+    public function amendment_requires_replaced_employment_when_a_running_contract_exists(): void
+    {
+        $this->hr();
+        $employe = User::factory()->create();
+        $old = Employment::factory()->create(['employe_id' => $employe->id, 'start' => '2024-01-01']);
+        $fremd = Employment::factory()->create(['start' => '2024-01-01']);
+
+        $this->post(route('personal.contracts.store', $employe->id), $this->payload(['is_amendment' => 1]))
+            ->assertSessionHasErrors('replaced_employment_id');
+        $this->post(route('personal.contracts.store', $employe->id), $this->payload(['is_internal_transfer' => 1, 'replaced_employment_id' => $fremd->id]))
+            ->assertSessionHasErrors('replaced_employment_id');
+        $this->assertSame(1, Employment::where('employe_id', $employe->id)->count());
+
+        $this->post(route('personal.contracts.store', $employe->id), $this->payload([
+            'start' => '2026-09-01',
+            'is_amendment' => 1,
+            'amendment_description' => 'Stundenerhöhung von 20 auf 30 Std.',
+            'replaced_employment_id' => $old->id,
+        ]))->assertSessionHas('type', 'success');
+
+        $neu = Employment::where('employe_id', $employe->id)->latest('id')->firstOrFail();
+        $this->assertTrue($neu->is_amendment);
+        $this->assertSame('Stundenerhöhung von 20 auf 30 Std.', $neu->amendment_description);
+        $this->assertTrue($neu->replacedEmployment->is($old));
+        $this->assertSame(EmploymentStatus::Beendet, $old->fresh()->status);
+
+        $this->get(route('personal.contracts.index', $employe->id))
+            ->assertOk()
+            ->assertSee('Änderungsvertrag')
+            ->assertSee('Stundenerhöhung von 20 auf 30 Std.');
+        $this->get(route('personal.contracts.create', $employe->id))
+            ->assertOk()->assertSee('Ersetzt Anstellung')->assertSee('Beschreibung der Änderung');
+        $this->get(route('personal.contracts.edit', $neu->id))
+            ->assertOk()->assertSee('Ersetzt Anstellung:');
+    }
+
+    /** @test */
+    public function amendment_without_running_contract_needs_no_replaced_employment(): void
+    {
+        $this->hr();
+        $employe = User::factory()->create();
+
+        $this->post(route('personal.contracts.store', $employe->id), $this->payload(['is_internal_transfer' => 1]))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('type', 'success');
+    }
+
+    /** @test */
+    public function amendment_description_is_cleared_when_flags_are_removed(): void
+    {
+        $this->hr();
+        $employment = Employment::factory()->create(['is_amendment' => true, 'amendment_description' => 'Wechsel']);
+
+        $this->put(route('personal.contracts.update', $employment->id), $this->payload([
+            'start' => $employment->start->toDateString(),
+            'is_amendment' => 0,
+            'is_internal_transfer' => 0,
+            'amendment_description' => 'Wechsel',
+        ]))->assertSessionHasNoErrors();
+
+        $employment->refresh();
+        $this->assertFalse($employment->is_amendment);
+        $this->assertNull($employment->amendment_description);
+    }
+
+    /** @test */
     public function editing_a_teacher_contract_persists_teacher_details(): void
     {
         $this->hr();

@@ -49,6 +49,9 @@ export default defineConfig({
                 // Zeitwirtschaft: Urlaub, Arbeitszeitnachweis, Dienstplan, Terminal
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
+
+                // Geführte Touren (<x-tour>, für alle Bereiche)
+                'resources/js/tour.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',

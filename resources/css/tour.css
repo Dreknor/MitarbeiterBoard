@@ -1,0 +1,87 @@
+/*
+ * Geführte Touren – eigenständiges CSS (kein Tailwind), gehört zu resources/js/tour.js
+ *
+ * Die Tour hängt direkt an <body>, also außerhalb der Modul-Wrapper. Alle Regeln sind
+ * über .mbt-root gescopet und setzen Bootstrap-/paper-dashboard-Elementstile zurück.
+ */
+.mbt-root {
+    --mbt-primary: #2563eb;
+    --mbt-primary-hover: #1d4ed8;
+    --mbt-text: #111827;
+    --mbt-muted: #4b5563;
+    --mbt-border: #e5e7eb;
+    --mbt-bg: #ffffff;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--mbt-text);
+}
+.mbt-root *, .mbt-root *::before, .mbt-root *::after { box-sizing: border-box; }
+
+.mbt-root .mbt-blocker { position: fixed; inset: 0; background: transparent; }
+
+.mbt-root .mbt-spot {
+    position: fixed;
+    border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, .55), 0 0 0 3px rgba(96, 165, 250, .9);
+    pointer-events: none;
+    transition: top .2s ease, left .2s ease, width .2s ease, height .2s ease;
+}
+.mbt-root .mbt-spot[hidden] { display: block; box-shadow: 0 0 0 9999px rgba(15, 23, 42, .55); width: 0; height: 0; top: 50%; left: 50%; }
+
+.mbt-root .mbt-box {
+    position: fixed;
+    width: min(380px, calc(100vw - 32px));
+    background: var(--mbt-bg);
+    border-radius: 16px;
+    box-shadow: 0 20px 45px -12px rgba(15, 23, 42, .45);
+    padding: 16px 18px 14px;
+    transition: top .2s ease, left .2s ease;
+}
+.mbt-root .mbt-box.is-center { top: 50% !important; left: 50% !important; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); }
+.mbt-root .mbt-box.is-sheet {
+    top: auto !important; left: 8px !important; right: 8px; bottom: 8px;
+    width: auto;
+    max-height: 45vh;
+    overflow-y: auto;
+}
+
+.mbt-root .mbt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.mbt-root .mbt-count { font-size: 12px; font-weight: 600; color: var(--mbt-primary); letter-spacing: .02em; text-transform: uppercase; }
+.mbt-root .mbt-close {
+    border: 0; background: none; padding: 0 4px; margin: 0;
+    font-size: 22px; line-height: 1; color: #9ca3af; cursor: pointer; box-shadow: none;
+}
+.mbt-root .mbt-close:hover { color: var(--mbt-text); }
+
+.mbt-root .mbt-title { margin: 0 0 6px; padding: 0; font-size: 17px; font-weight: 700; line-height: 1.35; color: var(--mbt-text); text-transform: none; }
+.mbt-root .mbt-text { color: var(--mbt-muted); font-size: 14px; }
+.mbt-root .mbt-text p { margin: 0 0 8px; padding: 0; font-size: inherit; line-height: 1.5; color: inherit; }
+.mbt-root .mbt-text p:last-child { margin-bottom: 0; }
+
+.mbt-root .mbt-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.mbt-root .mbt-dots { display: flex; gap: 5px; flex-wrap: wrap; }
+.mbt-root .mbt-dots span { width: 7px; height: 7px; border-radius: 999px; background: var(--mbt-border); }
+.mbt-root .mbt-dots span.is-active { background: var(--mbt-primary); width: 18px; }
+.mbt-root .mbt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+.mbt-root .mbt-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    margin: 0; padding: 7px 14px;
+    border: 1px solid transparent; border-radius: 10px;
+    font-size: 14px; font-weight: 600; line-height: 1.3;
+    text-decoration: none; text-transform: none; letter-spacing: normal;
+    cursor: pointer; box-shadow: none; white-space: nowrap;
+}
+.mbt-root .mbt-btn[hidden] { display: none; }
+.mbt-root .mbt-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.mbt-root .mbt-btn-primary, .mbt-root a.mbt-btn-primary { background: var(--mbt-primary); color: #fff; }
+.mbt-root .mbt-btn-primary:hover, .mbt-root a.mbt-btn-primary:hover { background: var(--mbt-primary-hover); color: #fff; text-decoration: none; }
+.mbt-root .mbt-btn-ghost { background: transparent; color: var(--mbt-muted); border-color: var(--mbt-border); }
+.mbt-root .mbt-btn-ghost:hover { background: #f9fafb; color: var(--mbt-text); }
+
+@media (prefers-reduced-motion: reduce) {
+    .mbt-root .mbt-spot, .mbt-root .mbt-box { transition: none; }
+}

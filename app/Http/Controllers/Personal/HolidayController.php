@@ -12,6 +12,7 @@ use App\Services\Personal\Zeit\HolidayService;
 use App\Services\Personal\Zeit\UrlaubskontoService;
 use App\Services\Personal\Zeit\ZeitZugriff;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -353,11 +354,11 @@ class HolidayController extends Controller
         return $nutzer->merge($this->unterstellteMitUrlaub($actor))->unique('id')->values();
     }
 
-    private function unterstellteMitUrlaub(User $actor): Collection
+    private function unterstellteMitUrlaub(User $actor): EloquentCollection
     {
         $ids = $this->zugriff->unterstellteIds($actor);
 
-        return $ids === [] ? collect() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
+        return $ids === [] ? new EloquentCollection() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
     }
 
     /**

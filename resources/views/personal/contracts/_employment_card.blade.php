@@ -15,6 +15,7 @@
                 <span class="badge-blue">beginnt am {{ $employment->start->format('d.m.Y') }}</span>
                 @endif
             </div>
+            @include('personal.partials._vertrag_kennzeichen', ['employment' => $employment, 'class' => '-mt-1 mb-3'])
 
             <dl class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div>

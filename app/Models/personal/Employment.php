@@ -86,6 +86,14 @@ class Employment extends Model implements Auditable, HasMedia
         return $this->belongsTo(SalaryTable::class, 'salary_table_id');
     }
 
+    /**
+     * Vorgängervertrag, den diese Anstellung ersetzt (Änderungsvertrag, interner Wechsel, Nachfolge).
+     */
+    public function replacedEmployment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaced_employment_id');
+    }
+
     public function teacherDetails(): HasMany
     {
         return $this->hasMany(TeacherDetail::class);

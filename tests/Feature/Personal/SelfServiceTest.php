@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Personal;
 
+use App\Enums\EmploymentStatus;
 use App\Models\personal\EmployeeQualification;
+use App\Models\personal\Employment;
 use App\Models\personal\PersonalDocument;
 use App\Models\personal\DocumentType;
 use App\Models\personal\QualificationType;
@@ -40,6 +42,26 @@ class SelfServiceTest extends TestCase
 
         // Die Route nimmt keinen ID-Parameter entgegen – nur eigene Daten
         $response->assertViewHas('rawEmploye', fn($employe) => $employe->id === $user->id);
+    }
+
+    /** @test */
+    public function profile_shows_employment_history_including_ended_contracts(): void
+    {
+        $user  = User::factory()->create();
+        $other = User::factory()->create();
+        Employment::factory()->create(['employe_id' => $user->id, 'start' => '2019-08-01', 'end' => '2022-07-31', 'hours' => 20, 'status' => EmploymentStatus::Beendet]);
+        $aktuell = Employment::factory()->create(['employe_id' => $user->id, 'start' => '2022-08-01', 'end' => null, 'hours' => 30]);
+        Employment::factory()->create(['employe_id' => $other->id, 'start' => '2010-01-01', 'end' => null]);
+        $this->actingAs($user);
+
+        $this->get(route('self-service.index'))
+            ->assertOk()
+            ->assertViewHas('anstellungshistorie', fn ($historie) => $historie->pluck('employe_id')->unique()->all() === [$user->id]
+                && $historie->first()->is($aktuell) && $historie->count() === 2)
+            ->assertViewHas('employe', fn ($employe) => $employe['eintrittsdatum'] === '01.08.2019')
+            ->assertViewHas('employments', fn ($employments) => $employments->count() === 2)
+            ->assertSee('Anstellungshistorie')
+            ->assertSee('01.08.2019 – 31.07.2022');
     }
 
     // ── Tabs / Unter-Routen ─────────────────────────────────

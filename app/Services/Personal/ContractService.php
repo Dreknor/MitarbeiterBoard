@@ -237,6 +237,15 @@ class ContractService
         $attrs = array_diff_key($data, array_flip(self::TEACHER_FIELDS));
         unset($attrs['replaced_employment_id'], $attrs['hours_manual']);
 
+        // Beschreibung der Änderung gibt es nur bei Änderungsvertrag bzw. internem Wechsel
+        if (array_key_exists('is_amendment', $attrs) || array_key_exists('is_internal_transfer', $attrs)) {
+            $aenderung = (bool) ($attrs['is_amendment'] ?? $existing?->is_amendment);
+            $wechsel   = (bool) ($attrs['is_internal_transfer'] ?? $existing?->is_internal_transfer);
+            if (!$aenderung && !$wechsel) {
+                $attrs['amendment_description'] = null;
+            }
+        }
+
         $beendet   = $existing?->status === EmploymentStatus::Beendet;
         $vorgemerkt = $existing && !$beendet && $existing->termination_reason !== null;
 

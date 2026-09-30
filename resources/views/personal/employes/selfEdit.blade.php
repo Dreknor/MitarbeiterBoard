@@ -27,9 +27,14 @@
                         x-text="fotoForm ? 'Abbrechen' : 'Foto ändern'">Foto ändern</button>
             </div>
         </div>
-        @if(Route::has('self-service.index'))
-            <a href="{{ route('self-service.index') }}" class="btn-personal-secondary text-sm">Mein Profil (Verträge, Dokumente …)</a>
-        @endif
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn-personal-secondary text-sm" data-tour-start="eigene-daten" title="Kurze Einführung starten">
+                <i class="fas fa-route"></i> Tour
+            </button>
+            @if(Route::has('self-service.index'))
+                <a href="{{ route('self-service.index') }}" class="btn-personal-secondary text-sm" data-tour="mein-profil-link">Mein Profil (Verträge, Dokumente …)</a>
+            @endif
+        </div>
     </div>
 
     <form action="{{ route('employes.self.photo') }}" method="post" enctype="multipart/form-data"
@@ -45,7 +50,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {{-- Profil bearbeiten --}}
-        <form action="{{ route('employes.self.update') }}" method="post" class="personal-card xl:col-span-2">
+        <form action="{{ route('employes.self.update') }}" method="post" class="personal-card xl:col-span-2" data-tour="persoenliche-daten">
             @csrf
             @method('PUT')
 
@@ -145,7 +150,7 @@
         {{-- Rechte Spalte --}}
         <div class="space-y-6">
             @if($employments->isNotEmpty())
-            <div class="personal-card">
+            <div class="personal-card" data-tour="arbeitsdaten">
                 <h2 class="text-base font-semibold text-gray-900 mb-3">Arbeitsdaten</h2>
                 <dl class="space-y-2 text-sm">
                     <div class="flex justify-between gap-4"><dt class="text-gray-500">Beschäftigt seit</dt><dd class="font-medium">{{ $firstStart ? \Carbon\Carbon::parse($firstStart)->format('d.m.Y') : '–' }}</dd></div>
@@ -189,6 +194,33 @@
         </div>
     </div>
 </div>
+@php
+    // Nächste Station der Einführungstour (Mein Profil → Urlaub → Arbeitszeitnachweis)
+    $tourWeiter = Route::has('self-service.index') ? ['label' => 'Weiter: Mein Profil', 'url' => route('self-service.index', ['tour' => 'mein-profil'])] : null;
+@endphp
+<x-tour id="eigene-daten" :next="$tourWeiter" :steps="[
+    [
+        'title' => 'Neu im Personalbereich',
+        'text' => 'Urlaub, Arbeitszeitnachweis und dein Profil wurden überarbeitet. Diese kurze Tour zeigt dir in wenigen Schritten, was sich geändert hat.
+
+Du kannst sie jederzeit über den Knopf „Tour“ erneut starten.',
+    ],
+    [
+        'target' => 'persoenliche-daten',
+        'title' => 'Eigene Daten pflegen',
+        'text' => 'Hier änderst du deine persönlichen Angaben, Benachrichtigungen und die Kalender-Anbindung. Änderungen werden erst mit „Speichern“ übernommen.',
+    ],
+    [
+        'target' => 'arbeitsdaten',
+        'title' => 'Arbeitsdaten auf einen Blick',
+        'text' => 'Stellenanteil, Urlaubsanspruch und aktuelles Stundenkonto stammen direkt aus deinem Vertrag und deinem Arbeitszeitnachweis.',
+    ],
+    [
+        'target' => 'mein-profil-link',
+        'title' => 'Neu: Mein Profil',
+        'text' => 'Unter „Mein Profil“ findest du deine Verträge mit Anstellungshistorie, dein Urlaubskonto und deine Datenschutz-Einwilligungen.',
+    ],
+]" />
 @endsection
 
 @push('js')

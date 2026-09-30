@@ -39,7 +39,7 @@
                 <a href="{{ route('timesheets.index') }}" class="text-sm text-blue-600 hover:text-blue-800"><i class="fas fa-arrow-left mr-1"></i>Alle Nachweise</a>
             @endunless
             <h1 class="zw-page-title mt-1">Arbeitszeitnachweis{{ $istEigener ? '' : ' '.$employe->name }}</h1>
-            <div class="flex flex-wrap items-center gap-2 mt-1">
+            <div class="flex flex-wrap items-center gap-2 mt-1" data-tour="az-status">
                 <span class="zw-badge {{ $statusBadge }}">
                     <i class="fas {{ $timesheet->is_locked ? 'fa-lock' : ($timesheet->submitted_at ? 'fa-paper-plane' : 'fa-pen') }}"></i>
                     {{ $timesheet->status_label }}
@@ -57,6 +57,11 @@
 
         {{-- Monatsauswahl --}}
         <div class="flex items-center gap-1">
+            @if($istEigener)
+                <button type="button" class="zw-btn zw-btn-ghost mr-1" data-tour-start="arbeitszeit" title="Kurze Einführung starten">
+                    <i class="fas fa-route"></i><span class="hidden sm:inline">Tour</span>
+                </button>
+            @endif
             <a href="{{ route('timesheets.show', [$employe->id, $month->copy()->subMonth()->format('Y-m')]) }}" class="zw-btn-icon" title="Vormonat"><i class="fas fa-chevron-left"></i></a>
             <select class="zw-select w-auto font-semibold" onchange="window.location = this.value" aria-label="Monat wählen">
                 @foreach($monate as $m)
@@ -102,7 +107,7 @@
     @endif
 
     {{-- Kennzahlen --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4" data-tour="az-kennzahlen">
         <div class="zw-stat {{ $timesheet->working_time_account < 0 ? 'is-negative' : 'is-positive' }}">
             <span class="zw-stat-value">{{ $hm($timesheet->working_time_account, true) }} h</span>
             <span class="zw-stat-label">Stundenkonto Monatsende</span>
@@ -130,7 +135,7 @@
     </div>
 
     {{-- Aktionen / Workflow --}}
-    <div class="zw-card mb-4 px-4 py-3 sm:px-5 flex flex-wrap items-center gap-2" x-data="{ zurueck: false }">
+    <div class="zw-card mb-4 px-4 py-3 sm:px-5 flex flex-wrap items-center gap-2" x-data="{ zurueck: false }" data-tour="az-aktionen">
         @can('submit', $timesheet)
             <form action="{{ route('timesheets.submit', [$employe->id, $timesheet->id]) }}" method="post" data-confirm="Nachweis für {{ $month->locale('de')->isoFormat('MMMM') }} einreichen? Danach kannst du ihn nur noch nach Rückgabe ändern.">
                 @csrf
@@ -205,7 +210,7 @@
     @endif
 
     {{-- Tage --}}
-    <section class="zw-card overflow-hidden">
+    <section class="zw-card overflow-hidden" data-tour="az-tage">
         <div class="hidden lg:grid zw-day bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 py-2">
             <div>Tag</div>
             <div>Buchungen</div>
@@ -287,7 +292,7 @@
                 </div>
 
                 {{-- Aktionen --}}
-                <div class="flex items-center justify-end gap-1">
+                <div class="flex items-center justify-end gap-1" @if($darfBearbeiten && $tag->lte(today())) data-tour="az-tag-aktionen" @endif>
                     @if($darfBearbeiten && $tag->lte(today()))
                         @if($zeile['plan'] && ($zeitBuchungen->isEmpty() || $zeile['offen']) && ($tag->lt(today()) || $zeile['plan']['end'] <= now()->format('H:i')))
                             <form action="{{ route('timesheets.day.plan', [$employe->id, $timesheet->id, $datum]) }}" method="post">
@@ -322,4 +327,43 @@
         Der Dienstplan wird nur als Vorschlag angezeigt und erst durch „übernehmen“ gebucht.
     </p>
 </div>
+
+{{-- Einführungstour nur im eigenen Nachweis --}}
+@if($istEigener)
+<x-tour id="arbeitszeit" :steps="[
+    [
+        'target' => 'az-status',
+        'title' => 'Dein Arbeitszeitnachweis',
+        'text' => 'Jeder Monat durchläuft drei Stufen: offen → eingereicht → abgeschlossen. Solange er offen ist, kannst du ihn bearbeiten. Gibt deine vorgesetzte Person ihn zur Korrektur zurück, siehst du hier den Grund.',
+    ],
+    [
+        'target' => 'az-kennzahlen',
+        'title' => 'Soll, Ist und Stundenkonto',
+        'text' => 'Das Soll ergibt sich jetzt aus deinem Stellenanteil laut Vertrag, verteilt auf deine vertraglichen Arbeitstage. Die Differenz zum Ist fließt in dein Stundenkonto und wird in die Folgemonate übertragen.
+
+Resturlaub und Urlaubstage des Monats siehst du ebenfalls hier.',
+    ],
+    [
+        'target' => 'az-tage',
+        'title' => 'Tag für Tag',
+        'text' => 'Jede Zeile zeigt Buchungen, Ist/Soll und Saldo des Tages. Urlaub und Abwesenheiten werden automatisch gutgeschrieben (grün).
+
+Violett markierte Zeiten sind Vorschläge aus dem Dienstplan – sie zählen erst, wenn du sie übernimmst.',
+    ],
+    [
+        'target' => 'az-tag-aktionen',
+        'title' => 'Zeiten erfassen',
+        'text' => '＋ trägt eine Arbeitszeit ein, das Kalender-Häkchen übernimmt die Dienstplanzeit, über das Personen-Symbol meldest du eine Abwesenheit (z. B. Fortbildung).
+
+Urlaub beantragst du weiterhin über die Urlaubsverwaltung.',
+    ],
+    [
+        'target' => 'az-aktionen',
+        'title' => 'Monat abschließen',
+        'text' => 'Ist alles erfasst, reichst du den Monat mit „Einreichen“ ein – danach ist er für dich gesperrt, bis er bestätigt oder zurückgegeben wird.
+
+„Dienstplan übernehmen“ füllt alle offenen Tage auf einmal. Außerdem: Neu berechnen, PDF-Export und der Verlauf deines Stundenkontos.',
+    ],
+]" />
+@endif
 @endsection

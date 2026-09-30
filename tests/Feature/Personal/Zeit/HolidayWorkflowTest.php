@@ -230,4 +230,30 @@ class HolidayWorkflowTest extends TestCase
         $this->actingAs($ma)->get(route('holidays.account', $ma->id))->assertOk();
         $this->actingAs($ma)->get(route('holidays.account', $chef->id))->assertForbidden();
     }
+
+    public function test_index_fuer_mitarbeitende_ohne_unterstellte(): void
+    {
+        $ma = $this->mitarbeiter();
+
+        $this->actingAs($ma)->get(route('holidays.index'))->assertOk();
+    }
+
+    public function test_mein_profil_zeigt_urlaubskonto_und_abwesenheiten_zusammen(): void
+    {
+        $ma = $this->mitarbeiter();
+        $urlaub = Holiday::factory()->for($ma, 'employe')->approved()->create(['start_date' => '2026-08-03', 'end_date' => '2026-08-07', 'days' => 5]);
+        // Aus dem Urlaub entstandene Abwesenheit darf nicht doppelt erscheinen
+        Absence::factory()->create(['users_id' => $ma->id, 'holiday_id' => $urlaub->id, 'reason' => 'Urlaub', 'start' => '2026-08-03', 'end' => '2026-08-07']);
+        Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Fortbildung', 'start' => '2026-09-10', 'end' => '2026-09-10']);
+        Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Fortbildung alt', 'start' => '2025-03-10', 'end' => '2025-03-10']);
+
+        $this->actingAs($ma)->get(route('self-service.index'))
+            ->assertOk()
+            ->assertViewHas('konto', fn ($konto) => $konto['genommen'] == 5)
+            ->assertViewHas('abwesenheiten', fn ($liste) => $liste->count() === 2
+                && $liste->pluck('art')->all() === ['abwesenheit', 'urlaub'])
+            ->assertSee('Fortbildung')
+            ->assertDontSee('Fortbildung alt')
+            ->assertDontSee('Qualifikationen');
+    }
 }

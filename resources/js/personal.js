@@ -26,8 +26,10 @@ Alpine.data('personalTabs', (defaultTab = null) => ({
 
     init() {
         // Tab aus URL-Hash lesen
+        // Unbekannte/ausgeblendete Tabs ignorieren, damit die Seite nicht leer bleibt
         const hash = window.location.hash.replace('#', '');
-        if (hash) this.activeTab = hash;
+        const markiert = this.$root.querySelector('[data-tab]') !== null;
+        if (hash && (!markiert || this.$root.querySelector(`[data-tab="${CSS.escape(hash)}"]`))) this.activeTab = hash;
     },
 }));
 

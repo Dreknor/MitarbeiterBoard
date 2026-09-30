@@ -34,8 +34,11 @@
             <p class="zw-page-sub">Urlaub beantragen, Resturlaub im Blick behalten und sehen, wer wann weg ist.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="zw-btn zw-btn-ghost" data-tour-start="urlaub" title="Kurze Einführung starten">
+                <i class="fas fa-route"></i><span>Tour</span>
+            </button>
             @if($konto)
-                <a href="{{ route('holidays.account', [auth()->id(), $monat->year]) }}" class="zw-btn zw-btn-secondary">
+                <a href="{{ route('holidays.account', [auth()->id(), $monat->year]) }}" class="zw-btn zw-btn-secondary" data-tour="urlaub-konto">
                     <i class="fas fa-wallet"></i><span>Mein Urlaubskonto</span>
                 </a>
             @endif
@@ -49,7 +52,7 @@
 
     {{-- Kennzahlen Urlaubskonto --}}
     @if($konto)
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" data-tour="urlaub-kennzahlen">
             <div class="zw-stat">
                 <span class="zw-stat-value">{{ $fmt($konto['anspruch']) }}</span>
                 <span class="zw-stat-label">Anspruch {{ $konto['jahr'] }}</span>
@@ -95,7 +98,7 @@
 
     {{-- Zu entscheiden --}}
     @if($zuEntscheiden->isNotEmpty())
-        <section id="entscheiden" class="zw-card mb-5 border-amber-200">
+        <section id="entscheiden" class="zw-card mb-5 border-amber-200" data-tour="urlaub-entscheiden">
             <div class="zw-card-head bg-amber-50 rounded-t-2xl">
                 <h2 class="zw-card-title"><i class="fas fa-inbox text-amber-500"></i> Zu entscheiden</h2>
                 <span class="zw-badge zw-badge-amber">{{ $zuEntscheiden->count() }} offen</span>
@@ -155,7 +158,7 @@
         {{-- Antrag --}}
         @if($antragFuer->isNotEmpty() || $darfFuerAlle)
             @php $standardPerson = old('employe_id', $antragFuer->first()?->id); @endphp
-            <section class="zw-card lg:col-span-2"
+            <section class="zw-card lg:col-span-2" data-tour="urlaub-antrag"
                      x-data="urlaubsAntrag({ previewUrl: @js(route('holidays.preview')), employe: @js((string) $standardPerson), start: @js(old('start_date', '')), end: @js(old('end_date', '')) })">
                 <div class="zw-card-head">
                     <h2 class="zw-card-title"><i class="fas fa-umbrella-beach"></i> Urlaub beantragen</h2>
@@ -249,7 +252,7 @@
         @endif
 
         {{-- Meine Anträge --}}
-        <section class="zw-card {{ $antragFuer->isNotEmpty() || $darfFuerAlle ? 'lg:col-span-3' : 'lg:col-span-5' }}">
+        <section class="zw-card {{ $antragFuer->isNotEmpty() || $darfFuerAlle ? 'lg:col-span-3' : 'lg:col-span-5' }}" data-tour="urlaub-antraege">
             <div class="zw-card-head">
                 <h2 class="zw-card-title"><i class="fas fa-list"></i> Meine Anträge {{ $monat->year }}</h2>
                 <div class="flex items-center gap-1">
@@ -315,7 +318,7 @@
     </div>
 
     {{-- Teamkalender --}}
-    <section class="zw-card" x-data="teamKalender()">
+    <section class="zw-card" x-data="teamKalender()" data-tour="urlaub-kalender">
         <div class="zw-card-head">
             <div class="flex items-center gap-2">
                 <a href="{{ route('holidays.index', [$vormonat->month, $vormonat->year]) }}" class="zw-btn-icon" title="Vormonat"><i class="fas fa-chevron-left"></i></a>
@@ -390,4 +393,48 @@
         @endif
     </section>
 </div>
+
+@php
+    $tourWeiter = auth()->user()->can('has timesheet')
+        ? ['label' => 'Weiter: Arbeitszeitnachweis', 'url' => route('timesheets.show', ['user' => auth()->id(), 'tour' => 'arbeitszeit'])]
+        : null;
+@endphp
+<x-tour id="urlaub" :next="$tourWeiter" :steps="[
+    [
+        'target' => 'urlaub-kennzahlen',
+        'title' => 'Dein Urlaubskonto',
+        'text' => 'Anspruch, Übertrag aus dem Vorjahr, bereits genommener und offen beantragter Urlaub – und was danach übrig bleibt. Der Anspruch richtet sich nach deinen vertraglichen Arbeitstagen pro Woche.
+
+Droht Resturlaub aus dem Vorjahr zu verfallen, erscheint darunter ein Hinweis mit dem Stichtag.',
+    ],
+    [
+        'target' => 'urlaub-entscheiden',
+        'title' => 'Zu entscheiden',
+        'text' => 'Als Vorgesetzte oder Vertretung siehst du hier die offenen Anträge deines Teams und kannst sie direkt genehmigen oder mit Begründung ablehnen. Auch Stornierungswünsche landen hier.',
+    ],
+    [
+        'target' => 'urlaub-antrag',
+        'title' => 'Urlaub beantragen',
+        'text' => 'Zeitraum wählen – noch vor dem Absenden siehst du, wie viele Urlaubstage das sind (nur deine Arbeitstage, ohne Feiertage), wie viel Resturlaub danach bleibt und wer aus deinem Team in der Zeit ebenfalls weg ist.
+
+Für einen einzelnen Tag kannst du auch einen halben Tag beantragen.',
+    ],
+    [
+        'target' => 'urlaub-antraege',
+        'title' => 'Meine Anträge',
+        'text' => 'Hier verfolgst du den Status: beantragt, genehmigt oder abgelehnt. Über die Entscheidung wirst du benachrichtigt.
+
+Offene Anträge kannst du zurückziehen. Für bereits genehmigten Urlaub beantragst du eine Stornierung – darüber entscheidet deine vorgesetzte Person.',
+    ],
+    [
+        'target' => 'urlaub-kalender',
+        'title' => 'Teamkalender',
+        'text' => 'Wer ist wann weg? Grün = genehmigt, gelb = beantragt. Ferien und Feiertage sind markiert. Mit Suche und Gruppenfilter findest du schnell dein Team.',
+    ],
+    [
+        'target' => 'urlaub-konto',
+        'title' => 'Urlaubskonto im Detail',
+        'text' => 'Hier siehst du, wie sich dein Resturlaub zusammensetzt – mit allen Buchungen, Überträgen und Verfall.',
+    ],
+]" />
 @endsection
