@@ -33,7 +33,10 @@ class MeetingProtocolController extends Controller
             'changed' => $request->boolean('changed'),
         ]);
 
-        $pdf = PDF::loadView('meetings.protocol_pdf', $data + ['meeting' => $meeting]);
+        $pdf = PDF::loadView('meetings.protocol_pdf', $data + [
+            'meeting'     => $meeting,
+            'includeInfo' => $request->boolean('info'),
+        ]);
         $pdf->setPaper('A4', 'portrait');
         $pdf->setOption('enable-local-file-access', true);
         $pdf->setOption('margin-top', '20mm');

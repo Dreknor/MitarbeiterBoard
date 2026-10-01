@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="meeting-wrapper" x-data="{}" x-cloak>
+<div class="meeting-wrapper" x-data="{ showInfo: false }" x-cloak>
 
     <nav class="mtg-breadcrumb" aria-label="Brotkrumen">
         <a href="{{ route('meetings.overview') }}"><i class="fas fa-users"></i> Meetings</a>
@@ -24,6 +24,9 @@
         </div>
         <form action="{{ route('meetings.protocol.pdf', $meeting) }}" method="POST" class="flex flex-wrap items-center gap-4">
             @csrf
+            <label class="inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" name="info" value="1" class="accent-blue-600" x-model="showInfo"> Themen-Informationen aufnehmen
+            </label>
             <label class="inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                 <input type="checkbox" name="closed" value="1" class="accent-blue-600"> „Thema geschlossen“ aufnehmen
             </label>
@@ -71,6 +74,12 @@
                 </a>
             </div>
             <div class="p-5 space-y-3">
+                @if(filled(strip_tags((string) $theme->information)))
+                    <div x-show="showInfo" style="display:none;" class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                        <div class="text-xs font-semibold text-gray-500 mb-1">Informationen zum Thema</div>
+                        <div class="mtg-prose">{!! $theme->information !!}</div>
+                    </div>
+                @endif
                 @foreach($theme->protocols as $protocol)
                     <div>
                         <div class="text-xs text-gray-500 mb-1">{{ $protocol->ersteller->name }} · {{ $protocol->created_at->format('H:i') }} Uhr</div>

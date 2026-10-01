@@ -60,6 +60,14 @@
                 <strong>{{ $loop->iteration }}. {{ $theme->theme }}</strong>
             </div>
             <div class="protocol-body">
+                @if(($includeInfo ?? false) && filled(strip_tags((string) $theme->information)))
+                    <div class="protocol-tasks" style="border-top:0; margin-top:0; padding-top:0; margin-bottom:10px;">
+                        <div class="protocol-label">Informationen:</div>
+                        <div class="protocol-entry">
+                            {!! strip_tags($theme->information, '<p><br><b><i><u><strong><em><ul><ol><li>') !!}
+                        </div>
+                    </div>
+                @endif
                 <div class="protocol-label">Protokoll:</div>
                 @foreach($theme->protocols as $protocol)
                     <div class="protocol-entry">
