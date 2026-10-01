@@ -5,12 +5,12 @@
 @endpush
 
 @php
-    $systemTexts = ['Thema geschlossen', 'Thema aktiviert', 'Thema in Themenspeicher verschoben'];
+    $systemTexts = ['Thema geschlossen', 'Thema aktiviert', 'Thema in Themenspeicher verschoben', 'Thema geändert', 'Informationen geändert', 'Typ geändert'];
     $themeFiles  = $theme->getMedia()->reject(fn ($m) => $m->getCustomProperty('archiviert'))->sortBy('name');
 @endphp
 
 @section('content')
-<div class="meeting-wrapper" x-data="{ editing: null, showTask: {{ old('assign') !== null ? 'true' : 'false' }} }" x-cloak>
+<div class="meeting-wrapper" x-data="{ editing: null, showTask: {{ old('assign') !== null ? 'true' : 'false' }}, showEditTheme: {{ ($canEditTheme && (request()->boolean('edit') || old('theme') !== null)) ? 'true' : 'false' }} }" x-cloak>
 
     <nav class="mtg-breadcrumb" aria-label="Brotkrumen">
         <a href="{{ route('meetings.overview') }}"><i class="fas fa-users"></i> Meetings</a>
@@ -58,7 +58,14 @@
                             <span class="mtg-badge mtg-badge-gray"><i class="fas fa-lock"></i> abgeschlossen</span>
                         @endif
                     </div>
-                    <h1 class="text-2xl font-bold text-gray-900 break-words">{{ $theme->theme }}</h1>
+                    <div class="flex items-start justify-between gap-3">
+                        <h1 class="text-2xl font-bold text-gray-900 break-words">{{ $theme->theme }}</h1>
+                        @if($canEditTheme)
+                            <button type="button" class="mtg-btn mtg-btn-secondary mtg-btn-sm shrink-0" @click="showEditTheme = true">
+                                <i class="fas fa-pen"></i> Bearbeiten
+                            </button>
+                        @endif
+                    </div>
                     @if($theme->goal)
                         <div class="mt-3 flex items-start gap-2 text-sm text-gray-700 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2">
                             <i class="fas fa-bullseye text-blue-500 mt-0.5"></i>
@@ -247,6 +254,57 @@
             @endif
         </aside>
     </div>
+    @if($canEditTheme)
+        {{-- Modal: Thema bearbeiten --}}
+        <div class="mtg-modal-backdrop" x-show="showEditTheme" x-transition.opacity @keydown.escape.window="showEditTheme = false" style="display:none;">
+            <div class="mtg-modal mtg-modal-lg" @click.outside="showEditTheme = false">
+                <div class="mtg-modal-header">
+                    <h3 class="mtg-modal-title">Thema bearbeiten</h3>
+                    <button type="button" class="mtg-modal-close" @click="showEditTheme = false" aria-label="Schließen">&times;</button>
+                </div>
+                <form action="{{ route('meetings.themes.update', [$meeting, $theme]) }}" method="POST" class="flex flex-col min-h-0">
+                    @csrf
+                    @method('PUT')
+                    <div class="mtg-modal-body space-y-3">
+                        @if($errors->any())
+                            <div class="mtg-alert mtg-alert-warning">{{ $errors->first() }}</div>
+                        @endif
+                        <div>
+                            <label class="mtg-label" for="edit_theme">Titel <span class="mtg-required">*</span></label>
+                            <input type="text" id="edit_theme" name="theme" class="mtg-input" maxlength="255" required value="{{ old('theme', $theme->theme) }}">
+                        </div>
+                        <div>
+                            <label class="mtg-label" for="edit_goal">Ziel <span class="mtg-required">*</span></label>
+                            <input type="text" id="edit_goal" name="goal" class="mtg-input" maxlength="1000" required value="{{ old('goal', $theme->goal) }}">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mtg-label" for="edit_duration">Dauer (Min.) <span class="mtg-required">*</span></label>
+                                <input type="number" id="edit_duration" name="duration" class="mtg-input" min="5" max="240" step="5" required value="{{ old('duration', $theme->duration) }}">
+                            </div>
+                            <div>
+                                <label class="mtg-label" for="edit_type">Typ <span class="mtg-required">*</span></label>
+                                <select id="edit_type" name="type" class="mtg-select" required>
+                                    @foreach($types as $type)
+                                        <option value="{{ $type->id }}" @selected((string) old('type', $theme->type_id) === (string) $type->id)>{{ $type->type }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mtg-label" for="edit_information">Informationen</label>
+                            <textarea id="edit_information" name="information" class="mtg-textarea mtg-editor" rows="5">{{ old('information', $theme->information) }}</textarea>
+                        </div>
+                    </div>
+                    <div class="mtg-modal-footer">
+                        <button type="button" class="mtg-btn mtg-btn-secondary" @click="showEditTheme = false">Abbrechen</button>
+                        <button type="submit" class="mtg-btn mtg-btn-primary"><i class="fas fa-save"></i> Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
     {{-- Modal: Aufgabe vergeben --}}
     <div class="mtg-modal-backdrop" x-show="showTask" x-transition.opacity @keydown.escape.window="showTask = false" style="display:none;">
         <div class="mtg-modal" @click.outside="showTask = false">

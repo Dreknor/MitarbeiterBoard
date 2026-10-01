@@ -77,6 +77,67 @@ class MeetingThemeController extends Controller
         ]);
     }
 
+    /**
+     * Thema im Meeting-Kontext bearbeiten (auch freie Themen).
+     */
+    public function update(Request $request, Meeting $meeting, Theme $theme): RedirectResponse
+    {
+        $this->authorize('contribute', $meeting);
+        $this->authorize('viewTheme', [$meeting, $theme]);
+
+        $user = auth()->user();
+        abort_unless(
+            $user->can('manage', $meeting) || (int) $theme->creator_id === (int) $user->id,
+            403
+        );
+
+        if ($theme->completed) {
+            return redirect()->back()->with([
+                'type'    => 'warning',
+                'Meldung' => 'Abgeschlossene Themen können nicht bearbeitet werden.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'theme'       => ['required', 'string', 'max:255'],
+            'goal'        => ['required', 'string', 'max:1000'],
+            'information' => ['nullable', 'string', 'max:20000'],
+            'duration'    => ['required', 'integer', 'min:5', 'max:240'],
+            'type'        => ['required', 'exists:types,id'],
+        ]);
+
+        $theme->update([
+            'theme'       => $data['theme'],
+            'goal'        => $data['goal'],
+            'information' => $data['information'] ?? null,
+            'duration'    => $data['duration'],
+            'type_id'     => $data['type'],
+        ]);
+
+        $notes = [];
+        if ($theme->wasChanged('theme')) {
+            $notes[] = 'Thema geändert';
+        }
+        if ($theme->wasChanged('information')) {
+            $notes[] = 'Informationen geändert';
+        }
+        if ($theme->wasChanged('type_id')) {
+            $notes[] = 'Typ geändert';
+        }
+        foreach ($notes as $note) {
+            Protocol::create([
+                'creator_id' => $user->id,
+                'theme_id'   => $theme->id,
+                'protocol'   => $note,
+            ]);
+        }
+
+        return redirect()->back()->with([
+            'type'    => 'success',
+            'Meldung' => 'Thema wurde gespeichert.',
+        ]);
+    }
+
     public function remove(Meeting $meeting, Theme $theme): RedirectResponse
     {
         $this->authorize('contribute', $meeting);
@@ -151,6 +212,9 @@ class MeetingThemeController extends Controller
             'participants' => $meeting->resolvedParticipants(),
             'moveTargets'  => $this->meetings->themeGroupOptions($meeting)->whereIn('id', $moveTargets->filter()->all())->values(),
             'canMakeFree'  => $moveTargets->contains(fn ($id) => $id === null),
+            'types'        => \App\Models\Type::all(),
+            'canEditTheme' => ! $theme->completed
+                && ($user->can('manage', $meeting) || (int) $theme->creator_id === (int) $user->id),
         ]);
     }
 

@@ -664,6 +664,15 @@ Route::group([
                     Route::post('{meeting}/agenda/{theme}/protocols', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeProtocol'])->name('meetings.themes.protocols.store');
                     Route::put('{meeting}/agenda/{theme}/protocols/{protocol}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'updateProtocol'])->name('meetings.themes.protocols.update');
                     Route::post('{meeting}/agenda/{theme}/tasks', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeTask'])->name('meetings.themes.tasks.store');
+                    Route::put('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'update'])->name('meetings.themes.update');
+
+                    Route::post('{meeting}/presence', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'store'])->name('meetings.presence.store');
+                    Route::post('{meeting}/presence/guests', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'addGuest'])->name('meetings.presence.guests.store');
+                    Route::delete('{meeting}/presence/{presence}', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'deleteGuest'])->whereNumber('presence')->name('meetings.presence.guests.destroy');
+
+                    Route::get('{meeting}/protocol', [\App\Http\Controllers\Meetings\MeetingProtocolController::class, 'show'])->name('meetings.protocol.show');
+                    Route::post('{meeting}/protocol/pdf', [\App\Http\Controllers\Meetings\MeetingProtocolController::class, 'pdf'])->name('meetings.protocol.pdf');
+
                 });
 
                 //recurring Themes

@@ -72,6 +72,7 @@
                         <i class="fas fa-video"></i> Beitreten
                     </a>
                 @endif
+                <a href="{{ route('meetings.protocol.show', $meeting) }}" class="mtg-btn mtg-btn-secondary"><i class="fas fa-file-alt"></i> Protokoll</a>
                 @if($canManage)
                     <button type="button" class="mtg-btn mtg-btn-secondary" @click="showEdit = true"><i class="fas fa-pen"></i> Bearbeiten</button>
                     <div class="relative" x-data="{ more: false }" @click.outside="more = false">
@@ -131,7 +132,8 @@
                         <h2 id="agenda-title" class="mtg-card-title"><i class="fas fa-list-ol"></i> Agenda</h2>
                         <p class="text-xs text-gray-500 mt-0.5">
                             {{ $agenda->count() }} {{ $agenda->count() === 1 ? 'Thema' : 'Themen' }} ·
-                            {{ $themesDuration }} von {{ $meetingDuration }} Minuten verplant
+                            {{ $themesDuration }} von {{ $meetingDuration }} Minuten verplant ·
+                            Reihenfolge nach Priorität: Mit dem Regler bewerten, wichtige Themen rücken nach oben.
                         </p>
                     </div>
                     <button type="button" class="mtg-btn mtg-btn-primary mtg-btn-sm" @click="showAddTheme = true">
@@ -153,13 +155,15 @@
                         <p class="text-sm text-gray-500">Noch keine Themen. Lege ein neues Thema an oder übernimm ein offenes aus deinen Gruppen.</p>
                     </div>
                 @else
-                    <ol class="mt-3">
+                    <ol class="mt-3" id="agenda-list">
                         @foreach($agenda as $i => $theme)
                             @php
                                 $state = $theme->completed ? 'is-closed' : ($protokolliertIds->contains($theme->id) ? 'is-done' : '');
                                 $foreignContext = (int) $theme->group_id !== (int) $meeting->group_id;
+                                $ownPriority = $theme->priorities->firstWhere('creator_id', auth()->id());
+                                $canEditTheme = ! $theme->completed && ($canManage || (int) $theme->creator_id === (int) auth()->id());
                             @endphp
-                            <li class="mtg-agenda-item {{ $state }}">
+                            <li class="mtg-agenda-item {{ $state }}" id="{{ $theme->id }}" data-priority="{{ $theme->priority }}">
                                 <span class="mtg-agenda-num">
                                     @if($state === 'is-done')<i class="fas fa-check text-xs"></i>@else{{ $i + 1 }}@endif
                                 </span>
@@ -194,7 +198,31 @@
                                         <span class="text-xs text-gray-400 ml-1">von {{ $theme->ersteller?->name }}</span>
                                     </div>
                                 </div>
+                                <div class="shrink-0 w-full sm:w-44" id="priority_{{ $theme->id }}">
+                                    <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                                        <span><i class="fas fa-sort-amount-down"></i> Priorität</span>
+                                        @if($theme->priority !== null)<span class="text-gray-700">{{ round($theme->priority) }} %</span>@endif
+                                    </div>
+                                    @if($ownPriority)
+                                        <div class="flex items-center gap-2">
+                                            <div class="mtg-progress flex-1" title="Deine Bewertung ist gespeichert"><span style="width: {{ $theme->priority }}%"></span></div>
+                                            <a href="{{ route('priorities.delete', $theme->id) }}" class="text-gray-400 hover:text-red-600 text-xs" title="Eigene Bewertung zurücksetzen"><i class="fas fa-undo"></i></a>
+                                        </div>
+                                    @else
+                                        @if($theme->priority !== null)
+                                            <div class="mtg-progress mb-1.5" title="Bewertung der anderen"><span style="width: {{ $theme->priority }}%"></span></div>
+                                        @endif
+                                        <input type="range" class="w-full cursor-pointer accent-blue-600" id="theme_{{ $theme->id }}"
+                                               min="1" max="100" value="1" data-theme="{{ $theme->id }}" title="Ziehen und loslassen, um die Wichtigkeit zu bewerten">
+                                        <div class="flex justify-between text-[10px] text-gray-400"><span>unwichtig</span><span>wichtig</span></div>
+                                    @endif
+                                </div>
                                 <div class="flex items-center gap-1 shrink-0">
+                                    @if($canEditTheme)
+                                        <a href="{{ route('meetings.themes.show', [$meeting, $theme, 'edit' => 1]) }}" class="mtg-btn-icon text-gray-500 hover:bg-gray-100" title="Thema bearbeiten" aria-label="Thema bearbeiten">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                    @endif
                                     <a href="{{ route('meetings.themes.show', [$meeting, $theme]) }}" class="mtg-btn-icon text-gray-500 hover:bg-gray-100" title="Öffnen" aria-label="Thema öffnen">
                                         <i class="fas fa-arrow-right"></i>
                                     </a>
@@ -269,6 +297,75 @@
                         @endif
                     </div>
                 @endif
+            </section>
+
+            {{-- Anwesenheit --}}
+            <section class="mtg-card" x-data="{ openPresence: false }">
+                <div class="mtg-card-head">
+                    <h2 class="mtg-card-title"><i class="fas fa-user-check"></i> Anwesenheit</h2>
+                    <button type="button" class="mtg-btn mtg-btn-secondary mtg-btn-sm" @click="openPresence = !openPresence">
+                        <i class="far fa-edit"></i> <span x-text="openPresence ? 'Schließen' : 'Erfassen'"></span>
+                    </button>
+                </div>
+                <div class="p-5">
+                    @php
+                        $presentCount = $presences->whereNotNull('user_id')->where('presence', true)->count();
+                        $excusedCount = $presences->where('excused', true)->count();
+                    @endphp
+                    <p class="text-sm text-gray-600" x-show="!openPresence">
+                        @if($presences->isEmpty())
+                            Noch nicht erfasst. Die Anwesenheit wird im Protokoll aufgeführt.
+                        @else
+                            <strong>{{ $presentCount }}</strong> anwesend · <strong>{{ $excusedCount }}</strong> entschuldigt
+                            @if($presences->whereNull('user_id')->count()) · <strong>{{ $presences->whereNull('user_id')->count() }}</strong> Gast/Gäste @endif
+                        @endif
+                    </p>
+
+                    <div x-show="openPresence" style="display:none;" class="space-y-4">
+                        <form action="{{ route('meetings.presence.store', $meeting) }}" method="POST">
+                            @csrf
+                            <ul class="space-y-2">
+                                @foreach($participants as $person)
+                                    @php
+                                        $p = $presences->firstWhere('user_id', $person->id);
+                                        $current = $p ? ($p->excused ? 'excused' : ($p->online ? 'online' : ($p->presence ? 'presence' : 'absent'))) : null;
+                                    @endphp
+                                    <li class="p-2 rounded-lg border border-gray-100 bg-gray-50/50">
+                                        <div class="text-sm font-medium text-gray-800 mb-1">{{ $person->name }}</div>
+                                        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                                            <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" class="accent-emerald-600" name="presence_{{ $person->id }}" value="presence" @checked($current === 'presence')> Anwesend</label>
+                                            <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" class="accent-blue-600" name="presence_{{ $person->id }}" value="online" @checked($current === 'online')> Online</label>
+                                            <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" class="accent-red-600" name="presence_{{ $person->id }}" value="excused" @checked($current === 'excused')> Entschuldigt</label>
+                                            <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" class="accent-gray-500" name="presence_{{ $person->id }}" value="absent" @checked($current === 'absent')> Fehlt</label>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            <button type="submit" class="mtg-btn mtg-btn-primary w-full mt-3"><i class="fas fa-save"></i> Anwesenheit speichern</button>
+                        </form>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <h3 class="mtg-section-title mb-2">Gäste</h3>
+                        <ul class="space-y-1 mb-2">
+                            @foreach($presences->whereNull('user_id') as $guest)
+                                <li class="flex items-center justify-between text-sm text-gray-800">
+                                    <span>{{ $guest->guest_name }}</span>
+                                    <form action="{{ route('meetings.presence.guests.destroy', [$meeting, $guest]) }}" method="POST">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="mtg-btn-icon bg-transparent text-gray-400 hover:text-red-600 hover:bg-red-50" aria-label="Gast entfernen"><i class="fas fa-times text-xs"></i></button>
+                                    </form>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <form action="{{ route('meetings.presence.guests.store', $meeting) }}" method="POST" class="flex gap-2">
+                            @csrf
+                            <input type="text" name="guest_name" class="mtg-input flex-1" placeholder="Name des Gastes" required maxlength="255">
+                            <button type="submit" class="mtg-btn mtg-btn-secondary"><i class="fas fa-plus"></i></button>
+                        </form>
+                    </div>
+                </div>
             </section>
 
             {{-- Rollen im Meeting --}}
@@ -466,3 +563,52 @@
     @endif
 </div>
 @endsection
+
+@push('js')
+    <script>
+        // Priorität setzen und Agenda neu sortieren (höhere Priorität steht oben)
+        document.querySelectorAll('#agenda-list input[type=range]').forEach(function (range) {
+            range.addEventListener('change', function () {
+                const theme = range.dataset.theme;
+                fetch('{{ url('priorities') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({ theme: theme, priority: range.value }),
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        const row = document.getElementById(theme);
+                        const box = document.getElementById('priority_' + theme);
+                        if (box) {
+                            box.innerHTML = '<div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1"><span><i class="fas fa-sort-amount-down"></i> Priorität</span><span class="text-gray-700">' + Math.round(data.priority) + ' %</span></div>'
+                                + '<div class="flex items-center gap-2"><div class="mtg-progress flex-1" title="Deine Bewertung ist gespeichert"><span style="width:' + data.priority + '%"></span></div>'
+                                + '<a href="{{ url('priorities') }}/' + theme + '" class="text-gray-400 hover:text-red-600 text-xs" title="Eigene Bewertung zurücksetzen"><i class="fas fa-undo"></i></a></div>';
+                        }
+                        if (row) {
+                            row.dataset.priority = data.priority;
+                            sortAgenda(row.closest('ol'));
+                        }
+                    });
+            });
+        });
+
+        function sortAgenda(list) {
+            const prio = function (el) {
+                const v = el.dataset.priority;
+                return v === undefined || v === '' ? -Infinity : Number(v);
+            };
+            const items = Array.from(list.children);
+            items.sort(function (a, b) { return prio(b) - prio(a); });
+            items.forEach(function (el, i) {
+                list.appendChild(el);
+                const num = el.querySelector('.mtg-agenda-num');
+                if (num && !num.querySelector('.fa-check')) { num.textContent = i + 1; }
+            });
+        }
+    </script>
+@endpush
+

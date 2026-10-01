@@ -62,6 +62,7 @@ class MeetingDetailController extends Controller
             'meetingDuration'  => $meetingStart->diffInMinutes($meetingEnd),
             'themesDuration'   => (int) $meeting->themes->sum('duration'),
             'participants'     => $participants,
+            'presences'        => \App\Models\Presence::where('meeting_id', $meeting->id)->get(),
             'canManage'        => $user->can('manage', $meeting),
             'assignableThemes' => $this->meetings->assignableThemes($meeting, $user),
             'types'            => Type::all(),
