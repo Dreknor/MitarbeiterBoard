@@ -15,7 +15,7 @@ class Roster extends Model
     use CascadeSoftDeletes;
     use SoftDeletes;
 
-    protected $fillable = ['start_date', 'type', 'comment', 'department_id', 'published', 'published_at', 'published_by'];
+    protected $fillable = ['start_date', 'type', 'comment', 'department_id', 'published', 'published_at', 'published_by', 'published_snapshot'];
     protected $visible = ['start_date', 'type', 'comment'];
 
     protected $cascadeDeletes = ['working_times', 'events'];

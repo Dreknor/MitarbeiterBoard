@@ -31,9 +31,9 @@
         @php
             [$fensterStart, $fensterEnde] = $department->rosterDayWindow();
             $normal = $department->rosters->where('type', 'normal');
-            $aktuell = $normal->filter(fn ($r) => $r->start_date->copy()->endOfWeek()->gte($aktuelleWoche))->sortBy('start_date');
-            $vergangen = $normal->filter(fn ($r) => $r->start_date->copy()->endOfWeek()->lt($aktuelleWoche));
-            $vorlagen = $department->rosters->where('type', 'template');
+            $aktuell = $normal->filter(fn ($r) => $r->start_date->copy()->endOfWeek()->gte($aktuelleWoche))->sortByDesc('start_date');
+            $vergangen = $normal->filter(fn ($r) => $r->start_date->copy()->endOfWeek()->lt($aktuelleWoche))->sortByDesc('start_date');
+            $vorlagen = $department->rosters->where('type', 'template')->sortByDesc('start_date')->take(1);
         @endphp
         <section class="zw-card mb-5" x-data="{ einstellungen: false, alt: false }">
             <div class="zw-card-head">

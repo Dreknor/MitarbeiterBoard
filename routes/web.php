@@ -321,6 +321,7 @@ Route::group([
                     Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
                     Route::post('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
                     Route::post('roster/{roster}/unpublish', [RosterController::class, 'unpublish'])->name('roster.unpublish');
+                    Route::post('roster/{roster}/revert', [RosterController::class, 'revertChanges'])->name('roster.revert');
                     Route::post('roster/{roster}/notify-changes', [RosterController::class, 'notifyChanges'])->name('roster.notify-changes');
                     Route::post('roster/{roster}/copy', [RosterController::class, 'copy'])->name('roster.copy');
                     Route::post('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
