@@ -20,7 +20,8 @@
  * Schritte, deren Ziel fehlt oder unsichtbar ist (z. B. fehlende Berechtigung), werden übersprungen.
  *
  * Eine Tour startet automatisch beim ersten Besuch (pro Person, Browser und Version) oder
- * über ?tour=<id> in der URL. Gesehen-Status liegt nur im localStorage (Komfortfunktion).
+ * über ?tour=<id> in der URL. Nach dem ersten Autostart erscheint sie nur noch über den
+ * Tour-Knopf. Gesehen-Status liegt nur im localStorage (Komfortfunktion).
  */
 import '../css/tour.css';
 
@@ -289,8 +290,17 @@ async function init() {
         url.searchParams.delete('tour');
         history.replaceState(history.state, '', url.toString());
     }
-    const tour = liste.get(angefordert) ?? [...liste.values()].find((t) => t.config.auto !== false && !t.gesehen);
-    tour?.start();
+    const tour = liste.get(angefordert);
+    if (tour) {
+        tour.start();
+        return;
+    }
+
+    const autoTour = [...liste.values()].find((t) => t.config.auto !== false && !t.gesehen);
+    if (!autoTour) return;
+
+    autoTour.merken();
+    autoTour.start();
 }
 
 window.MbTour = { start: (id) => touren().get(id)?.start() };
