@@ -32,7 +32,7 @@ class ThemeIndexTest extends TestCase
     }
 
     /** @test */
-    public function offen_steht_beim_stapeln_oben_danach_tage_absteigend(): void
+    public function offen_steht_beim_stapeln_oben_danach_tage_aufsteigend(): void
     {
         $this->group->update(['stack_themes' => true]);
         $this->thema(now()->addWeek()->toDateString(), 'Thema naechste Woche');
@@ -43,8 +43,8 @@ class ThemeIndexTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder([
                 'id="offen"',
-                'id="'.now()->addWeeks(2)->format('Ymd').'"',
                 'id="'.now()->addWeek()->format('Ymd').'"',
+                'id="'.now()->addWeeks(2)->format('Ymd').'"',
             ], false)
             ->assertSee('Zum nächsten Termin ('.now()->addWeek()->format('d.m.Y').')');
     }
@@ -59,9 +59,9 @@ class ThemeIndexTest extends TestCase
         $this->get(url($this->group->name.'/themes'))
             ->assertOk()
             ->assertSeeInOrder([
-                now()->addWeek()->format('d.m.Y'),
-                now()->format('d.m.Y'),
                 now()->subWeek()->format('d.m.Y'),
+                now()->format('d.m.Y'),
+                now()->addWeek()->format('d.m.Y'),
             ])
             ->assertSee('Zu heute')
             ->assertSee('#'.now()->format('Ymd'), false);

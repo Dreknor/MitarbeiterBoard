@@ -28,7 +28,7 @@
                 }
             }
             if ($sprungZiel === null and count($themes) > 0) {
-                foreach ($themes->keys() as $tag) {
+                foreach ($themes->keys()->reverse() as $tag) {
                     if ($tag != 'offen') {
                         $sprungDatum = \Carbon\Carbon::createFromFormat('d.m.Y', $tag)->startOfDay();
                         $sprungZiel = $sprungDatum->format('Ymd');
@@ -72,9 +72,18 @@
     @else
         <div class="space-y-5">
             @foreach($themes as $day => $dayThemes)
-                @php $dayId = $day == 'offen' ? 'offen' : \Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'); @endphp
+                @php
+                    $tagDatum = $day == 'offen' ? null : \Carbon\Carbon::createFromFormat('d.m.Y', $day)->startOfDay();
+                    $dayId = $tagDatum?->format('Ymd') ?? 'offen';
+                    $akzent = match (true) {
+                        $tagDatum === null => 'thm-day-offen',
+                        $tagDatum->isToday() => 'thm-day-heute',
+                        $tagDatum->isPast() => 'thm-day-vergangen',
+                        default => '',
+                    };
+                @endphp
                 {{-- Ein-/aufklappbar; Zustand pro Gruppe und Tag in der Browser-Session (übersteht Reloads). "offen" startet zugeklappt. --}}
-                <div class="thm-card thm-day" id="{{ $dayId }}"
+                <div class="thm-card thm-day {{ $akzent }}" id="{{ $dayId }}"
                      x-data="{
                         moveOpen: false,
                         open: {{ $day == 'offen' ? 'false' : 'true' }},
@@ -93,26 +102,41 @@
                         },
                      }"
                      @thm-jump.window="if ($event.detail.id === '{{ $dayId }}') { open = true; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' })); }">
-                    <div class="thm-band thm-band-blue">
+                    <div class="thm-day-head" :class="open && 'thm-day-head-open'">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <button type="button" class="thm-day-toggle flex items-center gap-3 text-left min-w-0 flex-1"
                                     @click="toggle()" :aria-expanded="open.toString()">
-                                <i class="fas fa-chevron-right text-sm transition-transform duration-200" :class="open && 'rotate-90'"></i>
-                                <span>
+                                <i class="fas fa-chevron-right text-xs text-gray-400 w-3 transition-transform duration-200" :class="open && 'rotate-90'"></i>
+                                <span class="min-w-0">
                                     <span class="flex flex-wrap items-center gap-2">
-                                        <span class="text-lg font-bold">{{ $day }}</span>
-                                        <span class="thm-badge bg-white/20 text-white">{{ $dayThemes->count() }} {{ $dayThemes->count() == 1 ? 'Thema' : 'Themen' }}</span>
+                                        @if($day == 'offen')
+                                            <span class="text-base font-semibold text-gray-900">Offene Themen</span>
+                                            <span class="thm-badge thm-badge-amber">aus früheren Sitzungen</span>
+                                        @else
+                                            <span class="text-base font-semibold text-gray-900">
+                                                <span class="text-gray-500 font-normal">{{ $tagDatum->locale('de')->isoFormat('dddd') }},</span>
+                                                {{ $day }}
+                                            </span>
+                                            @if($tagDatum->isToday())
+                                                <span class="thm-badge thm-badge-blue">Heute</span>
+                                            @elseif($tagDatum->isPast())
+                                                <span class="thm-badge thm-badge-gray">vergangen</span>
+                                            @endif
+                                        @endif
                                     </span>
-                                    @if($day != 'offen')
-                                        <span class="block text-sm text-white/80">Dauer: {{ $dayThemes->sum('duration') }} Minuten</span>
-                                    @endif
+                                    <span class="block text-xs text-gray-500 mt-0.5">
+                                        {{ $dayThemes->count() }} {{ $dayThemes->count() == 1 ? 'Thema' : 'Themen' }}
+                                        @if($day != 'offen')
+                                            <span class="text-gray-300 mx-1">·</span> {{ $dayThemes->sum('duration') }} Minuten
+                                        @endif
+                                    </span>
                                 </span>
                             </button>
                             @can('move themes')
                                 @if($day != 'offen')
-                                    <button type="button" class="thm-btn-icon bg-white/15 hover:bg-white/25 text-white"
+                                    <button type="button" class="thm-btn thm-btn-ghost thm-btn-sm"
                                             title="Alle Themen verschieben" @click="moveOpen = !moveOpen">
-                                        <i class="fas fa-calendar-day"></i>
+                                        <i class="far fa-calendar-alt"></i> <span class="hidden sm:inline">Verschieben</span>
                                     </button>
                                 @endif
                             @endcan
@@ -121,15 +145,15 @@
                             @if($day != 'offen')
                                 <div x-show="moveOpen" x-collapse x-cloak class="mt-3">
                                     <form method="post" action="{{ url(request()->segment(1).'/move/themes') }}"
-                                          class="flex flex-wrap items-end gap-2 bg-white/10 rounded-xl p-3">
+                                          class="flex flex-wrap items-end gap-2 bg-white border border-gray-200 rounded-xl p-3">
                                         @csrf
                                         <div>
-                                            <label class="block text-xs text-white/80 mb-1">Neues Datum</label>
-                                            <input type="date" class="thm-input !text-gray-900 w-auto" name="date"
+                                            <label class="thm-label">Alle Themen verschieben auf</label>
+                                            <input type="date" class="thm-input w-auto" name="date"
                                                    value="{{ \Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d') }}">
                                         </div>
-                                        <input type="hidden" name="oldDate" value="{{ \Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Y-m-d') }}">
-                                        <button type="submit" class="thm-btn thm-btn-success thm-btn-sm">
+                                        <input type="hidden" name="oldDate" value="{{ $tagDatum->format('Y-m-d') }}">
+                                        <button type="submit" class="thm-btn thm-btn-primary thm-btn-sm">
                                             <i class="fas fa-arrow-right"></i> Verschieben
                                         </button>
                                     </form>
