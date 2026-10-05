@@ -85,6 +85,18 @@
    overflow-hidden würde das Menü abschneiden – hier sichtbar lassen. */
 .theme-wrapper .thm-card.thm-card-visible { overflow: visible; }
 .theme-wrapper .thm-band { @apply px-5 py-4 text-white; }
+/* Tages-Karten: Abstand zur fixen Navbar beim Springen, Toggle ohne Button-Optik */
+.theme-wrapper .thm-day { scroll-margin-top: 5rem; }
+.theme-wrapper .thm-day-toggle { background: transparent; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.theme-wrapper .thm-day-toggle:focus-visible { outline: 2px solid #93c5fd; outline-offset: 4px; border-radius: .5rem; }
+/* Dezenter Tageskopf: neutrale Fläche, farbiger Akzent nur als schmale Linie links */
+.theme-wrapper .thm-day { border-left: 3px solid #cbd5e1; }
+.theme-wrapper .thm-day.thm-day-heute { border-left-color: #2563eb; }
+.theme-wrapper .thm-day.thm-day-offen { border-left-color: #f59e0b; }
+.theme-wrapper .thm-day.thm-day-vergangen { border-left-color: #e5e7eb; }
+.theme-wrapper .thm-day-head { @apply px-4 sm:px-5 py-3 bg-slate-50 transition-colors; }
+.theme-wrapper .thm-day-head:hover { @apply bg-slate-100/70; }
+.theme-wrapper .thm-day-head.thm-day-head-open { @apply border-b border-gray-100; }
 .theme-wrapper .thm-band-blue   { @apply bg-gradient-to-r from-blue-600 to-indigo-600; }
 .theme-wrapper .thm-band-slate  { @apply bg-gradient-to-r from-slate-600 to-slate-700; }
 .theme-wrapper .thm-band-amber  { @apply bg-gradient-to-r from-amber-500 to-orange-500; }

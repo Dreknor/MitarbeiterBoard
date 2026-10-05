@@ -108,6 +108,12 @@
                         <a href="{{ route('roster.autoPlan', $roster->id) }}" class="block px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-magic w-5 text-gray-400"></i> Auto-Umplanung</a>
                     @endunless
                     <button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" @click="menu = false; dialog = 'kopieren'"><i class="far fa-copy w-5 text-gray-400"></i> In weitere Wochen kopieren</button>
+                    @if($roster->published && $roster->published_snapshot)
+                        <form action="{{ route('roster.revert', $roster->id) }}" method="post" data-confirm="Alle Änderungen seit der Veröffentlichung rückgängig machen? Der Plan wird auf den veröffentlichten Stand zurückgesetzt.">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-undo w-5 text-gray-400"></i> Änderungen seit Veröffentlichung rückgängig</button>
+                        </form>
+                    @endif
                     @if($roster->published)
                         <form action="{{ route('roster.unpublish', $roster->id) }}" method="post" data-confirm="Veröffentlichung zurückziehen? Mitarbeitende sehen den Plan dann nicht mehr.">
                             @csrf

@@ -161,13 +161,13 @@ class ThemeController extends Controller
 
         switch ($viewType) {
             case 'date':
+                // Tage aufsteigend nach Datum (groupBy behält die Reihenfolge des
+                // ersten Auftretens bei). Beim Stapeln steht "offen" (alle
+                // vergangenen Termine) dadurch ganz oben.
                 if ($group->stack_themes == true) {
-
-                    $themes = $themes->sortByDesc('priority')->groupBy(function ($item) {
+                    $themes = $themes->sortBy('date')->groupBy(function ($item) {
                         return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('d.m.Y');
                     });
-
-
                 } else {
                     $themes = $themes->sortBy('date')->groupBy(function ($item) {
                         return  $item->date->format('d.m.Y');

@@ -199,6 +199,17 @@ class RosterController extends Controller
         return redirectBack('warning', 'Veröffentlichung zurückgezogen. Der Plan ist wieder ein Entwurf.');
     }
 
+    public function revertChanges(Roster $roster)
+    {
+        $this->authorize('manage', $roster);
+        if (!$this->rosters->kannZuruecksetzen($roster)) {
+            return redirectBack('warning', 'Für diesen Plan gibt es keinen gespeicherten Stand der Veröffentlichung.');
+        }
+        $this->rosters->aenderungenZuruecksetzen($roster);
+
+        return redirectBack('success', 'Änderungen seit der Veröffentlichung wurden rückgängig gemacht.');
+    }
+
     public function notifyChanges(Roster $roster)
     {
         $this->authorize('manage', $roster);

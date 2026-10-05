@@ -434,8 +434,63 @@ class RosterService
         }
 
         $roster->aenderungen()->whereNull('notified_at')->update(['notified_at' => now()]);
+        $this->snapshotErstellen($roster);
 
         return $anzahl;
+    }
+
+    /**
+     * Stand des Plans (Dienste + manuelle Termine) als Referenz für "Änderungen rückgängig machen".
+     */
+    public function snapshotErstellen(Roster $roster): void
+    {
+        $snapshot = [
+            'working_times' => $roster->working_times()->get()->map(fn (WorkingTime $w) => [
+                'employe_id' => $w->employe_id,
+                'date' => $w->date->toDateString(),
+                'start' => $w->getRawOriginal('start'),
+                'end' => $w->getRawOriginal('end'),
+                'function' => $w->function,
+            ])->all(),
+            'events' => $roster->events()->whereNull('source')->get()->map(fn (RosterEvents $e) => [
+                'employe_id' => $e->employe_id,
+                'date' => $e->date->toDateString(),
+                'start' => $e->getRawOriginal('start'),
+                'end' => $e->getRawOriginal('end'),
+                'event' => $e->event,
+                'ox_termin_id' => $e->ox_termin_id,
+            ])->all(),
+        ];
+
+        $roster->forceFill(['published_snapshot' => json_encode($snapshot)])->save();
+    }
+
+    public function kannZuruecksetzen(Roster $roster): bool
+    {
+        return $roster->published && $roster->published_snapshot !== null;
+    }
+
+    /**
+     * Plan auf den Stand der Veröffentlichung (bzw. letzten Mitteilung) zurücksetzen.
+     */
+    public function aenderungenZuruecksetzen(Roster $roster): void
+    {
+        $snapshot = json_decode((string) $roster->published_snapshot, true);
+        abort_unless(is_array($snapshot), 422, 'Kein Stand der Veröffentlichung vorhanden.');
+
+        DB::transaction(function () use ($roster, $snapshot) {
+            $roster->working_times()->get()->each->delete();
+            $roster->events()->whereNull('source')->get()->each->delete();
+
+            foreach ($snapshot['working_times'] ?? [] as $w) {
+                WorkingTime::create($w + ['roster_id' => $roster->id]);
+            }
+            foreach ($snapshot['events'] ?? [] as $e) {
+                RosterEvents::create($e + ['roster_id' => $roster->id]);
+            }
+
+            $roster->aenderungen()->whereNull('notified_at')->delete();
+        });
     }
 
     /**

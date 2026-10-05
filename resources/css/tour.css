@@ -29,7 +29,7 @@
     pointer-events: none;
     transition: top .2s ease, left .2s ease, width .2s ease, height .2s ease;
 }
-.mbt-root .mbt-spot[hidden] { display: block; box-shadow: 0 0 0 9999px rgba(15, 23, 42, .55); width: 0; height: 0; top: 50%; left: 50%; }
+.mbt-root .mbt-spot.is-leer { box-shadow: 0 0 0 9999px rgba(15, 23, 42, .55); width: 0; height: 0; top: 50%; left: 50%; }
 
 .mbt-root .mbt-box {
     position: fixed;
@@ -61,11 +61,11 @@
 .mbt-root .mbt-text p { margin: 0 0 8px; padding: 0; font-size: inherit; line-height: 1.5; color: inherit; }
 .mbt-root .mbt-text p:last-child { margin-bottom: 0; }
 
-.mbt-root .mbt-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.mbt-root .mbt-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; margin-top: 14px; }
 .mbt-root .mbt-dots { display: flex; gap: 5px; flex-wrap: wrap; }
 .mbt-root .mbt-dots span { width: 7px; height: 7px; border-radius: 999px; background: var(--mbt-border); }
 .mbt-root .mbt-dots span.is-active { background: var(--mbt-primary); width: 18px; }
-.mbt-root .mbt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.mbt-root .mbt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
 
 .mbt-root .mbt-btn {
     display: inline-flex; align-items: center; justify-content: center;
