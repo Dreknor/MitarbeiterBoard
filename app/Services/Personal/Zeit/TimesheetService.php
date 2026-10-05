@@ -372,41 +372,45 @@ class TimesheetService
     }
 
     /**
-     * Verwaiste Urlaubsgutschriften eines Altmonats entfernen und den Monat neu berechnen.
+     * Verwaiste Urlaubsgutschriften entfernen und den Monat neu berechnen (auch Altmonate).
      * Abgeschlossene Nachweise werden nicht verändert, sondern zur Prüfung markiert.
+     * Ohne Zeitraum wird der ganze Monat betrachtet. Liefert die Anzahl betroffener Zeilen.
      */
-    private function verwaisteUrlaubEntfernen(Timesheet $timesheet, CarbonInterface $von, CarbonInterface $bis): void
+    public function verwaisteUrlaubEntfernen(Timesheet $timesheet, ?CarbonInterface $von = null, ?CarbonInterface $bis = null): int
     {
         $zeilen = $this->verwaisteUrlaubszeilen($timesheet, $von, $bis);
         if ($zeilen->isEmpty()) {
-            return;
+            return 0;
         }
 
         if ($timesheet->is_locked) {
             $timesheet->markRequiresReview('Urlaub nach Abschluss storniert ('.now()->format('d.m.Y').')');
-            return;
+            return $zeilen->count();
         }
 
         $zeilen->each->delete();
         $this->recalculate($timesheet, true, true);
+
+        return $zeilen->count();
     }
 
     /**
-     * Urlaubsgutschriften im Zeitraum, für die es keinen genehmigten Urlaub und keine
-     * Urlaubs-Abwesenheit mehr gibt – auch Zeilen ohne Kennzeichnung (bisherige Übernahme
-     * aus den Abwesenheiten: Kommentar "Urlaub", keine Quelle).
+     * Urlaubsgutschriften, die zu einem stornierten oder abgelehnten Antrag gehören: An dem Tag liegt
+     * ein solcher Antrag, aber weder ein genehmigter Urlaub noch eine Urlaubs-Abwesenheit. Erfasst auch
+     * Zeilen ohne Kennzeichnung (bisherige Übernahme aus den Abwesenheiten: Kommentar "Urlaub", keine Quelle).
+     * Von Hand eingetragene "Urlaub"-Zeilen ohne Antrag im System bleiben unberührt.
      *
      * @return Collection<int, TimesheetDays>
      */
-    private function verwaisteUrlaubszeilen(Timesheet $timesheet, CarbonInterface $von, CarbonInterface $bis): Collection
+    public function verwaisteUrlaubszeilen(Timesheet $timesheet, ?CarbonInterface $von = null, ?CarbonInterface $bis = null): Collection
     {
         $employe = $timesheet->employe;
         if ($employe === null) {
             return collect();
         }
 
-        $start = $timesheet->monthStart()->max(Carbon::parse($von)->startOfDay());
-        $ende = $timesheet->monthEnd()->min(Carbon::parse($bis)->startOfDay());
+        $start = $von !== null ? $timesheet->monthStart()->max(Carbon::parse($von)->startOfDay()) : $timesheet->monthStart();
+        $ende = $bis !== null ? $timesheet->monthEnd()->min(Carbon::parse($bis)->startOfDay()) : $timesheet->monthEnd();
 
         $zeilen = $timesheet->timesheet_days()
             ->whereDate('date', '>=', $start->toDateString())
@@ -432,11 +436,20 @@ class TimesheetService
             ->whereDate('end', '>=', $start->toDateString())
             ->get();
 
-        return $zeilen->reject(function (TimesheetDays $zeile) use ($urlaube, $abwesenheiten) {
+        $hinfaellig = Holiday::withTrashed()
+            ->where('employe_id', $employe->id)
+            ->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhere('rejected', true))
+            ->ueberschneidet($start, $ende)
+            ->get();
+
+        $liegtIn = fn (string $datum) => fn ($z) => $z->start_date->toDateString() <= $datum && $z->end_date->toDateString() >= $datum;
+
+        return $zeilen->filter(function (TimesheetDays $zeile) use ($urlaube, $abwesenheiten, $hinfaellig, $liegtIn) {
             $datum = $zeile->date->toDateString();
 
-            return $urlaube->contains(fn (Holiday $h) => $h->start_date->toDateString() <= $datum && $h->end_date->toDateString() >= $datum)
-                || $abwesenheiten->contains(fn (Absence $a) => $a->start->toDateString() <= $datum && $a->end->toDateString() >= $datum);
+            return $hinfaellig->contains($liegtIn($datum))
+                && !$urlaube->contains($liegtIn($datum))
+                && !$abwesenheiten->contains(fn (Absence $a) => $a->start->toDateString() <= $datum && $a->end->toDateString() >= $datum);
         })->values();
     }
 

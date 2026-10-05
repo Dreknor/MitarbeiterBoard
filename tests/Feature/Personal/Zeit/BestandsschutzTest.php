@@ -212,4 +212,24 @@ class BestandsschutzTest extends TestCase
         $daten = $oktober->timesheet_days()->where('comment', 'Urlaub')->pluck('date')->map->toDateString()->all();
         $this->assertSame(['2026-10-08'], $daten, 'Nur der weiterhin genehmigte Urlaub bleibt gutgeschrieben');
     }
+    public function test_bereinigungsbefehl_entfernt_stehen_gebliebenen_urlaub(): void
+    {
+        $ma = $this->mitarbeiter();
+        $august = Timesheet::create(['employe_id' => $ma->id, 'year' => 2026, 'month' => 8, 'working_time_account' => 0]);
+        // Stornierter Urlaub (vor der Korrektur: Zeilen blieben stehen)
+        $urlaub = Holiday::factory()->for($ma, 'employe')->approved()->createQuietly(['start_date' => '2026-08-10', 'end_date' => '2026-08-11', 'days' => 2]);
+        $urlaub->deleteQuietly();
+        foreach (['2026-08-10', '2026-08-11'] as $tag) {
+            $august->timesheet_days()->create(['date' => $tag, 'percent_of_workingtime' => 100, 'comment' => 'Urlaub']);
+        }
+        // Von Hand eingetragener Urlaub ohne Antrag im System bleibt
+        $august->timesheet_days()->create(['date' => '2026-08-20', 'percent_of_workingtime' => 100, 'comment' => 'Urlaub']);
+
+        $this->artisan('personal:urlaub-bereinigen')->assertSuccessful();
+        $this->assertSame(3, $august->timesheet_days()->count(), 'Vorschau ändert nichts');
+
+        $this->artisan('personal:urlaub-bereinigen', ['--ausfuehren' => true])->assertSuccessful();
+        $daten = $august->timesheet_days()->pluck('date')->map->toDateString()->all();
+        $this->assertSame(['2026-08-20'], $daten);
+    }
 }
