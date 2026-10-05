@@ -125,7 +125,7 @@ function is_holiday(Carbon $date)
     // im Speicher gehalten – die Funktion wird in Monats-/Wochenschleifen sehr oft aufgerufen.
     static $jahre = [];
     $land = (string) (settings('ferien_state', 'holidays') ?: 'SN');
-    $key = $land.'_'.$date->year;
+    $key = $land.'_'.$date->year.'_'.\App\Support\Feiertage::einstellungsSchluessel();
 
     $jahre[$key] ??= fetch_holidays_by_year($date->year)->keyBy('date');
 
