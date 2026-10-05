@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\Setting;
+use App\Services\Personal\Zeit\HolidayService;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Urlaubsplaner: Wertung von Heiligabend und Silvester (Standard: wie Feiertage).
@@ -34,6 +36,11 @@ return new class extends Migration
                 Setting::create($setting);
             }
         }
+
+        // Bereits gestellte Anträge des laufenden Jahres mit 24.12./31.12. neu berechnen
+        Cache::forget('setting_heiligabend_feiertag');
+        Cache::forget('setting_silvester_feiertag');
+        app(HolidayService::class)->tageNeuBerechnen(now()->year);
     }
 
     public function down(): void

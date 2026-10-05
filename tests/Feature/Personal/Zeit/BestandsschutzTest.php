@@ -177,4 +177,39 @@ class BestandsschutzTest extends TestCase
         $konto->vergessen();
         $this->assertEquals(18, $konto->rest($ma, 2026));
     }
+    public function test_stornierter_urlaub_wird_im_uebergangsmonat_aus_dem_nachweis_entfernt(): void
+    {
+        // Oktober liegt vor dem Stichtag: Urlaub wurde wie bisher als unverknüpfte „Urlaub“-Zeile übernommen
+        $this->settingSetzen('zeitwirtschaft_stichtag', '2026-11-01');
+        $ma = $this->mitarbeiter();
+        $urlaub = Holiday::factory()->for($ma, 'employe')->approved()->create(['start_date' => '2026-10-05', 'end_date' => '2026-10-06', 'days' => 2]);
+
+        $oktober = Timesheet::create(['employe_id' => $ma->id, 'year' => 2026, 'month' => 10, 'working_time_account' => 0]);
+        foreach (['2026-10-05', '2026-10-06'] as $tag) {
+            $oktober->timesheet_days()->create(['date' => $tag, 'percent_of_workingtime' => 100, 'comment' => 'Urlaub']);
+        }
+        $oktober->timesheet_days()->create(['date' => '2026-10-07', 'start' => '08:00:00', 'end' => '16:00:00', 'pause' => 30, 'comment' => 'aus Dienstplan erstellt']);
+
+        app(\App\Services\Personal\Zeit\HolidayService::class)->stornieren($urlaub, $ma);
+
+        $this->assertSame(0, $oktober->timesheet_days()->where('comment', 'Urlaub')->count());
+        $this->assertSame(1, $oktober->timesheet_days()->count(), 'Arbeitszeitbuchungen bleiben erhalten');
+    }
+
+    public function test_stornierter_urlaub_entfernt_auch_unverknuepfte_zeilen_im_neuen_modell(): void
+    {
+        $this->neuesModell();
+        $ma = $this->mitarbeiter();
+        $urlaub = Holiday::factory()->for($ma, 'employe')->approved()->create(['start_date' => '2026-10-05', 'end_date' => '2026-10-06', 'days' => 2]);
+        $anderer = Holiday::factory()->for($ma, 'employe')->approved()->create(['start_date' => '2026-10-08', 'end_date' => '2026-10-08', 'days' => 1]);
+
+        $oktober = Timesheet::where('employe_id', $ma->id)->where('year', 2026)->where('month', 10)->firstOrFail();
+        // Altbestand: unverknüpfte Zeile aus der bisherigen Übernahme
+        $oktober->timesheet_days()->create(['date' => '2026-10-05', 'percent_of_workingtime' => 100, 'comment' => 'Urlaub']);
+
+        app(\App\Services\Personal\Zeit\HolidayService::class)->stornieren($urlaub, $ma);
+
+        $daten = $oktober->timesheet_days()->where('comment', 'Urlaub')->pluck('date')->map->toDateString()->all();
+        $this->assertSame(['2026-10-08'], $daten, 'Nur der weiterhin genehmigte Urlaub bleibt gutgeschrieben');
+    }
 }

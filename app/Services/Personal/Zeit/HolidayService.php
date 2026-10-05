@@ -56,6 +56,46 @@ class HolidayService
     }
 
     /**
+     * Gespeicherte Urlaubstage aller nicht abgelehnten Anträge eines Jahres neu berechnen,
+     * die Heiligabend oder Silvester enthalten (nach Änderung der Urlaubseinstellungen
+     * "heiligabend_feiertag" / "silvester_feiertag"). Liefert die Anzahl geänderter Anträge.
+     */
+    public function tageNeuBerechnen(int $jahr): int
+    {
+        $stichtage = [Carbon::create($jahr, 12, 24), Carbon::create($jahr, 12, 31)];
+
+        $antraege = Holiday::query()
+            ->nichtAbgelehnt()
+            ->where(function ($query) use ($stichtage) {
+                foreach ($stichtage as $tag) {
+                    $query->orWhere(fn ($q) => $q->ueberschneidet($tag, $tag));
+                }
+            })
+            ->with('employe')
+            ->get();
+
+        $geaendert = 0;
+        foreach ($antraege as $antrag) {
+            if ($antrag->employe === null) {
+                continue;
+            }
+
+            $tage = $this->tageFuer($antrag->employe, $antrag->start_date, $antrag->end_date, (bool) $antrag->half_day);
+            if ($antrag->days !== null && (float) $antrag->days === $tage) {
+                continue;
+            }
+
+            // "days" gehört nicht zu den abgleichsrelevanten Feldern – Abwesenheit, Nachweis
+            // und Dienstplan richten sich nach dem Datum und bleiben unberührt.
+            $antrag->update(['days' => $tage]);
+            $this->urlaubskonto->vergessen($antrag->employe);
+            $geaendert++;
+        }
+
+        return $geaendert;
+    }
+
+    /**
      * Antrag stellen. Darf der Antragstellende selbst genehmigen (nie für sich selbst),
      * wird der Urlaub direkt genehmigt. Jahresübergreifende Anträge werden geteilt.
      *

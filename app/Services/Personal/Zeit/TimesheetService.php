@@ -335,12 +335,23 @@ class TimesheetService
             return;
         }
 
-        $monat = Carbon::parse($von)->startOfMonth()->max($this->stichtag())->copy();
+        $monat = Carbon::parse($von)->startOfMonth();
         $letzter = Carbon::parse($bis)->startOfMonth();
+        $stichtag = $this->stichtag();
 
         while ($monat->lte($letzter)) {
             $timesheet = Timesheet::where('employe_id', $user->id)
                 ->where('year', $monat->year)->where('month', $monat->month)->first();
+
+            if ($monat->copy()->startOfMonth()->lt($stichtag)) {
+                // Altmonat/Übergangsmonat: Gutschriften wurden wie bisher ohne Verknüpfung übernommen –
+                // nur Urlaubszeilen ohne genehmigten Urlaub (storniert, abgelehnt) wieder entfernen.
+                if ($timesheet !== null) {
+                    $this->verwaisteUrlaubEntfernen($timesheet, $von, $bis);
+                }
+                $monat->addMonth();
+                continue;
+            }
 
             if ($timesheet === null && $monat->lte(Carbon::today())) {
                 $timesheet = $this->forMonth($user, $monat);
@@ -350,6 +361,7 @@ class TimesheetService
                 if ($timesheet->is_locked) {
                     $timesheet->markRequiresReview('Urlaub oder Abwesenheit nach Abschluss geändert ('.now()->format('d.m.Y').')');
                 } else {
+                    $this->verwaisteUrlaubszeilen($timesheet, $von, $bis)->each->delete();
                     $this->syncMonat($timesheet);
                     $this->recalculate($timesheet);
                 }
@@ -357,6 +369,75 @@ class TimesheetService
 
             $monat->addMonth();
         }
+    }
+
+    /**
+     * Verwaiste Urlaubsgutschriften eines Altmonats entfernen und den Monat neu berechnen.
+     * Abgeschlossene Nachweise werden nicht verändert, sondern zur Prüfung markiert.
+     */
+    private function verwaisteUrlaubEntfernen(Timesheet $timesheet, CarbonInterface $von, CarbonInterface $bis): void
+    {
+        $zeilen = $this->verwaisteUrlaubszeilen($timesheet, $von, $bis);
+        if ($zeilen->isEmpty()) {
+            return;
+        }
+
+        if ($timesheet->is_locked) {
+            $timesheet->markRequiresReview('Urlaub nach Abschluss storniert ('.now()->format('d.m.Y').')');
+            return;
+        }
+
+        $zeilen->each->delete();
+        $this->recalculate($timesheet, true, true);
+    }
+
+    /**
+     * Urlaubsgutschriften im Zeitraum, für die es keinen genehmigten Urlaub und keine
+     * Urlaubs-Abwesenheit mehr gibt – auch Zeilen ohne Kennzeichnung (bisherige Übernahme
+     * aus den Abwesenheiten: Kommentar "Urlaub", keine Quelle).
+     *
+     * @return Collection<int, TimesheetDays>
+     */
+    private function verwaisteUrlaubszeilen(Timesheet $timesheet, CarbonInterface $von, CarbonInterface $bis): Collection
+    {
+        $employe = $timesheet->employe;
+        if ($employe === null) {
+            return collect();
+        }
+
+        $start = $timesheet->monthStart()->max(Carbon::parse($von)->startOfDay());
+        $ende = $timesheet->monthEnd()->min(Carbon::parse($bis)->startOfDay());
+
+        $zeilen = $timesheet->timesheet_days()
+            ->whereDate('date', '>=', $start->toDateString())
+            ->whereDate('date', '<=', $ende->toDateString())
+            ->whereNull('start')
+            ->whereNotNull('percent_of_workingtime')
+            ->whereIn('comment', ['Urlaub', 'Urlaub (halber Tag)'])
+            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', TimesheetDays::SOURCE_URLAUB))
+            ->get();
+
+        if ($zeilen->isEmpty()) {
+            return $zeilen;
+        }
+
+        $urlaube = Holiday::query()->genehmigt()
+            ->where('employe_id', $employe->id)
+            ->ueberschneidet($start, $ende)
+            ->get();
+        $abwesenheiten = Absence::query()
+            ->where('users_id', $employe->id)
+            ->where('reason', 'Urlaub')
+            ->whereDate('start', '<=', $ende->toDateString())
+            ->whereDate('end', '>=', $start->toDateString())
+            ->get();
+
+        return $zeilen->reject(function (TimesheetDays $zeile) use ($urlaube, $abwesenheiten) {
+            $datum = $zeile->date->toDateString();
+
+            return $urlaube->contains(fn (Holiday $h) => $h->start_date->toDateString() <= $datum && $h->end_date->toDateString() >= $datum)
+                || $abwesenheiten->contains(fn (Absence $a) => $a->start->toDateString() <= $datum && $a->end->toDateString() >= $datum);
+        })->values();
     }
 
     /**

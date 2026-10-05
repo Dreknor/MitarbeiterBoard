@@ -124,6 +124,20 @@ class HolidayWorkflowTest extends TestCase
         $this->assertSame('2027-01-01', $teile[1]->start_date->toDateString());
     }
 
+    public function test_aenderung_der_wertung_von_heiligabend_und_silvester_berechnet_urlaubstage_neu(): void
+    {
+        $ma = $this->mitarbeiter();
+        // Mo 21.12. – Do 31.12.2026: alt 8 Arbeitstage (25.12. ist Feiertag), mit Heiligabend/Silvester als Feiertag 6
+        $antrag = Holiday::factory()->for($ma, 'employe')->create(['start_date' => '2026-12-21', 'end_date' => '2026-12-31', 'days' => 8, 'approved' => true, 'rejected' => false]);
+
+        $this->assertSame(1, app(\App\Services\Personal\Zeit\HolidayService::class)->tageNeuBerechnen(2026));
+        $this->assertEquals(6, $antrag->fresh()->days);
+
+        $admin = $this->mitarbeiter(['edit settings']);
+        $this->actingAs($admin)->post(url('settings'), ['setting' => ['heiligabend_feiertag' => '0', 'silvester_feiertag' => '0']])->assertRedirect();
+        $this->assertEquals(8, $antrag->fresh()->days);
+    }
+
     public function test_genehmigung_erzeugt_verknuepfte_abwesenheit_und_gutschriften_nur_an_arbeitstagen(): void
     {
         $chef = $this->mitarbeiter(['has holidays', 'approve holidays', 'approve all holidays']);
