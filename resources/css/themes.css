@@ -85,6 +85,10 @@
    overflow-hidden würde das Menü abschneiden – hier sichtbar lassen. */
 .theme-wrapper .thm-card.thm-card-visible { overflow: visible; }
 .theme-wrapper .thm-band { @apply px-5 py-4 text-white; }
+/* Tages-Karten: Abstand zur fixen Navbar beim Springen, Toggle ohne Button-Optik */
+.theme-wrapper .thm-day { scroll-margin-top: 5rem; }
+.theme-wrapper .thm-day-toggle { background: transparent; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.theme-wrapper .thm-day-toggle:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 4px; border-radius: .5rem; }
 .theme-wrapper .thm-band-blue   { @apply bg-gradient-to-r from-blue-600 to-indigo-600; }
 .theme-wrapper .thm-band-slate  { @apply bg-gradient-to-r from-slate-600 to-slate-700; }
 .theme-wrapper .thm-band-amber  { @apply bg-gradient-to-r from-amber-500 to-orange-500; }

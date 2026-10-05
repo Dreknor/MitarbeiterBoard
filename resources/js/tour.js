@@ -43,10 +43,20 @@ function sichtbar(el) {
     return rect.width > 0 && rect.height > 0 && getComputedStyle(el).visibility !== 'hidden';
 }
 
+function selektor(step) {
+    return step.selector ?? (step.target ? `[data-tour="${CSS.escape(step.target)}"]` : null);
+}
+
 function findeZiel(step) {
-    const selector = step.selector ?? (step.target ? `[data-tour="${CSS.escape(step.target)}"]` : null);
+    const selector = selektor(step);
     if (!selector) return null;
     return [...document.querySelectorAll(selector)].find(sichtbar) ?? false;
+}
+
+// Zählt für Fortschritt/„letzter Schritt“: Ziel existiert auf der Seite (evtl. noch in einem verdeckten Tab)
+function vorhanden(step) {
+    const selector = selektor(step);
+    return !selector || document.querySelector(selector) !== null;
 }
 
 function el(tag, klasse, text) {
@@ -134,7 +144,7 @@ class Tour {
     }
 
     istLetzter(index) {
-        return !this.steps.slice(index + 1).some((step) => findeZiel(step) !== false || step.activate);
+        return !this.steps.slice(index + 1).some(vorhanden);
     }
 
     async gehe(index, richtung) {
@@ -167,8 +177,8 @@ class Tour {
     }
 
     anzeigen(step) {
-        const nummer = this.steps.slice(0, this.index + 1).filter((s) => findeZiel(s) !== false || s.activate).length;
-        const gesamt = this.steps.filter((s) => findeZiel(s) !== false || s.activate).length;
+        const nummer = this.steps.slice(0, this.index + 1).filter(vorhanden).length;
+        const gesamt = this.steps.filter(vorhanden).length;
         this.zaehler.textContent = `${nummer} von ${gesamt}`;
         this.punkte.replaceChildren(...Array.from({ length: gesamt }, (_, i) => el('span', i === nummer - 1 ? 'is-active' : '')));
 
@@ -186,7 +196,7 @@ class Tour {
             this.naechsteSeite.href = next.url;
         }
         this.box.classList.toggle('is-center', !this.ziel);
-        this.spot.hidden = !this.ziel;
+        this.spot.classList.toggle('is-leer', !this.ziel);
         (letzter && next ? this.naechsteSeite : this.weiter).focus({ preventScroll: true });
     }
 
@@ -199,6 +209,7 @@ class Tour {
 
         if (!this.ziel) {
             Object.assign(this.box.style, { top: '', left: '' });
+            Object.assign(this.spot.style, { top: '', left: '', width: '', height: '' });
             return;
         }
 

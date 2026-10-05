@@ -155,26 +155,7 @@ class OxCalendarService
      */
     public function canWriteCalendar(User $user, OxCalendar $calendar): bool
     {
-        if (!$user->can('create calendar events') || !$calendar->schreibbar) {
-            return false;
-        }
-
-        if ($user->can('manage calendar')) {
-            return true;
-        }
-
-        // Kalender ohne Gruppen → öffentlich schreibbar
-        if ($calendar->groups->isEmpty()) {
-            return true;
-        }
-
-        // User muss in mindestens einer Gruppe sein, die für diesen Kalender schreibbar ist
-        $userGroupIds = $user->groups_rel()->pluck('groups.id');
-
-        return $calendar->groups()
-            ->whereIn('groups.id', $userGroupIds)
-            ->wherePivot('schreibbar', true)
-            ->exists();
+        return $user->can('create calendar events') && $this->hatKalenderSchreibrecht($user, $calendar);
     }
 
     /**
@@ -189,25 +170,34 @@ class OxCalendarService
      */
     public function canEditTermin(User $user, OxCalendar $calendar): bool
     {
-        if (!$user->can('edit calendar events') || !$calendar->schreibbar) {
+        return $user->can('edit calendar events') && $this->hatKalenderSchreibrecht($user, $calendar);
+    }
+
+    /**
+     * Kalenderbezogenes Schreibrecht (ohne Permission-Prüfung):
+     *  - "manage calendar" darf in global schreibbare Kalender und solche mit schreibenden Gruppen
+     *  - Gruppe mit Schreibrecht (Pivot) → schreibbar, unabhängig vom globalen Flag
+     *  - Kalender ohne Gruppen → globales Flag "schreibbar" entscheidet
+     *  - Kalender mit Gruppen → nur Mitglieder schreibender Gruppen
+     */
+    protected function hatKalenderSchreibrecht(User $user, OxCalendar $calendar): bool
+    {
+        $schreibendeGruppen = $calendar->groups->filter(fn ($g) => (bool) $g->pivot->schreibbar);
+
+        if ($user->can('manage calendar')) {
+            return $calendar->schreibbar || $schreibendeGruppen->isNotEmpty();
+        }
+
+        if ($calendar->groups->isEmpty()) {
+            return $calendar->schreibbar;
+        }
+
+        if ($schreibendeGruppen->isEmpty()) {
             return false;
         }
 
-        if ($user->can('manage calendar')) {
-            return true;
-        }
-
-        // Kalender ohne Gruppen → öffentlich bearbeitbar
-        if ($calendar->groups->isEmpty()) {
-            return true;
-        }
-
-        // User muss in mindestens einer Gruppe sein, die für diesen Kalender schreibbar ist
-        $userGroupIds = $user->groups_rel()->pluck('groups.id');
-
-        return $calendar->groups()
-            ->whereIn('groups.id', $userGroupIds)
-            ->wherePivot('schreibbar', true)
+        return $user->groups_rel()
+            ->whereIn('groups.id', $schreibendeGruppen->pluck('id'))
             ->exists();
     }
 

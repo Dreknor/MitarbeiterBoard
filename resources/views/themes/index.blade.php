@@ -12,13 +12,56 @@
         <div class="p-5">
             @include('themes.element.header')
         </div>
-        @can('create themes')
-            <div class="px-5 pb-5">
-                <a href="{{ url(request()->segment(1).'/themes/create') }}" class="thm-btn thm-btn-primary w-full">
-                    <i class="fas fa-plus"></i> Neues Thema
-                </a>
+        @php
+            // Sprungziel: heutiger Tag bzw. nächster Termin; sonst der jüngste vergangene Tag / "offen".
+            $heute = \Carbon\Carbon::today();
+            $sprungZiel = null;
+            $sprungDatum = null;
+            foreach ($themes->keys() as $tag) {
+                if ($tag == 'offen') {
+                    continue;
+                }
+                $datum = \Carbon\Carbon::createFromFormat('d.m.Y', $tag)->startOfDay();
+                if ($datum->greaterThanOrEqualTo($heute) and ($sprungDatum === null or $datum->lessThan($sprungDatum))) {
+                    $sprungDatum = $datum;
+                    $sprungZiel = $datum->format('Ymd');
+                }
+            }
+            if ($sprungZiel === null and count($themes) > 0) {
+                foreach ($themes->keys() as $tag) {
+                    if ($tag != 'offen') {
+                        $sprungDatum = \Carbon\Carbon::createFromFormat('d.m.Y', $tag)->startOfDay();
+                        $sprungZiel = $sprungDatum->format('Ymd');
+                        break;
+                    }
+                }
+                $sprungZiel ??= $themes->has('offen') ? 'offen' : null;
+            }
+        @endphp
+        @if($sprungZiel !== null or auth()->user()->can('create themes'))
+            <div class="px-5 pb-5 flex flex-wrap gap-2">
+                @if($sprungZiel !== null)
+                    <a href="#{{ $sprungZiel }}" class="thm-btn thm-btn-secondary flex-1" x-data
+                       @click.prevent="$dispatch('thm-jump', { id: '{{ $sprungZiel }}' })">
+                        <i class="fas fa-crosshairs"></i>
+                        @if($sprungDatum === null)
+                            Zu den offenen Themen
+                        @elseif($sprungDatum->isSameDay($heute))
+                            Zu heute
+                        @elseif($sprungDatum->greaterThan($heute))
+                            Zum nächsten Termin ({{ $sprungDatum->format('d.m.Y') }})
+                        @else
+                            Zum letzten Termin ({{ $sprungDatum->format('d.m.Y') }})
+                        @endif
+                    </a>
+                @endif
+                @can('create themes')
+                    <a href="{{ url(request()->segment(1).'/themes/create') }}" class="thm-btn thm-btn-primary flex-1">
+                        <i class="fas fa-plus"></i> Neues Thema
+                    </a>
+                @endcan
             </div>
-        @endcan
+        @endif
     </div>
 
     @if (count($themes) == 0)
@@ -30,15 +73,41 @@
         <div class="space-y-5">
             @foreach($themes as $day => $dayThemes)
                 @php $dayId = $day == 'offen' ? 'offen' : \Carbon\Carbon::createFromFormat('d.m.Y', $day)->format('Ymd'); @endphp
-                <div class="thm-card" id="{{ $dayId }}" x-data="{ moveOpen: false }">
+                {{-- Ein-/aufklappbar; Zustand pro Gruppe und Tag in der Browser-Session (übersteht Reloads). "offen" startet zugeklappt. --}}
+                <div class="thm-card thm-day" id="{{ $dayId }}"
+                     x-data="{
+                        moveOpen: false,
+                        open: {{ $day == 'offen' ? 'false' : 'true' }},
+                        key: 'thm-day-{{ $group->id }}-{{ $dayId }}',
+                        init() {
+                            try {
+                                const gespeichert = sessionStorage.getItem(this.key);
+                                if (gespeichert !== null) this.open = gespeichert === '1';
+                            } catch (e) {}
+                            const ziel = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+                            if (ziel && this.$el.contains(ziel)) this.open = true;
+                        },
+                        toggle() {
+                            this.open = !this.open;
+                            try { sessionStorage.setItem(this.key, this.open ? '1' : '0'); } catch (e) {}
+                        },
+                     }"
+                     @thm-jump.window="if ($event.detail.id === '{{ $dayId }}') { open = true; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' })); }">
                     <div class="thm-band thm-band-blue">
                         <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <h2 class="text-lg font-bold">{{ $day }}</h2>
-                                @if($day != 'offen')
-                                    <p class="text-sm text-white/80">Dauer: {{ $dayThemes->sum('duration') }} Minuten</p>
-                                @endif
-                            </div>
+                            <button type="button" class="thm-day-toggle flex items-center gap-3 text-left min-w-0 flex-1"
+                                    @click="toggle()" :aria-expanded="open.toString()">
+                                <i class="fas fa-chevron-right text-sm transition-transform duration-200" :class="open && 'rotate-90'"></i>
+                                <span>
+                                    <span class="flex flex-wrap items-center gap-2">
+                                        <span class="text-lg font-bold">{{ $day }}</span>
+                                        <span class="thm-badge bg-white/20 text-white">{{ $dayThemes->count() }} {{ $dayThemes->count() == 1 ? 'Thema' : 'Themen' }}</span>
+                                    </span>
+                                    @if($day != 'offen')
+                                        <span class="block text-sm text-white/80">Dauer: {{ $dayThemes->sum('duration') }} Minuten</span>
+                                    @endif
+                                </span>
+                            </button>
                             @can('move themes')
                                 @if($day != 'offen')
                                     <button type="button" class="thm-btn-icon bg-white/15 hover:bg-white/25 text-white"
@@ -69,7 +138,7 @@
                         @endcan
                     </div>
 
-                    <div class="p-3 sm:p-4">
+                    <div class="p-3 sm:p-4" x-show="open" x-collapse>
                         <div class="thm-theme-list divide-y divide-gray-100" data-theme-list>
                             @if($day != 'offen')
                                 {{-- System-Eintrag: Anwesenheit --}}
