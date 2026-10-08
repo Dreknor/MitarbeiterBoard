@@ -28,6 +28,71 @@
         @endif
     </span>
 
+    {{-- Rechts: Benachrichtigungs-Glocke --}}
+    @auth
+        <div style="position:relative;"
+             x-data="{
+                open: false,
+                geladen: false,
+                ungelesen: {{ (int) ($ungeleseneBenachrichtigungen ?? 0) }},
+                eintraege: [],
+                laden() {
+                    fetch('{{ route('benachrichtigungen.neueste') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(r => r.json())
+                        .then(d => { this.eintraege = d.eintraege; this.ungelesen = d.ungelesen; this.geladen = true; })
+                        .catch(() => { this.geladen = true; });
+                },
+                umschalten() { this.open = !this.open; if (this.open) this.laden(); },
+                alleGelesen() {
+                    fetch('{{ route('benachrichtigungen.gelesen') }}', {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }
+                    }).then(() => { this.ungelesen = 0; this.eintraege.forEach(e => e.gelesen = true); });
+                }
+             }"
+             @keydown.escape.window="open = false">
+            <button type="button" class="topbar-bell-btn"
+                    @click="umschalten()"
+                    :aria-expanded="open.toString()"
+                    :aria-label="ungelesen > 0 ? ungelesen + ' ungelesene Benachrichtigungen' : 'Benachrichtigungen'"
+                    title="Benachrichtigungen">
+                <i class="fas fa-bell"></i>
+                <span class="topbar-bell-badge" x-show="ungelesen > 0" x-text="ungelesen > 99 ? '99+' : ungelesen"
+                      @if(!($ungeleseneBenachrichtigungen ?? 0)) style="display:none;" @endif>{{ ($ungeleseneBenachrichtigungen ?? 0) > 99 ? '99+' : ($ungeleseneBenachrichtigungen ?? 0) }}</span>
+            </button>
+
+            <div class="topbar-bell-panel" x-show="open" x-cloak @click.outside="open = false" style="display:none;">
+                <div class="topbar-bell-head">
+                    <span>Benachrichtigungen</span>
+                    <button type="button" x-show="ungelesen > 0" @click="alleGelesen()">Alle als gelesen markieren</button>
+                </div>
+                <div class="topbar-bell-list">
+                    <div class="topbar-bell-empty" x-show="!geladen">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <div class="topbar-bell-empty" x-show="geladen && eintraege.length === 0">
+                        Keine Benachrichtigungen 🎉
+                    </div>
+                    <template x-for="e in eintraege" :key="e.id">
+                        <a :href="e.url" class="topbar-bell-item" :class="{ 'is-unread': !e.gelesen }">
+                            <span class="topbar-bell-icon"><i class="fas" :class="e.icon"></i></span>
+                            <span style="min-width:0;flex:1;">
+                                <span class="topbar-bell-title" style="display:block;" x-text="e.titel"></span>
+                                <span class="topbar-bell-text" x-show="e.text && e.text !== e.titel" x-text="e.text"></span>
+                                <span class="topbar-bell-time" style="display:block;" x-text="e.zeit"></span>
+                            </span>
+                        </a>
+                    </template>
+                </div>
+                <div class="topbar-bell-foot">
+                    <a href="{{ route('benachrichtigungen.index') }}">Alle anzeigen</a>
+                    <a href="{{ route('benachrichtigungen.tag') }}">Mein Tag</a>
+                    <a href="{{ route('benachrichtigungen.einstellungen') }}"><i class="fas fa-cog"></i> Einstellungen</a>
+                </div>
+            </div>
+        </div>
+    @endauth
+
     {{-- Rechts: User-Bereich --}}
     @auth
         <div style="position:relative;" x-data="{ open: false }">
@@ -57,6 +122,10 @@
                 <a href="{{ route('employes.self') }}" class="topbar-dropdown-item">
                     <i class="fas fa-user" style="width:1rem;opacity:0.6;"></i>
                     Eigene Daten
+                </a>
+                <a href="{{ route('benachrichtigungen.einstellungen') }}" class="topbar-dropdown-item">
+                    <i class="fas fa-bell" style="width:1rem;opacity:0.6;"></i>
+                    Benachrichtigungen
                 </a>
                 <div class="topbar-dropdown-divider"></div>
                 <button class="topbar-dropdown-item"

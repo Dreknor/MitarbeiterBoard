@@ -2,19 +2,14 @@
 
 namespace App\Notifications\Personal;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Notifications\Benachrichtigung;
 
 /**
- * Benachrichtigung für Urlaub, Arbeitszeitnachweis und Dienstplan
- * (Mail + Datenbank → erscheint auch auf der Dashboard-Karte "Benachrichtigungen").
+ * Benachrichtigung für Urlaub, Arbeitszeitnachweis und Dienstplan.
+ * Die Kategorie ergibt sich aus dem Präfix des Typs (holiday_, roster_, timesheet_).
  */
-class ZeitwirtschaftNotification extends Notification implements ShouldQueue
+class ZeitwirtschaftNotification extends Benachrichtigung
 {
-    use Queueable;
-
     /**
      * @param string[] $lines
      */
@@ -27,35 +22,42 @@ class ZeitwirtschaftNotification extends Notification implements ShouldQueue
     ) {
     }
 
-    public function via(object $notifiable): array
+    public function kategorie(): string
     {
-        return empty($notifiable->email) ? ['database'] : ['mail', 'database'];
+        return match (true) {
+            str_starts_with($this->type, 'holiday') => 'urlaub',
+            str_starts_with($this->type, 'roster') => 'dienstplan',
+            default => 'zeiterfassung',
+        };
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function titel(object $notifiable): string
     {
-        $mail = (new MailMessage)
-            ->subject($this->subject)
-            ->greeting('Hallo '.($notifiable->vorname ?? $notifiable->name ?? '').',');
-
-        foreach ($this->lines as $line) {
-            $mail->line($line);
-        }
-
-        if ($this->actionUrl !== null) {
-            $mail->action($this->actionText, $this->actionUrl);
-        }
-
-        return $mail;
+        return $this->subject;
     }
 
-    public function toArray(object $notifiable): array
+    public function text(object $notifiable): string
     {
-        return [
-            'type' => $this->type,
-            'subject' => $this->subject,
-            'message' => $this->subject.($this->lines ? ' – '.$this->lines[0] : ''),
-            'url' => $this->actionUrl,
-        ];
+        return $this->subject.($this->lines ? ' – '.$this->lines[0] : '');
+    }
+
+    public function zeilen(object $notifiable): array
+    {
+        return $this->lines;
+    }
+
+    public function url(object $notifiable): ?string
+    {
+        return $this->actionUrl;
+    }
+
+    public function aktionText(): string
+    {
+        return $this->actionText;
+    }
+
+    public function zusatzdaten(object $notifiable): array
+    {
+        return ['type' => $this->type];
     }
 }

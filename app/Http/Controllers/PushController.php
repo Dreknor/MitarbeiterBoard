@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Notifications\Push;
+use App\Notifications\PushTest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
 
+/**
+ * Verwaltet die Push-Abos (Geräte) der angemeldeten Person.
+ * Aktiviert wird Push ausschließlich über die Benachrichtigungs-Einstellungen.
+ */
 class PushController extends Controller
 {
     public function __construct()
@@ -16,32 +18,50 @@ class PushController extends Controller
     }
 
     /**
-     * Store the PushSubscription.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Push-Abo dieses Geräts speichern.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $this->validate($request, [
-            'endpoint'    => 'required',
-            'keys.auth'   => 'required',
-            'keys.p256dh' => 'required',
+            'endpoint'    => 'required|url|max:500',
+            'keys.auth'   => 'required|string',
+            'keys.p256dh' => 'required|string',
         ]);
-        $endpoint = $request->endpoint;
-        $token = $request->keys['auth'];
-        $key = $request->keys['p256dh'];
-        $user = Auth::user();
-        $user->updatePushSubscription($endpoint, $key, $token);
 
-        return response()->json(['success' => true], 200);
+        $request->user()->updatePushSubscription(
+            $request->input('endpoint'),
+            $request->input('keys.p256dh'),
+            $request->input('keys.auth')
+        );
+
+        return response()->json(['success' => true]);
     }
 
-    public function push()
+    /**
+     * Push-Abo dieses Geräts entfernen.
+     */
+    public function destroy(Request $request): JsonResponse
     {
-        $user = User::find(1);
-        Notification::send($user, new Push('test', 'test'));
+        $this->validate($request, ['endpoint' => 'required|string']);
 
-        return redirect()->back();
+        $request->user()->deletePushSubscription($request->input('endpoint'));
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Test-Push an die eigenen Geräte.
+     */
+    public function test(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user->pushSubscriptions()->exists()) {
+            return response()->json(['success' => false, 'message' => 'Auf keinem Gerät ist Push aktiviert.'], 422);
+        }
+
+        $user->notifyNow(new PushTest());
+
+        return response()->json(['success' => true]);
     }
 }

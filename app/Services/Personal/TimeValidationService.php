@@ -198,7 +198,7 @@ class TimeValidationService
         );
 
         try {
-            $employe->notify(new Push($title, $body));
+            $employe->notify(new Push($title, $body, 'zeiterfassung', route('timesheets.index')));
             Cache::put($cacheKey, true, $today->copy()->endOfDay());
         } catch (\Throwable $e) {
             Log::warning('Prüfengine: Erinnerung an Mitarbeiter konnte nicht gesendet werden', [

@@ -84,6 +84,9 @@ class EventServiceProvider extends ServiceProvider
         Holiday::observe(HolidayObserver::class);
         \App\Models\Absence::observe(\App\Observers\AbsenceTimeObserver::class);
 
+        // Benachrichtigung der Lehrkraft bei neuen/geänderten/gestrichenen Vertretungen
+        \App\Models\Vertretung::observe(\App\Observers\VertretungBenachrichtigungObserver::class);
+
         Event::listen('Aacotroneo\Saml2\Events\Saml2LoginEvent', function (Saml2LoginEvent $event) {
             $messageId = $event->getSaml2Auth()->getLastMessageId();
             $user = $event->getSaml2User();

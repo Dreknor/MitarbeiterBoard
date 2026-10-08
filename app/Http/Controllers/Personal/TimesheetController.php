@@ -326,7 +326,7 @@ class TimesheetController extends Controller
                 $mail->send(new SendMonthlyTimesheetMail($user, $monat, $pfad));
             } catch (\Throwable $e) {
                 Log::error('Fehler beim Versenden des Arbeitszeitnachweises', ['user' => $user->id, 'exception' => $e->getMessage()]);
-                User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()?->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Arbeitszeitnachweis für '.$user->name.' ('.$monat->format('m/Y').') konnte nicht versendet werden.'));
+                User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()?->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Arbeitszeitnachweis für '.$user->name.' ('.$monat->format('m/Y').') konnte nicht versendet werden.', 'system'));
             } finally {
                 File::delete($pfad);
             }

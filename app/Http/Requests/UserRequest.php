@@ -26,8 +26,6 @@ class UserRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:users,email,' . $this->user->id,
             'changePassword' => 'nullable|boolean',
             'kuerzel' => 'nullable|string|max:15',
-            'absence_abo_daily' => 'nullable|boolean',
-            'absence_abo_now' => 'nullable|boolean',
             'username' => 'nullable|string|max:255',
             'remind_assign_themes' => 'nullable|boolean',
             'send_mails_if_absence' => 'nullable|boolean',

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\DailyAbsenceReport;
+use App\Mail\Tagesvorschau;
 use App\Mail\InvitationMail;
 use App\Mail\MeetingInvitationMail;
 use App\Mail\NewAbsenceMail;
@@ -83,12 +83,12 @@ class MailDiagnosticCommand extends Command
                     'Max Muster', now()->format('d.m.Y'), now()->addDays(3)->format('d.m.Y'), 'Krankheit'
                 ),
             ],
-            'abwesenheit-report' => [
-                'label'       => 'Täglicher Abwesenheitsbericht (DailyAbsenceReport)',
-                'description' => 'Tagesübersicht aller gemeldeten Abwesenheiten.',
-                'class'       => DailyAbsenceReport::class,
+            'tagesvorschau' => [
+                'label'       => 'Tagesübersicht „Dein Tag“ (Tagesvorschau)',
+                'description' => 'Tägliche Übersicht über Vertretungen, Termine, Aufgaben und Abwesenheiten.',
+                'class'       => Tagesvorschau::class,
                 'hasAttachment' => false,
-                'factory'     => fn () => new DailyAbsenceReport($this->buildTestAbsences()),
+                'factory'     => fn () => new Tagesvorschau('Max', now(), false, $this->buildTestTagesvorschau()),
             ],
             'einladung' => [
                 'label'       => 'Gruppen-Themen-Einladung (InvitationMail)',
@@ -737,22 +737,17 @@ class MailDiagnosticCommand extends Command
         ];
     }
 
-    private function buildTestAbsences(): \Illuminate\Support\Collection
+    private function buildTestTagesvorschau(): array
     {
-        return collect([
-            (object) [
-                'user'   => (object) ['name' => 'Max Muster'],
-                'start'  => now(),
-                'end'    => now()->addDays(2),
-                'reason' => 'Krankheit',
-            ],
-            (object) [
-                'user'   => (object) ['name' => 'Erika Beispiel'],
-                'start'  => now(),
-                'end'    => now(),
-                'reason' => 'Fortbildung',
-            ],
-        ]);
+        return [
+            ['label' => 'Meine Vertretungen', 'eintraege' => [
+                ['titel' => '5a Mathematik', 'zeit' => '3. Std.', 'details' => 'Raum 204', 'url' => url('/'), 'hervorheben' => true],
+            ]],
+            ['label' => 'Abwesenheiten im Kollegium', 'eintraege' => [
+                ['titel' => 'Max Muster', 'zeit' => 'bis '.now()->addDays(2)->format('d.m.'), 'details' => null, 'url' => url('absences'), 'hervorheben' => false],
+                ['titel' => 'Erika Beispiel', 'zeit' => null, 'details' => null, 'url' => url('absences'), 'hervorheben' => false],
+            ]],
+        ];
     }
 
     private function buildTestThemes(): \Illuminate\Support\Collection

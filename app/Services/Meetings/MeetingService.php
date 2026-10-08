@@ -9,6 +9,7 @@ use App\Models\MeetingParticipant;
 use App\Models\RoomBooking;
 use App\Models\Theme;
 use App\Models\User;
+use App\Notifications\Push;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -285,9 +286,16 @@ class MeetingService
             }
 
             try {
+                // Einladung ist ein bewusster Versand → Mail immer; Glocke/Push zusätzlich nach Einstellung
                 Mail::to($user->email)->queue(
                     new MeetingInvitationMail($meeting, $meeting->group, $user, $message, $sender->name, $sender->email)
                 );
+                $user->notify(new Push(
+                    'Einladung: '.($meeting->title ?: $meeting->contextLabel()),
+                    $meeting->date->format('d.m.Y').($meeting->getRawOriginal('start_time') ? ', '.$meeting->start_time.' Uhr' : ''),
+                    'meetings',
+                    route('meetings.show', $meeting)
+                ));
                 $gesendet++;
             } catch (\Throwable $e) {
                 Log::error('Meeting-Einladung: Fehler beim Einreihen der Mail', [

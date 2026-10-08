@@ -8,7 +8,8 @@ return [
      */
     'vapid' => [
         'subject' => env('VAPID_SUBJECT'),
-        'public_key' => env('VAPID_PUBLIC_KEY'),
+        // Fallback: bisher fest in public/js/enable-push.js hinterlegter Schlüssel
+        'public_key' => env('VAPID_PUBLIC_KEY', 'BM9aTHZuLpINSj0R6rnP0naBZmsgPVBVPNtP7WgP4VjOHMboI4OPxob97VIerekR-Rn2D_lAZoRNn8H9pufEFx8'),
         'private_key' => env('VAPID_PRIVATE_KEY'),
         'pem_file' => env('VAPID_PEM_FILE'),
     ],

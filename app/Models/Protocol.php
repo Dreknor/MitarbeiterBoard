@@ -2,11 +2,10 @@
 
 namespace App\Models;
 
-use App\Mail\newProtocolForTask;
+use App\Notifications\ProtokollErstellt;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -62,9 +61,8 @@ class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Aud
             }
 
             foreach ($theme->subscriptionable as $subscription) {
-                if ($subscription->user != $protocol->ersteller){
-                    Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme, $theme->group->name, $protocol));
-                    //Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme->theme));
+                if ($subscription->user && (int) $subscription->user->id !== (int) $protocol->creator_id) {
+                    $subscription->user->notify(new ProtokollErstellt($protocol, $protocol->ersteller?->name ?? 'Jemand'));
                 }
             }
         });

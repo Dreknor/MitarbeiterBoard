@@ -155,10 +155,10 @@
         Alle Abwesenheiten →
     </a>
     <div class="flex items-center gap-2">
-        <a href="{{ url('absences/abo/' . (auth()->user()->absence_abo_daily ? 'daily' : 'daily')) }}"
+        <a href="{{ route('benachrichtigungen.einstellungen') }}"
            class="text-xs text-gray-500 hover:text-gray-700 no-underline"
-           title="{{ auth()->user()->absence_abo_daily ? 'Tägl. E-Mail deaktivieren' : 'Tägl. E-Mail aktivieren' }}">
-            <i class="fas fa-bell{{ auth()->user()->absence_abo_daily ? '-slash' : '' }}"></i>
+           title="Abwesenheiten per Benachrichtigung oder Tagesübersicht erhalten">
+            <i class="fas fa-bell"></i>
         </a>
         @can('export absence')
             <a href="{{ url('absences/export') }}"

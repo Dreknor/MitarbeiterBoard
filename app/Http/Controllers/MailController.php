@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use App\Services\Benachrichtigungen\BenachrichtigungsService;
 use Spatie\Permission\Models\Role;
 
 class MailController extends Controller
@@ -37,6 +38,7 @@ class MailController extends Controller
 
     public function invitation()
     {
+        $einstellungen = app(BenachrichtigungsService::class);
         $groups = Group::where('protected', 1)
             ->where('use_meetings', 0)
             ->with(['users'])->get();
@@ -59,6 +61,9 @@ class MailController extends Controller
                 $users = $group->users;
 
                 foreach ($users as $user) {
+                    if (!$einstellungen->mailErlaubt($user, 'meetings')) {
+                        continue;
+                    }
                     Mail::to($user)->queue(new InvitationMail($group->name, $date->format('d.m.Y'), $themes));
                 }
             }
@@ -68,6 +73,7 @@ class MailController extends Controller
 
     public function remindTaskMail()
     {
+        $einstellungen = app(BenachrichtigungsService::class);
         $users = User::whereHas('tasks', function ($query){
             return $query->where('completed', 0)
                 ->where('date', '<=',Carbon::now()->addDays(config('config.tasks.remind'))->format('Y-m-d'));
@@ -76,6 +82,9 @@ class MailController extends Controller
             ->get();
 
         foreach ($users as $user){
+            if (!$einstellungen->mailErlaubt($user, 'aufgaben')) {
+                continue;
+            }
             if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
 
                 $tasks = $user->tasks()->where('date', '<=',Carbon::now()->addDays(config('config.tasks.remind'))->format('Y-m-d'))->get();

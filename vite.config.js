@@ -50,6 +50,9 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht)
+                'resources/css/benachrichtigungen.css',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
             ],

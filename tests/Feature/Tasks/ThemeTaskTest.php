@@ -2,16 +2,17 @@
 
 namespace Tests\Feature\Tasks;
 
-use App\Mail\newTaskMail;
 use App\Models\Group;
 use App\Models\GroupTaskUser;
 use App\Models\Meeting;
 use App\Models\Task;
 use App\Models\Theme;
 use App\Models\User;
+use App\Notifications\AufgabeZugewiesen;
 use App\Services\Meetings\MeetingService;
 use App\View\Composers\TasksComposer;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 use Tests\TestCase;
 
@@ -27,6 +28,7 @@ class ThemeTaskTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
+        Notification::fake();
 
         $this->me   = $this->actingAsWithPermission();
         $this->anna = User::factory()->create(['name' => 'Anna Schmidt']);
@@ -55,7 +57,8 @@ class ThemeTaskTest extends TestCase
         $this->assertSame(Group::class, $task->taskable_type);
         $this->assertSame($this->me->id, $task->creator_id);
         $this->assertSame(3, $task->taskUsers()->count());
-        Mail::assertQueued(newTaskMail::class, 2); // nicht an den Ersteller
+        Notification::assertSentTimes(AufgabeZugewiesen::class, 2); // nicht an den Ersteller
+        Notification::assertNotSentTo($this->me, AufgabeZugewiesen::class);
 
         $this->actingAs($this->anna)->get(route('tasks.complete', $task))->assertSessionHas('type', 'success');
 

@@ -2,54 +2,59 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
-
 /**
  * Benachrichtigung für Admins bei 3+ aufeinanderfolgenden Sync-Fehlern.
  *
- * Channels: mail + database
  * Ausgelöst durch: OxCalendarService::checkConsecutiveErrors()
  */
-class SyncFailedNotification extends Notification
+class SyncFailedNotification extends Benachrichtigung
 {
-    use Queueable;
-
-    protected int $fehlerAnzahl;
-    protected string $letzterFehler;
-
-    public function __construct(int $fehlerAnzahl, string $letzterFehler)
-    {
-        $this->fehlerAnzahl  = $fehlerAnzahl;
-        $this->letzterFehler = $letzterFehler;
+    public function __construct(
+        protected int $fehlerAnzahl,
+        protected string $letzterFehler,
+    ) {
     }
 
-    public function via(object $notifiable): array
+    public function kategorie(): string
     {
-        return ['mail', 'database'];
+        return 'system';
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function titel(object $notifiable): string
     {
-        return (new MailMessage())
-            ->subject('⚠️ Kalender-Synchronisation fehlgeschlagen')
-            ->greeting('Hallo ' . $notifiable->name . ',')
-            ->line("Die Kalender-Synchronisation mit Open-Xchange ist {$this->fehlerAnzahl}x hintereinander fehlgeschlagen.")
-            ->line("Letzter Fehler: {$this->letzterFehler}")
-            ->action('Sync-Logs prüfen', route('calendar.admin.logs', ['aktion' => 'error']))
-            ->line('Bitte prüfen Sie die OX-Verbindung und die CalDAV-Konfiguration.')
-            ->salutation('MitarbeiterBoard');
+        return '⚠️ Kalender-Synchronisation fehlgeschlagen';
     }
 
-    public function toArray(object $notifiable): array
+    public function text(object $notifiable): string
+    {
+        return "Kalender-Sync {$this->fehlerAnzahl}x fehlgeschlagen: {$this->letzterFehler}";
+    }
+
+    public function zeilen(object $notifiable): array
     {
         return [
-            'typ'           => 'calendar_sync_failed',
-            'fehler_anzahl' => $this->fehlerAnzahl,
+            "Die Kalender-Synchronisation mit Open-Xchange ist {$this->fehlerAnzahl}x hintereinander fehlgeschlagen.",
+            "Letzter Fehler: {$this->letzterFehler}",
+            'Bitte prüfen Sie die OX-Verbindung und die CalDAV-Konfiguration.',
+        ];
+    }
+
+    public function url(object $notifiable): ?string
+    {
+        return route('calendar.admin.logs', ['aktion' => 'error']);
+    }
+
+    public function aktionText(): string
+    {
+        return 'Sync-Logs prüfen';
+    }
+
+    public function zusatzdaten(object $notifiable): array
+    {
+        return [
+            'typ'            => 'calendar_sync_failed',
+            'fehler_anzahl'  => $this->fehlerAnzahl,
             'letzter_fehler' => $this->letzterFehler,
-            'nachricht'     => "Kalender-Sync {$this->fehlerAnzahl}x fehlgeschlagen: {$this->letzterFehler}",
         ];
     }
 }
-

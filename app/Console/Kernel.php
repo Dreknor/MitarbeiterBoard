@@ -35,7 +35,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\MailController@invitation')->dailyAt('12:00');
         $schedule->call('App\Http\Controllers\MailController@remindTaskMail')->mondays()->at('07:15');
         $schedule->call('App\Http\Controllers\ThemeController@remind_assigned_themes')->mondays()->at('07:15');
-        $schedule->call('App\Http\Controllers\AbsenceController@dailyReport')->weekdays()->at('07:30');
+        // Täglicher Abwesenheitsbericht ist in der Tagesübersicht (benachrichtigungen:tagesvorschau) aufgegangen
         $schedule->call('App\Http\Controllers\ProcedureController@remindStepMail')->weekdays()->at('07:30');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
@@ -115,6 +115,30 @@ class Kernel extends ConsoleKernel
             ->dailyAt('02:30')
             ->name('personal-vertraege-abschliessen')
             ->withoutOverlapping(30);
+
+        // Benachrichtigungen: Tagesübersicht „Dein Tag“ (Uhrzeit pro Person, morgens oder am Vorabend)
+        $schedule->command('benachrichtigungen:tagesvorschau')
+            ->everyFifteenMinutes()
+            ->name('benachrichtigungen-tagesvorschau')
+            ->withoutOverlapping(14);
+
+        // Benachrichtigungen: Nachmittags-Zusammenfassung (Mail-Modus „Zusammenfassung“)
+        $schedule->command('benachrichtigungen:zusammenfassung')
+            ->weekdays()
+            ->at(config('benachrichtigungen.zusammenfassung.uhrzeit', '16:00'))
+            ->name('benachrichtigungen-zusammenfassung')
+            ->withoutOverlapping(30);
+
+        // Benachrichtigungen: gelesene Einträge nach Aufbewahrungsfrist löschen (täglich um 03:15)
+        $schedule->call(function () {
+            $tage = (int) config('benachrichtigungen.aufbewahrung_tage', 180);
+            $deleted = \Illuminate\Notifications\DatabaseNotification::whereNotNull('read_at')
+                ->where('read_at', '<', now()->subDays($tage))
+                ->delete();
+            if ($deleted > 0) {
+                \Illuminate\Support\Facades\Log::info("Benachrichtigungen: {$deleted} alte gelesene Einträge gelöscht (>{$tage} Tage)");
+            }
+        })->dailyAt('03:15')->name('benachrichtigungen-aufraeumen');
 
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')

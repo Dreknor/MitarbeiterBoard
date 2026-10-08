@@ -7,6 +7,7 @@ use App\Mail\newTicketMail;
 use App\Mail\TicketAssignmentMail;
 use App\Models\Setting;
 use App\Models\Ticket;
+use App\Notifications\TicketAktualisiert;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
@@ -161,8 +162,8 @@ class TicketSystemTest extends TestCase
         $this->assertCount(1, $ticket->getMedia('ticket_files'));
         $this->assertSame('tickets', $ticket->getFirstMedia('ticket_files')->disk);
 
-        Mail::assertQueued(newTicketMail::class, fn ($mail) => $mail->hasTo($editor->email));
-        Mail::assertNotQueued(newTicketMail::class, fn ($mail) => $mail->hasTo($owner->email));
+        Notification::assertSentTo($editor, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketMail);
+        Notification::assertNotSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketMail);
     }
 
     public function test_kategorie_ist_pflicht_wenn_kategorien_existieren(): void
@@ -213,9 +214,7 @@ class TicketSystemTest extends TestCase
         $this->assertDatabaseHas('ticket_comments', ['ticket_id' => $ticket->id, 'comment' => '<p>Bitte Seriennummer schicken</p>']);
         $this->assertSame(2, $ticket->comments()->count());
 
-        Mail::assertQueued(newTicketCommentMail::class, function ($mail) use ($owner) {
-            return $mail->hasTo($owner->email) && $mail->comment->comment === '<p>Bitte Seriennummer schicken</p>';
-        });
+        Notification::assertSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail && $n->mail->comment->comment === '<p>Bitte Seriennummer schicken</p>');
     }
 
     public function test_antwort_des_erstellers_oeffnet_wartendes_ticket(): void
@@ -232,8 +231,8 @@ class TicketSystemTest extends TestCase
         $this->assertSame('open', $ticket->status);
         $this->assertNull($ticket->waiting_until);
 
-        Mail::assertQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($editor->email));
-        Mail::assertNotQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($owner->email));
+        Notification::assertSentTo($editor, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
+        Notification::assertNotSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
     }
 
     public function test_antwort_ohne_zuweisung_benachrichtigt_alle_bearbeiter(): void
@@ -245,8 +244,8 @@ class TicketSystemTest extends TestCase
 
         $this->actingAs($owner)->post(route('tickets.comments.store', $ticket), ['comment' => 'Nachtrag']);
 
-        Mail::assertQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($editorA->email));
-        Mail::assertQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($editorB->email));
+        Notification::assertSentTo($editorA, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
+        Notification::assertSentTo($editorB, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
     }
 
     public function test_interner_kommentar_benachrichtigt_ersteller_nicht(): void
@@ -261,7 +260,7 @@ class TicketSystemTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('ticket_comments', ['comment' => 'Nur intern', 'internal' => true]);
-        Mail::assertNotQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($owner->email));
+        Notification::assertNotSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
     }
 
     public function test_ersteller_kann_weder_intern_kommentieren_noch_warten_setzen(): void
@@ -309,7 +308,7 @@ class TicketSystemTest extends TestCase
         $this->assertTrue($ticket->isClosed());
         $this->assertSame($editor->id, $ticket->closed_by);
         $this->assertNotNull($ticket->closed_at);
-        Mail::assertQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($owner->email));
+        Notification::assertSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
 
         $this->actingAs($owner)->post(route('tickets.reopen', $ticket))->assertRedirect(route('tickets.show', $ticket));
         $ticket->refresh();
@@ -352,7 +351,7 @@ class TicketSystemTest extends TestCase
 
         $this->actingAs($editor)->post(route('tickets.assign', $ticket), ['user_id' => $colleague->id]);
         $this->assertSame($colleague->id, $ticket->refresh()->assigned_to);
-        Mail::assertQueued(TicketAssignmentMail::class, fn ($mail) => $mail->hasTo($colleague->email));
+        Notification::assertSentTo($colleague, TicketAktualisiert::class, fn ($n) => $n->mail instanceof TicketAssignmentMail);
 
         // Zuweisung aufheben
         $this->actingAs($editor)->post(route('tickets.assign', $ticket), ['user_id' => '']);
@@ -447,7 +446,7 @@ class TicketSystemTest extends TestCase
         $this->assertTrue($expired2->refresh()->isClosed());
         $this->assertSame('waiting', $stillWaiting->refresh()->status);
         $this->assertDatabaseHas('ticket_comments', ['ticket_id' => $expired->id, 'user_id' => null]);
-        Mail::assertQueued(newTicketCommentMail::class, fn ($mail) => $mail->hasTo($owner->email));
+        Notification::assertSentTo($owner, TicketAktualisiert::class, fn ($n) => $n->mail instanceof newTicketCommentMail);
     }
 
     public function test_automatisches_schliessen_abschaltbar(): void

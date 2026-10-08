@@ -2,7 +2,7 @@
 {{-- Badge-Zähler wird per x-html eingefügt – hier nur der Body --}}
 <div class="divide-y divide-gray-100">
     @forelse($notifications as $notification)
-        <div class="flex items-start gap-3 px-4 py-3">
+        <a href="{{ route('benachrichtigungen.oeffnen', $notification->id) }}" class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50" style="color:inherit;text-decoration:none;">
             <div class="shrink-0 w-7 h-7 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mt-0.5">
                 <i class="fas fa-bell text-xs"></i>
             </div>
@@ -14,7 +14,7 @@
                     {{ $notification->created_at->diffForHumans() }}
                 </div>
             </div>
-        </div>
+        </a>
     @empty
         <div data-card-empty="true" class="px-4 py-8 text-center text-gray-400 text-sm">
             <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,3 +46,8 @@
     </div>
 @endif
 
+
+<div class="px-4 py-2 border-t border-gray-100 flex justify-between text-xs">
+    <a href="{{ route('benachrichtigungen.index') }}" class="text-blue-600 hover:underline">Alle anzeigen</a>
+    <a href="{{ route('benachrichtigungen.einstellungen') }}" class="text-gray-500 hover:text-blue-600"><i class="fas fa-cog"></i> Einstellungen</a>
+</div>

@@ -9,14 +9,12 @@ use App\Models\Meeting;
 use App\Models\Task;
 use App\Models\Theme;
 use App\Models\User;
-use App\Notifications\Push;
+use App\Notifications\AufgabeZugewiesen;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Aufgaben zu Themen (Gruppen-Themen und freie Meeting-Themen).
@@ -103,40 +101,18 @@ class ThemeTaskService
     }
 
     /**
-     * Benachrichtigt neu zuständige Personen (Push + Mail), außer den Ersteller.
+     * Benachrichtigt neu zuständige Personen, außer den Ersteller.
+     * Kanäle (Glocke/Push/Mail) nach Einstellung der Person, keine Mail bei Abwesenheit.
      */
     public function notify(Task $task, Collection $users, User $creator): void
     {
-        $collective = $task->isCollective();
-        $label      = match ($task->taskable_type) {
-            Group::class   => $task->taskable?->name,
-            Meeting::class => 'Meeting „' . $task->taskable?->title . '“',
-            default        => null,
-        };
-        $text = $collective
-            ? 'Du hast eine neue gemeinsame Aufgabe im MitarbeiterBoard'
-            : 'Du hast eine neue persönliche Aufgabe im MitarbeiterBoard';
-
         foreach ($users as $user) {
             if ((int) $user->id === (int) $creator->id) {
                 continue;
             }
 
-            if (! ($user->send_mails_if_absence == true || (! $user->hasAbsence(now()) && ! $user->hasHoliday(now())))) {
-                continue;
-            }
-
             try {
-                Notification::send($user, new Push('neue Aufgabe', $text));
-                Mail::to($user)->queue(new newTaskMail(
-                    $user->name,
-                    $task->date->format('d.m.Y'),
-                    $task->task,
-                    $task->theme?->theme,
-                    $collective,
-                    $label,
-                    $task->themeUrl()
-                ));
+                $user->notify(new AufgabeZugewiesen($task));
             } catch (\Throwable $e) {
                 Log::warning('Aufgaben-Benachrichtigung fehlgeschlagen', [
                     'task_id' => $task->id,

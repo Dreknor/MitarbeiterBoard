@@ -216,7 +216,12 @@ class PostsController extends Controller
 
         })->get();
 
+        $einstellungen = app(\App\Services\Benachrichtigungen\BenachrichtigungsService::class);
+
         foreach ($users as $user ){
+            if (!$einstellungen->mailErlaubt($user, 'nachrichten')) {
+                continue;
+            }
             Mail::to($user)->queue(new newPostsMail($user->posts()
                 ->whereDate('posts.created_at', '>=', Carbon::today()->startOfDay())
                 ->where('released', 1)

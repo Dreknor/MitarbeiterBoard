@@ -20,6 +20,7 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        View::composer('layouts.partials.topbar', \App\View\Composers\TopbarBenachrichtigungenComposer::class);
         View::composer('posts.dashboardCard', \App\View\Composers\NachrichtenComposer::class);
         View::composer(['personal.self-service._tab_app', 'personal.employes._paed_app_card'], \App\View\Composers\PaedAppProfileComposer::class);
         View::composer('personal.holidays.dashboardCard', \App\View\Composers\UrlaubCardComposer::class);

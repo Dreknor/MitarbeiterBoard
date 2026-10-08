@@ -3,34 +3,46 @@
 namespace App\Notifications\Personal;
 
 use App\Models\personal\PersonalReminder;
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Notifications\Benachrichtigung;
 
-class PersonalReminderNotification extends Notification
+class PersonalReminderNotification extends Benachrichtigung
 {
-    use Queueable;
-
     public function __construct(private readonly PersonalReminder $reminder) {}
 
-    public function via(object $notifiable): array
+    public function kategorie(): string
     {
-        return ['mail', 'database'];
+        return 'personal';
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function titel(object $notifiable): string
     {
-        $name = $this->reminder->employe->name;
-
-        return (new MailMessage)
-            ->subject("Wiedervorlage Personal: {$this->reminder->label()} ({$name})")
-            ->greeting('Wiedervorlage in der Personalverwaltung')
-            ->line("{$name}: {$this->reminder->label()} am {$this->reminder->due_date->format('d.m.Y')}.")
-            ->line((string) $this->reminder->note)
-            ->action('Personalakte öffnen', route('personal.personalakte.show', $this->reminder->employe_id));
+        return "Wiedervorlage Personal: {$this->reminder->label()} ({$this->reminder->employe->name})";
     }
 
-    public function toArray(object $notifiable): array
+    public function text(object $notifiable): string
+    {
+        return "{$this->reminder->employe->name}: {$this->reminder->label()} am {$this->reminder->due_date->format('d.m.Y')}.";
+    }
+
+    public function zeilen(object $notifiable): array
+    {
+        return array_values(array_filter([
+            $this->text($notifiable),
+            (string) $this->reminder->note,
+        ]));
+    }
+
+    public function url(object $notifiable): ?string
+    {
+        return route('personal.personalakte.show', $this->reminder->employe_id);
+    }
+
+    public function aktionText(): string
+    {
+        return 'Personalakte öffnen';
+    }
+
+    public function zusatzdaten(object $notifiable): array
     {
         return [
             'type'        => 'personal_reminder',

@@ -204,13 +204,6 @@ class UserTest extends TestCase
 
     // ─── Casts ───────────────────────────────────────────────────────────────
 
-    public function test_absence_abo_daily_ist_boolean(): void
-    {
-        $user = User::factory()->create(['absence_abo_daily' => true]);
-        $this->assertIsBool($user->absence_abo_daily);
-        $this->assertTrue($user->absence_abo_daily);
-    }
-
     public function test_email_verified_at_ist_datetime(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);

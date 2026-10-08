@@ -5,17 +5,14 @@ namespace App\Http\Controllers\Meetings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProtocolRequest;
 use App\Http\Requests\StoreThemeTaskRequest;
-use App\Mail\newProtocolForTask;
 use App\Models\Meeting;
 use App\Models\Protocol;
 use App\Models\Theme;
-use App\Notifications\Push;
+use App\Notifications\ProtokollErstellt;
 use App\Services\Meetings\MeetingService;
 use App\Services\Tasks\ThemeTaskService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Agenda-Themen im Meeting-Kontext. Zugriff über die Meeting-Teilnahme –
@@ -243,9 +240,9 @@ class MeetingThemeController extends Controller
         }
 
         if ($theme->type?->type === 'Aufgabe' && (int) $theme->creator_id !== (int) $user->id && $theme->ersteller) {
-            Notification::send($theme->ersteller, new Push('neues Protokoll', 'Thema: ' . $theme->theme));
-            if ($theme->group) {
-                Mail::to($theme->ersteller)->queue(new newProtocolForTask($user->name, $theme, $theme->group->name, $protocol));
+            // Abonnenten werden bereits über Protocol::booted() benachrichtigt
+            if (!$theme->subscriptionable()->where('users_id', $theme->ersteller->id)->exists()) {
+                $theme->ersteller->notify(new ProtokollErstellt($protocol, $user->name));
             }
         }
 

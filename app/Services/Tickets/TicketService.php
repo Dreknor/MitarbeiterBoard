@@ -9,7 +9,7 @@ use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
-use App\Notifications\Push;
+use App\Notifications\TicketAktualisiert;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Mailable;
@@ -17,7 +17,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Permission;
 
 /**
@@ -60,6 +59,7 @@ class TicketService
         $ticket->load('user', 'category');
 
         $this->notify(
+            $ticket,
             $this->editors(),
             $author,
             fn () => new newTicketMail($ticket),
@@ -131,6 +131,7 @@ class TicketService
         }
 
         $this->notify(
+            $ticket,
             $recipients,
             $author,
             fn () => new newTicketCommentMail($comment, $ticket),
@@ -163,6 +164,7 @@ class TicketService
         if ($assignee !== null) {
             $ticket->loadMissing('user', 'category');
             $this->notify(
+                $ticket,
                 collect([$assignee]),
                 $by,
                 fn () => new TicketAssignmentMail($ticket),
@@ -173,6 +175,7 @@ class TicketService
 
         if ($previous !== null) {
             $this->notify(
+                $ticket,
                 collect([$previous]),
                 $by,
                 null,
@@ -241,6 +244,7 @@ class TicketService
         $byOwner = $by !== null && (int) $by->id === (int) $ticket->user_id;
 
         $this->notify(
+            $ticket,
             $byOwner ? collect([$ticket->assigned]) : collect([$ticket->user]),
             $by,
             fn () => new newTicketCommentMail($comment, $ticket),
@@ -274,6 +278,7 @@ class TicketService
             : collect([$ticket->user]);
 
         $this->notify(
+            $ticket,
             $recipients,
             $by,
             fn () => new newTicketCommentMail($comment, $ticket),
@@ -388,10 +393,10 @@ class TicketService
     }
 
     /**
-     * Versendet Mail (optional) und Push an alle Empfänger außer dem Auslöser.
+     * Benachrichtigt alle Empfänger außer dem Auslöser (Glocke, Push, Mail nach Einstellung).
      * Fehler beim Versand werden geloggt, brechen aber nie die eigentliche Aktion ab.
      */
-    private function notify(Collection $recipients, ?User $actor, ?callable $mailFactory, string $pushTitle, string $pushBody): void
+    private function notify(Ticket $ticket, Collection $recipients, ?User $actor, ?callable $mailFactory, string $title, string $body): void
     {
         $recipients = $recipients
             ->filter()
@@ -400,23 +405,12 @@ class TicketService
             ->unique('id');
 
         foreach ($recipients as $user) {
-            if ($mailFactory !== null && filled($user->email)) {
-                try {
-                    /** @var Mailable $mail */
-                    $mail = $mailFactory();
-                    Mail::to($user->email)->queue($mail);
-                } catch (\Throwable $e) {
-                    Log::error('Ticketsystem: Mail konnte nicht versendet werden', [
-                        'user' => $user->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
             try {
-                $user->notify(new Push($pushTitle, $pushBody));
+                /** @var Mailable|null $mail */
+                $mail = $mailFactory !== null ? $mailFactory() : null;
+                $user->notify(new TicketAktualisiert($ticket, $title, $body, $mail));
             } catch (\Throwable $e) {
-                Log::warning('Ticketsystem: Push-Benachrichtigung fehlgeschlagen', [
+                Log::error('Ticketsystem: Benachrichtigung fehlgeschlagen', [
                     'user' => $user->id,
                     'error' => $e->getMessage(),
                 ]);

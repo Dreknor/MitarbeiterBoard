@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use App\Mail\newProtocolForTask;
-use App\Mail\NewThemeMail;
+use App\Notifications\ThemaErstellt;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\Mail;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -105,6 +103,20 @@ class Theme extends Model implements HasMedia
     }
 
     /**
+     * Link zum Thema: Gruppen-Thema oder (bei freien Themen) über das letzte Meeting.
+     */
+    public function url(): ?string
+    {
+        if ($this->group) {
+            return url($this->group->name.'/themes/'.$this->id);
+        }
+
+        $meeting = $this->meetings()->orderByDesc('date')->first();
+
+        return $meeting ? route('meetings.themes.show', [$meeting, $this]) : null;
+    }
+
+    /**
      * Freies Thema ohne Gruppe (nur über Meetings erreichbar).
      */
     public function isFree(): bool
@@ -124,7 +136,7 @@ class Theme extends Model implements HasMedia
             }
 
             foreach ($group->subscriptionable as $subscription) {
-                Mail::to($subscription->user)->queue(new NewThemeMail($theme->theme, $theme->id, $group->name));
+                $subscription->user?->notify(new ThemaErstellt($theme));
             }
         });
     }

@@ -9,8 +9,8 @@ use App\Exports\SickNotesByUserExport;
 use App\Exports\SickNotesExport;
 use App\Exports\SickNotesUserSummaryExport;
 use App\Http\Requests\CreateAbsenceRequest;
-use App\Mail\DailyAbsenceReport;
-use App\Mail\NewAbsenceMail;
+use App\Services\Benachrichtigungen\BenachrichtigungsService;
+use App\Notifications\AbwesenheitGemeldet;
 use App\Models\Absence;
 use App\Models\User;
 use Illuminate\Contracts\Foundation\Application;
@@ -22,7 +22,7 @@ use Illuminate\Routing\Redirector;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -100,81 +100,18 @@ class AbsenceController extends Controller
                 ]
             );
         }
-        $users = User::where('absence_abo_now', 1)->get();
-        foreach ($users as $user){
-            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
-                $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
-            }
-        }
+        // Sofortmeldung an alle, die die Kategorie „Abwesenheiten“ (Push oder Mail) eingeschaltet haben.
+        // Der tägliche Überblick läuft über die Tagesübersicht (Bereich „Abwesenheiten“).
+        $benachrichtigungen = app(BenachrichtigungsService::class);
+        Notification::send(
+            $benachrichtigungen->aktiviertFuer($benachrichtigungen->nutzerMitPermission('view absences'), 'abwesenheiten'),
+            new AbwesenheitGemeldet($absence)
+        );
 
         return redirect()->back()->with([
             'type' => 'success',
             'Meldung' => 'Abwesenheit wurde gespeichert.'
         ]);
-    }
-
-    /**
-     * @param $type
-     * @return RedirectResponse
-     */
-    public function abo($type){
-        $user = auth()->user();
-        if ($type == 'daily'){
-            if ($user->absence_abo_daily == 1){
-                $user->update(['absence_abo_daily' => 0]);
-            } else {
-                $user->update(['absence_abo_daily' => 1]);
-            }
-        }
-        if ($type == 'now'){
-            if (auth()->user()->absence_abo_now == 1){
-                auth()->user()->update(['absence_abo_now' => 0]);
-            } else {
-                auth()->user()->update(['absence_abo_now' => 1]);
-            }
-        }
-        return redirect()->back();
-    }
-
-    /**
-     * @return void
-     */
-    public function dailyReport(){
-
-        Log::debug(
-            'Abwesenheit: täglicher Report',
-            [
-
-            ]
-        );
-
-        $absences = Absence::where('start', '<=', Carbon::now()->format('Y-m-d'))
-                            ->where('end', '>=', Carbon::now()->format('Y-m-d'))
-                            ->get();
-
-        $users = User::where('absence_abo_daily', 1)->get();
-
-        Log::debug(
-            'Abwesenheit: täglicher Report',
-            [
-                'absences' => $absences,
-                'users' => $users,
-            ]
-        );
-
-        foreach ($users as $user){
-            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))) {
-                $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                    ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
-                    ->where('users_id', $user->id)
-                    ->first();
-
-                if (is_null($absence_user)) {
-                    Mail::to($user)
-                        ->queue(new DailyAbsenceReport($absences));
-                }
-            }
-        }
     }
 
     /**

@@ -8,8 +8,10 @@ use App\Models\Procedure;
 use App\Models\Procedure_Category;
 use App\Models\Procedure_Step;
 use App\Models\User;
+use App\Notifications\ProzessschrittZugewiesen;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
@@ -124,6 +126,7 @@ class ProcedureRunningTest extends TestCase
     public function test_startup_sendet_mail_an_positionsinhaber(): void
     {
         Mail::fake();
+        Notification::fake();
 
         $admin = $this->actingAsWithPermission('manage procedures');
         [
@@ -141,8 +144,11 @@ class ProcedureRunningTest extends TestCase
             'started_at' => now()->format('Y-m-d'),
         ]);
 
-        Mail::assertQueued(newStepMail::class, function ($mail) use ($empfaenger) {
-            return $mail->hasTo($empfaenger->email);
+        Notification::assertSentTo($empfaenger, ProzessschrittZugewiesen::class, function ($n, $channels) use ($empfaenger) {
+            // Bisheriges Mail-Template an die Positionsinhaberin
+            return in_array('mail', $channels, true)
+                && $n->toMail($empfaenger) instanceof newStepMail
+                && $n->toMail($empfaenger)->hasTo($empfaenger->email);
         });
     }
 
@@ -533,6 +539,7 @@ class ProcedureRunningTest extends TestCase
     public function test_neuer_wurzelschritt_im_laufenden_prozess_ist_sofort_faellig(): void
     {
         Mail::fake();
+        Notification::fake();
 
         $this->actingAsWithPermission('manage procedures');
         $prozess  = Procedure::factory()->gestartet()->create();
@@ -548,7 +555,7 @@ class ProcedureRunningTest extends TestCase
 
         $step = Procedure_Step::where('name', 'Nachgereicht')->firstOrFail();
         $this->assertSame(today()->addDays(3)->toDateString(), $step->endDate->toDateString());
-        Mail::assertQueued(newStepMail::class, fn ($mail) => $mail->hasTo($inhaber->email));
+        Notification::assertSentTo($inhaber, ProzessschrittZugewiesen::class, fn ($n, $channels) => in_array('mail', $channels, true));
     }
 
     public function test_neuer_folgeschritt_wartet_auf_vorgaenger(): void

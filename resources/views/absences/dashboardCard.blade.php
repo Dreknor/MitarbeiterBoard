@@ -11,30 +11,11 @@
             </div>
         @endcan
         <div class="pull-right ml-2">
-            <a href="{{url('absences/abo/daily')}}" class="card-link text-success">
-                @if(auth()->user()->absence_abo_daily != 1)
-                    <i class="fa fa-bell" title="tägliche Zusammenfassung per E-Mail aktivieren"></i> <div class="d-none d-md-block">täglich</div>
-                @else
-                    <i class="fa fa-bell-slash" title="tägliche Zusammenfassung per E-Mail deaktivieren"></i>
-                    <div class="d-none d-md-block">
-                        täglich
-                    </div>
-                @endif
-            </a>
-        </div>
-        <div class="pull-right ml-2">
-            <a href="{{url('absences/abo/now')}}" class="card-link">
-                @if(auth()->user()->absence_abo_now != 1)
-                    <i class="fa fa-bell" title="sofortige Benachrichtigung per E-Mail aktivieren"></i>
-                    <div class="d-none d-md-block">
-                        sofort
-                    </div>
-                @else
-                    <i class="fa fa-bell-slash" title="sofortige Benachrichtigung per E-Mail deaktivieren"></i>
-                    <div class="d-none d-md-block">
-                        sofort
-                    </div>
-                @endif
+            <a href="{{ route('benachrichtigungen.einstellungen') }}" class="card-link text-success" title="Abwesenheiten per Benachrichtigung oder Tagesübersicht erhalten">
+                <i class="fa fa-bell"></i>
+                <div class="d-none d-md-block">
+                    Benachrichtigung
+                </div>
             </a>
         </div>
         <h6>

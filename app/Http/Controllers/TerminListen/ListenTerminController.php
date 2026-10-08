@@ -5,7 +5,7 @@ namespace App\Http\Controllers\TerminListen;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreListeTerminRequest;
 use App\Http\Requests\TerminabsageRequest;
-use App\Mail\TerminAbsage;
+use App\Notifications\TerminAbgesagt;
 use App\Models\Liste;
 use App\Models\ListenTermin;
 use Carbon\Carbon;
@@ -13,7 +13,7 @@ use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Class ListenTerminController
@@ -100,17 +100,10 @@ class ListenTerminController extends Controller
     {
 
         if ($request->user()->id == $listen_termine->reserviert_fuer  or $request->user()->id == $listen_termine->liste->user_id) {
-            Mail::to($listen_termine->liste->ersteller->email, $listen_termine->liste->ersteller->name)
-                ->queue(new TerminAbsage($request->user(),
-                    $listen_termine->liste,
-                    $listen_termine->termin,
-                    $request->text));
-
-            Mail::to($listen_termine->eingetragenePerson->email, $listen_termine->eingetragenePerson->name)
-                            ->queue(new TerminAbsage($request->user(),
-                                $listen_termine->liste,
-                                $listen_termine->termin,
-                                $request->text));
+            Notification::send(
+                collect([$listen_termine->liste->ersteller, $listen_termine->eingetragenePerson])->filter()->unique('id'),
+                new TerminAbgesagt($listen_termine->liste, $listen_termine->termin, $request->user(), (string) $request->text)
+            );
 
             $listen_termine->update(['reserviert_fuer' => null]);
 
@@ -132,9 +125,9 @@ class ListenTerminController extends Controller
         if ($request->user()->id == $listen_termine->liste->user_id) {
             if ($listen_termine->reserviert_fuer != null) {
 
-                //E-Mail versenden
-                Mail::to($listen_termine->eingetragenePerson->email, $listen_termine->eingetragenePerson->name)
-                    ->queue(new TerminAbsage($listen_termine->eingetragenePerson->name, $listen_termine->liste, $listen_termine->termin, $request->user()));
+                $listen_termine->eingetragenePerson?->notify(
+                    new TerminAbgesagt($listen_termine->liste, $listen_termine->termin, $request->user())
+                );
                 $listen_termine->update([
                     'reserviert_fuer'   => null,
                 ]);

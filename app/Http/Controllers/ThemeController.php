@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
-use App\Mail\newThemeAssignMail;
 use App\Mail\RemindAssignedThemes;
+use App\Notifications\ThemaZugewiesen;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Subscription;
@@ -91,7 +91,7 @@ class ThemeController extends Controller
         }
 
         //Benachrichtigen
-        Mail::to($user->email)->queue(new newThemeAssignMail($theme, $user));
+        $user->notify(new ThemaZugewiesen($theme));
 
         //Log erstellen
         $protocol = new Protocol([
@@ -116,7 +116,12 @@ class ThemeController extends Controller
             ->where('remind_assign_themes', 1)
             ->with('assigned_themes')->get();
 
+        $einstellungen = app(\App\Services\Benachrichtigungen\BenachrichtigungsService::class);
+
         foreach ($users as $user){
+            if (!$einstellungen->mailErlaubt($user, 'themen')) {
+                continue;
+            }
             Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes->where('completed', 0)));
         }
     }

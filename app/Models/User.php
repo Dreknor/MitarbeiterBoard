@@ -47,10 +47,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
+        'name', 'email', 'password', 'changePassword','kuerzel', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
     ];
 
     /**
@@ -69,8 +69,6 @@ class User extends Authenticatable implements HasMedia
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'absence_abo_daily' => 'boolean',
-        'absence_abo_now' => 'boolean',
         'remind_assign_themes' => 'boolean',
         'send_mails_if_absence' => 'boolean',
     ];
@@ -122,6 +120,19 @@ class User extends Authenticatable implements HasMedia
     public function groups_rel()
     {
         return $this->belongsToMany(Group::class)->orderBy('name');
+    }
+
+    /*
+     * Benachrichtigungen
+     */
+    public function notificationPreferences()
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
+    public function tagesvorschauEinstellung()
+    {
+        return $this->hasOne(TagesvorschauEinstellung::class);
     }
 
     public function dashboardCards()

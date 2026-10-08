@@ -33,6 +33,7 @@ use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\BenachrichtigungController;
 use App\Http\Controllers\RecurringProcedureController;
 use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
@@ -163,6 +164,19 @@ Route::group([
                 Route::get('dashboard/hilfe', [DashboardController::class, 'hilfe'])->name('dashboard.hilfe');
                 Route::get('dashboard/card/{dashBoardUser}', [DashboardController::class, 'loadCard']);
                 Route::post('notifications/mark-all-read', [DashboardController::class, 'markNotificationsRead'])->name('notifications.markAllRead');
+
+                /*
+                 * Benachrichtigungen (Glocke, Verlauf, Einstellungen, Tagesübersicht) – nur eigene
+                 */
+                Route::prefix('benachrichtigungen')->name('benachrichtigungen.')->group(function () {
+                    Route::get('/', [BenachrichtigungController::class, 'index'])->name('index');
+                    Route::get('neueste', [BenachrichtigungController::class, 'neueste'])->name('neueste');
+                    Route::post('gelesen', [BenachrichtigungController::class, 'alleGelesen'])->name('gelesen');
+                    Route::get('einstellungen', [BenachrichtigungController::class, 'einstellungen'])->name('einstellungen');
+                    Route::put('einstellungen', [BenachrichtigungController::class, 'einstellungenSpeichern'])->name('einstellungen.speichern');
+                    Route::get('tag/{datum?}', [BenachrichtigungController::class, 'tag'])->where('datum', '\d{4}-\d{2}-\d{2}')->name('tag');
+                    Route::get('{id}/oeffnen', [BenachrichtigungController::class, 'oeffnen'])->whereUuid('id')->name('oeffnen');
+                });
 
                 /*
                  * Dashboard v2 – Schnellzugriff (Quicklinks)
@@ -560,7 +574,8 @@ Route::group([
                     Route::post('absences', [AbsenceController::class, 'store']);
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
-                    Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
+                    // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
+                    Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
                 });
 
                 Route::middleware(['permission:manage sick_notes'])->group(function () {
@@ -813,8 +828,9 @@ Route::group([
                 Route::delete('theme-tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
                 //Push-Notification
-                Route::post('{groupname?}/push', [PushController::class, 'store']);
-                Route::post('push', [PushController::class, 'store']);
+                Route::post('push', [PushController::class, 'store'])->name('push.store');
+                Route::delete('push', [PushController::class, 'destroy'])->name('push.destroy');
+                Route::post('push/test', [PushController::class, 'test'])->middleware('throttle:5,1')->name('push.test');
 
                 Route::group(['middlewareGroups' => ['role:Admin']], function () {
                     Route::get('showUser/{id}', [UserController::class, 'loginAsUser']);
