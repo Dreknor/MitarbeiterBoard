@@ -69,7 +69,7 @@ class MailDiagnosticCommand extends Command
             ],
             'meeting' => [
                 'label'       => 'Meeting-Einladung (MeetingInvitationMail)',
-                'description' => 'HTML-Mail mit ICS-Kalender-Anhang (text/calendar + application/ics).',
+                'description' => 'Text/HTML-Mail mit Inline-Kalenderteil (text/calendar; method=REQUEST) und einladung.ics.',
                 'class'       => MeetingInvitationMail::class,
                 'hasAttachment' => true,
                 'factory'     => fn (string $email) => $this->buildMeetingMail($email),

@@ -66,7 +66,7 @@ class MeetingInvitationMailTest extends TestCase
         // Prüfe ICS-Inhalt über Reflection (buildIcal ist private)
         $reflection = new \ReflectionMethod($mail, 'buildIcal');
         $reflection->setAccessible(true);
-        $ical = $reflection->invoke($mail);
+        $ical = preg_replace('/\r?\n[ \t]/', '', $reflection->invoke($mail));
 
         // VCALENDAR muss METHOD:REQUEST enthalten
         $this->assertStringContainsString('METHOD:REQUEST', $ical, 'VCALENDAR fehlt METHOD:REQUEST');
@@ -123,6 +123,46 @@ class MeetingInvitationMailTest extends TestCase
         $ical = $reflection->invoke($mail);
 
         $this->assertStringContainsString('LOCATION:https://meet.example.com/room1', $ical);
+    }
+
+    /** @test */
+    public function ical_uses_utc_times_and_declares_noreply_as_sent_by(): void
+    {
+        config(['mail.from.address' => 'noreply@example.com']);
+
+        $group   = Group::factory()->asMeetingGroup()->create();
+        $meeting = Meeting::factory()->for($group)->create();
+        $user    = User::factory()->create();
+
+        $mail = new MeetingInvitationMail($meeting, $group, $user, null, 'Absender', 'absender@example.com');
+
+        $reflection = new \ReflectionMethod($mail, 'buildIcal');
+        $reflection->setAccessible(true);
+        $ical = preg_replace('/\r?\n[ \t]/', '', $reflection->invoke($mail));
+
+        // TZID ohne VTIMEZONE wäre ungültig → Zeiten in UTC
+        $this->assertStringNotContainsString('TZID=', $ical);
+        $this->assertMatchesRegularExpression('/DTSTART:\d{8}T\d{6}Z/', $ical);
+        $this->assertStringContainsString('SENT-BY="mailto:noreply@example.com":mailto:absender@example.com', $ical);
+    }
+
+    /** @test */
+    public function mail_contains_inline_calendar_part_and_single_ics_attachment(): void
+    {
+        $group   = Group::factory()->asMeetingGroup()->create();
+        $meeting = Meeting::factory()->for($group)->create(['title' => 'Teamsitzung']);
+        $user    = User::factory()->create(['email' => 'empfaenger@example.com']);
+
+        Mail::mailer('array')->to($user->email)
+            ->send(new MeetingInvitationMail($meeting, $group, $user, null, 'Absender', 'absender@example.com'));
+
+        $raw = Mail::mailer('array')->getSymfonyTransport()->messages()->first()->toString();
+
+        $this->assertStringContainsString('Content-Type: multipart/alternative', $raw);
+        $this->assertStringContainsString('Content-Type: text/plain', $raw);
+        $this->assertStringContainsString('Content-Type: text/html', $raw);
+        $this->assertStringContainsString('Content-Type: text/calendar; charset=utf-8; method=REQUEST', $raw);
+        $this->assertSame(1, substr_count($raw, 'filename=einladung.ics'));
     }
 
     /** @test */
