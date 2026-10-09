@@ -488,7 +488,7 @@
 @endpush
 
 @push('js')
-    <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
+    <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20261009')}}"></script>
     <script src="{{ asset('/js/paedDiary/columns.js')}}"></script>
     <script src="{{ asset('/js/paedDiary/paedDiaryEntries.js')}}"></script>
     <script src="{{ asset('/js/paedDiary/stages.js')}}"></script>

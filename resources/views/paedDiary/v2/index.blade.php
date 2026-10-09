@@ -86,7 +86,7 @@
 @endpush
 
 @push('js')
-<script src="{{ asset('/js/tablet-scroll-optimization.js?v=20251110')}}"></script>
+<script src="{{ asset('/js/tablet-scroll-optimization.js?v=20261009')}}"></script>
 @vite(['resources/js/paed-diary-v2.js'])
 @endpush
 

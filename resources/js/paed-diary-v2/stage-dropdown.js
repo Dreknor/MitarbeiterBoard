@@ -21,6 +21,7 @@ export function registerStageDropdown(Alpine) {
         triggerEl: null,
         _repositionHandler: null,
         _closeOnPointerDown: null,
+        _openedAt: 0,
 
         /**
          * Gibt HTML für das Stufen-Symbol eines Schülers zurück.
@@ -45,16 +46,22 @@ export function registerStageDropdown(Alpine) {
         async openDropdown(stuId, klasseId, triggerEl) {
             if (!this.$store.diary.can_manage_grading) return;
 
-            // Wenn schon für diesen Schüler offen → schließen
+            // Wenn schon für diesen Schüler offen → schließen.
+            // Ausnahme: Ein Touch-Tap kann (je nach Browser/Gerät) einen zweiten
+            // Klick erzeugen – der würde das Menü sofort wieder zuklappen.
             if (this.dropdownOpen && this.dropdownStuId === stuId) {
+                if (Date.now() - this._openedAt < 500) return;
                 this.closeDropdown();
                 return;
             }
+            // Ein noch offenes Menü (Listener) sauber schließen
+            if (this.dropdownOpen) this.closeDropdown();
 
             this.triggerEl = triggerEl || null;
             this.dropdownStuId = stuId;
             this.dropdownKlasseId = klasseId;
             this.dropdownOpen = true;
+            this._openedAt = Date.now();
             this.stageLoading = true;
             this.stages = [];
 
@@ -74,7 +81,14 @@ export function registerStageDropdown(Alpine) {
                     this.closeDropdown();
                 }
             };
-            document.addEventListener('pointerdown', this._closeOnPointerDown);
+            // Erst nach dem aktuellen Tap registrieren, damit dessen Events
+            // das Menü nicht direkt wieder schließen
+            const closeHandler = this._closeOnPointerDown;
+            setTimeout(() => {
+                if (this._closeOnPointerDown === closeHandler) {
+                    document.addEventListener('pointerdown', closeHandler);
+                }
+            }, 0);
 
             try {
                 const resp = await fetch(`/paed-diary/klasse/${klasseId}/stages`, {
