@@ -342,10 +342,6 @@
 .diary-btn-unpause:hover{background:#d2ebfb;border-color:#64b5f6;}
 .diary-btn-unpause:focus{box-shadow:0 0 0 3px rgba(21,101,192,0.35);}
 
-/* Kleiner auf sehr schmalen Bildschirmen */
-@media (max-width:576px){
-  .diary-btn{width:20px;height:20px;font-size:0.65rem;margin-left:2px;border-radius:5px;}
-}
 
 /* Unterschiedliche Bedeutungen farblich erkennbar für Barrierefreiheit (Kontrastprüfung > 4.5:1 für Textgröße >= 14px automatisch nicht nötig da Symbolcharakter) */
 .diary-btn-complete::after,.diary-btn-pause::after,.diary-btn-unpause::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;}
@@ -425,3 +421,105 @@
 
 /* Small spacing between groups */
 .category-entries + div{ height:6px; }
+
+/* ========================================
+   SMARTPHONE-ANSICHT (< 768px)
+   Ein Tag pro Ansicht (Tagesauswahl), Schülername und Tageszelle
+   untereinander. Ab 768px (Tablet/Desktop) greift nichts davon.
+   ======================================== */
+.diary-mobile-days { display: none; }
+
+@media (max-width: 767.98px) {
+    /* Tagesauswahl */
+    .diary-mobile-days {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .diary-mobile-day-btn {
+        flex: 1 0 auto;
+        min-height: 40px;
+        padding: 4px 6px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background: #fff;
+        color: #495057;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+    .diary-mobile-day-btn.is-ferien { background: #fff8e1; color: #e65100; }
+    .diary-mobile-day-btn.is-today { background: #e3f2fd; color: #1565c0; }
+    .diary-mobile-day-btn.is-active { background: #1976d2; border-color: #1976d2; color: #fff; }
+
+    /* Nur den gewählten Tag anzeigen */
+    #diaryTable .mobile-hidden-day { display: none !important; }
+
+    /* Tabelle in gestapelte Blöcke auflösen */
+    #diaryTable,
+    #diaryTable thead,
+    #diaryTable tbody,
+    #diaryTable tr {
+        display: block;
+        width: 100%;
+    }
+    #diaryTable th,
+    #diaryTable td {
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+    #diaryTable thead th.name_column { display: none; }
+    #diaryTable thead tr { margin-bottom: 8px; }
+    #diaryTable tbody tr {
+        margin-bottom: 8px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    #diaryTable tbody tr.class-divider-row { border: 0; border-radius: 4px; }
+    #diaryTable th.schueler_name_field {
+        background: #f8f9fa;
+        font-size: 0.9rem !important;
+        border-bottom-width: 1px;
+    }
+    #diaryTable th.schueler_name_field a { font-weight: 600; }
+
+    /* Zellinhalt lesbar und gut antippbar */
+    #diaryTable td.note-cell { font-size: 0.85rem; }
+    #diaryTable td.note-cell .entry-add-space { min-height: 36px !important; }
+    #diaryTable td.note-cell .entry-item { padding: 4px 4px 6px; }
+    #diaryTable td.note-cell .entry-item .author { font-size: 0.68rem; }
+    #diaryTable td.note-cell .entry-item .text { font-size: 0.9rem; line-height: 1.3em; }
+    .entry-category-header { font-size: 0.8rem; }
+    .diary-btn,
+    .day-pause-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+        margin-left: 4px;
+        border-radius: 6px;
+    }
+    .day-pause-btn { width: auto; min-width: 34px; font-size: 0.8rem !important; padding: 2px 8px !important; }
+
+    /* Spalten-Inputs: 16px verhindert das automatische Zoomen von iOS */
+    #diaryTable td.note-cell .col-inputs { gap: 4px; }
+    #diaryTable td.note-cell .col-inputs input[type=text],
+    #diaryTable td.note-cell .col-inputs input[type=number] {
+        width: 110px;
+        min-height: 34px;
+        font-size: 16px;
+    }
+    #diaryTable td.note-cell .col-inputs .bool-btn,
+    #diaryTable td.note-cell .col-inputs .ampel-btn {
+        min-height: 32px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
+    }
+    #diaryTable td .col-cat-group .col-cat-label { font-size: 0.65rem; }
+    #diaryTable .appointment-item { font-size: 0.8rem !important; padding: 4px 6px; }
+}

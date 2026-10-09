@@ -48,7 +48,7 @@
 @endsection
 
 @push('css')
-<link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20251019') }}">
+<link rel="stylesheet" href="{{ asset('css/paedDiary.css?v=20261009') }}">
 <link rel="stylesheet" href="{{ asset('css/pausedToggle.css?v=20251019') }}">
 <link rel="stylesheet" href="{{ asset('css/tablet-scroll-optimization.css?v=20251110') }}">
 @vite(['resources/css/paed-diary-v2.css'])

@@ -13,6 +13,16 @@ export function registerDiaryStore(Alpine) {
         loading: false,
         initialized: false,
 
+        /**
+         * Hält den Smartphone-Tag innerhalb der geladenen Woche:
+         * bevorzugt heute, sonst den ersten Tag der Woche.
+         */
+        syncMobileDay() {
+            const dates = this.days.map(d => d.date);
+            if (dates.includes(this.mobileDay)) return;
+            this.mobileDay = dates.includes(this.todayStr) ? this.todayStr : (dates[0] || null);
+        },
+
         // ── Navigation ─────────────────────────────────────────────
         currentWeekStart: startOfWeek(new Date()),
         selectedKlasseId: null,
@@ -38,6 +48,8 @@ export function registerDiaryStore(Alpine) {
 
         // ── UI-Toggles (komponentenübergreifend) ────────────────────
         showPaused: false,
+        /** Auf Smartphones (< 768px) angezeigter Tag (YYYY-MM-DD) */
+        mobileDay: null,
         columnsCardOpen: false,
         hideAllCategoryHeadings: localStorage.getItem('paedDiary_hideAllHeadings') === '1',
         filterUncategorized: localStorage.getItem('paedDiary_filterUncategorized') === '1',
@@ -149,6 +161,7 @@ export function registerDiaryStore(Alpine) {
                 this.show_column_categories = data.show_column_categories || false;
                 this.open_entries = data.open_entries || [];
                 this.class_day_pauses = data.class_day_pauses || [];
+                this.syncMobileDay();
 
                 // Termine separat nachladen
                 this.loadAppointments();

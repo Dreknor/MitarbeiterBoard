@@ -2,6 +2,21 @@
     PaedDiary v2 – Diary-Table Partial
     Haupttabelle: Schüler × Wochentage, Einträge, Spalten, Termine
 --}}
+{{-- Tagesauswahl – nur auf Smartphones (< 768px), dort wird je ein Tag angezeigt --}}
+<div class="diary-mobile-days" x-show="!$store.diary.loading && $store.diary.days.length" x-cloak>
+    <template x-for="day in $store.diary.days" :key="'md-' + day.date">
+        <button type="button"
+                class="diary-mobile-day-btn"
+                :class="{
+                    'is-active': day.date === $store.diary.mobileDay,
+                    'is-today': day.date === $store.diary.todayStr,
+                    'is-ferien': day.is_ferien
+                }"
+                @click="$store.diary.mobileDay = day.date"
+                x-text="day.label"></button>
+    </template>
+</div>
+
 <div class="table-responsive" x-show="!$store.diary.loading" x-data="diaryTable()" x-cloak>
     <table class="table table-sm table-bordered mb-0" id="diaryTable">
         {{-- ── Tabellenkopf ─────────────────────────────────────────── --}}
@@ -13,7 +28,8 @@
                         :class="{
                             'today-header': day.date === $store.diary.todayStr,
                             'ferien-header': day.is_ferien,
-                            'class-paused-header': isDayPaused(day.date) && !day.is_ferien
+                            'class-paused-header': isDayPaused(day.date) && !day.is_ferien,
+                            'mobile-hidden-day': day.date !== $store.diary.mobileDay
                         }"
                         :title="day.is_ferien ? (day.ferien_name || 'Ferien') : (isDayPaused(day.date) ? ('Pausiert: ' + getDayPauseReason(day.date)) : '')"
                         :data-date="day.date">
@@ -175,7 +191,8 @@
                                 'ferien-cell': day.is_ferien,
                                 'absent-cell': $store.diary.isAbsent(stu.id, day.date),
                                 'stu-has-task-cell': hasTaskForStudent(stu.id),
-                                'class-paused-cell': isDayPaused(day.date) && !day.is_ferien
+                                'class-paused-cell': isDayPaused(day.date) && !day.is_ferien,
+                                'mobile-hidden-day': day.date !== $store.diary.mobileDay
                             }"
                             :data-stu="stu.id"
                             :data-date="day.date">
