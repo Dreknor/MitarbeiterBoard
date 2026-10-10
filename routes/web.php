@@ -948,6 +948,16 @@ Route::group([
                     Route::resource('settings', SettingController::class)->only(['index', 'store']);
                 });
 
+                /*
+                 * Online-Updater (Permission "make updates" im Controller)
+                 */
+                Route::prefix('updater')->name('updater.')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\UpdateController::class, 'index'])->name('index');
+                    Route::get('status', [\App\Http\Controllers\UpdateController::class, 'status'])->name('status');
+                    Route::post('check', [\App\Http\Controllers\UpdateController::class, 'check'])->name('check');
+                    Route::post('/', [\App\Http\Controllers\UpdateController::class, 'update'])->name('update');
+                });
+
 
                 /*
                  * Routes for Logs

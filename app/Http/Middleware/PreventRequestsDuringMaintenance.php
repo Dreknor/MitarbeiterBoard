@@ -12,6 +12,8 @@ class PreventRequestsDuringMaintenance extends Middleware
      * @var array
      */
     protected $except = [
-        //
+        // Online-Updater: Fortschritt bleibt während des Updates sichtbar
+        'updater',
+        'updater/status',
     ];
 }

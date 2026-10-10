@@ -1,49 +1,57 @@
 <?php
 
-// config for Salahhusa9/Updater
+/*
+|--------------------------------------------------------------------------
+| Online-Updater
+|--------------------------------------------------------------------------
+|
+| Konfiguration für den Updater unter /updater (Permission "make updates").
+| Das Update läuft als Hintergrundprozess `php artisan app:update` und
+| entspricht inhaltlich deploy.sh (git pull → composer → build → migrate →
+| Caches leeren → Queue neu starten).
+|
+*/
+
 return [
 
-    'git_path' => null,
+    // Arbeitsverzeichnis (Git-Checkout der Anwendung)
+    'path' => base_path(),
 
-    'repository_source' => \Salahhusa9\Updater\RepositorySource\GithubRepository::class,
-    'github_token' => env('GITHUB_TOKEN'),
-    'github_username' => env('GITHUB_USERNAME'),
-    'github_repository' => env('GITHUB_REPOSITORY'),
+    // Git-Remote und Branch, von dem aktualisiert wird (null = aktueller Branch)
+    'remote' => env('UPDATER_REMOTE', 'origin'),
+    'branch' => env('UPDATER_BRANCH'),
 
-    'github_timeout' => 100,
+    // Pfade zu den Programmen (null = automatisch über PATH suchen)
+    'php_binary' => env('UPDATER_PHP_BINARY'),
+    'git_binary' => env('UPDATER_GIT_BINARY', 'git'),
+    'composer_binary' => env('UPDATER_COMPOSER_BINARY', 'composer'),
+    'npm_binary' => env('UPDATER_NPM_BINARY', 'npm'),
 
-    'maintenance_mode' => true,
-    'maintenance_mode_secret' => env('MAINTENANCE_MODE_SECRET', false),
+    // composer install ausführen?
+    'composer' => env('UPDATER_COMPOSER', true),
+    'composer_args' => ['install', '--no-interaction', '--prefer-dist', '--no-dev', '--optimize-autoloader'],
 
-    'before_update_pipelines' => [
-        // you can add your own pipelines here
+    // Frontend neu bauen? public/build ist nicht im Repository.
+    // npm ci läuft nur, wenn sich package-lock.json geändert hat.
+    'npm_build' => env('UPDATER_NPM_BUILD', true),
+
+    // Wartungsmodus während des Updates
+    'maintenance_mode' => env('UPDATER_MAINTENANCE_MODE', true),
+
+    // Artisan-Befehle nach dem Code-Update (laufen als eigener Prozess mit dem neuen Code)
+    'artisan_commands' => [
+        ['migrate', '--force'],
+        ['cache:clear'],
+        ['config:clear'],
+        ['route:clear'],
+        ['view:clear'],
+        ['queue:restart'],
     ],
 
-    // run php artisan migrate after update?
-    'migrate' => true,
+    // Zeitlimit pro Schritt in Sekunden
+    'timeout' => env('UPDATER_TIMEOUT', 900),
 
-    // run seeders after update?
-    'seeders' => [
-        // '\Database\Seeders\DatabaseSeeder::class',
-    ],
-
-    // run php artisan cache:clear after update?
-    'cache:clear' => true,
-
-    // run php artisan view:clear after update?
-    'view:clear' => true,
-
-    // run php artisan config:clear after update?
-    'config:clear' => true,
-
-    // run php artisan route:clear after update?
-    'route:clear' => true,
-
-    // run php artisan optimize after update?
-    'optimize' => true,
-
-    'after_update_pipelines' => [
-        // you can add your own pipelines here
-    ],
+    // Ablage für Status, Log und Lock
+    'storage_path' => storage_path('app/updater'),
 
 ];

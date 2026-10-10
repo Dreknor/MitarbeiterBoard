@@ -4,7 +4,7 @@ php artisan down
 # update source code
 git pull
 # update PHP dependencies
-composer install --no-interaction --prefer-dist
+composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader
 # --no-interaction Do not ask any interactive question
 # --no-dev  Disables installation of require-dev packages.
 # --prefer-dist  Forces installation from package dist even for dev versions.

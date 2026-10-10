@@ -496,7 +496,7 @@
 
                 {{-- ── VERWALTUNG (Abschnitt) ──────────────────────────── --}}
                 @canany(['manage sick_notes', 'view old absences', 'edit klassen', 'manage grading systems',
-                         'edit permissions', 'edit users', 'create types', 'edit settings', 'view logs'])
+                         'edit permissions', 'edit users', 'create types', 'edit settings', 'view logs', 'make updates'])
                     <div class="sidebar-divider"></div>
                     <div class="sidebar-section-label">Verwaltung</div>
 
@@ -576,6 +576,14 @@
                            class="sidebar-link @if(request()->segment(1) == 'logs') active @endif">
                             <i class="fas fa-history"></i>
                             <span>Logs</span>
+                        </a>
+                    @endcan
+
+                    @can('make updates')
+                        <a href="{{ route('updater.index') }}"
+                           class="sidebar-link @if(request()->segment(1) == 'updater') active @endif">
+                            <i class="fas fa-cloud-download-alt"></i>
+                            <span>Updates</span>
                         </a>
                     @endcan
                 @endcanany
