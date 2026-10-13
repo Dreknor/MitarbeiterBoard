@@ -96,10 +96,12 @@ class CalendarController extends Controller
             ->values();
 
         // ── OxTermin-Events (gecacht) ────────────────────────────────────────────
-        $service    = app(OxCalendarService::class);
-        $oxCacheKey = $service->eventsCacheKey(md5($start . $end . $user->id . ($calendarsParam === '' ? '*' : $oxIds->sort()->join(','))));
+        // ?expand_rrule=1 → Serien serverseitig in Einzeltermine auflösen (eigener Cache-Key)
+        $expandRrule = $request->boolean('expand_rrule');
+        $service     = app(OxCalendarService::class);
+        $oxCacheKey  = $service->eventsCacheKey(md5($start . $end . $user->id . ($calendarsParam === '' ? '*' : $oxIds->sort()->join(',')) . ($expandRrule ? '_expand' : '')));
 
-        $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds, $calendarsParam) {
+        $oxEvents = Cache::remember($oxCacheKey, 300, function () use ($user, $start, $end, $oxIds, $calendarsParam, $expandRrule, $service) {
             $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
 
             // Parameter gesetzt (auch 'none') → strikt filtern; fehlt er → alle sichtbaren
@@ -122,7 +124,7 @@ class CalendarController extends Controller
             // Kopien eines Terminverbunds nur einmal anzeigen (Farbe des ersten sichtbaren Kalenders)
             $gruppen = $termine->groupBy(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id);
 
-            return $gruppen->map(function (Collection $kopien) {
+            return $gruppen->flatMap(function (Collection $kopien) use ($expandRrule, $service, $start, $end) {
                 /** @var OxTermin $termin */
                 $termin = $kopien->first();
 
@@ -148,6 +150,18 @@ class CalendarController extends Controller
                         'updatedAt'    => $termin->updated_at?->toIso8601String(),
                     ],
                 ];
+
+                if ($termin->rrule && $expandRrule) {
+                    return collect($service->expandRruleTermine($termin, Carbon::parse($start), Carbon::parse($end)))
+                        ->map(fn (array $occ) => array_replace_recursive($event, [
+                            'id'            => $termin->id . '_' . $occ['beginn']->format('YmdHis'),
+                            'start'         => $occ['beginn']->toIso8601String(),
+                            'end'           => $occ['ende']->toIso8601String(),
+                            'editable'      => false,
+                            'extendedProps' => ['isOccurrence' => true],
+                        ]))
+                        ->all();
+                }
 
                 if ($termin->rrule) {
                     // Ganztägige Termine benötigen DTSTART;VALUE=DATE im iCal-Format,
@@ -177,7 +191,7 @@ class CalendarController extends Controller
                     $event['editable'] = false;
                 }
 
-                return $event;
+                return [$event];
             })->values();
         });
 
