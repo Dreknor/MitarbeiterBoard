@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="personal-wrapper" x-data="personalTabs('uebersicht')" x-init="init()" x-cloak>
+<div class="personal-wrapper" x-data="personalTabs('{{ session('apiTokenPlain') || $errors->getBag('apiToken')->any() ? 'app' : 'uebersicht' }}')" x-init="init()" x-cloak>
 
     {{-- Seitenkopf --}}
     <div class="flex items-center gap-4 mb-6">
@@ -34,7 +34,7 @@
             ['key' => 'vertraege',       'label' => 'Verträge'],
             ['key' => 'urlaub',          'label' => 'Urlaub & Abwesenheiten'],
             ['key' => 'einwilligungen',  'label' => 'Einwilligungen'],
-            auth()->user()->can('view paed diary') ? ['key' => 'app', 'label' => 'Pädagogen-App'] : null,
+            auth()->user()->canAny(['view paed diary', 'create api tokens']) ? ['key' => 'app', 'label' => auth()->user()->can('view paed diary') ? 'Pädagogen-App & API' : 'API'] : null,
         ]) as $tab)
         <button type="button" data-tab="{{ $tab['key'] }}" @click="setTab('{{ $tab['key'] }}')"
                 :class="isActive('{{ $tab['key'] }}') ? 'personal-tab personal-tab-active' : 'personal-tab personal-tab-inactive'">
@@ -65,12 +65,12 @@
         @include('personal.self-service._tab_einwilligungen')
     </div>
 
-    {{-- Tab: Pädagogen-App (App verbinden, Meine App-Geräte) --}}
-    @can('view paed diary')
+    {{-- Tab: Pädagogen-App (App verbinden, Meine App-Geräte) und Anwendungstokens --}}
+    @canany(['view paed diary', 'create api tokens'])
     <div x-show="isActive('app')">
         @include('personal.self-service._tab_app')
     </div>
-    @endcan
+    @endcanany
 
 </div>
 

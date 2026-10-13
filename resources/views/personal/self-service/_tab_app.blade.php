@@ -1,5 +1,6 @@
-{{-- Tab: Pädagogen-App im Self-Service (Daten: PaedAppProfileComposer) --}}
+{{-- Tab: Pädagogen-App und Anwendungstokens im Self-Service (Daten: PaedAppProfileComposer) --}}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+@can('view paed diary')
 
     {{-- Kachel: App verbinden --}}
     <div class="personal-card">
@@ -53,4 +54,11 @@
         <p class="text-sm text-gray-400">Keine Geräte angemeldet.</p>
         @endforelse
     </div>
+@endcan
+
+    @can('create api tokens')
+    <div class="md:col-span-2">
+        @include('personal._api_tokens')
+    </div>
+    @endcan
 </div>

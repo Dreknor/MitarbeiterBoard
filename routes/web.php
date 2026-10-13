@@ -1315,6 +1315,10 @@ Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])
         Route::delete('/app-geraete/{token}', [App\Http\Controllers\PaedAppDeviceController::class, 'destroy'])
             ->whereNumber('token')->name('app-devices.destroy');
 
+        // Anwendungstokens (API) erstellen – widerrufen über app-devices.destroy
+        Route::post('/api-tokens', [App\Http\Controllers\ApiTokenController::class, 'store'])
+            ->middleware('permission:create api tokens')->name('api-tokens.store');
+
         // Stundenzettel: Passwort-Bestätigung erforderlich
         Route::middleware('password.confirm')->group(function () {
             Route::get('/stundenzettel', [App\Http\Controllers\Personal\SelfServiceController::class, 'stundenzettel'])->name('stundenzettel');

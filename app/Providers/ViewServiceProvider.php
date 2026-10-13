@@ -22,7 +22,7 @@ class ViewServiceProvider extends ServiceProvider
     {
         View::composer('layouts.partials.topbar', \App\View\Composers\TopbarBenachrichtigungenComposer::class);
         View::composer('posts.dashboardCard', \App\View\Composers\NachrichtenComposer::class);
-        View::composer(['personal.self-service._tab_app', 'personal.employes._paed_app_card'], \App\View\Composers\PaedAppProfileComposer::class);
+        View::composer(['personal.self-service._tab_app', 'personal.employes._paed_app_card', 'personal._api_tokens'], \App\View\Composers\PaedAppProfileComposer::class);
         View::composer('personal.holidays.dashboardCard', \App\View\Composers\UrlaubCardComposer::class);
         View::composer('personal.rosters.homeView', \App\View\Composers\RosterComposer::class);
         View::composer('tasks.tasksCard', \App\View\Composers\TasksComposer::class);

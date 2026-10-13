@@ -191,6 +191,10 @@
             @can('view paed diary')
                 @include('personal.employes._paed_app_card')
             @endcan
+
+            @can('create api tokens')
+                @include('personal._api_tokens')
+            @endcan
         </div>
     </div>
 </div>

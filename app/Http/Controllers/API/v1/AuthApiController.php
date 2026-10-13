@@ -72,10 +72,10 @@ class AuthApiController extends Controller
         $user = $request->user();
         $currentId = $request->user()->currentAccessToken()?->id;
 
-        $devices = $user->tokens()
-            ->orderByDesc('last_used_at')
-            ->orderByDesc('id')
-            ->get()
+        // Anwendungstokens (Mein Profil) sind keine App-Geräte
+        [$devices] = app(ApiTokenService::class)->tokensFor($user);
+
+        $devices = $devices
             ->map(fn ($token) => [
                 'id' => $token->id,
                 'device_name' => $token->name,

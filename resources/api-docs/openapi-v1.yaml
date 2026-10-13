@@ -1774,6 +1774,10 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+      description: >-
+        Sanctum-Token. Entweder per App-Login (POST /auth/token, SSO; gleitende Laufzeit)
+        oder als Anwendungstoken unter „Mein Profil“ erstellt (Recht `create api tokens`,
+        Ability `api-token`, feste Laufzeit 30–365 Tage, erscheint nicht in GET /auth/devices).
   parameters:
     StudentId:
       name: student_id
