@@ -199,6 +199,8 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             Route::post('rosters/{roster}/revert', [RosterApiController::class, 'revert'])->whereNumber('roster')->name('revert');
             Route::put('rosters/{roster}/working-times', [RosterApiController::class, 'setWorkingTime'])->whereNumber('roster')->name('working-times.set');
             Route::post('rosters/{roster}/events', [RosterApiController::class, 'storeEvent'])->whereNumber('roster')->name('events.store');
+            Route::get('rosters/{roster}/calendar-import', [RosterApiController::class, 'calendarImportPreview'])->whereNumber('roster')->name('calendar-import.preview');
+            Route::post('rosters/{roster}/calendar-import', [RosterApiController::class, 'calendarImport'])->whereNumber('roster')->name('calendar-import.store');
             Route::put('events/{rosterEvent}', [RosterApiController::class, 'updateEvent'])->whereNumber('rosterEvent')->name('events.update');
             Route::delete('events/{rosterEvent}', [RosterApiController::class, 'destroyEvent'])->whereNumber('rosterEvent')->name('events.destroy');
         });

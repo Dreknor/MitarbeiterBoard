@@ -1716,6 +1716,68 @@ paths:
                   skipped_employe_ids: { type: array, items: { type: integer } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/calendar-import:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    get:
+      tags: [Dienstplan]
+      summary: Kalender-Termine der Planwoche zur Übernahme anzeigen
+      description: |
+        Liefert die für den Benutzer sichtbaren Kalender und die Vorkommen des gewählten Kalenders
+        (`calendar_id`, Standard: erster Kalender) zwischen Planbeginn und +6 Tagen. Serientermine sind in
+        einzelne Vorkommen aufgelöst. `imported` = dieses Vorkommen (gleicher Termin, gleicher Tag) liegt
+        bereits im Plan. Nicht sichtbarer Kalender → 422.
+      parameters:
+        - { name: calendar_id, in: query, required: false, schema: { type: integer } }
+      responses:
+        '200':
+          description: Kalender und Vorkommen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      calendars:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            color: { type: string, nullable: true, example: '#3b82f6' }
+                      calendar_id: { type: integer, nullable: true, description: 'null = keine Kalender verfügbar' }
+                      from: { type: string, format: date }
+                      to: { type: string, format: date }
+                      occurrences: { type: array, items: { $ref: '#/components/schemas/RosterCalendarOccurrence' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Dienstplan]
+      summary: Kalender-Termine in die Merkliste übernehmen
+      description: |
+        Legt die gewählten Vorkommen (`key` aus der Vorschau) als nicht zugewiesene Termine an. Zeiten werden auf
+        das Tagesfenster der Abteilung begrenzt, ganztägige Termine füllen es aus. Bereits übernommene Vorkommen
+        landen in `skipped_keys` (Wiederholung ist daher unschädlich), unbekannte bzw. nicht sichtbare Termine oder
+        Tage außerhalb der Planwoche in `invalid_keys`. 201, wenn mindestens ein Termin angelegt wurde, sonst 200.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [keys]
+              properties:
+                keys: { type: array, minItems: 1, maxItems: 200, items: { type: string, example: '42|2026-09-29|09:00:00|10:00:00' } }
+      responses:
+        '200': { $ref: '#/components/responses/RosterCalendarImportResult' }
+        '201': { $ref: '#/components/responses/RosterCalendarImportResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /roster/events/{event_id}:
     parameters:
       - { name: event_id, in: path, required: true, schema: { type: integer } }
@@ -1833,6 +1895,16 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    RosterCalendarImportResult:
+      description: Import-Ergebnis
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: '#/components/schemas/RosterEvent' } }
+              skipped_keys: { type: array, items: { type: string }, description: Bereits übernommen }
+              invalid_keys: { type: array, items: { type: string }, description: 'Unbekannt, nicht sichtbar oder außerhalb der Planwoche' }
     NotFound:
       description: Nicht gefunden
       content:
@@ -1916,6 +1988,19 @@ components:
         end: { type: string, example: '10:00' }
         event: { type: string, example: Hofaufsicht }
         is_absence: { type: boolean, description: 'Automatische Markierung aus Urlaub/Abwesenheit/Feiertag (schreibgeschützt)' }
+        calendar_event_id: { type: integer, nullable: true, description: 'Ursprungstermin bei Übernahme aus dem Kalender' }
+    RosterCalendarOccurrence:
+      type: object
+      properties:
+        key: { type: string, example: '42|2026-09-29|09:00:00|10:00:00', description: 'Auswahlschlüssel für POST …/calendar-import' }
+        calendar_event_id: { type: integer }
+        title: { type: string }
+        location: { type: string, nullable: true }
+        all_day: { type: boolean }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        recurring: { type: boolean }
+        imported: { type: boolean, description: 'Bereits in diesen Plan übernommen' }
     RosterEventInput:
       type: object
       required: [event, date, start, end]

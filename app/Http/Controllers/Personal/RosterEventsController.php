@@ -6,15 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\CreateTaskRequest;
 use App\Http\Requests\personal\EditRosterEventRequest;
 use App\Http\Requests\personal\TrashRosterDayRequest;
-use App\Models\OxCalendar;
-use App\Models\OxTermin;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class RosterEventsController extends Controller
@@ -152,87 +148,6 @@ class RosterEventsController extends Controller
         return $this->antwort($request, $roster, $request->date, ['success', 'Alle Dienste und Termine des Tages wurden entfernt.']);
     }
 
-    protected function termineFuerRosterImport(int $kalenderId, Carbon $startDate, Carbon $endDate): Collection
-    {
-        $termine = OxTermin::where('ox_calendar_id', $kalenderId)
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->where(function ($subQuery) use ($endDate) {
-                    $subQuery->whereNotNull('rrule')
-                        ->where('beginn', '<=', $endDate);
-                })
-                    ->orWhereBetween('beginn', [$startDate, $endDate])
-                    ->orWhere(function ($subQuery) use ($startDate, $endDate) {
-                        $subQuery->where('beginn', '<=', $endDate)
-                            ->where('ende', '>=', $startDate);
-                    });
-            })
-            ->orderBy('beginn')
-            ->get();
-
-        $preview = collect();
-        $rruleService = app(\App\Services\OxCalendarService::class);
-
-        foreach ($termine as $termin) {
-            if ($termin->rrule) {
-                foreach ($rruleService->expandRruleTermine($termin, $startDate->copy(), $endDate->copy()) as $occurrence) {
-                    $preview->push($this->makeImportPreviewItem($termin, $occurrence['beginn'], $occurrence['ende']));
-                }
-
-                continue;
-            }
-
-            $preview->push($this->makeImportPreviewItem($termin, $termin->beginn->copy(), $termin->ende->copy()));
-        }
-
-        return $preview->sortBy('beginn')->values();
-    }
-
-    protected function makeImportPreviewItem(OxTermin $termin, Carbon $beginn, Carbon $ende): object
-    {
-        return (object) [
-            'id' => $termin->id,
-            'selection_key' => $this->buildImportSelectionKey((int) $termin->id, $beginn->copy(), $beginn->copy(), $ende->copy()),
-            'titel' => $termin->titel,
-            'ort' => $termin->ort,
-            'status' => $termin->status,
-            'ganztaegig' => (bool) $termin->ganztaegig,
-            'beginn' => $beginn,
-            'ende' => $ende,
-            'rrule' => $termin->rrule,
-            'is_recurring' => (bool) $termin->rrule,
-        ];
-    }
-
-    protected function buildImportSelectionKey(int $terminId, ?Carbon $date = null, ?Carbon $start = null, ?Carbon $end = null): string
-    {
-        if (!$date) {
-            return (string) $terminId;
-        }
-
-        return implode('|', [
-            (string) $terminId,
-            $date->toDateString(),
-            $start ? $start->format('H:i:s') : '00:00:00',
-            $end ? $end->format('H:i:s') : '00:00:00',
-        ]);
-    }
-
-    protected function parseImportSelection(string $selection): array
-    {
-        $parts = explode('|', $selection);
-        $terminId = (int) ($parts[0] ?? 0);
-        if (count($parts) < 2 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($parts[1] ?? ''))) {
-            return [$terminId, null, null, null];
-        }
-
-        return [
-            $terminId,
-            $parts[1],
-            $parts[2] ?? null,
-            $parts[3] ?? null,
-        ];
-    }
-
     /**
      * Termin in die Merkliste verschieben (Zuordnung aufheben).
      */
@@ -259,8 +174,7 @@ class RosterEventsController extends Controller
     public function importFromCalendarPreview(Request $request, Roster $roster)
     {
         $this->authorize('manage', $roster);
-        $user      = auth()->user();
-        $kalender  = $this->sichtbareKalender($user);
+        $kalender  = $this->rosters->importKalender(auth()->user());
         $startDate = $roster->start_date->copy()->startOfDay();
         $endDate   = $startDate->copy()->addDays(6)->endOfDay();
 
@@ -268,27 +182,12 @@ class RosterEventsController extends Controller
             ? (int) $request->kalender_id
             : $kalender->first()?->id;
 
-        $termine = collect();
-        if ($selectedKalenderId && $kalender->pluck('id')->contains($selectedKalenderId)) {
-            $termine = $this->termineFuerRosterImport($selectedKalenderId, $startDate, $endDate);
-        }
-
-        // Bereits importierte Vorkommen für diesen Roster ermitteln.
-        $bereitsImportiert = $roster->events()
-            ->whereNotNull('ox_termin_id')
-            ->get()
-            ->map(fn ($event) => $this->buildImportSelectionKey(
-                (int) $event->ox_termin_id,
-                $event->date->copy(),
-                $event->start,
-                $event->end
-            ))
-            ->values()
-            ->toArray();
+        $termine = $selectedKalenderId && $kalender->pluck('id')->contains($selectedKalenderId)
+            ? $this->rosters->kalenderImportVorschau($roster, $selectedKalenderId)
+            : collect();
 
         return view('personal.rosters.import_calendar', compact(
-            'roster', 'kalender', 'termine', 'selectedKalenderId',
-            'startDate', 'endDate', 'bereitsImportiert'
+            'roster', 'kalender', 'termine', 'selectedKalenderId', 'startDate', 'endDate'
         ));
     }
 
@@ -298,115 +197,20 @@ class RosterEventsController extends Controller
     public function importFromCalendar(Request $request, Roster $roster)
     {
         $this->authorize('manage', $roster);
-        [$fensterStart, $fensterEnde] = $roster->department->rosterDayWindow();
         $request->validate([
             'ox_termin_ids'   => 'required|array|min:1',
             'ox_termin_ids.*' => 'required|string',
         ]);
 
-        $user      = auth()->user();
-        $kalender  = $this->sichtbareKalender($user);
+        $ergebnis = $this->rosters->kalenderImportieren($roster, auth()->user(), $request->ox_termin_ids);
 
-        $bereitsImportiert = $roster->events()
-            ->whereNotNull('ox_termin_id')
-            ->get()
-            ->map(fn ($event) => $this->buildImportSelectionKey(
-                (int) $event->ox_termin_id,
-                $event->date->copy(),
-                $event->start,
-                $event->end
-            ))
-            ->values()
-            ->toArray();
-
-        $importiert = 0;
-        $uebersprungen = 0;
-
-        foreach ($request->ox_termin_ids as $selection) {
-            [$terminId, $eventDate, $startTime, $endTime] = $this->parseImportSelection((string) $selection);
-
-            if (!is_numeric($terminId) || $terminId <= 0) {
-                continue;
-            }
-
-            $termin = OxTermin::find((int) $terminId);
-            if (!$termin) {
-                continue;
-            }
-
-            if (!$kalender->pluck('id')->contains($termin->ox_calendar_id)) {
-                continue;
-            }
-
-            $eventDateCarbon = $eventDate ? Carbon::parse($eventDate) : $termin->beginn->copy();
-            $selectionKey = $this->buildImportSelectionKey(
-                (int) $terminId,
-                $eventDateCarbon,
-                $startTime ? Carbon::parse($eventDateCarbon->toDateString() . ' ' . $startTime) : $termin->beginn->copy(),
-                $endTime ? Carbon::parse($eventDateCarbon->toDateString() . ' ' . $endTime) : $termin->ende->copy()
-            );
-
-            if (in_array($selectionKey, $bereitsImportiert, true)) {
-                $uebersprungen++;
-                continue;
-            }
-
-            if ($termin->ganztaegig) {
-                $start = $fensterStart.':00';
-                $end   = $fensterEnde.':00';
-            } else {
-                $start = $startTime ?: $termin->beginn->format('H:i:s');
-                $end   = $endTime ?: $termin->ende->format('H:i:s');
-
-                if ($start < $fensterStart.':00') { $start = $fensterStart.':00'; }
-                if ($end > $fensterEnde.':00')    { $end   = $fensterEnde.':00'; }
-                if ($end <= $start)      { $end   = (new \DateTime($start))->modify('+15 minutes')->format('H:i:s'); }
-            }
-
-            $event = new RosterEvents([
-                'roster_id'    => $roster->id,
-                'employe_id'   => null,
-                'date'         => $eventDateCarbon->toDateString(),
-                'start'        => $start,
-                'end'          => $end,
-                'event'        => $termin->titel,
-                'ox_termin_id' => $termin->id,
-            ]);
-            $event->save();
-
-            Cache::forget('roster_'.$roster->id.'_'.$eventDateCarbon->format('Ymd'));
-            $importiert++;
-        }
-
-        $msg = $importiert . ' Termin(e) importiert';
-        if ($uebersprungen > 0) {
-            $msg .= ', ' . $uebersprungen . ' bereits vorhanden übersprungen';
+        $msg = $ergebnis['angelegt']->count() . ' Termin(e) importiert';
+        if ($ergebnis['uebersprungen'] !== []) {
+            $msg .= ', ' . count($ergebnis['uebersprungen']) . ' bereits vorhanden übersprungen';
         }
 
         return redirect()->route('roster.show', $roster->id)
             ->with('Meldung', $msg)
             ->with('type', 'success');
-    }
-
-    /**
-     * Hilfsmethode: Für den aktuellen User sichtbare Kalender laden.
-     * (Analog zu CalendarController::sichtbareKalender)
-     */
-    protected function sichtbareKalender($user): Collection
-    {
-        return OxCalendar::where('sichtbar', true)
-            ->with('groups')
-            ->get()
-            ->filter(function (OxCalendar $calendar) use ($user) {
-                if ($user->can('manage calendar')) {
-                    return true;
-                }
-                if ($calendar->groups->isEmpty()) {
-                    return $user->can('view calendar');
-                }
-                $calendarGroupIds = $calendar->groups->pluck('id');
-                $userGroupIds     = $user->groups()->pluck('id');
-                return $calendarGroupIds->intersect($userGroupIds)->isNotEmpty();
-            });
     }
 }

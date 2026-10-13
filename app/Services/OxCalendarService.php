@@ -757,16 +757,19 @@ class OxCalendarService
                 return [];
             }
 
+            // expand() liefert UTC: zeitgebundene Vorkommen in die App-Zeitzone umrechnen,
+            // ganztägige (Datum ohne Uhrzeit) mit unveränderter Wanduhrzeit übernehmen.
+            $zone = config('app.timezone');
+            $lokal = fn ($prop) => $prop->hasTime()
+                ? \Carbon\Carbon::parse($prop->getDateTime()->format('c'))->setTimezone($zone)
+                : \Carbon\Carbon::parse($prop->getDateTime()->format('Y-m-d'), $zone)->startOfDay();
+
             $occurrences = [];
             foreach ($expandedCalendar->VEVENT ?? [] as $vevent) {
                 try {
                     $occurrences[] = [
-                        'beginn' => \Carbon\Carbon::parse(
-                            $vevent->DTSTART->getDateTime()->format('c')
-                        ),
-                        'ende' => \Carbon\Carbon::parse(
-                            $vevent->DTEND->getDateTime()->format('c')
-                        ),
+                        'beginn' => $lokal($vevent->DTSTART),
+                        'ende' => $lokal($vevent->DTEND),
                     ];
                 } catch (\Throwable $e) {
                     Log::warning('VEVENT-Parsing fehlgeschlagen', ['error' => $e->getMessage()]);

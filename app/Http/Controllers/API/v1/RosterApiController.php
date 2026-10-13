@@ -349,6 +349,67 @@ class RosterApiController extends Controller
         return response()->json(null, 204);
     }
 
+    // ── Kalender-Import ──────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/roster/rosters/{roster}/calendar-import – sichtbare Kalender und die Vorkommen des gewählten
+     * Kalenders (?calendar_id, Standard: erster Kalender) in der Planwoche, Serien aufgelöst.
+     */
+    public function calendarImportPreview(Request $request, Roster $roster): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        $request->validate(['calendar_id' => ['nullable', 'integer']]);
+
+        $kalender = $this->rosters->importKalender($request->user());
+        $kalenderId = $request->filled('calendar_id') ? $request->integer('calendar_id') : $kalender->first()?->id;
+        if ($kalenderId !== null && !$kalender->contains('id', $kalenderId)) {
+            return $this->fehler('calendar_id', 'Der Kalender ist nicht verfügbar.');
+        }
+
+        $vorkommen = $kalenderId !== null ? $this->rosters->kalenderImportVorschau($roster, $kalenderId) : collect();
+
+        return response()->json([
+            'data' => [
+                'calendars' => $kalender->map(fn ($k) => ['id' => $k->id, 'name' => $k->name, 'color' => $k->farbe])->values(),
+                'calendar_id' => $kalenderId,
+                'from' => $roster->start_date->toDateString(),
+                'to' => $roster->start_date->copy()->addDays(6)->toDateString(),
+                'occurrences' => $vorkommen->map(fn (object $v) => [
+                    'key' => $v->selection_key,
+                    'calendar_event_id' => $v->id,
+                    'title' => $v->titel,
+                    'location' => $v->ort,
+                    'all_day' => $v->ganztaegig,
+                    'start' => $v->beginn->toIso8601String(),
+                    'end' => $v->ende->toIso8601String(),
+                    'recurring' => $v->is_recurring,
+                    'imported' => $v->imported,
+                ])->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/roster/rosters/{roster}/calendar-import – ausgewählte Vorkommen (Schlüssel aus der Vorschau)
+     * als Termine in die Merkliste übernehmen. Bereits übernommene werden übersprungen (wiederholbar).
+     */
+    public function calendarImport(Request $request, Roster $roster): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        $data = $request->validate([
+            'keys' => ['required', 'array', 'min:1', 'max:200'],
+            'keys.*' => ['required', 'string', 'max:64'],
+        ]);
+
+        $ergebnis = $this->rosters->kalenderImportieren($roster, $request->user(), $data['keys']);
+
+        return response()->json([
+            'data' => $ergebnis['angelegt']->map(fn (RosterEvents $e) => $this->terminDaten($e->fresh()))->values(),
+            'skipped_keys' => $ergebnis['uebersprungen'],
+            'invalid_keys' => $ergebnis['ungueltig'],
+        ], $ergebnis['angelegt']->isEmpty() ? 200 : 201);
+    }
+
     // =====================================================================
 
     /**
@@ -446,6 +507,7 @@ class RosterApiController extends Controller
             'end' => $termin->end?->format('H:i'),
             'event' => $termin->event,
             'is_absence' => $termin->is_abwesenheit,
+            'calendar_event_id' => $termin->ox_termin_id,
         ];
     }
 

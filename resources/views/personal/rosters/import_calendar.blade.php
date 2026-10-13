@@ -46,7 +46,7 @@
                 <ul class="zw-list">
                     @foreach($termine as $termin)
                         @php($schluessel = $termin->selection_key ?? (string) $termin->id)
-                        @php($importiert = in_array($schluessel, $bereitsImportiert, true))
+                        @php($importiert = $termin->imported ?? false)
                         <li>
                             <label class="zw-row cursor-pointer {{ $importiert ? 'opacity-50' : 'hover:bg-gray-50' }}">
                                 <input type="checkbox" name="ox_termin_ids[]" value="{{ $schluessel }}" data-termin class="w-4 h-4 shrink-0" @disabled($importiert) @checked(!$importiert)>

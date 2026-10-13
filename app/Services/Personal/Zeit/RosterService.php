@@ -4,6 +4,8 @@ namespace App\Services\Personal\Zeit;
 
 use App\Models\Absence;
 use App\Models\Group;
+use App\Models\OxCalendar;
+use App\Models\OxTermin;
 use App\Models\personal\Holiday;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterChange;
@@ -11,9 +13,11 @@ use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Notifications\Personal\ZeitwirtschaftNotification;
+use App\Services\OxCalendarService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -361,6 +365,161 @@ class RosterService
         }
 
         return ['angelegt' => $angelegt, 'uebersprungen' => $uebersprungen];
+    }
+
+    // =========================================================================
+    // Kalender-Import (Web-Editor und API)
+    // =========================================================================
+
+    /**
+     * Kalender, aus denen der Benutzer Termine übernehmen darf (= für ihn sichtbare Kalender).
+     *
+     * @return Collection<int, OxCalendar>
+     */
+    public function importKalender(User $user): Collection
+    {
+        return app(OxCalendarService::class)->sichtbareKalender($user)->sortBy('name')->values();
+    }
+
+    /**
+     * Vorkommen eines Kalenders in der Planwoche (Serien aufgelöst), je mit Auswahlschlüssel
+     * "terminId|Y-m-d|H:i:s|H:i:s" und Kennzeichen, ob es bereits in den Plan übernommen wurde.
+     *
+     * @return Collection<int, object>
+     */
+    public function kalenderImportVorschau(Roster $roster, int $kalenderId): Collection
+    {
+        $von = $roster->start_date->copy()->startOfDay();
+        $bis = $roster->start_date->copy()->addDays(6)->endOfDay();
+        $bereits = $this->bereitsImportiert($roster);
+        $rrule = app(OxCalendarService::class);
+
+        $termine = OxTermin::where('ox_calendar_id', $kalenderId)
+            ->where(fn ($q) => $q
+                ->where(fn ($s) => $s->whereNotNull('rrule')->where('beginn', '<=', $bis))
+                ->orWhereBetween('beginn', [$von, $bis])
+                ->orWhere(fn ($s) => $s->where('beginn', '<=', $bis)->where('ende', '>=', $von)))
+            ->orderBy('beginn')
+            ->get();
+
+        $vorschau = collect();
+        foreach ($termine as $termin) {
+            $vorkommen = $termin->rrule
+                ? $rrule->expandRruleTermine($termin, $von->copy(), $bis->copy())
+                : [['beginn' => $termin->beginn->copy(), 'ende' => $termin->ende->copy()]];
+
+            foreach ($vorkommen as $v) {
+                $vorschau->push((object) [
+                    'id' => $termin->id,
+                    'selection_key' => self::importSchluessel($termin->id, $v['beginn'], $v['ende']),
+                    'titel' => $termin->titel,
+                    'ort' => $termin->ort,
+                    'status' => $termin->status,
+                    'ganztaegig' => (bool) $termin->ganztaegig,
+                    'beginn' => $v['beginn'],
+                    'ende' => $v['ende'],
+                    'rrule' => $termin->rrule,
+                    'is_recurring' => (bool) $termin->rrule,
+                    'imported' => in_array($termin->id.'|'.$v['beginn']->toDateString(), $bereits, true),
+                ]);
+            }
+        }
+
+        return $vorschau->sortBy('beginn')->values();
+    }
+
+    /**
+     * Ausgewählte Kalender-Vorkommen als nicht zugewiesene Termine (Merkliste) anlegen. Zeiten werden auf das
+     * Tagesfenster der Abteilung begrenzt, ganztägige Termine füllen es aus. Bereits übernommene Vorkommen
+     * (gleicher Termin, gleicher Tag) werden übersprungen, ungültige Auswahlen (unbekannter/nicht sichtbarer
+     * Kalender, Datum außerhalb der Planwoche) ignoriert und gemeldet.
+     *
+     * @param string[] $auswahl Auswahlschlüssel aus kalenderImportVorschau() (oder nur die Termin-ID)
+     * @return array{angelegt: Collection<int, RosterEvents>, uebersprungen: string[], ungueltig: string[]}
+     */
+    public function kalenderImportieren(Roster $roster, User $user, array $auswahl): array
+    {
+        [$fensterStart, $fensterEnde] = $roster->department->rosterDayWindow();
+        $fensterStart .= ':00';
+        $fensterEnde .= ':00';
+        $kalenderIds = $this->importKalender($user)->pluck('id');
+        $bereits = $this->bereitsImportiert($roster);
+        $wocheVon = $roster->start_date->copy()->startOfDay();
+        $wocheBis = $roster->start_date->copy()->addDays(6)->endOfDay();
+        $ergebnis = ['angelegt' => collect(), 'uebersprungen' => [], 'ungueltig' => []];
+
+        foreach (array_unique(array_map('strval', $auswahl)) as $schluessel) {
+            [$terminId, $datum, $start, $ende] = self::importSchluesselLesen($schluessel);
+            $termin = $terminId > 0 ? OxTermin::find($terminId) : null;
+            $tag = $termin ? Carbon::parse($datum ?? $termin->beginn->toDateString())->startOfDay() : null;
+
+            if (!$termin || !$kalenderIds->contains($termin->ox_calendar_id) || $tag->lt($wocheVon) || $tag->gt($wocheBis)) {
+                $ergebnis['ungueltig'][] = $schluessel;
+                continue;
+            }
+
+            $markierung = $termin->id.'|'.$tag->toDateString();
+            if (in_array($markierung, $bereits, true)) {
+                $ergebnis['uebersprungen'][] = $schluessel;
+                continue;
+            }
+
+            if ($termin->ganztaegig) {
+                [$start, $ende] = [$fensterStart, $fensterEnde];
+            } else {
+                $start = max($start ?: $termin->beginn->format('H:i:s'), $fensterStart);
+                $ende = min($ende ?: $termin->ende->format('H:i:s'), $fensterEnde);
+                if ($ende <= $start) {
+                    $ende = Carbon::parse($start)->addMinutes(15)->format('H:i:s');
+                }
+            }
+
+            $ergebnis['angelegt']->push(RosterEvents::create([
+                'roster_id' => $roster->id,
+                'employe_id' => null,
+                'date' => $tag->toDateString(),
+                'start' => $start,
+                'end' => $ende,
+                'event' => $termin->titel,
+                'ox_termin_id' => $termin->id,
+            ]));
+            $bereits[] = $markierung;
+            Cache::forget('roster_'.$roster->id.'_'.$tag->format('Ymd'));
+        }
+
+        return $ergebnis;
+    }
+
+    /**
+     * Bereits übernommene Kalender-Vorkommen des Plans als "terminId|Y-m-d".
+     *
+     * @return string[]
+     */
+    private function bereitsImportiert(Roster $roster): array
+    {
+        return $roster->events()->whereNotNull('ox_termin_id')->get(['ox_termin_id', 'date'])
+            ->map(fn (RosterEvents $e) => $e->ox_termin_id.'|'.$e->date->toDateString())
+            ->all();
+    }
+
+    public static function importSchluessel(int $terminId, CarbonInterface $beginn, CarbonInterface $ende): string
+    {
+        return implode('|', [$terminId, $beginn->toDateString(), $beginn->format('H:i:s'), $ende->format('H:i:s')]);
+    }
+
+    /**
+     * @return array{0: int, 1: ?string, 2: ?string, 3: ?string} Termin-ID, Datum, Beginn, Ende
+     */
+    private static function importSchluesselLesen(string $schluessel): array
+    {
+        $teile = explode('|', $schluessel);
+        $terminId = ctype_digit($teile[0] ?? '') ? (int) $teile[0] : 0;
+        if (count($teile) < 2 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $teile[1])) {
+            return [$terminId, null, null, null];
+        }
+        $zeit = fn (?string $z) => $z !== null && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $z) ? substr($z.':00', 0, 8) : null;
+
+        return [$terminId, $teile[1], $zeit($teile[2] ?? null), $zeit($teile[3] ?? null)];
     }
 
     /**

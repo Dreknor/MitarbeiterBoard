@@ -4,6 +4,8 @@ namespace Tests\Feature\API\v1;
 
 use App\Models\Absence;
 use App\Models\Group;
+use App\Models\OxCalendar;
+use App\Models\OxTermin;
 use App\Models\personal\Holiday;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterChange;
@@ -308,6 +310,78 @@ class RosterApiTest extends ApiTestCase
         $this->assertSame('2026-10-04', $antwort->json('data.to'));
 
         $this->getJson(self::API.'/roster/mine?from=2026-01-01&to=2026-12-31')->assertUnprocessable();
+    }
+
+    // ── Kalender-Import ─────────────────────────────────────────────────
+
+    public function test_kalender_import_vorschau_und_uebernahme_in_die_merkliste(): void
+    {
+        $roster = $this->plan();
+        $kalender = OxCalendar::factory()->create(['sichtbar' => true, 'name' => 'Schulkalender']);
+        $serie = OxTermin::factory()->create([
+            'ox_calendar_id' => $kalender->id, 'titel' => 'Teamsitzung',
+            'beginn' => '2026-09-21 13:00:00', 'ende' => '2026-09-21 16:00:00',
+            'rrule' => 'FREQ=WEEKLY;BYDAY=MO,WE;COUNT=6',
+        ]);
+        $ganztag = OxTermin::factory()->create([
+            'ox_calendar_id' => $kalender->id, 'titel' => 'Projekttag', 'ganztaegig' => true,
+            'beginn' => '2026-10-02 00:00:00', 'ende' => '2026-10-03 00:00:00',
+        ]);
+        OxTermin::factory()->create(['ox_calendar_id' => $kalender->id, 'beginn' => '2026-10-07 09:00:00', 'ende' => '2026-10-07 10:00:00']);
+        $this->rechte($this->planer, 'view calendar');
+        $this->alsPlaner();
+        $url = self::API.'/roster/rosters/'.$roster->id.'/calendar-import';
+
+        $vorschau = $this->getJson($url)
+            ->assertOk()
+            ->assertJsonPath('data.calendar_id', $kalender->id)
+            ->assertJsonPath('data.calendars.0.name', 'Schulkalender')
+            ->assertJsonPath('data.from', '2026-09-28')
+            ->assertJsonPath('data.to', '2026-10-04')
+            ->assertJsonCount(3, 'data.occurrences') // Mo + Mi der Serie, Projekttag
+            ->json('data.occurrences');
+
+        $schluessel = collect($vorschau)->pluck('key')->all();
+        $this->assertContains($serie->id.'|2026-09-28|13:00:00|16:00:00', $schluessel);
+
+        $this->postJson($url, ['keys' => [...$schluessel, '999999|2026-09-29|09:00:00|10:00:00']])
+            ->assertCreated()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.employe_id', null)
+            ->assertJsonPath('invalid_keys', ['999999|2026-09-29|09:00:00|10:00:00']);
+
+        // Zeiten auf das Tagesfenster (08:00–14:30) begrenzt, ganztägig füllt es aus
+        $this->assertDatabaseHas('roster_events', ['roster_id' => $roster->id, 'ox_termin_id' => $serie->id, 'date' => '2026-09-30', 'start' => '13:00:00', 'end' => '14:30:00']);
+        $this->assertDatabaseHas('roster_events', ['roster_id' => $roster->id, 'ox_termin_id' => $ganztag->id, 'date' => '2026-10-02', 'start' => '08:00:00', 'end' => '14:30:00']);
+
+        // Wiederholung: nichts doppelt
+        $this->postJson($url, ['keys' => $schluessel])
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonCount(3, 'skipped_keys');
+        $this->assertSame(3, RosterEvents::where('roster_id', $roster->id)->whereNotNull('ox_termin_id')->count());
+
+        $this->getJson($url.'?calendar_id='.$kalender->id)->assertOk()->assertJsonPath('data.occurrences.0.imported', true);
+    }
+
+    public function test_kalender_import_nur_aus_sichtbaren_kalendern(): void
+    {
+        $roster = $this->plan();
+        $gruppenKalender = OxCalendar::factory()->create(['sichtbar' => true]);
+        $gruppenKalender->groups()->attach(Group::factory()->create()->id);
+        $termin = OxTermin::factory()->create(['ox_calendar_id' => $gruppenKalender->id, 'beginn' => '2026-09-29 09:00:00', 'ende' => '2026-09-29 10:00:00']);
+        $this->rechte($this->planer, 'view calendar');
+        $url = self::API.'/roster/rosters/'.$roster->id.'/calendar-import';
+
+        $this->alsMitarbeiter();
+        $this->getJson($url)->assertForbidden();
+
+        $this->alsPlaner();
+        $this->getJson($url.'?calendar_id='.$gruppenKalender->id)->assertUnprocessable()->assertJsonValidationErrors('calendar_id');
+        $this->postJson($url, ['keys' => [$termin->id.'|2026-09-29|09:00:00|10:00:00']])
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonCount(1, 'invalid_keys');
     }
 
     public function test_token_payload_meldet_planungsrecht(): void
