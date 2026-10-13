@@ -582,7 +582,7 @@
                     @can('make updates')
                         <a href="{{ route('updater.index') }}"
                            class="sidebar-link @if(request()->segment(1) == 'updater') active @endif">
-                            <i class="fas fa-cloud-download-alt"></i>
+                            <i class="fas fa-download"></i>
                             <span>Updates</span>
                         </a>
                     @endcan

@@ -53,6 +53,10 @@ export default defineConfig({
                 // Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht)
                 'resources/css/benachrichtigungen.css',
 
+                // Online-Updater
+                'resources/css/updater.css',
+                'resources/js/updater.js',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
             ],
@@ -91,6 +95,8 @@ export default defineConfig({
                 // Ticketsystem (Tailwind-Migration)
                 'resources/views/ticketsystem/**/*.blade.php',
                 'app/Http/Controllers/Ticketsystem/*.php',
+                // Online-Updater
+                'resources/views/updater/**/*.blade.php',
                 // Zeitwirtschaft
                 'app/Services/Personal/Zeit/*.php',
             ],
