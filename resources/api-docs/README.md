@@ -1,6 +1,6 @@
 # API v1 – Pädagogen-App
 
-REST-API für die Pädagogen-App (EPIC-API-01). Spezifikation: [`openapi-v1.yaml`](openapi-v1.yaml) (OpenAPI 3.0, z. B. in Swagger UI / Insomnia / Postman importierbar). Aktuelle API-Version: **1.1.0** (`GET /api/v1/instance`).
+REST-API für die Pädagogen-App (EPIC-API-01). Spezifikation: [`openapi-v1.yaml`](openapi-v1.yaml) (OpenAPI 3.0, z. B. in Swagger UI / Insomnia / Postman importierbar). Aktuelle API-Version: **1.2.0** (`GET /api/v1/instance`).
 
 ## Inbetriebnahme
 
@@ -107,6 +107,18 @@ Schüler-Tokens gehören einem eigenen Modell (`GradingStudentDevice`), nicht de
 
 `GET /students/{id}/dossier.pdf` – gleiche Parameter und Rechte wie `/dossier`, `Content-Disposition: inline`, `Cache-Control: no-store`. Im Web: Schüleransicht des Tagebuchs → „Dossier (PDF)“ (gleiche Vorlage `resources/views/pdf/dossier.blade.php`).
 
+## Dienstplan
+
+Endpunkte unter `/roster/*` (Tag „Dienstplan“), unabhängig vom Pädagogischen Tagebuch – kein `view paed diary` nötig, aber ein Benutzer-Token.
+
+- `GET /roster/mine?from&to` – „Mein Dienstplan“: veröffentlichte Dienste/Termine je Tag, Urlaub/Abwesenheit, Feiertage (max. 92 Tage).
+- `GET /roster/rosters/{id}` – Plan der eigenen Abteilung (nur veröffentlicht); Planende erhalten zusätzlich Konflikte, Wochenstunden, Checks und offene Änderungen. Abwesenheitsgründe anderer Personen sehen nur Planende.
+- Planung (`create roster`, Abteilungsbezug über `RosterPolicy`, `manage all rosters` für alle Abteilungen): Abteilungen, Planliste, Plan anlegen/kopieren/löschen, `PUT …/working-times` (Zielzustand je Person und Tag), Termine anlegen/ändern/löschen, veröffentlichen/zurückziehen, Änderungen mitteilen/verwerfen.
+- Gleiche Logik wie im Web (`Services/Personal/Zeit/RosterService`): Änderungen an veröffentlichten Plänen landen als offene Änderung im Protokoll; automatische Abwesenheits-Markierungen sind schreibgeschützt.
+- `user.permissions.plan_rosters` im Token-/`auth/me`-Payload zeigt, ob die App die Planung anbieten soll.
+
+> **Hinweis:** App-Tokens werden weiterhin nur für Benutzer mit `view paed diary` ausgestellt (`ApiTokenService::hasAppAccess`).
+
 ## Rechte
 
 | Permission | Wirkung |
@@ -117,6 +129,8 @@ Schüler-Tokens gehören einem eigenen Modell (`GradingStudentDevice`), nicht de
 | `manage diagnostics` | Entwicklungsziele endgültig löschen (`DELETE …?force=true`) |
 | `view all students` | Klassenübergreifender Zugriff (Schulleitung) |
 | `view confidential diary entries` | Vertrauliche Tagebucheinträge (`dossier_only`) fremder Autoren lesen |
+| `create roster` | Dienstplanung (`/roster/departments`, Pläne, Arbeitszeiten, Termine) für die eigenen Abteilungen |
+| `manage all rosters` | Dienstplanung für alle Abteilungen |
 
 Die Rolle `Admin` hat beide Sonderrechte implizit; die Migration vergibt sie zusätzlich an die Rollen `Admin` und `Schulleitung` (falls vorhanden).
 

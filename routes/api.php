@@ -11,6 +11,7 @@ use App\Http\Controllers\API\v1\InstanceApiController;
 use App\Http\Controllers\API\v1\PaedDiaryApiController;
 use App\Http\Controllers\API\v1\PaedDiaryPlanningApiController;
 use App\Http\Controllers\API\v1\PaedDiaryWeekApiController;
+use App\Http\Controllers\API\v1\RosterApiController;
 use App\Http\Controllers\API\v1\SsoApiController;
 use App\Http\Controllers\API\v1\StudentGradingApiController;
 use App\Http\Controllers\API\v1\StudentViewApiController;
@@ -177,5 +178,29 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('schueler')->name('students.dossier.pdf');
         Route::get('students/{schueler}/dossier', [DossierApiController::class, 'show'])
             ->whereNumber('schueler')->name('students.dossier');
+    });
+
+    // Dienstplanung: unabhängig vom Pädagogischen Tagebuch, nur Benutzer-Tokens (api.staff).
+    // "Mein Dienstplan" für alle, Planung mit "create roster" + Abteilungsbezug (RosterPolicy).
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent'])->prefix('roster')->name('roster.')->group(function () {
+        Route::get('mine', [RosterApiController::class, 'mine'])->name('mine');
+        Route::get('rosters/{roster}', [RosterApiController::class, 'show'])->whereNumber('roster')->name('show');
+
+        Route::middleware('permission:create roster')->group(function () {
+            Route::get('departments', [RosterApiController::class, 'departments'])->name('departments');
+            Route::get('departments/{department}/rosters', [RosterApiController::class, 'index'])
+                ->whereNumber('department')->name('index');
+            Route::post('rosters', [RosterApiController::class, 'store'])->name('store');
+            Route::delete('rosters/{roster}', [RosterApiController::class, 'destroy'])->whereNumber('roster')->name('destroy');
+            Route::post('rosters/{roster}/copy', [RosterApiController::class, 'copy'])->whereNumber('roster')->name('copy');
+            Route::post('rosters/{roster}/publish', [RosterApiController::class, 'publish'])->whereNumber('roster')->name('publish');
+            Route::post('rosters/{roster}/unpublish', [RosterApiController::class, 'unpublish'])->whereNumber('roster')->name('unpublish');
+            Route::post('rosters/{roster}/notify-changes', [RosterApiController::class, 'notifyChanges'])->whereNumber('roster')->name('notify-changes');
+            Route::post('rosters/{roster}/revert', [RosterApiController::class, 'revert'])->whereNumber('roster')->name('revert');
+            Route::put('rosters/{roster}/working-times', [RosterApiController::class, 'setWorkingTime'])->whereNumber('roster')->name('working-times.set');
+            Route::post('rosters/{roster}/events', [RosterApiController::class, 'storeEvent'])->whereNumber('roster')->name('events.store');
+            Route::put('events/{rosterEvent}', [RosterApiController::class, 'updateEvent'])->whereNumber('rosterEvent')->name('events.update');
+            Route::delete('events/{rosterEvent}', [RosterApiController::class, 'destroyEvent'])->whereNumber('rosterEvent')->name('events.destroy');
+        });
     });
 });

@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: MitarbeiterBoard – Pädagogen-App API
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier).
+    REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier, Dienstplan).
 
     **Serverwahl:** `GET /instance` (öffentlich) liefert Schulname, Logo, API-Version und verfügbare Login-Arten.
 
@@ -36,6 +36,9 @@ info:
     - `view all students` – klassenübergreifender Zugriff (Schulleitung).
     - `view confidential diary entries` – vertrauliche Tagebucheinträge (`is_dossier_only`) fremder Autoren.
     - Rolle `Admin` besitzt beide Sonderrechte implizit.
+    - Dienstplan (`/roster/*`): ohne `view paed diary`. `/roster/mine` und `GET /roster/rosters/{id}` für alle
+      Mitarbeitenden (nur veröffentlichte Pläne); Planung mit `create roster` für die eigenen Abteilungen,
+      `manage all rosters` hebt die Abteilungsgrenze auf.
 
     **Fehlerformat:** `{"message": "...", "errors": {"feld": ["..."]}}` – 401, 403, 404, 409, 422.
 servers:
@@ -53,6 +56,8 @@ tags:
   - name: Dossier
   - name: Schüler-iPad
     description: Selbsteinschätzung auf geteilten Schüler-iPads (Schüler-Token)
+  - name: Dienstplan
+    description: Mein Dienstplan (alle Mitarbeitenden) und Dienstplanung (`create roster`)
 
 paths:
   /instance:
@@ -1384,6 +1389,386 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /roster/mine:
+    get:
+      tags: [Dienstplan]
+      summary: Mein Dienstplan – veröffentlichte Dienste und Termine je Tag
+      description: |
+        Für alle Mitarbeitenden (kein `view paed diary` nötig). Nur veröffentlichte Pläne.
+        Standard: aktuelle Woche + zwei folgende Wochen; höchstens 92 Tage. `absence` enthält genehmigten
+        Urlaub bzw. eingetragene Abwesenheiten, `rosters` die veröffentlichten Pläne der eigenen Abteilungen im Zeitraum.
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      from: { type: string, format: date }
+                      to: { type: string, format: date }
+                      days:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            holiday: { type: string, nullable: true, example: Tag der Deutschen Einheit }
+                            absence: { type: string, nullable: true, example: Urlaub }
+                            shifts:
+                              type: array
+                              items:
+                                allOf:
+                                  - $ref: '#/components/schemas/RosterWorkingTime'
+                                  - type: object
+                                    properties:
+                                      department: { $ref: '#/components/schemas/RosterDepartmentRef' }
+                            events: { type: array, items: { $ref: '#/components/schemas/RosterEvent' } }
+                      rosters: { type: array, items: { $ref: '#/components/schemas/RosterSummary' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/departments:
+    get:
+      tags: [Dienstplan]
+      summary: Abteilungen, die der Benutzer planen darf
+      description: Recht `create roster`; eigene Abteilungen bzw. alle mit `manage all rosters`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        day_window: { $ref: '#/components/schemas/RosterDayWindow' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /roster/departments/{department_id}/rosters:
+    get:
+      tags: [Dienstplan]
+      summary: Pläne und Vorlagen einer Abteilung
+      description: Standard 4 Wochen zurück bis 8 Wochen voraus (höchstens 92 Tage); Vorlagen werden unabhängig vom Zeitraum geliefert.
+      parameters:
+        - { name: department_id, in: path, required: true, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: type, in: query, schema: { type: string, enum: [normal, template] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/RosterSummary' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters:
+    post:
+      tags: [Dienstplan]
+      summary: Wochenplan oder Vorlage anlegen
+      description: |
+        `start_date` wird auf den Montag gesetzt. Mit `template_id` (Vorlage oder Plan derselben Abteilung) werden
+        Arbeitszeiten und Termine übernommen; abwesende Personen werden dabei ausgeplant, Urlaub/Abwesenheiten und
+        Feiertage als Markierungen eingetragen. `additional_weeks` kopiert den neuen Plan in weitere Wochen
+        (belegte Wochen werden übersprungen). Bereits belegte Woche → 422 (`start_date`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [department_id, start_date, type]
+              properties:
+                department_id: { type: integer }
+                start_date: { type: string, format: date }
+                type: { type: string, enum: [normal, template] }
+                comment: { type: string, nullable: true, maxLength: 2000 }
+                template_id: { type: integer, nullable: true }
+                additional_weeks: { type: array, maxItems: 26, items: { type: string, format: date } }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RosterDetail' }
+                  copies: { type: array, items: { $ref: '#/components/schemas/RosterSummary' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    get:
+      tags: [Dienstplan]
+      summary: Plan mit Mitarbeitenden, Arbeitszeiten und Terminen
+      description: |
+        Planende sehen jeden Plan ihrer Abteilungen inkl. `conflicts`, `hours`, `checks`, `open_changes`, `can_revert`.
+        Mitarbeitende sehen nur veröffentlichte Pläne ihrer Abteilung bzw. Pläne, in denen sie eingeplant sind –
+        ohne Planungsdaten; Abwesenheitsgründe anderer Personen erscheinen als „abwesend“.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RosterDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Dienstplan]
+      summary: Plan löschen
+      description: Vergangene, veröffentlichte Pläne können nicht gelöscht werden (422).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/copy:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Plan in weitere Wochen kopieren
+      description: Wochen, die bereits einen Plan haben, werden übersprungen.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weeks]
+              properties:
+                weeks: { type: array, minItems: 1, maxItems: 26, items: { type: string, format: date } }
+      responses:
+        '201':
+          description: Neu angelegte Pläne
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/RosterSummary' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/publish:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Plan veröffentlichen
+      description: "Benachrichtigt die eingeplanten Mitarbeitenden (`notify: false` unterdrückt das). Vorlagen → 422."
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notify: { type: boolean, default: true }
+      responses:
+        '200': { $ref: '#/components/responses/RosterSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/unpublish:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Veröffentlichung zurückziehen (wieder Entwurf)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/RosterSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /roster/rosters/{roster_id}/notify-changes:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Offene Änderungen eines veröffentlichten Plans den Betroffenen mitteilen
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Anzahl benachrichtigter Personen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      notified: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /roster/rosters/{roster_id}/revert:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Änderungen seit der Veröffentlichung (bzw. letzten Mitteilung) verwerfen
+      description: Ohne gespeicherten Stand → 422.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Plan nach dem Zurücksetzen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RosterDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/working-times:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    put:
+      tags: [Dienstplan]
+      summary: Arbeitszeit einer Person an einem Tag setzen (Zielzustand)
+      description: |
+        Legt die Arbeitszeit an oder überschreibt sie; `start`/`end` = null → frei. Datum außerhalb der Planwoche
+        oder Person außerhalb der Abteilung → 422. Änderungen an veröffentlichten Plänen werden als offene Änderung
+        protokolliert. `warning` ist gesetzt, wenn der optionale Google-Kalender-Abgleich fehlschlug.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [employe_id, date]
+              properties:
+                employe_id: { type: integer }
+                date: { type: string, format: date }
+                start: { type: string, nullable: true, example: '07:30', pattern: '^\d{2}:\d{2}$' }
+                end: { type: string, nullable: true, example: '15:00', pattern: '^\d{2}:\d{2}$' }
+                function: { type: string, nullable: true, maxLength: 190, example: Frühdienst }
+      responses:
+        '200':
+          description: Gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RosterWorkingTime' }
+                  warning: { type: string, nullable: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Termin für eine oder mehrere Personen anlegen
+      description: |
+        Je Person ein eigener Termin; ohne `employe_ids` landet der Termin in der Merkliste (nicht zugewiesen).
+        Personen mit Überschneidung werden übersprungen (`skipped_employe_ids`). Personen außerhalb der Abteilung → 422.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RosterEventInput'
+                - type: object
+                  properties:
+                    employe_ids: { type: array, maxItems: 100, items: { type: integer } }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/RosterEvent' } }
+                  skipped_employe_ids: { type: array, items: { type: integer } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/events/{event_id}:
+    parameters:
+      - { name: event_id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Dienstplan]
+      summary: Termin ändern, verschieben oder zuweisen (Zielzustand)
+      description: |
+        `employe_id: null` legt den Termin in die Merkliste. Überschneidung mit einem anderen Termin der Person → 409
+        mit unverändertem Termin in `data`. Automatische Abwesenheits-Markierungen (`is_absence`) → 422.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RosterEventInput'
+                - type: object
+                  required: [employe_id]
+                  properties:
+                    employe_id: { type: integer, nullable: true }
+      responses:
+        '200':
+          description: Gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RosterEvent' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Überschneidung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/RosterEvent' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Dienstplan]
+      summary: Termin löschen
+      description: Automatische Abwesenheits-Markierungen → 422.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1392,6 +1777,11 @@ components:
   parameters:
     StudentId:
       name: student_id
+      in: path
+      required: true
+      schema: { type: integer }
+    RosterId:
+      name: roster_id
       in: path
       required: true
       schema: { type: integer }
@@ -1455,6 +1845,14 @@ components:
               errors:
                 type: object
                 additionalProperties: { type: array, items: { type: string } }
+    RosterSummary:
+      description: Plan (Kurzform)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/RosterSummary' }
     EntryStudents:
       description: Aktuelle Schüler des Eintrags
       content:
@@ -1469,6 +1867,107 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    RosterDepartmentRef:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        name: { type: string, example: Hort }
+    RosterDayWindow:
+      type: object
+      properties:
+        start: { type: string, example: '08:00' }
+        end: { type: string, example: '14:30' }
+    RosterSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        department: { $ref: '#/components/schemas/RosterDepartmentRef' }
+        type: { type: string, enum: [normal, template] }
+        start_date: { type: string, format: date, description: Montag der Woche }
+        end_date: { type: string, format: date }
+        week_label: { type: string, example: 'KW 40 (28.09.–04.10.2026)' }
+        comment: { type: string, nullable: true }
+        published: { type: boolean }
+        published_at: { type: string, format: date-time, nullable: true }
+        open_changes: { type: integer, description: 'Nur in Planungslisten: noch nicht mitgeteilte Änderungen' }
+    RosterWorkingTime:
+      type: object
+      properties:
+        id: { type: integer }
+        roster_id: { type: integer }
+        employe_id: { type: integer }
+        date: { type: string, format: date }
+        start: { type: string, nullable: true, example: '07:30', description: 'null = frei' }
+        end: { type: string, nullable: true, example: '15:00' }
+        function: { type: string, nullable: true }
+    RosterEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        roster_id: { type: integer }
+        employe_id: { type: integer, nullable: true, description: 'null = Merkliste' }
+        date: { type: string, format: date }
+        start: { type: string, example: '09:00' }
+        end: { type: string, example: '10:00' }
+        event: { type: string, example: Hofaufsicht }
+        is_absence: { type: boolean, description: 'Automatische Markierung aus Urlaub/Abwesenheit/Feiertag (schreibgeschützt)' }
+    RosterEventInput:
+      type: object
+      required: [event, date, start, end]
+      properties:
+        event: { type: string, maxLength: 190 }
+        date: { type: string, format: date }
+        start: { type: string, example: '09:00', pattern: '^\d{2}:\d{2}$' }
+        end: { type: string, example: '10:00', pattern: '^\d{2}:\d{2}$' }
+    RosterDetail:
+      allOf:
+        - $ref: '#/components/schemas/RosterSummary'
+        - type: object
+          properties:
+            day_window: { $ref: '#/components/schemas/RosterDayWindow' }
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  holiday: { type: string, nullable: true }
+            employees:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+            working_times: { type: array, items: { $ref: '#/components/schemas/RosterWorkingTime' } }
+            events:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/RosterEvent'
+                  - type: object
+                    properties:
+                      is_break: { type: boolean }
+            can_manage: { type: boolean }
+            conflicts:
+              type: object
+              description: 'Nur für Planende: {employe_id: {Y-m-d: [Hinweis, …]}}'
+              additionalProperties: { type: object, additionalProperties: { type: array, items: { type: string } } }
+            hours:
+              type: object
+              description: 'Nur für Planende: {employe_id: {planned, contract}} Wochenstunden'
+              additionalProperties:
+                type: object
+                properties:
+                  planned: { type: number }
+                  contract: { type: number }
+            checks:
+              type: object
+              description: 'Nur für Planende: {Y-m-d: {check_name: erfüllt}}'
+              additionalProperties: { type: object, additionalProperties: { type: boolean } }
+            open_changes: { type: integer, description: Nur für Planende }
+            can_revert: { type: boolean, description: Nur für Planende }
     DiaryListMeta:
       type: object
       description: Laravel-Paginierung; bei `search` zusätzlich Suchinfos
@@ -1831,6 +2330,7 @@ components:
             manage_grading: { type: boolean }
             view_all_students: { type: boolean }
             view_confidential_entries: { type: boolean }
+            plan_rosters: { type: boolean, description: 'Recht "create roster" – Dienstplanung (/roster/departments …)' }
     Class:
       type: object
       properties:

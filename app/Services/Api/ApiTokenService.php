@@ -86,6 +86,7 @@ class ApiTokenService
                 'manage_grading' => $can('manage grading systems'),
                 'view_all_students' => $user->canAccessAllStudents(),
                 'view_confidential_entries' => $user->canViewConfidentialDiaryEntries(),
+                'plan_rosters' => $can('create roster'),
             ],
         ];
     }

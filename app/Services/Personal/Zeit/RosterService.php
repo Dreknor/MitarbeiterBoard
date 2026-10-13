@@ -13,9 +13,12 @@ use App\Models\User;
 use App\Notifications\Personal\ZeitwirtschaftNotification;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Spatie\GoogleCalendar\Event;
 
 /**
  * Dienstplanung: Anlegen/Kopieren, Abwesenheits-Markierungen, Konflikte,
@@ -275,6 +278,129 @@ class RosterService
     }
 
     // =========================================================================
+    // Bearbeiten: Arbeitszeiten & Termine (Web-Editor und API)
+    // =========================================================================
+
+    /**
+     * Abbruch mit 422, wenn das Datum nicht in der Woche des Plans liegt.
+     */
+    public function pruefeTag(Roster $roster, string $datum): void
+    {
+        $tag = Carbon::parse($datum)->startOfDay();
+        abort_if($tag->lt($roster->start_date->copy()->startOfDay()) || $tag->gt($roster->weekEnd()), 422, 'Das Datum liegt außerhalb der Dienstplanwoche.');
+    }
+
+    /**
+     * Überschneidet sich ein Zeitraum mit einem anderen (manuellen) Termin der Person am Tag?
+     */
+    public function kollision(Roster $roster, int $employeId, string $datum, string $start, string $ende, ?int $ausser = null): bool
+    {
+        return $roster->events()
+            ->where('employe_id', $employeId)
+            ->whereDate('date', $datum)
+            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))
+            ->when($ausser, fn ($q) => $q->where('id', '!=', $ausser))
+            ->where('start', '<', substr($ende, 0, 5).':00')
+            ->where('end', '>', substr($start, 0, 5).':00')
+            ->exists();
+    }
+
+    /**
+     * Arbeitszeit einer Person an einem Tag setzen (leere Zeiten = frei). Prüft Woche und Abteilung.
+     *
+     * @return array{0: WorkingTime, 1: ?string} Arbeitszeit und ggf. Hinweis (Kalenderabgleich fehlgeschlagen)
+     */
+    public function arbeitszeitSetzen(Roster $roster, int $employeId, string $datum, ?string $start, ?string $ende, ?string $funktion): array
+    {
+        $this->pruefeTag($roster, $datum);
+        abort_unless($this->mitarbeitende($roster)->contains('id', $employeId), 422, 'Die Person gehört nicht zu dieser Abteilung.');
+
+        $tag = Carbon::parse($datum)->toDateString();
+        $workingTime = WorkingTime::where('roster_id', $roster->id)
+            ->where('employe_id', $employeId)
+            ->whereDate('date', $tag)
+            ->first() ?? new WorkingTime(['roster_id' => $roster->id, 'employe_id' => $employeId, 'date' => $tag]);
+
+        $workingTime->fill([
+            'start' => $start,
+            'end' => $ende,
+            'function' => $funktion,
+        ])->save();
+
+        return [$workingTime, $this->kalenderSync($workingTime, $roster)];
+    }
+
+    /**
+     * Termin für eine oder mehrere Personen anlegen. Ohne Person landet er in der Merkliste.
+     * Personen außerhalb der Abteilung werden ignoriert, Personen mit Überschneidung übersprungen.
+     *
+     * @param array{event: string, date: string, start: string, end: string} $daten
+     * @param int[] $employeIds
+     * @return array{angelegt: Collection<int, RosterEvents>, uebersprungen: Collection<int, User>}
+     */
+    public function termineAnlegen(Roster $roster, array $daten, array $employeIds): array
+    {
+        $this->pruefeTag($roster, $daten['date']);
+
+        $mitarbeitende = $this->mitarbeitende($roster)->keyBy('id');
+        $personen = collect($employeIds)->map(fn ($id) => (int) $id)->unique()->filter(fn ($id) => $mitarbeitende->has($id));
+        $felder = Arr::only($daten, ['event', 'date', 'start', 'end']);
+        $angelegt = collect();
+        $uebersprungen = collect();
+
+        if ($personen->isEmpty()) {
+            $angelegt->push(RosterEvents::create($felder + ['roster_id' => $roster->id, 'employe_id' => null]));
+        }
+
+        foreach ($personen as $id) {
+            if ($this->kollision($roster, $id, $daten['date'], $daten['start'], $daten['end'])) {
+                $uebersprungen->push($mitarbeitende[$id]);
+                continue;
+            }
+            $angelegt->push(RosterEvents::create($felder + ['roster_id' => $roster->id, 'employe_id' => $id]));
+        }
+
+        return ['angelegt' => $angelegt, 'uebersprungen' => $uebersprungen];
+    }
+
+    /**
+     * Optionaler Abgleich mit einem hinterlegten Google-Kalender. Fehler werden protokolliert
+     * und als Hinweis gemeldet statt verschluckt.
+     */
+    private function kalenderSync(WorkingTime $workingTime, Roster $roster): ?string
+    {
+        $kalender = $workingTime->employe?->employe_data?->google_calendar_link;
+        if ($kalender === null || $roster->type === 'template') {
+            return null;
+        }
+
+        try {
+            $hatZeit = $workingTime->start !== null && $workingTime->end !== null;
+
+            if ($workingTime->googleCalendarId !== null) {
+                $event = Event::find($workingTime->googleCalendarId, $kalender);
+                if ($hatZeit) {
+                    $event->startDateTime = $workingTime->start;
+                    $event->endDateTime = $workingTime->end;
+                    $event->save();
+                } else {
+                    $event->delete();
+                    $workingTime->update(['googleCalendarId' => null]);
+                }
+            } elseif ($hatZeit) {
+                $event = Event::create(['name' => 'Dienst', 'startDateTime' => $workingTime->start, 'endDateTime' => $workingTime->end], $kalender);
+                $workingTime->update(['googleCalendarId' => $event->id]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Arbeitszeit: Kalendereintrag fehlgeschlagen', ['working_time' => $workingTime->id, 'message' => $e->getMessage()]);
+
+            return 'Arbeitszeit gespeichert, aber der Kalendereintrag ist fehlgeschlagen.';
+        }
+
+        return null;
+    }
+
+    // =========================================================================
     // Konflikte & Kennzahlen für das Raster
     // =========================================================================
 
@@ -353,6 +479,96 @@ class RosterService
                 'geplant' => round(max(0, $minuten - $pausen) / 60, 2),
                 'vertrag' => round($vertrag, 2),
             ];
+        }
+
+        return $ergebnis;
+    }
+
+    /**
+     * Aktueller Stand des Rasters: Termine, Arbeitszeiten, Konflikte, Wochenstunden und Abteilungs-Checks.
+     *
+     * @return array{events: array, zeiten: array, konflikte: object, stunden: object, checks: object}
+     */
+    public function raster(Roster $roster): array
+    {
+        $roster->unsetRelation('working_times')->unsetRelation('events')->load(['working_times', 'events', 'department.roster_checks']);
+        $mitarbeitende = $this->mitarbeitende($roster);
+        $arbeitszeiten = $roster->working_times;
+        $termine = $roster->events;
+
+        return [
+            'events' => $termine->map(fn (RosterEvents $e) => [
+                'id' => $e->id,
+                'employe_id' => $e->employe_id,
+                'date' => $e->date->toDateString(),
+                'start' => $e->start?->format('H:i'),
+                'end' => $e->end?->format('H:i'),
+                'event' => $e->event,
+                'abwesend' => $e->is_abwesenheit,
+                'pause' => Str::contains(Str::lower($e->event), 'pause'),
+            ])->values()->all(),
+            'zeiten' => $arbeitszeiten->map(fn (WorkingTime $w) => [
+                'id' => $w->id,
+                'employe_id' => $w->employe_id,
+                'date' => $w->date->toDateString(),
+                'start' => $w->start?->format('H:i'),
+                'end' => $w->end?->format('H:i'),
+                'function' => $w->function,
+            ])->values()->all(),
+            'konflikte' => (object) $this->konflikte($roster, $mitarbeitende, $arbeitszeiten, $termine),
+            'stunden' => (object) $this->wochenstunden($roster, $mitarbeitende, $arbeitszeiten, $termine),
+            'checks' => (object) $this->checks($roster, $arbeitszeiten, $termine),
+        ];
+    }
+
+    /**
+     * Abteilungs-Checks (z. B. "mind. 2 Personen ab 7:00") je Tag auswerten.
+     *
+     * @return array<string, array<string, bool>>
+     */
+    public function checks(Roster $roster, Collection $arbeitszeiten, Collection $termine): array
+    {
+        $ergebnis = [];
+        foreach ($roster->days() as $tag) {
+            $ergebnis[$tag->toDateString()] = [];
+        }
+
+        foreach ($roster->department->roster_checks->sortBy('weekday') as $check) {
+            $tag = $roster->start_date->copy()->startOfDay()->addDays($check->weekday);
+            $datum = $tag->toDateString();
+
+            if ($check->type === WorkingTime::class) {
+                if ($check->field_name === 'function') {
+                    $treffer = $arbeitszeiten->filter(fn ($w) => $w->date->toDateString() === $datum && $w->function == $check->value);
+                } else {
+                    try {
+                        $ziel = Carbon::createFromFormat('Y-m-d H:i', $datum.' '.substr((string) $check->value, 0, 5));
+                    } catch (\Throwable) {
+                        continue;
+                    }
+                    $feld = in_array($check->field_name, ['start', 'end'], true) ? $check->field_name : 'start';
+                    $treffer = $arbeitszeiten->filter(function ($w) use ($datum, $feld, $check, $ziel) {
+                        if ($w->date->toDateString() !== $datum || $w->{$feld} === null) {
+                            return false;
+                        }
+
+                        return match ($check->operator) {
+                            '<=' => $w->{$feld}->lte($ziel),
+                            '<' => $w->{$feld}->lt($ziel),
+                            '=' => $w->{$feld}->eq($ziel),
+                            '>=' => $w->{$feld}->gte($ziel),
+                            '>' => $w->{$feld}->gt($ziel),
+                            default => false,
+                        };
+                    });
+                }
+            } elseif ($check->type === RosterEvents::class) {
+                $treffer = $termine->filter(fn ($e) => $e->date->toDateString() === $datum && $e->event == $check->value);
+            } else {
+                continue;
+            }
+
+            $ergebnis[$datum][$check->check_name] = $treffer->count() >= $check->needs;
         }
 
         return $ergebnis;

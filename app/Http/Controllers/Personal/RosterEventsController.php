@@ -31,23 +31,10 @@ class RosterEventsController extends Controller
     public function store(CreateTaskRequest $request, Roster $roster)
     {
         $this->authorize('manage', $roster);
-        $this->pruefeTag($roster, $request->date);
+        $this->rosters->pruefeTag($roster, $request->date);
 
-        $mitarbeitende = $this->rosters->mitarbeitende($roster)->keyBy('id');
-        $personen = collect($request->input('employes', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $mitarbeitende->has($id));
-        $uebersprungen = [];
-
-        if ($personen->isEmpty()) {
-            RosterEvents::create($request->safe()->only(['event', 'date', 'start', 'end']) + ['roster_id' => $roster->id, 'employe_id' => null]);
-        }
-
-        foreach ($personen as $id) {
-            if ($this->kollision($roster, $id, $request->date, $request->start, $request->end)) {
-                $uebersprungen[] = $mitarbeitende[$id]->vorname ?? $mitarbeitende[$id]->name;
-                continue;
-            }
-            RosterEvents::create($request->safe()->only(['event', 'date', 'start', 'end']) + ['roster_id' => $roster->id, 'employe_id' => $id]);
-        }
+        $ergebnis = $this->rosters->termineAnlegen($roster, $request->safe()->only(['event', 'date', 'start', 'end']), (array) $request->input('employes', []));
+        $uebersprungen = $ergebnis['uebersprungen']->map(fn ($u) => $u->vorname ?? $u->name)->all();
 
         return $this->antwort($request, $roster, $request->date, $uebersprungen === []
             ? ['success', 'Termin gespeichert.']
@@ -61,7 +48,7 @@ class RosterEventsController extends Controller
     {
         $roster = $rosterEvent->roster;
         $this->authorize('manage', $roster);
-        $this->pruefeTag($roster, $request->date);
+        $this->rosters->pruefeTag($roster, $request->date);
 
         $mitarbeitende = $this->rosters->mitarbeitende($roster)->keyBy('id');
         $personen = collect($request->input('employes', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $mitarbeitende->has($id))->values();
@@ -69,13 +56,13 @@ class RosterEventsController extends Controller
         $uebersprungen = [];
 
         $erste = $personen->shift();
-        if ($erste !== null && $this->kollision($roster, $erste, $request->date, $request->start, $request->end, $rosterEvent->id)) {
+        if ($erste !== null && $this->rosters->kollision($roster, $erste, $request->date, $request->start, $request->end, $rosterEvent->id)) {
             return $this->antwort($request, $roster, $request->date, ['warning', 'Überschneidung mit einem anderen Termin von '.($mitarbeitende[$erste]->vorname ?? '').' – nicht gespeichert.']);
         }
         $rosterEvent->update($daten + ['employe_id' => $erste]);
 
         foreach ($personen as $id) {
-            if ($this->kollision($roster, $id, $request->date, $request->start, $request->end)) {
+            if ($this->rosters->kollision($roster, $id, $request->date, $request->start, $request->end)) {
                 $uebersprungen[] = $mitarbeitende[$id]->vorname ?? $mitarbeitende[$id]->name;
                 continue;
             }
@@ -106,7 +93,7 @@ class RosterEventsController extends Controller
         }
         $roster = $task->roster;
         $this->authorize('manage', $roster);
-        $this->pruefeTag($roster, $data['date']);
+        $this->rosters->pruefeTag($roster, $data['date']);
 
         if ($data['employe_id'] !== null && !$this->rosters->mitarbeitende($roster)->contains('id', $data['employe_id'])) {
             return response()->json(['error' => 'invalid_employe'], 422);
@@ -120,7 +107,7 @@ class RosterEventsController extends Controller
             $ende = Carbon::createFromFormat('H:i', $start)->addMinutes(15)->format('H:i');
         }
 
-        $konflikt = $data['employe_id'] !== null && $this->kollision($roster, (int) $data['employe_id'], $data['date'], $start, $ende, $task->id);
+        $konflikt = $data['employe_id'] !== null && $this->rosters->kollision($roster, (int) $data['employe_id'], $data['date'], $start, $ende, $task->id);
 
         if (!$konflikt) {
             $task->update([
@@ -157,7 +144,7 @@ class RosterEventsController extends Controller
     public function trashDay(Roster $roster, TrashRosterDayRequest $request)
     {
         $this->authorize('manage', $roster);
-        $this->pruefeTag($roster, $request->date);
+        $this->rosters->pruefeTag($roster, $request->date);
 
         $roster->events()->whereDate('date', $request->date)->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))->get()->each->delete();
         $roster->working_times()->whereDate('date', $request->date)->get()->each->delete();
@@ -255,24 +242,6 @@ class RosterEventsController extends Controller
         $event->update(['employe_id' => null]);
 
         return $this->antwort($request, $event->roster, $event->date->format('Y-m-d'), ['success', 'Termin liegt jetzt in der Merkliste.']);
-    }
-
-    private function pruefeTag(Roster $roster, string $datum): void
-    {
-        $tag = Carbon::parse($datum)->startOfDay();
-        abort_if($tag->lt($roster->start_date->copy()->startOfDay()) || $tag->gt($roster->weekEnd()), 422, 'Das Datum liegt außerhalb der Dienstplanwoche.');
-    }
-
-    private function kollision(Roster $roster, int $employeId, string $datum, string $start, string $ende, ?int $ausser = null): bool
-    {
-        return $roster->events()
-            ->where('employe_id', $employeId)
-            ->whereDate('date', $datum)
-            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))
-            ->when($ausser, fn ($q) => $q->where('id', '!=', $ausser))
-            ->where('start', '<', substr($ende, 0, 5).':00')
-            ->where('end', '>', substr($start, 0, 5).':00')
-            ->exists();
     }
 
     private function antwort(Request $request, Roster $roster, string $datum, array $meldung)

@@ -105,7 +105,7 @@ class RosterController extends Controller
             'department' => $roster->department,
             'employes' => $this->rosters->mitarbeitende($roster),
             'days' => $roster->days(),
-            'raster' => $this->rasterDaten($roster),
+            'raster' => $this->rosters->raster($roster),
             'fenster' => ['start' => $fensterStart, 'end' => $fensterEnde],
             'offeneAenderungen' => $roster->aenderungen()->whereNull('notified_at')->count(),
             'aenderungen' => $roster->aenderungen()->with('employe')->limit(30)->get(),
@@ -128,44 +128,9 @@ class RosterController extends Controller
     {
         $this->authorize('manage', $roster);
 
-        return response()->json($this->rasterDaten($roster) + [
+        return response()->json($this->rosters->raster($roster) + [
             'offeneAenderungen' => $roster->aenderungen()->whereNull('notified_at')->count(),
         ]);
-    }
-
-    /**
-     * @return array{events: array, zeiten: array, konflikte: array, stunden: array, checks: array}
-     */
-    private function rasterDaten(Roster $roster): array
-    {
-        $roster->unsetRelation('working_times')->unsetRelation('events')->load(['working_times', 'events', 'department.roster_checks']);
-        $mitarbeitende = $this->rosters->mitarbeitende($roster);
-        $arbeitszeiten = $roster->working_times;
-        $termine = $roster->events;
-
-        return [
-            'events' => $termine->map(fn (RosterEvents $e) => [
-                'id' => $e->id,
-                'employe_id' => $e->employe_id,
-                'date' => $e->date->toDateString(),
-                'start' => $e->start?->format('H:i'),
-                'end' => $e->end?->format('H:i'),
-                'event' => $e->event,
-                'abwesend' => $e->is_abwesenheit,
-                'pause' => Str::contains(Str::lower($e->event), 'pause'),
-            ])->values()->all(),
-            'zeiten' => $arbeitszeiten->map(fn (WorkingTime $w) => [
-                'id' => $w->id,
-                'employe_id' => $w->employe_id,
-                'date' => $w->date->toDateString(),
-                'start' => $w->start?->format('H:i'),
-                'end' => $w->end?->format('H:i'),
-                'function' => $w->function,
-            ])->values()->all(),
-            'konflikte' => (object) $this->rosters->konflikte($roster, $mitarbeitende, $arbeitszeiten, $termine),
-            'stunden' => (object) $this->rosters->wochenstunden($roster, $mitarbeitende, $arbeitszeiten, $termine),
-            'checks' => (object) $this->checks($roster, $arbeitszeiten, $termine),
-        ];
     }
 
     public function destroy(Roster $roster)
@@ -573,58 +538,5 @@ class RosterController extends Controller
         }
 
         return $woche;
-    }
-
-    /**
-     * Abteilungs-Checks (z. B. "mind. 2 Personen ab 7:00") je Tag auswerten.
-     *
-     * @return array<string, array<string, bool>>
-     */
-    private function checks(Roster $roster, $arbeitszeiten, $termine): array
-    {
-        $ergebnis = [];
-        foreach ($roster->days() as $tag) {
-            $ergebnis[$tag->toDateString()] = [];
-        }
-
-        foreach ($roster->department->roster_checks->sortBy('weekday') as $check) {
-            $tag = $roster->start_date->copy()->startOfDay()->addDays($check->weekday);
-            $datum = $tag->toDateString();
-
-            if ($check->type === WorkingTime::class) {
-                if ($check->field_name === 'function') {
-                    $treffer = $arbeitszeiten->filter(fn ($w) => $w->date->toDateString() === $datum && $w->function == $check->value);
-                } else {
-                    try {
-                        $ziel = Carbon::createFromFormat('Y-m-d H:i', $datum.' '.substr((string) $check->value, 0, 5));
-                    } catch (\Throwable) {
-                        continue;
-                    }
-                    $feld = in_array($check->field_name, ['start', 'end'], true) ? $check->field_name : 'start';
-                    $treffer = $arbeitszeiten->filter(function ($w) use ($datum, $feld, $check, $ziel) {
-                        if ($w->date->toDateString() !== $datum || $w->{$feld} === null) {
-                            return false;
-                        }
-
-                        return match ($check->operator) {
-                            '<=' => $w->{$feld}->lte($ziel),
-                            '<' => $w->{$feld}->lt($ziel),
-                            '=' => $w->{$feld}->eq($ziel),
-                            '>=' => $w->{$feld}->gte($ziel),
-                            '>' => $w->{$feld}->gt($ziel),
-                            default => false,
-                        };
-                    });
-                }
-            } elseif ($check->type === RosterEvents::class) {
-                $treffer = $termine->filter(fn ($e) => $e->date->toDateString() === $datum && $e->event == $check->value);
-            } else {
-                continue;
-            }
-
-            $ergebnis[$datum][$check->check_name] = $treffer->count() >= $check->needs;
-        }
-
-        return $ergebnis;
     }
 }
