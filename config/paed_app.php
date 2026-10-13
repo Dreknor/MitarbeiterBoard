@@ -26,8 +26,8 @@ return [
     // URL-Schema der App (Deep Links, QR-Codes)
     'url_scheme' => env('PAED_APP_URL_SCHEME', 'paeddiary'),
 
-    // Erlaubte redirect_uri für den SSO-Login (kommagetrennt)
-    'redirect_uris' => array_values(array_filter(array_map('trim', explode(',', env('PAED_APP_REDIRECT_URIS', 'paeddiary://auth'))))),
+    // Erlaubte redirect_uri für den SSO-Login (kommagetrennt; Pädagogen-App und Dienstplan-App)
+    'redirect_uris' => array_values(array_filter(array_map('trim', explode(',', env('PAED_APP_REDIRECT_URIS', 'paeddiary://auth,dienstplan://auth'))))),
 
     // SSO: Gültigkeit des Einmal-Codes (Sekunden) und des Login-Vorgangs im Browser (Minuten)
     'sso_code_ttl' => 60,

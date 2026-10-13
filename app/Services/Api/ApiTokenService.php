@@ -30,10 +30,41 @@ class ApiTokenService
         365 => '1 Jahr',
     ];
 
-    public function hasAppAccess(User $user): bool
+    /** Apps, die Tokens erhalten können: Pädagogen-App und Dienstplan-App */
+    public const APP_PAED = 'paed';
+    public const APP_DIENSTPLAN = 'dienstplan';
+    public const APPS = [self::APP_PAED, self::APP_DIENSTPLAN];
+
+    /**
+     * Zugang zur jeweiligen App: Pädagogen-App mit "view paed diary", Dienstplan-App für Planende
+     * ("create roster") und Mitglieder einer Abteilung mit Dienstplan.
+     */
+    public function hasAppAccess(User $user, string $app = self::APP_PAED): bool
+    {
+        if ($app === self::APP_DIENSTPLAN) {
+            return $this->can($user, 'create roster')
+                || $user->groups_rel()->where('needsRoster', true)->exists();
+        }
+
+        return $this->can($user, 'view paed diary');
+    }
+
+    /** Zugang zu mindestens einer App (z.B. für gespeicherte Idempotenz-Antworten). */
+    public function hasAnyAppAccess(User $user): bool
+    {
+        foreach (self::APPS as $app) {
+            if ($this->hasAppAccess($user, $app)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function can(User $user, string $permission): bool
     {
         try {
-            return $user->hasPermissionTo('view paed diary');
+            return $user->hasPermissionTo($permission);
         } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
             return false;
         }
@@ -122,13 +153,7 @@ class ApiTokenService
 
     public function userPayload(User $user): array
     {
-        $can = function (string $perm) use ($user): bool {
-            try {
-                return $user->hasPermissionTo($perm);
-            } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
-                return false;
-            }
-        };
+        $can = fn (string $perm): bool => $this->can($user, $perm);
 
         return [
             'id' => $user->id,
@@ -140,6 +165,10 @@ class ApiTokenService
                 'view_all_students' => $user->canAccessAllStudents(),
                 'view_confidential_entries' => $user->canViewConfidentialDiaryEntries(),
                 'plan_rosters' => $can('create roster'),
+            ],
+            'apps' => [
+                self::APP_PAED => $this->hasAppAccess($user, self::APP_PAED),
+                self::APP_DIENSTPLAN => $this->hasAppAccess($user, self::APP_DIENSTPLAN),
             ],
         ];
     }

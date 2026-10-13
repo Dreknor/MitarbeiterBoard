@@ -391,4 +391,48 @@ class RosterApiTest extends ApiTestCase
 
         $this->getJson(self::API.'/auth/me')->assertOk()->assertJsonPath('data.permissions.plan_rosters', true);
     }
+
+    // ── Dienstplan-App: Login ohne Pädagogen-App-Recht ───────────────────
+
+    public function test_dienstplan_app_token_fuer_abteilungsmitglieder_ohne_tagebuchrecht(): void
+    {
+        $this->ma->update(['password' => \Illuminate\Support\Facades\Hash::make('geheim123')]);
+        $login = fn (array $extra = []) => $this->postJson(self::API.'/auth/token', [
+            'email' => $this->ma->email, 'password' => 'geheim123', 'device_name' => 'Handy',
+        ] + $extra);
+
+        $login()->assertForbidden();
+        $login(['app' => 'unbekannt'])->assertUnprocessable()->assertJsonValidationErrors('app');
+
+        $token = $login(['app' => 'dienstplan'])->assertCreated()
+            ->assertJsonPath('user.apps.dienstplan', true)
+            ->assertJsonPath('user.apps.paed', false)
+            ->json('access_token');
+
+        $this->withToken($token)->getJson(self::API.'/auth/me')->assertOk()->assertJsonPath('data.id', $this->ma->id);
+        $this->withToken($token)->getJson(self::API.'/roster/mine')->assertOk();
+        $this->withToken($token)->getJson(self::API.'/classes')->assertForbidden();
+    }
+
+    public function test_dienstplan_app_ohne_abteilung_und_planungsrecht_403(): void
+    {
+        $fremd = User::factory()->create(['password' => \Illuminate\Support\Facades\Hash::make('geheim123')]);
+
+        $this->postJson(self::API.'/auth/token', [
+            'email' => $fremd->email, 'password' => 'geheim123', 'device_name' => 'Handy', 'app' => 'dienstplan',
+        ])->assertForbidden()->assertJsonPath('message', 'Keine Berechtigung für die Dienstplan-App.');
+    }
+
+    public function test_idempotenz_auch_fuer_dienstplan_tokens(): void
+    {
+        $roster = $this->plan();
+        $this->alsPlaner();
+        $key = (string) \Illuminate\Support\Str::uuid();
+        $daten = ['event' => 'Teamsitzung', 'date' => '2026-09-29', 'start' => '14:00', 'end' => '15:00'];
+
+        $this->postJson(self::API."/roster/rosters/{$roster->id}/events", $daten, ['Idempotency-Key' => $key])->assertCreated();
+        $this->postJson(self::API."/roster/rosters/{$roster->id}/events", $daten, ['Idempotency-Key' => $key])->assertCreated();
+
+        $this->assertSame(1, RosterEvents::where('roster_id', $roster->id)->where('event', 'Teamsitzung')->count());
+    }
 }

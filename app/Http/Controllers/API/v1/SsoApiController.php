@@ -68,8 +68,11 @@ class SsoApiController extends Controller
             ], 422);
         }
 
-        if (!$this->tokens->hasAppAccess($user)) {
-            return response()->json(['message' => 'Keine Berechtigung für die Pädagogen-App.'], 403);
+        $app = $request->input('app', ApiTokenService::APP_PAED);
+        if (!$this->tokens->hasAppAccess($user, $app)) {
+            return response()->json(['message' => $app === ApiTokenService::APP_DIENSTPLAN
+                ? 'Keine Berechtigung für die Dienstplan-App.'
+                : 'Keine Berechtigung für die Pädagogen-App.'], 403);
         }
 
         return response()->json($this->tokens->issue($user, $request->input('device_name'), 'sso'), 201);

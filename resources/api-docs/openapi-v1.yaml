@@ -80,7 +80,9 @@ paths:
       summary: Token ausstellen (Login)
       security: []
       description: |
-        Rate-Limit: 6/min je E-Mail+IP und 60/min je IP. Benötigt `view paed diary`.
+        Rate-Limit: 6/min je E-Mail+IP und 60/min je IP.
+        Zugang je `app`: `paed` (Standard) benötigt `view paed diary`; `dienstplan` (Dienstplan-App)
+        benötigt `create roster` oder die Mitgliedschaft in einer Abteilung mit Dienstplan.
         403, wenn der Passwort-Login auf dem Server deaktiviert ist (`PAED_APP_PASSWORD_LOGIN=false`).
       requestBody:
         required: true
@@ -93,6 +95,7 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string }
                 device_name: { type: string, maxLength: 100, example: "iPad Klasse 4a" }
+                app: { type: string, enum: [paed, dienstplan], default: paed, description: "Ziel-App des Tokens (bestimmt die Zugangsprüfung)" }
       responses:
         '201':
           description: Token ausgestellt
@@ -120,7 +123,7 @@ paths:
         bei Fehlern auf `<redirect_uri>?error=<code>&state=<state>` (`sso_failed`, `sso_unavailable`).
         Es wird kein Web-Login-Cookie für die Web-Oberfläche gesetzt.
       parameters:
-        - { name: redirect_uri, in: query, required: true, description: "Muss in PAED_APP_REDIRECT_URIS stehen (Standard paeddiary://auth)", schema: { type: string, example: 'paeddiary://auth' } }
+        - { name: redirect_uri, in: query, required: true, description: "Muss in PAED_APP_REDIRECT_URIS stehen (Standard paeddiary://auth, dienstplan://auth)", schema: { type: string, example: 'paeddiary://auth' } }
         - { name: code_challenge, in: query, required: true, description: "BASE64URL(SHA256(code_verifier))", schema: { type: string, minLength: 43, maxLength: 128 } }
         - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
         - { name: state, in: query, required: true, schema: { type: string, maxLength: 255 } }
@@ -136,7 +139,7 @@ paths:
       description: |
         Rate-Limit 10/min je IP. Antwort identisch zu `POST /auth/token`.
         Der Code wird bei jedem Versuch verbraucht. Abgelaufener/benutzter Code → 422 `code`,
-        falscher Verifier → 422 `code_verifier`, fehlendes Recht `view paed diary` → 403.
+        falscher Verifier → 422 `code_verifier`, fehlender Zugang zur gewählten `app` → 403 (siehe `POST /auth/token`).
       requestBody:
         required: true
         content:
@@ -148,6 +151,7 @@ paths:
                 code: { type: string }
                 code_verifier: { type: string, minLength: 43, maxLength: 128 }
                 device_name: { type: string, maxLength: 100, example: "iPad Klasse 4a" }
+                app: { type: string, enum: [paed, dienstplan], default: paed, description: "Ziel-App des Tokens (bestimmt die Zugangsprüfung)" }
       responses:
         '201':
           description: Token ausgestellt
@@ -193,6 +197,7 @@ paths:
     get:
       tags: [Auth]
       summary: Angemeldeter Benutzer inkl. Rechte
+      description: Wie `/auth/token`, `/auth/devices` für alle Benutzer-Tokens (Pädagogen-App und Dienstplan-App).
       responses:
         '200':
           description: OK
@@ -2420,6 +2425,12 @@ components:
             view_all_students: { type: boolean }
             view_confidential_entries: { type: boolean }
             plan_rosters: { type: boolean, description: 'Recht "create roster" – Dienstplanung (/roster/departments …)' }
+        apps:
+          type: object
+          description: Zugang zu den Apps (siehe `app` bei `POST /auth/token`)
+          properties:
+            paed: { type: boolean }
+            dienstplan: { type: boolean }
     Class:
       type: object
       properties:

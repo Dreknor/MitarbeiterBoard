@@ -98,12 +98,17 @@ class TokenDeviceApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function geraete_ohne_tagebuchrecht_403(): void
+    public function eigene_geraete_auch_ohne_tagebuchrecht(): void
     {
+        // Konto-Endpunkte gelten für alle Benutzer-Tokens (auch Dienstplan-App), Modul-Endpunkte nicht
         $user = $this->appUser([]);
-        $token = $user->createToken('iPad', ['paed-app'])->plainTextToken;
+        $token = $user->createToken('Handy', ['paed-app'])->plainTextToken;
 
-        $this->bearer($token)->getJson(self::API . '/auth/devices')->assertForbidden();
+        $this->bearer($token)->getJson(self::API . '/auth/devices')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.device_name', 'Handy');
+        $this->bearer($token)->getJson(self::API . '/classes')->assertForbidden();
     }
 
     /** @test */

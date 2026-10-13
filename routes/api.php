@@ -69,14 +69,17 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         Route::post('session/answers', [StudentGradingApiController::class, 'storeAnswer'])->name('session.answers');
     });
 
-    // Lehrkraft-Endpunkte: nur Benutzer-Tokens (api.staff), schreibende Aufrufe idempotent per Idempotency-Key
-    Route::middleware(['auth:sanctum', 'api.staff', 'permission:view paed diary', 'idempotent'])->group(function () {
-
+    // Eigenes Konto & Geräte: für alle Benutzer-Tokens (Pädagogen-App und Dienstplan-App)
+    Route::middleware(['auth:sanctum', 'api.staff'])->group(function () {
         Route::get('auth/me', [AuthApiController::class, 'me'])->name('auth.me');
         Route::delete('auth/token', [AuthApiController::class, 'revokeToken'])->name('auth.revoke');
         Route::get('auth/devices', [AuthApiController::class, 'devices'])->name('auth.devices');
         Route::delete('auth/devices/{device}', [AuthApiController::class, 'destroyDevice'])
             ->whereNumber('device')->name('auth.devices.destroy');
+    });
+
+    // Lehrkraft-Endpunkte: nur Benutzer-Tokens (api.staff), schreibende Aufrufe idempotent per Idempotency-Key
+    Route::middleware(['auth:sanctum', 'api.staff', 'permission:view paed diary', 'idempotent'])->group(function () {
 
         // Bereich 0: Klassen-Kontext & Schülerauswahl
         Route::get('classes', [ClassApiController::class, 'index'])->name('classes.index');

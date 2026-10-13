@@ -39,7 +39,7 @@ class EnsureIdempotency
         // durch die Pipeline (und scheitern dort mit 403).
         $user = $request->user();
         if ($key === null || !in_array($request->method(), self::METHODS, true)
-            || $request->is('api/v1/auth/*') || !$user instanceof User || !$this->tokens->hasAppAccess($user)) {
+            || $request->is('api/v1/auth/*') || !$user instanceof User || !$this->tokens->hasAnyAppAccess($user)) {
             return $next($request);
         }
 
