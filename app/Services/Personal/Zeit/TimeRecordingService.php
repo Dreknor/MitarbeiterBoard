@@ -23,9 +23,10 @@ class TimeRecordingService
     }
 
     /**
+     * @param string $kommentar Herkunft der Buchung (Terminal/Dashboard bzw. App)
      * @return array{0: TimesheetDays, 1: string}
      */
-    public function stempeln(User $user, ?Carbon $now = null): array
+    public function stempeln(User $user, ?Carbon $now = null, string $kommentar = 'digitale Zeiterfassung'): array
     {
         $now ??= Carbon::now();
         $timesheet = $this->timesheets->forMonth($user, $now);
@@ -52,7 +53,7 @@ class TimeRecordingService
         $day = new TimesheetDays([
             'date' => $now->toDateString(),
             'start' => $now->format('H:i:s'),
-            'comment' => 'digitale Zeiterfassung',
+            'comment' => $kommentar,
         ]);
         $day->timesheet_id = $timesheet->id;
         $day->save();
@@ -62,6 +63,14 @@ class TimeRecordingService
 
     public function istEingestempelt(User $user, ?Carbon $now = null): bool
     {
+        return $this->offeneBuchung($user, $now) !== null;
+    }
+
+    /**
+     * Heutige offene Kommen-Buchung (Gehen fehlt noch).
+     */
+    public function offeneBuchung(User $user, ?Carbon $now = null): ?TimesheetDays
+    {
         $now ??= Carbon::now();
 
         return TimesheetDays::query()
@@ -70,7 +79,8 @@ class TimeRecordingService
             ->whereNotNull('start')
             ->whereNull('end')
             ->whereNull('percent_of_workingtime')
-            ->exists();
+            ->orderByDesc('start')
+            ->first();
     }
 
     /**

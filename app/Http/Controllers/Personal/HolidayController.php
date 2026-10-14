@@ -12,7 +12,6 @@ use App\Services\Personal\Zeit\HolidayService;
 use App\Services\Personal\Zeit\UrlaubskontoService;
 use App\Services\Personal\Zeit\ZeitZugriff;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -71,9 +70,9 @@ class HolidayController extends Controller
             'gruppen' => $actor->groups_rel()->orderBy('name')->get(['groups.id', 'groups.name']),
             'konto' => $actor->can('has holidays') ? $this->konto->uebersicht($actor, $monat->year) : null,
             'eigeneAntraege' => $eigeneAntraege,
-            'antragFuer' => $this->antragsNutzer($actor),
+            'antragFuer' => $this->holidays->antragsNutzer($actor),
             'darfFuerAlle' => $actor->can('createForAll', Holiday::class),
-            'zuEntscheiden' => $this->zuEntscheiden($actor),
+            'zuEntscheiden' => $this->holidays->zuEntscheiden($actor),
         ]);
     }
 
@@ -330,7 +329,7 @@ class HolidayController extends Controller
             $nutzer = $basis->whereHas('groups_rel', fn ($q) => $q->whereIn('groups.id', $gruppen))->get();
         } else {
             $nutzer = $basis->where('id', $actor->id)->get()
-                ->merge($this->unterstellteMitUrlaub($actor)->load(['groups_rel', 'employments']));
+                ->merge($this->holidays->unterstellteMitUrlaub($actor)->load(['groups_rel', 'employments']));
         }
 
         // Nur Personen mit Vertrag im Monat (oder ganz ohne hinterlegten Vertrag)
@@ -338,27 +337,6 @@ class HolidayController extends Controller
             return $u->employments->isEmpty()
                 || $u->employments->contains(fn ($e) => $e->start->lte($bis) && ($e->end === null || $e->end->gte($von)));
         })->values();
-    }
-
-    /**
-     * Für wen darf der Benutzer Urlaub eintragen?
-     */
-    private function antragsNutzer(User $actor): Collection
-    {
-        $nutzer = collect($actor->can('has holidays') ? [$actor] : []);
-
-        if ($actor->can('approve all holidays') && $actor->can('approve holidays')) {
-            return $nutzer->merge(User::permission('has holidays')->where('id', '!=', $actor->id)->orderBy('name')->get())->unique('id')->values();
-        }
-
-        return $nutzer->merge($this->unterstellteMitUrlaub($actor))->unique('id')->values();
-    }
-
-    private function unterstellteMitUrlaub(User $actor): EloquentCollection
-    {
-        $ids = $this->zugriff->unterstellteIds($actor);
-
-        return $ids === [] ? new EloquentCollection() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
     }
 
     /**
@@ -370,26 +348,6 @@ class HolidayController extends Controller
             return User::permission('has holidays')->with('groups_rel')->orderBy('name')->get();
         }
 
-        return $this->unterstellteMitUrlaub($actor)->load('groups_rel');
-    }
-
-    /**
-     * Offene Anträge und Stornierungswünsche, über die der Benutzer entscheiden darf.
-     */
-    private function zuEntscheiden(User $actor): Collection
-    {
-        if (!$actor->can('approve holidays')) {
-            return collect();
-        }
-
-        return Holiday::query()
-            ->with('employe')
-            ->where('employe_id', '!=', $actor->id)
-            ->where(fn ($q) => $q->where(fn ($o) => $o->offen())->orWhereNotNull('cancellation_requested_at'))
-            ->where('rejected', false)
-            ->orderBy('start_date')
-            ->get()
-            ->filter(fn (Holiday $h) => $h->employe !== null && $this->zugriff->darfUrlaubGenehmigen($actor, $h->employe))
-            ->values();
+        return $this->holidays->unterstellteMitUrlaub($actor)->load('groups_rel');
     }
 }

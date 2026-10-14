@@ -9,6 +9,7 @@ use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
 use App\Services\Personal\TimeValidationService;
+use App\Services\Personal\Zeit\TimeRecordingService;
 use App\Services\Personal\Zeit\TimesheetService;
 use App\Services\Personal\Zeit\ZeitZugriff;
 use Carbon\Carbon;
@@ -33,6 +34,7 @@ class TimesheetApiController extends Controller
         private readonly TimesheetService $timesheets,
         private readonly ZeitZugriff $zugriff,
         private readonly TimeValidationService $validationService,
+        private readonly TimeRecordingService $recording,
     ) {
     }
 
@@ -132,6 +134,61 @@ class TimesheetApiController extends Controller
         }
 
         return $this->timesheets->pdf($timesheet)->download($this->timesheets->pdfDateiname($timesheet));
+    }
+
+    // ── Kommen/Gehen (eigene Zeiterfassung) ──────────────────────────────
+
+    /**
+     * GET /api/v1/timesheets/clock – bin ich gerade eingecheckt? (für die Standort-Erinnerung der App)
+     */
+    public function clockStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->can('has timesheet'), 403, 'Für dich wird keine Arbeitszeit erfasst.');
+
+        return response()->json(['data' => $this->stempelStatus($user)]);
+    }
+
+    /**
+     * POST /api/v1/timesheets/clock – einchecken ("in") bzw. auschecken ("out") mit der aktuellen Uhrzeit.
+     * Anders als das Terminal schaltet die API nicht blind um: wer schon eingecheckt ist, kann nicht
+     * erneut einchecken (422) – so bucht eine doppelt angetippte Benachrichtigung nichts Falsches.
+     */
+    public function clock(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->can('has timesheet'), 403, 'Für dich wird keine Arbeitszeit erfasst.');
+        $daten = $request->validate(['action' => ['required', 'in:in,out']]);
+
+        $timesheet = $this->timesheets->forMonth($user, Carbon::now());
+        $this->authorize('edit', $timesheet);
+
+        $eingecheckt = $this->recording->istEingestempelt($user);
+        if ($daten['action'] === 'in' && $eingecheckt) {
+            throw ValidationException::withMessages(['action' => 'Du bist bereits eingecheckt.']);
+        }
+        if ($daten['action'] === 'out' && !$eingecheckt) {
+            throw ValidationException::withMessages(['action' => 'Du bist heute nicht eingecheckt.']);
+        }
+
+        [$zeile] = $this->recording->stempeln($user, null, 'Dienstplan-App');
+
+        return response()->json([
+            'data' => $this->stempelStatus($user),
+            'entry' => $this->eintragDaten($zeile->fresh()),
+        ]);
+    }
+
+    private function stempelStatus(User $user): array
+    {
+        $offen = $this->recording->offeneBuchung($user);
+        $vortag = $this->recording->offenVomVortag($user);
+
+        return [
+            'checked_in' => $offen !== null,
+            'since' => $offen?->start?->format('H:i'),
+            'open_from_yesterday' => $vortag?->date?->toDateString(),
+        ];
     }
 
     // ── Buchungen ────────────────────────────────────────────────────────

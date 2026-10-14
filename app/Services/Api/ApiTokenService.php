@@ -37,12 +37,14 @@ class ApiTokenService
 
     /**
      * Zugang zur jeweiligen App: Pädagogen-App mit "view paed diary", Dienstplan-App für Planende
-     * ("create roster") und Mitglieder einer Abteilung mit Dienstplan.
+     * ("create roster"), Mitglieder einer Abteilung mit Dienstplan sowie alle mit Zeitwirtschaft
+     * (Arbeitszeitnachweis, Urlaub, Abwesenheiten).
      */
     public function hasAppAccess(User $user, string $app = self::APP_PAED): bool
     {
         if ($app === self::APP_DIENSTPLAN) {
             return $this->can($user, 'create roster')
+                || $this->hatZeitwirtschaft($user)
                 || $user->groups_rel()->where('needsRoster', true)->exists();
         }
 
@@ -54,6 +56,17 @@ class ApiTokenService
     {
         foreach (self::APPS as $app) {
             if ($this->hasAppAccess($user, $app)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hatZeitwirtschaft(User $user): bool
+    {
+        foreach (['has timesheet', 'lock timesheets', 'has holidays', 'approve holidays', 'view absences'] as $recht) {
+            if ($this->can($user, $recht)) {
                 return true;
             }
         }
@@ -165,6 +178,12 @@ class ApiTokenService
                 'view_all_students' => $user->canAccessAllStudents(),
                 'view_confidential_entries' => $user->canViewConfidentialDiaryEntries(),
                 'plan_rosters' => $can('create roster'),
+                // Dienstplan-App: Zeitwirtschaft
+                'timesheets' => $can('has timesheet') || $can('lock timesheets') || $can('edit employe'),
+                'holidays' => $can('has holidays') || $can('approve holidays'),
+                'approve_holidays' => $can('approve holidays'),
+                'absences' => $can('view absences'),
+                'create_absences' => $can('create absences'),
             ],
             'apps' => [
                 self::APP_PAED => $this->hasAppAccess($user, self::APP_PAED),

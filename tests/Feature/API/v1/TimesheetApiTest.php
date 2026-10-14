@@ -304,4 +304,40 @@ class TimesheetApiTest extends ApiTestCase
         $this->assertSame(-176 * 3600, $september->fresh()->working_time_account);
         $this->assertSame(555, $november->fresh()->working_time_account, 'Zukünftige Monate bleiben unverändert');
     }
+
+    // ── Kommen/Gehen ────────────────────────────────────────────────────
+
+    public function test_einchecken_und_auschecken(): void
+    {
+        $this->als($this->ma);
+
+        $this->getJson(self::API.'/timesheets/clock')->assertOk()->assertJsonPath('data.checked_in', false);
+
+        $this->postJson(self::API.'/timesheets/clock', ['action' => 'in'])
+            ->assertOk()
+            ->assertJsonPath('data.checked_in', true)
+            ->assertJsonPath('data.since', '12:00')
+            ->assertJsonPath('entry.comment', 'Dienstplan-App');
+
+        // Doppelt eingecheckt bucht nichts Neues
+        $this->postJson(self::API.'/timesheets/clock', ['action' => 'in'])->assertUnprocessable();
+
+        Carbon::setTestNow('2026-10-15 16:30:00');
+        $this->postJson(self::API.'/timesheets/clock', ['action' => 'out'])
+            ->assertOk()
+            ->assertJsonPath('data.checked_in', false)
+            ->assertJsonPath('entry.start', '12:00')
+            ->assertJsonPath('entry.end', '16:30');
+
+        $this->postJson(self::API.'/timesheets/clock', ['action' => 'out'])->assertUnprocessable();
+        $this->assertSame(1, TimesheetDays::whereDate('date', '2026-10-15')->count());
+    }
+
+    public function test_einchecken_ohne_zeiterfassung_403(): void
+    {
+        $this->als($this->mitarbeiter(['has holidays']));
+
+        $this->getJson(self::API.'/timesheets/clock')->assertForbidden();
+        $this->postJson(self::API.'/timesheets/clock', ['action' => 'in'])->assertForbidden();
+    }
 }

@@ -63,6 +63,10 @@ tags:
     description: Mein Dienstplan (alle Mitarbeitenden) und Dienstplanung (`create roster`)
   - name: Arbeitszeitnachweis
     description: Eigene Nachweise sowie die der unterstellten Mitarbeitenden (Zeiten in Minuten)
+  - name: Urlaub
+    description: Urlaubskonto, Anträge und Entscheidungen (`has holidays` bzw. `approve holidays`)
+  - name: Abwesenheiten
+    description: Aktuelle Abwesenheiten melden und einsehen (`view absences`)
 
 paths:
   /instance:
@@ -87,7 +91,8 @@ paths:
       description: |
         Rate-Limit: 6/min je E-Mail+IP und 60/min je IP.
         Zugang je `app`: `paed` (Standard) benötigt `view paed diary`; `dienstplan` (Dienstplan-App)
-        benötigt `create roster` oder die Mitgliedschaft in einer Abteilung mit Dienstplan.
+        benötigt `create roster`, die Mitgliedschaft in einer Abteilung mit Dienstplan oder ein Zeitwirtschaftsrecht
+        (`has timesheet`, `lock timesheets`, `has holidays`, `approve holidays`, `view absences`).
         403, wenn der Passwort-Login auf dem Server deaktiviert ist (`PAED_APP_PASSWORD_LOGIN=false`).
       requestBody:
         required: true
@@ -1984,6 +1989,51 @@ paths:
                       recalculated: { type: integer, description: Anzahl neu berechneter Monate }
                       timesheets: { type: array, items: { $ref: '#/components/schemas/TimesheetSummary' } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /timesheets/clock:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Eigener Kommen/Gehen-Status
+      description: Nur mit `has timesheet`. Grundlage der Standort-Erinnerung der Dienstplan-App.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ClockStatus' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Einchecken bzw. auschecken (aktuelle Uhrzeit)
+      description: |
+        Wie Kommen/Gehen am Terminal, aber ausdrücklich: `in` bei bereits offener Buchung bzw. `out` ohne offene
+        Buchung → 422 (doppelt angetippte Benachrichtigungen buchen nichts Falsches). Beim Gehen wird die gesetzliche
+        Mindestpause eingetragen. Nachweis nicht bearbeitbar (eingereicht/abgeschlossen) → 403. 10/min.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [in, out] }
+      responses:
+        '200':
+          description: Gebucht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ClockStatus' }
+                  entry: { $ref: '#/components/schemas/TimesheetEntry' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /timesheets/{timesheet_id}:
     get:
       tags: [Arbeitszeitnachweis]
@@ -2199,6 +2249,282 @@ paths:
         '200': { $ref: '#/components/responses/TimesheetMonthResult' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /holidays:
+    get:
+      tags: [Urlaub]
+      summary: Eigenes Urlaubskonto und eigene Anträge eines Jahres
+      description: |
+        `account` nur mit `has holidays`. `employees` sind die Personen, für die der Benutzer Urlaub eintragen darf
+        (sich selbst, Unterstellte; mit `approve all holidays` + `approve holidays` alle). `pending_decisions` zählt
+        offene Anträge und Stornierungswünsche, über die der Benutzer entscheidet.
+      parameters:
+        - { name: year, in: query, schema: { type: integer, example: 2026 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      year: { type: integer }
+                      account: { allOf: [{ $ref: '#/components/schemas/HolidayAccount' }], nullable: true }
+                      requests: { type: array, items: { $ref: '#/components/schemas/Holiday' } }
+                      employees:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            is_self: { type: boolean }
+                      pending_decisions: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Urlaub]
+      summary: Urlaub beantragen
+      description: |
+        Für Genehmigende (Vorgesetzte der Person) direkt genehmigt, sonst offen mit Benachrichtigung der zuständigen Person.
+        Jahresübergreifende Zeiträume werden je Jahr geteilt. Überschneidung oder keine Arbeitstage → 422.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [employe_id, start_date, end_date]
+              properties:
+                employe_id: { type: integer }
+                start_date: { type: string, format: date }
+                end_date: { type: string, format: date }
+                half_day: { type: boolean, description: Nur für einen einzelnen Tag }
+                comment: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Holiday' } }
+                  approved: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /holidays/decisions:
+    get:
+      tags: [Urlaub]
+      summary: Offene Anträge und Stornierungswünsche zur Entscheidung
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Holiday'
+                        - type: object
+                          properties:
+                            rest_after: { type: number, description: Resturlaub der Person nach allen offenen Anträgen }
+  /holidays/preview:
+    get:
+      tags: [Urlaub]
+      summary: Vorschau für einen Antrag (Tage, Rest, Überschneidungen im Team)
+      parameters:
+        - { name: employe_id, in: query, required: true, schema: { type: integer } }
+        - { name: start_date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: end_date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: half_day, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      days: { type: number }
+                      year: { type: integer }
+                      rest_before: { type: number }
+                      rest_after: { type: number }
+                      own_overlap: { type: boolean }
+                      team:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name: { type: string }
+                            from: { type: string, example: '19.10.' }
+                            to: { type: string, example: '23.10.' }
+                            status: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /holidays/{holiday_id}/approve:
+    post:
+      tags: [Urlaub]
+      summary: Antrag genehmigen
+      parameters:
+        - $ref: '#/components/parameters/HolidayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/HolidayResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /holidays/{holiday_id}/reject:
+    post:
+      tags: [Urlaub]
+      summary: Antrag ablehnen
+      parameters:
+        - $ref: '#/components/parameters/HolidayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200': { $ref: '#/components/responses/HolidayResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /holidays/{holiday_id}/cancel:
+    post:
+      tags: [Urlaub]
+      summary: Stornierung beantragen
+      description: Nur die Person selbst, für genehmigten, noch nicht begonnenen Urlaub.
+      parameters:
+        - $ref: '#/components/parameters/HolidayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200': { $ref: '#/components/responses/HolidayResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /holidays/{holiday_id}/cancel-decision:
+    post:
+      tags: [Urlaub]
+      summary: Über einen Stornierungswunsch entscheiden
+      parameters:
+        - $ref: '#/components/parameters/HolidayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, deny] }
+      responses:
+        '200': { $ref: '#/components/responses/HolidayResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /holidays/{holiday_id}:
+    delete:
+      tags: [Urlaub]
+      summary: Antrag löschen bzw. Urlaub stornieren
+      description: Eigene offene oder abgelehnte Anträge; Genehmigende auch genehmigten Urlaub (Soft-Delete).
+      parameters:
+        - $ref: '#/components/parameters/HolidayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /absences:
+    get:
+      tags: [Abwesenheiten]
+      summary: Aktuelle und kommende Abwesenheiten
+      description: '`options.employees` nur mit `create absences` (Abwesenheit für andere melden).'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Absence' } }
+                  options:
+                    type: object
+                    properties:
+                      default_reason: { type: string, example: krank }
+                      reasons: { type: array, items: { type: string } }
+                      create_for_others: { type: boolean }
+                      set_sick_note: { type: boolean }
+                      employees:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Abwesenheiten]
+      summary: Abwesenheit melden
+      description: |
+        Ohne `create absences` immer für sich selbst (`employe_id` und `sick_note_required` werden ignoriert).
+        Schließt die Meldung an eine bestehende mit gleichem Grund an, wird diese verlängert.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, start, end]
+              properties:
+                employe_id: { type: integer }
+                reason: { type: string, maxLength: 64 }
+                start: { type: string, format: date }
+                end: { type: string, format: date }
+                show_substitution_plan: { type: boolean, default: true }
+                sick_note_required: { type: boolean }
+      responses:
+        '201':
+          description: Gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Absence' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /absences/{absence_id}:
+    delete:
+      tags: [Abwesenheiten]
+      summary: Abwesenheit löschen
+      description: |
+        `delete absences` oder die eintragende Person, solange das Ende nach heute liegt (sonst 422).
+        Abwesenheiten aus Urlaub → 422 (Urlaub stornieren).
+      parameters:
+        - { name: absence_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2216,6 +2542,11 @@ components:
       schema: { type: integer }
     TimesheetId:
       name: timesheet_id
+      in: path
+      required: true
+      schema: { type: integer }
+    HolidayId:
+      name: holiday_id
       in: path
       required: true
       schema: { type: integer }
@@ -2258,6 +2589,14 @@ components:
         höchstens die 5000 neuesten passenden Einträge (`meta.search_truncated`).
       schema: { type: string, maxLength: 200 }
   responses:
+    HolidayResult:
+      description: Antrag nach der Änderung
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Holiday' }
     TimesheetMonthResult:
       description: Aktualisierter Monatsnachweis
       content:
@@ -2333,6 +2672,66 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    HolidayAccount:
+      type: object
+      description: Urlaubskonto in Tagen
+      properties:
+        year: { type: integer }
+        entitlement: { type: number, description: Anspruch }
+        carry_over: { type: number, description: Übertrag aus dem Vorjahr }
+        adjustments: { type: number, description: Korrekturbuchungen }
+        taken: { type: number, description: Genommen (genehmigt) }
+        requested: { type: number, description: Beantragt (offen) }
+        expired: { type: number }
+        expiring: { type: number, description: Übertrag, der zum Verfallsdatum noch verfällt }
+        expiry_date: { type: string, format: date, nullable: true }
+        rest: { type: number }
+        rest_after_requests: { type: number }
+    Holiday:
+      type: object
+      properties:
+        id: { type: integer }
+        employee: { allOf: [{ $ref: '#/components/schemas/TimesheetPerson' }], nullable: true }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        half_day: { type: boolean }
+        days: { type: number }
+        comment: { type: string, nullable: true }
+        status: { type: string, enum: [beantragt, genehmigt, abgelehnt, storno_beantragt, storniert] }
+        status_label: { type: string }
+        approved_by: { allOf: [{ $ref: '#/components/schemas/TimesheetPerson' }], nullable: true }
+        approved_at: { type: string, format: date-time, nullable: true }
+        rejection_reason: { type: string, nullable: true }
+        cancellation_requested_at: { type: string, format: date-time, nullable: true }
+        cancellation_reason: { type: string, nullable: true }
+        permissions:
+          type: object
+          properties:
+            approve: { type: boolean }
+            reject: { type: boolean }
+            delete: { type: boolean }
+            request_cancellation: { type: boolean }
+            decide_cancellation: { type: boolean }
+    Absence:
+      type: object
+      properties:
+        id: { type: integer }
+        employee: { $ref: '#/components/schemas/TimesheetPerson' }
+        reason: { type: string }
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+        days: { type: integer, description: Arbeitstage }
+        today: { type: boolean, description: Heute abwesend }
+        show_substitution_plan: { type: boolean }
+        from_holiday: { type: boolean, description: Aus genehmigtem Urlaub (nur über den Urlaub änderbar) }
+        is_own: { type: boolean }
+        can_delete: { type: boolean }
+    ClockStatus:
+      type: object
+      properties:
+        checked_in: { type: boolean }
+        since: { type: string, nullable: true, example: '07:58' }
+        open_from_yesterday: { type: string, format: date, nullable: true, description: Vergessenes Gehen am Vortag }
     TimesheetPerson:
       type: object
       properties:
@@ -2920,6 +3319,11 @@ components:
             view_all_students: { type: boolean }
             view_confidential_entries: { type: boolean }
             plan_rosters: { type: boolean, description: 'Recht "create roster" – Dienstplanung (/roster/departments …)' }
+            timesheets: { type: boolean, description: 'Arbeitszeitnachweise (`has timesheet`, `lock timesheets` oder `edit employe`)' }
+            holidays: { type: boolean, description: 'Urlaub (`has holidays` oder `approve holidays`)' }
+            approve_holidays: { type: boolean }
+            absences: { type: boolean, description: 'Abwesenheiten (`view absences`)' }
+            create_absences: { type: boolean, description: 'Abwesenheiten für andere melden' }
         apps:
           type: object
           description: Zugang zu den Apps (siehe `app` bei `POST /auth/token`)

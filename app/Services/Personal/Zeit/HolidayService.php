@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\Personal\ZeitwirtschaftNotification;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -316,6 +317,55 @@ class HolidayService
 
         $this->timesheets->syncAbwesenheiten($employe, $holiday->start_date, $holiday->end_date);
         $this->rosters->abwesenheitenAbgleichen($employe, $holiday->start_date, $holiday->end_date);
+    }
+
+    /**
+     * Für wen darf der Benutzer Urlaub eintragen? (sich selbst mit "has holidays", dazu Unterstellte
+     * bzw. mit "approve all holidays" alle)
+     *
+     * @return Collection<int, User>
+     */
+    public function antragsNutzer(User $actor): Collection
+    {
+        $nutzer = collect($actor->can('has holidays') ? [$actor] : []);
+
+        if ($actor->can('approve all holidays') && $actor->can('approve holidays')) {
+            return $nutzer->merge(User::permission('has holidays')->where('id', '!=', $actor->id)->orderBy('name')->get())->unique('id')->values();
+        }
+
+        return $nutzer->merge($this->unterstellteMitUrlaub($actor))->unique('id')->values();
+    }
+
+    /**
+     * Unterstellte Mitarbeitende mit Urlaubsanspruch.
+     */
+    public function unterstellteMitUrlaub(User $actor): EloquentCollection
+    {
+        $ids = $this->zugriff->unterstellteIds($actor);
+
+        return $ids === [] ? new EloquentCollection() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
+    }
+
+    /**
+     * Offene Anträge und Stornierungswünsche, über die der Benutzer entscheiden darf.
+     *
+     * @return Collection<int, Holiday>
+     */
+    public function zuEntscheiden(User $actor): Collection
+    {
+        if (!$actor->can('approve holidays')) {
+            return collect();
+        }
+
+        return Holiday::query()
+            ->with('employe')
+            ->where('employe_id', '!=', $actor->id)
+            ->where(fn ($q) => $q->where(fn ($o) => $o->offen())->orWhereNotNull('cancellation_requested_at'))
+            ->where('rejected', false)
+            ->orderBy('start_date')
+            ->get()
+            ->filter(fn (Holiday $h) => $h->employe !== null && $this->zugriff->darfUrlaubGenehmigen($actor, $h->employe))
+            ->values();
     }
 
     public function hatUeberschneidung(User $employe, CarbonInterface $start, CarbonInterface $ende, ?int $ausser = null): bool

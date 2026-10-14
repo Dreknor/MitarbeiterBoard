@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\v1\AbsenceApiController;
 use App\Http\Controllers\API\v1\AuthApiController;
 use App\Http\Controllers\API\v1\ClassApiController;
 use App\Http\Controllers\API\v1\ClassOverviewApiController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\API\v1\DiagnosticApiController;
 use App\Http\Controllers\API\v1\DossierApiController;
 use App\Http\Controllers\API\v1\GradingApiController;
 use App\Http\Controllers\API\v1\GradingJoinApiController;
+use App\Http\Controllers\API\v1\HolidayApiController;
 use App\Http\Controllers\API\v1\InstanceApiController;
 use App\Http\Controllers\API\v1\PaedDiaryApiController;
 use App\Http\Controllers\API\v1\PaedDiaryPlanningApiController;
@@ -223,6 +225,10 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('employe')->where('month', '\d{4}-\d{2}')->name('month');
         Route::post('employees/{employe}/recalculate', [TimesheetApiController::class, 'recalculateAll'])->whereNumber('employe')->name('recalculate-all');
 
+        // Eigenes Kommen/Gehen (Standort-Erinnerung der Dienstplan-App)
+        Route::get('clock', [TimesheetApiController::class, 'clockStatus'])->name('clock.status');
+        Route::post('clock', [TimesheetApiController::class, 'clock'])->middleware('throttle:10,1')->name('clock');
+
         Route::get('{timesheet}', [TimesheetApiController::class, 'show'])->whereNumber('timesheet')->name('show');
         Route::post('{timesheet}/recalculate', [TimesheetApiController::class, 'recalculate'])->whereNumber('timesheet')->name('recalculate');
 
@@ -238,4 +244,26 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         Route::post('{timesheet}/return', [TimesheetApiController::class, 'returnToEmploye'])->whereNumber('timesheet')->name('return');
         Route::post('{timesheet}/unlock', [TimesheetApiController::class, 'unlock'])->whereNumber('timesheet')->name('unlock');
     });
+
+    // Urlaub: eigenes Konto/eigene Anträge, Anträge für Unterstellte und Entscheidungen (HolidayPolicy/ZeitZugriff).
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent', 'permission:has holidays|approve holidays'])
+        ->prefix('holidays')->name('holidays.')->group(function () {
+            Route::get('/', [HolidayApiController::class, 'index'])->name('index');
+            Route::get('decisions', [HolidayApiController::class, 'decisions'])->name('decisions');
+            Route::get('preview', [HolidayApiController::class, 'preview'])->name('preview');
+            Route::post('/', [HolidayApiController::class, 'store'])->name('store');
+            Route::post('{holiday}/approve', [HolidayApiController::class, 'approve'])->whereNumber('holiday')->name('approve');
+            Route::post('{holiday}/reject', [HolidayApiController::class, 'reject'])->whereNumber('holiday')->name('reject');
+            Route::post('{holiday}/cancel', [HolidayApiController::class, 'requestCancellation'])->whereNumber('holiday')->name('cancel');
+            Route::post('{holiday}/cancel-decision', [HolidayApiController::class, 'decideCancellation'])->whereNumber('holiday')->name('cancel-decision');
+            Route::delete('{holiday}', [HolidayApiController::class, 'destroy'])->whereNumber('holiday')->name('destroy');
+        });
+
+    // Abwesenheiten (wie die Abwesenheiten-Karte im Web): "view absences", für andere "create absences".
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent', 'permission:view absences'])
+        ->prefix('absences')->name('absences.')->group(function () {
+            Route::get('/', [AbsenceApiController::class, 'index'])->name('index');
+            Route::post('/', [AbsenceApiController::class, 'store'])->name('store');
+            Route::delete('{absence}', [AbsenceApiController::class, 'destroy'])->whereNumber('absence')->name('destroy');
+        });
 });
