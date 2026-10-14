@@ -102,6 +102,26 @@ class RosterApiTest extends ApiTestCase
 
     // ── Anlegen & Liste ─────────────────────────────────────────────────
 
+    public function test_liste_liefert_nur_die_neuesten_vorlagen(): void
+    {
+        foreach (['2024-01-08', '2025-01-06', '2025-09-01', '2026-02-23', '2026-08-17'] as $start) {
+            $this->plan(['type' => 'template', 'start_date' => $start]);
+        }
+        $woche = $this->plan();
+        $this->alsPlaner();
+        $url = self::API.'/roster/departments/'.$this->abteilung->id.'/rosters';
+
+        $daten = $this->getJson($url)->assertOk()->json('data');
+        $vorlagen = collect($daten)->where('type', 'template')->pluck('start_date')->sort()->values()->all();
+        $this->assertSame(['2025-09-01', '2026-02-23', '2026-08-17'], $vorlagen);
+        $this->assertContains($woche->id, collect($daten)->pluck('id'));
+
+        $this->getJson($url.'?templates=5')->assertOk()->assertJsonCount(6, 'data');
+        $this->getJson($url.'?type=template&templates=1')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.start_date', '2026-08-17');
+        $this->getJson($url.'?templates=99')->assertUnprocessable();
+    }
+
+
     public function test_plan_anlegen_uebernimmt_urlaub_und_meldet_belegte_woche(): void
     {
         Holiday::factory()->for($this->ma, 'employe')->approved()->create(['start_date' => '2026-09-29', 'end_date' => '2026-09-29', 'days' => 1]);

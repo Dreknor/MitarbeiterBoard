@@ -1469,12 +1469,13 @@ paths:
     get:
       tags: [Dienstplan]
       summary: Pläne und Vorlagen einer Abteilung
-      description: Standard 4 Wochen zurück bis 8 Wochen voraus (höchstens 92 Tage); Vorlagen werden unabhängig vom Zeitraum geliefert.
+      description: Standard 4 Wochen zurück bis 8 Wochen voraus (höchstens 92 Tage); dazu die neuesten Vorlagen unabhängig vom Zeitraum (`templates`, Standard 3).
       parameters:
         - { name: department_id, in: path, required: true, schema: { type: integer } }
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
         - { name: type, in: query, schema: { type: string, enum: [normal, template] } }
+        - { name: templates, in: query, description: 'Anzahl der neuesten Vorlagen (0–50)', schema: { type: integer, default: 3, minimum: 0, maximum: 50 } }
       responses:
         '200':
           description: OK

@@ -105,24 +105,37 @@ class RosterApiController extends Controller
     }
 
     /**
-     * GET /api/v1/roster/departments/{department}/rosters – Pläne/Vorlagen einer Abteilung im Zeitraum
-     * (Standard: 4 Wochen zurück bis 8 Wochen voraus; Vorlagen unabhängig vom Zeitraum).
+     * GET /api/v1/roster/departments/{department}/rosters – Wochenpläne einer Abteilung im Zeitraum
+     * (Standard: 4 Wochen zurück bis 8 Wochen voraus) und die neuesten Vorlagen (?templates, Standard 3, max. 50).
      */
     public function index(Request $request, Group $department): JsonResponse
     {
         $this->authorize('manageDepartment', [Roster::class, $department]);
-        $request->validate(['type' => ['nullable', 'in:normal,template']]);
+        $request->validate([
+            'type' => ['nullable', 'in:normal,template'],
+            'templates' => ['nullable', 'integer', 'min:0', 'max:50'],
+        ]);
         [$von, $bis] = $this->zeitraum($request, Carbon::now()->startOfWeek()->subWeeks(4), Carbon::now()->startOfWeek()->addWeeks(8)->endOfWeek());
+        $typ = $request->input('type');
 
-        $plaene = $department->rosters()
-            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->input('type')))
-            ->where(fn ($q) => $q->where('type', 'template')->orWhere(fn ($n) => $n
-                ->whereDate('start_date', '>=', $von->copy()->startOfWeek()->toDateString())
-                ->whereDate('start_date', '<=', $bis->toDateString())))
+        $basis = fn () => $department->rosters()
             ->withCount(['aenderungen as offene_aenderungen' => fn ($c) => $c->whereNull('notified_at')])
-            ->with('department')
-            ->orderBy('start_date')
+            ->with('department');
+
+        $wochen = $typ === 'template' ? collect() : $basis()
+            ->where('type', 'normal')
+            ->whereDate('start_date', '>=', $von->copy()->startOfWeek()->toDateString())
+            ->whereDate('start_date', '<=', $bis->toDateString())
             ->get();
+
+        // Nur die neuesten Vorlagen – Abteilungen sammeln über Jahre sehr viele davon
+        $vorlagen = $typ === 'normal' ? collect() : $basis()
+            ->where('type', 'template')
+            ->orderByDesc('start_date')->orderByDesc('id')
+            ->limit($request->filled('templates') ? $request->integer('templates') : 3)
+            ->get();
+
+        $plaene = $wochen->concat($vorlagen)->sortBy(fn (Roster $r) => $r->start_date->toDateString())->values();
 
         return response()->json(['data' => $plaene->map(fn (Roster $r) => $this->planDaten($r, true))->values()]);
     }
