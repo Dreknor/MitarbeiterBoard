@@ -221,6 +221,10 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         Route::get('employees/{employe}', [TimesheetApiController::class, 'overview'])->whereNumber('employe')->name('overview');
         Route::get('employees/{employe}/months/{month}', [TimesheetApiController::class, 'month'])
             ->whereNumber('employe')->where('month', '\d{4}-\d{2}')->name('month');
+        Route::post('employees/{employe}/recalculate', [TimesheetApiController::class, 'recalculateAll'])->whereNumber('employe')->name('recalculate-all');
+
+        Route::get('{timesheet}', [TimesheetApiController::class, 'show'])->whereNumber('timesheet')->name('show');
+        Route::post('{timesheet}/recalculate', [TimesheetApiController::class, 'recalculate'])->whereNumber('timesheet')->name('recalculate');
 
         Route::get('{timesheet}/pdf', [TimesheetApiController::class, 'pdf'])->whereNumber('timesheet')->name('pdf');
         Route::post('{timesheet}/days', [TimesheetApiController::class, 'storeDay'])->whereNumber('timesheet')->name('days.store');

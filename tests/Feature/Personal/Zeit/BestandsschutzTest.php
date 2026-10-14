@@ -3,6 +3,8 @@
 namespace Tests\Feature\Personal\Zeit;
 
 use App\Models\Absence;
+use App\Enums\EmploymentStatus;
+use App\Models\personal\Employment;
 use App\Models\personal\Holiday;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
@@ -83,6 +85,41 @@ class BestandsschutzTest extends TestCase
 
         $vergleich = app(TimesheetService::class)->vergleiche($august->fresh());
         $this->assertSame(-160 * 3600, $vergleich['neu']['working_time_account'], 'Neues Modell würde die Wochenend-Gutschrift nicht zählen');
+    }
+
+    public function test_altmonat_rechnet_mit_inzwischen_beendetem_vertrag(): void
+    {
+        // Vertrag galt im Januar 2024 (20 h = 50 %), wurde später vom täglichen Job auf "beendet" gesetzt
+        $ma = $this->mitarbeiter(vertrag: [
+            'start' => '2023-01-01',
+            'end' => '2024-06-30',
+            'hours' => 20,
+            'status' => EmploymentStatus::Beendet,
+        ]);
+        Employment::factory()->create(['employe_id' => $ma->id, 'start' => '2024-07-01', 'end' => null, 'hours' => 30]);
+
+        $januar = Timesheet::create(['employe_id' => $ma->id, 'year' => 2024, 'month' => 1, 'working_time_account' => 0]);
+        TimesheetDays::create(['timesheet_id' => $januar->id, 'date' => '2024-01-04', 'start' => '08:00', 'end' => '12:00']);
+
+        $service = app(TimesheetService::class);
+        $zeilen = $service->monatsZeilen($januar->fresh(), false)->keyBy(fn ($z) => $z['date']->toDateString());
+        $this->assertEquals(4 * 3600, $zeilen['2024-01-04']['soll'], 'Tagessoll aus dem damals gültigen Vertrag');
+        $this->assertEquals(0, $zeilen['2024-01-01']['soll'], 'Neujahr');
+
+        $this->actingAs($ma)->post(route('timesheets.recalculate', [$ma->id, $januar->id]))->assertRedirect();
+
+        // 22 Arbeitstage (ohne Neujahr) à 4 h = 88 h Soll, 4 h geleistet → −84 h
+        $this->assertSame(-84 * 3600, $januar->fresh()->working_time_account);
+    }
+
+    public function test_altmonat_ignoriert_vertrag_ausserhalb_seiner_laufzeit(): void
+    {
+        $ma = $this->mitarbeiter(vertrag: ['start' => '2024-02-01', 'end' => null, 'hours' => 20]);
+        $januar = Timesheet::create(['employe_id' => $ma->id, 'year' => 2024, 'month' => 1, 'working_time_account' => 0]);
+
+        $zeilen = app(TimesheetService::class)->monatsZeilen($januar, false);
+
+        $this->assertEquals(0, $zeilen->sum('soll'), 'Vertrag beginnt erst im Februar');
     }
 
     public function test_aenderung_im_altmonat_zieht_andere_altmonate_nicht_mit(): void

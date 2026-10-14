@@ -1957,6 +1957,66 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/employees/{employee_id}/recalculate:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Stundenkonto neu berechnen (alle offenen Monate)
+      description: |
+        Rechnet alle offenen Nachweise der Person bis zum laufenden Monat der Reihe nach ausdrücklich neu
+        (auch Altmonate vor dem Stichtag, wie „Stundenkonto neu berechnen“ im Web). Nur Vorgesetzte bzw.
+        Stellvertretungen mit `lock timesheets` für Unterstellte oder `edit employe`; nie für sich selbst (403).
+      parameters:
+        - { name: employee_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      employee: { $ref: '#/components/schemas/TimesheetPerson' }
+                      recalculated: { type: integer, description: Anzahl neu berechneter Monate }
+                      timesheets: { type: array, items: { $ref: '#/components/schemas/TimesheetSummary' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /timesheets/{timesheet_id}:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Vorhandenen Nachweis lesen (ohne Änderungen)
+      description: |
+        Gespeicherter Stand eines vorhandenen Nachweises mit Tageszeilen – legt anders als
+        `employees/{employee_id}/months/{month}` nichts an, übernimmt keinen Dienstplan und rechnet nicht neu.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TimesheetMonth' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /timesheets/{timesheet_id}/recalculate:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Nachweis neu berechnen und prüfen
+      description: |
+        Gleicht Urlaub/Abwesenheiten ab, rechnet den Monat ausdrücklich neu (auch eingefrorene Altmonate nach der
+        bisherigen Methode) samt offener Folgemonate und führt die Prüfregeln aus („Neu berechnen“ im Web).
+        Rechte wie Buchungen (`edit`); abgeschlossene Nachweise bleiben unverändert.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /timesheets/{timesheet_id}/pdf:
     get:
       tags: [Arbeitszeitnachweis]

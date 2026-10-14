@@ -8,6 +8,7 @@ use App\Http\Requests\API\v1\UpdateTimesheetDayRequest;
 use App\Models\personal\Timesheet;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
+use App\Services\Personal\TimeValidationService;
 use App\Services\Personal\Zeit\TimesheetService;
 use App\Services\Personal\Zeit\ZeitZugriff;
 use Carbon\Carbon;
@@ -31,6 +32,7 @@ class TimesheetApiController extends Controller
     public function __construct(
         private readonly TimesheetService $timesheets,
         private readonly ZeitZugriff $zugriff,
+        private readonly TimeValidationService $validationService,
     ) {
     }
 
@@ -103,6 +105,17 @@ class TimesheetApiController extends Controller
 
         $timesheet = $this->timesheets->forMonth($employe, $monat);
         $this->timesheets->fuerAnzeigeAktualisieren($timesheet, $request->user()->can('edit', $timesheet));
+
+        return response()->json(['data' => $this->monatsDaten($request->user(), $timesheet)]);
+    }
+
+    /**
+     * GET /api/v1/timesheets/{timesheet} – vorhandenen Nachweis nur lesen: legt nichts an, übernimmt
+     * keinen Dienstplan und rechnet nicht neu (gespeicherter Stand, z. B. für Prüfungen).
+     */
+    public function show(Request $request, Timesheet $timesheet): JsonResponse
+    {
+        $this->authorize('view', $timesheet);
 
         return response()->json(['data' => $this->monatsDaten($request->user(), $timesheet)]);
     }
@@ -210,6 +223,50 @@ class TimesheetApiController extends Controller
         $this->timesheets->fehlendesGehenErledigt($timesheet, $tag);
 
         return $this->antwort($request, $timesheet);
+    }
+
+    // ── Neuberechnung ────────────────────────────────────────────────────
+
+    /**
+     * POST /api/v1/timesheets/{timesheet}/recalculate – Monat ausdrücklich neu berechnen (auch Altmonate)
+     * und prüfen; offene Folgemonate werden mitgerechnet (wie "Neu berechnen" im Web).
+     */
+    public function recalculate(Request $request, Timesheet $timesheet): JsonResponse
+    {
+        $this->authorize('edit', $timesheet);
+
+        $this->timesheets->syncMonat($timesheet);
+        $this->timesheets->recalculate($timesheet, true, true);
+        $this->validationService->runForEmployee($timesheet->employe, $timesheet->monthStart(), $request->user(), false);
+
+        return $this->antwort($request, $timesheet);
+    }
+
+    /**
+     * POST /api/v1/timesheets/employees/{employe}/recalculate – alle offenen Monate bis zum laufenden der Reihe
+     * nach neu berechnen (Stundenkonto). Nur Vorgesetzte/Stellvertretungen bzw. Personal, nie für sich selbst.
+     */
+    public function recalculateAll(Request $request, User $employe): JsonResponse
+    {
+        abort_unless($this->zugriff->verwaltetNachweiseVon($request->user(), $employe), 403);
+
+        $anzahl = 0;
+        foreach ($employe->timesheets()->whereNull('locked_at')->orderBy('year')->orderBy('month')->get() as $ts) {
+            if ($ts->monthStart()->gt(now()->endOfMonth())) {
+                break;
+            }
+            $this->timesheets->recalculate($ts, false, true);
+            $anzahl++;
+        }
+
+        return response()->json([
+            'data' => [
+                'employee' => $this->personDaten($employe),
+                'recalculated' => $anzahl,
+                'timesheets' => $employe->timesheets()->with('lockedBy')->orderByDesc('year')->orderByDesc('month')->get()
+                    ->map(fn (Timesheet $ts) => $this->kurzDaten($ts))->values(),
+            ],
+        ]);
     }
 
     // ── Workflow ─────────────────────────────────────────────────────────

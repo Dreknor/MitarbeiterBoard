@@ -247,4 +247,61 @@ class TimesheetApiTest extends ApiTestCase
         $this->getJson(self::API.'/timesheets/'.$ts->id.'/pdf')->assertOk();
         SnappyPdf::assertViewIs('personal.timesheets.pdf');
     }
+
+    // ── Lesen ohne Nebenwirkungen & Neuberechnung ────────────────────────
+
+    public function test_nachweis_lesen_aendert_nichts(): void
+    {
+        $ts = Timesheet::create(['employe_id' => $this->ma->id, 'year' => 2026, 'month' => 9, 'working_time_account' => 12345]);
+
+        $this->als($this->chef);
+        $this->getJson(self::API.'/timesheets/'.$ts->id)->assertOk()
+            ->assertJsonPath('data.id', $ts->id)
+            ->assertJsonPath('data.balance_minutes', 206)
+            ->assertJsonCount(30, 'data.days');
+
+        $this->assertSame(12345, $ts->fresh()->working_time_account, 'Kein Neuberechnen beim Lesen');
+        $this->assertSame(0, $ts->timesheet_days()->count(), 'Keine Dienstplanübernahme beim Lesen');
+        $this->assertSame(1, Timesheet::where('employe_id', $this->ma->id)->count(), 'Keine Nachweise angelegt');
+
+        $this->getJson(self::API.'/timesheets/999999')->assertNotFound();
+        $this->als($this->fremd);
+        $this->getJson(self::API.'/timesheets/'.$ts->id)->assertForbidden();
+    }
+
+    public function test_nachweis_neu_berechnen_rechnet_folgemonate_mit(): void
+    {
+        $september = Timesheet::create(['employe_id' => $this->ma->id, 'year' => 2026, 'month' => 9, 'working_time_account' => 999]);
+        $oktober = Timesheet::create(['employe_id' => $this->ma->id, 'year' => 2026, 'month' => 10, 'working_time_account' => 999]);
+        TimesheetDays::create(['timesheet_id' => $september->id, 'date' => '2026-09-10', 'start' => '08:00', 'end' => '12:00']);
+
+        $this->als($this->fremd);
+        $this->postJson(self::API.'/timesheets/'.$september->id.'/recalculate')->assertForbidden();
+        $this->assertSame(999, $september->fresh()->working_time_account);
+
+        $this->als($this->ma);
+        // September: 22 Arbeitstage à 8 h, 4 h geleistet → −172 h
+        $this->postJson(self::API.'/timesheets/'.$september->id.'/recalculate')->assertOk()
+            ->assertJsonPath('data.balance_minutes', -172 * 60);
+        // Oktober bis 15.10.: 11 Arbeitstage à 8 h → −172 h − 88 h
+        $this->assertSame(-260 * 3600, $oktober->fresh()->working_time_account);
+    }
+
+    public function test_stundenkonto_neu_berechnen_nur_fuer_verwaltete_personen(): void
+    {
+        $september = Timesheet::create(['employe_id' => $this->ma->id, 'year' => 2026, 'month' => 9, 'working_time_account' => 999]);
+        $november = Timesheet::create(['employe_id' => $this->ma->id, 'year' => 2026, 'month' => 11, 'working_time_account' => 555]);
+
+        $this->als($this->ma);
+        $this->postJson(self::API.'/timesheets/employees/'.$this->ma->id.'/recalculate')->assertForbidden();
+
+        $this->als($this->chef);
+        $this->postJson(self::API.'/timesheets/employees/'.$this->fremd->id.'/recalculate')->assertForbidden();
+        $this->postJson(self::API.'/timesheets/employees/'.$this->ma->id.'/recalculate')->assertOk()
+            ->assertJsonPath('data.employee.id', $this->ma->id)
+            ->assertJsonPath('data.recalculated', 1);
+
+        $this->assertSame(-176 * 3600, $september->fresh()->working_time_account);
+        $this->assertSame(555, $november->fresh()->working_time_account, 'Zukünftige Monate bleiben unverändert');
+    }
 }

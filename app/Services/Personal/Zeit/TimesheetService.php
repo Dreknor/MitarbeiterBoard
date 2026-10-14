@@ -320,9 +320,14 @@ class TimesheetService
         ];
     }
 
+    /**
+     * Bisheriges Tagessoll (Wochensoll / 5). Verträge wie im neuen Modell (ArbeitszeitService::vertraegeAm()):
+     * maßgeblich ist, ob der Vertrag an diesem Tag galt – nicht sein heutiger Status. Sonst fiele ein
+     * inzwischen beendeter Vertrag aus allen Altmonaten heraus und das Soll würde 0.
+     */
     private function altesTagesSoll(User $employe, CarbonInterface $tag): float
     {
-        return percent_to_seconds($employe->employments_date(Carbon::parse($tag))->sum('percent')) / 5;
+        return percent_to_seconds($this->arbeitszeit->vertraegeAm($employe, $tag)->sum('percent')) / 5;
     }
 
     /**
