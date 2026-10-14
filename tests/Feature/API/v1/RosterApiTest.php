@@ -252,6 +252,57 @@ class RosterApiTest extends ApiTestCase
         $this->postJson(self::API.'/roster/rosters/'.$vorlage->id.'/publish')->assertUnprocessable();
     }
 
+    public function test_planansicht_liefert_nachbarn_vorschlaege_hinweise_und_aenderungen(): void
+    {
+        $vorher = $this->plan(['start_date' => '2026-09-21']);
+        $roster = $this->plan();
+        $nachher = $this->plan(['start_date' => '2026-10-05']);
+        RosterEvents::create(['roster_id' => $vorher->id, 'employe_id' => $this->ma->id, 'date' => '2026-09-22', 'start' => '09:00', 'end' => '10:00', 'event' => 'Hausaufgaben']);
+        WorkingTime::create(['roster_id' => $roster->id, 'employe_id' => $this->ma->id, 'date' => '2026-09-29', 'start' => '08:00', 'end' => '14:00']);
+        $this->alsPlaner();
+
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/publish', ['notify' => false])->assertOk();
+        $this->putJson(self::API.'/roster/rosters/'.$roster->id.'/working-times', ['employe_id' => $this->ma->id, 'date' => '2026-09-29', 'start' => '09:00', 'end' => '14:00'])->assertOk();
+
+        $note = $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/notes', ['text' => 'Ausflug am Mittwoch'])
+            ->assertCreated()->assertJsonPath('data.text', 'Ausflug am Mittwoch')->json('data.id');
+
+        $this->getJson(self::API.'/roster/rosters/'.$roster->id)
+            ->assertOk()
+            ->assertJsonPath('data.previous_id', $vorher->id)
+            ->assertJsonPath('data.next_id', $nachher->id)
+            ->assertJsonPath('data.event_names.0', 'Hausaufgaben')
+            ->assertJsonPath('data.notes.0.text', 'Ausflug am Mittwoch')
+            ->assertJsonPath('data.changes.0.employe_id', $this->ma->id)
+            ->assertJsonPath('data.changes.0.notified', false);
+
+        $this->deleteJson(self::API.'/roster/notes/'.$note)->assertNoContent();
+        $this->getJson(self::API.'/roster/rosters/'.$roster->id)->assertJsonCount(0, 'data.notes');
+
+        // Mitarbeitende sehen die Planungsdaten nicht
+        $this->alsMitarbeiter();
+        $this->getJson(self::API.'/roster/rosters/'.$roster->id)->assertOk()->assertJsonMissingPath('data.notes');
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/notes', ['text' => 'x'])->assertForbidden();
+    }
+
+    public function test_tag_leeren_behaelt_abwesenheiten(): void
+    {
+        $roster = $this->plan();
+        WorkingTime::create(['roster_id' => $roster->id, 'employe_id' => $this->ma->id, 'date' => '2026-09-29', 'start' => '08:00', 'end' => '14:00']);
+        RosterEvents::create(['roster_id' => $roster->id, 'employe_id' => $this->ma->id, 'date' => '2026-09-29', 'start' => '09:00', 'end' => '10:00', 'event' => 'Hausaufgaben']);
+        RosterEvents::create(['roster_id' => $roster->id, 'employe_id' => $this->planer->id, 'date' => '2026-09-29', 'start' => '00:00', 'end' => '23:59', 'event' => 'Urlaub', 'source' => RosterEvents::SOURCE_ABWESENHEIT]);
+        WorkingTime::create(['roster_id' => $roster->id, 'employe_id' => $this->ma->id, 'date' => '2026-09-30', 'start' => '08:00', 'end' => '14:00']);
+        $this->alsPlaner();
+
+        $this->deleteJson(self::API.'/roster/rosters/'.$roster->id.'/days/2026-09-29')->assertNoContent();
+
+        $this->assertSame(0, WorkingTime::where('roster_id', $roster->id)->whereDate('date', '2026-09-29')->count());
+        $this->assertSame(1, WorkingTime::where('roster_id', $roster->id)->whereDate('date', '2026-09-30')->count());
+        $this->assertSame(['Urlaub'], RosterEvents::where('roster_id', $roster->id)->whereDate('date', '2026-09-29')->pluck('event')->all());
+
+        $this->deleteJson(self::API.'/roster/rosters/'.$roster->id.'/days/2026-11-02')->assertStatus(422);
+    }
+
     public function test_vergangene_veroeffentlichte_plaene_sind_nicht_loeschbar(): void
     {
         $alt = $this->plan(['start_date' => '2026-09-07', 'published' => true]);

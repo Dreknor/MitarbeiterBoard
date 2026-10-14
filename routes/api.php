@@ -204,6 +204,10 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             Route::post('rosters/{roster}/events', [RosterApiController::class, 'storeEvent'])->whereNumber('roster')->name('events.store');
             Route::get('rosters/{roster}/calendar-import', [RosterApiController::class, 'calendarImportPreview'])->whereNumber('roster')->name('calendar-import.preview');
             Route::post('rosters/{roster}/calendar-import', [RosterApiController::class, 'calendarImport'])->whereNumber('roster')->name('calendar-import.store');
+            Route::delete('rosters/{roster}/days/{date}', [RosterApiController::class, 'clearDay'])->whereNumber('roster')
+                ->where('date', '\d{4}-\d{2}-\d{2}')->name('days.clear');
+            Route::post('rosters/{roster}/notes', [RosterApiController::class, 'storeNote'])->whereNumber('roster')->name('notes.store');
+            Route::delete('notes/{note}', [RosterApiController::class, 'destroyNote'])->whereNumber('note')->name('notes.destroy');
             Route::put('events/{rosterEvent}', [RosterApiController::class, 'updateEvent'])->whereNumber('rosterEvent')->name('events.update');
             Route::delete('events/{rosterEvent}', [RosterApiController::class, 'destroyEvent'])->whereNumber('rosterEvent')->name('events.destroy');
         });

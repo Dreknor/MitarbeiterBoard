@@ -8,7 +8,9 @@ use App\Http\Requests\API\v1\StoreRosterEventRequest;
 use App\Http\Requests\API\v1\StoreRosterRequest;
 use App\Models\Group;
 use App\Models\personal\Roster;
+use App\Models\personal\RosterChange;
 use App\Models\personal\RosterEvents;
+use App\Models\personal\RosterNews;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Services\Personal\Zeit\RosterService;
@@ -349,6 +351,50 @@ class RosterApiController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * DELETE /api/v1/roster/rosters/{roster}/days/{date} – alle Dienste und Termine eines Tages entfernen
+     * (automatische Abwesenheitsmarkierungen bleiben erhalten).
+     */
+    public function clearDay(Roster $roster, string $date): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        $this->rosters->pruefeTag($roster, $date);
+
+        $roster->events()->whereDate('date', $date)
+            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))
+            ->get()->each->delete();
+        $roster->working_times()->whereDate('date', $date)->get()->each->delete();
+
+        return response()->json(null, 204);
+    }
+
+    // ── Hinweise zum Plan (erscheinen auf dem PDF) ───────────────────────
+
+    /**
+     * POST /api/v1/roster/rosters/{roster}/notes
+     */
+    public function storeNote(Request $request, Roster $roster): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        $data = $request->validate(['text' => ['required', 'string', 'max:255']]);
+
+        $note = $roster->news()->create(['news' => $data['text']]);
+
+        return response()->json(['data' => ['id' => $note->id, 'text' => $note->news]], 201);
+    }
+
+    /**
+     * DELETE /api/v1/roster/notes/{note}
+     */
+    public function destroyNote(RosterNews $note): JsonResponse
+    {
+        abort_if($note->roster === null, 404);
+        $this->authorize('manage', $note->roster);
+        $note->delete();
+
+        return response()->json(null, 204);
+    }
+
     // ── Kalender-Import ──────────────────────────────────────────────────
 
     /**
@@ -456,6 +502,21 @@ class RosterApiController extends Controller
                 'checks' => $raster['checks'],
                 'open_changes' => $roster->aenderungen()->whereNull('notified_at')->count(),
                 'can_revert' => $this->rosters->kannZuruecksetzen($roster),
+                'previous_id' => $this->nachbar($roster, '<'),
+                'next_id' => $this->nachbar($roster, '>'),
+                'event_names' => $this->terminNamen($roster),
+                'notes' => $roster->news()->orderBy('id')->get()->map(fn (RosterNews $n) => ['id' => $n->id, 'text' => $n->news])->values(),
+                'changes' => $roster->published
+                    ? $roster->aenderungen()->with('employe')->limit(30)->get()->map(fn (RosterChange $c) => [
+                        'id' => $c->id,
+                        'employe_id' => $c->employe_id,
+                        'employe_name' => $c->employe?->name,
+                        'date' => $c->date?->toDateString(),
+                        'description' => $c->description,
+                        'created_at' => $c->created_at?->toIso8601String(),
+                        'notified' => $c->notified_at !== null,
+                    ])->values()
+                    : [],
             ];
         }
 
@@ -534,6 +595,30 @@ class RosterApiController extends Controller
         }
 
         return [$von, $bis];
+    }
+
+    /** Vorheriger bzw. nächster Plan gleichen Typs der Abteilung. */
+    private function nachbar(Roster $roster, string $richtung): ?int
+    {
+        return Roster::where('department_id', $roster->department_id)->where('type', $roster->type)
+            ->whereDate('start_date', $richtung, $roster->start_date->toDateString())
+            ->orderBy('start_date', $richtung === '<' ? 'desc' : 'asc')
+            ->value('id');
+    }
+
+    /**
+     * Häufige Terminbezeichnungen der Abteilung (letzte 6 Monate) – Vorschläge wie im Web-Editor.
+     *
+     * @return string[]
+     */
+    private function terminNamen(Roster $roster): array
+    {
+        return RosterEvents::query()
+            ->whereHas('roster', fn ($q) => $q->where('department_id', $roster->department_id))
+            ->whereNull('source')
+            ->where('created_at', '>=', now()->subMonths(6))
+            ->select('event')->groupBy('event')->orderByRaw('count(*) desc')->limit(20)
+            ->pluck('event')->all();
     }
 
     private function wocheBelegt(Group $abteilung, Carbon $montag): bool

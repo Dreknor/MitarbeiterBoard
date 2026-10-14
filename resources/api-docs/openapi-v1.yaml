@@ -1526,7 +1526,7 @@ paths:
       tags: [Dienstplan]
       summary: Plan mit Mitarbeitenden, Arbeitszeiten und Terminen
       description: |
-        Planende sehen jeden Plan ihrer Abteilungen inkl. `conflicts`, `hours`, `checks`, `open_changes`, `can_revert`.
+        Planende sehen jeden Plan ihrer Abteilungen inkl. `conflicts`, `hours`, `checks`, `open_changes`, `can_revert`, `previous_id`/`next_id`, `event_names`, `notes` und `changes`.
         Mitarbeitende sehen nur veröffentlichte Pläne ihrer Abteilung bzw. Pläne, in denen sie eingeplant sind –
         ohne Planungsdaten; Abwesenheitsgründe anderer Personen erscheinen als „abwesend“.
       responses:
@@ -1783,6 +1783,53 @@ paths:
         '201': { $ref: '#/components/responses/RosterCalendarImportResult' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/rosters/{roster_id}/days/{date}:
+    delete:
+      tags: [Dienstplan]
+      summary: Tag leeren (alle Dienste und Termine; Abwesenheiten bleiben)
+      parameters:
+        - { name: roster_id, in: path, required: true, schema: { type: integer } }
+        - { name: date, in: path, required: true, schema: { type: string, format: date } }
+      responses:
+        '204': { description: Geleert }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Datum außerhalb der Planwoche }
+  /roster/rosters/{roster_id}/notes:
+    post:
+      tags: [Dienstplan]
+      summary: Hinweis zum Plan anlegen
+      parameters:
+        - { name: roster_id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { id: { type: integer }, text: { type: string } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /roster/notes/{note_id}:
+    delete:
+      tags: [Dienstplan]
+      summary: Hinweis zum Plan löschen
+      parameters:
+        - { name: note_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /roster/events/{event_id}:
     parameters:
       - { name: event_id, in: path, required: true, schema: { type: integer } }
@@ -2062,6 +2109,26 @@ components:
               additionalProperties: { type: object, additionalProperties: { type: boolean } }
             open_changes: { type: integer, description: Nur für Planende }
             can_revert: { type: boolean, description: Nur für Planende }
+            previous_id: { type: integer, nullable: true, description: 'Nur für Planende: vorheriger Plan gleichen Typs der Abteilung' }
+            next_id: { type: integer, nullable: true, description: 'Nur für Planende: nächster Plan gleichen Typs der Abteilung' }
+            event_names: { type: array, items: { type: string }, description: 'Nur für Planende: häufige Terminbezeichnungen der Abteilung (6 Monate)' }
+            notes:
+              type: array
+              description: 'Nur für Planende: Hinweise zum Plan (erscheinen auf dem PDF)'
+              items: { type: object, properties: { id: { type: integer }, text: { type: string } } }
+            changes:
+              type: array
+              description: 'Nur für Planende: letzte 30 Änderungen seit der Veröffentlichung'
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  employe_id: { type: integer, nullable: true }
+                  employe_name: { type: string, nullable: true }
+                  date: { type: string, format: date, nullable: true }
+                  description: { type: string }
+                  created_at: { type: string, format: date-time }
+                  notified: { type: boolean }
     DiaryListMeta:
       type: object
       description: Laravel-Paginierung; bei `search` zusätzlich Suchinfos
