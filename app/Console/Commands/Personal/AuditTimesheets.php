@@ -4,6 +4,7 @@ namespace App\Console\Commands\Personal;
 
 use App\Models\User;
 use App\Services\Personal\TimeValidationService;
+use App\Services\Personal\Zeit\ArbeitszeitService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class AuditTimesheets extends Command
 
     protected $description = 'Führt die automatisierte Prüfengine (Zeiterfassung, Dienstpläne, Vertragsänderungen) für alle Mitarbeiter aus.';
 
-    public function handle(TimeValidationService $validationService): int
+    public function handle(TimeValidationService $validationService, ArbeitszeitService $arbeitszeit): int
     {
         if ($this->option('from') || $this->option('to')) {
             if (!$this->option('from') || !$this->option('to')) {
@@ -55,7 +56,7 @@ class AuditTimesheets extends Command
         foreach ($employees as $employe) {
             if ($months !== null) {
                 foreach ($months as $month) {
-                    if ($employe->employments_date($month->copy()->startOfMonth(), $month->copy()->endOfMonth())->count() < 1) {
+                    if (!$this->hatVertragImZeitraum($arbeitszeit, $employe, $month->copy()->startOfMonth(), $month->copy()->endOfMonth())) {
                         continue;
                     }
 
@@ -74,7 +75,7 @@ class AuditTimesheets extends Command
                 continue;
             }
 
-            if ($employe->employments_date($rangeStart, $rangeEnd)->count() < 1) {
+            if (!$this->hatVertragImZeitraum($arbeitszeit, $employe, $rangeStart, $rangeEnd)) {
                 continue;
             }
 
@@ -96,6 +97,19 @@ class AuditTimesheets extends Command
 
         return self::SUCCESS;
     }
+
+    /**
+     * Hatte der Mitarbeiter irgendwann im Zeitraum einen (nicht ruhenden) Vertrag?
+     * Bewusst nach Datum statt nach heutigem Status – abgelaufene Verträge stehen inzwischen
+     * auf "beendet", müssen für vergangene Monate aber geprüft werden.
+     */
+    private function hatVertragImZeitraum(ArbeitszeitService $arbeitszeit, User $employe, Carbon $von, Carbon $bis): bool
+    {
+        $vonDatum = $von->toDateString();
+        $bisDatum = $bis->toDateString();
+
+        return $arbeitszeit->vertraege($employe)->contains(fn ($vertrag) => $vertrag->start !== null
+            && $vertrag->start->toDateString() <= $bisDatum
+            && ($vertrag->end === null || $vertrag->end->toDateString() >= $vonDatum));
+    }
 }
-
-

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 
+use App\Enums\EmploymentStatus;
 use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\Employment;
@@ -259,25 +260,34 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(Employment::class, 'employe_id');
     }
 
+    /**
+     * Anstellungen, die den gesamten Zeitraum $date bis $end abdecken.
+     *
+     * Maßgeblich sind Beginn und Ende des Vertrags, nicht der heutige Status: abgelaufene
+     * Verträge setzt ContractService::endExpired() täglich auf "beendet" – für vergangene
+     * Zeiträume müssen sie trotzdem zählen. Ausgeschlossen sind (wie in
+     * ArbeitszeitService::vertraege()) ruhende Verträge sowie beendete ohne Enddatum (Altdaten).
+     */
     public function employments_date(?DateTime $date = null, ?DateTime $end = null)
     {
-        if (is_null($date)) {
-            $date = Carbon::now();
-        }
-        if (is_null($end)) {
-            $end = $date;
-        }
+        $von = Carbon::instance($date ?? Carbon::now())->toDateString();
+        $bis = Carbon::instance($end ?? $date ?? Carbon::now())->toDateString();
 
         $employments = Cache::remember('user_employments_'.$this->id, 1, function (){
             return $this->employments;
         });
 
-        return $employments->filter(function ($item) use ($date, $end){
-                return ($item->status === null || $item->status === \App\Enums\EmploymentStatus::Aktiv || $item->status?->value === 'aktiv')
-                    && $item->start->startOfDay()->lessThanOrEqualTo($date)
-                    && (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
-        });
+        return $employments->filter(function ($item) use ($von, $bis) {
+            if ($item->status === EmploymentStatus::Ruhend || $item->start === null) {
+                return false;
+            }
+            if ($item->status === EmploymentStatus::Beendet && $item->end === null) {
+                return false;
+            }
 
+            return $item->start->toDateString() <= $von
+                && ($item->end === null || $item->end->toDateString() >= $bis);
+        });
     }
 
     public function holidays(){
