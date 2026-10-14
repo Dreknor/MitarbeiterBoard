@@ -306,14 +306,17 @@
                             <div x-show="offen" x-cloak x-transition class="absolute right-0 z-20 mt-1 w-56 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                                 <p class="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase">Abwesenheit am {{ $tag->format('d.m.') }}</p>
                                 @foreach($abwesenheitsGruende as $grund => $prozent)
-                                    @continue($grund === 'Urlaub')
+                                    {{-- Altmonate (vor dem Stichtag) übernehmen keinen Urlaub aus der Urlaubsverwaltung – dort direkt eintragen --}}
+                                    @continue($grund === 'Urlaub' && !$altesModell)
                                     <form action="{{ route('timesheets.day.absence', [$employe->id, $timesheet->id, $datum]) }}" method="post">
                                         @csrf
                                         <input type="hidden" name="absence" value="{{ $grund }}">
                                         <button type="submit" class="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50">{{ $grund }} <span class="text-gray-400">({{ $prozent }} %)</span></button>
                                     </form>
                                 @endforeach
-                                <p class="px-3 py-1.5 text-[11px] text-gray-400 border-t border-gray-100">Urlaub bitte über die Urlaubsverwaltung beantragen.</p>
+                                @unless($altesModell)
+                                    <p class="px-3 py-1.5 text-[11px] text-gray-400 border-t border-gray-100">Urlaub bitte über die Urlaubsverwaltung beantragen.</p>
+                                @endunless
                             </div>
                         </div>
                     @endif
