@@ -35,7 +35,7 @@ function random_color()
  * @param string|null $anchor
  * @return RedirectResponse
  */
-function redirectBack(string $type = null, string $meldung = null, string $anchor = null): RedirectResponse
+function redirectBack(?string $type = null, ?string $meldung = null, ?string $anchor = null): RedirectResponse
 {
     return redirect()->to(url()->previous().$anchor)->with([
         'type' => $type,
@@ -217,7 +217,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
     }
 }
 
-function calculateWorkingTime(Collection $working_times, Collection $roster_events = null)
+function calculateWorkingTime(Collection $working_times, ?Collection $roster_events = null)
 {
     if (!is_null($roster_events)) {
         $break = $roster_events->filter(function ($event) {

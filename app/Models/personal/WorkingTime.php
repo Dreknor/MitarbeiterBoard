@@ -96,7 +96,7 @@ class WorkingTime extends Model
     }
 
 
-    public function needs_break(Collection $events = null)
+    public function needs_break(?Collection $events = null)
     {
         if (!is_null($this->attributes['start']) and !is_null($this->attributes['end']) and $this->start->diffInHours($this->end) > 6) {
             if (!is_null($events)) {
@@ -119,7 +119,7 @@ class WorkingTime extends Model
         return false;
     }
 
-    public function diff_start_first_event(Collection $events = null)
+    public function diff_start_first_event(?Collection $events = null)
     {
 
         $events_filtered = $events->whereInstanceOf(RosterEvents::class);

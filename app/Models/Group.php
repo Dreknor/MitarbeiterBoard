@@ -168,7 +168,7 @@ class Group extends Model
         return $this->hasManyDeep(User::class, ['employments'], ['department_id','id'], [null,'department_id' ,'employe_id']);
     }
 
-    public function activeEmployes(DateTime $date, DateTime $end = null)
+    public function activeEmployes(DateTime $date, ?DateTime $end = null)
     {
         if ($end == null) {
             $end = $date;

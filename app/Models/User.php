@@ -230,7 +230,7 @@ class User extends Authenticatable implements HasMedia
     }
 
     #TODO neue anlegen
-    public function getHolidayClaim(Carbon $year = null){
+    public function getHolidayClaim(?Carbon $year = null){
         if ($year == null) {$year = Carbon::now();}
 
         $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
@@ -259,7 +259,7 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(Employment::class, 'employe_id');
     }
 
-    public function employments_date(DateTime $date = null, DateTime $end = null)
+    public function employments_date(?DateTime $date = null, ?DateTime $end = null)
     {
         if (is_null($date)) {
             $date = Carbon::now();
@@ -284,7 +284,7 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(Holiday::class, 'employe_id');
     }
 
-    public function holidays_date(DateTime $date = null, DateTime $end = null)
+    public function holidays_date(?DateTime $date = null, ?DateTime $end = null)
     {
         if (is_null($date)) {
             $date = Carbon::now();
@@ -307,7 +307,7 @@ class User extends Authenticatable implements HasMedia
      * Gibt es einen (nicht abgelehnten) Urlaub, der den Zeitraum berührt?
      * Erkennt auch Urlaube, die den Zeitraum vollständig umschließen.
      */
-    public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
+    public function hasHoliday(Carbon $start_date, ?Carbon $end_date = null){
 
         if (is_null($end_date)){
             $end_date = $start_date;
@@ -394,7 +394,7 @@ class User extends Authenticatable implements HasMedia
 
     }
 
-    public function hasAbsence(Carbon $start_date, Carbon $end_date = null){
+    public function hasAbsence(Carbon $start_date, ?Carbon $end_date = null){
 
         if (is_null($end_date)){
             $end_date = $start_date;

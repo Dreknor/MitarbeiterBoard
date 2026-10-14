@@ -147,7 +147,7 @@ class Employment extends Model implements Auditable, HasMedia
      * WICHTIG: Scopet auf status = 'aktiv' UND gültigen Zeitraum.
      * Ohne Parameter wird gegen heute geprüft – abgelaufene Verträge werden ausgeschlossen.
      */
-    public function scopeActive(Builder $query, DateTime $start = null, DateTime $end = null): Builder
+    public function scopeActive(Builder $query, ?DateTime $start = null, ?DateTime $end = null): Builder
     {
         $query->where('status', EmploymentStatus::Aktiv->value);
 

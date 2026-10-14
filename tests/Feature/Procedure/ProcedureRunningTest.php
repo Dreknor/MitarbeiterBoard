@@ -26,7 +26,7 @@ class ProcedureRunningTest extends TestCase
      * Erstellt ein minimales Vorlage + Position + Schritt Setup und
      * gibt Vorlage, Position und Step zurück.
      */
-    private function setupVorlage(User $user = null): array
+    private function setupVorlage(?User $user = null): array
     {
         $user ??= User::factory()->create();
         $kategorie = Procedure_Category::factory()->create();
