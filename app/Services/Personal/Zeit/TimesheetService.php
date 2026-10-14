@@ -2,18 +2,22 @@
 
 namespace App\Services\Personal\Zeit;
 
+use App\Enums\AnomalyRuleType;
 use App\Models\Absence;
 use App\Models\personal\Holiday;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\Timesheet;
+use App\Models\personal\TimesheetAnomaly;
 use App\Models\personal\TimesheetDays;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Notifications\Personal\ZeitwirtschaftNotification;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -45,6 +49,26 @@ class TimesheetService
         ], [
             'working_time_account' => 0,
         ]);
+    }
+
+    /**
+     * Offenen Nachweis vor der Anzeige auf den aktuellen Stand bringen (Altbestand, Urlaub/Abwesenheiten,
+     * automatische Planübernahme nur für Bearbeitungsberechtigte, Saldo).
+     */
+    public function fuerAnzeigeAktualisieren(Timesheet $timesheet, bool $planen): Timesheet
+    {
+        if ($timesheet->is_locked) {
+            return $timesheet;
+        }
+
+        $this->bisherigBefuellen($timesheet);
+        $this->syncMonat($timesheet);
+        if ($planen) {
+            $this->planAutomatisch($timesheet);
+        }
+        $this->recalculate($timesheet, false);
+
+        return $timesheet->refresh();
     }
 
     public function vorgaenger(Timesheet $timesheet): ?Timesheet
@@ -902,6 +926,55 @@ class TimesheetService
         $timesheet->update(['locked_at' => null, 'locked_by' => null, 'submitted_at' => null, 'submitted_by' => null]);
         $this->syncMonat($timesheet);
         $this->recalculate($timesheet);
+    }
+
+    // =========================================================================
+    // Export (Web, API, Monatsmail)
+    // =========================================================================
+
+    public function pdf(Timesheet $timesheet)
+    {
+        return PDF::loadView('personal.timesheets.pdf', [
+            'timesheet' => $timesheet,
+            'timesheet_old' => $this->vorgaenger($timesheet),
+            'zeilen' => $this->monatsZeilen($timesheet, false),
+            'employe' => $timesheet->employe,
+            'month' => $timesheet->monthStart(),
+        ]);
+    }
+
+    public function pdfDateiname(Timesheet $timesheet): string
+    {
+        return 'AZN_'.Str::slug($timesheet->employe->familienname ?? $timesheet->employe->name).'_'.$timesheet->year.'_'.str_pad((string) $timesheet->month, 2, '0', STR_PAD_LEFT).'.pdf';
+    }
+
+    /**
+     * Offene Prüfhinweise "Gehen fehlt" eines Monats bis heute.
+     *
+     * @return Collection<int, TimesheetAnomaly>
+     */
+    public function fehlendesGehen(User $user, CarbonInterface $monat): Collection
+    {
+        return TimesheetAnomaly::forEmploye($user->id)
+            ->forPeriod($monat->month, $monat->year)
+            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
+            ->whereDate('date', '<=', Carbon::today()->toDateString())
+            ->unresolved()
+            ->orderBy('date')
+            ->get();
+    }
+
+    /**
+     * Offene Prüfhinweise "Gehen fehlt" eines Tages entfernen, sobald der Tag bearbeitet wurde.
+     */
+    public function fehlendesGehenErledigt(Timesheet $timesheet, CarbonInterface $tag): void
+    {
+        TimesheetAnomaly::forEmploye($timesheet->employe_id)
+            ->forPeriod($tag->month, $tag->year)
+            ->whereDate('date', $tag->toDateString())
+            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
+            ->unresolved()
+            ->delete();
     }
 
     // =========================================================================

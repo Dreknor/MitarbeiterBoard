@@ -2,20 +2,17 @@
 
 namespace App\Http\Controllers\Personal;
 
-use App\Enums\AnomalyRuleType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createTimesheetDayRequest;
 use App\Http\Requests\updateTimesheetDayRequest;
 use App\Mail\SendMonthlyTimesheetMail;
 use App\Models\personal\Timesheet;
-use App\Models\personal\TimesheetAnomaly;
 use App\Models\personal\TimesheetDays;
 use App\Models\User;
 use App\Notifications\Push;
 use App\Services\Personal\TimeValidationService;
 use App\Services\Personal\Zeit\TimesheetService;
 use App\Services\Personal\Zeit\ZeitZugriff;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -77,15 +74,7 @@ class TimesheetController extends Controller
         }
 
         $timesheet = $this->timesheets->forMonth($user, $monat);
-        if (!$timesheet->is_locked) {
-            $this->timesheets->bisherigBefuellen($timesheet);
-            $this->timesheets->syncMonat($timesheet);
-            if ($request->user()->can('edit', $timesheet)) {
-                $this->timesheets->planAutomatisch($timesheet);
-            }
-            $this->timesheets->recalculate($timesheet, false);
-            $timesheet->refresh();
-        }
+        $this->timesheets->fuerAnzeigeAktualisieren($timesheet, $request->user()->can('edit', $timesheet));
 
         $ersterMonat = $user->employments()->min('start');
         $monate = [];
@@ -93,13 +82,7 @@ class TimesheetController extends Controller
             $monate[] = $m->copy();
         }
 
-        $fehlend = TimesheetAnomaly::forEmploye($user->id)
-            ->forPeriod($monat->month, $monat->year)
-            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
-            ->whereDate('date', '<=', Carbon::today()->toDateString())
-            ->unresolved()
-            ->orderBy('date')
-            ->get();
+        $fehlend = $this->timesheets->fehlendesGehen($user, $monat);
 
         return view('personal.timesheets.timesheet', [
             'employe' => $user,
@@ -139,7 +122,7 @@ class TimesheetController extends Controller
         $tag = $this->tag($timesheet, $date);
 
         $this->timesheets->buchen($timesheet, $tag, $request->validated());
-        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+        $this->timesheets->fehlendesGehenErledigt($timesheet, $tag);
 
         return $this->zurueck($user, $tag, 'Arbeitszeit gespeichert.');
     }
@@ -151,7 +134,7 @@ class TimesheetController extends Controller
         $data = $request->validate(['absence' => ['required', 'string', 'max:60']]);
 
         $this->timesheets->gutschreiben($timesheet, $tag, $data['absence']);
-        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+        $this->timesheets->fehlendesGehenErledigt($timesheet, $tag);
 
         return $this->zurueck($user, $tag, $data['absence'].' eingetragen.');
     }
@@ -165,7 +148,7 @@ class TimesheetController extends Controller
         if ($zeile === null) {
             return redirectBack('warning', 'Für diesen Tag liegen keine Dienstplanzeiten vor.');
         }
-        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+        $this->timesheets->fehlendesGehenErledigt($timesheet, $tag);
 
         return $this->zurueck($user, $tag, 'Dienstplanzeiten übernommen ('.$zeile->start->format('H:i').'–'.$zeile->end->format('H:i').' Uhr).');
     }
@@ -210,7 +193,7 @@ class TimesheetController extends Controller
 
         $tag = $timesheetDay->date->copy();
         $this->timesheets->loeschen($timesheetDay);
-        $this->clearMissingClockOutAnomaly($timesheet, $tag);
+        $this->timesheets->fehlendesGehenErledigt($timesheet, $tag);
 
         return $this->zurueck($timesheet->employe, $tag, 'Eintrag gelöscht.');
     }
@@ -296,7 +279,7 @@ class TimesheetController extends Controller
             return redirectBack('warning', 'Dieser Monat liegt in der Zukunft.');
         }
 
-        return $this->pdf($timesheet)->download($this->dateiname($timesheet));
+        return $this->timesheets->pdf($timesheet)->download($this->timesheets->pdfDateiname($timesheet));
     }
 
     /**
@@ -316,7 +299,7 @@ class TimesheetController extends Controller
 
             try {
                 File::ensureDirectoryExists(dirname($pfad));
-                $this->pdf($timesheet)->save($pfad, true);
+                $this->timesheets->pdf($timesheet)->save($pfad, true);
 
                 $mail = Mail::to($user->email);
                 $superior = $user->superior;
@@ -335,22 +318,6 @@ class TimesheetController extends Controller
 
     // =========================================================================
 
-    private function pdf(Timesheet $timesheet)
-    {
-        return PDF::loadView('personal.timesheets.pdf', [
-            'timesheet' => $timesheet,
-            'timesheet_old' => $this->timesheets->vorgaenger($timesheet),
-            'zeilen' => $this->timesheets->monatsZeilen($timesheet, false),
-            'employe' => $timesheet->employe,
-            'month' => $timesheet->monthStart(),
-        ]);
-    }
-
-    private function dateiname(Timesheet $timesheet): string
-    {
-        return 'AZN_'.Str::slug($timesheet->employe->familienname ?? $timesheet->employe->name).'_'.$timesheet->year.'_'.str_pad((string) $timesheet->month, 2, '0', STR_PAD_LEFT).'.pdf';
-    }
-
     private function tag(Timesheet $timesheet, string $date): Carbon
     {
         try {
@@ -368,15 +335,5 @@ class TimesheetController extends Controller
     {
         return redirect(route('timesheets.show', [$user->id, $tag->format('Y-m')]).'#tag-'.$tag->toDateString())
             ->with(['type' => 'success', 'Meldung' => $meldung]);
-    }
-
-    private function clearMissingClockOutAnomaly(Timesheet $timesheet, Carbon $day): void
-    {
-        TimesheetAnomaly::forEmploye($timesheet->employe_id)
-            ->forPeriod($day->month, $day->year)
-            ->whereDate('date', $day->toDateString())
-            ->where('rule_type', AnomalyRuleType::MissingClockOut->value)
-            ->unresolved()
-            ->delete();
     }
 }

@@ -15,6 +15,7 @@ use App\Http\Controllers\API\v1\RosterApiController;
 use App\Http\Controllers\API\v1\SsoApiController;
 use App\Http\Controllers\API\v1\StudentGradingApiController;
 use App\Http\Controllers\API\v1\StudentViewApiController;
+use App\Http\Controllers\API\v1\TimesheetApiController;
 use App\Http\Controllers\API\VertretungsplanImportController;
 use Illuminate\Support\Facades\Route;
 
@@ -211,5 +212,26 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             Route::put('events/{rosterEvent}', [RosterApiController::class, 'updateEvent'])->whereNumber('rosterEvent')->name('events.update');
             Route::delete('events/{rosterEvent}', [RosterApiController::class, 'destroyEvent'])->whereNumber('rosterEvent')->name('events.destroy');
         });
+    });
+
+    // Arbeitszeitnachweise: eigene sowie die der unterstellten Mitarbeitenden (TimesheetPolicy/ZeitZugriff),
+    // nur Benutzer-Tokens (api.staff). Rechte werden je Person bzw. Nachweis geprüft.
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent'])->prefix('timesheets')->name('timesheets.')->group(function () {
+        Route::get('employees', [TimesheetApiController::class, 'employees'])->name('employees');
+        Route::get('employees/{employe}', [TimesheetApiController::class, 'overview'])->whereNumber('employe')->name('overview');
+        Route::get('employees/{employe}/months/{month}', [TimesheetApiController::class, 'month'])
+            ->whereNumber('employe')->where('month', '\d{4}-\d{2}')->name('month');
+
+        Route::get('{timesheet}/pdf', [TimesheetApiController::class, 'pdf'])->whereNumber('timesheet')->name('pdf');
+        Route::post('{timesheet}/days', [TimesheetApiController::class, 'storeDay'])->whereNumber('timesheet')->name('days.store');
+        Route::post('{timesheet}/credits', [TimesheetApiController::class, 'storeCredit'])->whereNumber('timesheet')->name('credits.store');
+        Route::post('{timesheet}/apply-roster', [TimesheetApiController::class, 'applyRoster'])->whereNumber('timesheet')->name('apply-roster');
+        Route::put('days/{timesheetDay}', [TimesheetApiController::class, 'updateDay'])->whereNumber('timesheetDay')->name('days.update');
+        Route::delete('days/{timesheetDay}', [TimesheetApiController::class, 'destroyDay'])->whereNumber('timesheetDay')->name('days.destroy');
+
+        Route::post('{timesheet}/submit', [TimesheetApiController::class, 'submit'])->whereNumber('timesheet')->name('submit');
+        Route::post('{timesheet}/lock', [TimesheetApiController::class, 'lock'])->whereNumber('timesheet')->name('lock');
+        Route::post('{timesheet}/return', [TimesheetApiController::class, 'returnToEmploye'])->whereNumber('timesheet')->name('return');
+        Route::post('{timesheet}/unlock', [TimesheetApiController::class, 'unlock'])->whereNumber('timesheet')->name('unlock');
     });
 });

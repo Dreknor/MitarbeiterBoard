@@ -3,7 +3,7 @@ info:
   title: MitarbeiterBoard – Pädagogen-App API
   version: 1.2.0
   description: |
-    REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier, Dienstplan).
+    REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier, Dienstplan, Arbeitszeitnachweis).
 
     **Serverwahl:** `GET /instance` (öffentlich) liefert Schulname, Logo, API-Version und verfügbare Login-Arten.
 
@@ -39,6 +39,9 @@ info:
     - Dienstplan (`/roster/*`): ohne `view paed diary`. `/roster/mine` und `GET /roster/rosters/{id}` für alle
       Mitarbeitenden (nur veröffentlichte Pläne); Planung mit `create roster` für die eigenen Abteilungen,
       `manage all rosters` hebt die Abteilungsgrenze auf.
+    - Arbeitszeitnachweise (`/timesheets/*`): ohne `view paed diary`. Eigene Nachweise für alle Mitarbeitenden;
+      Nachweise anderer nur für Vorgesetzte bzw. deren Stellvertretungen mit `lock timesheets` (unterstellte
+      Personen der Vorgesetztenkette) und für die Personalverwaltung (`edit employe`, alle). Fremde Nachweise → 403.
 
     **Fehlerformat:** `{"message": "...", "errors": {"feld": ["..."]}}` – 401, 403, 404, 409, 422.
 servers:
@@ -58,6 +61,8 @@ tags:
     description: Selbsteinschätzung auf geteilten Schüler-iPads (Schüler-Token)
   - name: Dienstplan
     description: Mein Dienstplan (alle Mitarbeitenden) und Dienstplanung (`create roster`)
+  - name: Arbeitszeitnachweis
+    description: Eigene Nachweise sowie die der unterstellten Mitarbeitenden (Zeiten in Minuten)
 
 paths:
   /instance:
@@ -1883,6 +1888,256 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /timesheets/employees:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Personen, deren Nachweise der Benutzer sehen darf
+      description: |
+        Die eigene Person (`is_self`, nur mit `has timesheet`) und alle Mitarbeitenden mit `has timesheet`, für die
+        der Benutzer zuständig ist (Vorgesetzte/Stellvertretungen mit `lock timesheets`, `edit employe`: alle).
+        `previous_month` ist der Nachweis des Vormonats (Prüfstatus), sofern vorhanden.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        is_self: { type: boolean }
+                        previous_month: { allOf: [{ $ref: '#/components/schemas/TimesheetSummary' }], nullable: true }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /timesheets/employees/{employee_id}:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Alle Monatsnachweise einer Person
+      parameters:
+        - { name: employee_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      employee: { $ref: '#/components/schemas/TimesheetPerson' }
+                      timesheets: { type: array, items: { $ref: '#/components/schemas/TimesheetSummary' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /timesheets/employees/{employee_id}/months/{month}:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Monatsnachweis mit Tageszeilen
+      description: |
+        Legt den Nachweis wie im Web bei Bedarf an und bringt offene Nachweise auf den aktuellen Stand
+        (Urlaub/Abwesenheiten, Saldo; automatische Dienstplanübernahme nur für Bearbeitungsberechtigte).
+        Höchstens der nächste Monat (sonst 422); ohne Anstellung → 404.
+      parameters:
+        - { name: employee_id, in: path, required: true, schema: { type: integer } }
+        - { name: month, in: path, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$', example: '2026-09' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TimesheetMonth' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/pdf:
+    get:
+      tags: [Arbeitszeitnachweis]
+      summary: Nachweis als PDF (wie der Web-Export)
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/days:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Arbeitszeit buchen
+      description: |
+        Recht `edit` am Nachweis: die Person selbst, solange nicht eingereicht/abgeschlossen; Vorgesetzte mit
+        `lock timesheets` bzw. `edit employe`, solange nicht abgeschlossen. Keine Zeiten in der Zukunft,
+        keine Überschneidungen (422).
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, start, end]
+              properties:
+                date: { type: string, format: date }
+                start: { type: string, example: '08:00' }
+                end: { type: string, example: '16:30' }
+                pause: { type: integer, minimum: 0, maximum: 600, description: Minuten }
+                comment: { type: string, maxLength: 60 }
+      responses:
+        '201': { $ref: '#/components/responses/TimesheetEntryResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/credits:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Gutschrift eintragen (z. B. Fortbildung)
+      description: '`absence` muss einer der `credit_reasons` des Monatsnachweises sein.'
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, absence]
+              properties:
+                date: { type: string, format: date }
+                absence: { type: string, example: Fortbildung }
+      responses:
+        '201': { $ref: '#/components/responses/TimesheetEntryResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/apply-roster:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Dienstplanzeiten übernehmen
+      description: Mit `date` für einen Tag (ohne Planzeiten → 422), sonst für alle offenen vergangenen Tage des Monats.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TimesheetMonth' }
+                  applied_days: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/days/{day_id}:
+    put:
+      tags: [Arbeitszeitnachweis]
+      summary: Zeitbuchung ändern
+      description: Gutschriften sind nicht änderbar (422).
+      parameters:
+        - { name: day_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start, end]
+              properties:
+                start: { type: string, example: '08:00' }
+                end: { type: string, example: '16:30' }
+                pause: { type: integer, minimum: 0, maximum: 600 }
+                comment: { type: string, maxLength: 60 }
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetEntryResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Arbeitszeitnachweis]
+      summary: Buchung löschen
+      description: Automatisch übernommener Urlaub bzw. Abwesenheiten (`is_automatic`) → 422.
+      parameters:
+        - { name: day_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/submit:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Nachweis einreichen
+      description: Nur die Person selbst, nach Monatsende, nicht abgeschlossen. Buchungen ohne Ende → 422. Benachrichtigt die prüfende Person.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/lock:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Nachweis bestätigen und abschließen
+      description: Vorgesetzte/Stellvertretungen mit `lock timesheets` für Unterstellte bzw. `edit employe`; nie der eigene Nachweis.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /timesheets/{timesheet_id}/return:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Eingereichten Nachweis zur Korrektur zurückgeben
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /timesheets/{timesheet_id}/unlock:
+    post:
+      tags: [Arbeitszeitnachweis]
+      summary: Abschluss aufheben
+      description: Nur `edit employe`, nie der eigene Nachweis.
+      parameters:
+        - $ref: '#/components/parameters/TimesheetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/TimesheetMonthResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1895,6 +2150,11 @@ components:
   parameters:
     StudentId:
       name: student_id
+      in: path
+      required: true
+      schema: { type: integer }
+    TimesheetId:
+      name: timesheet_id
       in: path
       required: true
       schema: { type: integer }
@@ -1937,6 +2197,23 @@ components:
         höchstens die 5000 neuesten passenden Einträge (`meta.search_truncated`).
       schema: { type: string, maxLength: 200 }
   responses:
+    TimesheetMonthResult:
+      description: Aktualisierter Monatsnachweis
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/TimesheetMonth' }
+    TimesheetEntryResult:
+      description: Buchung und aktualisierter Monatsnachweis
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/TimesheetMonth' }
+              entry: { $ref: '#/components/schemas/TimesheetEntry' }
     Unauthenticated:
       description: Nicht authentifiziert
       content:
@@ -1995,6 +2272,96 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    TimesheetPerson:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    TimesheetSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        employee_id: { type: integer }
+        year: { type: integer }
+        month: { type: integer }
+        status: { type: string, enum: [offen, eingereicht, abgeschlossen] }
+        status_label: { type: string }
+        balance_minutes: { type: integer, description: Stundenkonto am Monatsende }
+        submitted: { type: boolean }
+        locked_at: { type: string, format: date-time, nullable: true }
+        locked_by: { allOf: [{ $ref: '#/components/schemas/TimesheetPerson' }], nullable: true }
+    TimesheetEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        start: { type: string, nullable: true, example: '08:00' }
+        end: { type: string, nullable: true, example: '16:30', description: 'null = offene Buchung (Gehen fehlt)' }
+        pause: { type: integer, nullable: true, description: Minuten }
+        comment: { type: string, nullable: true }
+        is_credit: { type: boolean, description: Gutschrift (Urlaub, Abwesenheit, Fortbildung …) }
+        credit_percent: { type: number, nullable: true, description: Anteil der Tages-Sollzeit }
+        source: { type: string, nullable: true, enum: [terminal, dienstplan, urlaub, abwesenheit, null] }
+        is_automatic: { type: boolean, description: Aus Urlaub/Abwesenheit übernommen – nicht löschbar }
+        duration_minutes: { type: integer }
+    TimesheetMonth:
+      allOf:
+        - $ref: '#/components/schemas/TimesheetSummary'
+        - type: object
+          properties:
+            employee: { $ref: '#/components/schemas/TimesheetPerson' }
+            submitted_at: { type: string, format: date-time, nullable: true }
+            return_reason: { type: string, nullable: true }
+            previous_balance_minutes: { type: integer }
+            month_balance_minutes: { type: integer }
+            target_minutes: { type: integer, description: Soll bis heute }
+            actual_minutes: { type: integer, description: Ist bis heute }
+            holidays:
+              type: object
+              properties:
+                old: { type: number, nullable: true }
+                new: { type: number, nullable: true }
+                rest: { type: number, nullable: true }
+            frozen: { type: boolean, description: Altmonat vor dem Stichtag, wird nicht automatisch neu berechnet }
+            legacy_model: { type: boolean }
+            missing_clock_outs: { type: array, items: { type: string, format: date } }
+            permissions:
+              type: object
+              properties:
+                edit: { type: boolean }
+                submit: { type: boolean }
+                lock: { type: boolean }
+                return: { type: boolean }
+                unlock: { type: boolean }
+            credit_reasons:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  percent: { type: number }
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  holiday: { type: string, nullable: true }
+                  workday: { type: boolean }
+                  counts: { type: boolean, description: Tag liegt nicht in der Zukunft und zählt zum Saldo }
+                  target_minutes: { type: integer }
+                  actual_minutes: { type: integer }
+                  diff_minutes: { type: integer }
+                  open: { type: boolean }
+                  plan:
+                    type: object
+                    nullable: true
+                    properties:
+                      start: { type: string }
+                      end: { type: string }
+                      pause: { type: integer }
+                      function: { type: string, nullable: true }
+                  entries: { type: array, items: { $ref: '#/components/schemas/TimesheetEntry' } }
     RosterDepartmentRef:
       type: object
       nullable: true

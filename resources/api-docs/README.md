@@ -119,6 +119,14 @@ Endpunkte unter `/roster/*` (Tag „Dienstplan“), unabhängig vom Pädagogisch
 
 > **Hinweis:** App-Tokens werden weiterhin nur für Benutzer mit `view paed diary` ausgestellt (`ApiTokenService::hasAppAccess`).
 
+## Arbeitszeitnachweis
+
+Endpunkte unter `/timesheets/*` (Tag „Arbeitszeitnachweis“), kein `view paed diary` nötig, aber ein Benutzer-Token. Zeiten in Minuten.
+
+- Zugriff wie im Web (`TimesheetPolicy`/`ZeitZugriff`): eigene Nachweise für alle Mitarbeitenden; Nachweise anderer nur für Vorgesetzte bzw. deren Stellvertretungen mit `lock timesheets` (unterstellte Personen der Vorgesetztenkette) und für `edit employe` (alle). Fremde Personen/Nachweise → 403.
+- `GET /timesheets/employees` – sichtbare Personen (inkl. sich selbst) mit Status des Vormonats; `GET /timesheets/employees/{id}` – alle Monate; `GET /timesheets/employees/{id}/months/{YYYY-MM}` – Monat mit Tageszeilen, Plan, Buchungen, Saldo und `permissions`; `GET /timesheets/{id}/pdf`.
+- Buchen (`POST …/days`, `POST …/credits`, `POST …/apply-roster`, `PUT|DELETE /timesheets/days/{id}`) und Workflow (`submit`, `lock`, `return`, `unlock`) – Antwort ist jeweils der aktualisierte Monatsnachweis. Gleiche Logik wie im Web (`Services/Personal/Zeit/TimesheetService`).
+
 ## Rechte
 
 | Permission | Wirkung |
@@ -131,6 +139,8 @@ Endpunkte unter `/roster/*` (Tag „Dienstplan“), unabhängig vom Pädagogisch
 | `view confidential diary entries` | Vertrauliche Tagebucheinträge (`dossier_only`) fremder Autoren lesen |
 | `create roster` | Dienstplanung (`/roster/departments`, Pläne, Arbeitszeiten, Termine) für die eigenen Abteilungen |
 | `manage all rosters` | Dienstplanung für alle Abteilungen |
+| `lock timesheets` | Arbeitszeitnachweise unterstellter Mitarbeitender sehen, bearbeiten, abschließen, zurückgeben |
+| `edit employe` | Alle Arbeitszeitnachweise; zusätzlich Abschluss aufheben (`unlock`) |
 
 Die Rolle `Admin` hat beide Sonderrechte implizit; die Migration vergibt sie zusätzlich an die Rollen `Admin` und `Schulleitung` (falls vorhanden).
 
