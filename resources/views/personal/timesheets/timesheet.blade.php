@@ -210,8 +210,9 @@
     @endif
 
     {{-- Tage --}}
-    <section class="zw-card overflow-hidden" data-tour="az-tage">
-        <div class="hidden lg:grid zw-day bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 py-2">
+    {{-- kein overflow-hidden: das Abwesenheits-Menü der letzten Tage würde sonst abgeschnitten --}}
+    <section class="zw-card [&>:last-child]:rounded-b-[inherit]" data-tour="az-tage">
+        <div class="hidden lg:grid zw-day rounded-t-[inherit] bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 py-2">
             <div>Tag</div>
             <div>Buchungen</div>
             <div>Bemerkung</div>
@@ -301,9 +302,10 @@
                             </form>
                         @endif
                         <a href="{{ route('timesheets.day.create', [$employe->id, $timesheet->id, $datum]) }}" class="zw-btn-icon is-sm text-blue-600" title="Arbeitszeit erfassen"><i class="fas fa-plus"></i></a>
-                        <div class="relative" x-data="{ offen: false }" @click.outside="offen = false" @keydown.escape="offen = false">
-                            <button type="button" class="zw-btn-icon is-sm" @click="offen = !offen" title="Abwesenheit eintragen" :aria-expanded="offen.toString()"><i class="fas fa-user-clock"></i></button>
-                            <div x-show="offen" x-cloak x-transition class="absolute right-0 z-20 mt-1 w-56 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                        <div class="relative" x-data="{ offen: false, nachOben: false }" @click.outside="offen = false" @keydown.escape="offen = false">
+                            {{-- Menü nach oben öffnen, wenn unten im Fenster kein Platz ist (max-h-72 = 18rem) --}}
+                            <button type="button" class="zw-btn-icon is-sm" @click="nachOben = window.innerHeight - $el.getBoundingClientRect().bottom < 300 && $el.getBoundingClientRect().top > 300; offen = !offen" title="Abwesenheit eintragen" :aria-expanded="offen.toString()"><i class="fas fa-user-clock"></i></button>
+                            <div x-show="offen" x-cloak x-transition :class="nachOben ? 'bottom-full mb-1' : 'top-full mt-1'" class="absolute right-0 z-20 w-56 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                                 <p class="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase">Abwesenheit am {{ $tag->format('d.m.') }}</p>
                                 @foreach($abwesenheitsGruende as $grund => $prozent)
                                     {{-- Altmonate (vor dem Stichtag) übernehmen keinen Urlaub aus der Urlaubsverwaltung – dort direkt eintragen --}}
