@@ -190,6 +190,54 @@ class HolidayWorkflowTest extends TestCase
         $this->assertSoftDeleted('holidays', ['id' => $antrag->id]);
     }
 
+    public function test_stornierung_entfernt_unverknuepfte_urlaubs_abwesenheit_und_gutschriften(): void
+    {
+        $chef = $this->mitarbeiter(['has holidays', 'approve holidays', 'approve all holidays']);
+        $ma = $this->mitarbeiter();
+        // Altbestand: eine von Hand angelegte Abwesenheit umfasst den Urlaub und reicht darüber hinaus
+        $absence = Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Urlaub', 'start' => '2026-09-07', 'end' => '2026-09-11']);
+        $antrag = Holiday::factory()->for($ma, 'employe')->approved()->createQuietly(['start_date' => '2026-09-08', 'end_date' => '2026-09-09', 'days' => 2]);
+        $this->assertSame(5, TimesheetDays::where('absence_id', $absence->id)->count());
+
+        $this->actingAs($chef)->delete(route('holidays.destroy', $antrag))->assertRedirect();
+
+        // Mo 07.09. und Do/Fr 10.–11.09. bleiben als eigene Abwesenheiten bestehen
+        $rest = Absence::where('users_id', $ma->id)->where('reason', 'Urlaub')->orderBy('start')->get()
+            ->map(fn (Absence $a) => $a->start->toDateString().'/'.$a->end->toDateString())->all();
+        $this->assertSame(['2026-09-07/2026-09-07', '2026-09-10/2026-09-11'], $rest);
+
+        $gutschriften = TimesheetDays::where('comment', 'Urlaub')->whereHas('timesheet', fn ($q) => $q->where('employe_id', $ma->id))
+            ->pluck('date')->map->toDateString()->sort()->values()->all();
+        $this->assertSame(['2026-09-07', '2026-09-10', '2026-09-11'], $gutschriften);
+    }
+
+    public function test_stornierung_loescht_abwesenheit_nicht_an_tagen_eines_anderen_genehmigten_urlaubs(): void
+    {
+        $chef = $this->mitarbeiter(['has holidays', 'approve holidays', 'approve all holidays']);
+        $ma = $this->mitarbeiter();
+        Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Urlaub', 'start' => '2026-09-14', 'end' => '2026-09-15']);
+        $storniert = Holiday::factory()->for($ma, 'employe')->approved()->createQuietly(['start_date' => '2026-09-14', 'end_date' => '2026-09-14', 'days' => 1]);
+        Holiday::factory()->for($ma, 'employe')->approved()->createQuietly(['start_date' => '2026-09-15', 'end_date' => '2026-09-15', 'days' => 1]);
+
+        $this->actingAs($chef)->delete(route('holidays.destroy', $storniert))->assertRedirect();
+
+        $rest = Absence::where('users_id', $ma->id)->whereNull('holiday_id')->get()
+            ->map(fn (Absence $a) => $a->start->toDateString().'/'.$a->end->toDateString())->all();
+        $this->assertSame(['2026-09-15/2026-09-15'], $rest);
+    }
+
+    public function test_ablehnung_offenen_antrags_laesst_fremde_abwesenheit_stehen(): void
+    {
+        $chef = $this->mitarbeiter(['has holidays', 'approve holidays', 'approve all holidays']);
+        $ma = $this->mitarbeiter();
+        Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Urlaub', 'start' => '2026-09-21', 'end' => '2026-09-21']);
+        $antrag = Holiday::factory()->for($ma, 'employe')->pending()->create(['start_date' => '2026-09-21', 'end_date' => '2026-09-21', 'days' => 1]);
+
+        $this->actingAs($chef)->post(route('holidays.reject', $antrag), ['reason' => 'nein'])->assertRedirect();
+
+        $this->assertSame(1, Absence::where('users_id', $ma->id)->where('reason', 'Urlaub')->count());
+    }
+
     public function test_loeschen_ist_nur_per_delete_moeglich(): void
     {
         $ma = $this->mitarbeiter();

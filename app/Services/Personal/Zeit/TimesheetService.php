@@ -426,7 +426,8 @@ class TimesheetService
     /**
      * Urlaubsgutschriften, die zu einem stornierten oder abgelehnten Antrag gehören: An dem Tag liegt
      * ein solcher Antrag, aber weder ein genehmigter Urlaub noch eine Urlaubs-Abwesenheit. Erfasst auch
-     * Zeilen ohne Kennzeichnung (bisherige Übernahme aus den Abwesenheiten: Kommentar "Urlaub", keine Quelle).
+     * Zeilen ohne Kennzeichnung (bisherige Übernahme aus den Abwesenheiten: Kommentar "Urlaub", keine Quelle)
+     * und Gutschriften aus einer "Urlaub"-Abwesenheit, die inzwischen entfernt wurde.
      * Von Hand eingetragene "Urlaub"-Zeilen ohne Antrag im System bleiben unberührt.
      *
      * @return Collection<int, TimesheetDays>
@@ -447,7 +448,7 @@ class TimesheetService
             ->whereNull('start')
             ->whereNotNull('percent_of_workingtime')
             ->whereIn('comment', ['Urlaub', 'Urlaub (halber Tag)'])
-            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', TimesheetDays::SOURCE_URLAUB))
+            ->where(fn ($q) => $q->whereNull('source')->orWhereIn('source', [TimesheetDays::SOURCE_URLAUB, TimesheetDays::SOURCE_ABWESENHEIT]))
             ->get();
 
         if ($zeilen->isEmpty()) {

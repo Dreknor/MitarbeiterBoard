@@ -4,13 +4,14 @@ namespace App\Console\Commands\Personal;
 
 use App\Models\personal\Holiday;
 use App\Models\personal\Timesheet;
+use App\Services\Personal\Zeit\HolidayService;
 use App\Services\Personal\Zeit\TimesheetService;
 use Illuminate\Console\Command;
 
 /**
- * Einmalige Bereinigung: Urlaubsgutschriften im Arbeitszeitnachweis, deren Antrag storniert oder
- * abgelehnt wurde, die aber stehen geblieben sind (v. a. Übergangsmonat und Altbestand, in denen
- * Urlaub als unverknüpfte "Urlaub"-Zeile übernommen wurde).
+ * Einmalige Bereinigung: Urlaubs-Abwesenheiten und Urlaubsgutschriften im Arbeitszeitnachweis, deren
+ * Antrag storniert oder abgelehnt wurde, die aber stehen geblieben sind (v. a. Übergangsmonat und
+ * Altbestand, in denen Urlaub als unverknüpfte "Urlaub"-Abwesenheit bzw. -Zeile übernommen wurde).
  *
  * Standard ist eine reine Vorschau – erst mit --ausfuehren wird gelöscht und neu berechnet.
  * Abgeschlossene Nachweise werden nicht verändert, sondern zur Prüfung markiert.
@@ -20,11 +21,13 @@ class BereinigeStornierteUrlaube extends Command
     protected $signature = 'personal:urlaub-bereinigen
                             {--ausfuehren : Zeilen tatsächlich löschen und Nachweise neu berechnen (sonst nur Vorschau)}';
 
-    protected $description = 'Entfernt Urlaubsgutschriften stornierter/abgelehnter Anträge aus den Arbeitszeitnachweisen';
+    protected $description = 'Entfernt Urlaubs-Abwesenheiten und -Gutschriften stornierter/abgelehnter Anträge';
 
-    public function handle(TimesheetService $timesheets): int
+    public function handle(TimesheetService $timesheets, HolidayService $holidays): int
     {
         $ausfuehren = (bool) $this->option('ausfuehren');
+
+        $this->abwesenheitenBereinigen($holidays, $ausfuehren);
 
         // Nur Monate, in denen überhaupt ein stornierter oder abgelehnter Antrag liegt
         $monate = Holiday::withTrashed()
@@ -76,16 +79,48 @@ class BereinigeStornierteUrlaube extends Command
 
         if ($zeilen === []) {
             $this->info('Keine verwaisten Urlaubsgutschriften gefunden.');
-            return self::SUCCESS;
+        } else {
+            $this->table(['Person', 'Monat', 'Tage', 'Aktion'], $zeilen);
+            $this->info($gesamt.' Zeile(n) in '.count($zeilen).' Nachweis(en), davon '.$gesperrt.' abgeschlossen.');
         }
-
-        $this->table(['Person', 'Monat', 'Tage', 'Aktion'], $zeilen);
-        $this->info($gesamt.' Zeile(n) in '.count($zeilen).' Nachweis(en), davon '.$gesperrt.' abgeschlossen.');
 
         if (!$ausfuehren) {
             $this->warn('Vorschau – es wurde nichts geändert. Zum Bereinigen: php artisan personal:urlaub-bereinigen --ausfuehren');
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Unverknüpfte "Urlaub"-Abwesenheiten stornierter (zuvor genehmigter) oder abgelehnter Anträge.
+     * Beim Löschen/Kürzen gleicht der AbsenceTimeObserver Nachweis und Dienstplan ab.
+     */
+    private function abwesenheitenBereinigen(HolidayService $holidays, bool $ausfuehren): void
+    {
+        $antraege = Holiday::withTrashed()
+            ->with('employe')
+            ->where(fn ($q) => $q->where(fn ($q) => $q->whereNotNull('deleted_at')->where('approved', true))->orWhere('rejected', true))
+            ->orderBy('start_date')
+            ->get();
+
+        $zeilen = [];
+        foreach ($antraege as $antrag) {
+            foreach ($holidays->verwaisteAbwesenheitenEntfernen($antrag, $ausfuehren) as $absence) {
+                $zeilen[] = [
+                    $antrag->employe?->name ?? '#'.$antrag->employe_id,
+                    $antrag->start_date->format('d.m.Y').' – '.$antrag->end_date->format('d.m.Y'),
+                    $absence->start->format('d.m.Y').' – '.$absence->end->format('d.m.Y'),
+                    $ausfuehren ? 'bereinigt' : 'wird bereinigt',
+                ];
+            }
+        }
+
+        if ($zeilen === []) {
+            $this->info('Keine verwaisten Urlaubs-Abwesenheiten gefunden.');
+            return;
+        }
+
+        $this->table(['Person', 'Antrag', 'Abwesenheit', 'Aktion'], $zeilen);
+        $this->info(count($zeilen).' Abwesenheit(en) betroffen.');
     }
 }

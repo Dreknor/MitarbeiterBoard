@@ -304,14 +304,9 @@ class HolidayService
         } elseif (!$aktiv) {
             Absence::where('holiday_id', $holiday->id)->get()->each->delete();
 
-            // Altbestand: vom früheren Observer angelegte, nie verknüpfte Absence desselben Urlaubs
+            // Altbestand: vom früheren Observer oder von Hand angelegte, nie verknüpfte Urlaubs-Abwesenheit
             if ($holiday->approved || $holiday->wasChanged('approved')) {
-                Absence::whereNull('holiday_id')
-                    ->where('users_id', $employe->id)
-                    ->where('reason', 'Urlaub')
-                    ->whereDate('start', $holiday->start_date->toDateString())
-                    ->whereDate('end', $holiday->end_date->toDateString())
-                    ->get()->each->delete();
+                $this->verwaisteAbwesenheitenEntfernen($holiday);
             }
         }
 
@@ -366,6 +361,90 @@ class HolidayService
             ->get()
             ->filter(fn (Holiday $h) => $h->employe !== null && $this->zugriff->darfUrlaubGenehmigen($actor, $h->employe))
             ->values();
+    }
+
+    /**
+     * Unverknüpfte "Urlaub"-Abwesenheiten im Zeitraum eines stornierten/abgelehnten Urlaubs entfernen.
+     * Tage, die ein anderer genehmigter Urlaub abdeckt, bleiben. Ragt die Abwesenheit über den Urlaub
+     * hinaus, wird sie gekürzt bzw. geteilt statt gelöscht. Mit $ausfuehren = false nur Vorschau.
+     *
+     * @return Collection<int, Absence> betroffene Abwesenheiten (Stand vor der Änderung)
+     */
+    public function verwaisteAbwesenheitenEntfernen(Holiday $holiday, bool $ausfuehren = true): Collection
+    {
+        $start = $holiday->start_date->copy()->startOfDay();
+        $ende = $holiday->end_date->copy()->startOfDay();
+
+        $abwesenheiten = Absence::query()
+            ->whereNull('holiday_id')
+            ->where('users_id', $holiday->employe_id)
+            ->where('reason', 'Urlaub')
+            ->whereDate('start', '<=', $ende->toDateString())
+            ->whereDate('end', '>=', $start->toDateString())
+            ->get();
+
+        if ($abwesenheiten->isEmpty()) {
+            return $abwesenheiten;
+        }
+
+        $genehmigt = Holiday::query()->genehmigt()
+            ->where('employe_id', $holiday->employe_id)
+            ->where('id', '!=', $holiday->id)
+            ->ueberschneidet($start, $ende)
+            ->get();
+
+        $entfernen = function (Carbon $tag) use ($start, $ende, $genehmigt): bool {
+            $datum = $tag->toDateString();
+
+            return $tag->between($start, $ende)
+                && !$genehmigt->contains(fn (Holiday $h) => $h->start_date->toDateString() <= $datum && $h->end_date->toDateString() >= $datum);
+        };
+
+        $betroffen = collect();
+        foreach ($abwesenheiten as $absence) {
+            // verbleibende Tage als zusammenhängende Abschnitte
+            $abschnitte = [];
+            $aktuell = null;
+            for ($tag = $absence->start->copy()->startOfDay(); $tag->lte($absence->end); $tag->addDay()) {
+                if ($entfernen($tag)) {
+                    $aktuell = null;
+                    continue;
+                }
+                if ($aktuell === null) {
+                    $abschnitte[] = [$tag->copy(), $tag->copy()];
+                    $aktuell = array_key_last($abschnitte);
+                } else {
+                    $abschnitte[$aktuell][1] = $tag->copy();
+                }
+            }
+
+            $unveraendert = count($abschnitte) === 1
+                && $abschnitte[0][0]->isSameDay($absence->start)
+                && $abschnitte[0][1]->isSameDay($absence->end);
+            if ($unveraendert) {
+                continue;
+            }
+
+            $betroffen->push($absence->replicate()->setAttribute('id', $absence->id));
+            if (!$ausfuehren) {
+                continue;
+            }
+
+            if ($abschnitte === []) {
+                $absence->delete();
+                continue;
+            }
+
+            foreach (array_slice($abschnitte, 1) as [$von, $bis]) {
+                $teil = $absence->replicate();
+                $teil->start = $von;
+                $teil->end = $bis;
+                $teil->save();
+            }
+            $absence->update(['start' => $abschnitte[0][0], 'end' => $abschnitte[0][1]]);
+        }
+
+        return $betroffen;
     }
 
     public function hatUeberschneidung(User $employe, CarbonInterface $start, CarbonInterface $ende, ?int $ausser = null): bool

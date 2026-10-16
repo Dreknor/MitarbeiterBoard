@@ -269,4 +269,23 @@ class BestandsschutzTest extends TestCase
         $daten = $august->timesheet_days()->pluck('date')->map->toDateString()->all();
         $this->assertSame(['2026-08-20'], $daten);
     }
+
+    public function test_bereinigungsbefehl_entfernt_stehen_gebliebene_urlaubs_abwesenheit(): void
+    {
+        $ma = $this->mitarbeiter();
+        // Abwesenheit eines stornierten Urlaubs (vor der Korrektur: blieb stehen, wenn der Zeitraum abwich)
+        $absence = Absence::factory()->create(['users_id' => $ma->id, 'reason' => 'Urlaub', 'start' => '2026-10-05', 'end' => '2026-10-09']);
+        $urlaub = Holiday::factory()->for($ma, 'employe')->approved()->createQuietly(['start_date' => '2026-10-05', 'end_date' => '2026-10-07', 'days' => 3]);
+        $urlaub->deleteQuietly();
+        $oktober = Timesheet::where('employe_id', $ma->id)->where('year', 2026)->where('month', 10)->firstOrFail();
+        $this->assertSame(5, $oktober->timesheet_days()->where('comment', 'Urlaub')->count());
+
+        $this->artisan('personal:urlaub-bereinigen')->assertSuccessful();
+        $this->assertSame('2026-10-05', $absence->fresh()->start->toDateString(), 'Vorschau ändert nichts');
+
+        $this->artisan('personal:urlaub-bereinigen', ['--ausfuehren' => true])->assertSuccessful();
+        $this->assertSame(['2026-10-08', '2026-10-09'], [$absence->fresh()->start->toDateString(), $absence->fresh()->end->toDateString()]);
+        $daten = $oktober->timesheet_days()->where('comment', 'Urlaub')->pluck('date')->map->toDateString()->sort()->values()->all();
+        $this->assertSame(['2026-10-08', '2026-10-09'], $daten);
+    }
 }
