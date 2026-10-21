@@ -190,6 +190,29 @@ class HolidayWorkflowTest extends TestCase
         $this->assertSoftDeleted('holidays', ['id' => $antrag->id]);
     }
 
+    public function test_vorgesetzte_koennen_genehmigten_urlaub_unterstellter_direkt_stornieren(): void
+    {
+        $chef = $this->mitarbeiter(['has holidays', 'approve holidays']);
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $chef->id]);
+        $antrag = Holiday::factory()->for($ma, 'employe')->approved()->create([
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-06',
+            'days' => 5,
+        ]);
+
+        $this->actingAs($chef)->get(route('holidays.manage'))
+            ->assertOk()
+            ->assertSee('Urlaub stornieren')
+            ->assertSee('Stornieren');
+
+        $this->actingAs($chef)->delete(route('holidays.destroy', $antrag))->assertRedirect();
+
+        $this->assertSoftDeleted('holidays', ['id' => $antrag->id]);
+        $this->assertSame(0, Absence::where('holiday_id', $antrag->id)->count());
+        Notification::assertSentTo($ma, ZeitwirtschaftNotification::class, fn ($n) => $n->type === 'holiday_cancelled');
+    }
+
     public function test_loeschen_ist_nur_per_delete_moeglich(): void
     {
         $ma = $this->mitarbeiter();
