@@ -156,9 +156,13 @@
                                     @endcan
                                 @endif
                                 @can('delete', $antrag)
-                                    <form action="{{ route('holidays.destroy', $antrag) }}" method="post" data-confirm="Urlaub von {{ $antrag->employe?->name }} ab {{ $antrag->start_date->format('d.m.Y') }} wirklich entfernen? Abwesenheit und Arbeitszeitnachweis werden angepasst.">
+                                    @php($genehmigterUrlaub = $antrag->approved && !$antrag->rejected)
+                                    <form action="{{ route('holidays.destroy', $antrag) }}" method="post" data-confirm="Urlaub von {{ $antrag->employe?->name }} ab {{ $antrag->start_date->format('d.m.Y') }} wirklich {{ $genehmigterUrlaub ? 'stornieren' : 'entfernen' }}? Abwesenheit und Arbeitszeitnachweis werden angepasst.">
                                         @csrf @method('delete')
-                                        <button type="submit" class="zw-btn zw-btn-sm zw-btn-danger-ghost" title="Entfernen"><i class="fas fa-trash"></i></button>
+                                        <button type="submit" class="zw-btn zw-btn-sm zw-btn-danger-ghost" title="{{ $genehmigterUrlaub ? 'Urlaub stornieren' : 'Antrag entfernen' }}">
+                                            <i class="fas {{ $genehmigterUrlaub ? 'fa-calendar-times' : 'fa-trash' }}"></i>
+                                            <span class="hidden sm:inline">{{ $genehmigterUrlaub ? 'Stornieren' : 'Entfernen' }}</span>
+                                        </button>
                                     </form>
                                 @endcan
                                 @if($antrag->employe)
