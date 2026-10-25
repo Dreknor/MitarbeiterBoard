@@ -106,7 +106,8 @@ class RuleRegistry
             Rule::delete('Organisation', 'Positionen', 'position_user', 'user_id'),
             Rule::delete('Organisation', 'Organigramm-Positionen', 'pers_org_position_user', 'user_id'),
             Rule::delete('Organisation', 'Klassenzuordnungen', 'klasse_user', 'user_id'),
-            Rule::delete('Organisation', 'Eigene Klassengruppierungen', 'paed_diary_class_groups', 'user_id'),
+            // Nicht löschen: Gruppendokumentationen (grading_documentation_sessions.group_id) hängen per Cascade daran
+            Rule::anonymize('Organisation', 'Klassengruppierungen', 'paed_diary_class_groups', 'user_id'),
             Rule::anonymize('Organisation', 'Ersteller von Gruppen', 'groups', 'creator_id'),
             Rule::anonymize('Organisation', 'Verantwortung Inventarstandorte', 'inv_locations', 'verantwortlicher_id'),
 

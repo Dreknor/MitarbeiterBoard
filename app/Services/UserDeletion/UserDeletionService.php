@@ -33,6 +33,12 @@ class UserDeletionService
     public const STAGE_DEACTIVATED = 1;
     public const STAGE_ANONYMIZED = 2;
 
+    /** Selbstverweise in aufbewahrten Tabellen, die vor dem Löschen gelöst werden. */
+    private const SELF_REFERENCES = [
+        'employments' => 'replaced_employment_id',
+        'absences' => 'before',
+    ];
+
     public function __construct(
         private readonly RuleRegistry $rules,
         private readonly PersonalRetentionService $retention,
@@ -344,6 +350,11 @@ class UserDeletionService
 
                 if (!$this->retention->isExpired($user, $rule->category, $now)) {
                     continue;
+                }
+
+                // Verweise innerhalb der Tabelle lösen, sonst blockiert der Fremdschlüssel das Löschen
+                if (isset(self::SELF_REFERENCES[$rule->table])) {
+                    $rule->query($user->id)->update([self::SELF_REFERENCES[$rule->table] => null]);
                 }
 
                 if ($rule->table === 'pers_employee_qualifications') {
