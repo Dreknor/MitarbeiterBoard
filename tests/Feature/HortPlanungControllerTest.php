@@ -382,6 +382,24 @@ class HortPlanungControllerTest extends TestCase
         ]);
     }
 
+    public function test_storeFaktorWert_gleicher_monat_ueberschreibt(): void
+    {
+        $user    = $this->actingAsWithPermission('view hort planung', 'manage hort planung');
+        $planung = $this->erstellePlanung($user);
+        $faktor  = $planung->faktoren->firstWhere('kuerzel', 'kinderschluessel');
+        $start   = $faktor->werte->sortBy('gueltig_ab')->first()->gueltig_ab->format('Y-m');
+        $anzahl  = $faktor->werte->count();
+
+        $this->post(
+            route('hort-planung.storeFaktorWert', [$planung, $faktor]),
+            ['wert' => 20.473, 'gueltig_ab' => $start, 'notiz' => 'Korrektur']
+        )->assertRedirect();
+
+        $faktor->refresh();
+        $this->assertCount($anzahl, $faktor->werte);
+        $this->assertEqualsWithDelta(20.473, $faktor->werte->sortBy('gueltig_ab')->first()->wert, 0.0001);
+    }
+
     public function test_deleteFaktorWert_entfernt_aenderung(): void
     {
         $user    = $this->actingAsWithPermission('view hort planung', 'manage hort planung');

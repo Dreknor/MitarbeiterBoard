@@ -464,13 +464,20 @@ class HortPlanungController extends Controller
     ): RedirectResponse {
         abort_if($faktor->hort_planung_id !== $planung->id, 403);
 
-        HortFaktorWert::create([
-            'hort_faktor_id' => $faktor->id,
-            'wert'           => $request->wert,
-            'gueltig_ab'     => Carbon::parse($request->gueltig_ab)->format('Y-m-01'),
-            'notiz'          => $request->notiz,
-            'created_by'     => auth()->id(),
-        ]);
+        // Gleicher Monat überschreibt den vorhandenen Wert (unique hort_faktor_id + gueltig_ab)
+        $gueltigAb = Carbon::parse($request->gueltig_ab)->startOfMonth();
+        $wert = HortFaktorWert::where('hort_faktor_id', $faktor->id)
+            ->whereDate('gueltig_ab', $gueltigAb->toDateString())
+            ->first() ?? new HortFaktorWert([
+                'hort_faktor_id' => $faktor->id,
+                'gueltig_ab'     => $gueltigAb->format('Y-m-01'),
+            ]);
+
+        $wert->fill([
+            'wert'       => $request->wert,
+            'notiz'      => $request->notiz,
+            'created_by' => auth()->id(),
+        ])->save();
 
         return redirect()->to(route('hort-planung.edit', $planung))
             ->with(['type' => 'success', 'Meldung' => 'Neuer Faktor-Wert ab ' . Carbon::parse($request->gueltig_ab)->format('M Y') . ' gespeichert.']);
