@@ -582,10 +582,11 @@ class HortPlanungController extends Controller
                 'hort_planung_monat_id'      => $monat->id,
                 'hort_zusatzstunden_typ_id'  => $typ->id,
             ],
-            [
-                'stunden' => $request->stunden,
-                'notiz'   => $request->notiz,
-            ]
+            // Notiz nur überschreiben, wenn sie mitgeschickt wird – die Matrix
+            // sendet beim Inline-Speichern nur die Stunden.
+            $request->has('notiz')
+                ? ['stunden' => $request->stunden, 'notiz' => $request->notiz]
+                : ['stunden' => $request->stunden]
         );
 
         $monat->load(['personen', 'monatZusatzstunden.typ']);
@@ -797,14 +798,6 @@ class HortPlanungController extends Controller
 
         return redirect()->to(route('hort-planung.show', $planung))
             ->with(['type' => 'success', 'Meldung' => $count . ' Personen-Einträge aus Anstellungen importiert.']);
-    }
-
-    public function syncIstStunden(HortPlanung $planung): RedirectResponse
-    {
-        $count = $this->service->syncIstStunden($planung);
-
-        return redirect()->to(route('hort-planung.rueckblick', $planung))
-            ->with(['type' => 'success', 'Meldung' => $count . ' Ist-Stunden wurden aus der Zeiterfassung synchronisiert.']);
     }
 
     public function syncVertrag(HortPlanung $planung): RedirectResponse

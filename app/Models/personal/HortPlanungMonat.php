@@ -53,42 +53,43 @@ class HortPlanungMonat extends Model
     // ── Hilfsmethoden ──────────────────────────────────────────────
 
     /**
-     * Liefert alle Zusatzstunden mit Typ-Details als Collection.
-     * Geeignet für die Verwendung in Berechnungen.
-     *
-     *
+     * Liefert alle Zusatzstunden aktiver Typen mit Typ-Details als Collection.
+     * Geeignet für die Verwendung in Berechnungen. Deaktivierte Typen werden
+     * in der Matrix nicht angezeigt und zählen daher auch nicht ins Budget.
      */
     public function zusatzstunden_details(): Collection
     {
         if ($this->relationLoaded('monatZusatzstunden')) {
             return $this->monatZusatzstunden
-                ->filter(fn($z) => $z->typ !== null)
+                ->filter(fn($z) => $z->typ !== null && $z->typ->aktiv)
                 ->map(fn($z) => [
                     'kuerzel'     => $z->typ->kuerzel,
                     'bezeichnung' => $z->typ->bezeichnung,
                     'stunden'     => $z->stunden,
                     'notiz'       => $z->notiz,
-                ]);
+                ])
+                ->values();
         }
 
         return $this->monatZusatzstunden()
             ->with('typ')
             ->get()
-            ->filter(fn($z) => $z->typ !== null)
+            ->filter(fn($z) => $z->typ !== null && $z->typ->aktiv)
             ->map(fn($z) => [
                 'kuerzel'     => $z->typ->kuerzel,
                 'bezeichnung' => $z->typ->bezeichnung,
                 'stunden'     => $z->stunden,
                 'notiz'       => $z->notiz,
-            ]);
+            ])
+            ->values();
     }
 
     /**
-     * Summe aller Zusatzstunden dieses Monats.
+     * Summe aller Zusatzstunden aktiver Typen dieses Monats.
      */
     public function summeZusatzstunden(): float
     {
-        return (float) $this->monatZusatzstunden()->sum('stunden');
+        return (float) $this->zusatzstunden_details()->sum('stunden');
     }
 }
 

@@ -13,7 +13,6 @@ use App\Models\personal\HortPlanungPerson;
 use App\Models\personal\HortPlanungSnapshot;
 use App\Models\personal\HortZusatzstundenTyp;
 use App\Models\personal\HourType;
-use App\Models\personal\Timesheet;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Collection;
@@ -21,6 +20,33 @@ use Illuminate\Support\Facades\DB;
 
 class HortPlanungService
 {
+    // ── Vertragsstunden (einheitliche Regel) ─────────────────────────────────
+
+    /**
+     * Vertragsstunden einer Person im Bereich zum Stichtag (1. des Monats).
+     *
+     * Einheitliche Regel für Matrix, Σ Verträge, Sync und Import:
+     *   - es zählt jede Anstellung im Bereich, die am 1. des Monats gilt
+     *     (start ≤ Stichtag, end leer oder ≥ Stichtag),
+     *   - parallele Anstellungen werden summiert,
+     *   - ruhende Anstellungen (z. B. Elternzeit) zählen nicht.
+     *
+     * @param Collection<int, Employment> $employments  Anstellungen der Person
+     */
+    public function vertragsstundenAmStichtag(Collection $employments, Carbon $monat, int $departmentId): float
+    {
+        $stichtag = $monat->copy()->startOfMonth();
+
+        return (float) $employments
+            ->filter(fn($emp) =>
+                (int) $emp->department_id === $departmentId
+                && $emp->status !== \App\Enums\EmploymentStatus::Ruhend
+                && $emp->start->copy()->startOfDay()->lessThanOrEqualTo($stichtag)
+                && (is_null($emp->end) || $emp->end->copy()->startOfDay()->greaterThanOrEqualTo($stichtag))
+            )
+            ->sum('hours');
+    }
+
     // ── §4.1 Kernberechnungen pro Monat ──────────────────────────────────────
 
     /**
@@ -108,31 +134,17 @@ class HortPlanungService
         $differenz_stadt  = $summe_sp2 - $summe_stunden_gesetzl;
         $differenz_vz_sp2 = $summe_vz_sp2 - $summe_gesetz_vz;
 
-        // Ist-Daten (für Rückblick)
-        $summe_ist     = (float) $personen->sum('stunden_ist');
-
         // Vertragsstunden live aus Employment-Daten berechnen (identisch zur
         // Einzelzeilen-Logik in show.blade.php), damit Σ Verträge mit den pro
         // Person angezeigten Werten übereinstimmt – auch nach Vertragsänderungen.
-        $monatStart   = $monat->monat;
-        $departmentId = $planung->department_id;
+        $departmentId  = (int) $planung->department_id;
         $summe_vertrag = 0;
 
         foreach ($personen as $person) {
-            $user = $person->relationLoaded('user') ? $person->user : $person->user;
+            $user = $person->user;
             if (!$user) continue;
 
-            $employments = $user->relationLoaded('employments')
-                ? $user->employments
-                : $user->employments()->get();
-
-            $summe_vertrag += (float) $employments
-                ->filter(fn($emp) =>
-                    $emp->department_id === $departmentId
-                    && $emp->start->startOfDay()->lessThanOrEqualTo($monatStart)
-                    && (is_null($emp->end) || $emp->end->greaterThanOrEqualTo($monatStart))
-                )
-                ->sum('hours');
+            $summe_vertrag += $this->vertragsstundenAmStichtag($user->employments, $monat->monat, $departmentId);
         }
 
         return [
@@ -150,11 +162,9 @@ class HortPlanungService
             'budget_rest_sp1'         => round($budget_rest_sp1, 2),
             'differenz_stadt'         => round($differenz_stadt, 2),
             'differenz_vz_sp2'        => round($differenz_vz_sp2, 4),
-            // Ist-Vergleichsdaten
+            // Vergleich Planung ↔ Verträge
             'summe_vertrag'           => round($summe_vertrag, 2),
-            'summe_ist'               => round($summe_ist, 2),
             'abweichung_soll_vertrag' => round($summe_sp1 - $summe_vertrag, 2),
-            'abweichung_soll_ist'     => round($summe_sp1 - $summe_ist, 2),
         ];
     }
 
@@ -177,22 +187,32 @@ class HortPlanungService
             ? $person->stunden_gesamt / $vz
             : 0;
 
-        // Dynamische Aufschlüsselung: Anteil der Person an jeder Faktor-Kategorie
-        $faktoren     = $planung->faktoren()->where('aktiv', true)->orderBy('position')->with('werte')->get();
-        $gesamt_faktor = 0;
+        // Dynamische Aufschlüsselung: Anteil der Person an jeder Faktor-Kategorie.
+        // Die Faktoren werden wie in berechneMonat() in Positions-Reihenfolge
+        // angewendet, nur mit einem Betreuungsschlüssel von 1 VZÄ. So ergibt
+        // sich je Faktor der Anteil pro 1 VZÄ Betreuung – inkl. Aufschlägen auf
+        // die Zwischensumme (faktor_auf_summe), die auf vorherige Aufschläge
+        // wirken. Die Summe aller Anteile entspricht damit exakt dem VZ-Anteil.
+        $faktoren      = $planung->faktoren()->where('aktiv', true)->orderBy('position')->with('werte')->get();
+        $anteile       = [];
+        $zwischensumme = 1.0;
 
         foreach ($faktoren as $f) {
             if ($f->berechnungs_typ === 'divisor') {
                 continue;
             }
-            $wert = $f->wertFuerMonat($monat->monat);
-            if ($wert) {
-                $gesamt_faktor += $wert;
-            }
+            $wert   = $f->wertFuerMonat($monat->monat) ?? 0;
+            $anteil = match ($f->berechnungs_typ) {
+                'faktor_auf_bs'    => $wert,
+                'faktor_auf_summe' => $zwischensumme * $wert,
+                default            => 0,
+            };
+            $anteile[$f->kuerzel] = $anteil;
+            $zwischensumme       += $anteil;
         }
 
-        // Gesamt-Divisor: 1 (Betreuung) + Summe aller Multiplikator-Faktoren
-        $divisor      = 1 + $gesamt_faktor;
+        // Gesamt-Divisor: 1 (Betreuung) + alle Aufschläge je VZÄ Betreuung
+        $divisor      = $zwischensumme;
         $erzieher_vz  = $divisor > 0 ? $vz_anteil / $divisor : 0;
 
         $aufschluesselung = [
@@ -201,12 +221,8 @@ class HortPlanungService
             'erzieher_vz'   => round($erzieher_vz, 4),
         ];
 
-        foreach ($faktoren as $f) {
-            if ($f->berechnungs_typ === 'divisor') {
-                continue;
-            }
-            $wert = $f->wertFuerMonat($monat->monat) ?? 0;
-            $aufschluesselung[$f->kuerzel . '_vz'] = round($erzieher_vz * $wert, 4);
+        foreach ($anteile as $kuerzel => $anteil) {
+            $aufschluesselung[$kuerzel . '_vz'] = round($erzieher_vz * $anteil, 4);
         }
 
         // Zusatzstunden-Anteil: proportional auf aktive Personen verteilt
@@ -261,64 +277,29 @@ class HortPlanungService
         foreach ($planung->monate as $monat) {
             $employments = Employment::query()
                 ->where('department_id', $planung->department_id)
-                ->active($monat->monat, $monat->monat->copy()->endOfMonth())
-                ->get();
+                ->where('start', '<=', $monat->monat)
+                ->where(fn($q) => $q->whereNull('end')->orWhere('end', '>=', $monat->monat))
+                ->get()
+                ->groupBy('employe_id');
 
-            foreach ($employments as $emp) {
+            foreach ($employments as $userId => $userEmployments) {
+                $stunden = $this->vertragsstundenAmStichtag($userEmployments, $monat->monat, (int) $planung->department_id);
+                if ($stunden <= 0) {
+                    continue;
+                }
+
                 HortPlanungPerson::updateOrCreate(
                     [
                         'hort_planung_monat_id' => $monat->id,
-                        'user_id'               => $emp->employe_id,
+                        'user_id'               => $userId,
                     ],
                     [
-                        'stunden_gesamt'  => $emp->hours,
-                        'stunden_stadt'   => $emp->hours,
-                        'stunden_vertrag' => $emp->hours,
+                        'stunden_gesamt'  => $stunden,
+                        'stunden_stadt'   => $stunden,
+                        'stunden_vertrag' => $stunden,
                     ]
                 );
                 $count++;
-            }
-        }
-
-        return $count;
-    }
-
-    // ── §4.5 Ist-Stunden aus Timesheets synchronisieren ──────────────────────
-
-    /**
-     * Liest geleistete Stunden aus Timesheets und schreibt sie in stunden_ist.
-     * Nur vergangene Monate werden synchronisiert.
-     *
-     * @param HortPlanung $planung
-     * @return int Anzahl aktualisierter Einträge
-     */
-    public function syncIstStunden(HortPlanung $planung): int
-    {
-        $count = 0;
-        $heute = now()->startOfMonth();
-
-        foreach ($planung->monate as $monat) {
-            // Nur vergangene Monate synchronisieren
-            if ($monat->monat->greaterThanOrEqualTo($heute)) {
-                continue;
-            }
-
-            foreach ($monat->personen as $person) {
-                $timesheet = Timesheet::where('employe_id', $person->user_id)
-                    ->where('month', $monat->monat->month)
-                    ->where('year', $monat->monat->year)
-                    ->first();
-
-                if ($timesheet) {
-                    // Ist-Sekunden aus TimesheetDays → Wochenstunden umrechnen
-                    // Formel: (Gesamtstunden / Arbeitstage_im_Monat) * 5 = Wochenstunden
-                    $ist_sekunden  = $timesheet->timesheet_days->sum('duration');
-                    $arbeitstage   = $monat->monat->copy()->daysInMonth * 5 / 7; // ≈ Werktage
-                    $ist_wochenstunden = ($ist_sekunden / 3600) / ($arbeitstage / 5);
-
-                    $person->update(['stunden_ist' => round($ist_wochenstunden, 2)]);
-                    $count++;
-                }
             }
         }
 
@@ -340,16 +321,11 @@ class HortPlanungService
 
         foreach ($planung->monate as $monat) {
             foreach ($monat->personen as $person) {
-                // Alle aktiven Anstellungen der Person im Planungs-Department laden.
-                // Mehrere parallele Anstellungen im selben Department werden summiert.
-                $employments = $person->user->employments_date(
-                    $monat->monat,
-                    $monat->monat->copy()->endOfMonth()
-                );
-
-                $vertragsstunden = $employments
-                    ->where('department_id', $planung->department_id)
-                    ->sum('hours');
+                // Einheitliche Regel: Stichtag 1. des Monats, parallele Anstellungen
+                // summiert, ruhende Anstellungen zählen nicht.
+                $vertragsstunden = $person->user
+                    ? $this->vertragsstundenAmStichtag($person->user->employments, $monat->monat, (int) $planung->department_id)
+                    : 0;
 
                 $person->update(['stunden_vertrag' => $vertragsstunden ?: null]);
                 $count++;
@@ -685,14 +661,26 @@ class HortPlanungService
 
     /**
      * Erstellt alle Planungsmonate für den Zeitraum start_monat bis end_monat.
-     * Wird beim Anlegen einer neuen Planung aufgerufen.
+     * Wird beim Anlegen einer neuen Planung und beim Erweitern des Zeitraums
+     * aufgerufen.
+     *
+     * Beim Erweitern (ohne $standardKinderanzahl) übernehmen neue Monate
+     * Kinderanzahl und Vollzeitstunden vom zeitlich nächstgelegenen
+     * bestehenden Monat, statt eines pauschalen Standardwerts. Außerdem werden
+     * alle Personen der Planung im neuen Monat angelegt (ohne Stunden), damit
+     * deren Zellen in der Matrix direkt bearbeitet werden können.
      *
      * @param HortPlanung $planung
-     * @param int         $standardKinderanzahl
+     * @param int|null    $standardKinderanzahl
      * @return void
      */
-    public function erstelleMonate(HortPlanung $planung, int $standardKinderanzahl = 100): void
+    public function erstelleMonate(HortPlanung $planung, ?int $standardKinderanzahl = null): void
     {
+        $bestehend = $planung->monate()->get();
+        $userIds   = HortPlanungPerson::whereIn('hort_planung_monat_id', $bestehend->pluck('id'))
+            ->distinct()
+            ->pluck('user_id');
+
         $periode = CarbonPeriod::create(
             $planung->start_monat->startOfMonth(),
             '1 month',
@@ -700,35 +688,50 @@ class HortPlanungService
         );
 
         foreach ($periode as $datum) {
-            HortPlanungMonat::firstOrCreate(
-                [
-                    'hort_planung_id' => $planung->id,
-                    'monat'           => $datum->format('Y-m-01'),
-                ],
-                [
-                    'kinderanzahl'    => $standardKinderanzahl,
-                    'vollzeitstunden' => 40.00,
-                ]
-            );
+            if ($bestehend->contains(fn($m) => $m->monat->isSameMonth($datum))) {
+                continue;
+            }
+
+            $vorlage = $bestehend->sortBy(fn($m) => abs($m->monat->diffInMonths($datum, false)))->first();
+
+            $monat = HortPlanungMonat::create([
+                'hort_planung_id' => $planung->id,
+                'monat'           => $datum->format('Y-m-01'),
+                'kinderanzahl'    => $standardKinderanzahl ?? $vorlage?->kinderanzahl ?? 100,
+                'vollzeitstunden' => $vorlage?->vollzeitstunden ?? 40.00,
+            ]);
+
+            foreach ($userIds as $userId) {
+                HortPlanungPerson::create([
+                    'hort_planung_monat_id' => $monat->id,
+                    'user_id'               => $userId,
+                ]);
+            }
         }
     }
 
     /**
-     * Legt die 5 Standard-Faktoren (entsprechend §2.1 und §6.6) für eine neue
-     * Planung an, inklusive ihrer initialen Werte.
+     * Legt die 5 Standard-Faktoren nach § 12 Abs. 2 SächsKitaG für eine neue
+     * Planung an, inklusive ihrer zeitlich gültigen Werte.
      *
-     * Standard-Faktoren:
-     *  1. kinderschluessel  – divisor,         22.2222  (§12 Abs. 2 SächsKitaG)
-     *  2. leitung           – faktor_auf_bs,    0.1000
-     *  3. vorbereitung      – faktor_auf_bs,    0.0540
-     *  4. anpassung         – faktor_auf_summe, 0.0400
-     *  5. mentor            – faktor_auf_bs,    0.0000  (deaktiviert)
+     * Bis 31.07.2025 (alte Fassung):
+     *  1. kinderschluessel – divisor,       22,2222 (0,9 Fachkräfte je 20 Kinder, Nr. 3)
+     *  2. leitung          – faktor_auf_bs,  0,10   (1 je 10 Fachkräfte nach Nr. 1–3, Nr. 4)
+     *  3. vorbereitung     – faktor_auf_bs,  0,054  (mittelbare päd. Tätigkeit je Fachkraft nach Nr. 1–3, Nr. 5)
+     *  4. anpassung        – faktor_auf_bs,  0,04   (Vorhalten zusätzl. Personals je Fachkraft nach Nr. 1–3, Nr. 6)
+     *  5. mentor           – faktor_auf_bs,  0,00   (deaktiviert)
+     *
+     * Ab 01.08.2025 (Neufassung): Hort 1 VZÄ je 20,4730 Kinder. Die bisherigen
+     * Nr. 5 und 6 sind in diesen Gesamtschlüssel eingerechnet und entfallen,
+     * daher Vorbereitung und Anpassung = 0. Leitung bleibt 1 je 10 VZÄ.
      *
      * @param HortPlanung $planung
      * @return void
      */
     public function erstelleStandardFaktoren(HortPlanung $planung): void
     {
+        $neufassungAb = Carbon::create(2025, 8, 1);
+
         $standardFaktoren = [
             [
                 'kuerzel'              => 'kinderschluessel',
@@ -736,8 +739,9 @@ class HortPlanungService
                 'berechnungs_typ'      => 'divisor',
                 'position'             => 1,
                 'aktiv'                => true,
-                'gesetzliche_grundlage' => '§12 Abs. 2 SächsKitaG',
-                'wert'                 => 22.222222,
+                'gesetzliche_grundlage' => '§12 Abs. 2 Nr. 3 SächsKitaG',
+                'wert_alt'             => 22.222222,
+                'wert_neu'             => 20.473,
             ],
             [
                 'kuerzel'              => 'leitung',
@@ -745,8 +749,9 @@ class HortPlanungService
                 'berechnungs_typ'      => 'faktor_auf_bs',
                 'position'             => 2,
                 'aktiv'                => true,
-                'gesetzliche_grundlage' => '§12 Abs. 2 SächsKitaG',
-                'wert'                 => 0.1,
+                'gesetzliche_grundlage' => '§12 Abs. 2 Nr. 4 SächsKitaG',
+                'wert_alt'             => 0.1,
+                'wert_neu'             => 0.1,
             ],
             [
                 'kuerzel'              => 'vorbereitung',
@@ -754,17 +759,19 @@ class HortPlanungService
                 'berechnungs_typ'      => 'faktor_auf_bs',
                 'position'             => 3,
                 'aktiv'                => true,
-                'gesetzliche_grundlage' => null,
-                'wert'                 => 0.054,
+                'gesetzliche_grundlage' => '§12 Abs. 2 Nr. 5 SächsKitaG a. F. (bis 31.07.2025)',
+                'wert_alt'             => 0.054,
+                'wert_neu'             => 0.0,
             ],
             [
                 'kuerzel'              => 'anpassung',
-                'bezeichnung'          => 'Anpassung BS',
-                'berechnungs_typ'      => 'faktor_auf_summe',
+                'bezeichnung'          => 'Vorhalten zusätzl. Personal',
+                'berechnungs_typ'      => 'faktor_auf_bs',
                 'position'             => 4,
                 'aktiv'                => true,
-                'gesetzliche_grundlage' => null,
-                'wert'                 => 0.04,
+                'gesetzliche_grundlage' => '§12 Abs. 2 Nr. 6 SächsKitaG a. F. (bis 31.07.2025)',
+                'wert_alt'             => 0.04,
+                'wert_neu'             => 0.0,
             ],
             [
                 'kuerzel'              => 'mentor',
@@ -773,11 +780,13 @@ class HortPlanungService
                 'position'             => 5,
                 'aktiv'                => false,
                 'gesetzliche_grundlage' => null,
-                'wert'                 => 0.0,
+                'wert_alt'             => 0.0,
+                'wert_neu'             => 0.0,
             ],
         ];
 
-        $gueltigAb = $planung->start_monat->format('Y-m-01');
+        $start = $planung->start_monat->copy()->startOfMonth();
+        $ende  = $planung->end_monat->copy()->startOfMonth();
 
         foreach ($standardFaktoren as $def) {
             $faktor = HortFaktor::create([
@@ -790,13 +799,26 @@ class HortPlanungService
                 'gesetzliche_grundlage' => $def['gesetzliche_grundlage'],
             ]);
 
+            $vorNeufassung = $start->lessThan($neufassungAb);
+
             HortFaktorWert::create([
                 'hort_faktor_id' => $faktor->id,
-                'wert'           => $def['wert'],
-                'gueltig_ab'     => $gueltigAb,
+                'wert'           => $vorNeufassung ? $def['wert_alt'] : $def['wert_neu'],
+                'gueltig_ab'     => $start->format('Y-m-01'),
                 'notiz'          => 'Initialer Wert',
                 'created_by'     => auth()->id(),
             ]);
+
+            // Planung reicht über den Rechtswechsel → neuen Wert ab 08/2025 hinterlegen
+            if ($vorNeufassung && $ende->greaterThanOrEqualTo($neufassungAb) && $def['wert_alt'] != $def['wert_neu']) {
+                HortFaktorWert::create([
+                    'hort_faktor_id' => $faktor->id,
+                    'wert'           => $def['wert_neu'],
+                    'gueltig_ab'     => $neufassungAb->format('Y-m-d'),
+                    'notiz'          => 'SächsKitaG-Neufassung ab 01.08.2025',
+                    'created_by'     => auth()->id(),
+                ]);
+            }
         }
     }
 
@@ -1021,15 +1043,13 @@ class HortPlanungService
                 $sp1 = (float) ($a['sp1'] ?? 0);
                 $sp2 = (float) ($a['sp2'] ?? 0);
 
-                // ── Summe ALLER aktiven Anstellungen (befristet + unbefristet)
-                //    im Bereich zum Zeitpunkt des Änderungsmonats ─────────────
-                $existierend = (float) Employment::where('employe_id', $userId)
-                    ->where('department_id', $planung->department_id)
-                    ->where('start', '<=', $start)
-                    ->where(function ($q) use ($start) {
-                        $q->whereNull('end')->orWhere('end', '>=', $start);
-                    })
-                    ->sum('hours');
+                // ── Summe aller Anstellungen (befristet + unbefristet, nicht ruhend)
+                //    im Bereich zum Stichtag des Änderungsmonats ────────────────
+                $existierend = $this->vertragsstundenAmStichtag(
+                    Employment::where('employe_id', $userId)->get(),
+                    $start,
+                    (int) $planung->department_id
+                );
 
                 // Wenn SP1 bereits durch bestehende Anstellungen gedeckt → nichts tun
                 if (abs($sp1 - $existierend) < 0.01) {
