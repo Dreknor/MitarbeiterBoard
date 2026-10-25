@@ -112,6 +112,16 @@ class EventServiceProvider extends ServiceProvider
                 }
 
 
+            } elseif (\App\Services\UserDeletion\UserDeletionService::isSsoBlocked(
+                $userData['attributes']['uid'][0],
+                $userData['attributes']['mailPrimaryAddress'][0]
+            )) {
+                // Löschkonzept: deaktivierte oder anonymisierte Konten nicht still neu anlegen
+                \Illuminate\Support\Facades\Log::warning('SAML: Anmeldung eines deaktivierten oder gelöschten Kontos abgelehnt');
+                session()->flash('type', 'danger');
+                session()->flash('Meldung', 'Dieses Konto wurde deaktiviert.');
+
+                return redirect(url('/login'));
             } else {
                 $laravelUser = new User([
                     'email' => $userData['attributes']['mailPrimaryAddress'][0],

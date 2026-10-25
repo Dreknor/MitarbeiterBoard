@@ -116,7 +116,8 @@ return [
             'queue_name' => '',
             'queue_connection' => '',
             'max_records' => false,
-            'max_hours' => false,
+            // Löschkonzept: Log-Einträge enthalten Personenbezug, Bereinigung über "php artisan log:delete"
+            'max_hours' => env('LOG_DB_MAX_HOURS', 24 * 90),
 
         ],
     ],
