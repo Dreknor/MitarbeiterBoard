@@ -364,7 +364,6 @@ Route::group([
 
                         // Import / Sync / Szenarien
                         Route::post('/{planung}/import-employments', [HortPlanungController::class, 'importEmployments'])->name('hort-planung.importEmployments');
-                        Route::post('/{planung}/sync-ist', [HortPlanungController::class, 'syncIstStunden'])->name('hort-planung.syncIstStunden');
                         Route::post('/{planung}/sync-vertrag', [HortPlanungController::class, 'syncVertrag'])->name('hort-planung.syncVertrag');
                         Route::post('/{planung}/duplicate', [HortPlanungController::class, 'duplicate'])->name('hort-planung.duplicate');
                         Route::post('/{planung}/vertragsaenderungen/apply', [HortPlanungController::class, 'applyVertragsaenderungen'])->name('hort-planung.applyVertragsaenderungen');

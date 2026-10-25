@@ -800,14 +800,6 @@ class HortPlanungController extends Controller
             ->with(['type' => 'success', 'Meldung' => $count . ' Personen-Einträge aus Anstellungen importiert.']);
     }
 
-    public function syncIstStunden(HortPlanung $planung): RedirectResponse
-    {
-        $count = $this->service->syncIstStunden($planung);
-
-        return redirect()->to(route('hort-planung.rueckblick', $planung))
-            ->with(['type' => 'success', 'Meldung' => $count . ' Ist-Stunden wurden aus der Zeiterfassung synchronisiert.']);
-    }
-
     public function syncVertrag(HortPlanung $planung): RedirectResponse
     {
         $count = $this->service->syncVertragsstunden($planung);

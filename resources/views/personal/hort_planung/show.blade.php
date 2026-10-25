@@ -16,6 +16,7 @@
     $aktiveFaktoren = $planung->faktoren->sortBy('position')->filter(fn($f) => $f->aktiv)->values();
     $aktiveZusatz   = $planung->zusatzstundenTypen->sortBy('position')->filter(fn($t) => $t->aktiv)->values();
     $heuteMk        = now()->format('Y-m');
+    $hpService      = app(\App\Services\HortPlanungService::class);
 
     // ── Alpine initData ──────────────────────────────────────────────
     $initMonatData   = [];
@@ -38,23 +39,17 @@
         // Personen-Daten indexiert nach "mk_userId"
         $personenIdx = $m->personen->keyBy('user_id');
         $monatStart  = $m->monat;
-        $monatEnde   = $m->monat->copy()->endOfMonth();
 
         foreach ($allePersonen as $ap) {
             $uid = $ap->user_id;
             $e   = $personenIdx->get($uid);
 
-            // Vertragsstunden live aus allen aktiven Anstellungen im Planungs-Department berechnen.
-            // Alle parallelen Anstellungen derselben Person in diesem Department werden summiert.
-            // Filter: Anstellung muss im gewählten Department sein, vor/am Monatsbeginn gestartet
-            // haben und darf nicht bereits vor dem Monatsbeginn geendet sein.
-            $vertragsstunden = $ap->user?->employments
-                ?->filter(fn($emp) =>
-                    $emp->department_id === $planung->department_id
-                    && $emp->start->startOfDay()->lessThanOrEqualTo($monatStart)
-                    && (is_null($emp->end) || $emp->end->greaterThanOrEqualTo($monatStart))
-                )
-                ->sum('hours') ?: null;
+            // Vertragsstunden live aus den Anstellungen im Planungs-Department:
+            // Stichtag 1. des Monats, parallele Anstellungen summiert, ruhende
+            // Anstellungen zählen nicht (gleiche Regel wie Σ Verträge).
+            $vertragsstunden = $ap->user
+                ? ($hpService->vertragsstundenAmStichtag($ap->user->employments, $monatStart, (int) $planung->department_id) ?: null)
+                : null;
 
             $initPersonData[$mk . '_' . $uid] = [
                 'personId'       => $e?->id,
