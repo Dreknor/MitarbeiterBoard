@@ -177,22 +177,32 @@ class HortPlanungService
             ? $person->stunden_gesamt / $vz
             : 0;
 
-        // Dynamische Aufschlüsselung: Anteil der Person an jeder Faktor-Kategorie
-        $faktoren     = $planung->faktoren()->where('aktiv', true)->orderBy('position')->with('werte')->get();
-        $gesamt_faktor = 0;
+        // Dynamische Aufschlüsselung: Anteil der Person an jeder Faktor-Kategorie.
+        // Die Faktoren werden wie in berechneMonat() in Positions-Reihenfolge
+        // angewendet, nur mit einem Betreuungsschlüssel von 1 VZÄ. So ergibt
+        // sich je Faktor der Anteil pro 1 VZÄ Betreuung – inkl. Aufschlägen auf
+        // die Zwischensumme (faktor_auf_summe), die auf vorherige Aufschläge
+        // wirken. Die Summe aller Anteile entspricht damit exakt dem VZ-Anteil.
+        $faktoren      = $planung->faktoren()->where('aktiv', true)->orderBy('position')->with('werte')->get();
+        $anteile       = [];
+        $zwischensumme = 1.0;
 
         foreach ($faktoren as $f) {
             if ($f->berechnungs_typ === 'divisor') {
                 continue;
             }
-            $wert = $f->wertFuerMonat($monat->monat);
-            if ($wert) {
-                $gesamt_faktor += $wert;
-            }
+            $wert   = $f->wertFuerMonat($monat->monat) ?? 0;
+            $anteil = match ($f->berechnungs_typ) {
+                'faktor_auf_bs'    => $wert,
+                'faktor_auf_summe' => $zwischensumme * $wert,
+                default            => 0,
+            };
+            $anteile[$f->kuerzel] = $anteil;
+            $zwischensumme       += $anteil;
         }
 
-        // Gesamt-Divisor: 1 (Betreuung) + Summe aller Multiplikator-Faktoren
-        $divisor      = 1 + $gesamt_faktor;
+        // Gesamt-Divisor: 1 (Betreuung) + alle Aufschläge je VZÄ Betreuung
+        $divisor      = $zwischensumme;
         $erzieher_vz  = $divisor > 0 ? $vz_anteil / $divisor : 0;
 
         $aufschluesselung = [
@@ -201,12 +211,8 @@ class HortPlanungService
             'erzieher_vz'   => round($erzieher_vz, 4),
         ];
 
-        foreach ($faktoren as $f) {
-            if ($f->berechnungs_typ === 'divisor') {
-                continue;
-            }
-            $wert = $f->wertFuerMonat($monat->monat) ?? 0;
-            $aufschluesselung[$f->kuerzel . '_vz'] = round($erzieher_vz * $wert, 4);
+        foreach ($anteile as $kuerzel => $anteil) {
+            $aufschluesselung[$kuerzel . '_vz'] = round($erzieher_vz * $anteil, 4);
         }
 
         // Zusatzstunden-Anteil: proportional auf aktive Personen verteilt
@@ -685,14 +691,26 @@ class HortPlanungService
 
     /**
      * Erstellt alle Planungsmonate für den Zeitraum start_monat bis end_monat.
-     * Wird beim Anlegen einer neuen Planung aufgerufen.
+     * Wird beim Anlegen einer neuen Planung und beim Erweitern des Zeitraums
+     * aufgerufen.
+     *
+     * Beim Erweitern (ohne $standardKinderanzahl) übernehmen neue Monate
+     * Kinderanzahl und Vollzeitstunden vom zeitlich nächstgelegenen
+     * bestehenden Monat, statt eines pauschalen Standardwerts. Außerdem werden
+     * alle Personen der Planung im neuen Monat angelegt (ohne Stunden), damit
+     * deren Zellen in der Matrix direkt bearbeitet werden können.
      *
      * @param HortPlanung $planung
-     * @param int         $standardKinderanzahl
+     * @param int|null    $standardKinderanzahl
      * @return void
      */
-    public function erstelleMonate(HortPlanung $planung, int $standardKinderanzahl = 100): void
+    public function erstelleMonate(HortPlanung $planung, ?int $standardKinderanzahl = null): void
     {
+        $bestehend = $planung->monate()->get();
+        $userIds   = HortPlanungPerson::whereIn('hort_planung_monat_id', $bestehend->pluck('id'))
+            ->distinct()
+            ->pluck('user_id');
+
         $periode = CarbonPeriod::create(
             $planung->start_monat->startOfMonth(),
             '1 month',
@@ -700,16 +718,25 @@ class HortPlanungService
         );
 
         foreach ($periode as $datum) {
-            HortPlanungMonat::firstOrCreate(
-                [
-                    'hort_planung_id' => $planung->id,
-                    'monat'           => $datum->format('Y-m-01'),
-                ],
-                [
-                    'kinderanzahl'    => $standardKinderanzahl,
-                    'vollzeitstunden' => 40.00,
-                ]
-            );
+            if ($bestehend->contains(fn($m) => $m->monat->isSameMonth($datum))) {
+                continue;
+            }
+
+            $vorlage = $bestehend->sortBy(fn($m) => abs($m->monat->diffInMonths($datum, false)))->first();
+
+            $monat = HortPlanungMonat::create([
+                'hort_planung_id' => $planung->id,
+                'monat'           => $datum->format('Y-m-01'),
+                'kinderanzahl'    => $standardKinderanzahl ?? $vorlage?->kinderanzahl ?? 100,
+                'vollzeitstunden' => $vorlage?->vollzeitstunden ?? 40.00,
+            ]);
+
+            foreach ($userIds as $userId) {
+                HortPlanungPerson::create([
+                    'hort_planung_monat_id' => $monat->id,
+                    'user_id'               => $userId,
+                ]);
+            }
         }
     }
 

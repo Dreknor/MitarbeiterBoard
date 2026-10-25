@@ -1529,9 +1529,19 @@ function hortMatrix(initData) {
         async savePerson(monatKey, userId) {
             const pKey   = monatKey + '_' + userId;
             const person = this.personData[pKey];
-            if (!person || !person.personId) return;
+            if (!person) return;
 
             ['pg_', 'ps_'].forEach(prefix => delete this.editing[prefix + pKey]);
+
+            // Kein Datensatz für diese Person in diesem Monat → Eingabe würde
+            // sonst stillschweigend verworfen. Nutzer informieren statt raten.
+            if (!person.personId) {
+                person.stunden_gesamt = null;
+                person.stunden_stadt  = null;
+                alert('Die Person ist in diesem Monat noch nicht angelegt. Bitte die Person über '
+                    + '„Person hinzufügen" erneut hinzufügen – fehlende Monate werden dann ergänzt.');
+                return;
+            }
 
             // Sicherstellen, dass nur null oder eine valide Zahl gesendet wird.
             // Alpine x-model.number speichert '' wenn das Feld geleert wird.

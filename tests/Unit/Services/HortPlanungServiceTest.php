@@ -336,6 +336,60 @@ class HortPlanungServiceTest extends TestCase
         $this->assertEqualsWithDelta(1.0, $aufschluesselung['vz_anteil'], 0.01, 'Vollzeitkraft hat VZ-Anteil 1.0');
     }
 
+    public function test_grundarbeitszeit_summe_der_anteile_ergibt_vz_anteil(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat();
+        $person = $this->fuegePersonHinzu($monat, 30, 25);
+
+        $a = $this->service->berechneGrundarbeitszeit($person);
+
+        // Erzieher × (1 + 0,1 + 0,054) × 1,04 = VZ-Anteil (Anpassung wirkt auf die Summe)
+        $this->assertEqualsWithDelta(0.75 / (1.154 * 1.04), $a['erzieher_vz'], 0.0001);
+        $this->assertEqualsWithDelta(
+            $a['vz_anteil'],
+            $a['erzieher_vz'] + $a['leitung_vz'] + $a['vorbereitung_vz'] + $a['anpassung_vz'],
+            0.0005,
+            'Summe der Anteile = VZ-Anteil'
+        );
+    }
+
+    public function test_berechneMonat_deaktivierter_zusatztyp_zaehlt_nicht(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat();
+
+        foreach ($planung->zusatzstundenTypen as $typ) {
+            HortMonatZusatz::create([
+                'hort_planung_monat_id'     => $monat->id,
+                'hort_zusatzstunden_typ_id' => $typ->id,
+                'stunden'                   => 5.0,
+            ]);
+        }
+        $planung->zusatzstundenTypen->first()->update(['aktiv' => false]);
+
+        $monat->load(['personen', 'monatZusatzstunden.typ']);
+        $ergebnis = $this->service->berechneMonat($monat, $planung);
+
+        $this->assertEquals(5.0, $ergebnis['summe_zusatzstunden'], 'Nur der aktive Typ zählt');
+        $this->assertEquals(5.0, $monat->summeZusatzstunden());
+    }
+
+    public function test_erstelleMonate_erweiterung_uebernimmt_parameter_und_personen(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat(Carbon::create(2024, 1, 1), 87, 39);
+        $person = $this->fuegePersonHinzu($monat, 30, 25);
+
+        $planung->update(['end_monat' => '2024-03-01']);
+        $this->service->erstelleMonate($planung);
+
+        $monate = $planung->monate()->with('personen')->get();
+        $this->assertCount(3, $monate);
+        foreach ($monate as $m) {
+            $this->assertEquals(87, $m->kinderanzahl, 'Kinderanzahl vom Nachbarmonat');
+            $this->assertEquals(39.0, $m->vollzeitstunden);
+            $this->assertTrue($m->personen->contains('user_id', $person->user_id), 'Person in jedem Monat angelegt');
+        }
+    }
+
     // ── §12.1 Test: erstelleStandardFaktoren ─────────────────────────
 
     public function test_erstelleStandardFaktoren(): void

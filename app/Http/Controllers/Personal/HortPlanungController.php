@@ -582,10 +582,11 @@ class HortPlanungController extends Controller
                 'hort_planung_monat_id'      => $monat->id,
                 'hort_zusatzstunden_typ_id'  => $typ->id,
             ],
-            [
-                'stunden' => $request->stunden,
-                'notiz'   => $request->notiz,
-            ]
+            // Notiz nur überschreiben, wenn sie mitgeschickt wird – die Matrix
+            // sendet beim Inline-Speichern nur die Stunden.
+            $request->has('notiz')
+                ? ['stunden' => $request->stunden, 'notiz' => $request->notiz]
+                : ['stunden' => $request->stunden]
         );
 
         $monat->load(['personen', 'monatZusatzstunden.typ']);
