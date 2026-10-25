@@ -83,14 +83,19 @@
     $abwesenheitUserIds = $abwesenheiten->keys()->toArray();
 
     // Min-Breite der Tabelle: 240px erste Spalte + 2 × 90px pro Monat
-    $tableMinWidth = 240 + $monatsListe->count() * 180;
+    $tableMinWidth        = 240 + $monatsListe->count() * 180;
+    $tableMinWidthKompakt = 208 + $monatsListe->count() * 110;
+
+    // Laufende Zeilennummer für die Tastatur-Navigation (Kompakt-Ansicht)
+    $navRow = 0;
 @endphp
 
 {{-- Init-Daten als JSON-Script-Tag – verhindert Probleme mit Anführungszeichen im HTML-Attribut --}}
 <script id="hort-planung-init-data" type="application/json">@json($alpineInit)</script>
 
 {{-- ── Haupt-Wrapper: Single Alpine.js Component ────────────────────── --}}
-<div class="px-4 py-6" x-data="hortMatrix(JSON.parse(document.getElementById('hort-planung-init-data').textContent))">
+<div class="px-4 py-6" x-data="hortMatrix(JSON.parse(document.getElementById('hort-planung-init-data').textContent))"
+     :class="kompakt ? 'hp-kompakt' : ''">
 
     {{-- ── Flash-Meldung ─────────────────────────────────────────────── --}}
     @if(session('Meldung'))
@@ -137,6 +142,18 @@
 
         {{-- Aktions-Buttons --}}
         <div class="flex flex-wrap gap-2 shrink-0">
+            {{-- Kompakt-Ansicht umschalten (wird in diesem Browser gespeichert) --}}
+            <button type="button" @click="toggleKompakt()"
+                    :class="kompakt ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'"
+                    :aria-pressed="kompakt.toString()"
+                    title="Kompakt-Ansicht: weniger Zeilen, Ergebnis unten fixiert, Excel-Tastatursteuerung"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                <span x-text="kompakt ? 'Kompakt-Ansicht: an' : 'Kompakt-Ansicht'">Kompakt-Ansicht</span>
+            </button>
+
             {{-- Zu Heute springen --}}
             @if($monatsListe->contains(fn($m) => $m->monat->format('Y-m') === $heuteMk))
             <button onclick="document.getElementById('col-{{ $heuteMk }}').scrollIntoView({inline:'center', behavior:'smooth'})"
@@ -158,7 +175,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
-                Rückblick / Soll-Ist
+                Rückblick
             </a>
 
             {{-- Vertragsänderungen --}}
@@ -306,6 +323,15 @@
         <button @click="alleAnzeigen()"
                 class="px-2.5 py-1 rounded-lg font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50">
             Alle anzeigen</button>
+        <span x-show="kompakt" x-cloak class="inline-flex items-center gap-1">
+            <button type="button" @click="vereinsjahrVerschieben(-1)"
+                    class="px-2 py-1 rounded-lg font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    title="Vorheriges Vereinsjahr">←</button>
+            <span class="px-1 font-semibold text-gray-700" x-text="vereinsjahrLabel()"></span>
+            <button type="button" @click="vereinsjahrVerschieben(1)"
+                    class="px-2 py-1 rounded-lg font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    title="Nächstes Vereinsjahr">→</button>
+        </span>
         <span class="hidden sm:block h-4 w-px bg-gray-200 mx-1"></span>
         <label class="flex items-center gap-2 cursor-pointer select-none font-medium text-gray-600">
             <span class="relative inline-flex h-4 w-8 shrink-0">
@@ -338,7 +364,11 @@
                  if (r1) $el.style.setProperty('--hp-thead-r1-h', r1.offsetHeight + 'px');
              })">
         <table class="hp-matrix-table w-full text-xs border-collapse"
-               style="min-width: {{ $tableMinWidth }}px">
+               :style="'min-width: ' + (kompakt ? {{ $tableMinWidthKompakt }} : {{ $tableMinWidth }}) + 'px'"
+               style="min-width: {{ $tableMinWidth }}px"
+               @mouseover="fadenkreuz($event)"
+               @mouseleave="fadenkreuzAus()"
+               @keydown="matrixTaste($event)">
             <colgroup>
                 <col>{{-- Erste Spalte (sticky Label) --}}
                 @foreach($monatsListe as $m)
@@ -424,6 +454,7 @@
                 @php $mk = $m->monat->format('Y-m'); $editKey = 'km_' . $mk; @endphp
                 <td colspan="2"
                     data-mk="{{ $mk }}"
+                    data-nav-row="{{ $navRow }}" data-nav-col="{{ $loop->index * 2 }}" data-edit-key="{{ $editKey }}"
                     class="px-2 py-2 text-center hp-row-parameter border-r border-gray-200
                            {{ $canManage ? 'hp-editable' : '' }}"
                     @if($canManage) @click="startEdit('{{ $editKey }}')" @endif>
@@ -451,6 +482,7 @@
                 @endforeach
             </tr>
 
+            @php $navRow++; @endphp
             {{-- Vollzeitstunden --}}
             <tr x-show="showParameter" x-cloak class="hp-row-parameter border-b border-gray-100">
                 <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px]">
@@ -461,6 +493,7 @@
                 @php $mk = $m->monat->format('Y-m'); $editKey = 'vz_' . $mk; @endphp
                 <td colspan="2"
                     data-mk="{{ $mk }}"
+                    data-nav-row="{{ $navRow }}" data-nav-col="{{ $loop->index * 2 }}" data-edit-key="{{ $editKey }}"
                     class="px-2 py-2 text-center hp-row-parameter border-r border-gray-200
                            {{ $canManage ? 'hp-editable' : '' }}"
                     @if($canManage) @click="startEdit('{{ $editKey }}')" @endif>
@@ -488,9 +521,32 @@
                 @endforeach
             </tr>
 
+            @php $navRow++; @endphp
+            {{-- Kompakt: Zusatzstunden als eine Summenzeile (Klick klappt die Typen auf) --}}
+            @if($aktiveZusatz->isNotEmpty())
+            <tr x-show="showParameter && kompakt" x-cloak class="hp-row-parameter border-b border-gray-100">
+                <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px] cursor-pointer select-none"
+                    @click="setzeBereich('showZusatz', !showZusatz)"
+                    title="Zusatzstunden-Typen auf- bzw. zuklappen">
+                    <span class="inline-flex items-center gap-1">
+                        <svg class="w-3 h-3 transition-transform duration-200" :class="showZusatz ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        Σ Zusatzstunden
+                        <span class="text-[9px] text-gray-400 font-normal">({{ $aktiveZusatz->count() }} Typen)</span>
+                    </span>
+                </td>
+                @foreach($monatsListe as $m)
+                @php $mk = $m->monat->format('Y-m'); @endphp
+                <td colspan="2" data-mk="{{ $mk }}"
+                    class="px-2 py-2 text-center hp-row-parameter border-r border-gray-200 font-semibold text-sky-800 cursor-pointer"
+                    @click="setzeBereich('showZusatz', true)"
+                    x-text="fmtNum(summeZusatz('{{ $mk }}'), 1)"></td>
+                @endforeach
+            </tr>
+            @endif
+
             {{-- Zusatzstunden je aktivem Typ --}}
             @foreach($aktiveZusatz as $typ)
-            <tr x-show="showParameter" x-cloak class="hp-row-parameter border-b border-gray-100">
+            <tr x-show="showParameter && (!kompakt || showZusatz)" x-cloak class="hp-row-parameter border-b border-gray-100">
                 <td class="hp-sticky bg-sky-50/70 border-r border-gray-200 px-3 py-2 font-medium text-gray-700 text-[11px]">
                     {{ $typ->bezeichnung }}
                     <span class="block text-[9px] text-gray-400 font-normal font-mono">{{ $typ->kuerzel }}</span>
@@ -503,6 +559,7 @@
                 @endphp
                 <td colspan="2"
                     data-mk="{{ $mk }}"
+                    data-nav-row="{{ $navRow }}" data-nav-col="{{ $loop->index * 2 }}" data-edit-key="{{ $editKey }}"
                     class="px-2 py-2 text-center hp-row-parameter border-r border-gray-200
                            {{ $canManage ? 'hp-editable' : '' }}"
                     @if($canManage) @click="startEdit('{{ $editKey }}')" @endif>
@@ -528,6 +585,7 @@
                 </td>
                 @endforeach
             </tr>
+            @php $navRow++; @endphp
             @endforeach
             </tbody>{{-- Ende Parameter-tbody --}}
 
@@ -568,7 +626,28 @@
                         </span>
                         @endif
                         @if($canManage)
-                        <button @click.stop="openBulkEdit({{ $uid }}, '{{ addslashes($userName) }}')"
+                        {{-- Kompakt: Aktionen im ⋯-Menü statt eigener Zeile --}}
+                        <div x-show="kompakt" x-cloak class="relative ml-auto" x-data="{ menu: false }">
+                            <button type="button" @click.stop="menu = !menu"
+                                    class="px-1 text-gray-400 hover:text-blue-600 font-bold leading-none"
+                                    title="Aktionen">⋯</button>
+                            <div x-show="menu" x-cloak @click.outside="menu = false"
+                                 class="absolute left-full top-0 ml-1 z-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-48 text-[11px] font-normal">
+                                <button type="button"
+                                        @click.stop="menu = false; openBulkEdit({{ $uid }}, '{{ addslashes($userName) }}')"
+                                        class="block w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700">
+                                    Stunden ab Monat setzen …
+                                </button>
+                                <form method="POST" action="{{ route('hort-planung.removePerson', [$planung, $uid]) }}"
+                                      onsubmit="return confirm('{{ addslashes($userName) }} aus allen Monaten entfernen?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="block w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600">
+                                        Person entfernen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <button x-show="!kompakt" @click.stop="openBulkEdit({{ $uid }}, '{{ addslashes($userName) }}')"
                                 class="ml-auto text-gray-300 hover:text-blue-500 flex-shrink-0"
                                 title="Stunden ab Monat X setzen (Folgemonate)">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -589,16 +668,21 @@
                     $istHeuteMk = $mk === $heuteMk;
                 @endphp
 
-                {{-- SP1: stunden_gesamt --}}
+                {{-- SP1: stunden_gesamt (Kompakt: Vertragsabweichung direkt an der Zelle) --}}
                 <td data-mk="{{ $mk }}"
+                    data-nav-row="{{ $navRow }}" data-nav-col="{{ $loop->index * 2 }}" data-edit-key="{{ $editKeyG }}"
                     class="px-1.5 py-2 text-center {{ $rowCss }} {{ $canManage ? 'hp-editable' : '' }}
                            {{ $istHeuteMk ? 'bg-blue-50/30' : '' }}"
+                    :class="kompakt && vertragWeichtAb('{{ $pKey }}') ? 'hp-vertrag-abw' : ''"
+                    :title="kompakt && vertragWeichtAb('{{ $pKey }}') ? 'Vertrag ' + fmtNum(personData['{{ $pKey }}'].stunden_vertrag, 1) + ' h weicht von SP1 ab – Vertrag anpassen!' : null"
                     @if($canManage) @click="startEdit('{{ $editKeyG }}')" @endif>
                     <span x-show="!editing['{{ $editKeyG }}']"
                           x-text="personData?.['{{ $pKey }}']?.stunden_gesamt !== undefined && personData['{{ $pKey }}'].stunden_gesamt !== null
                                   ? fmtNum(personData['{{ $pKey }}'].stunden_gesamt, 1) : '–'">
                         {{ isset($initPersonData[$pKey]['stunden_gesamt']) ? number_format($initPersonData[$pKey]['stunden_gesamt'], 1, ',', '.') : '–' }}
                     </span>
+                    <span x-show="kompakt && !editing['{{ $editKeyG }}'] && vertragWeichtAb('{{ $pKey }}')" x-cloak
+                          class="text-amber-600 text-[9px] align-top">⚠</span>
                     @if($canManage)
                     <div x-cloak x-show="editing['{{ $editKeyG }}']" class="flex items-center gap-0.5 justify-center">
                         <input data-edit="{{ $editKeyG }}"
@@ -618,6 +702,7 @@
 
                 {{-- SP2: stunden_stadt --}}
                 <td data-mk="{{ $mk }}"
+                    data-nav-row="{{ $navRow }}" data-nav-col="{{ $loop->index * 2 + 1 }}" data-edit-key="{{ $editKeyS }}"
                     class="px-1.5 py-2 text-center {{ $rowCss }} border-r border-gray-200
                            {{ $canManage ? 'hp-editable' : '' }}
                            {{ $istHeuteMk ? 'bg-slate-50/40' : '' }}"
@@ -647,7 +732,7 @@
             </tr>
 
             {{-- Vertrag-Unterzeile (readonly) --}}
-            <tr class="hp-row-vertrag border-b border-gray-100/60">
+            <tr x-show="!kompakt" class="hp-row-vertrag border-b border-gray-100/60">
                 <td class="hp-sticky bg-slate-100/40 border-r border-gray-200 px-3 py-1 text-[9px] text-gray-400 italic pl-5">
                     └ Vertrag
                 </td>
@@ -692,8 +777,8 @@
             </tr>
 
             @if($canManage)
-            {{-- Entfernen-Zeile (nur für manage) --}}
-            <tr class="border-b border-gray-200">
+            {{-- Entfernen-Zeile (nur für manage; Kompakt: im ⋯-Menü) --}}
+            <tr x-show="!kompakt" class="border-b border-gray-200">
                 <td class="hp-sticky bg-white border-r border-gray-200 px-3 py-1">
                     <form method="POST" action="{{ route('hort-planung.removePerson', [$planung, $uid]) }}"
                           onsubmit="return confirm('{{ $userName }} aus allen Monaten entfernen?')">
@@ -707,6 +792,7 @@
             </tr>
             @endif
 
+            @php $navRow++; @endphp
             </tbody>{{-- Ende Person-tbody --}}
 
             @empty
@@ -725,8 +811,8 @@
             </tbody>
             @endforelse
 
-            {{-- ── § SUMMEN ──────────────────────────────────────────────── --}}
-            <tbody>
+            {{-- ── § SUMMEN (Kompakt: nur mit aufgeklappten Details) ─────────── --}}
+            <tbody x-show="!kompakt || showDetails">
             <tr>
                 <td data-header-colspan
                     colspan="{{ 1 + $monatsListe->count() * 2 }}"
@@ -736,8 +822,8 @@
                 </td>
             </tr>
 
-            {{-- Summe Stunden SP1 / SP2 --}}
-            <tr class="hp-row-summe border-b border-gray-200">
+            {{-- Summe Stunden SP1 / SP2 (Kompakt: unten fixiert) --}}
+            <tr x-show="!kompakt" class="hp-row-summe border-b border-gray-200">
                 <td class="hp-sticky bg-blue-50/70 border-r border-gray-200 px-3 py-2 text-gray-700 font-semibold text-[11px]">
                     Summe Stunden
                 </td>
@@ -820,19 +906,23 @@
             </tr>
             </tbody>{{-- Ende Summen-tbody --}}
 
-            {{-- ── § GESETZLICHE FAKTOREN ──────────────────────────────────── --}}
+            {{-- ── § GESETZLICHE FAKTOREN (einklappbar) ──────────────────────── --}}
             <tbody>
             <tr>
                 <td data-header-colspan
                     colspan="{{ 1 + $monatsListe->count() * 2 }}"
                     class="hp-sticky bg-amber-100/50 border-y border-amber-200 px-3 py-1 text-[10px] font-bold
-                           text-amber-700 uppercase tracking-widest">
-                    ⚖ Gesetzliche Faktoren (§12 SächsKitaG)
+                           text-amber-700 uppercase tracking-widest cursor-pointer select-none hover:bg-amber-100"
+                    @click="setzeBereich('showFaktoren', !showFaktoren)">
+                    <span class="inline-flex items-center gap-1">
+                        <svg class="w-3 h-3 transition-transform duration-200" :class="(!kompakt || showFaktoren) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        ⚖ Gesetzliche Faktoren (§12 SächsKitaG)
+                    </span>
                 </td>
             </tr>
 
             @foreach($aktiveFaktoren as $faktor)
-            <tr class="hp-row-gesetzl border-b border-amber-100/60">
+            <tr x-show="!kompakt || showFaktoren" class="hp-row-gesetzl border-b border-amber-100/60">
                 <td class="hp-sticky bg-amber-50/60 border-r border-gray-200 px-3 py-2 text-gray-700 text-[11px]">
                     <span class="font-medium">{{ $faktor->bezeichnung }}</span>
                     <span class="block text-[9px] text-gray-400">
@@ -867,13 +957,18 @@
                 <td data-header-colspan
                     colspan="{{ 1 + $monatsListe->count() * 2 }}"
                     class="hp-sticky bg-gray-100 border-y border-gray-300 px-3 py-1 text-[10px] font-bold
-                           text-gray-600 uppercase tracking-widest">
-                    Ergebnis
+                           text-gray-600 uppercase tracking-widest cursor-pointer select-none hover:bg-gray-200/80"
+                    @click="setzeBereich('showDetails', !showDetails)">
+                    <span class="inline-flex items-center gap-1">
+                        <svg class="w-3 h-3 transition-transform duration-200" :class="(!kompakt || showDetails) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        Ergebnis
+                        <span x-show="kompakt && !showDetails" class="normal-case tracking-normal font-normal text-gray-400">(Zwischenwerte eingeklappt)</span>
+                    </span>
                 </td>
             </tr>
 
             {{-- Summe gesetz. VZÄ --}}
-            <tr class="hp-row-ergebnis border-b border-gray-100">
+            <tr x-show="!kompakt || showDetails" class="hp-row-ergebnis border-b border-gray-100">
                 <td class="hp-sticky bg-gray-50/80 border-r border-gray-200 px-3 py-2 text-gray-700 font-medium text-[11px]">
                     Summe gesetz. VZÄ
                 </td>
@@ -906,7 +1001,7 @@
             </tr>
 
             {{-- Budget gesamt --}}
-            <tr class="hp-row-ergebnis border-b border-gray-100">
+            <tr x-show="!kompakt || showDetails" class="hp-row-ergebnis border-b border-gray-100">
                 <td class="hp-sticky bg-gray-50/80 border-r border-gray-200 px-3 py-2 text-gray-700 font-medium text-[11px]">
                     Budget gesamt
                     <span class="block text-[9px] text-gray-400">Gesetzl. + Zusatzstunden</span>
@@ -922,8 +1017,8 @@
                 @endforeach
             </tr>
 
-            {{-- Budget-Rest (SP1) --}}
-            <tr class="border-b-2 border-gray-300">
+            {{-- Budget-Rest (SP1) (Kompakt: unten fixiert) --}}
+            <tr x-show="!kompakt" class="border-b-2 border-gray-300">
                 <td class="hp-sticky bg-gray-100 border-r border-gray-200 px-3 py-2 font-bold text-gray-800 text-[11px]">
                     📊 Budget-Rest (SP1)
                     <span class="block text-[9px] text-gray-500 font-normal">Budget − Σ SP1 Personen</span>
@@ -950,7 +1045,7 @@
             </tr>
 
             {{-- Diff. VZÄ Stadt (SP2) --}}
-            <tr class="hp-row-ergebnis border-b border-gray-100">
+            <tr x-show="!kompakt || showDetails" class="hp-row-ergebnis border-b border-gray-100">
                 <td class="hp-sticky bg-gray-50/80 border-r border-gray-200 px-3 py-2 text-gray-700 font-medium text-[11px]">
                     Diff. VZÄ Stadt (SP2)
                     <span class="block text-[9px] text-gray-400">VZÄ SP2 − gesetzl. VZÄ</span>
@@ -971,8 +1066,8 @@
                 @endforeach
             </tr>
 
-            {{-- Diff. Stunden Stadt (SP2) --}}
-            <tr class="hp-row-ergebnis border-b border-gray-200">
+            {{-- Diff. Stunden Stadt (SP2) (Kompakt: unten fixiert) --}}
+            <tr x-show="!kompakt" class="hp-row-ergebnis border-b border-gray-200">
                 <td class="hp-sticky bg-gray-50/80 border-r border-gray-200 px-3 py-2 text-gray-700 font-medium text-[11px]">
                     Diff. Stunden Stadt (SP2)
                     <span class="block text-[9px] text-gray-400">SP2 − gesetzl. Stunden</span>
@@ -994,6 +1089,37 @@
             </tr>
 
             </tbody>{{-- Ende Ergebnis-tbody --}}
+
+            {{-- ── Kompakt: Ergebnis-Leiste, am unteren Rand fixiert ─────────── --}}
+            <tfoot x-show="kompakt" x-cloak class="hp-pinned-foot">
+                <tr class="hp-foot-r1">
+                    <td class="hp-sticky bg-blue-50 border-r border-gray-200 px-3 py-1.5 text-gray-700 font-semibold text-[11px]">
+                        Summe Stunden <span class="text-gray-400 font-normal">SP1 | SP2</span>
+                    </td>
+                    @foreach($monatsListe as $m)
+                    @php $mk = $m->monat->format('Y-m'); @endphp
+                    <td data-mk="{{ $mk }}" class="px-2 py-1.5 text-center text-blue-700 font-semibold bg-blue-50"
+                        x-text="fmtNum(berechnungen['{{ $mk }}']?.summe_sp1, 1)"></td>
+                    <td data-mk="{{ $mk }}" class="px-2 py-1.5 text-center text-slate-700 font-semibold bg-slate-50 border-r border-gray-200"
+                        x-text="fmtNum(berechnungen['{{ $mk }}']?.summe_sp2, 1)"></td>
+                    @endforeach
+                </tr>
+                <tr class="hp-foot-r2">
+                    <td class="hp-sticky bg-gray-100 border-r border-gray-200 px-3 py-1.5 font-bold text-gray-800 text-[11px]"
+                        title="SP1: Budget − Σ SP1 (negativ = Überplanung) · SP2: Σ SP2 − gesetzl. Minimum (negativ = Unterdeckung)">
+                        Budget-Rest <span class="text-gray-400 font-normal">SP1</span> | Diff. Stadt <span class="text-gray-400 font-normal">SP2</span>
+                    </td>
+                    @foreach($monatsListe as $m)
+                    @php $mk = $m->monat->format('Y-m'); @endphp
+                    <td data-mk="{{ $mk }}" class="px-2 py-1.5 text-center font-bold bg-white"
+                        :class="(berechnungen['{{ $mk }}']?.budget_rest_sp1 ?? 0) >= 0 ? 'budget-positiv' : 'budget-negativ'"
+                        x-text="fmtSign(berechnungen['{{ $mk }}']?.budget_rest_sp1, 1)"></td>
+                    <td data-mk="{{ $mk }}" class="px-2 py-1.5 text-center font-semibold bg-white border-r border-gray-200"
+                        :class="(berechnungen['{{ $mk }}']?.differenz_stadt ?? 0) >= 0 ? 'sp2-gedeckt' : 'sp2-unterdeckung'"
+                        x-text="fmtSign(berechnungen['{{ $mk }}']?.differenz_stadt, 1)"></td>
+                    @endforeach
+                </tr>
+            </tfoot>
         </table>
         </div>
 
@@ -1186,7 +1312,7 @@
         $chartVzSp1    = $monatsListe->map(fn($m) => round($berechnungenNachMonat->get($m->monat->format('Y-m'))['summe_vz_sp1'] ?? 0, 3))->toArray();
         $chartVzGesetzl= $monatsListe->map(fn($m) => round($berechnungenNachMonat->get($m->monat->format('Y-m'))['summe_gesetz_vz'] ?? 0, 3))->toArray();
         $chartBudget   = $monatsListe->map(fn($m) => round($berechnungenNachMonat->get($m->monat->format('Y-m'))['budget_rest_sp1'] ?? 0, 2))->toArray();
-        $chartVzIst    = $monatsListe->map(fn($m) => null)->toArray(); // Ist-Daten nur im Rückblick
+        $chartVzIst    = $monatsListe->map(fn($m) => null)->toArray(); // keine Ist-Daten (kein Abgleich mit Stundenzetteln)
     @endphp
 
     @include('personal.hort_planung._trend_chart', [
@@ -1355,6 +1481,14 @@ function hortMatrix(initData) {
         // ── Sektionen ein-/ausklappen ──────────────────────────────
         showParameter: true,
 
+        // ── Kompakt-Ansicht (Zustand pro Browser in localStorage) ──
+        kompakt:      false,
+        showZusatz:   false,   // Zusatzstunden-Typen aufgeklappt
+        showFaktoren: false,   // Gesetzliche Faktoren aufgeklappt
+        showDetails:  false,   // Zwischenergebnisse aufgeklappt
+        _hoverMk:     null,
+        _hoverRow:    null,
+
         // ── UI-Zustand ───────────────────────────────────────────────
         editing: {},
         saving:  {},
@@ -1374,9 +1508,196 @@ function hortMatrix(initData) {
 
         // ── Init ────────────────────────────────────────────────────
         init() {
-            // Initiale Sichtbarkeit setzen (alle Monate sichtbar)
+            this.kompakt      = this._lade('kompakt', false);
+            this.showZusatz   = this._lade('showZusatz', false);
+            this.showFaktoren = this._lade('showFaktoren', false);
+            this.showDetails  = this._lade('showDetails', false);
+
+            if (this.kompakt) {
+                this.aktuellesVereinsjahr();
+            }
+            // Initiale Sichtbarkeit setzen
+            this.updateVisibility();
+            this.$nextTick(() => {
+                this._markiereHeute();
+                this._messeFuss();
+            });
+        },
+
+        // Höhe der unteren Ergebnis-Zeile messen, damit die obere direkt darüber klebt
+        _messeFuss() {
+            const scroll = document.getElementById('matrix-scroll');
+            const r2 = scroll?.querySelector('tfoot tr.hp-foot-r2');
+            if (scroll && r2) scroll.style.setProperty('--hp-tfoot-r2-h', r2.offsetHeight + 'px');
+        },
+
+        // ── Kompakt-Ansicht ──────────────────────────────────────────
+        _speicherKey(name) {
+            return 'hortPlanung.' + name;
+        },
+        _lade(name, fallback) {
+            try {
+                const v = window.localStorage.getItem(this._speicherKey(name));
+                return v === null ? fallback : v === '1';
+            } catch (e) {
+                return fallback;
+            }
+        },
+        _speichere(name, wert) {
+            try {
+                window.localStorage.setItem(this._speicherKey(name), wert ? '1' : '0');
+            } catch (e) { /* Speicher nicht verfügbar – Ansicht funktioniert trotzdem */ }
+        },
+
+        toggleKompakt() {
+            this.kompakt = !this.kompakt;
+            this._speichere('kompakt', this.kompakt);
+            if (this.kompakt) {
+                this.aktuellesVereinsjahr();
+                this.$nextTick(() => this._messeFuss());
+            } else {
+                this.fadenkreuzAus();
+                this.alleAnzeigen();
+            }
+        },
+
+        setzeBereich(name, wert) {
+            this[name] = wert;
+            this._speichere(name, wert);
+        },
+
+        // Vereinsjahr (Aug–Jul), in dem ein Monat liegt → Startjahr
+        _vjStart(mk) {
+            const [y, m] = mk.split('-').map(Number);
+            return m >= 8 ? y : y - 1;
+        },
+        _setzeVereinsjahr(startJahr) {
+            const von = `${startJahr}-08`, bis = `${startJahr + 1}-07`;
+            // auf den Planungszeitraum begrenzen
+            this.zeitraumVon = von < this.ersteMk ? this.ersteMk : von;
+            this.zeitraumBis = bis > this.letzteMk ? this.letzteMk : bis;
             this.updateVisibility();
         },
+        aktuellesVereinsjahr() {
+            let heute = new Date().toISOString().substring(0, 7);
+            if (heute < this.ersteMk) heute = this.ersteMk;
+            if (heute > this.letzteMk) heute = this.letzteMk;
+            this._setzeVereinsjahr(this._vjStart(heute));
+        },
+        vereinsjahrVerschieben(richtung) {
+            const neu = this._vjStart(this.zeitraumVon || this.ersteMk) + richtung;
+            // nur innerhalb des Planungszeitraums blättern
+            if (`${neu + 1}-07` < this.ersteMk || `${neu}-08` > this.letzteMk) return;
+            this._setzeVereinsjahr(neu);
+        },
+        vereinsjahrLabel() {
+            if (!this.zeitraumVon) return '';
+            const s = this._vjStart(this.zeitraumVon);
+            return 'VJ ' + s + '/' + String(s + 1).substring(2);
+        },
+
+        summeZusatz(mk) {
+            let summe = 0;
+            Object.entries(this.zusatzData).forEach(([key, val]) => {
+                if (key.startsWith(mk + '_')) summe += parseFloat(val) || 0;
+            });
+            return summe;
+        },
+
+        vertragWeichtAb(pKey) {
+            const p = this.personData?.[pKey];
+            if (!p) return false;
+            const vt = p.stunden_vertrag, sp = p.stunden_gesamt;
+            if (vt === null || vt === undefined || sp === null || sp === undefined || sp === '') return false;
+            return Math.abs(parseFloat(vt) - parseFloat(sp)) > 0.001;
+        },
+
+        // Aktuellen Monat in allen Zeilen farbig markieren (CSS greift nur kompakt)
+        _markiereHeute() {
+            const heute = new Date().toISOString().substring(0, 7);
+            document.querySelectorAll(`.hp-matrix-table [data-mk="${heute}"]`)
+                .forEach(el => el.classList.add('hp-heute-col'));
+        },
+
+        // ── Fadenkreuz: Zeile + Spalte unter der Maus hervorheben ───
+        fadenkreuz(e) {
+            if (!this.kompakt) return;
+            const td  = e.target.closest('td[data-mk]');
+            const mk  = td?.dataset.mk ?? null;
+            const row = td?.parentElement ?? null;
+            if (mk !== this._hoverMk) {
+                if (this._hoverMk) {
+                    document.querySelectorAll(`.hp-matrix-table [data-mk="${this._hoverMk}"]`)
+                        .forEach(el => el.classList.remove('hp-hover-col'));
+                }
+                if (mk) {
+                    document.querySelectorAll(`.hp-matrix-table [data-mk="${mk}"]`)
+                        .forEach(el => el.classList.add('hp-hover-col'));
+                }
+                this._hoverMk = mk;
+            }
+            if (row !== this._hoverRow) {
+                this._hoverRow?.classList.remove('hp-hover-row');
+                row?.classList.add('hp-hover-row');
+                this._hoverRow = row;
+            }
+        },
+        fadenkreuzAus() {
+            if (this._hoverMk) {
+                document.querySelectorAll(`.hp-matrix-table [data-mk="${this._hoverMk}"]`)
+                    .forEach(el => el.classList.remove('hp-hover-col'));
+            }
+            this._hoverRow?.classList.remove('hp-hover-row');
+            this._hoverMk = null;
+            this._hoverRow = null;
+        },
+
+        // ── Tastatur wie in Excel (nur Kompakt-Ansicht) ──────────────
+        // Enter/Shift+Enter: runter/hoch · Tab/Shift+Tab: rechts/links · Pfeiltasten
+        matrixTaste(e) {
+            if (!this.kompakt || !e.target.matches('input[data-edit]')) return;
+            const richtungen = {
+                ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1],
+            };
+            let dir = null;
+            if (e.key === 'Enter') dir = e.shiftKey ? [-1, 0] : [1, 0];
+            else if (e.key === 'Tab') dir = e.shiftKey ? [0, -1] : [0, 1];
+            else if (richtungen[e.key]) dir = richtungen[e.key];
+            if (!dir) return;
+
+            const td = e.target.closest('td[data-nav-row]');
+            if (!td) return;
+            e.preventDefault();
+
+            const ziel = this._findeNachbar(td, dir);
+            // Aktuelle Zelle über blur speichern und schließen, bevor die nächste
+            // geöffnet wird (doppelte Requests verhindert _istUnveraendert).
+            e.target.blur();
+            if (ziel) this.startEdit(ziel.dataset.editKey);
+        },
+        _findeNachbar(td, [dr, dc]) {
+            const sichtbar = el => el && el.offsetParent !== null;
+            const zelle = (r, c) => document.querySelector(
+                `.hp-matrix-table td[data-nav-row="${r}"][data-nav-col="${c}"]`);
+            let r = parseInt(td.dataset.navRow), c = parseInt(td.dataset.navCol);
+
+            for (let schritt = 0; schritt < 400; schritt++) {
+                r += dr;
+                c += dc;
+                if (r < 0 || c < 0) return null;
+                // Parameterzeilen haben nur eine Zelle je Monat (gerade Spalte)
+                const kandidat = zelle(r, c) ?? (c % 2 === 1 ? zelle(r, c - 1) : null);
+                if (sichtbar(kandidat)) {
+                    // Horizontal in Parameterzeilen nicht zweimal auf derselben Zelle landen
+                    if (kandidat === td) continue;
+                    return kandidat;
+                }
+                if (dr !== 0 && !document.querySelector(`.hp-matrix-table td[data-nav-row="${r}"]`)) return null;
+                if (dc !== 0 && c > 400) return null;
+            }
+            return null;
+        },
+
 
         // ── Zahlenformatierung ───────────────────────────────────────
         fmtNum(v, d = 2) {
@@ -1481,16 +1802,19 @@ function hortMatrix(initData) {
                 .filter(k => k.endsWith('_' + monatKey))
                 .forEach(k => delete this.editing[k]);
 
+            const body = JSON.stringify({
+                kinderanzahl:    data.kinderanzahl,
+                vollzeitstunden: data.vollzeitstunden,
+                notiz:           data.notiz,
+            });
+            if (this._istUnveraendert('m_' + monatKey, body)) return;
+
             this.saving[monatKey] = true;
             try {
                 const resp = await fetch(`/hort-planung/${this.planungId}/monat/${data.id}`, {
                     method: 'PUT',
                     headers: this._headers(),
-                    body: JSON.stringify({
-                        kinderanzahl:    data.kinderanzahl,
-                        vollzeitstunden: data.vollzeitstunden,
-                        notiz:           data.notiz,
-                    }),
+                    body,
                 });
                 if (!resp.ok) {
                     const errText = await resp.text();
@@ -1546,16 +1870,19 @@ function hortMatrix(initData) {
                 return isNaN(n) ? null : n;
             };
 
+            const body = JSON.stringify({
+                stunden_gesamt: toNum(person.stunden_gesamt),
+                stunden_stadt:  toNum(person.stunden_stadt),
+                kommentar:      person.kommentar ?? null,
+            });
+            if (this._istUnveraendert('p_' + pKey, body)) return;
+
             this.saving[monatKey] = true;
             try {
                 const resp = await fetch(`/hort-planung/${this.planungId}/person/${person.personId}`, {
                     method: 'PUT',
                     headers: this._headers(),
-                    body: JSON.stringify({
-                        stunden_gesamt: toNum(person.stunden_gesamt),
-                        stunden_stadt:  toNum(person.stunden_stadt),
-                        kommentar:      person.kommentar ?? null,
-                    }),
+                    body,
                 });
                 if (!resp.ok) {
                     const errText = await resp.text();
@@ -1586,12 +1913,15 @@ function hortMatrix(initData) {
                 return isNaN(n) ? 0 : n;
             };
 
+            const body = JSON.stringify({ stunden: toNum(this.zusatzData[zKey]) });
+            if (this._istUnveraendert('z_' + zKey, body)) return;
+
             this.saving[monatKey] = true;
             try {
                 const resp = await fetch(`/hort-planung/${this.planungId}/monat/${monatId}/zusatz/${typId}`, {
                     method: 'PUT',
                     headers: this._headers(),
-                    body: JSON.stringify({ stunden: toNum(this.zusatzData[zKey]) }),
+                    body,
                 });
                 if (!resp.ok) {
                     const errText = await resp.text();
@@ -1759,6 +2089,19 @@ function hortMatrix(initData) {
                         diffVz:        Math.round((rAvgVzSp2 - rAvgVzGesetzl) * 1000) / 1000,
                     };
                 });
+        },
+
+        // ── Privater Helper: gleiche Daten nicht doppelt senden ─────
+        // (z. B. Enter speichert und das anschließende blur würde erneut speichern)
+        // Nur innerhalb von 2 Sekunden, damit spätere bewusste Eingaben (z. B.
+        // nach einer Übertragung auf Folgemonate) immer gespeichert werden.
+        _istUnveraendert(key, body) {
+            this._zuletztGesendet ??= {};
+            const vorher = this._zuletztGesendet[key];
+            const jetzt  = Date.now();
+            if (vorher && vorher.body === body && jetzt - vorher.t < 2000) return true;
+            this._zuletztGesendet[key] = { body, t: jetzt };
+            return false;
         },
 
         // ── Privater Helper: CSRF/JSON Headers ──────────────────────
