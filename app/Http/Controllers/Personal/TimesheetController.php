@@ -556,7 +556,7 @@ class TimesheetController extends Controller
 
                     $admin->notify(new Push('Fehler beim Versenden des Arbeitszeitnachweises', 'Fehler beim Versenden des Arbeitszeitnachweises für ' . $user->name . ' ' . $user->familienname . ' ' . $date->format('Y-m')));
                     Log::error('Fehler beim Versenden des Arbeitszeitnachweises', [
-                        'user' => $user,
+                        'user_id' => $user->id,
                         'exception' => $e->getMessage()
                     ]);
                     continue;

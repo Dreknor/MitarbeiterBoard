@@ -213,14 +213,9 @@
 
     <div class="container-fluid">
         <div class="pull-right">
-            <form method="post" action="{{url("/users/".$user->id)}}">
-                @csrf
-                @method('delete')
-
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-user-slash"></i> Benutzer deaktivieren
-                </button>
-            </form>
+            <a href="{{url("/users/".$user->id."/deactivate")}}" class="btn btn-danger">
+                <i class="fas fa-user-slash"></i> Benutzer deaktivieren …
+            </a>
         </div>
     </div>
 

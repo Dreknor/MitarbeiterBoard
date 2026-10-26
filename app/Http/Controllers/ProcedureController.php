@@ -792,7 +792,7 @@ class ProcedureController extends Controller
 
     private function sendReminderEmail(User $user, array $pendingSteps): void
     {
-        Log::debug('Prozesse: Erinnerungsemail senden', ['user' => $user, 'pendingSteps' => $pendingSteps]);;
+        Log::debug('Prozesse: Erinnerungsemail senden', ['user_id' => $user->id, 'pendingSteps' => $pendingSteps]);
         Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
     }
 

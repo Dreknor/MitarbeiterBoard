@@ -17,6 +17,9 @@
                 <a href="{{url('users/create')}}" class="btn">Benutzer erstellen</a>
                 <a href="{{url('importuser')}}" class="btn">Benutzer importieren (Eltern-Board)</a>
                 <a href="{{url('import/users')}}" class="btn">Benutzer importieren (Datei)</a>
+                @canany(['manage user deletion', 'view archived personal'])
+                    <a href="{{url('user-deletion')}}" class="btn">Ausgeschiedene Mitarbeiter</a>
+                @endcanany
             </div>
             <div class="card-body">
                 <table class="table table-hover" id="userTable">

@@ -728,6 +728,26 @@ Route::group([
 
                 Route::get('users/restore/{user_id}', [UserController::class, 'restore']);
 
+                // Löschkonzept: Übergabe und Deaktivierung (Stufe 1)
+                Route::middleware('permission:edit users')->group(function () {
+                    Route::get('users/{user_id}/deactivate', [\App\Http\Controllers\UserDeletionController::class, 'deactivateForm']);
+                    Route::post('users/{user_id}/deactivate', [\App\Http\Controllers\UserDeletionController::class, 'deactivate']);
+                });
+
+                // Löschkonzept: Ausgeschiedene Mitarbeiter, Anonymisierung (Stufe 2) und endgültige Löschung (Stufe 3)
+                Route::prefix('user-deletion')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\UserDeletionController::class, 'index'])
+                        ->middleware('permission:manage user deletion|view archived personal');
+
+                    Route::middleware('permission:manage user deletion')->group(function () {
+                        Route::get('{user_id}/stage/{stage}', [\App\Http\Controllers\UserDeletionController::class, 'confirm'])->whereIn('stage', ['2', '3']);
+                        Route::post('{user_id}/anonymize', [\App\Http\Controllers\UserDeletionController::class, 'anonymize']);
+                        Route::post('{user_id}/purge', [\App\Http\Controllers\UserDeletionController::class, 'purge']);
+                        Route::post('{user_id}/keep', [\App\Http\Controllers\UserDeletionController::class, 'keep']);
+                        Route::post('{user_id}/legal-hold', [\App\Http\Controllers\UserDeletionController::class, 'legalHold']);
+                    });
+                });
+
 
                 //Gruppen-Route
                 Route::get('groups', [GroupController::class, 'index']);

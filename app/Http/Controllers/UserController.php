@@ -9,6 +9,7 @@ use App\Models\ElternInfoBoardUser;
 use App\Models\Group;
 use App\Models\Positions;
 use App\Models\User;
+use App\Services\UserDeletion\UserDeletionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,7 @@ class UserController extends Controller
     {
         return view('users.index', [
             'users' => User::all(),
-            'disabledUser' => User::onlyTrashed()->get()
+            'disabledUser' => User::onlyTrashed()->where('is_placeholder', false)->where('deletion_stage', '<', UserDeletionService::STAGE_ANONYMIZED)->get()
         ]);
     }
 
@@ -43,7 +44,13 @@ class UserController extends Controller
      * Benutzer reaktivieren
      */
     public function restore(Request $request, $user_id){
-        User::withTrashed()->find($user_id)->restore();
+        $user = User::onlyTrashed()->findOrFail($user_id);
+
+        try {
+            app(UserDeletionService::class)->restore($user);
+        } catch (\RuntimeException $e) {
+            return redirectBack('danger', $e->getMessage());
+        }
 
         Log::info(
             'Benutzer: Benutzer reaktiviert',
@@ -147,24 +154,8 @@ class UserController extends Controller
      */
     public function destroy($id)
     {
-        $user = User::find($id);
-
-        Log::info(
-            'Benutzer: Benutzer '.$user->name.' deaktiviert',
-            [
-                'user' => $user,
-                'ip' => request()->ip(),
-                'verantwortlich' => auth()->user(),
-            ]
-        );
-
-        $user->tasks()->delete();
-        $user->delete();
-
-        return redirect(url('users'))->with([
-           'type' => 'warning',
-           'Meldung'    => 'Benutzer deaktiviert.',
-        ]);
+        // Deaktivierung läuft über das Löschkonzept mit Übergabe offener Verantwortungen
+        return redirect(url('users/'.$id.'/deactivate'));
     }
 
     public function loginAsUser($id)
@@ -268,7 +259,11 @@ class UserController extends Controller
     {
         $OldUser = User::where('email', $request->email)->withTrashed()->first();
         if (isset($OldUser)){
-            $OldUser->restore();
+            try {
+                app(UserDeletionService::class)->restore($OldUser);
+            } catch (\RuntimeException $e) {
+                return redirectBack('danger', $e->getMessage());
+            }
             $OldUser->password = Hash::make($request->input('password'));
             $OldUser->changePassword = true;
             $OldUser->save();
@@ -276,9 +271,9 @@ class UserController extends Controller
             Log::info(
                 'Benutzer: Benutzer reaktiviert',
                 [
-                    'user' => $OldUser,
+                    'user_id' => $OldUser->id,
                     'ip' => $request->ip(),
-                    'verantwortlich' => auth()->user(),
+                    'verantwortlich_id' => auth()->id(),
                 ]
             );
 
@@ -296,9 +291,9 @@ class UserController extends Controller
         Log::info(
             'Benutzer: Benutzer angelegt',
             [
-                'user' => $user,
+                'user_id' => $user->id,
                 'ip' => $request->ip(),
-                'verantwortlich' => auth()->user(),
+                'verantwortlich_id' => auth()->id(),
             ]
         );
 

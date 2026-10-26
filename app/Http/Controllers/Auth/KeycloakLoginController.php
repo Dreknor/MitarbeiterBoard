@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\User;
+use App\Services\UserDeletion\UserDeletionService;
 use App\Providers\RouteServiceProvider;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
@@ -62,10 +63,18 @@ class KeycloakLoginController extends Controller
             ->first();
 
 
+        // Löschkonzept: deaktivierte oder anonymisierte Konten nicht still neu anlegen
+        if (!$laravelUser && UserDeletionService::isSsoBlocked($user->nickname, $user->email)) {
+            Log::warning('OIDC: Anmeldung eines deaktivierten oder gelöschten Kontos abgelehnt');
+
+            return redirect()->route('login')->with([
+                'type' => 'danger',
+                'Meldung' => 'Dieses Konto wurde deaktiviert.']);
+        }
+
         if (!$laravelUser) {
 
             Log::info('OIDC: User not found: ' . $user->nickname,[
-                'user' => $user,
                 'email' => $user->email,
                 'nickname' => $user->nickname,
             ]);
@@ -89,7 +98,6 @@ class KeycloakLoginController extends Controller
             ]);
 
             Log::info('OIDC: User created: ' . $laravelUser->username,[
-                'user' => $user,
                 'email' => $user->email,
                 'nickname' => $user->nickname,
                 'memberOf' => $user->user['memberof'],
@@ -114,7 +122,6 @@ class KeycloakLoginController extends Controller
             }
 
             Log::info('OIDC: Groups created: ' . implode(',', $groups),[
-                'user' => $user,
                 'email' => $user->email,
                 'nickname' => $user->nickname,
                 'memberOf' => $user->user['memberof'],
