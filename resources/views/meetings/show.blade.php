@@ -544,18 +544,20 @@
                     <h3 class="mtg-modal-title">Einladung versenden</h3>
                     <button type="button" class="mtg-modal-close" @click="showInvite = false" aria-label="Schließen">&times;</button>
                 </div>
-                <form action="{{ route('meetings.details.invite', $meeting) }}" method="POST">
+                <form action="{{ route('meetings.details.invite', $meeting) }}" method="POST"
+                      x-data="{ anzahl: {{ $inviteRecipients->count() }} }" @invite-count="anzahl = $event.detail">
                     @csrf
                     <div class="mtg-modal-body">
                         <p class="text-sm text-gray-600 mb-3">
-                            Die Einladung (mit Kalendereintrag) geht an <strong>{{ $participants->count() }} Teilnehmende</strong>.
+                            Die Einladung (mit Kalendereintrag) geht an die ausgewählten Teilnehmenden.
                         </p>
+                        @include('meetings.partials.invite_recipients', ['recipients' => $inviteRecipients, 'isGroupMeeting' => (bool) $meeting->group_id])
                         <label class="mtg-label" for="invite_message">Persönliche Nachricht (optional)</label>
                         <textarea id="invite_message" name="message" class="mtg-textarea" rows="3" maxlength="2000" placeholder="z. B. Bitte die Unterlagen vorab lesen."></textarea>
                     </div>
                     <div class="mtg-modal-footer">
                         <button type="button" class="mtg-btn mtg-btn-secondary" @click="showInvite = false">Abbrechen</button>
-                        <button type="submit" class="mtg-btn mtg-btn-primary"><i class="far fa-paper-plane"></i> Versenden</button>
+                        <button type="submit" class="mtg-btn mtg-btn-primary" :disabled="anzahl === 0"><i class="far fa-paper-plane"></i> Versenden</button>
                     </div>
                 </form>
             </div>

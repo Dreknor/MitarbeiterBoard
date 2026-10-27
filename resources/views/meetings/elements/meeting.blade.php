@@ -238,16 +238,19 @@
                 <h3 class="mtg-modal-title">Einladung versenden</h3>
                 <button type="button" class="mtg-modal-close" @click="showInvite = false" aria-label="Schließen">&times;</button>
             </div>
-            <form action="{{ route('meetings.invite', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST">
+            @php($inviteRecipients = app(\App\Services\Meetings\MeetingService::class)->invitationRecipients($meeting))
+            <form action="{{ route('meetings.invite', ['group' => $group->name, 'meeting' => $meeting->id]) }}" method="POST"
+                  x-data="{ anzahl: {{ $inviteRecipients->count() }} }" @invite-count="anzahl = $event.detail">
                 @csrf
                 <div class="mtg-modal-body">
-                    <p class="text-sm text-gray-500 mb-3">Die Einladung wird an alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> sowie an zusätzlich eingeladene Personen, Gruppen und Rollen versendet.</p>
+                    <p class="text-sm text-gray-500 mb-3">Alle Mitglieder der Gruppe <strong>{{ $group->name }}</strong> sowie zusätzlich eingeladene Personen, Gruppen und Rollen haben Zugriff auf das Meeting. Die Einladung geht nur an die ausgewählten Personen.</p>
+                    @include('meetings.partials.invite_recipients', ['recipients' => $inviteRecipients, 'isGroupMeeting' => true])
                     <label class="mtg-label">Zusätzliche Nachricht (optional)</label>
                     <textarea name="message" class="mtg-textarea" rows="3" placeholder="Optionale Nachricht …"></textarea>
                 </div>
                 <div class="mtg-modal-footer">
                     <button type="button" class="mtg-btn mtg-btn-secondary" @click="showInvite = false">Abbrechen</button>
-                    <button type="submit" class="mtg-btn mtg-btn-primary"><i class="far fa-paper-plane"></i> Versenden</button>
+                    <button type="submit" class="mtg-btn mtg-btn-primary" :disabled="anzahl === 0"><i class="far fa-paper-plane"></i> Versenden</button>
                 </div>
             </form>
         </div>
