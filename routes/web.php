@@ -1007,7 +1007,7 @@ Route::group([
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
 
-                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:manage grading systems')->name('paedDiary.changeStage');
+                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->name('paedDiary.changeStage');
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
 

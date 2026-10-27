@@ -31,7 +31,8 @@ info:
     - `view paed diary` – Grundvoraussetzung für alle Endpunkte (Lehrkräfte/Erzieher).
       Zugriff auf Schüler der über `klasse_user` zugewiesenen Klassen.
     - `view diagnostics` – Diagnosebereich (Bereich 4) und Diagnosedaten in View/Dossier.
-    - `manage grading systems` – Vergabe von Graduierungsstufen.
+    - Graduierungsstufen vergeben darf jeder mit Zugriff auf den Schüler; `manage grading systems` regelt
+      nur die Verwaltung der Systeme und Stufen (Web).
     - `manage diagnostics` – endgültiges Löschen von Entwicklungszielen.
     - `view all students` – klassenübergreifender Zugriff (Schulleitung).
     - `view confidential diary entries` – vertrauliche Tagebucheinträge (`is_dossier_only`) fremder Autoren.
@@ -1051,7 +1052,7 @@ paths:
       summary: Antworten speichern, Pädagogenbewertung abgeben, abschließen & Stufe vergeben
       description: |
         Nur der Ersteller der Session. `grading_stage_id` nur zusammen mit `finalize: true`
-        und mit Recht `manage grading systems`. Stufenwechsel erzeugt Historie und automatischen Tagebucheintrag.
+        und mit Zugriff auf den Schüler. Stufenwechsel erzeugt Historie und automatischen Tagebucheintrag.
 
         **Gruppensessions:** `schueler_id` ist Pflicht und muss teilnehmen. `finalize` schließt nur diesen
         Schüler ab (Stufenvergabe für diesen Schüler); die Session ist abgeschlossen, sobald alle Teilnehmer
@@ -3315,7 +3316,7 @@ components:
           type: object
           properties:
             view_diagnostics: { type: boolean }
-            manage_grading: { type: boolean }
+            manage_grading: { type: boolean, description: 'Recht "manage grading systems" – nur Verwaltung der Systeme/Stufen; für die Stufenvergabe gilt students/{id} → can_change_grading_stage' }
             view_all_students: { type: boolean }
             view_confidential_entries: { type: boolean }
             plan_rosters: { type: boolean, description: 'Recht "create roster" – Dienstplanung (/roster/departments …)' }

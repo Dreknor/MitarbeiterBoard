@@ -133,7 +133,7 @@ Endpunkte unter `/timesheets/*` (Tag „Arbeitszeitnachweis“), kein `view paed
 |---|---|
 | `view paed diary` | Grundrecht für alle Endpunkte; Zugriff auf Schüler der über `klasse_user` zugeordneten Klassen |
 | `view diagnostics` | Bereich Diagnose + Diagnosedaten in Schüler-View/Dossier |
-| `manage grading systems` | Graduierungsstufe vergeben (`grading_stage_id` beim Abschluss) |
+| `manage grading systems` | Nur Verwaltung der Graduierungssysteme/-stufen (Web); Stufe vergeben darf jeder mit Zugriff auf den Schüler |
 | `manage diagnostics` | Entwicklungsziele endgültig löschen (`DELETE …?force=true`) |
 | `view all students` | Klassenübergreifender Zugriff (Schulleitung) |
 | `view confidential diary entries` | Vertrauliche Tagebucheinträge (`dossier_only`) fremder Autoren lesen |

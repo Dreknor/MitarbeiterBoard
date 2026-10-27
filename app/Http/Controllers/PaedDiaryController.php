@@ -286,7 +286,8 @@ class PaedDiaryController extends Controller
                 'absence_alerts' => $calendar->absenceAlerts($s->id),
             ]),
             'klassen' => $klassen->map(fn($k) => ['id' => $k->id, 'name' => $k->name, 'kuerzel' => $k->kuerzel, 'color' => $k->color]),
-            'can_manage_grading' => Auth::user()->can('manage grading systems'),
+            // Alle angezeigten Schüler stammen aus den eigenen Klassen → Stufenwechsel erlaubt
+            'can_change_stage' => true,
             'entries' => $entryData,
             'open_entries' => $openEntries,
             'columns' => $columns->map(fn($c) => [

@@ -103,13 +103,13 @@
                                        @pointerdown.stop
                                        @keydown.enter.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
                                        @keydown.space.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
-                                       x-show="$store.diary.can_manage_grading"
+                                       x-show="$store.diary.can_change_stage"
                                        class="stage-trigger-btn"
                                        aria-label="Graduierungsstufe wählen"
                                        :aria-expanded="dropdownOpen && dropdownStuId === stu.id ? 'true' : 'false'">
                                     <span x-html="stageHtml(stu)"></span>
                                 </button>
-                                <span x-show="!$store.diary.can_manage_grading"
+                                <span x-show="!$store.diary.can_change_stage"
                                       x-html="stageHtml(stu)"></span>
 
                                 {{-- Stufen-Dropdown (per Teleport an <body>, damit es nicht von --}}

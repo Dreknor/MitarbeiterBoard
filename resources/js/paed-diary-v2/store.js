@@ -41,7 +41,7 @@ export function registerDiaryStore(Alpine) {
         hidden_category_ids: [],
         klassen: [],
         is_group: false,
-        can_manage_grading: false,
+        can_change_stage: false,
         show_column_categories: false,
         open_entries: [],
         class_day_pauses: [],
@@ -157,7 +157,7 @@ export function registerDiaryStore(Alpine) {
                 this.hidden_category_ids = (data.hidden_category_ids || []).map(Number);
                 this.klassen = data.klassen || [];
                 this.is_group = data.is_group || false;
-                this.can_manage_grading = data.can_manage_grading || false;
+                this.can_change_stage = data.can_change_stage || false;
                 this.show_column_categories = data.show_column_categories || false;
                 this.open_entries = data.open_entries || [];
                 this.class_day_pauses = data.class_day_pauses || [];
