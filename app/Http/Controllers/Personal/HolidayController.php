@@ -169,6 +169,23 @@ class HolidayController extends Controller
         return redirectBack('success', $data['decision'] === 'approve' ? 'Urlaub storniert.' : 'Stornierung abgelehnt – der Urlaub bleibt bestehen.');
     }
 
+    /**
+     * Eigenen Urlaub korrigieren (nur Personen ohne Vorgesetzte, jederzeit).
+     */
+    public function correct(Request $request, Holiday $holiday)
+    {
+        $this->authorize('correct', $holiday);
+        $data = $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'half_day' => ['nullable', 'boolean'],
+        ]);
+
+        $this->holidays->korrigieren($holiday, Carbon::parse($data['start_date']), Carbon::parse($data['end_date']), (bool) ($data['half_day'] ?? false));
+
+        return redirectBack('success', 'Urlaub wurde korrigiert.');
+    }
+
     public function destroy(Request $request, Holiday $holiday)
     {
         $this->authorize('delete', $holiday);

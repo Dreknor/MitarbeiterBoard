@@ -272,6 +272,7 @@ Route::group([
                     Route::post('holidays/{holiday}/reject', [HolidayController::class, 'reject'])->name('holidays.reject');
                     Route::post('holidays/{holiday}/cancel', [HolidayController::class, 'requestCancellation'])->name('holidays.cancel');
                     Route::post('holidays/{holiday}/cancel-decision', [HolidayController::class, 'decideCancellation'])->name('holidays.cancel-decision');
+                    Route::put('holidays/{holiday}/correct', [HolidayController::class, 'correct'])->name('holidays.correct');
                     Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
 
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index'])->whereNumber(['month', 'year'])->name('holidays.index');
