@@ -451,6 +451,17 @@ class User extends Authenticatable implements HasMedia
         return $this->subordinates()->where('id', $userId)->exists();
     }
 
+    /**
+     * Prüft, ob der Benutzer keinen Vorgesetzten hat (z. B. Geschäftsführung).
+     * Solche Benutzer dürfen ihre eigenen Urlaube jederzeit selbst korrigieren.
+     *
+     * @return bool
+     */
+    public function hasNoSuperior(): bool
+    {
+        return $this->superior_id === null || $this->superior === null;
+    }
+
     public function meetingTasks()
     {
         return $this->hasMany(\App\Models\MeetingTask::class);

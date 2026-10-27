@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createHolidayRequest;
+use App\Models\Absence;
 use App\Models\Group;
 use App\Models\personal\Holiday;
 use App\Models\User;
@@ -365,7 +366,7 @@ class HolidayController extends Controller
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
-        if ($holiday->start_date->isPast()){
+        if ($holiday->start_date->isPast() and !$this->canSelfCorrect($holiday)){
             return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
         }
 
@@ -441,13 +442,77 @@ class HolidayController extends Controller
             return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
         }
 
-        if ($holiday->start_date->isPast()){
+        if ($holiday->start_date->isPast() and !$this->canSelfCorrect($holiday)){
             return redirectBack('danger', 'Urlaub kann nicht mehr gelöscht werden.');
         }
 
         $holiday->delete();
 
         return redirectBack('success', 'Urlaub wurde erfolgreich gelöscht.');
+    }
+
+    /**
+     * Korrigiert Zeitraum eines eigenen Urlaubs.
+     * Nur für Benutzer ohne Vorgesetzten (z. B. Geschäftsführung) – jederzeit, auch rückwirkend.
+     */
+    public function correct(Request $request, Holiday $holiday)
+    {
+        if (!$this->canSelfCorrect($holiday)){
+            return redirectBack('danger', 'Sie haben keine Berechtigung für diese Aktion.');
+        }
+
+        $request->validate([
+            'start_date' => 'required|date_format:Y-m-d',
+            'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+        ]);
+
+        $start = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
+        $end = Carbon::createFromFormat('Y-m-d', $request->end_date)->startOfDay();
+
+        if ($start->year != $end->year){
+            return redirectBack('danger', 'Der korrigierte Urlaub muss innerhalb eines Kalenderjahres liegen.');
+        }
+
+        $overlap = Holiday::query()
+            ->where('employe_id', $holiday->employe_id)
+            ->where('id', '!=', $holiday->id)
+            ->where('rejected', false)
+            ->where('start_date', '<=', $end)
+            ->where('end_date', '>=', $start)
+            ->exists();
+
+        if ($overlap){
+            return redirectBack('danger', 'Im gewählten Zeitraum ist bereits ein anderer Urlaub eingetragen.');
+        }
+
+        // Automatisch angelegte Abwesenheit des alten Zeitraums entfernen,
+        // der HolidayObserver legt beim Update die neue an.
+        if ($holiday->approved and settings('absence_auto_create', 'holidays') == true){
+            Absence::query()
+                ->where('users_id', $holiday->employe_id)
+                ->where('reason', 'Urlaub')
+                ->whereDate('start', $holiday->start_date)
+                ->whereDate('end', $holiday->end_date)
+                ->delete();
+        }
+
+        $holiday->update([
+            'start_date' => $start,
+            'end_date' => $end,
+            'rejected' => false,
+            'days' => workdays($start, $end),
+        ]);
+
+        return redirectBack('success', 'Urlaub wurde erfolgreich korrigiert.');
+    }
+
+    /**
+     * Darf der angemeldete Benutzer diesen Urlaub jederzeit selbst korrigieren?
+     * Erlaubt für eigene Urlaube von Benutzern ohne Vorgesetzten.
+     */
+    private function canSelfCorrect(Holiday $holiday): bool
+    {
+        return $holiday->employe_id == auth()->id() and auth()->user()->hasNoSuperior();
     }
 
     /**

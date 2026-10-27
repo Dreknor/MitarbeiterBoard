@@ -234,6 +234,7 @@ Route::group([
                     Route::post('holidays/manage/delete/{holiday}', [HolidayController::class, 'manageDelete'])->middleware(['permission:approve holidays']);
                     Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
                     Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
+                    Route::put('holidays/{holiday}/correct', [HolidayController::class, 'correct'])->name('holidays.correct');
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
 
                     Route::resource('holidays', HolidayController::class);

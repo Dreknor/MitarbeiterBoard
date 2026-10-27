@@ -28,7 +28,50 @@
                             </span>
                     </td>
                     <td>
-                        @if(!$holiday->approved or $holiday->start_date->isFuture())
+                        @if(auth()->user()->hasNoSuperior())
+                            {{-- Ohne Vorgesetzten (z. B. Geschäftsführung): eigene Urlaube jederzeit korrigierbar --}}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#correctHolidayModal-{{ $holiday->id }}">
+                                <i class="fas fa-edit"></i> Korrigieren
+                            </button>
+                            <a href="{{ url('holidays/' . $holiday->id . '/delete') }}"
+                               class="btn btn-sm btn-outline-danger"
+                               onclick="return confirm('Urlaub vom {{ $holiday->start_date->format('d.m.Y') }} bis {{ $holiday->end_date->format('d.m.Y') }} wirklich löschen?')">
+                                <i class="fas fa-trash"></i> Löschen
+                            </a>
+                            <div class="modal fade text-left" id="correctHolidayModal-{{ $holiday->id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form action="{{ route('holidays.correct', $holiday->id) }}" method="post">
+                                            @csrf
+                                            @method('put')
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Urlaub korrigieren</h5>
+                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="form-row">
+                                                    <div class="col-6">
+                                                        <label for="correct_start_{{ $holiday->id }}">Von</label>
+                                                        <input type="date" name="start_date" id="correct_start_{{ $holiday->id }}" class="form-control" value="{{ $holiday->start_date->format('Y-m-d') }}" required>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <label for="correct_end_{{ $holiday->id }}">Bis</label>
+                                                        <input type="date" name="end_date" id="correct_end_{{ $holiday->id }}" class="form-control" value="{{ $holiday->end_date->format('Y-m-d') }}" required>
+                                                    </div>
+                                                </div>
+                                                <small class="form-text text-muted">Die Urlaubstage werden automatisch neu berechnet.</small>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
+                                                <button type="submit" class="btn btn-primary">Speichern</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        @elseif(!$holiday->approved or $holiday->start_date->isFuture())
                             <a href="{{ url('holidays/' . $holiday->id . '/delete') }}"
                                class="btn btn-sm btn-outline-danger">
                                 <i class="fas fa-trash"></i> Antrag löschen
