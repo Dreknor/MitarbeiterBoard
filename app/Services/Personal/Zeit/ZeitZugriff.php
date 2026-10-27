@@ -53,6 +53,15 @@ class ZeitZugriff
 
     // ---- Urlaub ----
 
+    /**
+     * Ohne Vorgesetzte (z. B. Geschäftsführung) gibt es niemanden, der eigene Urlaube
+     * stellvertretend korrigiert – diese Personen dürfen das jederzeit selbst.
+     */
+    public function hatKeineVorgesetzten(User $user): bool
+    {
+        return $user->superior_id === null || $user->superior === null;
+    }
+
     public function darfUrlaubGenehmigen(User $actor, User $employe): bool
     {
         if ($actor->id === $employe->id || !$actor->can('approve holidays')) {

@@ -209,6 +209,49 @@ class HolidayService
         $this->benachrichtigeEntscheidung($holiday, $actor);
     }
 
+    /**
+     * Zeitraum eines bestehenden Urlaubs korrigieren (Status bleibt erhalten).
+     * Der HolidayObserver gleicht den neuen Zeitraum ab, der alte wird hier nachgezogen.
+     */
+    public function korrigieren(Holiday $holiday, CarbonInterface $start, CarbonInterface $ende, bool $halberTag = false): void
+    {
+        $start = Carbon::parse($start)->startOfDay();
+        $ende = Carbon::parse($ende)->startOfDay();
+        $employe = $holiday->employe;
+
+        if ($ende->lt($start)) {
+            throw ValidationException::withMessages(['end_date' => 'Das Enddatum darf nicht vor dem Startdatum liegen.']);
+        }
+        if ($start->year !== $ende->year) {
+            throw ValidationException::withMessages(['end_date' => 'Der korrigierte Urlaub muss innerhalb eines Kalenderjahres liegen.']);
+        }
+        if ($halberTag && !$start->isSameDay($ende)) {
+            throw ValidationException::withMessages(['half_day' => 'Ein halber Urlaubstag ist nur für einen einzelnen Tag möglich.']);
+        }
+        if ($this->hatUeberschneidung($employe, $start, $ende, $holiday->id)) {
+            throw ValidationException::withMessages(['start_date' => 'Für diesen Zeitraum gibt es bereits einen Urlaubsantrag.']);
+        }
+        $tage = $this->tageFuer($employe, $start, $ende, $halberTag);
+        if ($tage <= 0) {
+            throw ValidationException::withMessages(['start_date' => 'Im gewählten Zeitraum liegen keine Arbeitstage.']);
+        }
+
+        $alterStart = $holiday->start_date->copy();
+        $altesEnde = $holiday->end_date->copy();
+
+        $holiday->update([
+            'start_date' => $start->toDateString(),
+            'end_date' => $ende->toDateString(),
+            'half_day' => $halberTag,
+            'days' => $tage,
+        ]);
+
+        // Gutschriften und Dienstplan im nicht mehr abgedeckten alten Zeitraum bereinigen
+        $this->timesheets->syncAbwesenheiten($employe, $alterStart, $altesEnde);
+        $this->rosters->abwesenheitenAbgleichen($employe, $alterStart, $altesEnde);
+        $this->urlaubskonto->vergessen($employe);
+    }
+
     public function stornoBeantragen(Holiday $holiday, User $actor, ?string $grund = null): void
     {
         $holiday->update([
