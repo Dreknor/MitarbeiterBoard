@@ -471,6 +471,35 @@ function registerSchuelerAkte(Alpine) {
 
         get hatSelbst() { return this.fragen.some(f => f.self); },
         get hatLehrkraft() { return this.fragen.some(f => f.teacher); },
+
+        /**
+         * Komplettes Diagramm als SVG-Markup (per x-html). <template x-for> funktioniert innerhalb
+         * von <svg> nicht (SVG-Templates haben kein `content`), daher keine Alpine-Schleifen im SVG.
+         */
+        get netzSvg() {
+            if (!this.fragen.length) return '';
+            const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            const teile = [];
+            [1, 2, 3, 4, 5].forEach(stufe => teile.push(
+                `<polygon points="${this.ring(stufe)}" fill="none" stroke="#d9dee6" stroke-width="${stufe === 5 ? 1.5 : 1}"></polygon>`));
+            this.fragen.forEach((f, i) => {
+                const a = this.achse(i);
+                const b = this.beschriftung(i);
+                teile.push(`<line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="#d9dee6"></line>`);
+                teile.push(`<text x="${b.x}" y="${b.y}" text-anchor="${b.anker}" dominant-baseline="middle"><title>${esc(b.voll)}</title>${esc(b.text)}</text>`);
+            });
+            if (this.hatLehrkraft) {
+                teile.push(`<polygon points="${this.polygon('teacher')}" fill="rgba(21,128,61,.18)" stroke="#15803d" stroke-width="2"></polygon>`);
+            }
+            if (this.hatSelbst) {
+                teile.push(`<polygon points="${this.polygon('self')}" fill="rgba(29,78,216,.14)" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="5 4"></polygon>`);
+            }
+            this.fragen.forEach((f, i) => {
+                if (f.teacher) { const [x, y] = this.punkt(i, f.teacher); teile.push(`<circle cx="${x}" cy="${y}" r="3.5" fill="#15803d"></circle>`); }
+                if (f.self) { const [x, y] = this.punkt(i, f.self); teile.push(`<circle cx="${x}" cy="${y}" r="3.5" fill="#1d4ed8"></circle>`); }
+            });
+            return teile.join('');
+        },
     }));
 }
 

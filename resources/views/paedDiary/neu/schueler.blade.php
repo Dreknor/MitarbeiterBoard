@@ -312,31 +312,12 @@
                                     </select>
                                 </div>
 
-                                <svg class="pdn-netz" :viewBox="'0 0 ' + groesse + ' ' + groesse" role="img"
+                                {{-- viewBox fest (HTML macht aus :viewBox „viewbox“, das SVG ignoriert); Inhalt aus netzSvg,
+                                     weil <template x-for> innerhalb von SVG nicht funktioniert. Ringe 1–5, Achsen, Beschriftung,
+                                     Lehrkraft (Fläche) und Selbsteinschätzung (gestrichelt). --}}
+                                <svg class="pdn-netz" viewBox="-110 -14 580 388" role="img"
                                      :aria-label="'Spinnennetz der Reflexion vom ' + (aktuell?.formatted_date || '') + ': Selbsteinschätzung und Einschätzung der Lehrkraft je Frage, Skala 1 bis 5'">
-                                    {{-- Ringe 1–5 --}}
-                                    <template x-for="stufe in [1, 2, 3, 4, 5]" :key="'ring' + stufe">
-                                        <polygon :points="ring(stufe)" fill="none" stroke="#d9dee6" :stroke-width="stufe === 5 ? 1.5 : 1"></polygon>
-                                    </template>
-                                    {{-- Achsen und Beschriftung --}}
-                                    <template x-for="(f, i) in fragen" :key="'ax' + f.id">
-                                        <g>
-                                            <line :x1="achse(i).x1" :y1="achse(i).y1" :x2="achse(i).x2" :y2="achse(i).y2" stroke="#d9dee6"></line>
-                                            <text :x="beschriftung(i).x" :y="beschriftung(i).y" :text-anchor="beschriftung(i).anker" dominant-baseline="middle">
-                                                <title x-text="beschriftung(i).voll"></title>
-                                                <tspan x-text="beschriftung(i).text"></tspan>
-                                            </text>
-                                        </g>
-                                    </template>
-                                    {{-- Selbsteinschätzung (gestrichelt) und Lehrkraft --}}
-                                    <polygon x-show="hatLehrkraft" :points="polygon('teacher')" fill="rgba(21,128,61,.18)" stroke="#15803d" stroke-width="2"></polygon>
-                                    <polygon x-show="hatSelbst" :points="polygon('self')" fill="rgba(29,78,216,.14)" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="5 4"></polygon>
-                                    <template x-for="(f, i) in fragen" :key="'pt' + f.id">
-                                        <g>
-                                            <circle x-show="f.teacher" :cx="punkt(i, f.teacher)[0]" :cy="punkt(i, f.teacher)[1]" r="3.5" fill="#15803d"></circle>
-                                            <circle x-show="f.self" :cx="punkt(i, f.self)[0]" :cy="punkt(i, f.self)[1]" r="3.5" fill="#1d4ed8"></circle>
-                                        </g>
-                                    </template>
+                                    <g x-html="netzSvg"></g>
                                 </svg>
 
                                 <div class="pdn-netz-legende">

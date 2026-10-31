@@ -308,7 +308,7 @@
 .pdn-twocol { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .pdn-panelbox { border: 1px solid var(--pdn-line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .pdn-panelbox h3 { font-size: 1.05em; font-weight: 800; }
-.pdn-netz { width: 100%; max-width: 420px; height: auto; align-self: center; }
+.pdn-netz { width: 100%; max-width: 560px; height: auto; align-self: center; }
 .pdn-netz text { font-size: 10px; fill: var(--pdn-ink-2); }
 .pdn-netz-legende { display: flex; flex-wrap: wrap; gap: 14px; font-size: .9em; color: var(--pdn-ink-2); }
 .pdn-netz-legende span { display: inline-flex; align-items: center; gap: 6px; }
