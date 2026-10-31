@@ -181,6 +181,12 @@
 .pdn-colgroup__items > span:only-child .pdn-tog, .pdn-colgroup__items > .pdn-tog:only-child { border-radius: 6px; }
 .pdn-colgroup__items .pdn-tog:is(.is-ja, .is-mitte, .is-nein, :focus-visible) { z-index: 1; }
 .pdn-colgroup__items .pdn-colinput { height: var(--pdn-seg-h); min-width: 70px; }
+/* Lange Spaltennamen („Arbeitsmittel vergessen“) kürzen statt die Zelle zu sprengen;
+   reicht die Breite nicht, bricht der Block in eine zweite Zeile um */
+.pdn-colgroup { flex-wrap: wrap; max-width: 100%; }
+.pdn-colgroup__items { flex-wrap: wrap; row-gap: 2px; max-width: 100%; }
+.pdn-colgroup__items .pdn-tog { max-width: 11ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdn-cell { overflow: hidden; }
 /* Touch (iPad): etwas größere Ziele, ohne Hover-Abhängigkeit */
 @media (pointer: coarse) {
     .pdn-cols { --pdn-seg-h: 30px; }
@@ -347,6 +353,18 @@
     .pdn-side { border-right: 0; border-bottom: 1px solid var(--pdn-line); }
     .pdn-twocol { grid-template-columns: 1fr; }
 }
+/* Tagesauswahl über der Tabelle nur auf dem Handy */
+.pdn-tagwahl { display: none; }
+@media (max-width: 767px) {
+    .pdn-tagwahl { display: flex; }
+    /* Tabelle (Klassisch/Kompakt) zeigt nur den gewählten Tag – kein seitliches Scrollen */
+    .pdn-grid, .pdn--kompakt .pdn-grid { min-width: 0; }
+    .pdn-grid .is-mobil-aus { display: none; }
+    .pdn-grid .pdn-name { width: 42%; position: static; }
+    .pdn-grid thead th.pdn-name, .pdn-grid th.pdn-name { position: static; }
+    .pdn-stu a { white-space: normal; overflow-wrap: anywhere; }
+}
+
 @media (max-width: 640px) {
     .pdn { padding: 8px 8px 48px; }
     .pdn-tb { padding: 8px 10px; }

@@ -201,13 +201,25 @@
                     </template>
                 </div>
 
+                {{-- Handy: Die Tabelle zeigt nur einen Tag; hier wird er gewählt --}}
+                <div class="pdn-days pdn-tagwahl" role="group" aria-label="Tag wählen">
+                    <template x-for="day in $store.diary.days" :key="'tw-' + day.date">
+                        <button type="button" @click="$store.diary.mobileDay = day.date"
+                                :aria-pressed="day.date === $store.diary.mobileDay"
+                                :class="day.is_ferien && 'is-ferien'">
+                            <span x-text="day.label.split(' ')[0]"></span>
+                            <small x-text="day.date === $store.diary.todayStr ? 'heute' : day.label.split(' ')[1]"></small>
+                        </button>
+                    </template>
+                </div>
+
                 <div class="pdn-scroll">
                     <table class="pdn-grid">
                         <thead>
                             <tr>
                                 <th class="pdn-name" scope="col">Schüler</th>
                                 <template x-for="day in $store.diary.days" :key="'h-' + day.date">
-                                    <th scope="col" :class="{ 'is-today': day.date === $store.diary.todayStr, 'is-ferien': day.is_ferien }">
+                                    <th scope="col" :class="{ 'is-today': day.date === $store.diary.todayStr, 'is-ferien': day.is_ferien, 'is-mobil-aus': day.date !== $store.diary.mobileDay }">
                                         <div class="pdn-dayhead">
                                             <span x-text="day.label + (day.date === $store.diary.todayStr ? ' · heute' : '')"></span>
                                             <template x-if="!day.is_ferien">
@@ -293,7 +305,7 @@
 
                                         <template x-for="day in $store.diary.days" :key="stu.id + '-' + day.date">
                                             <td class="pdn-cell"
-                                                :class="{ 'is-today': day.date === $store.diary.todayStr, 'is-ferien': day.is_ferien, 'pdn-absent': $store.diary.isAbsent(stu.id, day.date) }">
+                                                :class="{ 'is-today': day.date === $store.diary.todayStr, 'is-ferien': day.is_ferien, 'pdn-absent': $store.diary.isAbsent(stu.id, day.date), 'is-mobil-aus': day.date !== $store.diary.mobileDay }">
                                                 <button type="button" class="pdn-cell-add" @click="neueNotiz(stu.id, day.date)"
                                                         :aria-label="'Neue Notiz für ' + stu.name + ', ' + day.label"></button>
                                                 <div class="pdn-cell-top">
