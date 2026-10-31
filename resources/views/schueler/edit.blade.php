@@ -37,7 +37,7 @@
                         </div>
 
                         {{-- Stage selection (only if the class has grading system) --}}
-                        @if(auth()->user()->canChangeGradingStage())
+                        @can('manage grading systems')
                             @if(isset($stages) && $stages->isNotEmpty())
                                 <div class="form-row">
                                     <div class="col-6 mb-3">
@@ -57,7 +57,7 @@
                                     </div>
                                 </div>
                             @endif
-                        @endif
+                        @endcan
 
                         <div class="form-row">
                             <div class="col-md-6 col-sm-12">

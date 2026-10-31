@@ -62,6 +62,7 @@ class MeetingDetailController extends Controller
             'meetingDuration'  => $meetingStart->diffInMinutes($meetingEnd),
             'themesDuration'   => (int) $meeting->themes->sum('duration'),
             'participants'     => $participants,
+            'inviteRecipients' => $user->can('manage', $meeting) ? $this->meetings->invitationRecipients($meeting) : collect(),
             'presences'        => \App\Models\Presence::where('meeting_id', $meeting->id)->get(),
             'canManage'        => $user->can('manage', $meeting),
             'assignableThemes' => $this->meetings->assignableThemes($meeting, $user),
@@ -137,9 +138,12 @@ class MeetingDetailController extends Controller
     {
         $this->authorize('manage', $meeting);
 
-        $request->validate(['message' => ['nullable', 'string', 'max:2000']]);
-
-        $result = $this->meetings->sendInvitations($meeting, $request->input('message'), auth()->user());
+        $result = $this->meetings->sendInvitations(
+            $meeting,
+            $request->input('message'),
+            auth()->user(),
+            $this->meetings->validateInvitationRequest($request)
+        );
 
         return redirect()->route('meetings.show', $meeting)->with($this->meetings->invitationFlash($result));
     }

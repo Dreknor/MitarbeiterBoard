@@ -37,14 +37,25 @@ class HolidayPolicy
 
     /**
      * Löschen: eigener, noch nicht entschiedener Antrag – oder Genehmigende (auch rückwirkend).
+     * Personen ohne Vorgesetzte dürfen eigene Urlaube jederzeit entfernen.
      */
     public function delete(User $user, Holiday $holiday): bool
     {
-        if ($this->approve($user, $holiday)) {
+        if ($this->approve($user, $holiday) || $this->correct($user, $holiday)) {
             return true;
         }
 
         return $holiday->employe_id === $user->id && ($holiday->is_pending || $holiday->rejected);
+    }
+
+    /**
+     * Zeitraum eines eigenen Urlaubs jederzeit selbst korrigieren – nur für Personen ohne Vorgesetzte.
+     */
+    public function correct(User $user, Holiday $holiday): bool
+    {
+        return !$holiday->trashed()
+            && $holiday->employe_id === $user->id
+            && $this->zugriff->hatKeineVorgesetzten($user);
     }
 
     /**

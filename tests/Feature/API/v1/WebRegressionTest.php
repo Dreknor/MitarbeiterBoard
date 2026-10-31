@@ -50,7 +50,8 @@ class WebRegressionTest extends TestCase
     /** @test */
     public function stufenwechsel_im_web_nutzt_gemeinsamen_service(): void
     {
-        $user = $this->actingAsWithPermission('view paed diary', 'manage grading systems');
+        // Kein "manage grading systems" nötig – Zugriff auf den Schüler genügt
+        $user = $this->actingAsWithPermission('view paed diary');
         $system = GradingSystem::factory()->create();
         $stage = GradingStage::create(['grading_system_id' => $system->id, 'name' => 'Stufe A', 'slug' => 'a', 'sort_order' => 1]);
         $klasse = Klasse::factory()->create(['grading_system_id' => $system->id]);
@@ -65,6 +66,23 @@ class WebRegressionTest extends TestCase
         $this->assertSame($stage->id, $schueler->fresh()->grading_stage_id);
         $this->assertDatabaseHas('schueler_grading_histories', ['schueler_id' => $schueler->id, 'grading_stage_id' => $stage->id, 'changed_by' => $user->id]);
         $this->assertDatabaseCount('paed_diary_entries', 1);
+    }
+
+    /** @test */
+    public function stufenwechsel_im_web_nur_fuer_schueler_eigener_klassen(): void
+    {
+        $this->actingAsWithPermission('view paed diary', 'manage grading systems');
+        $system = GradingSystem::factory()->create();
+        $stage = GradingStage::create(['grading_system_id' => $system->id, 'name' => 'Stufe A', 'slug' => 'a', 'sort_order' => 1]);
+        $klasse = Klasse::factory()->create(['grading_system_id' => $system->id]);
+        $schueler = Schueler::factory()->create(['klasse_id' => $klasse->id]);
+
+        $this->postJson('/paed-diary/change-stage', [
+            'schueler_id' => $schueler->id,
+            'grading_stage_id' => $stage->id,
+        ])->assertNotFound();
+
+        $this->assertNull($schueler->fresh()->grading_stage_id);
     }
 
     /** @test */

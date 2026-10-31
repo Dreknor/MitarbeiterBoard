@@ -85,6 +85,19 @@ class HortPlanungPlanungSheet implements FromArray, WithStyles, WithColumnWidths
         return 3 + $monatIdx * 2;
     }
 
+    /** Erstellt eine leere Monatszeile mit exakt zwei Spalten pro Monat */
+    protected function neueMonatsZeile(): array
+    {
+        return array_fill(0, 1 + $this->monate->count() * 2, '');
+    }
+
+    /** Schreibt SP1 und SP2 für einen Monat in eine Zeile */
+    protected function setMonatsWerte(array &$row, int $monatIdx, mixed $sp1 = null, mixed $sp2 = null): void
+    {
+        $row[1 + $monatIdx * 2] = $sp1;
+        $row[2 + $monatIdx * 2] = $sp2;
+    }
+
     // ── FromArray ───────────────────────────────────────────────────
 
     public function array(): array
@@ -386,4 +399,3 @@ class HortPlanungPlanungSheet implements FromArray, WithStyles, WithColumnWidths
         return number_format($wert, $stellen, ',', '.');
     }
 }
-

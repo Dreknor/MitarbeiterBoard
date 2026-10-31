@@ -231,13 +231,13 @@
                                             <div class="pdn-stu">
                                                 <span x-data="stageDropdown()">
                                                     <button type="button" class="pdn-stage pdn-stage--klickbar"
-                                                            x-show="$store.diary.can_manage_grading"
+                                                            x-show="$store.diary.can_change_stage"
                                                             @click.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
                                                             :aria-label="'Stufe von ' + stu.name + ' ändern'"
                                                             :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
                                                         <span x-html="stageHtml(stu)"></span>
                                                     </button>
-                                                    <span class="pdn-stage" x-show="!$store.diary.can_manage_grading"
+                                                    <span class="pdn-stage" x-show="!$store.diary.can_change_stage"
                                                           :title="stu.stage ? stu.stage.name : 'Keine Stufe'" x-html="stageHtml(stu)"></span>
                                                     <template x-teleport="body">
                                                         <div x-show="dropdownOpen && dropdownStuId === stu.id" x-cloak

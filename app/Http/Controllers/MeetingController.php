@@ -341,7 +341,7 @@ class MeetingController extends Controller
     }
 
     /**
-     * Versendet Einladungen an alle Teilnehmenden (Gruppenmitglieder und zusätzlich Eingeladene).
+     * Versendet Einladungen an die Teilnehmenden (alle oder eine Auswahl, s. MeetingService::sendInvitations()).
      */
     public function sendInvitation(Request $request, $groupname, $meetingId)
     {
@@ -351,7 +351,12 @@ class MeetingController extends Controller
         }
 
         $meeting = Meeting::where('group_id', $group->id)->findOrFail($meetingId);
-        $result  = $this->meetings->sendInvitations($meeting, $request->input('message'), auth()->user());
+        $result  = $this->meetings->sendInvitations(
+            $meeting,
+            $request->input('message'),
+            auth()->user(),
+            $this->meetings->validateInvitationRequest($request)
+        );
 
         return redirect()->back()->with($this->meetings->invitationFlash($result));
     }

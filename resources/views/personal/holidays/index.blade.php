@@ -265,7 +265,7 @@
             @else
                 <ul class="zw-list">
                     @foreach($eigeneAntraege as $antrag)
-                        <li class="px-4 py-3 sm:px-5 {{ $antrag->trashed() ? 'opacity-60' : '' }}" x-data="{ storno: false }">
+                        <li class="px-4 py-3 sm:px-5 {{ $antrag->trashed() ? 'opacity-60' : '' }}" x-data="{ storno: false, korrektur: false }">
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                                 <div class="text-center shrink-0 w-14">
                                     <div class="text-sm font-bold text-gray-900">{{ $antrag->start_date->format('d.m.') }}</div>
@@ -287,6 +287,11 @@
                                 @endif
                                 @unless($antrag->trashed())
                                     <div class="flex items-center gap-1">
+                                        @can('correct', $antrag)
+                                            <button type="button" class="zw-btn zw-btn-sm zw-btn-secondary" @click="korrektur = !korrektur" title="Zeitraum korrigieren">
+                                                <i class="fas fa-pen"></i><span class="hidden sm:inline">Korrigieren</span>
+                                            </button>
+                                        @endcan
                                         @can('delete', $antrag)
                                             <form action="{{ route('holidays.destroy', $antrag) }}" method="post" data-confirm="{{ $antrag->is_pending ? 'Antrag zurückziehen?' : 'Eintrag entfernen?' }}">
                                                 @csrf @method('delete')
@@ -303,6 +308,22 @@
                                     </div>
                                 @endunless
                             </div>
+                            @can('correct', $antrag)
+                                <form x-show.important="korrektur" x-cloak action="{{ route('holidays.correct', $antrag) }}" method="post" class="mt-3 flex flex-col sm:flex-row sm:items-end gap-2">
+                                    @csrf @method('put')
+                                    <label class="flex-1 text-xs text-gray-600">Von
+                                        <input type="date" name="start_date" id="korrektur-start-{{ $antrag->id }}" value="{{ $antrag->start_date->toDateString() }}" class="zw-input" required>
+                                    </label>
+                                    <label class="flex-1 text-xs text-gray-600">Bis
+                                        <input type="date" name="end_date" id="korrektur-ende-{{ $antrag->id }}" value="{{ $antrag->end_date->toDateString() }}" class="zw-input" required>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700 shrink-0 sm:pb-2">
+                                        <input type="hidden" name="half_day" value="0">
+                                        <input type="checkbox" name="half_day" value="1" id="korrektur-halb-{{ $antrag->id }}" @checked($antrag->half_day)> halber Tag
+                                    </label>
+                                    <button type="submit" class="zw-btn zw-btn-primary shrink-0">Speichern</button>
+                                </form>
+                            @endcan
                             @can('requestCancellation', $antrag)
                                 <form x-show.important="storno" x-cloak action="{{ route('holidays.cancel', $antrag) }}" method="post" class="mt-3 flex flex-col sm:flex-row gap-2">
                                     @csrf

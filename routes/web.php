@@ -272,6 +272,7 @@ Route::group([
                     Route::post('holidays/{holiday}/reject', [HolidayController::class, 'reject'])->name('holidays.reject');
                     Route::post('holidays/{holiday}/cancel', [HolidayController::class, 'requestCancellation'])->name('holidays.cancel');
                     Route::post('holidays/{holiday}/cancel-decision', [HolidayController::class, 'decideCancellation'])->name('holidays.cancel-decision');
+                    Route::put('holidays/{holiday}/correct', [HolidayController::class, 'correct'])->name('holidays.correct');
                     Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
 
                     Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index'])->whereNumber(['month', 'year'])->name('holidays.index');
@@ -1002,7 +1003,7 @@ Route::group([
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
 
-                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:change grading stage|manage grading systems')->name('paedDiary.changeStage');
+                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->name('paedDiary.changeStage');
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
 

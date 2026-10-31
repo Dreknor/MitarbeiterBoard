@@ -545,15 +545,6 @@ class User extends Authenticatable implements HasMedia
     }
 
     /**
-     * Graduierungsstufen von Schülern ändern. "change grading stage" ist das Alltagsrecht;
-     * wer Graduierungssysteme verwaltet ("manage grading systems"), darf es implizit auch.
-     */
-    public function canChangeGradingStage(): bool
-    {
-        return $this->safeHasPermission('change grading stage') || $this->safeHasPermission('manage grading systems');
-    }
-
-    /**
      * Prüft, ob der Benutzer einer Klasse im Pädagogischen Tagebuch zugeordnet ist
      * oder klassenübergreifende Rechte besitzt.
      */

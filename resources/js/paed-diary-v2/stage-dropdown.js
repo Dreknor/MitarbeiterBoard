@@ -44,7 +44,7 @@ export function registerStageDropdown(Alpine) {
          * Dropdown für einen Schüler öffnen und Stufen laden.
          */
         async openDropdown(stuId, klasseId, triggerEl) {
-            if (!this.$store.diary.can_manage_grading) return;
+            if (!this.$store.diary.can_change_stage) return;
 
             // Wenn schon für diesen Schüler offen → schließen.
             // Ausnahme: Ein Touch-Tap kann (je nach Browser/Gerät) einen zweiten

@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 /**
  * Graduierung (Web): Löschschutz, Schreibschutz abgeschlossener Sessions, QR-Zugang,
- * Wiederöffnen und das Recht "change grading stage".
+ * Wiederöffnen und die Stufenvergabe durch alle mit Zugriff auf den Schüler.
  */
 class GradingWebAbsicherungTest extends TestCase
 {
@@ -173,9 +173,9 @@ class GradingWebAbsicherungTest extends TestCase
     }
 
     /** @test */
-    public function stufe_vergeben_reicht_das_recht_change_grading_stage(): void
+    public function stufe_vergeben_darf_jede_lehrkraft_mit_zugriff_auf_den_schueler(): void
     {
-        [, , $schueler, $system] = $this->lehrkraftMitKlasse('change grading stage');
+        [, , $schueler, $system] = $this->lehrkraftMitKlasse();
         $stufe = GradingStage::create(['grading_system_id' => $system->id, 'name' => 'Forscher', 'sort_order' => 1]);
 
         $this->postJson(route('paedDiary.changeStage'), ['schueler_id' => $schueler->id, 'grading_stage_id' => $stufe->id])->assertOk();

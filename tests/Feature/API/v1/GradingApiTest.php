@@ -155,8 +155,9 @@ class GradingApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function stufenvergabe_ohne_recht_liefert_403_und_speichert_nichts(): void
+    public function stufenvergabe_braucht_kein_verwaltungsrecht(): void
     {
+        // "manage grading systems" regelt nur die Verwaltung der Systeme – Zugriff auf den Schüler genügt
         $user = $this->actingAsTeacher(['view paed diary'], [$this->klasse]);
         $session = GradingDocumentationSession::factory()->create([
             'klasse_id' => $this->klasse->id, 'grading_system_id' => $this->system->id,
@@ -166,10 +167,9 @@ class GradingApiTest extends ApiTestCase
         $this->postJson(self::API . "/grading/sessions/{$session->id}/assessments", [
             'finalize' => true,
             'grading_stage_id' => $this->stage2->id,
-        ])->assertForbidden();
+        ])->assertOk()->assertJsonPath('data.is_completed', true);
 
-        $this->assertNull($session->fresh()->completed_at);
-        $this->assertSame($this->stage1->id, $this->schueler->fresh()->grading_stage_id);
+        $this->assertSame($this->stage2->id, $this->schueler->fresh()->grading_stage_id);
     }
 
     /** @test */

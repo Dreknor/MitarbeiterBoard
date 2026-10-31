@@ -10,6 +10,7 @@ use App\Models\RoomBooking;
 use App\Models\Theme;
 use App\Models\User;
 use App\Notifications\Push;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -264,18 +265,76 @@ class MeetingService
     }
 
     /**
-     * Versendet Einladungen an alle Teilnehmer.
+     * Mögliche Empfänger einer Einladung (alle aufgelösten Teilnehmenden).
+     * `extra` = zusätzlich eingeladen (direkt, über Gruppen/Bereiche, Rollen oder Ersteller),
+     * also nicht nur über die Mitgliedschaft in der Meeting-Gruppe dabei.
      *
+     * @return Collection<int, array{id: int, name: string, email: bool, extra: bool}>
+     */
+    public function invitationRecipients(Meeting $meeting): Collection
+    {
+        $meeting->loadMissing(['group.users', 'creator', 'participantUsers', 'participantGroups.users', 'participantRoles']);
+
+        $extraIds = $meeting->participantUsers->pluck('id')
+            ->merge($meeting->participantGroups->flatMap(fn (Group $g) => $g->users->pluck('id')))
+            ->when($meeting->participantRoles->isNotEmpty(), fn ($ids) => $ids->merge(
+                User::role($meeting->participantRoles->pluck('name')->all())->pluck('id')
+            ))
+            ->when($meeting->creator_id, fn ($ids) => $ids->push($meeting->creator_id))
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        return $meeting->resolvedParticipants()->map(fn (User $u) => [
+            'id'    => (int) $u->id,
+            'name'  => $u->name,
+            'email' => ! empty($u->email),
+            'extra' => ! $meeting->group_id || $extraIds->contains((int) $u->id),
+        ])->values();
+    }
+
+    /**
+     * Validiert das Einladungsformular und liefert die gewählten Empfänger
+     * (null = an alle Teilnehmenden, wenn keine Auswahl getroffen wurde).
+     *
+     * @return array<int>|null
+     */
+    public function validateInvitationRequest(Request $request): ?array
+    {
+        $request->validate([
+            'message'           => ['nullable', 'string', 'max:2000'],
+            'select_recipients' => ['nullable', 'boolean'],
+            'recipients'        => ['required_if_accepted:select_recipients', 'array'],
+            'recipients.*'      => ['integer'],
+        ], [
+            'recipients.required_if_accepted' => 'Bitte mindestens eine Person für die Einladung auswählen.',
+        ]);
+
+        return $request->boolean('select_recipients')
+            ? array_map('intval', $request->input('recipients', []))
+            : null;
+    }
+
+    /**
+     * Versendet Einladungen an die Teilnehmer. Mit `$recipientIds` nur an diese Auswahl
+     * (nur Personen, die ohnehin Teilnehmende sind) – der Meetingzugriff bleibt davon unberührt.
+     *
+     * @param  array<int>|null  $recipientIds  null = an alle Teilnehmenden
      * @return array{gesendet: int, fehlerhaft: array<int, string>}
      */
-    public function sendInvitations(Meeting $meeting, ?string $message, User $sender): array
+    public function sendInvitations(Meeting $meeting, ?string $message, User $sender, ?array $recipientIds = null): array
     {
         $meeting->loadMissing(['themes', 'roomBooking.room', 'group', 'creator', 'participantUsers', 'participantGroups.users', 'participantRoles']);
 
         $gesendet   = 0;
         $fehlerhaft = [];
 
-        foreach ($meeting->resolvedParticipants() as $user) {
+        $recipients = $meeting->resolvedParticipants();
+        if ($recipientIds !== null) {
+            $auswahl    = collect($recipientIds)->map(fn ($id) => (int) $id);
+            $recipients = $recipients->filter(fn (User $u) => $auswahl->contains((int) $u->id));
+        }
+
+        foreach ($recipients as $user) {
             if (empty($user->email)) {
                 Log::warning('Meeting-Einladung: Keine E-Mail-Adresse für Benutzer', [
                     'user_id'    => $user->id,
