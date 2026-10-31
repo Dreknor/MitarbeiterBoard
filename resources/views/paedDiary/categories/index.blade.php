@@ -68,7 +68,7 @@
                         <p class="pdn-label-sm">Farbe und Name ändern per Klick. „In der Woche zeigen“ gilt nur für dich.</p>
                     </div>
                     <p class="pdn-leer" x-show="geladen && !kategorien.length" x-cloak>Noch keine Kategorien angelegt.</p>
-                    <div class="pdn-scroll" x-show="kategorien.length">
+                    <div class="pdn-kattabelle" x-show="kategorien.length">
                         <table class="pdn-table">
                             <thead>
                                 <tr><th style="width:56px">Farbe</th><th>Name</th><th>Vorschau</th><th>Art</th><th style="text-align:right">Einträge</th><th>In der Woche zeigen</th><th></th></tr>

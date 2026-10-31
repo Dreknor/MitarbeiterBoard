@@ -343,6 +343,14 @@
 .pdn-swatch--eigen:focus-within { outline: 3px solid var(--pdn-accent); outline-offset: 2px; }
 #tw-main .pdn .pdn-swatch { border-width: 2px; }
 .pdn-vorschau { width: auto; min-width: 160px; max-width: 260px; cursor: default; margin: 0; }
+/* Kategorien-Tabelle ohne eigenen Scrollbereich: Die Seite wird länger, die Farbpalette
+   ragt frei über die Tabelle. Nur schmale Bildschirme scrollen seitlich; dort öffnet die
+   Palette in der Zeile statt schwebend (sonst würde sie im Scrollbereich abgeschnitten). */
+.pdn-kattabelle { overflow: visible; }
+@media (max-width: 900px) {
+    .pdn-kattabelle { overflow-x: auto; }
+    .pdn-kattabelle .pdn-panel { position: static; box-shadow: none; margin-top: 6px; padding: 8px; }
+}
 .pdn-namebtn { border: 0; background: none; font: inherit; font-weight: 700; color: var(--pdn-ink); padding: 2px 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
 .pdn-namebtn i { font-size: .75em; color: var(--pdn-ink-2); opacity: 0; }
 .pdn-namebtn:hover i, .pdn-namebtn:focus-visible i { opacity: 1; }
