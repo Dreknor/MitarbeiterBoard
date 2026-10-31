@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid px-2 px-md-3">
+<div class="container-fluid px-2 px-md-3 ta-wrapper">
     <div class="row">
         <div class="col-12">
             <div class="card main-card">
@@ -14,6 +14,16 @@
                                 <span class="badge badge-light">{{ $session->gradingSystem->name }}</span>
                             </div>
                         </div>
+                        @if(($darstellung['ansicht'] ?? 'bisher') === 'neu')
+                            {{-- Neue Ansicht: Wechsel zur Matrix (Schüler × Fragen) --}}
+                            <form method="post" action="{{ route('paedDiary.settings.darstellung') }}" style="margin:0 8px 0 auto">
+                                @csrf
+                                <input type="hidden" name="bewertung" value="matrix">
+                                <button type="submit" class="back-btn inline-flex items-center gap-2" title="Alle Schüler und Fragen in einer Tabelle bewerten">
+                                    <i class="fas fa-th" aria-hidden="true"></i> <span class="hidden md:inline">Matrix</span>
+                                </button>
+                            </form>
+                        @endif
                         @if($session->type === 'group')
                             <a href="{{ route('gradingDocumentation.groupSession', $session->id) }}" class="back-btn inline-flex items-center gap-2">
                                 <i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Zurück</span>
@@ -115,6 +125,24 @@
 <script>
 (function() {
     const sessionId = {{ $session->id }};
+    const urls = {
+        answerOrderMode: @json(route('gradingDocumentation.updateAnswerOrderMode', $session->id)),
+        teacherAssessment: @json(route('gradingDocumentation.saveTeacherAssessment')),
+        coachingNote: @json(route('gradingDocumentation.saveCoachingNote')),
+        complete: @json(route('gradingDocumentation.completeSession', $session->id)),
+        index: @json(route('gradingDocumentation.index')),
+    };
+    const reopenDays = @json($reopenDays);
+
+    // Texte aus der Datenbank (Namen, Fragen) vor dem Einfügen per innerHTML escapen
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
     const schueler = @json($schueler);
     const questions = @json($questions);
     const sessionType = @json($session->type);
@@ -139,7 +167,6 @@
     let teacherAssessments = teacherAssessmentsData || {};
     let coachingNotes = coachingNotesData || {};
     let loading = false;
-    let noteLoading = false;
     let autoScrollEnabled = localStorage.getItem('teacherAssessment_autoScroll') !== 'false';
     let answerOrderMode = sessionType === 'group'
         ? (initialAnswerOrderMode || ANSWER_ORDER_MODES.BY_STUDENT)
@@ -547,7 +574,7 @@
         elements.questionCycleBanner.style.display = 'block';
         elements.questionCycleBanner.innerHTML = `
             <div class="question-cycle-meta">Frage ${currentQuestionIndex + 1} von ${questions.length}</div>
-            <div class="question-cycle-text">${currentQuestion.question}</div>
+            <div class="question-cycle-text">${escapeHtml(currentQuestion.question)}</div>
             <div class="question-cycle-progress">${completedForQuestion} von ${schueler.length} Schülern bewertet</div>
         `;
     }
@@ -591,7 +618,7 @@
         loading = true;
 
         try {
-            const response = await fetch(`/paed-diary/documentation/session/${sessionId}/answer-order-mode`, {
+            const response = await fetch(urls.answerOrderMode, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -627,13 +654,29 @@
         }
     }
 
-    async function saveAssessment(schuelerId, questionId, rating) {
-        if (loading) return;
+    // Speichervorgänge pro Schüler+Frage nacheinander ausführen. Früher teilten sich Bewertung und
+    // Kommentar das globale loading-Flag: Ein Klick auf eine Bewertung, während der Kommentar (blur)
+    // gespeichert wurde, ging dadurch still verloren.
+    const saveQueues = {};
+    function enqueueSave(schuelerId, questionId, task) {
+        const key = `${schuelerId}:${questionId}`;
+        const run = (saveQueues[key] || Promise.resolve()).then(task, task);
+        saveQueues[key] = run.catch(() => {});
+        return run;
+    }
 
-        loading = true;
+    async function responseErrorMessage(response, fallback) {
+        const data = await response.json().catch(() => ({}));
+        return data.message || fallback;
+    }
 
+    function saveAssessment(schuelerId, questionId, rating) {
+        return enqueueSave(schuelerId, questionId, () => doSaveAssessment(schuelerId, questionId, rating));
+    }
+
+    async function doSaveAssessment(schuelerId, questionId, rating) {
         try {
-            const response = await fetch('/paed-diary/documentation/teacher-assessment', {
+            const response = await fetch(urls.teacherAssessment, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -671,23 +714,21 @@
                 render();
                 scrollToNextQuestion(questionId);
             } else {
-                alert('Fehler beim Speichern der Einschätzung.');
+                alert(await responseErrorMessage(response, 'Die Einschätzung wurde nicht gespeichert. Bitte erneut auswählen.'));
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Speichern der Einschätzung.');
-        } finally {
-            loading = false;
+            alert('Die Einschätzung wurde nicht gespeichert (keine Verbindung). Bitte erneut auswählen.');
         }
     }
 
-    async function saveComment(schuelerId, questionId, comment) {
-        if (loading) return;
+    function saveComment(schuelerId, questionId, comment) {
+        return enqueueSave(schuelerId, questionId, () => doSaveComment(schuelerId, questionId, comment));
+    }
 
-        loading = true;
-
+    async function doSaveComment(schuelerId, questionId, comment) {
         try {
-            const response = await fetch('/paed-diary/documentation/teacher-assessment', {
+            const response = await fetch(urls.teacherAssessment, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -710,21 +751,22 @@
                     teacherAssessments[schuelerId][questionId] = {};
                 }
                 teacherAssessments[schuelerId][questionId].comment = comment;
+            } else {
+                alert(await responseErrorMessage(response, 'Der Kommentar wurde nicht gespeichert. Bitte erneut eingeben.'));
             }
         } catch (error) {
             console.error('Fehler:', error);
-        } finally {
-            loading = false;
+            alert('Der Kommentar wurde nicht gespeichert (keine Verbindung). Bitte erneut eingeben.');
         }
     }
 
-    async function saveCoachingNote(schuelerId, note) {
-        if (noteLoading) return;
+    function saveCoachingNote(schuelerId, note) {
+        return enqueueSave(schuelerId, 'note', () => doSaveCoachingNote(schuelerId, note));
+    }
 
-        noteLoading = true;
-
+    async function doSaveCoachingNote(schuelerId, note) {
         try {
-            const response = await fetch('/paed-diary/documentation/coaching-note', {
+            const response = await fetch(urls.coachingNote, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -746,32 +788,37 @@
                     setTimeout(() => status.classList.remove('saved'), 1500);
                 }
             } else {
-                alert('Fehler beim Speichern des Coaching-Protokolls.');
+                alert(await responseErrorMessage(response, 'Das Coaching-Protokoll wurde nicht gespeichert.'));
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Speichern des Coaching-Protokolls.');
-        } finally {
-            noteLoading = false;
+            alert('Das Coaching-Protokoll wurde nicht gespeichert (keine Verbindung).');
         }
     }
 
     async function completeSession() {
         if (loading) return;
 
-        const hasAnyAssessments = schueler.some(currentSchueler => isSchuelerComplete(currentSchueler.id));
+        // Mindestens eine Bewertung muss vorliegen; unvollständige Schüler sind erlaubt (mit Rückfrage)
+        const hasAnyAssessments = schueler.some(currentSchueler =>
+            questions.some(question => !!getTeacherRating(currentSchueler.id, question.id))
+        );
 
         if (!hasAnyAssessments) {
-            alert('Bitte bewerten Sie mindestens einen Schüler, bevor Sie die Dokumentation abschließen.');
+            alert('Bitte bewerten Sie mindestens eine Frage, bevor Sie die Dokumentation abschließen.');
             return;
         }
 
+        const reopenHint = Number(reopenDays) > 0
+            ? `Nach dem Abschluss kann die Dokumentation innerhalb von ${reopenDays} Tagen wieder geöffnet werden, um Änderungen vorzunehmen.`
+            : 'Nach dem Abschluss sind keine Änderungen mehr möglich.';
+
         const skippedStudents = schueler.filter(currentSchueler => !isSchuelerComplete(currentSchueler.id));
-        let confirmMessage = 'Möchten Sie die Dokumentation wirklich abschließen? Danach können keine Änderungen mehr vorgenommen werden.';
+        let confirmMessage = `Möchten Sie die Dokumentation wirklich abschließen?\n\n${reopenHint}`;
 
         if (skippedStudents.length > 0) {
-            const skippedNames = skippedStudents.map(currentSchueler => `${currentSchueler.vorname} ${currentSchueler.nachname}`).join(', ');
-            confirmMessage = `Achtung: Folgende Schüler wurden nicht vollständig bewertet: ${skippedNames}\n\nMöchten Sie die Dokumentation trotzdem abschließen? Danach können keine Änderungen mehr vorgenommen werden.`;
+            const skippedNames = skippedStudents.map(currentSchueler => `- ${currentSchueler.vorname} ${currentSchueler.nachname}`).join('\n');
+            confirmMessage = `Folgende Schüler wurden nicht vollständig bewertet:\n${skippedNames}\n\nMöchten Sie die Dokumentation trotzdem abschließen?\n\n${reopenHint}`;
         }
 
         if (!confirm(confirmMessage)) {
@@ -781,7 +828,7 @@
         loading = true;
 
         try {
-            const response = await fetch(`/paed-diary/documentation/session/${sessionId}/complete`, {
+            const response = await fetch(urls.complete, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -791,9 +838,9 @@
 
             if (response.ok) {
                 alert('Dokumentation erfolgreich abgeschlossen!');
-                window.location.href = '/paed-diary/documentation';
+                window.location.href = urls.index;
             } else {
-                alert('Fehler beim Abschließen der Dokumentation.');
+                alert(await responseErrorMessage(response, 'Fehler beim Abschließen der Dokumentation.'));
             }
         } catch (error) {
             console.error('Fehler:', error);
@@ -908,8 +955,8 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="student-details">
-                    <h5 class="mb-0">${currentSchueler.vorname} ${currentSchueler.nachname}</h5>
-                    <small class="text-muted">${headerMeta}</small>
+                    <h5 class="mb-0">${escapeHtml(currentSchueler.vorname)} ${escapeHtml(currentSchueler.nachname)}</h5>
+                    <small class="text-muted">${escapeHtml(headerMeta)}</small>
                 </div>
                 ${isSchuelerComplete(currentSchueler.id) ? '<span class="badge badge-success"><i class="fas fa-check"></i> Vollständig</span>' : '<span class="badge badge-warning"><i class="fas fa-clock"></i> In Bearbeitung</span>'}
             </div>
@@ -946,7 +993,7 @@
             questionHeader.className = 'question-header';
             questionHeader.innerHTML = `
                 <span class="question-number">${qIndex + 1}</span>
-                <h6 class="question-text mb-0">${question.question}</h6>
+                <h6 class="question-text mb-0">${escapeHtml(question.question)}</h6>
             `;
             card.appendChild(questionHeader);
 
@@ -1033,7 +1080,11 @@
     function renderCompleteButton() {
         if (!elements.completeButton) return;
 
-        elements.completeButton.disabled = !isAllComplete();
+        // Abschließen ist auch mit unvollständigen Schülern möglich (Rückfrage in completeSession)
+        elements.completeButton.disabled = loading;
+        elements.completeButton.title = isAllComplete()
+            ? ''
+            : 'Noch nicht alle Schüler sind vollständig bewertet – Abschluss nach Rückfrage möglich.';
     }
 
     function render() {
@@ -1119,7 +1170,8 @@
 </script>
 
 <style>
-:root {
+/* Variablen nur im Wrapper dieser Ansicht (nicht global über :root überschreiben) */
+.ta-wrapper {
     --primary: #0d6efd;
     --primary-dark: #0b5ed7;
     --success: #198754;

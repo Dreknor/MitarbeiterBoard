@@ -2,6 +2,9 @@
 
 @section('content')
 <div class="container-fluid" id="schueler-diary-app">
+    {{-- Hinweis bzw. Umschalter zur neuen Ansicht --}}
+    @include('paedDiary.partials._ansicht-hinweis')
+
     <!-- Moderner Tailwind-Header -->
     <div class="mb-6">
         <!-- Hauptüberschrift und Aktionen -->
@@ -27,15 +30,15 @@
 
                 <!-- Aktions-Buttons -->
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('paedDiary.index', ['klasse' => $klasse->id]) }}"
+                    <a href="{{ $zurueckUrl ?? route('paedDiary.index', ['klasse' => $klasse->id]) }}"
                        class="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium">
                         <i class="fas fa-arrow-left"></i>
                         <span class="hidden sm:inline">Zurück zur Übersicht</span>
                         <span class="sm:hidden">Zurück</span>
                     </a>
-                    <button id="exportWordBtn"
+                    <button id="exportExcelBtn" type="button"
                             class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium shadow-md"
-                            title="Excel Export">
+                            title="Excel-Export (gewählter Zeitraum, Kategorie und Suche)">
                         <i class="fas fa-file-excel"></i>
                         <span class="hidden sm:inline">Excel Export</span>
                         <span class="sm:hidden">Export</span>
@@ -395,7 +398,7 @@
                                             <div class="bg-white rounded-lg shadow-md overflow-hidden">
                                                 <div class="bg-blue-600 text-white px-4 py-3">
                                                     <h6 class="mb-0 font-semibold">
-                                                        <i class="fas fa-chart-radar"></i> Aktuelle Kompetenzen (Letzte Session)
+                                                        <i class="fas fa-spider"></i> Aktuelle Kompetenzen (Letzte Session)
                                                     </h6>
                                                 </div>
                                                 <div class="p-4">
@@ -403,7 +406,7 @@
                                                     <div class="text-center mt-2">
                                                         <small class="text-gray-500">
                                                             <span class="inline-block w-3 h-3 bg-cyan-500 rounded-full"></span> Schüler-Einschätzung &nbsp;
-                                                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span> Lehrer-Bewertung
+                                                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span> Einschätzung der Lehrkraft
                                                         </small>
                                                     </div>
                                                     <div class="mt-3 pt-2 border-t border-gray-200">
@@ -517,7 +520,7 @@
                                                      x-transition:leave-end="opacity-0 -translate-y-2">
                                                     <div class="p-4">
                                                         <p class="text-gray-600 mb-3">
-                                                            <strong>Lehrer:</strong> {{ $session->user->name }}
+                                                            <strong>Lehrkraft:</strong> {{ $session->user?->name ?? '–' }}
                                                         </p>
                                                         @php
                                                             $coachingNote = $session->coachingNotes->where('schueler_id', $schueler->id)->first();
@@ -538,7 +541,7 @@
                                                                     </tr>
                                                                     <tr>
                                                                         <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Schüler</th>
-                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Lehrer</th>
+                                                                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Lehrkraft</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -554,7 +557,7 @@
                                                                         <tr>
                                                                             <td class="px-4 py-3">{{ $question->question }}</td>
                                                                             <td class="px-4 py-3 text-center">
-                                                                                @if($studentAnswer)
+                                                                                @if($studentAnswer && $studentAnswer->self_rating)
                                                                                     @php
                                                                                         $rating = $studentAnswer->self_rating;
                                                                                         $icons = [
@@ -565,11 +568,11 @@
                                                                                             5 => 'fas fa-grin-stars text-success'
                                                                                         ];
                                                                                         $labels = [
-                                                                                            1 => 'Sehr schlecht',
-                                                                                            2 => 'Schlecht',
-                                                                                            3 => 'Mittel',
-                                                                                            4 => 'Gut',
-                                                                                            5 => 'Sehr gut'
+                                                                                            1 => 'Klappt noch nicht',
+                                                                                            2 => 'Klappt manchmal',
+                                                                                            3 => 'Klappt oft',
+                                                                                            4 => 'Klappt fast immer',
+                                                                                            5 => 'Kann ich sicher'
                                                                                         ];
                                                                                     @endphp
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
@@ -590,11 +593,11 @@
                                                                                             5 => 'fas fa-grin-stars text-success'
                                                                                         ];
                                                                                         $labels = [
-                                                                                            1 => 'Sehr schlecht',
-                                                                                            2 => 'Schlecht',
-                                                                                            3 => 'Mittel',
-                                                                                            4 => 'Gut',
-                                                                                            5 => 'Sehr gut'
+                                                                                            1 => 'Klappt noch nicht',
+                                                                                            2 => 'Klappt manchmal',
+                                                                                            3 => 'Klappt oft',
+                                                                                            4 => 'Klappt fast immer',
+                                                                                            5 => 'Kann ich sicher'
                                                                                         ];
                                                                                     @endphp
                                                                                     <i class="{{ $icons[$rating] }}" style="font-size: 1.5rem;"
@@ -1141,7 +1144,7 @@
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const loadDataBtn = document.getElementById('loadDataBtn');
-    const exportWordBtn = document.getElementById('exportWordBtn');
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
     const loadingIndicator = document.getElementById('loadingIndicator');
     const summarySection = document.getElementById('summarySection');
     const dataSection = document.getElementById('dataSection');
@@ -1172,12 +1175,17 @@
     let categoryMap = new Map();
 
     // Utils
+    // Lokales Datum als YYYY-MM-DD (toISOString() rechnet in UTC und verschiebt Tage)
     function formatDate(date) {
-        return date.toISOString().split('T')[0];
+        return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
     }
 
+    // Anzeige als TT.MM.JJJJ; reine Datumswerte werden lokal interpretiert
     function formatDisplayDate(dateString) {
-        return new Date(dateString).toLocaleDateString('de-DE');
+        if (!dateString) return '';
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+        const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(dateString);
+        return isNaN(d) ? '' : d.toLocaleDateString('de-DE');
     }
 
     function escapeHtml(text) {
@@ -1210,10 +1218,13 @@
     }
 
     // ===== Schulhalbjahr / Schuljahr Berechnung =====
-    // Schuljahresbeginn ist der 1. August. 1. Halbjahr: 01.08. - 31.01., 2. Halbjahr: 01.02. - 31.07.
+    // Schuljahresbeginn aus der Konfiguration (wie im Dossier). 1. Halbjahr bis 31.01., 2. Halbjahr ab 01.02.
+    const SCHULJAHR_BEGINN = @json(\Carbon\Carbon::parse(config('config.schuljahresbeginn'))->format('m-d')).split('-').map(Number);
     function getSchoolYearStart(date) {
-        const year = (date.getMonth() >= 7) ? date.getFullYear() : date.getFullYear() - 1;
-        return new Date(year, 7, 1); // 1. August
+        const [monat, tag] = SCHULJAHR_BEGINN;
+        const beginnDiesesJahr = new Date(date.getFullYear(), monat - 1, tag);
+        const year = date >= beginnDiesesJahr ? date.getFullYear() : date.getFullYear() - 1;
+        return new Date(year, monat - 1, tag);
     }
 
     function getHalfYearRange(date) {
@@ -1283,17 +1294,23 @@
             date_to: dateTo
         });
 
-        fetch(`/paed-diary/schueler/${schuelerID}/data?${params}`)
-            .then(response => response.json())
+        showLoadError('');
+        fetch(`/paed-diary/schueler/${schuelerID}/data?${params}`, { headers: { 'Accept': 'application/json' } })
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const fehler = data.errors ? Object.values(data.errors).flat().join(' ') : '';
+                    throw new Error(fehler || data.message || 'Die Daten konnten nicht geladen werden.');
+                }
+                return data;
+            })
             .then(data => {
                 currentData = data;
-                console.log('Loaded Data:', data);
                 populateCategories(data.categories || []);
                 applyFiltersAndRender();
             })
             .catch(error => {
-                console.error('Error loading data:', error);
-                alert('Fehler beim Laden der Daten.');
+                showLoadError(error.message || 'Die Daten konnten nicht geladen werden.');
             })
             .finally(() => {
                 loadingIndicator.classList.add('hidden');
@@ -1419,10 +1436,12 @@
             const from = e.date_from || e.date;
             const to = e.date_to || e.date;
             // Alle Tage im Bereich sammeln
-            let d = new Date(from);
-            const end = new Date(to);
+            const [fy, fm, fd] = from.split('-').map(Number);
+            const [ty, tm, td] = to.split('-').map(Number);
+            let d = new Date(fy, fm - 1, fd);
+            const end = new Date(ty, tm - 1, td);
             while (d <= end) {
-                uniqueDays.add(d.toISOString().split('T')[0]);
+                uniqueDays.add(formatDate(d));
                 d.setDate(d.getDate() + 1);
             }
         });
@@ -1510,7 +1529,7 @@
 
             row.innerHTML = `
                 <td class="px-4 py-3 text-center whitespace-nowrap">${datumHtml}</td>
-                <td class="px-4 py-3">${escapeHtml(entry.content)}</td>
+                <td class="px-4 py-3">${entry.dossier_only ? '<span class="inline-block px-2 py-0.5 mr-1 text-xs font-semibold rounded bg-red-100 text-red-700" title="Nur im Dossier sichtbar">Vertraulich</span>' : ''}${escapeHtml(entry.content)}</td>
                 <td class="px-4 py-3">${escapeHtml(categoryName)}</td>
                 <td class="px-4 py-3 text-center">${escapeHtml(entry.user || '')}</td>
             `;
@@ -1744,10 +1763,24 @@
         tbody.appendChild(footerCountsRow);
      }
 
-    // Export Word
-    function exportWord() {
+    // Fehler beim Laden inline anzeigen (statt alert)
+    function showLoadError(message) {
+        let box = document.getElementById('loadErrorBox');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'loadErrorBox';
+            box.setAttribute('role', 'alert');
+            box.className = 'mt-3 px-4 py-2 rounded border border-red-300 bg-red-50 text-red-700 text-sm';
+            loadingIndicator.parentNode.insertBefore(box, loadingIndicator);
+        }
+        box.textContent = message;
+        box.classList.toggle('hidden', !message);
+    }
+
+    // Excel-Export (berücksichtigt Kategorie und Suche)
+    function exportExcel() {
         if (!currentData) {
-            alert('Bitte laden Sie zuerst Daten.');
+            showLoadError('Bitte zuerst einen Zeitraum laden.');
             return;
         }
 
@@ -1760,7 +1793,7 @@
         if (categoryFilter && categoryFilter.value) params.append('category', categoryFilter.value);
         if (searchNotesInput && searchNotesInput.value.trim()) params.append('search', searchNotesInput.value.trim());
 
-        window.location.href = `/paed-diary/schueler/${schuelerID}/export/word?${params}`;
+        window.location.href = `/paed-diary/schueler/${schuelerID}/export/excel?${params}`;
     }
 
     // Render current stage
@@ -1769,12 +1802,13 @@
         const row = document.getElementById('stageHistoryRow');
         if (!container) return;
         container.innerHTML = '';
+        // Bereich auch ohne aktuelle Stufe zeigen, sofern es eine Stufen-Historie gibt
+        const hatHistorie = (currentData?.stage_history || []).length > 0;
+        row.style.display = (stage || hatHistorie) ? '' : 'none';
         if (!stage){
             container.innerHTML = '<div class="text-muted">Keine Stufe zugewiesen</div>';
-            row.style.display = 'none';
             return;
         }
-        row.style.display = '';
         const box = document.createElement('div');
         box.className = 'd-flex align-items-center justify-content-center';
         // image or symbol
@@ -1943,7 +1977,7 @@
 
     // Event Listeners
     loadDataBtn.addEventListener('click', loadData);
-    exportWordBtn.addEventListener('click', exportWord);
+    exportExcelBtn.addEventListener('click', exportExcel);
 
     // Dossier als PDF (gleiche Aufbereitung wie in der Pädagogen-App)
     document.getElementById('exportDossierPdfBtn').addEventListener('click', function () {
@@ -1996,109 +2030,59 @@
     loadData();
 
     // ===== Graduierungs-Visualisierung =====
-    // Daten für Graduierungen aus Blade-Template
-    const gradingSessions = @json($gradingSessions ?? []);
+    // Schlanke Reflexionsdaten (PaedDiarySchuelerService::reflexionenAlsDaten), älteste zuerst
+    const reflexionen = @json($reflexionen ?? []);
+    const bewertungsLabels = ['', 'Klappt noch nicht', 'Klappt manchmal', 'Klappt oft', 'Klappt fast immer', 'Kann ich sicher'];
 
     // Globale Variable für das Chart-Objekt
     let lineChartInstance = null;
 
-    if (gradingSessions && gradingSessions.length > 0) {
+    if (reflexionen.length > 0) {
         initializeGraduationCharts();
     }
 
     function initializeGraduationCharts() {
-        // Neueste Session für Radar-Chart (Controller sortiert DESC nach completed_at → Index 0 ist die aktuellste)
-        const latestSession = gradingSessions[0];
+        // Netzdiagramm: jüngste Reflexion (letztes Element)
+        const latest = reflexionen[reflexionen.length - 1];
 
-        // Extrahiere alle einzigartigen Fragen aus allen Sessions
+        // Alle Fragen aus allen Reflexionen (für die Auswahl im Verlaufsdiagramm)
         const allQuestionsMap = new Map();
-        gradingSessions.forEach(session => {
-            const sessionQuestions = session.grading_system?.questions || [];
-            sessionQuestions.forEach(q => {
-                if (!allQuestionsMap.has(q.id)) {
-                    allQuestionsMap.set(q.id, q);
-                }
-            });
-        });
+        reflexionen.forEach(r => r.questions.forEach(q => {
+            if (!allQuestionsMap.has(q.id)) allQuestionsMap.set(q.id, q);
+        }));
         const allQuestions = Array.from(allQuestionsMap.values());
 
-        // Extrahiere Fragen aus letzter Session für Radar Chart
-        const questions = latestSession.grading_system?.questions || [];
-
-        // Bereite Daten für Radar-Chart vor (letzte Session)
-        const radarLabels = questions.map(q => truncateText(q.question, 30));
-        const studentRatings = [];
-        const teacherRatings = [];
-
-        questions.forEach(question => {
-            // Finde Student Answer
-            const studentAnswer = latestSession.student_answers?.find(
-                sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
-            );
-            studentRatings.push(studentAnswer?.self_rating || 0);
-
-            // Finde Teacher Assessment
-            const teacherAssessment = latestSession.teacher_assessments?.find(
-                ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
-            );
-            teacherRatings.push(teacherAssessment?.teacher_rating || 0);
-        });
-
-        // Erstelle Radar Chart
         const radarCtx = document.getElementById('radarChart');
         if (radarCtx) {
             new Chart(radarCtx, {
                 type: 'radar',
                 data: {
-                    labels: radarLabels,
+                    labels: latest.questions.map(q => truncateText(q.text, 30)),
                     datasets: [{
                         label: 'Schüler-Einschätzung',
-                        data: studentRatings,
+                        data: latest.questions.map(q => q.self || 0),
                         borderColor: 'rgba(23, 162, 184, 1)',
                         backgroundColor: 'rgba(23, 162, 184, 0.2)',
                         pointBackgroundColor: 'rgba(23, 162, 184, 1)',
                         pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(23, 162, 184, 1)'
                     }, {
-                        label: 'Lehrer-Bewertung',
-                        data: teacherRatings,
+                        label: 'Einschätzung der Lehrkraft',
+                        data: latest.questions.map(q => q.teacher || 0),
                         borderColor: 'rgba(40, 167, 69, 1)',
                         backgroundColor: 'rgba(40, 167, 69, 0.2)',
                         pointBackgroundColor: 'rgba(40, 167, 69, 1)',
                         pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(40, 167, 69, 1)'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            max: 5,
-                            min: 0,
-                            ticks: {
-                                stepSize: 1
-                            },
-                            pointLabels: {
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    },
+                    scales: { r: { beginAtZero: true, max: 5, min: 0, ticks: { stepSize: 1 }, pointLabels: { font: { size: 11 } } } },
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    const labels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
-                                    return context.dataset.label + ': ' + labels[context.parsed.r] + ' (' + context.parsed.r + ')';
-                                }
+                                label: (context) => context.dataset.label + ': ' + (bewertungsLabels[context.parsed.r] || 'keine') + ' (' + context.parsed.r + ')'
                             }
                         }
                     }
@@ -2106,173 +2090,94 @@
             });
         }
 
-        // Fülle das Dropdown mit allen Fragen
         populateQuestionSelector(allQuestions);
-
-        // Erstelle das Linien-Chart (Entwicklung über Zeit)
         createLineChart('average', allQuestions);
     }
 
-
     function populateQuestionSelector(questions) {
         const selector = document.getElementById('lineChartQuestionSelector');
-        if (!selector) {
-            console.error('lineChartQuestionSelector nicht gefunden');
-            return;
-        }
+        if (!selector) return;
 
-        // Behalte die "Durchschnitt"-Option
         selector.innerHTML = '<option value="average">Durchschnitt aller Fragen</option>';
-
-        // Füge alle Fragen hinzu
         questions.forEach((question) => {
             const option = document.createElement('option');
             option.value = question.id;
-            option.textContent = truncateText(question.question, 50);
+            option.textContent = truncateText(question.text, 50);
             selector.appendChild(option);
         });
 
-
-        // Event-Listener für Änderungen
-        selector.addEventListener('change', function() {
-            const selectedValue = this.value;
-            createLineChart(selectedValue, questions);
+        selector.addEventListener('change', function () {
+            createLineChart(this.value, questions);
         });
     }
 
-    function createLineChart(selectedOption, allQuestions) {
-        // Bereite Daten vor
-        const sessionDates = gradingSessions.map(s => {
-            const date = new Date(s.completed_at);
-            return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-        });
+    function durchschnitt(werte) {
+        const vorhanden = werte.filter(v => v);
+        return vorhanden.length ? parseFloat((vorhanden.reduce((a, b) => a + b, 0) / vorhanden.length).toFixed(2)) : null;
+    }
 
-        let studentRatingsData = [];
-        let teacherRatingsData = [];
-        let chartTitle = 'Durchschnittliche Bewertung über alle Fragen';
+    function createLineChart(selectedOption, allQuestions) {
+        // Chronologisch (links alt, rechts neu)
+        const sessionDates = reflexionen.map(r => r.formatted_date);
+        let studentRatingsData;
+        let teacherRatingsData;
+        let chartTitle = 'Durchschnittliche Einschätzung über alle Fragen';
 
         if (selectedOption === 'average') {
-            // Durchschnitt aller Fragen
-            gradingSessions.forEach(session => {
-                const questions = session.grading_system?.questions || [];
-                let studentSum = 0, studentCount = 0;
-                let teacherSum = 0, teacherCount = 0;
-
-                questions.forEach(question => {
-                    const studentAnswer = session.student_answers?.find(
-                        sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === question.id
-                    );
-                    if (studentAnswer && studentAnswer.self_rating) {
-                        studentSum += studentAnswer.self_rating;
-                        studentCount++;
-                    }
-
-                    const teacherAssessment = session.teacher_assessments?.find(
-                        ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === question.id
-                    );
-                    if (teacherAssessment && teacherAssessment.teacher_rating) {
-                        teacherSum += teacherAssessment.teacher_rating;
-                        teacherCount++;
-                    }
-                });
-
-                studentRatingsData.push(studentCount > 0 ? parseFloat((studentSum / studentCount).toFixed(2)) : null);
-                teacherRatingsData.push(teacherCount > 0 ? parseFloat((teacherSum / teacherCount).toFixed(2)) : null);
-            });
+            studentRatingsData = reflexionen.map(r => durchschnitt(r.questions.map(q => q.self)));
+            teacherRatingsData = reflexionen.map(r => durchschnitt(r.questions.map(q => q.teacher)));
         } else {
-            // Spezifische Frage
-            const selectedQuestionId = parseInt(selectedOption);
-            const selectedQuestion = allQuestions.find(q => q.id === selectedQuestionId);
-
-            if (selectedQuestion) {
-                chartTitle = truncateText(selectedQuestion.question, 60);
-
-                gradingSessions.forEach(session => {
-                    const studentAnswer = session.student_answers?.find(
-                        sa => sa.schueler_id === {{ $schueler->id }} && sa.question_id === selectedQuestionId
-                    );
-                    studentRatingsData.push(studentAnswer?.self_rating || null);
-
-                    const teacherAssessment = session.teacher_assessments?.find(
-                        ta => ta.schueler_id === {{ $schueler->id }} && ta.question_id === selectedQuestionId
-                    );
-                    teacherRatingsData.push(teacherAssessment?.teacher_rating || null);
-                });
-            }
+            const id = parseInt(selectedOption, 10);
+            const frage = allQuestions.find(q => q.id === id);
+            chartTitle = frage ? truncateText(frage.text, 60) : chartTitle;
+            studentRatingsData = reflexionen.map(r => r.questions.find(q => q.id === id)?.self || null);
+            teacherRatingsData = reflexionen.map(r => r.questions.find(q => q.id === id)?.teacher || null);
         }
 
-        // Aktualisiere die Beschreibung
         const descriptionElement = document.getElementById('lineChartDescription');
-        if (descriptionElement) {
-            descriptionElement.textContent = chartTitle;
-        }
+        if (descriptionElement) descriptionElement.textContent = chartTitle;
 
-        // Erstelle oder aktualisiere das Chart
         const lineCtx = document.getElementById('lineChart');
-        if (lineCtx) {
-            // Zerstöre das alte Chart, falls vorhanden
-            if (lineChartInstance) {
-                lineChartInstance.destroy();
-            }
+        if (!lineCtx) return;
+        if (lineChartInstance) lineChartInstance.destroy();
 
-            // Erstelle neues Chart
-            lineChartInstance = new Chart(lineCtx, {
-                type: 'line',
-                data: {
-                    labels: sessionDates,
-                    datasets: [{
-                        label: 'Schüler-Einschätzung',
-                        data: studentRatingsData,
-                        borderColor: 'rgba(23, 162, 184, 1)',
-                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        spanGaps: true
-                    }, {
-                        label: 'Lehrer-Bewertung',
-                        data: teacherRatingsData,
-                        borderColor: 'rgba(40, 167, 69, 1)',
-                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        spanGaps: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 5,
-                            min: 0,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const labels = ['', 'Sehr schlecht', 'Schlecht', 'Mittel', 'Gut', 'Sehr gut'];
-                                    const value = context.parsed.y;
-                                    if (value === null || value === 0) {
-                                        return context.dataset.label + ': Keine Bewertung';
-                                    }
-                                    const labelText = Math.round(value) >= 1 && Math.round(value) <= 5 ? labels[Math.round(value)] : '';
-                                    return context.dataset.label + ': ' + value + (labelText ? ' (' + labelText + ')' : '');
-                                }
+        lineChartInstance = new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: sessionDates,
+                datasets: [{
+                    label: 'Schüler-Einschätzung',
+                    data: studentRatingsData,
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.4, fill: true, spanGaps: true
+                }, {
+                    label: 'Einschätzung der Lehrkraft',
+                    data: teacherRatingsData,
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4, fill: true, spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: { y: { beginAtZero: true, max: 5, min: 0, ticks: { stepSize: 1 } } },
+                plugins: {
+                    legend: { display: true, position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed.y;
+                                if (!value) return context.dataset.label + ': keine Einschätzung';
+                                const text = bewertungsLabels[Math.round(value)] || '';
+                                return context.dataset.label + ': ' + value + (text ? ' (' + text + ')' : '');
                             }
                         }
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
 

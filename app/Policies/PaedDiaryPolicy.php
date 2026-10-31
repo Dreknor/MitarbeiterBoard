@@ -8,9 +8,10 @@ use App\Models\User;
 /**
  * API v1: Zugriff auf Einträge des Pädagogischen Tagebuchs.
  *
- * - Lesen/Bearbeiten: Zugriff auf die Klasse des Eintrags oder auf die aktuelle Klasse
- *   mindestens eines zugeordneten Schülers (Schuljahreswechsel).
- * - Vertrauliche Einträge (dossier_only): nur Autor oder Benutzer mit
+ * - Lesen: Zugriff auf die Klasse des Eintrags oder auf die aktuelle Klasse mindestens eines
+ *   zugeordneten Schülers (Schuljahreswechsel). Wie in der Schülerakte gilt das auch für
+ *   vertrauliche Einträge (dossier_only).
+ * - Bearbeiten vertraulicher Einträge: nur Autor oder Benutzer mit
  *   "view confidential diary entries" / Rolle Admin.
  * - Löschen: nur Autor oder Benutzer mit Sonderrechten.
  */
@@ -18,21 +19,17 @@ class PaedDiaryPolicy
 {
     public function view(User $user, PaedDiaryEntry $entry): bool
     {
-        if (!$this->hasEntryClassAccess($user, $entry)) {
-            return false;
-        }
-
-        return $this->viewConfidentialEntry($user, $entry);
+        return $this->hasEntryClassAccess($user, $entry);
     }
 
     public function update(User $user, PaedDiaryEntry $entry): bool
     {
-        return $this->view($user, $entry);
+        return $this->view($user, $entry) && $this->viewConfidentialEntry($user, $entry);
     }
 
     public function delete(User $user, PaedDiaryEntry $entry): bool
     {
-        if (!$this->view($user, $entry)) {
+        if (!$this->update($user, $entry)) {
             return false;
         }
 

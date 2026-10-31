@@ -20,7 +20,7 @@ class StoreGradingAssessmentRequest extends ApiRequest
             'answers.*.comment' => ['nullable', 'string', 'max:5000'],
             'teacher_assessment' => ['nullable', 'string', 'max:5000'],
             'finalize' => ['sometimes', 'boolean'],
-            // Nur beim Abschluss: neue Graduierungsstufe vergeben (erfordert "manage grading systems")
+            // Nur beim Abschluss: neue Graduierungsstufe vergeben (erfordert "change grading stage" oder "manage grading systems")
             'grading_stage_id' => ['sometimes', 'nullable', 'integer', 'exists:grading_stages,id'],
         ];
     }

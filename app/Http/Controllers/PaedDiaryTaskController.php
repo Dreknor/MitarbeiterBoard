@@ -86,14 +86,14 @@ class PaedDiaryTaskController extends Controller
 
     public function closeTask(PaedDiaryTask $task)
     {
-        Auth::user()->paed_klassen()->where('klassen.id', $task->klasse_id)->firstOrFail();
+        $this->authorizeTask($task);
         $this->tasks()->close($task);
         return response()->json(['success' => true]);
     }
 
     public function updateTask(Request $request, PaedDiaryTask $task)
     {
-        Auth::user()->paed_klassen()->where('klassen.id', $task->klasse_id)->firstOrFail();
+        $this->authorizeTask($task);
         $data = $request->validate([
             'title'       => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
@@ -102,6 +102,21 @@ class PaedDiaryTaskController extends Controller
         ]);
         $this->tasks()->update($task, $data);
         return response()->json(['success' => true, 'task' => ['id' => $task->id, 'schueler_id' => $task->schueler_id, 'title' => $task->title, 'description' => $task->description, 'due_date' => $task->due_date?->toDateString(), 'highlighted' => $task->highlighted, 'klasse_id' => $task->klasse_id]]);
+    }
+
+    /**
+     * Zugriff auf die Klasse der Aufgabe oder – nach einem Klassenwechsel – auf die aktuelle
+     * Klasse des Schülers (die Wochenansicht lädt Aufgaben schülerbasiert).
+     */
+    private function authorizeTask(PaedDiaryTask $task): void
+    {
+        $user = Auth::user();
+        if ($user->hasPaedClassAccess($task->klasse_id)) {
+            return;
+        }
+
+        $schueler = $task->schueler;
+        abort_unless($schueler && $user->can('update', $schueler), 404);
     }
 
     private function tasks(): PaedDiaryTaskService

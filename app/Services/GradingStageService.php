@@ -22,6 +22,12 @@ use InvalidArgumentException;
 class GradingStageService
 {
     /**
+     * Setzt die Stufe des Schülers. Ist die Stufe unverändert, passiert nichts (keine Historie,
+     * kein Tagebucheintrag) und es wird null geliefert.
+     *
+     * Ein übergebener Tagebucheintrag wird nur verknüpft, wenn er diesem Schüler zugeordnet ist;
+     * andernfalls wird er ignoriert und – wie ohne Angabe – ein automatischer Eintrag angelegt.
+     *
      * @throws InvalidArgumentException wenn die Stufe nicht zum Graduierungssystem der Klasse gehört
      * @throws \Throwable bei Datenbankfehlern (Transaktion wird zurückgerollt)
      */
@@ -31,7 +37,7 @@ class GradingStageService
         User $user,
         ?Klasse $klasse = null,
         ?int $paedDiaryEntryId = null
-    ): SchuelerGradingHistory {
+    ): ?SchuelerGradingHistory {
         $klasse ??= $schueler->klasse;
 
         if ($newStage && $klasse?->grading_system_id && (int) $newStage->grading_system_id !== (int) $klasse->grading_system_id) {
@@ -39,6 +45,18 @@ class GradingStageService
         }
 
         $previous = $schueler->grading_stage_id;
+
+        // Keine Änderung → keine Historie und kein automatischer Tagebucheintrag
+        if ((int) $previous === (int) $newStage?->id) {
+            return null;
+        }
+
+        // Fremde Tagebucheinträge dürfen nicht mit der Historie des Schülers verknüpft werden
+        if (!empty($paedDiaryEntryId) && !PaedDiaryEntry::whereKey($paedDiaryEntryId)
+            ->whereHas('schueler', fn ($q) => $q->whereKey($schueler->id))
+            ->exists()) {
+            $paedDiaryEntryId = null;
+        }
 
         $history = DB::transaction(function () use ($schueler, $newStage, $user, $klasse, $paedDiaryEntryId, $previous) {
             $schueler->grading_stage_id = $newStage?->id;

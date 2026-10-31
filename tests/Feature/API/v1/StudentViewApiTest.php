@@ -88,7 +88,7 @@ class StudentViewApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function vertrauliche_eintraege_fremder_autoren_sind_nur_mit_sonderrecht_sichtbar(): void
+    public function vertrauliche_eintraege_fremder_autoren_sind_wie_in_der_schuelerakte_sichtbar(): void
     {
         [$klasse, $schueler] = $this->classWithStudent();
         $kollegin = User::factory()->create();
@@ -101,11 +101,9 @@ class StudentViewApiTest extends ApiTestCase
         $this->actingAsTeacher(['view paed diary'], [$klasse]);
         $ids = collect($this->getJson(self::API . "/students/{$schueler->id}/view")->assertOk()->json('recent_paed_diary_entries'))->pluck('id');
         $this->assertTrue($ids->contains($normal->id));
-        $this->assertFalse($ids->contains($vertraulich->id));
+        $this->assertTrue($ids->contains($vertraulich->id));
 
-        // Mit Sonderrecht sichtbar
-        $this->actingAsTeacher(['view paed diary', 'view confidential diary entries'], [$klasse]);
-        $ids = collect($this->getJson(self::API . "/students/{$schueler->id}/view")->assertOk()->json('recent_paed_diary_entries'))->pluck('id');
+        $ids = collect($this->getJson(self::API . "/students/{$schueler->id}/paed-diary/entries")->assertOk()->json('data'))->pluck('id');
         $this->assertTrue($ids->contains($vertraulich->id));
     }
 

@@ -72,6 +72,7 @@ class PaedDiaryWeekApiController extends Controller
         }
 
         $dayPauses = $week['class_day_pauses'];
+        $absenceAlerts = $this->calendar->absenceAlertsFor($week['schueler']->pluck('id')->all());
 
         return response()->json(['data' => [
             'week_start' => $week['week_start']->toDateString(),
@@ -99,7 +100,7 @@ class PaedDiaryWeekApiController extends Controller
                     'symbol' => $s->grading_stage->symbol,
                     'badge_url' => $s->grading_stage->image_url,
                 ] : null,
-                'absence_alerts' => collect($this->calendar->absenceAlerts($s->id))->map(fn ($a) => [
+                'absence_alerts' => collect($absenceAlerts[$s->id] ?? [])->map(fn ($a) => [
                     'type' => $a['type'] ?? null,
                     'label' => $a['label'] ?? '',
                     'severity' => $a['severity'] ?? 'warning',
@@ -200,8 +201,6 @@ class PaedDiaryWeekApiController extends Controller
 
         DB::transaction(fn () => $this->entries->complete($entry, $completedAt, $schuelerId));
 
-        $this->entries->forgetWeekCache($entry->klasse_id, $date);
-        $this->entries->forgetWeekCache($entry->klasse_id, $completedAt);
 
         return response()->json(['data' => ['entry_id' => $entry->id, 'completed' => true]]);
     }
@@ -232,14 +231,13 @@ class PaedDiaryWeekApiController extends Controller
 
         $keys = ['paed_diary_entry_id' => $entry->id, 'schueler_id' => (int) $data['schueler_id'], 'date' => $date];
         if ($request->boolean('paused')) {
-            $this->calendar->ensureEntryPause($keys);
+            $this->calendar->ensureEntryPause($keys, ['reason' => \App\Services\PaedDiaryCalendarService::GRUND_MANUELL]);
         } else {
             PaedDiaryEntryPause::where('paed_diary_entry_id', $entry->id)
                 ->where('schueler_id', $keys['schueler_id'])
                 ->whereDate('date', $date)
                 ->delete();
         }
-        $this->entries->forgetWeekCache($entry->klasse_id, Carbon::parse($date));
 
         return response()->json(['data' => [
             'entry_id' => $entry->id,
@@ -274,7 +272,6 @@ class PaedDiaryWeekApiController extends Controller
             $request->boolean('absent'),
             $request->user()->id
         );
-        $this->entries->forgetWeekCache($schueler->klasse_id, Carbon::parse($date));
 
         return response()->json(['data' => [
             'schueler_id' => $schueler->id,
@@ -306,9 +303,6 @@ class PaedDiaryWeekApiController extends Controller
             $this->calendar->pauseClassDay($klassen, $date, $data['reason'] ?? null, $user->id);
         } else {
             $this->calendar->unpauseClassDay($klassen, $date);
-        }
-        foreach ($klassen as $klasse) {
-            $this->entries->forgetWeekCache($klasse->id, Carbon::parse($date));
         }
 
         return response()->json(['data' => [
@@ -364,7 +358,6 @@ class PaedDiaryWeekApiController extends Controller
                 'value' => $value,
             ]);
         }
-        $this->entries->forgetWeekCache($column->klasse_id, $date);
 
         return response()->json(['data' => [
             'column_id' => $column->id,
@@ -383,7 +376,6 @@ class PaedDiaryWeekApiController extends Controller
 
         if ($task->status !== 'closed') {
             $task->update(['status' => 'closed', 'highlighted' => false, 'closed_at' => now()]);
-            $this->entries->forgetWeekCache($task->klasse_id, Carbon::now());
         }
 
         return response()->json(['data' => ['id' => $task->id, 'status' => 'closed']]);

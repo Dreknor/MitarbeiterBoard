@@ -32,7 +32,15 @@ class StudentGradingApiController extends Controller
             'device_name' => ['required', 'string', 'max:100'],
         ]);
 
-        $result = $this->join->join($request->input('code'), $request->input('device_name'));
+        try {
+            $result = $this->join->join($request->input('code'), $request->input('device_name'));
+        } catch (\DomainException $e) {
+            // Code bereits auf einem anderen Gerät verwendet – nur nach Zurücksetzen durch die Lehrkraft erneut nutzbar
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['code' => [$e->getMessage()]],
+            ], 409);
+        }
 
         if (!$result) {
             return response()->json([

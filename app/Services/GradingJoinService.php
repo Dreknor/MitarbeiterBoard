@@ -20,6 +20,8 @@ use Laravel\Sanctum\PersonalAccessToken;
  */
 class GradingJoinService
 {
+    public const CODE_BEREITS_VERWENDET = 'Dieser Code wurde bereits auf einem Gerät verwendet. Bitte die Lehrkraft, das Gerät zurückzusetzen.';
+
     public function __construct(
         private GradingSessionService $sessions,
         private PaedAppService $app
@@ -83,10 +85,13 @@ class GradingJoinService
     }
 
     /**
-     * Beitritt eines Schüler-Geräts. Ein erneuter Beitritt mit demselben Code ersetzt das
-     * bisherige Gerät (z.B. nach einem App-Neustart auf dem geteilten iPad).
+     * Beitritt eines Schüler-Geräts. Ein Code gilt nur für EIN Gerät: Ist bereits ein Gerät
+     * mit dem Code angemeldet, wird der Beitritt abgelehnt (sonst könnte ein Mitschüler mit
+     * einem abgeschriebenen Code das Gerät übernehmen). Die Lehrkraft setzt das Gerät zurück
+     * (geraetZuruecksetzen() bzw. Widerruf aller Codes) und erzeugt danach einen neuen Code.
      *
-     * @return array{0: GradingStudentDevice, 1: string}|null  Gerät und Klartext-Token
+     * @return array{0: GradingStudentDevice, 1: string}|null  Gerät und Klartext-Token, null bei ungültigem Code
+     * @throws \DomainException wenn der Code bereits von einem Gerät verwendet wird
      */
     public function join(string $code, string $deviceName): ?array
     {
@@ -100,7 +105,12 @@ class GradingJoinService
         }
 
         return DB::transaction(function () use ($joinCode, $deviceName) {
-            $this->revokeDevices($joinCode);
+            // Sperre gegen gleichzeitige Beitritte mit demselben Code
+            GradingJoinCode::whereKey($joinCode->id)->lockForUpdate()->first();
+
+            if ($joinCode->devices()->exists()) {
+                throw new \DomainException(self::CODE_BEREITS_VERWENDET);
+            }
 
             $device = GradingStudentDevice::create([
                 'join_code_id' => $joinCode->id,
@@ -113,6 +123,52 @@ class GradingJoinService
             $token = $device->createToken($device->device_name, [$device->ability()], $joinCode->expires_at);
 
             return [$device->setRelation('joinCode', $joinCode), $token->plainTextToken];
+        });
+    }
+
+    /**
+     * Setzt das Gerät eines Schülers zurück: Gerät, Token und Code werden gelöscht.
+     * Ein neuer Code entsteht beim nächsten createCodes().
+     *
+     * @return bool  true, wenn ein Code vorhanden war
+     */
+    public function geraetZuruecksetzen(GradingDocumentationSession $session, int $schuelerId): bool
+    {
+        return DB::transaction(function () use ($session, $schuelerId) {
+            $codes = GradingJoinCode::where('session_id', $session->id)->where('schueler_id', $schuelerId)->get();
+            $codes->each(fn (GradingJoinCode $code) => $this->revokeDevices($code));
+
+            return GradingJoinCode::whereIn('id', $codes->pluck('id'))->delete() > 0;
+        });
+    }
+
+    /**
+     * Räumt abgelaufene Codes sowie abgelaufene oder verwaiste Schüler-Geräte (Session
+     * abgeschlossen/gelöscht) samt Sanctum-Tokens auf.
+     *
+     * @return array{codes: int, devices: int, tokens: int}
+     */
+    public function aufraeumen(): array
+    {
+        return DB::transaction(function () {
+            $expiredCodeIds = GradingJoinCode::where('expires_at', '<', now())->pluck('id');
+
+            $deviceIds = GradingStudentDevice::query()
+                ->where(fn ($q) => $q->where('expires_at', '<', now())
+                    ->orWhereIn('join_code_id', $expiredCodeIds)
+                    ->orWhereDoesntHave('session')
+                    ->orWhereHas('session', fn ($s) => $s->whereNotNull('completed_at')))
+                ->pluck('id');
+
+            // Tokens gelöschter Geräte (tokenable fehlt) ebenfalls entfernen
+            $tokens = PersonalAccessToken::where('tokenable_type', GradingStudentDevice::class)
+                ->where(fn ($q) => $q->whereIn('tokenable_id', $deviceIds)
+                    ->orWhereNotIn('tokenable_id', GradingStudentDevice::query()->select('id')))
+                ->delete();
+            $devices = GradingStudentDevice::whereIn('id', $deviceIds)->delete();
+            $codes = GradingJoinCode::whereIn('id', $expiredCodeIds)->delete();
+
+            return ['codes' => $codes, 'devices' => $devices, 'tokens' => $tokens];
         });
     }
 

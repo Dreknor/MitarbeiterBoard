@@ -6,15 +6,19 @@ use App\Models\Klasse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
-class PeadDiaryWeekController extends Controller
+class PaedDiaryWeekDisplayController extends Controller
 {
 
 
 
     public function displayWeek($secret = null){
 
-        if ((!$secret || $secret !== config('app.paed_diary_secret') ) && !auth()->user()->can('view paed diary')) {
-            abort(403, 'Unauthorized action.');
+        // Kiosk-Anzeige: Zugriff mit gültigem Secret (PAED_DIARY_SECRET) oder als angemeldete Person
+        // mit "view paed diary". Vergleich zeitkonstant; ohne konfiguriertes Secret nur angemeldet.
+        $konfiguriert = (string) config('app.paed_diary_secret');
+        $secretOk = $secret !== null && $konfiguriert !== '' && hash_equals($konfiguriert, (string) $secret);
+        if (!$secretOk && !auth()->user()?->can('view paed diary')) {
+            abort(403, 'Kein Zugriff auf die Wochenanzeige.');
         }
 
 

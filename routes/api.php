@@ -161,6 +161,9 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('session')->name('grading.sessions.join-codes.store');
         Route::delete('grading/sessions/{session}/join-codes', [GradingJoinApiController::class, 'destroy'])
             ->whereNumber('session')->name('grading.sessions.join-codes.destroy');
+        // Gerät eines Schülers zurücksetzen (Code gilt für ein Gerät; danach neuen Code erzeugen)
+        Route::delete('grading/sessions/{session}/join-codes/{schueler}', [GradingJoinApiController::class, 'resetDevice'])
+            ->whereNumber('session')->whereNumber('schueler')->name('grading.sessions.join-codes.reset');
         Route::post('grading/sessions/{session}/current-question', [GradingJoinApiController::class, 'currentQuestion'])
             ->whereNumber('session')->name('grading.sessions.current-question');
 

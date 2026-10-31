@@ -10,6 +10,7 @@ use App\Services\PaedDiaryAppointmentService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PaedDiaryAppointmentController extends Controller
 {
@@ -75,6 +76,9 @@ class PaedDiaryAppointmentController extends Controller
         if (!$isRecurring) { $data['recurring_type'] = null; $data['recurring_interval'] = 1; $data['recurring_end_date'] = null; } elseif (empty($data['recurring_type'])) {
             return response()->json(['message' => 'recurring_type erforderlich'], 422);
         }
+        if (!$this->appointments()->hasAssignments($data)) {
+            return response()->json(['message' => 'Bitte mindestens eine Klasse, Kopplung oder einen Schüler auswählen.'], 422);
+        }
         // $request->boolean() wandelt '0'→false, '1'→true korrekt um
         // (PHP-Cast (bool)'0' wäre true, da nicht-leerer String!)
         // Logik in PaedDiaryAppointmentService (gemeinsam genutzt mit API v1)
@@ -110,6 +114,9 @@ class PaedDiaryAppointmentController extends Controller
         if (!$isRecurring) { $data['recurring_type'] = null; $data['recurring_interval'] = 1; $data['recurring_end_date'] = null; $appointment->is_paused = false; } elseif (empty($data['recurring_type'])) {
             return response()->json(['message' => 'recurring_type erforderlich'], 422);
         }
+        if (!$this->appointments()->hasAssignments($data)) {
+            return response()->json(['message' => 'Bitte mindestens eine Klasse, Kopplung oder einen Schüler auswählen.'], 422);
+        }
         $this->appointments()->update($appointment, $data, $request->boolean('pause_entries'), $user);
 
         return response()->json(['success' => true]);
@@ -135,62 +142,25 @@ class PaedDiaryAppointmentController extends Controller
 
         abort_unless($hasAccess, 403);
 
-        $deleteMode      = $request->input('delete_mode', 'all');   // 'only_this' | 'this_and_future' | 'all'
-        $occurrenceDate  = $request->input('occurrence_date');       // YYYY-MM-DD des angeklickten Vorkommens
-        $schuelerIds     = $request->input('schueler_ids', []);      // leer = alle
+        $data = $request->validate([
+            'delete_mode'     => ['nullable', 'in:all,only_this,this_and_future'],
+            'occurrence_date' => ['nullable', 'date', 'required_if:delete_mode,only_this,this_and_future'],
+            'schueler_ids'    => ['nullable', 'array'],
+            'schueler_ids.*'  => ['integer'],
+        ]);
 
-        // --- Schüler-spezifisches Entfernen (nur aus individueller Zuordnung) ---
-        if (!empty($schuelerIds)) {
-            $appointment->schueler()->detach($schuelerIds);
-            // Wenn danach keine Zuordnungen mehr übrig sind → ganz löschen
-            if ($appointment->klassen()->count() === 0
-                && $appointment->groups()->count() === 0
-                && $appointment->schueler()->count() === 0) {
-                $appointment->exceptions()->delete();
-                $appointment->delete();
-            }
-            return response()->json(['success' => true]);
+        // Logik in PaedDiaryAppointmentService (gemeinsam genutzt mit API v1)
+        $ok = DB::transaction(fn () => $this->appointments()->deleteFor(
+            $appointment,
+            $user,
+            $data['delete_mode'] ?? 'all',
+            $data['occurrence_date'] ?? null,
+            $data['schueler_ids'] ?? []
+        ));
+
+        if (!$ok) {
+            return response()->json(['message' => 'Der Termin gehört auch zu anderen Klassen. Einzelne Vorkommen kann nur ändern, wer alle Zuordnungen verwaltet.'], 403);
         }
-
-        // --- Wiederkehrende Termine ---
-        if ($appointment->is_recurring && $occurrenceDate) {
-            $carbon = Carbon::parse($occurrenceDate);
-
-            if ($deleteMode === 'only_this') {
-                // Dieses einzelne Vorkommen als Ausnahme eintragen
-                PaedDiaryAppointmentException::firstOrCreate([
-                    'appointment_id' => $appointment->id,
-                    'exception_date' => $carbon->toDateString(),
-                ]);
-                return response()->json(['success' => true]);
-            }
-
-            if ($deleteMode === 'this_and_future') {
-                $dayBefore = $carbon->copy()->subDay()->toDateString();
-                if ($carbon->toDateString() <= $appointment->start_date->toDateString()) {
-                    // Erstes Vorkommen → gesamte Serie löschen
-                    $appointment->klassen()->detach();
-                    $appointment->groups()->detach();
-                    $appointment->schueler()->detach();
-                    $appointment->exceptions()->delete();
-                    $appointment->delete();
-                } else {
-                    // Serie bis zum Vortag kürzen; zukünftige Ausnahmen entfernen
-                    $appointment->update(['recurring_end_date' => $dayBefore]);
-                    $appointment->exceptions()
-                        ->where('exception_date', '>=', $carbon->toDateString())
-                        ->delete();
-                }
-                return response()->json(['success' => true]);
-            }
-        }
-
-        // --- Alle Termine / Einmaliger Termin ---
-        $appointment->klassen()->detach();
-        $appointment->groups()->detach();
-        $appointment->schueler()->detach();
-        $appointment->exceptions()->delete();
-        $appointment->delete();
 
         return response()->json(['success' => true]);
     }

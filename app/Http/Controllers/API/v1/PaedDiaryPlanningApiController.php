@@ -115,7 +115,6 @@ class PaedDiaryPlanningApiController extends Controller
         $appointment = DB::transaction(
             fn () => $this->appointments->create($data, $request->boolean('pause_entries'), $request->user())
         );
-        $this->forgetAppointmentCaches($appointment);
 
         return response()->json(['data' => $this->appointmentToArray($appointment->fresh(), $request)], 201);
     }
@@ -131,7 +130,6 @@ class PaedDiaryPlanningApiController extends Controller
             return $data;
         }
         DB::transaction(fn () => $this->appointments->update($appointment, $data, $request->boolean('pause_entries'), $request->user()));
-        $this->forgetAppointmentCaches($appointment);
 
         return response()->json(['data' => $this->appointmentToArray($appointment->fresh(), $request)]);
     }
@@ -146,8 +144,8 @@ class PaedDiaryPlanningApiController extends Controller
             'mode' => ['nullable', 'in:all,only_this,this_and_future'],
             'date' => ['nullable', 'date_format:Y-m-d', 'required_if:mode,only_this,this_and_future'],
         ]);
-        $this->forgetAppointmentCaches($appointment);
-        DB::transaction(fn () => $this->appointments->delete($appointment, $data['mode'] ?? 'all', $data['date'] ?? null));
+        $ok = DB::transaction(fn () => $this->appointments->deleteFor($appointment, $request->user(), $data['mode'] ?? 'all', $data['date'] ?? null));
+        abort_unless($ok, 403, 'Der Termin gehört auch zu anderen Klassen. Einzelne Vorkommen kann nur ändern, wer alle Zuordnungen verwaltet.');
 
         return response()->json(null, 204);
     }
@@ -224,9 +222,6 @@ class PaedDiaryPlanningApiController extends Controller
             }
         });
 
-        for ($week = $from->copy()->startOfWeek(); $week->lte($resumeOn ?? $from); $week->addWeek()) {
-            $this->entries->forgetWeekCache($entry->klasse_id, $week);
-        }
 
         return response()->json(['data' => [
             'entry_id' => $entry->id,
@@ -252,7 +247,6 @@ class PaedDiaryPlanningApiController extends Controller
         }
 
         $entry->schueler()->syncWithoutDetaching([$schueler->id]);
-        $this->entries->forgetWeekCache($entry->klasse_id, $entry->datum->copy());
 
         return $this->studentsResponse($entry);
     }
@@ -274,7 +268,6 @@ class PaedDiaryPlanningApiController extends Controller
                 $entry->schueler()->detach($schueler->id);
                 PaedDiaryEntryPause::where('paed_diary_entry_id', $entry->id)->where('schueler_id', $schueler->id)->delete();
             });
-            $this->entries->forgetWeekCache($entry->klasse_id, $entry->datum->copy());
         }
 
         return $this->studentsResponse($entry);
@@ -357,16 +350,6 @@ class PaedDiaryPlanningApiController extends Controller
             'schueler_ids' => $a->schueler->pluck('id')->map(fn ($id) => (int) $id)->values(),
             'is_own' => (int) $a->user_id === (int) $request->user()->id,
         ];
-    }
-
-    private function forgetAppointmentCaches(PaedDiaryAppointment $appointment): void
-    {
-        $classIds = $appointment->klassen()->pluck('klassen.id')
-            ->merge($appointment->schueler()->pluck('schueler.klasse_id'))
-            ->filter()->unique();
-        foreach ($classIds as $klasseId) {
-            $this->entries->forgetWeekCache($klasseId, $appointment->start_date->copy());
-        }
     }
 
     private function unprocessable(string $field, string $message): JsonResponse

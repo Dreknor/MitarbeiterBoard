@@ -9,6 +9,27 @@
      x-data
      x-init="$store.diary.bootstrap({{ $klasse->id }}, {{ $selectedGroup?->id ?? 'null' }})">
 
+    {{-- Hinweis bzw. Umschalter zur neuen Ansicht --}}
+    @include('paedDiary.partials._ansicht-hinweis')
+
+    {{-- Eingabedialog (ersetzt window.prompt, z. B. Grund der Tages-Pause) --}}
+    <template x-if="$store.diary.textDialog">
+        <div class="pd-text-dialog" role="dialog" aria-modal="true" aria-labelledby="pdTextDialogTitle"
+             @keydown.escape.window="$store.diary.closeTextDialog(null)">
+            <form class="pd-text-dialog__box"
+                  @submit.prevent="$store.diary.closeTextDialog($refs.pdTextInput.value.trim())">
+                <h5 id="pdTextDialogTitle" class="mb-2" x-text="$store.diary.textDialog.title"></h5>
+                <label for="pdTextDialogInput" class="small text-muted mb-1" x-text="$store.diary.textDialog.label"></label>
+                <input id="pdTextDialogInput" x-ref="pdTextInput" type="text" maxlength="100" class="form-control"
+                       :value="$store.diary.textDialog.value" x-init="$nextTick(() => $el.select())">
+                <div class="d-flex justify-content-end mt-3" style="gap:8px;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @click="$store.diary.closeTextDialog(null)">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Übernehmen</button>
+                </div>
+            </form>
+        </div>
+    </template>
+
     {{-- Modals --}}
     @include('paedDiary.v2.modals._group-modal')
     @include('paedDiary.v2.modals._task-modal')
@@ -29,6 +50,14 @@
 
                 {{-- Tabellen-Body --}}
                 <div class="card-body p-2">
+                    {{-- Fehler und Hinweise (statt alert()) --}}
+                    <div x-show="$store.diary.errorMessage" x-cloak role="alert"
+                         :class="$store.diary.messageType === 'info' ? 'alert-info' : 'alert-danger'"
+                         class="alert d-flex justify-content-between align-items-start py-2 mb-2">
+                        <span x-text="$store.diary.errorMessage"></span>
+                        <button type="button" class="close ml-2" aria-label="Meldung schließen"
+                                @click="$store.diary.errorMessage = ''">&times;</button>
+                    </div>
                     {{-- Loading --}}
                     <div x-show="$store.diary.loading" x-cloak class="text-center py-4">
                         <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
@@ -55,6 +84,8 @@
 <style>
 .class-divider-row td { background:#f1f3f5; font-weight:bold; font-size:.75rem; }
 .group-disabled { opacity:.5; pointer-events:none; }
+.pd-text-dialog { position:fixed; inset:0; z-index:1060; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; padding:16px; }
+.pd-text-dialog__box { background:#fff; border-radius:8px; padding:16px; width:min(420px, 100%); box-shadow:0 10px 30px rgba(0,0,0,.2); }
 /* Task-Modal: form als Flex-Container, damit modal-dialog-scrollable korrekt funktioniert */
 #taskModal .modal-content > form {
     display: flex;

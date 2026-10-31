@@ -7,7 +7,7 @@
  * - Task-Badges auf Schülernamen
  */
 
-import { csrfToken, escapeHtml, trimText } from './utils.js';
+import { csrfToken, escapeHtml, trimText, formatDate } from './utils.js';
 
 export function registerTaskPanel(Alpine) {
     Alpine.data('taskPanel', () => ({
@@ -118,7 +118,7 @@ export function registerTaskPanel(Alpine) {
                     store.loadWeek();
                 }
             } catch (_) {
-                alert('Fehler beim Speichern der Aufgabe');
+                this.$store.diary.showError('Fehler beim Speichern der Aufgabe');
             } finally {
                 this.taskSaving = false;
             }
@@ -135,7 +135,7 @@ export function registerTaskPanel(Alpine) {
                     this.$store.diary.loadWeek();
                 }
             } catch (_) {
-                alert('Fehler beim Schließen der Aufgabe');
+                this.$store.diary.showError('Fehler beim Schließen der Aufgabe');
             }
         },
 
@@ -154,14 +154,14 @@ export function registerTaskPanel(Alpine) {
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        completed_at: new Date().toISOString().slice(0, 10),
+                        completed_at: formatDate(new Date()),
                         schueler_id: stuId,
                     })
                 });
                 const j = await resp.json();
                 if (j.success) this.$store.diary.loadWeek();
             } catch (_) {
-                alert('Fehler');
+                this.$store.diary.showError('Die Aufgabe konnte nicht abgeschlossen werden.');
             }
         },
 

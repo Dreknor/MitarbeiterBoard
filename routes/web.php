@@ -14,7 +14,7 @@ use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MeetingController;
-use App\Http\Controllers\PeadDiaryWeekController;
+use App\Http\Controllers\PaedDiaryWeekDisplayController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
 use App\Http\Controllers\Personal\HolidayController;
@@ -84,7 +84,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 Route::get('/auth/redirect', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'login']);
 
-Route::get('display-week/{secret?}', [PeadDiaryWeekController::class, 'displayWeek']);
+Route::get('display-week/{secret?}', [PaedDiaryWeekDisplayController::class, 'displayWeek'])->middleware('throttle:60,1');
 
 Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'auth']);
 
@@ -970,17 +970,13 @@ Route::group([
 
                 // Pädagogisches Tagebuch
                 Route::middleware(['permission:view paed diary'])->group(function () {
-                    //V1 - view
-                    Route::get('paed-diary/v1', [\App\Http\Controllers\PaedDiaryController::class, 'index'])->name('paedDiary.v1.index');
-
-                    // v2: Blade + Alpine.js Frontend (parallel zum bestehenden)
+                    // Wochenansicht (Blade + Alpine.js)
                     Route::get('paed-diary/', [\App\Http\Controllers\PaedDiaryController::class, 'indexV2'])->name('paedDiary.index');
 
                    Route::get('paed-diary/week', [\App\Http\Controllers\PaedDiaryController::class, 'weekData'])->name('paedDiary.week');
-                    Route::get('paed-diary/cell-entries', [\App\Http\Controllers\PaedDiaryController::class, 'cellEntries'])->name('paedDiary.cell');
                     Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerView'])->name('paedDiary.schueler.view');
                     Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerData'])->name('paedDiary.schueler.data');
-                    Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
+                    Route::get('paed-diary/schueler/{schueler}/export/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerExcel'])->name('paedDiary.schueler.export.excel');
                     Route::get('paed-diary/schueler/{schueler}/dossier.pdf', [\App\Http\Controllers\PaedDiaryDossierController::class, 'pdf'])->name('paedDiary.schueler.dossier.pdf');
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class, 'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'updateEntry'])->name('paedDiary.entry.update');
@@ -1006,7 +1002,7 @@ Route::group([
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
 
-                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:manage grading systems')->name('paedDiary.changeStage');
+                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:change grading stage|manage grading systems')->name('paedDiary.changeStage');
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
 
@@ -1036,6 +1032,8 @@ Route::group([
                         Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
                     });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
+                    // Persönliche Darstellung (bisherige/neue Ansicht, Layout, Schrift, Tour)
+                    Route::post('paed-diary/settings/darstellung', [\App\Http\Controllers\PaedDiaryController::class, 'updateDarstellung'])->name('paedDiary.settings.darstellung');
 
                     // Klassen-Gruppen → PaedDiaryClassGroupController (TODO 16)
                     Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'index'])->name('paedDiary.classGroups.index');

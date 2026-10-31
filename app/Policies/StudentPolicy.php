@@ -30,10 +30,10 @@ class StudentPolicy
         return $this->view($user, $schueler) && $this->safeCan($user, 'view diagnostics');
     }
 
-    /** Graduierungsstufe vergeben (zusätzlich "manage grading systems", wie im Web-Frontend) */
+    /** Graduierungsstufe vergeben (zusätzlich "change grading stage" bzw. "manage grading systems", wie im Web-Frontend) */
     public function changeGradingStage(User $user, Schueler $schueler): bool
     {
-        return $this->update($user, $schueler) && $this->safeCan($user, 'manage grading systems');
+        return $this->update($user, $schueler) && $user->canChangeGradingStage();
     }
 
     /** Zugriff auf eine Klasse (Klassenliste) */

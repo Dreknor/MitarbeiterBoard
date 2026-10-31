@@ -113,7 +113,9 @@ class GradingApiController extends Controller
             ->paginate((int) $request->input('per_page', 50))
             ->withQueryString();
 
-        $sessions->getCollection()->each(fn ($s) => $s->setAttribute('progress', $this->sessions->progress($s)));
+        // Fortschritt gesammelt ermitteln (feste Anzahl Abfragen statt mehrerer je Session)
+        $progress = $this->sessions->progressFuer($sessions->getCollection());
+        $sessions->getCollection()->each(fn ($s) => $s->setAttribute('progress', $progress[$s->id]));
 
         return GradingSessionListResource::collection($sessions);
     }
@@ -296,7 +298,8 @@ class GradingApiController extends Controller
                 $sessionCompleted = $this->sessions->finalizeStudent($session, $schueler, $user);
             }
 
-            if ($changeStage && (int) $schueler->grading_stage_id !== (int) $newStage?->id) {
+            // Unveränderte Stufe ist im Service ein No-op (keine Historie, kein Tagebucheintrag)
+            if ($changeStage) {
                 $this->stageService->changeStage($schueler, $newStage, $user, $schueler->klasse);
             }
 

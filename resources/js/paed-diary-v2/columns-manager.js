@@ -7,16 +7,184 @@
  * - Debounced saveColumnValue
  */
 
-import { csrfToken, escapeHtml } from './utils.js';
+import { csrfToken, escapeHtml, formatDate } from './utils.js';
+
+// Debounce-Timer der Text-Spalten (modulweit, damit Zellen keine eigenen Timer-Objekte brauchen)
+const debounceTimers = {};
+
+/**
+ * Methoden für die Spaltenwerte einer Tabellenzelle. Werden sowohl von der schlanken
+ * Zellen-Komponente columnCell() als auch von columnsManager() genutzt.
+ */
+const cellMethods = {
+    /**
+     * Gibt die relevanten Spalten für einen Schüler zurück
+     * (im Gruppenmodus nur die der eigenen Klasse).
+     */
+    getColumnsForStudent(stu) {
+        const store = this.$store.diary;
+        if (store.is_group) {
+            return (store.columns || []).filter(c => String(c.klasse_id) === String(stu.klasse_id));
+        }
+        return store.columns || [];
+    },
+
+    /**
+     * Gibt die Spalten gruppiert nach Kategorie zurück (für die Tabellenzellen).
+     * Format: [{ category: 'Name', columns: [...] }, ...]
+     */
+    getGroupedColumnsForStudent(stu) {
+        const cols = this.getColumnsForStudent(stu);
+        const byCat = {};
+        const order = [];
+        cols.forEach(col => {
+            const cat = col.category || '';
+            if (!(cat in byCat)) {
+                byCat[cat] = [];
+                order.push(cat);
+            }
+            byCat[cat].push(col);
+        });
+        // Sortieren: benannte Kategorien alphabetisch, '' (Unkategorisiert) am Ende
+        order.sort((a, b) => {
+            if (a === '') return 1;
+            if (b === '') return -1;
+            return a.localeCompare(b, 'de');
+        });
+        return order.map(cat => ({ category: cat, columns: byCat[cat] }));
+    },
+
+    /**
+     * Gibt den aktuellen Wert einer Spalte für Schüler/Datum zurück.
+     */
+    getColumnValue(colId, stuId, date) {
+        return this.$store.diary.column_values?.[colId]?.[stuId]?.[date] || '';
+    },
+
+    /**
+     * Boolean-Button toggeln (optimistisches Update + Speichern).
+     */
+    async toggleBoolColumn(colId, stuId, date) {
+        const current = this.getColumnValue(colId, stuId, date);
+        const newVal = current === '1' ? '' : '1';
+
+        // Optimistisches Update im Store
+        this._setColumnValueLocal(colId, stuId, date, newVal);
+
+        try {
+            await this.saveColumnValue(colId, stuId, date, newVal);
+        } catch (_) {
+            // Revert bei Fehler
+            this._setColumnValueLocal(colId, stuId, date, current);
+        }
+    },
+
+    /**
+     * Ampel-Button durchklicken (4 Zustände zyklisch):
+     * '' (grau/neutral, unbeantwortet) → '1' (grün/Ja) → '2' (gelb/In Bearbeitung) → '3' (rot/Nein) → '' …
+     */
+    async toggleAmpelColumn(colId, stuId, date) {
+        const current = this.getColumnValue(colId, stuId, date);
+        const order = ['', '1', '2', '3'];
+        const idx = order.indexOf(current);
+        const newVal = order[(idx + 1) % order.length];
+
+        // Optimistisches Update im Store
+        this._setColumnValueLocal(colId, stuId, date, newVal);
+
+        try {
+            await this.saveColumnValue(colId, stuId, date, newVal);
+        } catch (_) {
+            // Revert bei Fehler
+            this._setColumnValueLocal(colId, stuId, date, current);
+        }
+    },
+
+    /**
+     * Liefert Label + CSS-Klasse für den aktuellen Ampel-Zustand.
+     */
+    ampelState(colId, stuId, date) {
+        const value = this.getColumnValue(colId, stuId, date);
+        if (value === '1') return { label: 'Ja', cssClass: 'ampel-btn--ja' };
+        if (value === '2') return { label: 'In Bearbeitung', cssClass: 'ampel-btn--bearbeitung' };
+        if (value === '3') return { label: 'Nein', cssClass: 'ampel-btn--nein' };
+        return { label: 'Unbeantwortet', cssClass: 'ampel-btn--neutral' };
+    },
+
+    /**
+     * Text-Input mit Debounce speichern.
+     */
+    debouncedSaveColumn(colId, stuId, date, value) {
+        const key = `${colId}-${stuId}-${date}`;
+        clearTimeout(debounceTimers[key]);
+        debounceTimers[key] = setTimeout(() => {
+            this._setColumnValueLocal(colId, stuId, date, value.trim());
+            this.saveColumnValue(colId, stuId, date, value.trim()).catch(() => {});
+        }, 400);
+    },
+
+    /**
+     * Lokalen Cache-Wert setzen.
+     */
+    _setColumnValueLocal(colId, stuId, date, value) {
+        const cv = this.$store.diary.column_values;
+        if (!cv[colId]) cv[colId] = {};
+        if (!cv[colId][stuId]) cv[colId][stuId] = {};
+        if (value === '') {
+            delete cv[colId][stuId][date];
+        } else {
+            cv[colId][stuId][date] = value;
+        }
+        // Alpine-Reaktivität triggern durch Neuzuweisung
+        this.$store.diary.column_values = { ...cv };
+    },
+
+    /**
+     * Spaltenwert an den Server senden.
+     */
+    async saveColumnValue(colId, stuId, date, value) {
+        const resp = await fetch('/paed-diary/column/value', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ column_id: colId, schueler_id: stuId, date, value })
+        });
+        const key = `${colId}-${stuId}-${date}`;
+        const store = this.$store.diary;
+        if (!resp.ok) {
+            // Fehler sichtbar machen (Feld rot + Banner) statt still zu verwerfen
+            store.columnSaveErrors = { ...store.columnSaveErrors, [key]: true };
+            const col = (store.columns || []).find(c => String(c.id) === String(colId));
+            store.showError(`„${col?.name || 'Spalte'}“ wurde nicht gespeichert. Bitte erneut eingeben.`);
+            throw new Error('Speichern fehlgeschlagen');
+        }
+        if (store.columnSaveErrors[key]) {
+            const { [key]: _, ...rest } = store.columnSaveErrors;
+            store.columnSaveErrors = rest;
+        }
+        return await resp.json();
+    },
+
+    /** Ist das Speichern dieses Werts zuletzt fehlgeschlagen? */
+    hasSaveError(colId, stuId, date) {
+        return !!this.$store.diary.columnSaveErrors[`${colId}-${stuId}-${date}`];
+    },
+};
 
 export function registerColumnsManager(Alpine) {
+    // Schlanke Komponente für die Tabellenzellen (kein Verwaltungs-State, kein Watcher).
+    // Vorher bekam jede Zelle eine komplette columnsManager()-Instanz: Beim Öffnen der
+    // Spaltenverwaltung lud jede davon die Spaltenliste neu.
+    Alpine.data('columnCell', () => ({ ...cellMethods }));
+
     Alpine.data('columnsManager', () => ({
         /** Alle Spalten (inkl. deaktivierte), geladen via columnsAll */
         allColumns: [],
         /** Deaktivierte anzeigen */
         showDeactivated: false,
-        /** Debounce-Timers für Text-Inputs */
-        _debounceTimers: {},
         /** Feedback-Text in der Verwaltungscard */
         columnsFeedback: '',
         columnsFeedbackType: 'info',
@@ -66,146 +234,7 @@ export function registerColumnsManager(Alpine) {
 
         // ── Spalten für die Tabellenzellen ─────────────────────────
 
-        /**
-         * Gibt die relevanten Spalten für einen Schüler zurück
-         * (im Gruppenmodus nur die der eigenen Klasse).
-         */
-        getColumnsForStudent(stu) {
-            const store = this.$store.diary;
-            if (store.is_group) {
-                return (store.columns || []).filter(c => String(c.klasse_id) === String(stu.klasse_id));
-            }
-            return store.columns || [];
-        },
-
-        /**
-         * Gibt die Spalten gruppiert nach Kategorie zurück (für die Tabellenzellen).
-         * Format: [{ category: 'Name', columns: [...] }, ...]
-         */
-        getGroupedColumnsForStudent(stu) {
-            const cols = this.getColumnsForStudent(stu);
-            const byCat = {};
-            const order = [];
-            cols.forEach(col => {
-                const cat = col.category || '';
-                if (!(cat in byCat)) {
-                    byCat[cat] = [];
-                    order.push(cat);
-                }
-                byCat[cat].push(col);
-            });
-            // Sortieren: benannte Kategorien alphabetisch, '' (Unkategorisiert) am Ende
-            order.sort((a, b) => {
-                if (a === '') return 1;
-                if (b === '') return -1;
-                return a.localeCompare(b, 'de');
-            });
-            return order.map(cat => ({ category: cat, columns: byCat[cat] }));
-        },
-
-        /**
-         * Gibt den aktuellen Wert einer Spalte für Schüler/Datum zurück.
-         */
-        getColumnValue(colId, stuId, date) {
-            return this.$store.diary.column_values?.[colId]?.[stuId]?.[date] || '';
-        },
-
-        /**
-         * Boolean-Button toggeln (optimistisches Update + Speichern).
-         */
-        async toggleBoolColumn(colId, stuId, date) {
-            const current = this.getColumnValue(colId, stuId, date);
-            const newVal = current === '1' ? '' : '1';
-
-            // Optimistisches Update im Store
-            this._setColumnValueLocal(colId, stuId, date, newVal);
-
-            try {
-                await this.saveColumnValue(colId, stuId, date, newVal);
-            } catch (_) {
-                // Revert bei Fehler
-                this._setColumnValueLocal(colId, stuId, date, current);
-            }
-        },
-
-        /**
-         * Ampel-Button durchklicken (4 Zustände zyklisch):
-         * '' (grau/neutral, unbeantwortet) → '1' (grün/Ja) → '2' (gelb/In Bearbeitung) → '3' (rot/Nein) → '' …
-         */
-        async toggleAmpelColumn(colId, stuId, date) {
-            const current = this.getColumnValue(colId, stuId, date);
-            const order = ['', '1', '2', '3'];
-            const idx = order.indexOf(current);
-            const newVal = order[(idx + 1) % order.length];
-
-            // Optimistisches Update im Store
-            this._setColumnValueLocal(colId, stuId, date, newVal);
-
-            try {
-                await this.saveColumnValue(colId, stuId, date, newVal);
-            } catch (_) {
-                // Revert bei Fehler
-                this._setColumnValueLocal(colId, stuId, date, current);
-            }
-        },
-
-        /**
-         * Liefert Label + CSS-Klasse für den aktuellen Ampel-Zustand.
-         */
-        ampelState(colId, stuId, date) {
-            const value = this.getColumnValue(colId, stuId, date);
-            if (value === '1') return { label: 'Ja', cssClass: 'ampel-btn--ja' };
-            if (value === '2') return { label: 'In Bearbeitung', cssClass: 'ampel-btn--bearbeitung' };
-            if (value === '3') return { label: 'Nein', cssClass: 'ampel-btn--nein' };
-            return { label: 'Unbeantwortet', cssClass: 'ampel-btn--neutral' };
-        },
-
-        /**
-         * Text-Input mit Debounce speichern.
-         */
-        debouncedSaveColumn(colId, stuId, date, value) {
-            const key = `${colId}-${stuId}-${date}`;
-            clearTimeout(this._debounceTimers[key]);
-            this._debounceTimers[key] = setTimeout(() => {
-                this._setColumnValueLocal(colId, stuId, date, value.trim());
-                this.saveColumnValue(colId, stuId, date, value.trim()).catch(() => {
-                    console.warn('[PaedDiary v2] saveColumnValue fehlgeschlagen');
-                });
-            }, 400);
-        },
-
-        /**
-         * Lokalen Cache-Wert setzen.
-         */
-        _setColumnValueLocal(colId, stuId, date, value) {
-            const cv = this.$store.diary.column_values;
-            if (!cv[colId]) cv[colId] = {};
-            if (!cv[colId][stuId]) cv[colId][stuId] = {};
-            if (value === '') {
-                delete cv[colId][stuId][date];
-            } else {
-                cv[colId][stuId][date] = value;
-            }
-            // Alpine-Reaktivität triggern durch Neuzuweisung
-            this.$store.diary.column_values = { ...cv };
-        },
-
-        /**
-         * Spaltenwert an den Server senden.
-         */
-        async saveColumnValue(colId, stuId, date, value) {
-            const resp = await fetch('/paed-diary/column/value', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken(),
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ column_id: colId, schueler_id: stuId, date, value })
-            });
-            if (!resp.ok) throw new Error('Speichern fehlgeschlagen');
-            return await resp.json();
-        },
+        ...cellMethods,
 
         // ── Spalten-Verwaltungscard ────────────────────────────────
 
@@ -359,7 +388,7 @@ export function registerColumnsManager(Alpine) {
             if (!col || !confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return;
 
             const params = new URLSearchParams({
-                week_start: new Date(store.currentWeekStart).toISOString().slice(0, 10),
+                week_start: formatDate(store.currentWeekStart),
                 klasse_id: store.selectedKlasseId
             });
             try {

@@ -72,7 +72,38 @@ class User extends Authenticatable implements HasMedia
         'email_verified_at' => 'datetime',
         'remind_assign_themes' => 'boolean',
         'send_mails_if_absence' => 'boolean',
+        'paed_diary_darstellung' => 'array',
     ];
+
+    /** Standardwerte der Darstellung im Pädagogischen Tagebuch (siehe paedDiaryDarstellung()). */
+    public const PAED_DIARY_DARSTELLUNG = [
+        'ansicht' => 'bisher',            // bisher | neu
+        'layout' => 'klassisch',          // klassisch | kompakt | karten (neue Wochenansicht)
+        'schrift' => 'standard',          // standard | gross
+        'kategorie_farben' => true,       // Notizen in den Farben ihrer Kategorie
+        'pausierte' => false,             // pausierte Notizen in der Woche zeigen
+        'bewertung' => 'schuelerweise',   // schuelerweise | matrix (Graduierung, Lehrkraft)
+        'schueler_zeitraum' => 'schuljahr', // 30tage | schuljahr (Start der Schülerakte)
+        'hinweis_ausgeblendet' => false,  // Hinweis auf die neue Ansicht weggeklickt
+        'tour_gesehen' => false,          // Tour der neuen Ansicht einmal gezeigt
+    ];
+
+    /**
+     * Persönliche Darstellung im Pädagogischen Tagebuch (gespeicherte Werte + Standardwerte).
+     */
+    public function paedDiaryDarstellung(): array
+    {
+        return array_merge(self::PAED_DIARY_DARSTELLUNG, array_intersect_key(
+            (array) ($this->paed_diary_darstellung ?? []),
+            self::PAED_DIARY_DARSTELLUNG
+        ));
+    }
+
+    /** Nutzt die Person die neue Ansicht des Pädagogischen Tagebuchs? */
+    public function nutztNeueTagebuchAnsicht(): bool
+    {
+        return $this->paedDiaryDarstellung()['ansicht'] === 'neu';
+    }
 
 
     public function getGeburtstagAttribute(){
@@ -511,6 +542,15 @@ class User extends Authenticatable implements HasMedia
     public function canViewConfidentialDiaryEntries(): bool
     {
         return $this->hasRole('Admin') || $this->safeHasPermission('view confidential diary entries');
+    }
+
+    /**
+     * Graduierungsstufen von Schülern ändern. "change grading stage" ist das Alltagsrecht;
+     * wer Graduierungssysteme verwaltet ("manage grading systems"), darf es implizit auch.
+     */
+    public function canChangeGradingStage(): bool
+    {
+        return $this->safeHasPermission('change grading stage') || $this->safeHasPermission('manage grading systems');
     }
 
     /**

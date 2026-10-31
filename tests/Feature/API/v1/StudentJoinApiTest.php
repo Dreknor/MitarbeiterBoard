@@ -258,13 +258,23 @@ class StudentJoinApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function erneuter_beitritt_ersetzt_das_alte_geraet(): void
+    public function erneuter_beitritt_mit_verwendetem_code_wird_abgelehnt_bis_zum_zuruecksetzen(): void
     {
         $code = $this->createCodes()[$this->anna->id]['code'];
         $old = $this->join($code, 'iPad 07')->json('token');
-        $new = $this->join($code, 'iPad 08')->json('token');
 
+        // Ein abgeschriebener Code darf das Gerät nicht übernehmen
+        $this->join($code, 'iPad 08')->assertStatus(409)->assertJsonValidationErrors('code');
+        $this->asStudent($old)->getJson(self::API . '/student/session')->assertOk();
+
+        // Lehrkraft setzt das Gerät zurück → alter Token ungültig, neuer Code nutzbar
+        $this->assertTrue(app(\App\Services\GradingJoinService::class)->geraetZuruecksetzen($this->session, $this->anna->id));
         $this->asStudent($old)->getJson(self::API . '/student/session')->assertUnauthorized();
+        $this->join($code, 'iPad 08')->assertStatus(422);
+
+        $neu = $this->createCodes()[$this->anna->id]['code'];
+        $this->assertNotSame($code, $neu);
+        $new = $this->join($neu, 'iPad 08')->assertCreated()->json('token');
         $this->asStudent($new)->getJson(self::API . '/student/session')->assertOk();
     }
 

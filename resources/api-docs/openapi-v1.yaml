@@ -31,10 +31,13 @@ info:
     - `view paed diary` – Grundvoraussetzung für alle Endpunkte (Lehrkräfte/Erzieher).
       Zugriff auf Schüler der über `klasse_user` zugewiesenen Klassen.
     - `view diagnostics` – Diagnosebereich (Bereich 4) und Diagnosedaten in View/Dossier.
-    - `manage grading systems` – Vergabe von Graduierungsstufen.
+    - `change grading stage` – Vergabe von Graduierungsstufen (auch mit `manage grading systems`).
     - `manage diagnostics` – endgültiges Löschen von Entwicklungszielen.
     - `view all students` – klassenübergreifender Zugriff (Schulleitung).
-    - `view confidential diary entries` – vertrauliche Tagebucheinträge (`is_dossier_only`) fremder Autoren.
+    - `view confidential diary entries` – vertrauliche Tagebucheinträge (`is_dossier_only`) fremder Autoren
+      im Klassen-Feed sehen sowie bearbeiten/löschen. In der Schülerakte (`/students/{id}/view`,
+      `/students/{id}/paed-diary/entries`, Dossier) und per `GET /paed-diary/entries/{id}` sind alle
+      Einträge zum Schüler für jede Person mit Klassenzugriff lesbar.
     - Rolle `Admin` besitzt beide Sonderrechte implizit.
     - Dienstplan (`/roster/*`): ohne `view paed diary`. `/roster/mine` und `GET /roster/rosters/{id}` für alle
       Mitarbeitenden (nur veröffentlichte Pläne); Planung mit `create roster` für die eigenen Abteilungen,
@@ -322,6 +325,7 @@ paths:
     get:
       tags: [Tagebuch]
       summary: Tagebucheinträge eines Schülers (neueste zuerst, paginiert)
+      description: Schülerakte – alle Einträge zum Schüler, auch vertrauliche fremder Autoren (`is_dossier_only`).
       parameters:
         - $ref: '#/components/parameters/StudentId'
         - { name: from_date, in: query, schema: { type: string, format: date } }
@@ -1104,6 +1108,20 @@ paths:
       responses:
         '204': { description: Widerrufen }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /grading/sessions/{session_id}/join-codes/{student_id}:
+    delete:
+      tags: [Schüler-iPad]
+      summary: Gerät eines Schülers zurücksetzen (nur Ersteller)
+      description: |
+        Löscht Gerät, Token und Code des Schülers in dieser Session. Danach erzeugt `POST …/join-codes`
+        einen neuen Code, mit dem der Schüler auf einem anderen Gerät beitreten kann.
+      parameters:
+        - { name: student_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Zurückgesetzt }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Für diesen Schüler gibt es keinen Code in dieser Session }
   /grading/sessions/{session_id}/current-question:
     post:
       tags: [Schüler-iPad]
@@ -1141,7 +1159,8 @@ paths:
       description: |
         Rate-Limit 10/min je IP. Liefert ein Token mit der Ability `student-grading:{session_id}:{schueler_id}`,
         gültig wie der Code. Das Token gehört einem Schüler-Gerät (nicht der Lehrkraft) und gilt ausschließlich
-        für `/student/*`. Ein erneuter Beitritt mit demselben Code ersetzt das bisherige Gerät.
+        für `/student/*`. Ein Code gilt für ein Gerät: Ein erneuter Beitritt ist erst möglich, nachdem die Lehrkraft
+        das Gerät zurückgesetzt hat (`DELETE /grading/sessions/{id}/join-codes/{student_id}`, danach neuer Code).
       requestBody:
         required: true
         content:
@@ -1164,6 +1183,7 @@ paths:
                   expires_at: { type: string, format: date-time }
                   student: { type: object, properties: { firstname: { type: string } } }
                   session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string, enum: [by_student, by_question] } } }
+        '409': { description: Code bereits auf einem Gerät verwendet (`errors.code`) }
         '422': { description: Code ungültig/abgelaufen oder Validierungsfehler }
         '429': { description: Rate-Limit überschritten }
   /student/session:
@@ -1373,7 +1393,7 @@ paths:
         - $ref: '#/components/parameters/StudentId'
         - { name: from_date, in: query, description: "Standard: Beginn des Schuljahres", schema: { type: string, format: date } }
         - { name: to_date, in: query, description: "Standard: heute (inklusiv)", schema: { type: string, format: date } }
-        - { name: include_confidential, in: query, description: "Wirkt nur mit Sonderrecht; eigene vertrauliche Einträge sind immer enthalten, außer bei false", schema: { type: boolean, default: true } }
+        - { name: include_confidential, in: query, description: "Standard true = alle Einträge wie in der Schülerakte; false blendet alle vertraulichen Einträge aus", schema: { type: boolean, default: true } }
       responses:
         '200':
           description: OK (ohne `data`-Hülle)

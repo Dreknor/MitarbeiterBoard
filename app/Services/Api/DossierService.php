@@ -44,15 +44,14 @@ class DossierService
     }
 
     /**
-     * Sammelt alle Dossier-Daten. Rechte: vertrauliche Einträge fremder Autoren nur mit Sonderrecht,
-     * Diagnose nur mit "view diagnostics".
+     * Sammelt alle Dossier-Daten. Tagebuch wie die Schülerakte inkl. vertraulicher Einträge
+     * (abschaltbar per include_confidential=false), Diagnose nur mit "view diagnostics".
      */
     public function build(Schueler $schueler, User $user, Request $request): array
     {
         [$from, $to] = $this->period($request);
 
         $includeConfidentialRequested = $request->has('include_confidential') ? $request->boolean('include_confidential') : true;
-        $canViewConfidential = $user->canViewConfidentialDiaryEntries();
         $canViewDiagnostics = $user->can('viewDiagnostics', $schueler);
 
         $schueler->loadMissing(['klasse:id,name', 'grading_stage']);
@@ -136,8 +135,7 @@ class DossierService
             'meta' => [
                 'generated_at' => now(),
                 'generated_by' => $user->name,
-                // Vertrauliche Einträge fremder Autoren nur mit Sonderrecht
-                'includes_confidential' => $includeConfidentialRequested && $canViewConfidential,
+                'includes_confidential' => $includeConfidentialRequested,
                 'includes_diagnostics' => $canViewDiagnostics,
             ],
         ];

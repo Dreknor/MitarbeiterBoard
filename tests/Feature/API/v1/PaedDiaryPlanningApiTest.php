@@ -69,13 +69,19 @@ class PaedDiaryPlanningApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function suche_blendet_fremde_vertrauliche_eintraege_aus(): void
+    public function suche_in_der_schuelerakte_findet_auch_vertrauliche_eintraege_der_klassen_feed_nicht(): void
     {
         [$klasse, $schueler] = $this->classWithStudent();
         $this->actingAsTeacher(['view paed diary'], [$klasse]);
         $this->entry($klasse, [$schueler], ['content' => 'Vertraulich: Streit zuhause', 'dossier_only' => true]);
 
+        // Schülerakte: alle Einträge zum Schüler, auch vertrauliche
         $this->getJson(self::API . "/students/{$schueler->id}/paed-diary/entries?search=Streit")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        // Klassen-Feed: fremde vertrauliche Einträge nur mit Sonderrecht
+        $this->getJson(self::API . "/classes/{$klasse->id}/paed-diary/entries?search=Streit")
             ->assertOk()
             ->assertJsonCount(0, 'data');
     }

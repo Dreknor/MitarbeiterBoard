@@ -7,11 +7,47 @@
 
 import { formatDate, startOfWeek, addDays, csrfToken } from './utils.js';
 
+// Zwischenspeicher für pauseMap/absenceMap (außerhalb des reaktiven Stores)
+const pauseMapCache = { source: null, map: {} };
+const absenceMapCache = { source: null, map: {} };
+
 export function registerDiaryStore(Alpine) {
     Alpine.store('diary', {
         // ── Initialisierung ────────────────────────────────────────
         loading: false,
         initialized: false,
+
+        /** Sichtbare Meldung (Banner über der Tabelle), leer = keine */
+        errorMessage: '',
+        /** Art der Meldung: 'danger' (Fehler) oder 'info' (Hinweis) */
+        messageType: 'danger',
+        /** Spaltenwerte, deren Speichern fehlgeschlagen ist: { 'colId-stuId-date': true } */
+        columnSaveErrors: {},
+
+        /** Eingabedialog (ersetzt window.prompt): { title, label, value, resolve } oder null */
+        textDialog: null,
+
+        /** Fragt einen kurzen Text ab. Liefert den Text oder null bei Abbruch. */
+        askText(title, label, value = '') {
+            return new Promise(resolve => {
+                this.textDialog = { title, label, value, resolve };
+            });
+        },
+
+        /** Eingabedialog schließen (null = abgebrochen). */
+        closeTextDialog(result) {
+            const dialog = this.textDialog;
+            this.textDialog = null;
+            dialog?.resolve(result);
+        },
+
+        /** Fehlermeldung anzeigen; verschwindet nach einigen Sekunden von selbst. */
+        showError(message, type = 'danger') {
+            this.messageType = type;
+            this.errorMessage = message;
+            clearTimeout(this._errorTimer);
+            this._errorTimer = setTimeout(() => { this.errorMessage = ''; }, 8000);
+        },
 
         /**
          * Hält den Smartphone-Tag innerhalb der geladenen Woche:
@@ -62,25 +98,39 @@ export function registerDiaryStore(Alpine) {
 
         // ── Computed-artige Getter ─────────────────────────────────
 
-        /** Pause-Map: { entryId: { schuelerId: { date: true } } } */
+        /**
+         * Pause-Map: { entryId: { schuelerId: { date: true } } }
+         * Wird pro Array-Instanz nur einmal berechnet – pauses/absences werden immer durch neue
+         * Arrays ersetzt, nie in-place verändert. (Vorher: Neuaufbau bei jedem Zellen-Zugriff.)
+         */
         get pauseMap() {
-            const map = {};
-            (this.pauses || []).forEach(p => {
-                if (!map[p.entry_id]) map[p.entry_id] = {};
-                if (!map[p.entry_id][p.schueler_id]) map[p.entry_id][p.schueler_id] = {};
-                map[p.entry_id][p.schueler_id][p.date] = true;
-            });
-            return map;
+            const source = this.pauses || [];
+            if (pauseMapCache.source !== source) {
+                const map = {};
+                source.forEach(p => {
+                    if (!map[p.entry_id]) map[p.entry_id] = {};
+                    if (!map[p.entry_id][p.schueler_id]) map[p.entry_id][p.schueler_id] = {};
+                    map[p.entry_id][p.schueler_id][p.date] = true;
+                });
+                pauseMapCache.source = source;
+                pauseMapCache.map = map;
+            }
+            return pauseMapCache.map;
         },
 
-        /** Abwesenheits-Map: { schuelerId: { datum: true } } */
+        /** Abwesenheits-Map: { schuelerId: { datum: true } } (gecacht wie pauseMap) */
         get absenceMap() {
-            const map = {};
-            (this.absences || []).forEach(a => {
-                if (!map[a.schueler_id]) map[a.schueler_id] = {};
-                map[a.schueler_id][a.datum] = true;
-            });
-            return map;
+            const source = this.absences || [];
+            if (absenceMapCache.source !== source) {
+                const map = {};
+                source.forEach(a => {
+                    if (!map[a.schueler_id]) map[a.schueler_id] = {};
+                    map[a.schueler_id][a.datum] = true;
+                });
+                absenceMapCache.source = source;
+                absenceMapCache.map = map;
+            }
+            return absenceMapCache.map;
         },
 
         /** Heutiges Datum als YYYY-MM-DD */
@@ -127,6 +177,10 @@ export function registerDiaryStore(Alpine) {
          * Lädt alle Wochendaten vom Server (API: GET /paed-diary/week).
          */
         async loadWeek() {
+            // Schnelles Blättern: nur die Antwort der zuletzt angeforderten Woche übernehmen
+            this._weekRequest?.abort();
+            const controller = new AbortController();
+            this._weekRequest = controller;
             this.loading = true;
             const params = new URLSearchParams({
                 week_start: formatDate(this.currentWeekStart)
@@ -139,7 +193,8 @@ export function registerDiaryStore(Alpine) {
 
             try {
                 const resp = await fetch('/paed-diary/week?' + params.toString(), {
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const data = await resp.json();
@@ -166,9 +221,14 @@ export function registerDiaryStore(Alpine) {
                 // Termine separat nachladen
                 this.loadAppointments();
             } catch (e) {
+                if (e.name === 'AbortError') return;
                 console.error('[PaedDiary v2] loadWeek Fehler:', e);
+                this.showError('Die Woche konnte nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.');
             } finally {
-                this.loading = false;
+                if (this._weekRequest === controller) {
+                    this.loading = false;
+                    this._weekRequest = null;
+                }
             }
         },
 

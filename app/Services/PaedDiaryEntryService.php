@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\PaedDiaryAppointment;
 use App\Models\PaedDiaryEntry;
+use App\Models\Schueler;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -12,19 +15,73 @@ use Illuminate\Support\Facades\Cache;
 class PaedDiaryEntryService
 {
     /**
-     * Cache-Key der Wochenansicht (identisch zu PaedDiaryHelperTrait::weekCacheKey).
+     * Legt einen Eintrag für Schüler einer Klasse an (Web und API v1). Offene Einträge werden an Tagen
+     * mit Terminen, die „Einträge pausieren“ aktiviert haben, direkt pausiert.
+     * Aufrufer kapseln mehrere Klassen in einer DB-Transaktion.
+     *
+     * @param int[] $schuelerIds
      */
-    public function weekCacheKey(int|string $klasseId, Carbon $date): string
+    public function create(int $klasseId, array $schuelerIds, User $user, Carbon $date, string $content, bool $completed, ?int $categoryId, bool $dossierOnly): PaedDiaryEntry
     {
-        return "paed_diary_week_{$klasseId}_{$date->copy()->startOfWeek()->toDateString()}";
+        $entry = PaedDiaryEntry::create([
+            'klasse_id' => $klasseId,
+            'user_id' => $user->id,
+            'datum' => $date->toDateString(),
+            'content' => trim($content),
+            'completed_at' => ($dossierOnly || $completed) ? Carbon::now() : null,
+            'category_id' => $categoryId,
+            'dossier_only' => $dossierOnly,
+        ]);
+        $entry->schueler()->sync($schuelerIds);
+
+        if (!$entry->completed_at) {
+            $this->pauseForAppointments($entry, $schuelerIds, $date);
+        }
+
+        return $entry;
     }
 
-    public function forgetWeekCache(int|string|null $klasseId, Carbon $date): void
+    /**
+     * Pausiert einen neuen offenen Eintrag für Schüler, die am Eintragsdatum einen Termin mit
+     * „Einträge pausieren“ haben (über Klasse, Kopplung oder direkte Zuordnung).
+     *
+     * @param int[] $schuelerIds
+     */
+    public function pauseForAppointments(PaedDiaryEntry $entry, array $schuelerIds, Carbon $date): void
     {
-        if ($klasseId === null) {
+        if (empty($schuelerIds)) {
             return;
         }
-        Cache::forget($this->weekCacheKey($klasseId, $date));
+
+        $dateStr = $date->toDateString();
+        $schuelerKlasse = Schueler::whereIn('id', $schuelerIds)->pluck('klasse_id', 'id');
+        $klasseIds = $schuelerKlasse->filter()->unique()->values()->all();
+
+        $appointments = PaedDiaryAppointment::where('pause_entries', true)
+            ->where('is_paused', false)
+            ->whereDate('start_date', '<=', $dateStr)
+            ->where(fn ($q) => $q->whereNull('recurring_end_date')->orWhereDate('recurring_end_date', '>=', $dateStr))
+            ->where(function ($q) use ($schuelerIds, $klasseIds) {
+                $q->whereHas('klassen', fn ($qq) => $qq->whereIn('klassen.id', $klasseIds))
+                  ->orWhereHas('schueler', fn ($qq) => $qq->whereIn('schueler.id', $schuelerIds))
+                  ->orWhereHas('groups.klassen', fn ($qq) => $qq->whereIn('klassen.id', $klasseIds));
+            })
+            ->with(['klassen:id', 'schueler:id', 'exceptions', 'groups.klassen:id'])
+            ->get()
+            ->filter(fn (PaedDiaryAppointment $apt) => $apt->isOccurrenceOn($date->copy()));
+
+        $pausen = [];
+        foreach ($appointments as $apt) {
+            $aptKlassen = $apt->klassen->pluck('id')->merge($apt->groups->flatMap(fn ($g) => $g->klassen->pluck('id')))->all();
+            $aptSchueler = $apt->schueler->pluck('id')->all();
+            foreach ($schuelerIds as $stuId) {
+                if (in_array($schuelerKlasse[$stuId] ?? null, $aptKlassen) || in_array($stuId, $aptSchueler)) {
+                    $pausen[] = [$entry->id, (int) $stuId, $dateStr, PaedDiaryAppointmentService::GRUND_TERMIN];
+                }
+            }
+        }
+
+        app(PaedDiaryCalendarService::class)->ensureEntryPauses($pausen);
     }
 
     /**
@@ -119,12 +176,15 @@ class PaedDiaryEntryService
             $activeStudents = array_filter($allStudentIds, function($sid) use ($pauseMap, $dateStr) { return empty($pauseMap[$sid][$dateStr]); });
             if(empty($activeStudents)) continue; // nichts einzutragen
             // Prüfen ob bereits ein Eintrag mit gleichem Inhalt (und gleicher Kategorie) für (alle) diese Schüler existiert
+            // content ist verschlüsselt (zufälliger IV) und lässt sich nicht per SQL vergleichen –
+            // Kandidaten laden und den entschlüsselten Inhalt in PHP vergleichen.
             $existing = PaedDiaryEntry::where('klasse_id',$klasseId)
                 ->whereDate('datum',$dateStr)
-                ->where('content',$entry->content)
+                ->whereKeyNot($entry->id)
                 ->when($entry->category_id === null, function($q){ $q->whereNull('category_id'); }, function($q) use ($entry){ $q->where('category_id',$entry->category_id); })
                 ->whereHas('schueler', function($q) use ($activeStudents){ $q->whereIn('schueler.id',$activeStudents); })
-                ->first();
+                ->get()
+                ->first(fn ($kandidat) => $kandidat->content === $entry->content);
             if($existing){
                 // sicherstellen dass alle activeStudents verknüpft sind
                 $merged = array_unique(array_merge($existing->schueler()->pluck('schueler.id')->all(), $activeStudents));
@@ -142,7 +202,5 @@ class PaedDiaryEntryService
             ]);
             $newEntry->schueler()->sync($activeStudents);
         }
-        $this->forgetWeekCache($klasseId, $start);
-        $this->forgetWeekCache($klasseId, $completedDate);
     }
 }

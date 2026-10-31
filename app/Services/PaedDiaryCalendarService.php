@@ -15,7 +15,6 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Gemeinsame Logik der Wochenansicht (Kalender) des Pädagogischen Tagebuchs –
@@ -25,6 +24,12 @@ use Illuminate\Support\Facades\Schema;
  */
 class PaedDiaryCalendarService
 {
+    /** Grund für Pausen, die durch eine Abwesenheit entstehen. */
+    public const GRUND_ABWESENHEIT = 'Abwesenheit';
+
+    /** Grund für manuell gesetzte Tages-Pausen einzelner Notizen. */
+    public const GRUND_MANUELL = 'Manuell';
+
     /**
      * Lädt alle Daten einer Schulwoche (Mo–Fr) für die übergebenen Klassen.
      *
@@ -64,7 +69,7 @@ class PaedDiaryCalendarService
 
             $days->push([
                 'date' => $date->toDateString(),
-                'label' => $date->format('D d.m.'),
+                'label' => $date->copy()->locale('de')->isoFormat('dd DD.MM.'),
                 'is_ferien' => $isFerienTag,
                 'ferien_name' => $ferienName
             ]);
@@ -132,75 +137,66 @@ class PaedDiaryCalendarService
         // erstellt (created_at liegt in den Ferien), wird er grundsätzlich NIE automatisch
         // pausiert - unabhängig vom konkreten Ferientag. Die Auto-Pause soll nur bereits vor den
         // Ferien offene Einträge betreffen, die während der Ferien "liegen bleiben" würden.
+        // Auto-Pausen werden gesammelt und anschließend in einem Durchgang angelegt
+        // (vorher: SELECT + INSERT je Eintrag/Schüler/Tag bei jedem Wochenaufruf).
+        $autoPausen = [];
+
         if (!empty($ferienDates)) {
-            try {
-                // Prüfen ob reason-Spalte bereits existiert (Migration ggf. noch nicht gelaufen)
-                $reasonColumnExists = Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-                foreach ($entries as $entry) {
-                    if (is_null($entry->completed_at)) {
-                        // Wurde der Eintrag bewusst während laufender Ferien erstellt? Dann nie pausieren.
-                        $createdAt = $entry->created_at ?? $entry->datum;
-                        if (!is_null(is_ferien($createdAt->copy()))) {
+            foreach ($entries as $entry) {
+                if (!is_null($entry->completed_at)) {
+                    continue;
+                }
+                // Wurde der Eintrag bewusst während laufender Ferien erstellt? Dann nie pausieren.
+                $createdAt = $entry->created_at ?? $entry->datum;
+                if (!is_null(is_ferien($createdAt->copy()))) {
+                    continue;
+                }
+                $entryStart = $entry->datum->toDateString();
+                foreach ($entry->schueler as $schueler_item) {
+                    foreach ($ferienDates as $ferienDate) {
+                        if ($ferienDate <= $entryStart) {
                             continue;
                         }
-                        $entryStart = $entry->datum->copy()->startOfDay();
-                        foreach ($entry->schueler as $schueler_item) {
-                            foreach ($ferienDates as $ferienDate) {
-                                if (Carbon::parse($ferienDate)->lte($entryStart)) {
-                                    continue;
-                                }
-                                $pauseData = [
-                                    'paed_diary_entry_id' => $entry->id,
-                                    'schueler_id' => $schueler_item->id,
-                                    'date' => $ferienDate,
-                                ];
-                                $defaults = $reasonColumnExists ? ['reason' => 'Ferien'] : [];
-                                $this->ensureEntryPause($pauseData, $defaults);
-                            }
-                        }
+                        $autoPausen[] = [$entry->id, $schueler_item->id, $ferienDate, 'Ferien'];
                     }
                 }
-            } catch (\Throwable $e) {
-                Log::warning('Ferien-Auto-Pause fehlgeschlagen: ' . $e->getMessage());
             }
         }
 
         // ── Klassen-Tag-Pausen (manuelle Veranstaltungs-Pausen) laden und anwenden ──
-        $classDayPauseRecords = collect();
-        try {
-            if (Schema::hasTable('paed_diary_class_day_pauses')) {
-                $classDayPauseRecords = PaedDiaryClassDayPause::whereIn('klasse_id', $klassen->pluck('id'))
-                    ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
-                    ->get();
+        // Maßgeblich ist die aktuelle Klasse des Schülers (Ansicht ist schülerbasiert, s. o.),
+        // und eine Notiz wird erst ab ihrem Startdatum pausiert.
+        $classDayPauseRecords = PaedDiaryClassDayPause::whereIn('klasse_id', $klassen->pluck('id'))
+            ->whereBetween('date', [$weekStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
 
-                // Gruppiert nach klasse_id: [klasseId => [dateStr, ...]]
-                $classDayPauseDates = $classDayPauseRecords
-                    ->groupBy('klasse_id')
-                    ->map(fn($items) => $items->pluck('date')->map(fn($d) => $d->toDateString())->toArray());
+        if ($classDayPauseRecords->isNotEmpty()) {
+            $classDayPauseDates = $classDayPauseRecords
+                ->groupBy('klasse_id')
+                ->map(fn($items) => $items->pluck('date')->map(fn($d) => $d->toDateString())->toArray());
+            $schuelerKlasse = $schueler->pluck('klasse_id', 'id');
 
-                if ($classDayPauseRecords->isNotEmpty()) {
-                    $reasonColumnExists2 = Schema::hasColumn('paed_diary_entry_pauses', 'reason');
-                    foreach ($entries as $entry) {
-                        if (is_null($entry->completed_at)) {
-                            $pauseDates = $classDayPauseDates[$entry->klasse_id] ?? [];
-                            foreach ($entry->schueler as $schueler_item) {
-                                foreach ($pauseDates as $pauseDate) {
-                                    $pauseData = [
-                                        'paed_diary_entry_id' => $entry->id,
-                                        'schueler_id' => $schueler_item->id,
-                                        'date' => $pauseDate,
-                                    ];
-                                    $defaults = $reasonColumnExists2 ? ['reason' => 'Veranstaltung'] : [];
-                                    $this->ensureEntryPause($pauseData, $defaults);
-                                }
-                            }
+            foreach ($entries as $entry) {
+                if (!is_null($entry->completed_at)) {
+                    continue;
+                }
+                $entryStart = $entry->datum->toDateString();
+                foreach ($entry->schueler as $schueler_item) {
+                    $klasseId = $schuelerKlasse[$schueler_item->id] ?? $entry->klasse_id;
+                    foreach ($classDayPauseDates[$klasseId] ?? [] as $pauseDate) {
+                        if ($pauseDate < $entryStart) {
+                            continue;
                         }
+                        $autoPausen[] = [$entry->id, $schueler_item->id, $pauseDate, 'Veranstaltung'];
                     }
                 }
             }
+        }
+
+        try {
+            $this->ensureEntryPauses($autoPausen);
         } catch (\Throwable $e) {
-            Log::warning('Klassen-Tag-Pause-Anwendung fehlgeschlagen: ' . $e->getMessage());
-            $classDayPauseRecords = collect();
+            Log::warning('Auto-Pausen (Ferien/Veranstaltung) fehlgeschlagen: ' . $e->getMessage());
         }
 
         // Aufgaben: ebenfalls schülerbasiert statt klasse_id-basiert (Begründung s.o.)
@@ -211,9 +207,7 @@ class PaedDiaryCalendarService
         $pauseRecords = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entries->pluck('id'))
             ->whereDate('date', '>=', $weekStart->toDateString())
             ->whereDate('date', '<=', $periodEnd->toDateString())
-            ->get(Schema::hasColumn('paed_diary_entry_pauses', 'reason')
-                ? ['paed_diary_entry_id', 'schueler_id', 'date', 'reason']
-                : ['paed_diary_entry_id', 'schueler_id', 'date']);
+            ->get(['paed_diary_entry_id', 'schueler_id', 'date', 'reason']);
 
         // Abwesenheiten für die aktuelle Woche laden (schülerbasiert statt klasse_id-basiert, s.o.)
         $absencesForWeek = PaedDiarySchuelerAbsence::whereIn('schueler_id', $schuelerIds)
@@ -240,10 +234,22 @@ class PaedDiaryCalendarService
      */
     public function absenceAlerts(int $schuelerId): array
     {
-        $windowEnd = Carbon::now()->endOfDay();
-        $windowStart = $windowEnd->copy()->subDays((int) PaedDiarySchuelerAbsence::patternSettings()['weekday_window_days']);
+        return $this->absenceAlertsFor([$schuelerId])[$schuelerId] ?? [];
+    }
 
-        return PaedDiarySchuelerAbsence::patternSummaryForStudent($schuelerId, $windowStart, $windowEnd);
+    /**
+     * Wie absenceAlerts(), aber für mehrere Schüler mit einer Abfrage (Wochenansicht).
+     *
+     * @param int[] $schuelerIds
+     * @return array<int, array> [schueler_id => alerts]
+     */
+    public function absenceAlertsFor(array $schuelerIds): array
+    {
+        $settings = PaedDiarySchuelerAbsence::patternSettings();
+        $tage = max($settings['weekday_window_days'], $settings['total_absence_window_days'], $settings['short_cluster_window_days']);
+        $windowEnd = Carbon::now()->endOfDay();
+
+        return PaedDiarySchuelerAbsence::patternSummariesForStudents($schuelerIds, $windowEnd->copy()->subDays($tage), $windowEnd);
     }
 
     /**
@@ -326,12 +332,23 @@ class PaedDiaryCalendarService
             return ['absent' => false, 'pauses' => [], 'removed_entry_ids' => $removed];
         }
 
-        $absence = $existing ?? PaedDiarySchuelerAbsence::create([
-            'schueler_id' => $schuelerId,
-            'klasse_id'   => $klasseId,
-            'datum'       => $datumString,
-            'marked_by'   => $userId,
-        ]);
+        try {
+            $absence = $existing ?? PaedDiarySchuelerAbsence::create([
+                'schueler_id' => $schuelerId,
+                'klasse_id'   => $klasseId,
+                'datum'       => $datumString,
+                'marked_by'   => $userId,
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException|\Illuminate\Database\QueryException $e) {
+            // Doppelklick/paralleler Request: Abwesenheit wurde inzwischen angelegt → idempotent antworten
+            $absence = PaedDiarySchuelerAbsence::where('schueler_id', $schuelerId)
+                ->where('klasse_id', $klasseId)
+                ->whereDate('datum', $datumString)
+                ->first();
+            if (!$absence) {
+                throw $e;
+            }
+        }
 
         return ['absent' => true, 'pauses' => $this->pauseEntriesForAbsence($absence), 'removed_entry_ids' => []];
     }
@@ -345,8 +362,8 @@ class PaedDiaryCalendarService
     {
         $datumStr = $absence->datum->toDateString();
 
-        $openEntries = PaedDiaryEntry::where('klasse_id', $absence->klasse_id)
-            ->whereNull('completed_at')
+        // Schülerbasiert (wie die Wochenansicht) – auch Notizen mit früherer klasse_id
+        $openEntries = PaedDiaryEntry::whereNull('completed_at')
             ->whereDate('datum', '<=', $datumStr)
             ->whereHas('schueler', fn ($q) => $q->where('schueler.id', $absence->schueler_id))
             ->pluck('id');
@@ -357,7 +374,7 @@ class PaedDiaryCalendarService
                 'paed_diary_entry_id' => $entryId,
                 'schueler_id'         => $absence->schueler_id,
                 'date'                => $datumStr,
-            ]);
+            ], ['reason' => self::GRUND_ABWESENHEIT]);
             $created[] = [
                 'entry_id'    => $entryId,
                 'schueler_id' => $absence->schueler_id,
@@ -369,27 +386,20 @@ class PaedDiaryCalendarService
     }
 
     /**
-     * Entfernt alle Pausen des Schülers am Abwesenheitstag.
+     * Entfernt die durch die Abwesenheit entstandenen Pausen des Schülers an diesem Tag.
+     * Ferien-, Termin-, Veranstaltungs- und manuelle Pausen bleiben erhalten. Pausen ohne Grund
+     * stammen aus der Zeit vor der Grund-Kennzeichnung (Abwesenheit) und werden mit entfernt.
      *
      * @return int[] entry_ids der gelöschten Pausen
      */
     public function removeAbsencePauses(PaedDiarySchuelerAbsence $absence): array
     {
-        $datumStr = $absence->datum->toDateString();
+        $query = PaedDiaryEntryPause::where('schueler_id', $absence->schueler_id)
+            ->whereDate('date', $absence->datum->toDateString())
+            ->where(fn ($q) => $q->where('reason', self::GRUND_ABWESENHEIT)->orWhereNull('reason'));
 
-        $entryIds = PaedDiaryEntry::where('klasse_id', $absence->klasse_id)
-            ->pluck('id');
-
-        $removedEntryIds = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-            ->where('schueler_id', $absence->schueler_id)
-            ->whereDate('date', $datumStr)
-            ->pluck('paed_diary_entry_id')
-            ->toArray();
-
-        PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-            ->where('schueler_id', $absence->schueler_id)
-            ->whereDate('date', $datumStr)
-            ->delete();
+        $removedEntryIds = (clone $query)->pluck('paed_diary_entry_id')->map(fn ($id) => (int) $id)->all();
+        $query->delete();
 
         return $removedEntryIds;
     }
@@ -410,6 +420,50 @@ class PaedDiaryCalendarService
         return $existing ?? PaedDiaryEntryPause::create(array_merge($keys, $defaults));
     }
 
+    /**
+     * Legt mehrere Tages-Pausen an, sofern sie noch nicht existieren – mit einer Abfrage für die
+     * bestehenden Pausen und einem Batch-Insert statt SELECT/INSERT je Kombination.
+     *
+     * @param array<int, array{0: int, 1: int, 2: string, 3: ?string}> $pausen [entry_id, schueler_id, Y-m-d, reason]
+     */
+    public function ensureEntryPauses(array $pausen): void
+    {
+        if (empty($pausen)) {
+            return;
+        }
+
+        $dates = array_column($pausen, 2);
+        $vorhanden = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', array_unique(array_column($pausen, 0)))
+            ->whereDate('date', '>=', min($dates))
+            ->whereDate('date', '<=', max($dates))
+            ->get(['paed_diary_entry_id', 'schueler_id', 'date'])
+            ->mapWithKeys(fn ($p) => [$p->paed_diary_entry_id . '|' . $p->schueler_id . '|' . $p->date->toDateString() => true]);
+
+        $now = now();
+        $modell = new PaedDiaryEntryPause();
+        $neu = [];
+        foreach ($pausen as [$entryId, $schuelerId, $date, $reason]) {
+            $key = $entryId . '|' . $schuelerId . '|' . $date;
+            if (isset($vorhanden[$key])) {
+                continue;
+            }
+            $vorhanden[$key] = true;
+            $neu[] = [
+                'paed_diary_entry_id' => $entryId,
+                'schueler_id' => $schuelerId,
+                // gleiches Format wie beim Speichern über das Modell (Cast 'date')
+                'date' => $modell->fromDateTime(Carbon::parse($date)->startOfDay()),
+                'reason' => $reason,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($neu, 500) as $chunk) {
+            PaedDiaryEntryPause::insert($chunk);
+        }
+    }
+
     // ── Tages-Pausen (Klasse) ─────────────────────────────────────────
 
     /**
@@ -421,7 +475,6 @@ class PaedDiaryCalendarService
     {
         $dateStr = Carbon::parse($date)->toDateString();
         $reason  = trim($reason ?? '') ?: 'Veranstaltung';
-        $reasonColumnExists = Schema::hasColumn('paed_diary_entry_pauses', 'reason');
 
         $created = [];
         foreach ($klassen as $klasse) {
@@ -433,20 +486,24 @@ class PaedDiaryCalendarService
                 ]);
             }
 
-            // Alle offenen Einträge dieser Klasse bis einschl. dieses Tages pausieren
-            $openEntries = PaedDiaryEntry::where('klasse_id', $klasse->id)
-                ->whereNull('completed_at')
+            // Alle offenen Einträge der aktuellen Schüler dieser Klasse bis einschl. dieses Tages
+            // pausieren (schülerbasiert wie die Wochenansicht, auch Notizen mit früherer klasse_id)
+            $schuelerIds = Schueler::where('klasse_id', $klasse->id)->pluck('id')->all();
+            $openEntries = PaedDiaryEntry::whereNull('completed_at')
                 ->whereDate('datum', '<=', $dateStr)
+                ->whereHas('schueler', fn ($q) => $q->whereIn('schueler.id', $schuelerIds))
                 ->with('schueler:id')
                 ->get();
 
+            $pausen = [];
             foreach ($openEntries as $entry) {
                 foreach ($entry->schueler as $stu) {
-                    $pauseData = ['paed_diary_entry_id' => $entry->id, 'schueler_id' => $stu->id, 'date' => $dateStr];
-                    $defaults  = $reasonColumnExists ? ['reason' => $reason] : [];
-                    $this->ensureEntryPause($pauseData, $defaults);
+                    if (in_array($stu->id, $schuelerIds)) {
+                        $pausen[] = [$entry->id, $stu->id, $dateStr, $reason];
+                    }
                 }
             }
+            $this->ensureEntryPauses($pausen);
 
             $created[] = ['klasse_id' => $klasse->id, 'date' => $dateStr, 'reason' => $reason];
         }
@@ -461,7 +518,6 @@ class PaedDiaryCalendarService
     public function unpauseClassDay(Collection $klassen, string $date): void
     {
         $dateStr = Carbon::parse($date)->toDateString();
-        $reasonColumnExists = Schema::hasColumn('paed_diary_entry_pauses', 'reason');
 
         foreach ($klassen as $klasse) {
             $dayPauses = PaedDiaryClassDayPause::where('klasse_id', $klasse->id)->whereDate('date', $dateStr);
@@ -469,14 +525,11 @@ class PaedDiaryCalendarService
             $reasons = (clone $dayPauses)->pluck('reason')->filter()->push('Veranstaltung')->unique()->values()->all();
             $dayPauses->delete();
 
-            // Nur durch class-day-pause erzeugte Eintrags-Pausen entfernen
-            $entryIds = PaedDiaryEntry::where('klasse_id', $klasse->id)->pluck('id');
-            $query = PaedDiaryEntryPause::whereIn('paed_diary_entry_id', $entryIds)
-                ->whereDate('date', $dateStr);
-            if ($reasonColumnExists) {
-                $query->whereIn('reason', $reasons);
-            }
-            $query->delete();
+            // Nur durch die Tages-Pause erzeugte Eintrags-Pausen der Schüler dieser Klasse entfernen
+            PaedDiaryEntryPause::whereIn('schueler_id', Schueler::where('klasse_id', $klasse->id)->select('id'))
+                ->whereDate('date', $dateStr)
+                ->whereIn('reason', $reasons)
+                ->delete();
         }
     }
 }

@@ -182,10 +182,10 @@ export function registerStageDropdown(Alpine) {
                     }
                     this.closeDropdown();
                 } else {
-                    alert(j.message || 'Fehler beim Speichern');
+                    this.$store.diary.showError(j.message || 'Fehler beim Speichern');
                 }
             } catch (_) {
-                alert('Netzwerkfehler');
+                this.$store.diary.showError('Keine Verbindung zum Server. Die Stufe wurde nicht gespeichert.');
             } finally {
                 this.stageSaving = false;
             }

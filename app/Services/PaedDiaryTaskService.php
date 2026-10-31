@@ -11,10 +11,6 @@ use Carbon\Carbon;
  */
 class PaedDiaryTaskService
 {
-    public function __construct(private PaedDiaryEntryService $entries)
-    {
-    }
-
     /**
      * Legt je Schüler eine offene Aufgabe an.
      *
@@ -37,7 +33,6 @@ class PaedDiaryTaskService
                 'created_by' => $userId,
             ]);
         }
-        $this->entries->forgetWeekCache($klasseId, Carbon::now());
 
         return $created;
     }
@@ -54,7 +49,6 @@ class PaedDiaryTaskService
             'due_date' => $data['due_date'] ?? null,
             'highlighted' => $data['highlighted'] ?? $task->highlighted,
         ]);
-        $this->entries->forgetWeekCache($task->klasse_id, Carbon::now());
 
         return $task;
     }
@@ -65,7 +59,6 @@ class PaedDiaryTaskService
             return;
         }
         $task->update(['status' => 'closed', 'highlighted' => false, 'closed_at' => now()]);
-        $this->entries->forgetWeekCache($task->klasse_id, Carbon::now());
     }
 
     /** Einheitliche Darstellung (Web-JSON und API). */

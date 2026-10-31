@@ -89,13 +89,13 @@ class PaedDiaryEntry extends Model
             $this->attributes['content'] = $value; // leer belassen
             return;
         }
-        // Immer Klartext -> verschlüsseln
+        // Immer Klartext -> verschlüsseln. Schlägt das fehl (z. B. fehlender APP_KEY), wird nicht
+        // gespeichert: Pädagogische Notizen dürfen nie im Klartext in der Datenbank landen.
         try {
             $this->attributes['content'] = encrypt($value);
         } catch (\Throwable $e) {
-            Log::warning('PaedDiaryEntry encryption failed: '.$e->getMessage());
-            // Fallback: Rohwert speichern (besser als Datenverlust) – wird später bei Migration erneut versucht
-            $this->attributes['content'] = $value;
+            Log::error('PaedDiaryEntry: Verschlüsselung fehlgeschlagen, Eintrag wird nicht gespeichert: ' . $e->getMessage());
+            throw $e;
         }
     }
 

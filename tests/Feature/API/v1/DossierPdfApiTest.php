@@ -71,11 +71,11 @@ class DossierPdfApiTest extends ApiTestCase
         $this->assertCount(1, $this->viewData['entries']);
         $this->assertFalse($this->viewData['entries']->contains('dossier_only', true));
 
-        // Vertrauliche Einträge fremder Autoren ohne Sonderrecht nie enthalten
+        // Wie in der Schülerakte: auch vertrauliche Einträge fremder Autoren sind enthalten
         PaedDiaryEntry::factory()->dossierOnly()->create(['klasse_id' => $klasse->id, 'user_id' => User::factory()->create()->id, 'datum' => now()->toDateString()])
             ->schueler()->attach($schueler->id);
         $this->get(self::API . "/students/{$schueler->id}/dossier.pdf")->assertOk();
-        $this->assertCount(2, $this->viewData['entries']);
+        $this->assertCount(3, $this->viewData['entries']);
     }
 
     /** @test */

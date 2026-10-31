@@ -49,6 +49,22 @@ class GradingJoinApiController extends Controller
     }
 
     /**
+     * DELETE /api/v1/grading/sessions/{session}/join-codes/{schueler} – Gerät eines Schülers
+     * zurücksetzen (Gerät, Token und Code löschen). Danach erzeugt POST join-codes einen neuen Code.
+     * Hinweis: Route muss noch in routes/api.php registriert werden.
+     */
+    public function resetDevice(GradingDocumentationSession $session, int $schueler): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if (!$this->join->geraetZuruecksetzen($session, $schueler)) {
+            return response()->json(['message' => 'Für diesen Schüler gibt es keinen Code in dieser Session.'], 404);
+        }
+
+        return response()->json(null, 204);
+    }
+
+    /**
      * POST /api/v1/grading/sessions/{session}/current-question – Frage für alle Schüler freigeben (by_question).
      */
     public function currentQuestion(Request $request, GradingDocumentationSession $session): JsonResponse

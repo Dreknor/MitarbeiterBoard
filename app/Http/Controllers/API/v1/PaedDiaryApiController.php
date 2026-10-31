@@ -230,8 +230,6 @@ class PaedDiaryApiController extends Controller
             }
         }
 
-        $oldDate = $entry->datum->copy();
-
         DB::transaction(function () use ($entry, $attributes, $studentIds, $wasCompleted, $completed) {
             $entry->update($attributes);
             if ($studentIds !== null) {
@@ -243,8 +241,6 @@ class PaedDiaryApiController extends Controller
             }
         });
 
-        $this->entries->forgetWeekCache($entry->klasse_id, $oldDate);
-        $this->entries->forgetWeekCache($entry->klasse_id, Carbon::parse($entry->datum));
 
         // finalize() kann den Eintrag löschen, falls alle Schüler am Starttag pausiert waren
         if (!PaedDiaryEntry::whereKey($entry->id)->exists()) {
@@ -269,7 +265,6 @@ class PaedDiaryApiController extends Controller
             $entry->delete();
         });
 
-        $this->entries->forgetWeekCache($klasseId, $date);
 
         return response()->json(null, 204);
     }
@@ -324,20 +319,8 @@ class PaedDiaryApiController extends Controller
         // laufen wie im Web-Frontend über mehrere Tage weiter. Vertrauliche Einträge sind immer abgeschlossen.
         $completed = $dossierOnly || ($request->has('is_completed') ? $request->boolean('is_completed') : true);
 
-        $entry = PaedDiaryEntry::create([
-            'klasse_id' => $klasseId,
-            'user_id' => $user->id,
-            'datum' => $date->toDateString(),
-            'content' => trim((string) $request->input('content')),
-            'completed_at' => $completed ? Carbon::now() : null,
-            'category_id' => $categoryId,
-            'dossier_only' => $dossierOnly,
-        ]);
-        $entry->schueler()->sync($schuelerIds);
-
-        $this->entries->forgetWeekCache($klasseId, $date);
-
-        return $entry;
+        // Gemeinsame Logik mit dem Web (inkl. Pausen an Terminen mit „Einträge pausieren“)
+        return $this->entries->create($klasseId, $schuelerIds, $user, $date, (string) $request->input('content'), $completed, $categoryId, $dossierOnly);
     }
 
     /**

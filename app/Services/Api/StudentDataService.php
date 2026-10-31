@@ -82,15 +82,19 @@ class StudentDataService
     }
 
     /**
-     * Abgeschlossene Graduierungs-Sessions (individuell für den Schüler oder Gruppen-Sessions
-     * der aktuellen Klasse) inkl. der Bewertungen dieses Schülers.
+     * Abgeschlossene Graduierungs-Sessions inkl. der Bewertungen dieses Schülers: individuelle
+     * Sessions des Schülers, Gruppen-Sessions der aktuellen Klasse und Gruppen-Sessions früherer
+     * Klassen, in denen der Schüler bewertet wurde. Gemeinsame Abfrage für Web, Excel, Dossier und API.
      */
     public function completedGradingSessions(Schueler $schueler, ?Carbon $from = null, ?Carbon $to = null): Collection
     {
         return GradingDocumentationSession::query()
             ->where(function ($q) use ($schueler) {
                 $q->where(fn ($q2) => $q2->where('type', 'individual')->where('schueler_id', $schueler->id))
-                    ->orWhere(fn ($q2) => $q2->where('type', 'group')->where('klasse_id', $schueler->klasse_id));
+                    ->orWhere(fn ($q2) => $q2->where('type', 'group')->where(fn ($q3) => $q3
+                        ->where('klasse_id', $schueler->klasse_id)
+                        ->orWhereHas('studentAnswers', fn ($a) => $a->where('schueler_id', $schueler->id))
+                        ->orWhereHas('teacherAssessments', fn ($a) => $a->where('schueler_id', $schueler->id))));
             })
             ->whereNotNull('completed_at')
             ->when($from, fn ($q) => $q->where('completed_at', '>=', $from->copy()->startOfDay()))
@@ -174,13 +178,17 @@ class StudentDataService
     }
 
     /**
-     * Tagebucheinträge eines Schülers (vertrauliche Einträge gemäß Rechten gefiltert).
+     * Tagebucheinträge eines Schülers (Schülerakte). Wie in der Web-Schülerakte sind alle Einträge
+     * sichtbar, auch vertrauliche fremder Autoren; $includeConfidential = false blendet alle
+     * vertraulichen Einträge aus (z. B. Dossier für das Elterngespräch).
      */
     public function diaryEntriesQuery(Schueler $schueler, User $user, bool $includeConfidential = true)
     {
         return PaedDiaryEntry::query()
             ->forSchueler($schueler->id)
-            ->confidentialFilter($user, $includeConfidential)
+            ->when(!$includeConfidential, fn ($q) => $q->where(fn ($w) => $w
+                ->where('paed_diary_entries.dossier_only', false)
+                ->orWhereNull('paed_diary_entries.dossier_only')))
             ->with(['category:id,name,color', 'user:id,name', 'schueler:schueler.id'])
             ->orderByDesc('datum')
             ->orderByDesc('id');

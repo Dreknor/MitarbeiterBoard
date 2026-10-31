@@ -161,14 +161,6 @@ class KlasseController extends Controller
                         // attach schueler to the paed diary entry
                         $entry->schueler()->sync($students->pluck('id')->toArray());
 
-                        // Invalidate week cache for the class so the new diary entry becomes visible immediately
-                        try {
-                            $weekStart = Carbon::parse($entry->datum)->startOfWeek();
-                            Cache::forget('paed_week_'.$klassen->id.'_'. $weekStart->format('Ymd'));
-                        } catch (\Throwable $e) {
-                            // non-fatal
-                        }
-
                         // update students and create history entries
                         foreach ($students as $s) {
                             SchuelerGradingHistory::create([

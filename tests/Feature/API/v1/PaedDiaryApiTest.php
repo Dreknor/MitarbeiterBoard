@@ -189,17 +189,20 @@ class PaedDiaryApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function vertraulicher_fremder_eintrag_liefert_403(): void
+    public function vertraulicher_fremder_eintrag_ist_lesbar_aber_nicht_bearbeitbar(): void
     {
         [$klasse, $schueler] = $this->classWithStudent();
         $entry = PaedDiaryEntry::factory()->dossierOnly()->create(['klasse_id' => $klasse->id, 'user_id' => User::factory()->create()->id]);
         $entry->schueler()->attach($schueler->id);
 
+        // Schülerakte: alle Einträge lesbar, vertrauliche fremder Autoren aber nicht bearbeitbar/löschbar
         $this->actingAsTeacher(['view paed diary'], [$klasse]);
-        $this->getJson(self::API . "/paed-diary/entries/{$entry->id}")->assertForbidden();
+        $this->getJson(self::API . "/paed-diary/entries/{$entry->id}")->assertOk();
+        $this->putJson(self::API . "/paed-diary/entries/{$entry->id}", ['content' => 'Geändert'])->assertForbidden();
+        $this->deleteJson(self::API . "/paed-diary/entries/{$entry->id}")->assertForbidden();
 
         $this->actingAsAdmin();
-        $this->getJson(self::API . "/paed-diary/entries/{$entry->id}")->assertOk();
+        $this->putJson(self::API . "/paed-diary/entries/{$entry->id}", ['content' => 'Geändert'])->assertOk();
     }
 
     /** @test */

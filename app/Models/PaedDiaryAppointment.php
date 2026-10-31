@@ -99,40 +99,53 @@ class PaedDiaryAppointment extends Model
             ->flip()
             ->toArray();
 
-        $current = $this->start_date->copy();
+        $base = $this->start_date->copy()->startOfDay();
         $maxDate = $this->recurring_end_date ?
             min($endDate, $this->recurring_end_date) : $endDate;
+        $interval = max(1, (int) $this->recurring_interval);
 
-        while ($current->lte($maxDate)) {
+        // Direkt zum ersten Vorkommen im Zeitraum springen statt ab Serienbeginn zu iterieren.
+        // Jedes Vorkommen wird vom Serienbeginn aus berechnet (Monate ohne Überlauf: 31.01. → 28.02. → 31.03.).
+        $n = 0;
+        if ($base->lt($startDate)) {
+            $tage = (int) $base->diffInDays($startDate->copy()->startOfDay());
+            $n = match ($this->recurring_type) {
+                'daily' => intdiv($tage, $interval),
+                'weekly' => intdiv(intdiv($tage, 7), $interval),
+                'monthly' => intdiv((int) $base->diffInMonths($startDate), $interval),
+                default => 0,
+            };
+            $n = max(0, $n - 1);
+        }
+
+        while (true) {
+            $current = match ($this->recurring_type) {
+                'daily' => $base->copy()->addDays($n * $interval),
+                'weekly' => $base->copy()->addWeeks($n * $interval),
+                'monthly' => $base->copy()->addMonthsNoOverflow($n * $interval),
+                default => $n === 0 ? $base->copy() : null,
+            };
+            if ($current === null || $current->gt($maxDate)) {
+                break;
+            }
+            $n++;
+
             // Ausnahme überspringen
-            if (!isset($exceptionDates[$current->toDateString()])) {
-                if ($current->between($startDate, $endDate)) {
-                    $occurrences[] = [
-                        'id' => $this->id,
-                        'title' => $this->title,
-                        'description' => $this->description,
-                        'date' => $current->toDateString(),
-                        'start_time' => $this->start_time,
-                        'end_time' => $this->end_time,
-                        'is_recurring' => true,
-                        'is_paused' => false,
-                        'user_id' => $this->user_id,
-                    ];
-                }
+            if (isset($exceptionDates[$current->toDateString()]) || !$current->between($startDate, $endDate)) {
+                continue;
             }
 
-            // Nächsten Termin berechnen
-            switch ($this->recurring_type) {
-                case 'daily':
-                    $current->addDays($this->recurring_interval);
-                    break;
-                case 'weekly':
-                    $current->addWeeks($this->recurring_interval);
-                    break;
-                case 'monthly':
-                    $current->addMonths($this->recurring_interval);
-                    break;
-            }
+            $occurrences[] = [
+                'id' => $this->id,
+                'title' => $this->title,
+                'description' => $this->description,
+                'date' => $current->toDateString(),
+                'start_time' => $this->start_time,
+                'end_time' => $this->end_time,
+                'is_recurring' => true,
+                'is_paused' => false,
+                'user_id' => $this->user_id,
+            ];
         }
 
         return $occurrences;
@@ -186,8 +199,10 @@ class PaedDiaryAppointment extends Model
             'monthly' => (function () use ($date): bool {
                 $monthsDiff = ($date->year - $this->start_date->year) * 12
                             + ($date->month - $this->start_date->month);
-                return $monthsDiff % $this->recurring_interval === 0
-                    && $date->day === $this->start_date->day;
+                // Wie getOccurrencesInRange(): Monate ohne Überlauf (31.01. → 28.02.)
+                return $monthsDiff >= 0
+                    && $monthsDiff % $this->recurring_interval === 0
+                    && $this->start_date->copy()->addMonthsNoOverflow($monthsDiff)->isSameDay($date);
             })(),
             default   => false,
         };

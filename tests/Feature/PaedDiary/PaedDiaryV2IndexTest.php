@@ -7,7 +7,7 @@ use App\Models\User;
 use Tests\TestCase;
 
 /**
- * Tests für die v2-Route des Pädagogischen Tagebuchs.
+ * Tests für die Wochenansicht des Pädagogischen Tagebuchs (/paed-diary).
  * Prüft Route-Erreichbarkeit, View-Rendering und Autorisierung.
  */
 class PaedDiaryV2IndexTest extends TestCase
@@ -19,7 +19,7 @@ class PaedDiaryV2IndexTest extends TestCase
         $klasse = Klasse::factory()->create();
         $user->paed_klassen()->attach($klasse->id);
 
-        $response = $this->get('/paed-diary/v2');
+        $response = $this->get('/paed-diary');
 
         $response->assertOk();
         $response->assertViewIs('paedDiary.v2.index');
@@ -33,7 +33,7 @@ class PaedDiaryV2IndexTest extends TestCase
     {
         $this->actingAsWithPermission('view paed diary');
 
-        $response = $this->get('/paed-diary/v2');
+        $response = $this->get('/paed-diary');
 
         $response->assertRedirect();
     }
@@ -44,7 +44,7 @@ class PaedDiaryV2IndexTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $response = $this->get('/paed-diary/v2');
+        $response = $this->get('/paed-diary');
 
         $response->assertForbidden();
     }
@@ -57,25 +57,11 @@ class PaedDiaryV2IndexTest extends TestCase
         $klasse2 = Klasse::factory()->create(['name' => 'Klasse B']);
         $user->paed_klassen()->attach([$klasse1->id, $klasse2->id]);
 
-        $response = $this->get('/paed-diary/v2?klasse=' . $klasse2->id);
+        $response = $this->get('/paed-diary?klasse=' . $klasse2->id);
 
         $response->assertOk();
         $response->assertViewHas('klasse', function ($klasse) use ($klasse2) {
             return $klasse->id === $klasse2->id;
         });
     }
-
-    /** @test */
-    public function v1_index_funktioniert_weiterhin(): void
-    {
-        $user = $this->actingAsWithPermission('view paed diary');
-        $klasse = Klasse::factory()->create();
-        $user->paed_klassen()->attach($klasse->id);
-
-        $response = $this->get('/paed-diary');
-
-        $response->assertOk();
-        $response->assertViewIs('paedDiary.index');
-    }
 }
-

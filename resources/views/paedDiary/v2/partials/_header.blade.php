@@ -9,7 +9,7 @@
 
         {{-- Titel (nur Desktop) --}}
         <h5 class="hidden md:block text-sm font-semibold text-gray-800 mr-1 whitespace-nowrap" style="margin:0;">
-            Päd. Dokumentation
+            Pädagogisches Tagebuch
         </h5>
 
         {{-- Klassen-Auswahl --}}
@@ -47,7 +47,7 @@
         {{-- Gruppenmodus-Badge --}}
         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-blue-100 text-blue-700"
               x-show="$store.diary.is_group" x-cloak>
-            Gruppe
+            Kopplung
         </span>
 
         {{-- Spacer (schiebt Wochennav nach rechts auf Desktop) --}}
@@ -77,16 +77,16 @@
         {{-- Dokumentation --}}
         <a href="{{ route('gradingDocumentation.index') }}"
            class="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
-           title="Graduierungssystem-Dokumentation">
+           title="Graduierung dokumentieren">
             <i class="fas fa-clipboard-check text-[0.6rem]"></i>
-            <span class="hidden sm:inline">Dokumentation</span>
+            <span class="hidden sm:inline">Graduierung</span>
         </a>
 
-        {{-- CSV Export --}}
+        {{-- Excel-Export --}}
         <a :href="exportUrl"
            class="inline-flex items-center justify-center w-7 h-7 rounded-md text-xs text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
-           title="CSV Export">
-            <i class="fas fa-file-csv"></i>
+           title="Excel-Export" aria-label="Excel-Export">
+            <i class="fas fa-file-excel" aria-hidden="true"></i>
         </a>
 
         {{-- Termin-Button --}}

@@ -207,6 +207,7 @@ class GradingSessionService
 
         if ($session->isIndividualSession()) {
             $session->update(['completed_at' => $now]);
+            $this->zugaengeEntfernen($session);
 
             return true;
         }
@@ -224,9 +225,84 @@ class GradingSessionService
         $open = $session->participants()->whereNull('finalized_at')->exists();
         if (!$open) {
             $session->update(['completed_at' => $now]);
+            $this->zugaengeEntfernen($session);
         }
 
         return !$open;
+    }
+
+    /**
+     * Schließt die ganze Session ab (Web „Abschließen“). Wie beim Abschluss über die API erhalten
+     * vorhandene Teilnehmer ohne Abschluss finalized_at/finalized_by; QR-Zugänge werden entfernt.
+     */
+    public function abschliessen(GradingDocumentationSession $session, User $user): void
+    {
+        DB::transaction(function () use ($session, $user) {
+            $now = now();
+
+            $session->participants()->whereNull('finalized_at')->update([
+                'finalized_at' => $now,
+                'finalized_by' => $user->id,
+            ]);
+            $session->update(['completed_at' => $now]);
+            $this->zugaengeEntfernen($session);
+        });
+    }
+
+    /**
+     * Prüft, ob für den Schüler (und optional die Frage) in der Session noch geschrieben werden darf.
+     * Gemeinsam genutzt von den Web-Endpunkten (Lehrkraft und öffentlicher QR-Zugang).
+     *
+     * @return array{0: int, 1: string}|null  [HTTP-Status, Meldung] oder null, wenn erlaubt
+     */
+    public function schreibFehler(GradingDocumentationSession $session, int $schuelerId, ?int $questionId = null): ?array
+    {
+        if ($session->isCompleted()) {
+            return [409, 'Die Session ist abgeschlossen. Öffne sie wieder, um Änderungen vorzunehmen.'];
+        }
+
+        if (!$this->isParticipant($session, $schuelerId)) {
+            return [422, 'Der Schüler nimmt nicht an dieser Session teil.'];
+        }
+
+        if ($this->isFinalized($session, $schuelerId)) {
+            return [409, 'Die Bewertung dieses Schülers ist in der Session bereits abgeschlossen.'];
+        }
+
+        if ($questionId !== null && !GradingQuestion::whereKey($questionId)
+            ->where('grading_system_id', $session->grading_system_id)
+            ->where('active', true)
+            ->exists()) {
+            return [422, 'Die Frage gehört nicht zum Graduierungssystem dieser Session.'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Öffentliche QR-Zugänge der Session ungültig machen (bei Abschluss oder Abbruch).
+     */
+    public function zugaengeEntfernen(GradingDocumentationSession $session): void
+    {
+        DB::table('grading_student_tokens')->where('session_id', $session->id)->delete();
+    }
+
+    /**
+     * Öffnet eine abgeschlossene Session wieder. Auch die Abschlüsse einzelner Schüler
+     * (finalized_at, z. B. per App gesetzt) werden zurückgesetzt, sonst blieb die Session
+     * nach dem Wiederöffnen in der App für alle Schüler gesperrt (409).
+     */
+    public function wiederoeffnen(GradingDocumentationSession $session): bool
+    {
+        return DB::transaction(function () use ($session) {
+            if (!$session->reopen()) {
+                return false;
+            }
+
+            $session->participants()->update(['finalized_at' => null, 'finalized_by' => null]);
+
+            return true;
+        });
     }
 
     /**
@@ -252,6 +328,87 @@ class GradingSessionService
             'students_total' => $studentIds->count(),
             'students_finalized' => $this->finalizedIds($session)->intersect($studentIds->map(fn ($id) => (int) $id))->count(),
         ];
+    }
+
+    /**
+     * Fortschritt mehrerer Sessions (wie progress()), aber mit einer festen Anzahl Abfragen
+     * statt ~4 je Session – für Listen (API classSessions).
+     *
+     * @param  iterable<GradingDocumentationSession>  $sessions
+     * @return array<int, array>  Fortschritt je Session-ID
+     */
+    public function progressFuer(iterable $sessions): array
+    {
+        $sessions = collect($sessions);
+        if ($sessions->isEmpty()) {
+            return [];
+        }
+
+        $sessionIds = $sessions->pluck('id');
+
+        // Teilnehmerlisten (grading_session_students) aller Sessions
+        $teilnehmer = GradingSessionStudent::whereIn('session_id', $sessionIds)
+            ->get(['session_id', 'schueler_id', 'finalized_at'])
+            ->groupBy('session_id');
+
+        // Schüler bestimmen, die tatsächlich existieren (wie participants())
+        $gruppeOhneListe = $sessions->filter(fn ($s) => !$s->isIndividualSession() && !$teilnehmer->has($s->id));
+        $klassenSchueler = $gruppeOhneListe->isEmpty() ? collect() : Schueler::whereIn('klasse_id', $gruppeOhneListe->pluck('klasse_id')->unique())
+            ->get(['id', 'klasse_id'])
+            ->groupBy('klasse_id')
+            ->map(fn ($rows) => $rows->pluck('id')->map(fn ($id) => (int) $id));
+
+        $einzelIds = $teilnehmer->flatten(1)->pluck('schueler_id')
+            ->merge($sessions->filter(fn ($s) => $s->isIndividualSession())->pluck('schueler_id'))
+            ->filter()
+            ->unique();
+        $vorhanden = $einzelIds->isEmpty() ? collect() : Schueler::whereIn('id', $einzelIds)->pluck('id')->map(fn ($id) => (int) $id)->flip();
+
+        $fragen = GradingQuestion::whereIn('grading_system_id', $sessions->pluck('grading_system_id')->unique())
+            ->where('active', true)
+            ->get(['id', 'grading_system_id'])
+            ->groupBy('grading_system_id')
+            ->map(fn ($rows) => $rows->pluck('id')->map(fn ($id) => (int) $id));
+
+        $bewertungen = GradingTeacherAssessment::whereIn('session_id', $sessionIds)
+            ->whereNotNull('teacher_rating')
+            ->get(['session_id', 'schueler_id', 'question_id'])
+            ->groupBy('session_id');
+
+        $ergebnis = [];
+        foreach ($sessions as $session) {
+            $liste = $teilnehmer->get($session->id, collect());
+
+            if ($session->isIndividualSession()) {
+                $studentIds = collect([(int) $session->schueler_id])->filter(fn ($id) => $vorhanden->has($id));
+            } elseif ($liste->isNotEmpty()) {
+                $studentIds = $liste->pluck('schueler_id')->map(fn ($id) => (int) $id)->filter(fn ($id) => $vorhanden->has($id))->unique();
+            } else {
+                $studentIds = $klassenSchueler->get($session->klasse_id, collect());
+            }
+
+            $questionIds = $fragen->get($session->grading_system_id, collect());
+            $schuelerSet = $studentIds->flip();
+            $fragenSet = $questionIds->flip();
+
+            $answered = $studentIds->isEmpty() || $questionIds->isEmpty() ? 0 : $bewertungen->get($session->id, collect())
+                ->filter(fn ($a) => $schuelerSet->has((int) $a->schueler_id) && $fragenSet->has((int) $a->question_id))
+                ->count();
+
+            $finalized = $session->isCompleted()
+                ? $studentIds->count()
+                : $liste->whereNotNull('finalized_at')->pluck('schueler_id')->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $schuelerSet->has($id))->unique()->count();
+
+            $ergebnis[$session->id] = [
+                'answered' => $answered,
+                'total' => $studentIds->count() * $questionIds->count(),
+                'students_total' => $studentIds->count(),
+                'students_finalized' => $finalized,
+            ];
+        }
+
+        return $ergebnis;
     }
 
     /**

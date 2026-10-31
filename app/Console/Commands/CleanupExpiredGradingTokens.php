@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\GradingJoinService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,7 @@ class CleanupExpiredGradingTokens extends Command
      *
      * @var string
      */
-    protected $description = 'Löscht abgelaufene QR-Code Tokens für die Gruppendokumentation';
+    protected $description = 'Löscht abgelaufene QR-Code Tokens, Beitrittscodes und Schüler-Geräte (inkl. Sanctum-Tokens) der Graduierung';
 
     /**
      * Execute the console command.
@@ -33,6 +34,10 @@ class CleanupExpiredGradingTokens extends Command
             ->delete();
 
         $this->info("$deleted abgelaufene Token(s) gelöscht.");
+
+        // Beitrittscodes und Schüler-Geräte (Schüler-iPads) inkl. Sanctum-Tokens
+        $ergebnis = app(GradingJoinService::class)->aufraeumen();
+        $this->info("{$ergebnis['codes']} Beitrittscode(s), {$ergebnis['devices']} Schüler-Gerät(e) und {$ergebnis['tokens']} Geräte-Token(s) gelöscht.");
 
         return Command::SUCCESS;
     }

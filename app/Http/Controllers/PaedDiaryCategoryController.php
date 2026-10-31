@@ -120,7 +120,8 @@ class PaedDiaryCategoryController extends Controller
 
     /**
      * DELETE /paed-diary/categories/{category}
-     * Eigene Kategorie löschen; Einträge und Spalten werden auf null gesetzt.
+     * Eigene Kategorie löschen; Einträge werden auf „ohne Kategorie“ gesetzt. Spaltengruppen sind
+     * davon unabhängig (gleichnamige Gruppen anderer Klassen bleiben erhalten).
      */
     public function deleteCategory(PaedDiaryCategory $category)
     {
@@ -131,7 +132,6 @@ class PaedDiaryCategoryController extends Controller
         }
 
         PaedDiaryEntry::where('category_id', $category->id)->update(['category_id' => null]);
-        PaedDiaryColumn::where('category', $category->name)->update(['category' => null]);
 
         $category->delete();
 
@@ -251,7 +251,6 @@ class PaedDiaryCategoryController extends Controller
         }
 
         PaedDiaryEntry::where('category_id', $category->id)->update(['category_id' => null]);
-        PaedDiaryColumn::where('category', $category->name)->update(['category' => null]);
         $category->delete();
 
         return response()->json(['success' => true]);

@@ -16,6 +16,8 @@ export default defineConfig({
                 'resources/css/paed-diary.css',
                 'resources/css/paed-diary-v2.css',
                 'resources/js/paed-diary-v2.js',
+                // Pädagogisches Tagebuch – neue Ansicht (parallel zur bisherigen, CSS wird importiert)
+                'resources/js/paed-diary-neu.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',

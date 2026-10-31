@@ -79,9 +79,24 @@ class GradingDocumentationController extends Controller
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
         }
 
+        // Lerngruppe muss eine eigene sein und die Klasse enthalten (wie in der API)
+        if ($request->filled('group_id')) {
+            $gruppeGueltig = $user->paed_diary_class_groups()
+                ->whereKey($request->integer('group_id'))
+                ->whereHas('klassen', fn ($q) => $q->where('klassen.id', $klasse->id))
+                ->exists();
+
+            if (!$gruppeGueltig) {
+                return response()->json([
+                    'message' => 'Die Lerngruppe gehört nicht zu dir oder enthält die Klasse nicht.',
+                    'errors' => ['group_id' => ['Die Lerngruppe gehört nicht zu dir oder enthält die Klasse nicht.']],
+                ], 422);
+            }
+        }
+
         // Offene eigene Session für Klasse/Gruppe fortsetzen oder neu anlegen (gemeinsame Logik mit der API)
         [$session, $resumed] = app(GradingSessionService::class)
-            ->startGroupSession($user, $klasse, $request->group_id, $answerOrderMode);
+            ->startGroupSession($user, $klasse, $request->filled('group_id') ? $request->integer('group_id') : null, $answerOrderMode);
 
         return response()->json([
             'session' => $session,
@@ -98,33 +113,15 @@ class GradingDocumentationController extends Controller
         $this->authorize('view', $session);
 
         $session->load([
-            'klasse.schueler' => function($q) {
-                $q->orderBy('nachname')->orderBy('vorname');
-            },
+            'klasse',
             'gradingSystem.questions' => function($q) {
                 $q->where('active', true)->orderBy('sort_order');
             },
             'studentAnswers'
         ]);
 
-        // Schüler filtern nach Gruppe falls vorhanden
-        $schueler = $session->klasse->schueler;
-        if ($session->group_id) {
-            $group = $session->group;
-            // Filter Schüler die zur Gruppe gehören falls implementiert
-        }
-
-        // Debug: Log the data being passed to the view
-        Log::info('Group Session Data:', [
-            'session_id' => $session->id,
-            'klasse_id' => $session->klasse_id,
-            'klasse_name' => $session->klasse->name,
-            'schueler_count' => $schueler->count(),
-            'schueler_ids' => $schueler->pluck('id')->toArray(),
-            'questions_count' => $session->gradingSystem->questions->count(),
-            'questions_ids' => $session->gradingSystem->questions->pluck('id')->toArray(),
-            'answers_count' => $session->studentAnswers->count(),
-        ]);
+        // Teilnehmer der Session (Teilmenge aus der App oder ganze Klasse)
+        $schueler = $this->sessions()->participants($session);
 
         return view('paedDiary.documentation.group-session', [
             'session' => $session,
@@ -147,6 +144,9 @@ class GradingDocumentationController extends Controller
 
         $session = GradingDocumentationSession::findOrFail($request->session_id);
         $this->authorize('update', $session);
+        if ($fehler = $this->sessions()->schreibFehler($session, (int) $request->schueler_id, (int) $request->question_id)) {
+            return response()->json(['message' => $fehler[1]], $fehler[0]);
+        }
 
         $answer = GradingStudentAnswer::updateOrCreate(
             [
@@ -179,24 +179,38 @@ class GradingDocumentationController extends Controller
             'coachingNotes'
         ]);
 
-        // Bei individueller Session nur den betroffenen Schüler laden
-        if ($session->type === 'individual' && $session->schueler_id) {
-            $session->load('schueler');
-            $schueler = collect([$session->schueler]);
-        } else {
-            // Bei Gruppensession alle Schüler der Klasse laden
-            $session->load([
-                'klasse.schueler' => function($q) {
-                    $q->orderBy('nachname')->orderBy('vorname');
-                }
+        $session->load(['klasse', 'schueler']);
+
+        // Teilnehmer (individuell: der Schüler, Gruppe: Teilnehmerliste oder ganze Klasse)
+        $schueler = $this->sessions()->participants($session);
+
+        // Neue Ansicht: wahlweise Matrix (Schüler × Fragen) statt „Schüler für Schüler“
+        $darstellung = Auth::user()->paedDiaryDarstellung();
+        if ($darstellung['ansicht'] === 'neu' && $darstellung['bewertung'] === 'matrix') {
+            $finalisiert = $this->sessions()->finalizedIds($session)->all();
+
+            return view('paedDiary.neu.bewertung-matrix', [
+                'session' => $session,
+                'schueler' => $schueler,
+                'questions' => $session->gradingSystem->questions,
+                'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
+                'matrix' => $schueler->map(fn ($s) => [
+                    'id' => $s->id,
+                    'name' => trim($s->vorname . ' ' . $s->nachname),
+                    'abgeschlossen' => in_array((int) $s->id, $finalisiert, true),
+                    'selbst' => $session->studentAnswers->where('schueler_id', $s->id)->pluck('self_rating', 'question_id'),
+                    'lehrkraft' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('teacher_rating', 'question_id'),
+                    'kommentare' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('comment', 'question_id'),
+                ])->values(),
             ]);
-            $schueler = $session->klasse->schueler;
         }
 
         return view('paedDiary.documentation.teacher-assessment', [
+            'darstellung' => $darstellung,
             'session' => $session,
             'schueler' => $schueler,
             'questions' => $session->gradingSystem->questions,
+            'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
         ]);
     }
 
@@ -215,6 +229,9 @@ class GradingDocumentationController extends Controller
 
         $session = GradingDocumentationSession::findOrFail($request->session_id);
         $this->authorize('update', $session);
+        if ($fehler = $this->sessions()->schreibFehler($session, (int) $request->schueler_id, (int) $request->question_id)) {
+            return response()->json(['message' => $fehler[1]], $fehler[0]);
+        }
 
         $assessment = GradingTeacherAssessment::updateOrCreate(
             [
@@ -245,6 +262,9 @@ class GradingDocumentationController extends Controller
 
         $session = GradingDocumentationSession::findOrFail($request->session_id);
         $this->authorize('update', $session);
+        if ($fehler = $this->sessions()->schreibFehler($session, (int) $request->schueler_id)) {
+            return response()->json(['message' => $fehler[1]], $fehler[0]);
+        }
 
         $note = GradingCoachingNote::updateOrCreate(
             [
@@ -268,7 +288,12 @@ class GradingDocumentationController extends Controller
     {
         $this->authorize('update', $session);
 
-        $session->update(['completed_at' => now()]);
+        // Erneuter Abschluss würde completed_at überschreiben und die Frist zum Wiederöffnen verlängern
+        if ($session->isCompleted()) {
+            return response()->json(['message' => 'Die Session ist bereits abgeschlossen.'], 409);
+        }
+
+        $this->sessions()->abschliessen($session, Auth::user());
 
         return response()->json(['message' => 'Session erfolgreich abgeschlossen.']);
     }
@@ -286,6 +311,7 @@ class GradingDocumentationController extends Controller
         }
 
         // Alle zugehörigen Daten löschen
+        $this->sessions()->zugaengeEntfernen($session);
         $session->studentAnswers()->delete();
         $session->teacherAssessments()->delete();
         $session->delete();
@@ -305,6 +331,11 @@ class GradingDocumentationController extends Controller
 
         $user = Auth::user();
         $klasse = $user->paed_klassen()->findOrFail($request->klasse_id);
+
+        // Der Schüler muss zur gewählten Klasse gehören (sonst Zugriff auf fremde Schüler per ID)
+        if (!$klasse->schueler()->whereKey($request->schueler_id)->exists()) {
+            return response()->json(['message' => 'Der Schüler gehört nicht zu dieser Klasse.'], 422);
+        }
 
         if (!$klasse->gradingSystem) {
             return response()->json(['message' => 'Dieser Klasse ist kein Graduierungssystem zugeordnet.'], 422);
@@ -404,7 +435,16 @@ class GradingDocumentationController extends Controller
             'teacherAssessments.question'
         ]);
 
-        return response()->json(['session' => $session]);
+        // Nur Antworten/Bewertungen der Teilnehmer liefern (wie in der API)
+        $ids = $this->sessions()->participants($session)->pluck('id')->map(fn ($id) => (int) $id);
+        $session->setRelation('studentAnswers', $session->studentAnswers->filter(fn ($a) => $ids->contains((int) $a->schueler_id))->values());
+        $session->setRelation('teacherAssessments', $session->teacherAssessments->filter(fn ($a) => $ids->contains((int) $a->schueler_id))->values());
+
+        return response()->json([
+            'session' => $session,
+            'schueler_ids' => $ids->values(),
+            'finalized_ids' => $this->sessions()->finalizedIds($session)->values(),
+        ]);
     }
 
     /**
@@ -412,52 +452,62 @@ class GradingDocumentationController extends Controller
      */
     public function generateStudentQRToken(GradingDocumentationSession $session, Schueler $schueler)
     {
+        // Autorisierung außerhalb des try-Blocks: 403 statt verschluckter Ausnahme
+        $this->authorize('update', $session);
+
+        if ($session->isCompleted()) {
+            return response()->json(['message' => 'Die Session ist abgeschlossen.'], 409);
+        }
+
+        // Schüler muss an der Session teilnehmen (individuell: der Schüler, Gruppe: Teilnehmer/Klasse)
+        if (!$this->sessions()->isParticipant($session, (int) $schueler->id)) {
+            return response()->json([
+                'message' => 'Der Schüler nimmt nicht an dieser Session teil.'
+            ], 403);
+        }
+
         try {
-            $this->authorize('update', $session);
+            // Noch gültigen Token für Session+Schüler wiederverwenden (sonst entstünden bei jedem Klick
+            // weitere gültige Zugänge); erst kurz vor Ablauf einen neuen erzeugen.
+            $vorhanden = DB::table('grading_student_tokens')
+                ->where('session_id', $session->id)
+                ->where('schueler_id', $schueler->id)
+                ->where('expires_at', '>', now()->addHour())
+                ->orderByDesc('expires_at')
+                ->first();
 
-            // Prüfen ob Schüler zur Session gehört
-            if ($session->type === 'individual' && $session->schueler_id !== $schueler->id) {
-                return response()->json([
-                    'message' => 'Schüler gehört nicht zu dieser Session'
-                ], 403);
+            if ($vorhanden) {
+                $token = $vorhanden->token;
+                $expiresAt = \Illuminate\Support\Carbon::parse($vorhanden->expires_at);
+            } else {
+                // Token generieren (64 Zeichen, sicher), gültig 24 Stunden
+                $token = bin2hex(random_bytes(32));
+                $expiresAt = now()->addHours(24);
+
+                DB::table('grading_student_tokens')->insert([
+                    'token' => $token,
+                    'session_id' => $session->id,
+                    'schueler_id' => $schueler->id,
+                    'expires_at' => $expiresAt,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
 
-            if ($session->type === 'group' && $session->klasse_id !== $schueler->klasse_id) {
-                return response()->json([
-                    'message' => 'Schüler gehört nicht zu dieser Klasse'
-                ], 403);
-            }
-
-            // Token generieren (64 Zeichen, sicher)
-            $token = bin2hex(random_bytes(32));
-
-            // Token in der Datenbank speichern (mit Ablaufzeit 24 Stunden)
-            DB::table('grading_student_tokens')->insert([
+            return response()->json([
                 'token' => $token,
+                'url' => route('gradingDocumentation.publicStudentSession', ['token' => $token]),
+                'expires_at' => $expiresAt->toIso8601String(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des QR-Tokens', [
                 'session_id' => $session->id,
                 'schueler_id' => $schueler->id,
-                'expires_at' => now()->addHours(24),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $url = route('gradingDocumentation.publicStudentSession', ['token' => $token]);
-
-            return response()->json([
-                'token' => $token,
-                'url' => $url,
-                'expires_at' => now()->addHours(24)->toIso8601String(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Fehler beim Generieren des QR-Tokens', [
-                'session_id' => $session->id ?? null,
-                'schueler_id' => $schueler->id ?? null,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
-                'message' => 'Fehler beim Generieren des Tokens: ' . $e->getMessage()
+                'message' => 'Der QR-Code konnte nicht erzeugt werden. Bitte versuche es erneut.'
             ], 500);
         }
     }
@@ -479,9 +529,6 @@ class GradingDocumentationController extends Controller
 
         // Session und Schüler laden
         $session = GradingDocumentationSession::with([
-            'gradingSystem.questions' => function($q) {
-                $q->where('active', true)->orderBy('sort_order');
-            },
             'studentAnswers' => function($q) use ($tokenData) {
                 $q->where('schueler_id', $tokenData->schueler_id);
             }
@@ -489,11 +536,22 @@ class GradingDocumentationController extends Controller
 
         $schueler = Schueler::findOrFail($tokenData->schueler_id);
 
+        // Abgeschlossene Session bzw. abgeschlossener Schüler: Hinweis statt Fragen
+        $abgeschlossen = $session->isCompleted() || $this->sessions()->isFinalized($session, (int) $schueler->id);
+
+        // Im Modus "by_question" nur die bereits freigegebenen Fragen (wie in der Schüler-App)
+        $questions = $abgeschlossen ? collect() : $this->sessions()->releasedQuestions($session);
+
         return view('paedDiary.documentation.public-student-session', [
             'token' => $token,
             'session' => $session,
-            'schueler' => $schueler,
-            'questions' => $session->gradingSystem->questions,
+            // Öffentliche Seite: nur der Vorname (Datensparsamkeit)
+            'vorname' => $schueler->vorname,
+            'questions' => $questions->map(fn ($q) => ['id' => $q->id, 'question' => $q->question])->values(),
+            'answers' => $session->studentAnswers->pluck('self_rating', 'question_id'),
+            'abgeschlossen' => $abgeschlossen,
+            'wartetAufFreigabe' => !$abgeschlossen && $session->usesQuestionOrder() && $questions->isEmpty(),
+            'nachFrage' => $session->usesQuestionOrder(),
         ]);
     }
 
@@ -516,6 +574,15 @@ class GradingDocumentationController extends Controller
 
         if (!$tokenData) {
             return response()->json(['message' => 'Ungültiger oder abgelaufener Token'], 403);
+        }
+
+        // Session muss offen sein, die Frage zum Graduierungssystem der Session gehören
+        $session = GradingDocumentationSession::find($tokenData->session_id);
+        if (!$session) {
+            return response()->json(['message' => 'Ungültiger oder abgelaufener Token'], 403);
+        }
+        if ($fehler = $this->sessions()->schreibFehler($session, (int) $tokenData->schueler_id, (int) $request->question_id)) {
+            return response()->json(['message' => $fehler[1]], $fehler[0]);
         }
 
         // Antwort speichern
@@ -551,7 +618,7 @@ class GradingDocumentationController extends Controller
             ], 422);
         }
 
-        if ($session->reopen()) {
+        if ($this->sessions()->wiederoeffnen($session)) {
             return response()->json([
                 'message' => 'Session wurde erfolgreich wiedergeöffnet.',
                 'redirect' => $session->type === 'group'
@@ -592,6 +659,9 @@ class GradingDocumentationController extends Controller
             'answer_order_mode_label' => $session->answer_order_mode_label,
         ]);
     }
+
+    private function sessions(): GradingSessionService
+    {
+        return app(GradingSessionService::class);
+    }
 }
-
-

@@ -174,7 +174,8 @@ class ApiTokenService
             'email' => $user->email,
             'permissions' => [
                 'view_diagnostics' => $can('view diagnostics'),
-                'manage_grading' => $can('manage grading systems'),
+                // Graduierungsstufen vergeben ("change grading stage" oder "manage grading systems")
+                'manage_grading' => $user->canChangeGradingStage(),
                 'view_all_students' => $user->canAccessAllStudents(),
                 'view_confidential_entries' => $user->canViewConfidentialDiaryEntries(),
                 'plan_rosters' => $can('create roster'),

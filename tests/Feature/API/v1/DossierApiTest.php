@@ -40,7 +40,7 @@ class DossierApiTest extends ApiTestCase
     }
 
     /** @test */
-    public function vertrauliche_eintraege_nur_mit_sonderrecht_und_abschaltbar(): void
+    public function vertrauliche_eintraege_wie_in_der_schuelerakte_enthalten_und_abschaltbar(): void
     {
         [$klasse, $schueler] = $this->classWithStudent();
         $vertraulich = PaedDiaryEntry::factory()->dossierOnly()->create([
@@ -51,16 +51,14 @@ class DossierApiTest extends ApiTestCase
         $this->actingAsTeacher(['view paed diary'], [$klasse]);
         $this->getJson(self::API . "/students/{$schueler->id}/dossier")
             ->assertOk()
-            ->assertJsonPath('paed_diary.entries_count', 0)
-            ->assertJsonPath('meta.includes_confidential', false)
+            ->assertJsonPath('paed_diary.entries_count', 1)
+            ->assertJsonPath('meta.includes_confidential', true)
             ->assertJsonPath('diagnostic', null);
 
-        $this->actingAsAdmin();
-        $this->getJson(self::API . "/students/{$schueler->id}/dossier")
-            ->assertOk()->assertJsonPath('paed_diary.entries_count', 1)->assertJsonPath('meta.includes_confidential', true);
-
         $this->getJson(self::API . "/students/{$schueler->id}/dossier?include_confidential=false")
-            ->assertOk()->assertJsonPath('paed_diary.entries_count', 0);
+            ->assertOk()
+            ->assertJsonPath('paed_diary.entries_count', 0)
+            ->assertJsonPath('meta.includes_confidential', false);
     }
 
     /** @test */

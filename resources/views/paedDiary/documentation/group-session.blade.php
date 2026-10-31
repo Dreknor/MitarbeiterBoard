@@ -5,7 +5,7 @@
 @endsection
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid gd-wrapper">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -298,7 +298,7 @@
     }
 
     function getTeacherAssessmentUrl() {
-        return `/paed-diary/documentation/session/${sessionId}/teacher-assessment`;
+        return @json(route('gradingDocumentation.teacherAssessment', $session->id));
     }
 
     // Hilfsfunktionen
@@ -349,7 +349,7 @@
         loading = true;
 
         try {
-            const response = await fetch('/paed-diary/documentation/student-answer', {
+            const response = await fetch(@json(route('gradingDocumentation.saveStudentAnswer')), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -390,7 +390,7 @@
         loading = true;
 
         try {
-            const response = await fetch(`/paed-diary/documentation/session/${sessionId}/answer-order-mode`, {
+            const response = await fetch(@json(route('gradingDocumentation.updateAnswerOrderMode', $session->id)), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -695,7 +695,7 @@ async function showQRCode(schuelerId) {
     }
 
     try {
-        const response = await fetch(`/paed-diary/documentation/session/{{ $session->id }}/student/${schuelerId}/qr-token`, {
+        const response = await fetch(@json(route('gradingDocumentation.generateQRToken', ['session' => $session->id, 'schueler' => '__SCHUELER__'])).replace('__SCHUELER__', encodeURIComponent(schuelerId)), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -764,7 +764,8 @@ function copyQRUrl() {
 </script>
 
 <style>
-:root{
+/* Variablen nur für diese Seite (vorher global über :root) */
+.gd-wrapper{
     --primary: #0d6efd;
     --primary-700: #0b5ed7;
     --muted: #6c757d;

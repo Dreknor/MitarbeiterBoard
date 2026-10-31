@@ -109,8 +109,8 @@ class SchuelerController extends Controller
             'geburtsdatum' => ['nullable','date']
         ];
 
-        // Only validate grading_stage_id if user has permission to manage grading systems
-        if ($request->user() && $request->user()->can('manage grading systems')) {
+        // Only validate grading_stage_id if user may change grading stages
+        if ($request->user() && $request->user()->canChangeGradingStage()) {
             $rules['grading_stage_id'] = ['nullable','integer','exists:grading_stages,id'];
         }
 
@@ -122,7 +122,7 @@ class SchuelerController extends Controller
         );
 
         // If permitted, update grading stage (ensure stage belongs to the klasse's system)
-        if (isset($validated['grading_stage_id']) && $request->user()->can('manage grading systems')) {
+        if (isset($validated['grading_stage_id']) && $request->user()->canChangeGradingStage()) {
             $stage = GradingStage::find($validated['grading_stage_id']);
             $klasse = $schueler->klasse;
             if ($stage && $klasse && $klasse->grading_system_id && $stage->grading_system_id == $klasse->grading_system_id) {
