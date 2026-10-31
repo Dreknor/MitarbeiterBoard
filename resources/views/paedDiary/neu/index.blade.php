@@ -266,7 +266,7 @@
                                                     </span>
                                                     <template x-teleport="body">
                                                         <div x-show="dropdownOpen && dropdownStuId === stu.id" x-cloak
-                                                             class="bg-white border rounded shadow-sm p-1"
+                                                             class="bg-white border rounded shadow-sm p-1 paed-stage-dropdown"
                                                              :style="`position:fixed; top:${dropdownTop}px; left:${dropdownLeft}px; z-index:9999; min-width:180px; max-height:300px; overflow-y:auto;`">
                                                             <div x-show="stageLoading" class="small text-muted p-1">Lade …</div>
                                                             <template x-if="!stageLoading">

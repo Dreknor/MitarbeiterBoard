@@ -156,12 +156,15 @@ export function registerStageDropdown(Alpine) {
          * Stufe für den Schüler setzen (optimistisches Update).
          */
         async selectStage(stageId) {
-            if (this.stageSaving) return;
+            // Schüler vor dem Request merken: schließt sich das Menü zwischendurch (Klick-Handler),
+            // wäre dropdownStuId sonst schon leer und der Request ohne Schüler.
+            const stuId = this.dropdownStuId;
+            if (this.stageSaving || !stuId) return;
             this.stageSaving = true;
 
             const fd = new FormData();
             fd.append('grading_stage_id', stageId || '');
-            fd.append('schueler_id', this.dropdownStuId);
+            fd.append('schueler_id', stuId);
 
             try {
                 const resp = await fetch('/paed-diary/change-stage', {
@@ -169,11 +172,11 @@ export function registerStageDropdown(Alpine) {
                     headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' },
                     body: fd
                 });
-                const j = await resp.json();
-                if (j.success) {
-                    // Optimistisches Store-Update
+                const j = await resp.json().catch(() => ({}));
+                if (resp.ok && j.success) {
+                    // Store aktualisieren (Symbol in der Woche)
                     const stu = this.$store.diary.schueler.find(
-                        s => String(s.id) === String(this.dropdownStuId)
+                        s => String(s.id) === String(stuId)
                     );
                     if (stu) {
                         stu.stage = j.new_stage
@@ -182,7 +185,7 @@ export function registerStageDropdown(Alpine) {
                     }
                     this.closeDropdown();
                 } else {
-                    this.$store.diary.showError(j.message || 'Fehler beim Speichern');
+                    this.$store.diary.showError(j.message || 'Die Stufe wurde nicht gespeichert.');
                 }
             } catch (_) {
                 this.$store.diary.showError('Keine Verbindung zum Server. Die Stufe wurde nicht gespeichert.');
