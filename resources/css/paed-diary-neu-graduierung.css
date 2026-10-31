@@ -1,0 +1,149 @@
+/*
+ * Pädagogisches Tagebuch – neue Ansicht: Graduierung/Reflexion.
+ * Ergänzt paed-diary-neu.css (Präfix pdn-, gescopet unter .pdn).
+ */
+
+/* sidebar.css nimmt Buttons in #tw-main den Rahmen (Spezifität 1,1,1) – hier gezielt zurück */
+#tw-main .pdn :is(.pdn-wahl button, .pdn-skala button, .pdn-gd-chip, .pdn-gd-fnav button) { border-width: 1px; }
+#tw-main .pdn .pdn-skala button { border-width: 2px; }
+
+/* ── Fortschritt ──────────────────────────────────────────── */
+.pdn-gd-bar { flex: 1; min-width: 120px; height: 8px; background: var(--pdn-surface-2); border-radius: 999px; overflow: hidden; }
+.pdn-gd-bar > span { display: block; height: 100%; background: var(--pdn-accent); transition: width .2s; }
+
+/* ── Inhaltsbereich ───────────────────────────────────────── */
+.pdn-gd-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pdn-gd-hinweis { font-size: .9em; color: var(--pdn-ink-2); }
+.pdn-gd-ok { color: var(--pdn-ok); font-weight: 700; }
+.pdn-gd-fehler { color: var(--pdn-danger); font-weight: 700; }
+.pdn-gd-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; font-weight: 700; }
+.pdn-gd-aktionen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pdn-gd-leer { border: 1px dashed var(--pdn-line); border-radius: 10px; }
+
+/* Startformulare */
+.pdn-gd-form { display: flex; flex-direction: column; gap: 10px; }
+.pdn-gd-form .pdn-field select { width: 100%; }
+.pdn-gd-form p { color: var(--pdn-ink-2); }
+.pdn-gd-form .pdn-btn { align-self: flex-start; }
+.pdn-gd-radios { display: flex; flex-direction: column; gap: 6px; }
+.pdn-gd-radio { display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--pdn-line); border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--pdn-ink); font-size: 1.05em; }
+.pdn-gd-radio:has(input:checked) { border-color: var(--pdn-accent); background: var(--pdn-accent-soft); }
+.pdn-gd-radio:has(input:focus-visible) { outline: 3px solid var(--pdn-accent); outline-offset: 1px; }
+.pdn-gd-radio input { margin-top: 3px; }
+.pdn-gd-radio small { display: block; color: var(--pdn-ink-2); font-size: .85em; }
+
+/* Tabellen ohne seitliches Scrollen auf dem Handy: Zeilen werden zu Karten */
+@media (max-width: 640px) {
+    .pdn-gd-tabelle thead { display: none; }
+    .pdn-gd-tabelle, .pdn-gd-tabelle tbody, .pdn-gd-tabelle tr, .pdn-gd-tabelle td, .pdn-gd-tabelle th { display: block; width: 100%; }
+    .pdn-gd-tabelle tr { border: 1px solid var(--pdn-line); border-radius: 8px; padding: 6px 4px; margin-bottom: 8px; }
+    .pdn-gd-tabelle td, .pdn-gd-tabelle th { border: 0; padding: 3px 8px; }
+    .pdn-gd-tabelle td[data-label]::before { content: attr(data-label) ": "; font-size: .8em; color: var(--pdn-ink-2); font-weight: 700; }
+}
+
+/* ── Skala der Selbsteinschätzung (Balken statt Smileys) ──── */
+.pdn-skala { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 520px; }
+.pdn-skala button { font: inherit; display: flex; align-items: center; gap: 14px; text-align: left; border: 2px solid var(--pdn-line); border-radius: 12px; padding: 8px 14px;
+    min-height: 54px; background: var(--pdn-surface); color: var(--pdn-ink); font-size: 1.1em; font-weight: 700; cursor: pointer; }
+.pdn-skala button:hover { border-color: var(--pdn-accent); }
+.pdn-skala button[aria-pressed="true"] { border-color: var(--pdn-accent); background: var(--pdn-accent-soft); }
+.pdn-skala button[disabled] { opacity: .55; cursor: not-allowed; }
+.pdn-skala__lvl { display: inline-flex; gap: 3px; flex: none; }
+.pdn-skala__lvl i { width: 10px; height: 20px; border-radius: 3px; background: var(--pdn-line); display: inline-block; }
+.pdn-skala__lvl i.is-an { background: var(--pdn-ok); }
+.pdn-skala--quer { flex-direction: row; flex-wrap: wrap; max-width: none; }
+.pdn-skala--quer button { flex: 1 1 150px; min-height: 48px; font-size: 1em; padding: 6px 10px; gap: 10px; }
+
+/* Aktuelle Frage (Gruppensession) */
+.pdn-gd-buehne { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 22px 16px; border: 1px solid var(--pdn-line); border-radius: 12px; background: var(--pdn-surface); scroll-margin-top: 80px; }
+.pdn-gd-buehne__kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+.pdn-gd-name { font-size: 1.5em; font-weight: 800; letter-spacing: -.01em; }
+.pdn-gd-frage { font-size: 1.45em; font-weight: 800; text-align: center; line-height: 1.25; max-width: 760px; overflow-wrap: anywhere; }
+.pdn-gd-punkte { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.pdn-gd-punkte i { width: 10px; height: 10px; border-radius: 50%; background: var(--pdn-line); display: inline-block; }
+.pdn-gd-punkte i.is-fertig { background: var(--pdn-ok); }
+.pdn-gd-punkte i.is-aktuell { background: var(--pdn-accent); outline: 3px solid var(--pdn-accent-soft); }
+
+/* Schülerliste (Gruppensession) */
+.pdn-gd-liste .is-aktuell { background: var(--pdn-accent-soft); }
+.pdn-gd-liste td, .pdn-gd-liste th { vertical-align: middle; }
+
+/* ── Einschätzung der Lehrkraft (Schüler für Schüler) ─────── */
+.pdn-gd-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+.pdn-gd-seite { border-right: 1px solid var(--pdn-line); padding: 12px; display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 140px); overflow-y: auto; position: sticky; top: 0; align-self: start; }
+.pdn-gd-chip { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; color: var(--pdn-ink); background: var(--pdn-surface); border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; cursor: pointer; min-height: 34px; }
+.pdn-gd-chip:hover { background: var(--pdn-surface-2); }
+.pdn-gd-chip[aria-current="true"] { background: var(--pdn-accent-soft); border-color: var(--pdn-accent); color: var(--pdn-accent); font-weight: 700; }
+.pdn-gd-chip span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdn-gd-chip small { font-size: .8em; color: var(--pdn-ink-2); font-variant-numeric: tabular-nums; flex: none; }
+.pdn-gd-chip .fa-check-circle { color: var(--pdn-ok); }
+.pdn-gd-chip .fa-lock { color: var(--pdn-ink-2); }
+.pdn-gd-chip .fa-exclamation-circle { color: var(--pdn-danger); }
+.pdn-gd-auswahl { display: none; }
+.pdn-gd-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; scroll-margin-top: 80px; }
+.pdn-gd-kopf h2 { font-size: 1.35em; font-weight: 800; letter-spacing: -.01em; }
+
+.pdn-gd-fnav { display: flex; flex-wrap: wrap; gap: 4px; }
+.pdn-gd-fnav button { min-width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--pdn-line); background: var(--pdn-surface); font: inherit; font-weight: 800; color: var(--pdn-ink-2); cursor: pointer; }
+.pdn-gd-fnav button.is-fertig { background: var(--pdn-ok-soft); color: var(--pdn-ok); border-color: var(--pdn-ok); }
+.pdn-gd-fnav button[aria-pressed="true"] { background: var(--pdn-accent); color: var(--pdn-on-accent); border-color: var(--pdn-accent); }
+
+.pdn-gd-karte { border: 1px solid var(--pdn-line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--pdn-surface); scroll-margin: 80px 0 120px; }
+.pdn-gd-karte.is-bewertet { border-left: 4px solid var(--pdn-ok); }
+.pdn-gd-karte__kopf { display: flex; gap: 10px; align-items: flex-start; }
+.pdn-gd-karte__nr { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--pdn-surface-2); color: var(--pdn-ink-2); display: inline-grid; place-items: center; font-weight: 800; font-size: .9em; }
+.pdn-gd-karte__frage { font-weight: 700; font-size: 1.1em; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pdn-gd-karte__zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pdn-gd-karte textarea { min-height: 54px; }
+.pdn-gd-karte .pdn-field textarea, .pdn-gd-notiz textarea { width: 100%; }
+
+/* Einschätzung 1–5 */
+.pdn-wahl { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.pdn-wahl button { min-width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--pdn-line); background: var(--pdn-surface); font: inherit; font-size: 1.05em; font-weight: 800; color: var(--pdn-ink-2); cursor: pointer; padding: 0 8px; }
+.pdn-wahl button:hover { border-color: var(--pdn-accent); color: var(--pdn-accent); }
+.pdn-wahl button[aria-pressed="true"] { background: var(--pdn-accent); border-color: var(--pdn-accent); color: var(--pdn-on-accent); }
+.pdn-wahl button[disabled] { opacity: .5; cursor: not-allowed; }
+
+.pdn-gd-notiz { background: var(--pdn-warn-soft); border-color: transparent; }
+.pdn-gd-weiter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--pdn-line);
+    position: sticky; bottom: 0; background: var(--pdn-surface); z-index: 5; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+
+/* Rückblick (Schüleransicht) */
+.pdn-gd-session > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 700; }
+.pdn-gd-session > summary::-webkit-details-marker { display: none; }
+.pdn-gd-session > summary::before { content: "\25B8"; color: var(--pdn-ink-2); transition: transform .15s; }
+.pdn-gd-session[open] > summary::before { transform: rotate(90deg); }
+.pdn-gd-session > summary:focus-visible { outline: 3px solid var(--pdn-accent); outline-offset: 2px; border-radius: 6px; }
+.pdn-gd-coaching { background: var(--pdn-warn-soft); border-radius: 8px; padding: 10px; white-space: pre-line; overflow-wrap: anywhere; }
+
+/* Touch (iPad): größere Ziele */
+@media (pointer: coarse) {
+    .pdn-wahl button { min-width: 46px; height: 46px; }
+    .pdn-gd-fnav button { min-width: 40px; height: 40px; }
+    .pdn-gd-chip { min-height: 40px; }
+    .pdn-skala button { min-height: 60px; }
+}
+
+@media (max-width: 900px) {
+    .pdn-gd-layout { grid-template-columns: 1fr; }
+    .pdn-gd-seite { display: none; }
+    .pdn-gd-auswahl { display: flex; }
+}
+@media (max-width: 640px) {
+    .pdn-gd-body { padding: 10px; }
+    .pdn-gd-frage { font-size: 1.2em; }
+    .pdn-gd-name { font-size: 1.2em; }
+    .pdn-skala--quer { flex-direction: column; }
+    .pdn-skala--quer button { flex: none; }
+    .pdn-wahl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; }
+}
+@media print {
+    .pdn-gd-weiter, .pdn-gd-seite { display: none !important; }
+}
+
+/* Eigene Textfelder außerhalb von .pdn-field */
+.pdn-gd-textarea { font: inherit; font-size: 1.05em; color: var(--pdn-ink); border: 1px solid var(--pdn-line); border-radius: 6px; padding: 7px 9px; width: 100%; min-height: 72px; resize: vertical; background: var(--pdn-surface); }
+.pdn-gd-textarea[disabled], .pdn-gd-karte textarea[disabled] { background: var(--pdn-surface-2); }
+
+/* overflow:hidden an .pdn-screen würde position:sticky (Schülerliste, Weiter-Leiste) aufheben – clip schneidet nur ab */
+.pdn .pdn-gd-screen { overflow: clip; }

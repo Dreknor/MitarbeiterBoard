@@ -13,7 +13,6 @@
 
     {{-- Modals der bisherigen Ansicht (Kopplungen, Aufgaben, Termine) --}}
     @include('paedDiary.v2.modals._group-modal')
-    @include('paedDiary.v2.modals._task-modal')
     @include('paedDiary.v2.modals._appointment-modal')
 
     {{-- Eingabedialog (z. B. Grund der Tages-Pause) --}}
@@ -82,7 +81,7 @@
                     @click="$dispatch('diary-new-entry', {})">
                 <i class="fas fa-plus" aria-hidden="true"></i><span class="pdn-btn-text">Notiz</span>
             </button>
-            <button type="button" class="pdn-btn" x-data="taskPanel()" @click="openCreateModal()">
+            <button type="button" class="pdn-btn" @click="$dispatch('pdn-aufgabe-neu', {})">
                 <i class="fas fa-tasks" aria-hidden="true"></i><span class="pdn-btn-text">Aufgabe</span>
             </button>
             <button type="button" class="pdn-btn" x-data="appointmentManager()" @click="openCreateModal()">
@@ -296,7 +295,9 @@
                                                 </template>
                                                 <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'ot-' + task.id">
                                                     <div class="pdn-pill pdn-pill--task" :class="task.highlighted && 'pdn-pill--wichtig'">
-                                                        <span x-text="task.title + (task.due_date ? ' · bis ' + new Date(task.due_date).toLocaleDateString('de-DE') : '')"></span>
+                                                        <span role="button" tabindex="0" style="cursor:pointer" title="Aufgabe bearbeiten"
+                                                              @click="$dispatch('pdn-aufgabe-bearbeiten', task)" @keydown.enter.prevent="$dispatch('pdn-aufgabe-bearbeiten', task)"
+                                                              x-text="task.title + (task.due_date ? ' · bis ' + new Date(task.due_date).toLocaleDateString('de-DE') : '')"></span>
                                                         <button type="button" @click="closeOpenTask(task.id)" aria-label="Aufgabe erledigt" title="Aufgabe erledigt">✓</button>
                                                     </div>
                                                 </template>
@@ -513,10 +514,11 @@
         </template>
     </div>
 
-    {{-- Offene Aufgaben (wie bisher) --}}
-    <div class="row mt-3">
-        @include('paedDiary.v2.partials._tasks-panel')
-    </div>
+    {{-- Offene Aufgaben und Notizen je Schüler --}}
+    @include('paedDiary.neu._offene-aufgaben')
+
+    {{-- Seitenleiste: Aufgabe erstellen/bearbeiten --}}
+    @include('paedDiary.neu._aufgabe')
 
     {{-- ═══════════ Seitenleiste: Notiz erfassen/bearbeiten ═══════════ --}}
     <div x-data="notizSeite()"

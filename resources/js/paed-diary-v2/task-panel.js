@@ -9,8 +9,11 @@
 
 import { csrfToken, escapeHtml, trimText, formatDate } from './utils.js';
 
-export function registerTaskPanel(Alpine) {
-    Alpine.data('taskPanel', () => ({
+/**
+ * Zustand und Methoden der Aufgaben – auch von der neuen Ansicht (Seitenleiste) genutzt.
+ */
+export function taskPanelMethods() {
+    return {
         editingTaskId: null,
         taskFormTitle: '',
         taskFormDescription: '',
@@ -166,6 +169,9 @@ export function registerTaskPanel(Alpine) {
         },
 
         trimText(str, len) { return trimText(str, len); },
-    }));
+    };
 }
 
+export function registerTaskPanel(Alpine) {
+    Alpine.data('taskPanel', taskPanelMethods);
+}

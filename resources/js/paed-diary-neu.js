@@ -13,17 +13,19 @@
  */
 
 import '../css/paed-diary-neu.css';
+import '../css/paed-diary-neu-graduierung.css';
 import { registerDiaryStore } from './paed-diary-v2/store.js';
 import { diaryTableMethods } from './paed-diary-v2/diary-table.js';
 import { registerDiaryTable } from './paed-diary-v2/diary-table.js';
 import { registerNoteEditor, noteEditorMethods } from './paed-diary-v2/note-editor.js';
 import { registerColumnsManager, columnsManagerMethods } from './paed-diary-v2/columns-manager.js';
-import { registerTaskPanel } from './paed-diary-v2/task-panel.js';
+import { registerTaskPanel, taskPanelMethods } from './paed-diary-v2/task-panel.js';
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
 import { registerGroupManager } from './paed-diary-v2/group-manager.js';
 import { registerElterngespraeche } from './paed-diary-v2/elterngespraeche.js';
 import { csrfToken } from './paed-diary-v2/utils.js';
+import { registerGraduierung } from './paed-diary-neu/graduierung.js';
 
 /** Kombiniert Objekte inkl. Gettern (Spread würde Getter einmalig auswerten). */
 function kombiniere(...teile) {
@@ -206,6 +208,102 @@ function registerNeu(Alpine) {
             this.gruppeFuer = null;
             // Gruppen-Überschriften in der Woche aktualisieren
             this.$store.diary.loadWeek();
+        },
+    }));
+
+    // ── Aufgaben als Seitenleiste (Logik aus taskPanel(), ohne Bootstrap-Modal) ──
+    Alpine.data('aufgabeSeite', () => kombiniere(taskPanelMethods(), {
+        offen: false,
+        fehler: '',
+
+        /** Neue Aufgabe; optional mit vorausgewähltem Schüler ({ stuId }) */
+        openCreateModal(detail = {}) {
+            this.editingTaskId = null;
+            this.taskFormTitle = '';
+            this.taskFormDescription = '';
+            this.taskFormDueDate = '';
+            this.taskFormHighlighted = false;
+            this.taskFormSchuelerIds = detail?.stuId ? [String(detail.stuId)] : [];
+            this.oeffnen();
+        },
+
+        openEditModal(task) {
+            this.editingTaskId = task.id;
+            this.taskFormTitle = task.title || '';
+            this.taskFormDescription = task.description || '';
+            this.taskFormDueDate = task.due_date || '';
+            this.taskFormHighlighted = !!task.highlighted;
+            this.taskFormSchuelerIds = task.schueler_id ? [String(task.schueler_id)] : [];
+            this.oeffnen();
+        },
+
+        oeffnen() {
+            this.fehler = '';
+            this.offen = true;
+            document.body.style.overflow = 'hidden';
+            this.$nextTick(() => this.$refs.aufgabeTitel?.focus());
+        },
+
+        schliessen() {
+            this.offen = false;
+            document.body.style.overflow = '';
+        },
+
+        /** Schnellauswahl Fälligkeit: Tage ab heute bzw. nächster Montag */
+        faellig(art) {
+            const d = new Date();
+            if (art === 'morgen') d.setDate(d.getDate() + 1);
+            if (art === 'montag') d.setDate(d.getDate() + (((8 - d.getDay()) % 7) || 7));
+            if (art === 'zweiWochen') d.setDate(d.getDate() + 14);
+            this.taskFormDueDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        },
+
+        schuelerDerKlasse(klasseId) {
+            return (this.$store.diary.schueler || []).filter(s => s.klasse_id === klasseId);
+        },
+
+        alleDerKlasseGewaehlt(klasseId) {
+            const ids = this.schuelerDerKlasse(klasseId).map(s => String(s.id));
+            return ids.length > 0 && ids.every(id => this.taskFormSchuelerIds.includes(id));
+        },
+
+        klasseUmschalten(klasseId) {
+            const ids = this.schuelerDerKlasse(klasseId).map(s => String(s.id));
+            this.taskFormSchuelerIds = this.alleDerKlasseGewaehlt(klasseId)
+                ? this.taskFormSchuelerIds.filter(id => !ids.includes(id))
+                : [...new Set([...this.taskFormSchuelerIds, ...ids])];
+        },
+
+        async saveTask() {
+            if (this.taskSaving) return;
+            if (!this.taskFormTitle.trim()) return;
+            if (!this.editingTaskId && !this.taskFormSchuelerIds.length) {
+                this.fehler = 'Bitte mindestens einen Schüler auswählen.';
+                return;
+            }
+            this.taskSaving = true;
+            this.fehler = '';
+            const store = this.$store.diary;
+            const daten = {
+                title: this.taskFormTitle.trim(),
+                description: this.taskFormDescription,
+                due_date: this.taskFormDueDate || null,
+                highlighted: this.taskFormHighlighted,
+                schueler_ids: this.taskFormSchuelerIds,
+                klasse_id: store.selectedKlasseId,
+            };
+            if (store.selectedGroupId) daten.group_id = store.selectedGroupId;
+
+            try {
+                await jsonAnfrage(this.editingTaskId ? `/paed-diary/task/${this.editingTaskId}` : '/paed-diary/task',
+                    this.editingTaskId ? 'PUT' : 'POST', daten);
+                this.schliessen();
+                store.loadWeek();
+            } catch (e) {
+                this.fehler = e.message;
+            } finally {
+                this.taskSaving = false;
+            }
         },
     }));
 
@@ -766,6 +864,7 @@ function registerBewertungsMatrix(Alpine) {
 }
 
 function registerAll(Alpine) {
+    registerGraduierung(Alpine);
     registerKategorien(Alpine);
     registerBewertungsMatrix(Alpine);
     registerDiaryStore(Alpine);

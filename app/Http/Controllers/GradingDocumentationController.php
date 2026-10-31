@@ -51,7 +51,7 @@ class GradingDocumentationController extends Controller
         // Maximale Wiederöffnungsfrist aus Settings
         $reopenDays = settings('session_reopen_days', 'config.grading_documentation');
 
-        return view('paedDiary.documentation.index', [
+        return view($this->neueAnsicht() ? 'paedDiary.neu.graduierung.index' : 'paedDiary.documentation.index', [
             'klassen' => $klassen,
             'groups' => $groups,
             'openSessions' => $openSessions,
@@ -122,6 +122,15 @@ class GradingDocumentationController extends Controller
 
         // Teilnehmer der Session (Teilmenge aus der App oder ganze Klasse)
         $schueler = $this->sessions()->participants($session);
+
+        if ($this->neueAnsicht()) {
+            return view('paedDiary.neu.graduierung.gruppe', [
+                'session' => $session,
+                'schueler' => $schueler,
+                'questions' => $session->gradingSystem->questions,
+                'finalisiert' => $this->sessions()->finalizedIds($session)->values(),
+            ]);
+        }
 
         return view('paedDiary.documentation.group-session', [
             'session' => $session,
@@ -201,6 +210,27 @@ class GradingDocumentationController extends Controller
                     'selbst' => $session->studentAnswers->where('schueler_id', $s->id)->pluck('self_rating', 'question_id'),
                     'lehrkraft' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('teacher_rating', 'question_id'),
                     'kommentare' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('comment', 'question_id'),
+                ])->values(),
+            ]);
+        }
+
+        // Neue Ansicht, Modus „Schüler für Schüler“: eine Schülerin/ein Schüler nach dem anderen
+        if ($darstellung['ansicht'] === 'neu') {
+            $finalisiert = $this->sessions()->finalizedIds($session)->all();
+
+            return view('paedDiary.neu.graduierung.bewertung', [
+                'session' => $session,
+                'schueler' => $schueler,
+                'questions' => $session->gradingSystem->questions,
+                'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
+                'daten' => $schueler->map(fn ($s) => [
+                    'id' => $s->id,
+                    'name' => trim($s->vorname . ' ' . $s->nachname),
+                    'abgeschlossen' => in_array((int) $s->id, $finalisiert, true),
+                    'selbst' => $session->studentAnswers->where('schueler_id', $s->id)->pluck('self_rating', 'question_id'),
+                    'lehrkraft' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('teacher_rating', 'question_id'),
+                    'kommentare' => $session->teacherAssessments->where('schueler_id', $s->id)->pluck('comment', 'question_id'),
+                    'notiz' => (string) $session->coachingNotes->firstWhere('schueler_id', $s->id)?->note,
                 ])->values(),
             ]);
         }
@@ -369,6 +399,14 @@ class GradingDocumentationController extends Controller
             'teacherAssessments'
         ]);
 
+        if ($this->neueAnsicht()) {
+            return view('paedDiary.neu.graduierung.einzel', [
+                'session' => $session,
+                'schueler' => $session->schueler,
+                'questions' => $session->gradingSystem->questions,
+            ]);
+        }
+
         return view('paedDiary.documentation.individual-session', [
             'session' => $session,
             'schueler' => $session->schueler,
@@ -415,6 +453,17 @@ class GradingDocumentationController extends Controller
             ])
             ->orderBy('completed_at', 'desc')
             ->get();
+
+        if ($this->neueAnsicht()) {
+            // Fragen je System einmal laden (statt einer Abfrage je Session in der View)
+            $sessions->load(['gradingSystem.questions' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+
+            return view('paedDiary.neu.graduierung.schueler', [
+                'schueler' => $schueler,
+                'klasse' => $klasse,
+                'sessions' => $sessions,
+            ]);
+        }
 
         return view('paedDiary.documentation.schueler-overview', [
             'schueler' => $schueler,
@@ -658,6 +707,12 @@ class GradingDocumentationController extends Controller
             'answer_order_mode' => $session->answer_order_mode,
             'answer_order_mode_label' => $session->answer_order_mode_label,
         ]);
+    }
+
+    /** Nutzt die angemeldete Person die neue Ansicht des Pädagogischen Tagebuchs? */
+    private function neueAnsicht(): bool
+    {
+        return (bool) Auth::user()?->nutztNeueTagebuchAnsicht();
     }
 
     private function sessions(): GradingSessionService

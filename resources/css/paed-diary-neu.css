@@ -51,6 +51,9 @@
 .pdn h1, .pdn h2, .pdn h3, .pdn h4 { margin: 0; color: inherit; }
 .pdn p { margin: 0; }
 .pdn a { color: var(--pdn-accent); }
+/* Als Link gebaute Knöpfe: Knopffarben haben Vorrang vor der Linkfarbe (sonst blau auf blau) */
+.pdn a.pdn-btn, .pdn a.pdn-btn:hover { color: var(--pdn-ink); text-decoration: none; }
+.pdn a.pdn-btn--pri, .pdn a.pdn-btn--pri:hover, .pdn a.pdn-btn--pri:focus { color: var(--pdn-on-accent); }
 
 /* ── Rahmen und Werkzeugleisten ─────────────────────────────── */
 .pdn-screen { background: var(--pdn-surface); border: 1px solid var(--pdn-line); border-radius: 10px; overflow: hidden; }
@@ -316,6 +319,12 @@
 .pdn-rate { display: inline-grid; place-items: center; min-width: 26px; height: 22px; border-radius: 5px; font-weight: 800; font-size: .9em; background: var(--pdn-surface-2); padding: 0 6px; }
 .pdn-rate--self { border: 1px dashed var(--pdn-ink-2); }
 .pdn-diff { font-size: .82em; font-weight: 700; color: var(--pdn-warn); }
+
+/* ── Offene Aufgaben und Notizen ────────────────────────────── */
+.pdn-offen { margin-top: 16px; }
+.pdn-offen__liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 14px; }
+.pdn-offen__schueler { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pdn-offen__name { display: flex; align-items: center; justify-content: space-between; gap: 6px; border-bottom: 1px solid var(--pdn-line); padding-bottom: 2px; }
 
 /* ── Spaltenverwaltung (Seitenleiste) ───────────────────────── */
 .pdn-drawer--breit { width: min(560px, 100vw); }
