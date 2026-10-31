@@ -6,6 +6,7 @@ use App\Http\Controllers\API\v1\ClassApiController;
 use App\Http\Controllers\API\v1\ClassOverviewApiController;
 use App\Http\Controllers\API\v1\DiagnosticApiController;
 use App\Http\Controllers\API\v1\DossierApiController;
+use App\Http\Controllers\API\v1\ParentMeetingApiController;
 use App\Http\Controllers\API\v1\GradingApiController;
 use App\Http\Controllers\API\v1\GradingJoinApiController;
 use App\Http\Controllers\API\v1\HolidayApiController;
@@ -187,6 +188,28 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->whereNumber('schueler')->name('students.dossier.pdf');
         Route::get('students/{schueler}/dossier', [DossierApiController::class, 'show'])
             ->whereNumber('schueler')->name('students.dossier');
+
+        // Bereich 6: Elterngespräche (Planung, Vorbereitung, Protokoll)
+        Route::get('students/{schueler}/parent-meetings', [ParentMeetingApiController::class, 'index'])
+            ->whereNumber('schueler')->name('parent-meetings.index');
+        Route::post('students/{schueler}/parent-meetings', [ParentMeetingApiController::class, 'store'])
+            ->whereNumber('schueler')->name('parent-meetings.store');
+        Route::get('parent-meetings/{meeting}', [ParentMeetingApiController::class, 'show'])
+            ->whereNumber('meeting')->name('parent-meetings.show');
+        Route::put('parent-meetings/{meeting}', [ParentMeetingApiController::class, 'update'])
+            ->whereNumber('meeting')->name('parent-meetings.update');
+        Route::post('parent-meetings/{meeting}/complete', [ParentMeetingApiController::class, 'complete'])
+            ->whereNumber('meeting')->name('parent-meetings.complete');
+        Route::post('parent-meetings/{meeting}/reopen', [ParentMeetingApiController::class, 'reopen'])
+            ->whereNumber('meeting')->name('parent-meetings.reopen');
+        Route::post('parent-meetings/{meeting}/cancel', [ParentMeetingApiController::class, 'cancel'])
+            ->whereNumber('meeting')->name('parent-meetings.cancel');
+        Route::delete('parent-meetings/{meeting}', [ParentMeetingApiController::class, 'destroy'])
+            ->whereNumber('meeting')->name('parent-meetings.destroy');
+        Route::post('parent-meetings/{meeting}/agreements/{agreement}/transfer', [ParentMeetingApiController::class, 'transfer'])
+            ->whereNumber(['meeting', 'agreement'])->name('parent-meetings.agreements.transfer');
+        Route::get('parent-meetings/{meeting}/protocol.pdf', [ParentMeetingApiController::class, 'pdf'])
+            ->whereNumber('meeting')->name('parent-meetings.pdf');
     });
 
     // Dienstplanung: unabhängig vom Pädagogischen Tagebuch, nur Benutzer-Tokens (api.staff).

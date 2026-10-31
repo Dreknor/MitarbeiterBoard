@@ -607,7 +607,17 @@ class PaedDiaryController extends Controller
 
         $darstellung = $user->paedDiaryDarstellung();
 
+        // Elterngespräche: Konfiguration für das gemeinsame Partial (beide Ansichten)
+        $elterngespraecheKonfig = [
+            'schuelerId' => $schueler->id,
+            'kannAnlegen' => $user->can('create', [\App\Models\PaedDiaryElterngespraech::class, $schueler]),
+            'kollegen' => app(\App\Services\PaedDiaryElterngespraechService::class)->kollegenAuswahl($schueler),
+            'formen' => \App\Models\PaedDiaryElterngespraech::FORMEN,
+            'verantwortlich' => \App\Models\PaedDiaryElterngespraechVereinbarung::VERANTWORTLICH,
+        ];
+
         return view($darstellung['ansicht'] === 'neu' ? 'paedDiary.neu.schueler' : 'paedDiary.schueler', [
+            'elterngespraecheKonfig' => $elterngespraecheKonfig,
             'darstellung' => $darstellung,
             'schueler' => $schueler,
             'klasse' => $klasse,

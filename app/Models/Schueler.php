@@ -73,6 +73,12 @@ class Schueler extends Model
         return $this->hasMany(\App\Models\PaedDiaryGoal::class, 'schueler_id')->orderByDesc('created_at');
     }
 
+    // Elterngespräche (Planung und Protokoll)
+    public function paedDiaryElterngespraeche()
+    {
+        return $this->hasMany(\App\Models\PaedDiaryElterngespraech::class, 'schueler_id');
+    }
+
     // ── API v1 (Pädagogen-App) ───────────────────────────────────────────
 
     /** Tagebucheinträge (Pivot paed_diary_entry_schueler) */

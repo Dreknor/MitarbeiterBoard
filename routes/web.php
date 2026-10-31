@@ -990,6 +990,17 @@ Route::group([
                     Route::post('paed-diary/schueler/{schueler}/goals', [\App\Http\Controllers\PaedDiaryController::class, 'storeGoal'])->name('paedDiary.goal.store');
                     Route::put('paed-diary/goals/{goal}/achieve', [\App\Http\Controllers\PaedDiaryController::class, 'achieveGoal'])->name('paedDiary.goal.achieve');
 
+                    // Elterngespräche (Planung, Vorbereitung, Protokoll) → PaedDiaryElterngespraechController
+                    Route::get('paed-diary/schueler/{schueler}/gespraeche', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'index'])->name('paedDiary.gespraeche.index');
+                    Route::post('paed-diary/schueler/{schueler}/gespraeche', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'store'])->name('paedDiary.gespraeche.store');
+                    Route::put('paed-diary/gespraeche/{gespraech}', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'update'])->middleware('throttle:120,1')->name('paedDiary.gespraeche.update');
+                    Route::post('paed-diary/gespraeche/{gespraech}/abschliessen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'abschliessen'])->name('paedDiary.gespraeche.abschliessen');
+                    Route::post('paed-diary/gespraeche/{gespraech}/wieder-oeffnen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'wiederOeffnen'])->name('paedDiary.gespraeche.wiederOeffnen');
+                    Route::post('paed-diary/gespraeche/{gespraech}/absagen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'absagen'])->name('paedDiary.gespraeche.absagen');
+                    Route::delete('paed-diary/gespraeche/{gespraech}', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'destroy'])->name('paedDiary.gespraeche.destroy');
+                    Route::post('paed-diary/gespraeche/vereinbarungen/{vereinbarung}/uebernehmen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'uebernehmen'])->name('paedDiary.gespraeche.uebernehmen');
+                    Route::get('paed-diary/gespraeche/{gespraech}/protokoll.pdf', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'pdf'])->name('paedDiary.gespraeche.pdf');
+
                     // Tages-Pause für gesamte Klasse/Gruppe (Veranstaltungen, Ferienüberschreibung)
                     Route::post('paed-diary/day/pause', [\App\Http\Controllers\PaedDiaryController::class, 'pauseClassDay'])->name('paedDiary.day.pause');
                     Route::post('paed-diary/day/unpause', [\App\Http\Controllers\PaedDiaryController::class, 'unpauseClassDay'])->name('paedDiary.day.unpause');

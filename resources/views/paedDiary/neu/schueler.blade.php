@@ -99,6 +99,24 @@
                     </form>
                 </div>
 
+                <div class="pdn-sblock">
+                    <span class="pdn-k">Nächstes Elterngespräch</span>
+                    <template x-if="$store.elterngespraeche.naechstes">
+                        <button type="button" class="pdn-eg-naechstes" @click="gespraechOeffnen($store.elterngespraeche.naechstes.id)">
+                            <b x-text="datumLang($store.elterngespraeche.naechstes.date) + ($store.elterngespraeche.naechstes.start_time ? ', ' + $store.elterngespraeche.naechstes.start_time + ' Uhr' : '')"></b>
+                            <div class="pdn-label-sm" x-text="$store.elterngespraeche.naechstes.reason || 'Ohne Anlass'"></div>
+                        </button>
+                    </template>
+                    <template x-if="!$store.elterngespraeche.naechstes">
+                        <span class="pdn-label-sm">Keins geplant.</span>
+                    </template>
+                    <template x-if="$store.elterngespraeche.offeneProtokolle">
+                        <button type="button" class="pdn-warn" style="text-align:left;border:0;font:inherit;cursor:pointer" @click="tab = 'gespraeche'">
+                            <b x-text="$store.elterngespraeche.offeneProtokolle === 1 ? '1 Protokoll offen' : $store.elterngespraeche.offeneProtokolle + ' Protokolle offen'"></b>
+                        </button>
+                    </template>
+                </div>
+
                 <template x-if="(daten?.absence_patterns || []).length">
                     <div class="pdn-sblock">
                         <span class="pdn-k">Hinweis</span>
@@ -124,6 +142,7 @@
                 <div class="pdn-tabs" role="tablist" aria-label="Bereiche der Schülerakte">
                     <button type="button" role="tab" :aria-selected="tab === 'verlauf'" @click="tab = 'verlauf'">Verlauf <em x-text="eintraege.length"></em></button>
                     <button type="button" role="tab" :aria-selected="tab === 'aufgaben'" @click="tab = 'aufgaben'">Aufgaben <em x-text="(daten?.tasks || []).length"></em></button>
+                    <button type="button" role="tab" data-tour="elterngespraeche" :aria-selected="tab === 'gespraeche'" @click="tab = 'gespraeche'">Elterngespräche <em x-text="$store.elterngespraeche.liste.length"></em></button>
                     <button type="button" role="tab" :aria-selected="tab === 'beobachtungen'" @click="tab = 'beobachtungen'">Beobachtungen</button>
                     <button type="button" role="tab" :aria-selected="tab === 'graduierung'" @click="tab = 'graduierung'">Graduierung <em>{{ $gradingSessions->count() }}</em></button>
                     @if($canViewDiagnostics)
@@ -132,7 +151,7 @@
                 </div>
 
                 {{-- Zeitraum und Filter --}}
-                <div class="pdn-range" x-show="tab !== 'graduierung' && tab !== 'diagnose'">
+                <div class="pdn-range" x-show="tab !== 'graduierung' && tab !== 'diagnose' && tab !== 'gespraeche'">
                     <div class="pdn-seg" role="group" aria-label="Zeitraum">
                         <button type="button" @click="setzeZeitraum('30tage')" :aria-pressed="zeitraum === '30tage'">30 Tage</button>
                         <button type="button" @click="setzeZeitraum('halbjahr')" :aria-pressed="zeitraum === 'halbjahr'">Halbjahr</button>
@@ -176,7 +195,8 @@
                         <div class="pdn-week">
                             <span class="pdn-k" x-text="woche.titel"></span>
                             <template x-for="(p, i) in woche.punkte" :key="woche.kw + '-' + i">
-                                <div class="pdn-tl" :class="{ 'pdn-tl--stufe': p.art === 'stufe', 'pdn-tl--reflexion': p.art === 'reflexion' }">
+                                <div class="pdn-tl" :class="{ 'pdn-tl--stufe': p.art === 'stufe', 'pdn-tl--reflexion': p.art === 'reflexion', 'pdn-tl--gespraech': p.art === 'gespraech' }"
+                                     @click="p.art === 'gespraech' && gespraechOeffnen(p.g.id)">
                                     <span class="pdn-d" style="white-space:pre-line"
                                           x-text="datum(p.datum) + (p.art === 'eintrag' && p.e.date_to && p.e.date_to !== p.e.date_from ? '\nbis ' + datum(p.e.date_to) : '')"></span>
                                     <div>
@@ -195,6 +215,17 @@
                                             <div>
                                                 <div class="pdn-txt"><b>Stufenwechsel:</b> <span x-text="(p.h.previous_stage_name || 'keine Stufe') + ' → ' + (p.h.stage_name || 'keine Stufe')"></span></div>
                                                 <div class="pdn-meta" x-text="p.h.changed_by_name || ''"></div>
+                                            </div>
+                                        </template>
+                                        <template x-if="p.art === 'gespraech'">
+                                            <div>
+                                                <div class="pdn-txt"><b>Elterngespräch</b> <span x-text="p.g.reason ? '– ' + p.g.reason : ''"></span></div>
+                                                <div class="pdn-meta">
+                                                    <span class="pdn-eg-status" :class="p.g.protocol_open ? 'pdn-eg-status--offen' : (p.g.status === 'abgeschlossen' ? 'pdn-eg-status--fertig' : 'pdn-eg-status--geplant')"
+                                                          x-text="p.g.protocol_open ? 'Protokoll offen' : p.g.status_label"></span>
+                                                    <span class="pdn-tag pdn-tag--conf" x-show="p.g.confidential">Vertraulich</span>
+                                                    <span x-text="p.g.created_by?.name || ''"></span>
+                                                </div>
                                             </div>
                                         </template>
                                         <template x-if="p.art === 'reflexion'">
@@ -232,6 +263,11 @@
                             </template>
                         </tbody>
                     </table>
+                </section>
+
+                {{-- ── Elterngespräche ── --}}
+                <section x-show="tab === 'gespraeche'" x-cloak aria-label="Elterngespräche">
+                    @include('paedDiary.partials.elterngespraeche')
                 </section>
 
                 {{-- ── Beobachtungen (Zusatzspalten) ── --}}

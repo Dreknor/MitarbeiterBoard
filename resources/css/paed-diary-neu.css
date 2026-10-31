@@ -387,3 +387,69 @@
 @media (prefers-reduced-motion: no-preference) {
     .pdn-btn, .pdn-seg button, .pdn-tog, .pdn-entry { transition: background-color .15s, color .15s; }
 }
+
+/* ── Elterngespräche (Schülerakte, auch in der bisherigen Ansicht) ─────────── */
+.pdn-eg { display: flex; flex-direction: column; gap: 14px; }
+.pdn-eg-kopf { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.pdn-eg-gruppe { display: flex; flex-direction: column; gap: 6px; }
+.pdn-eg-karte { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; width: 100%; font: inherit; color: var(--pdn-ink); background: var(--pdn-surface); border: 1px solid var(--pdn-line); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+.pdn-eg-karte:hover { background: var(--pdn-surface-2); }
+.pdn-eg-karte:focus-visible { outline: 3px solid var(--pdn-accent); outline-offset: 1px; }
+.pdn-eg-karte > i { color: var(--pdn-ink-2); font-size: .8em; }
+.pdn-eg-karte.is-abgesagt .pdn-eg-anlass { text-decoration: line-through; color: var(--pdn-ink-2); }
+.pdn-eg-datum { display: flex; flex-direction: column; font-size: .92em; color: var(--pdn-ink-2); font-variant-numeric: tabular-nums; }
+.pdn-eg-datum b { color: var(--pdn-ink); }
+.pdn-eg-inhalt { display: flex; flex-direction: column; min-width: 0; }
+.pdn-eg-anlass { font-weight: 700; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pdn-eg-status { font-size: .85em; font-weight: 700; border-radius: 4px; padding: 1px 7px; background: var(--pdn-surface-2); color: var(--pdn-ink-2); }
+.pdn-eg-status--geplant { background: var(--pdn-accent-soft); color: var(--pdn-accent); }
+.pdn-eg-status--offen { background: var(--pdn-warn-soft); color: var(--pdn-warn); }
+.pdn-eg-status--fertig { background: var(--pdn-ok-soft); color: var(--pdn-ok); }
+.pdn-eg-drawer header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdn-eg-speicher { display: flex; align-items: center; gap: 6px; font-size: .85em; color: var(--pdn-ink-2); min-height: 1.4em; }
+.pdn-eg-speicher.is-gespeichert { color: var(--pdn-ok); }
+.pdn-eg-speicher.is-fehler, .pdn-eg-speicher.is-konflikt { color: var(--pdn-danger); font-weight: 700; }
+.pdn-eg-link { border: 0; background: none; padding: 0; font: inherit; color: var(--pdn-accent); text-decoration: underline; cursor: pointer; }
+.pdn-eg-abschnitte { margin: 10px 16px 0; align-self: flex-start; }
+.pdn-eg-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pdn-eg-abschnitt { display: flex; flex-direction: column; gap: 12px; }
+.pdn-eg-reihe { display: flex; flex-wrap: wrap; gap: 10px; }
+.pdn-eg-reihe > .pdn-field { flex: 1; min-width: 130px; }
+.pdn-eg-zeile { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pdn-field input[type=time] { font: inherit; font-size: 1.05em; color: var(--pdn-ink); border: 1px solid var(--pdn-line); border-radius: 6px; padding: 7px 9px; background: var(--pdn-surface); }
+.pdn-eg input[type=text], .pdn-eg textarea { font: inherit; color: var(--pdn-ink); border: 1px solid var(--pdn-line); border-radius: 6px; padding: 7px 9px; background: var(--pdn-surface); }
+.pdn-eg textarea { min-height: 72px; resize: vertical; width: 100%; }
+.pdn-eg fieldset:disabled input, .pdn-eg fieldset:disabled textarea, .pdn-eg fieldset:disabled select { background: var(--pdn-surface-2); color: var(--pdn-ink); }
+.pdn-eg-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .95em; padding: 3px 4px 3px 9px; border-radius: 999px; background: var(--pdn-accent-soft); color: var(--pdn-accent); font-weight: 700; }
+.pdn-eg-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 1.1em; line-height: 1; padding: 0 4px; }
+.pdn-eg-vorschlag { font: inherit; font-size: .9em; padding: 3px 9px; border-radius: 999px; border: 1px dashed var(--pdn-line); background: var(--pdn-surface); color: var(--pdn-ink); cursor: pointer; }
+.pdn-eg-vorschlag:hover { border-color: var(--pdn-accent); color: var(--pdn-accent); }
+.pdn-eg-vorschlag small { color: var(--pdn-ink-2); }
+.pdn-eg-kasten { border: 1px solid var(--pdn-line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--pdn-surface-2); }
+.pdn-eg-punkt { border: 1px solid var(--pdn-line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pdn-eg-nr { color: var(--pdn-ink-2); min-width: 1.6em; }
+.pdn-eg-intern { font-size: .88em; color: var(--pdn-ink-2); background: var(--pdn-surface-2); border-left: 3px solid var(--pdn-line); padding: 4px 8px; white-space: pre-line; }
+.pdn-eg-akte { border: 1px dashed var(--pdn-line); border-radius: 8px; padding: 8px; max-height: 260px; overflow-y: auto; }
+.pdn-eg-akteintrag { display: block; width: 100%; text-align: left; font: inherit; font-size: .92em; border: 0; border-bottom: 1px solid var(--pdn-line); background: none; padding: 6px 4px; cursor: pointer; color: var(--pdn-ink); }
+.pdn-eg-akteintrag:hover { background: var(--pdn-accent-soft); }
+.pdn-eg-akteintrag b { color: var(--pdn-ink-2); margin-right: 6px; }
+.pdn-sblock .pdn-eg-naechstes { text-align: left; font: inherit; color: var(--pdn-ink); background: var(--pdn-accent-soft); border: 0; border-radius: 8px; padding: 10px; cursor: pointer; }
+.pdn-tl--gespraech { background: var(--pdn-warn-soft); border-color: transparent; cursor: pointer; }
+@media (max-width: 640px) {
+    .pdn-eg-karte { grid-template-columns: minmax(0, 1fr) auto; }
+    .pdn-eg-datum { grid-column: 1 / -1; flex-direction: row; gap: 8px; }
+    .pdn-eg-drawer { width: 100vw; }
+}
+/* Elterngespräch im ganzen Fenster (Mitschreiben im Gespräch) */
+.pdn-eg-drawer.is-voll { width: 100vw; left: 0; border-left: 0; }
+.pdn-eg-drawer.is-voll .pdn-eg-abschnitte { align-self: center; }
+.pdn-eg-drawer.is-voll .pdn-drawer__body { width: 100%; max-width: 1180px; margin: 0 auto; padding: 18px 24px; }
+.pdn-eg-drawer.is-voll footer { justify-content: center; }
+.pdn-eg-drawer.is-voll textarea { min-height: 110px; }
+.pdn-eg-drawer.is-voll .pdn-eg-punkt--protokoll { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
+.pdn-eg-drawer.is-voll .pdn-eg-punkt--protokoll textarea { min-height: 140px; }
+.pdn-eg-punkt__vorbereitung { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+@media (max-width: 767px) {
+    .pdn-eg-drawer.is-voll .pdn-eg-punkt--protokoll { grid-template-columns: 1fr; }
+    .pdn-eg-drawer.is-voll .pdn-drawer__body { padding: 14px 12px; }
+}

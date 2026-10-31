@@ -18,6 +18,8 @@ export default defineConfig({
                 'resources/js/paed-diary-v2.js',
                 // Pädagogisches Tagebuch – neue Ansicht (parallel zur bisherigen, CSS wird importiert)
                 'resources/js/paed-diary-neu.js',
+                // Elterngespräche in der bisherigen Schülerakte (nutzt das CSS der neuen Ansicht)
+                'resources/js/paed-diary-elterngespraeche.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',

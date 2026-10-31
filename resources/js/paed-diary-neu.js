@@ -7,6 +7,7 @@
  *   - notizSeite():     Notiz-Editor als Seitenleiste (Logik aus noteEditor())
  *   - schuelerAkte():   neue Schülerakte (Verlauf nach Wochen, Seitenleiste)
  *   - reflexionNetz():  Spinnennetzdiagramm der Reflexion (SVG, ohne externe Bibliothek)
+ *   - elterngespraecheAkte(): Elterngespräche der Schülerakte (aus paed-diary-v2/elterngespraeche.js)
  *
  * Darstellungs-Einstellungen werden pro Person gespeichert (POST /paed-diary/settings/darstellung).
  */
@@ -21,6 +22,7 @@ import { registerTaskPanel } from './paed-diary-v2/task-panel.js';
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
 import { registerGroupManager } from './paed-diary-v2/group-manager.js';
+import { registerElterngespraeche } from './paed-diary-v2/elterngespraeche.js';
 import { csrfToken } from './paed-diary-v2/utils.js';
 
 /** Kombiniert Objekte inkl. Gettern (Spread würde Getter einmalig auswerten). */
@@ -276,6 +278,12 @@ function registerSchuelerAkte(Alpine) {
             }
         },
 
+        /** Wechselt zum Tab „Elterngespräche“ und öffnet das Gespräch im Editor. */
+        gespraechOeffnen(id) {
+            this.tab = 'gespraeche';
+            this.$nextTick(() => window.dispatchEvent(new CustomEvent('elterngespraech-oeffnen', { detail: id })));
+        },
+
         setzeZeitraum(art) {
             this.zeitraum = art;
             const heute = new Date();
@@ -330,6 +338,11 @@ function registerSchuelerAkte(Alpine) {
                 const datum = (h.at || '').slice(0, 10);
                 if (datum && datum >= this.von && datum <= this.bis && !this.suche && !this.kategorie) {
                     punkte.push({ art: 'stufe', datum, h });
+                }
+            });
+            (this.$store.elterngespraeche?.liste || []).forEach(g => {
+                if (g.status !== 'abgesagt' && g.date >= this.von && g.date <= this.bis && !this.suche && !this.kategorie) {
+                    punkte.push({ art: 'gespraech', datum: g.date, g });
                 }
             });
             (konfig.reflexionen || []).forEach(r => {
@@ -735,6 +748,7 @@ function registerAll(Alpine) {
     registerAppointmentManager(Alpine);
     registerGroupManager(Alpine);
     registerNeu(Alpine);
+    registerElterngespraeche(Alpine);
     registerSchuelerAkte(Alpine);
 }
 

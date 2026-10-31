@@ -12,7 +12,7 @@
 return [
 
     // Version der API (GET /api/v1/instance) und minimal unterstützte App-Version
-    'api_version' => '1.2.0',
+    'api_version' => '1.3.0',
     'min_app_version' => env('PAED_APP_MIN_VERSION', '1.0.0'),
 
     // Anzeige in der App (Serverwahl)

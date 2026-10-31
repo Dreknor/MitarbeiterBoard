@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MitarbeiterBoard – Pädagogen-App API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     REST-API v1 für die Pädagogen-App (Schüler-View, Pädagogisches Tagebuch, Graduierung, Diagnose, Dossier, Dienstplan, Arbeitszeitnachweis).
 
@@ -61,6 +61,8 @@ tags:
   - name: Graduierung
   - name: Diagnose
   - name: Dossier
+  - name: Elterngespräche
+    description: Planung, Vorbereitung und Protokoll von Elterngesprächen (wie die Schülerakte im Web)
   - name: Schüler-iPad
     description: Selbsteinschätzung auf geteilten Schüler-iPads (Schüler-Token)
   - name: Dienstplan
@@ -1425,6 +1427,186 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /students/{student_id}/parent-meetings:
+    get:
+      tags: [Elterngespräche]
+      summary: Elterngespräche eines Schülers (alle sichtbaren, neueste zuerst)
+      description: |
+        Ohne Zeitraumfilter, damit auch künftige Termine erscheinen. Vertrauliche Gespräche (`confidential`)
+        sehen nur Ersteller, eingetragene Kolleg:innen (`participants`) und Personen mit
+        `view confidential diary entries`/Admin – anders als vertrauliche Tagebucheinträge.
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ParentMeeting' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Elterngespräche]
+      summary: Elterngespräch planen (optional mit Termin im Tagebuch-Kalender)
+      description: |
+        `calendar: true` legt einen Termin „Elterngespräch Vorname Nachname“ ohne Inhalte für den Schüler an,
+        `pause_entries: true` pausiert offene Notizen an diesem Tag. Neue Vereinbarungen können einen
+        Client-Schlüssel `key` mitbringen; `agreement_keys` ordnet ihm die neue ID zu.
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParentMeetingInput' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParentMeetingSaved' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /parent-meetings/{meeting_id}:
+    parameters:
+      - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Elterngespräche]
+      summary: Ein Elterngespräch
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ParentMeeting' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Elterngespräche]
+      summary: Elterngespräch ändern (Vorbereitung, Protokoll, Termin) – nur solange `status = geplant`
+      description: |
+        Nur übergebene Felder werden geändert; Listen (`topics`, `agreements`, `participant_ids`) werden
+        vollständig ersetzt. Mit `version` (aus der letzten Antwort) liefert eine zwischenzeitliche fremde
+        Änderung 409 mit dem aktuellen Stand. Der Kalendertermin wird nur bei geänderten Termin-Feldern
+        neu geschrieben (Autospeichern).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParentMeetingInput' }
+      responses:
+        '200':
+          description: Gespeichert
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParentMeetingSaved' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Zwischenzeitlich geändert – `data` enthält den aktuellen Stand
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/ParentMeeting' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Elterngespräche]
+      summary: Elterngespräch löschen (Ersteller, `view all students` oder Sonderrecht; entfernt den Kalendertermin)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: Gelöscht }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /parent-meetings/{meeting_id}/complete:
+    post:
+      tags: [Elterngespräche]
+      summary: Protokoll abschließen (danach nur lesbar)
+      parameters:
+        - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/ParentMeeting' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /parent-meetings/{meeting_id}/reopen:
+    post:
+      tags: [Elterngespräche]
+      summary: Wieder öffnen (abgesagt – alle Sichtberechtigten; abgeschlossen – nur Ersteller oder Sonderrecht)
+      parameters:
+        - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/ParentMeeting' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /parent-meetings/{meeting_id}/cancel:
+    post:
+      tags: [Elterngespräche]
+      summary: Absagen (entfernt den Kalendertermin)
+      parameters:
+        - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/ParentMeeting' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /parent-meetings/{meeting_id}/agreements/{agreement_id}/transfer:
+    post:
+      tags: [Elterngespräche]
+      summary: Vereinbarung als Aufgabe oder Ziel in die Schülerakte übernehmen (idempotent, auch nach Abschluss)
+      parameters:
+        - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+        - { name: agreement_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string, enum: [task, goal] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      task_id: { type: integer, nullable: true }
+                      goal_id: { type: integer, nullable: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /parent-meetings/{meeting_id}/protocol.pdf:
+    get:
+      tags: [Elterngespräche]
+      summary: Protokoll als PDF (Briefkopf mit Logo und Anschrift, Unterschriftszeilen)
+      description: |
+        Vorbereitungsnotizen erscheinen nur mit `preparation_in_protocol: true`. Nicht abgeschlossene Gespräche tragen das
+        Wasserzeichen „ENTWURF“. Header: `Content-Disposition: inline; filename="Elterngespraech_<Nachname>_<Vorname>_<Datum>.pdf"`.
+      parameters:
+        - { name: meeting_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /roster/mine:
     get:
       tags: [Dienstplan]
@@ -2693,6 +2875,104 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    ParentMeetingTopic:
+      type: object
+      properties:
+        title: { type: string }
+        preparation: { type: string, description: Vorbereitung – im Protokoll-PDF nur mit preparation_in_protocol }
+        result: { type: string }
+    ParentMeetingAgreement:
+      type: object
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        responsible: { type: string, nullable: true, enum: [eltern, schule, schueler, gemeinsam] }
+        due_date: { type: string, format: date, nullable: true }
+        task_id: { type: integer, nullable: true }
+        goal_id: { type: integer, nullable: true }
+    ParentMeeting:
+      type: object
+      properties:
+        id: { type: integer }
+        student_id: { type: integer }
+        class_id: { type: integer, nullable: true }
+        date: { type: string, format: date }
+        start_time: { type: string, example: '15:00', nullable: true }
+        end_time: { type: string, example: '15:45', nullable: true }
+        location: { type: string, nullable: true }
+        form: { type: string, enum: [vor_ort, telefon, video] }
+        form_label: { type: string }
+        status: { type: string, enum: [geplant, abgeschlossen, abgesagt] }
+        status_label: { type: string }
+        protocol_open: { type: boolean, description: geplant und Datum in der Vergangenheit }
+        confidential: { type: boolean }
+        student_present: { type: boolean }
+        parents: { type: string, nullable: true }
+        other_participants: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+        topics: { type: array, items: { $ref: '#/components/schemas/ParentMeetingTopic' } }
+        preparation_notes: { type: string, nullable: true, description: Vorbereitung – im Protokoll-PDF nur mit preparation_in_protocol }
+        preparation_in_protocol: { type: boolean, description: Vorbereitung (allgemein und je Gesprächspunkt) ins Protokoll-PDF übernehmen }
+        notes: { type: string, nullable: true }
+        next_date: { type: string, format: date, nullable: true }
+        participants: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string } } } }
+        agreements: { type: array, items: { $ref: '#/components/schemas/ParentMeetingAgreement' } }
+        calendar: { type: boolean }
+        appointment_id: { type: integer, nullable: true }
+        pause_entries: { type: boolean }
+        created_by: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+        completed_at: { type: string, format: date-time, nullable: true }
+        completed_by: { type: string, nullable: true }
+        cancelled_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time }
+        updated_by: { type: string, nullable: true }
+        version: { type: integer, description: Für PUT mitsenden (Konfliktschutz) }
+        can:
+          type: object
+          properties:
+            update: { type: boolean }
+            complete: { type: boolean }
+            cancel: { type: boolean }
+            reopen: { type: boolean }
+            delete: { type: boolean }
+    ParentMeetingSaved:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/ParentMeeting' }
+        agreement_keys: { type: object, additionalProperties: { type: integer }, description: Client-Schlüssel neuer Vereinbarungen => ID }
+    ParentMeetingInput:
+      type: object
+      properties:
+        date: { type: string, format: date, description: Pflicht beim Anlegen }
+        start_time: { type: string, example: '15:00', nullable: true }
+        end_time: { type: string, example: '15:45', nullable: true, description: nach start_time }
+        location: { type: string, maxLength: 255, nullable: true }
+        form: { type: string, enum: [vor_ort, telefon, video] }
+        confidential: { type: boolean }
+        student_present: { type: boolean }
+        parents: { type: string, maxLength: 1000, nullable: true }
+        other_participants: { type: string, maxLength: 1000, nullable: true }
+        reason: { type: string, maxLength: 5000, nullable: true }
+        topics: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/ParentMeetingTopic' } }
+        preparation_notes: { type: string, maxLength: 10000, nullable: true }
+        preparation_in_protocol: { type: boolean }
+        notes: { type: string, maxLength: 20000, nullable: true }
+        next_date: { type: string, format: date, nullable: true }
+        participant_ids: { type: array, items: { type: integer } }
+        agreements:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            properties:
+              id: { type: integer, nullable: true, description: vorhandene Vereinbarung; fehlende werden gelöscht }
+              key: { type: string, nullable: true, description: Client-Schlüssel für neue Vereinbarungen }
+              text: { type: string, maxLength: 2000 }
+              responsible: { type: string, nullable: true, enum: [eltern, schule, schueler, gemeinsam] }
+              due_date: { type: string, format: date, nullable: true }
+        calendar: { type: boolean, description: Termin im Tagebuch-Kalender }
+        pause_entries: { type: boolean }
+        version: { type: integer, nullable: true, description: Stand aus der letzten Antwort (nur PUT) }
     HolidayAccount:
       type: object
       description: Urlaubskonto in Tagen

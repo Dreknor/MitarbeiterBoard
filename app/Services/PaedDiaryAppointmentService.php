@@ -55,6 +55,36 @@ class PaedDiaryAppointmentService
     }
 
     /**
+     * Einzeltermin für genau einen Schüler anlegen oder ändern (z. B. Elterngespräch). Der Zugriff auf
+     * den Schüler ist bereits geprüft (StudentPolicy) – anders als syncRelations() wird er deshalb auch
+     * ohne eigene Klassenzuordnung verknüpft (z. B. „view all students“). Weitere Zuordnungen bleiben.
+     *
+     * @param array{title: string, description?: ?string, start_date: string, start_time?: ?string, end_time?: ?string} $data
+     */
+    public function fuerSchueler(Schueler $schueler, array $data, bool $pauseEntries, User $user, ?PaedDiaryAppointment $appointment = null): PaedDiaryAppointment
+    {
+        $data['is_recurring'] = false;
+
+        if ($appointment) {
+            $vorher = $appointment->pause_entries ? $this->betroffen($appointment) : [collect(), []];
+            $appointment->update($this->attributes($data, $pauseEntries) + ['is_paused' => false]);
+        } else {
+            $appointment = PaedDiaryAppointment::create($this->attributes($data, $pauseEntries) + [
+                'user_id' => $user->id,
+                'is_paused' => false,
+            ]);
+        }
+
+        $appointment->schueler()->syncWithoutDetaching([$schueler->id]);
+        if (isset($vorher)) {
+            $this->removeStaleAppointmentPauses($vorher, $appointment->fresh());
+        }
+        $this->pauseEntriesForAppointment($appointment);
+
+        return $appointment;
+    }
+
+    /**
      * Zugriff: Ersteller oder Nutzer mit Zugang zu mind. einer zugeordneten Klasse.
      */
     public function canAccess(PaedDiaryAppointment $appointment, User $user): bool

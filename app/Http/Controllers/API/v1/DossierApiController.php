@@ -53,6 +53,7 @@ class DossierApiController extends Controller
                 'entries' => PaedDiaryEntryResource::collection($d['entries']),
                 'goals' => $d['diary_goals'],
             ],
+            'parent_meetings' => $d['parent_meetings'],
             'grading' => [
                 'current_stage' => $d['grading']['current_stage'],
                 'stage_history' => $d['grading']['stage_history'],

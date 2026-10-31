@@ -29,7 +29,7 @@ class InstanceApiTest extends ApiTestCase
                 'name' => 'Grundschule Musterstadt',
                 'logo_url' => asset('img/logo.png'),
                 'primary_color' => config('paed_app.primary_color'),
-                'api_version' => '1.2.0',
+                'api_version' => '1.3.0',
                 'min_app_version' => config('paed_app.min_app_version'),
                 'auth' => ['password' => true, 'sso' => true, 'sso_label' => config('paed_app.sso_label')],
             ]);

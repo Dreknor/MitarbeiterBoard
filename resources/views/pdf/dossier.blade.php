@@ -103,6 +103,33 @@
         </table>
     @endif
 
+    {{-- ── Elterngespräche ──────────────────────────────────────── --}}
+    @if($parent_meetings->isNotEmpty())
+        <h2>Elterngespräche ({{ $parent_meetings->count() }})</h2>
+        <table>
+            <tr><th>Datum</th><th>Anlass und Vereinbarungen</th><th>Status</th></tr>
+            @foreach($parent_meetings as $meeting)
+                <tr>
+                    <td class="entry-date">{{ \Carbon\Carbon::parse($meeting['date'])->format('d.m.Y') }}</td>
+                    <td>
+                        @if($meeting['confidential'])
+                            <span class="badge badge-confidential">Vertraulich</span>
+                        @endif
+                        {{ $meeting['reason'] ?: '—' }}
+                        @if($meeting['agreements']->isNotEmpty())
+                            <ul style="margin: 1mm 0 0 4mm; padding: 0;">
+                                @foreach($meeting['agreements'] as $agreement)
+                                    <li>{{ $agreement['text'] }}@if($agreement['responsible'] || $agreement['due_date'])<span class="muted"> ({{ collect([$agreement['responsible'], $agreement['due_date'] ? 'bis ' . \Carbon\Carbon::parse($agreement['due_date'])->format('d.m.Y') : null])->filter()->implode(', ') }})</span>@endif</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </td>
+                    <td class="entry-date">{{ $meeting['status_label'] }}</td>
+                </tr>
+            @endforeach
+        </table>
+    @endif
+
     {{-- ── Graduierung ──────────────────────────────────────────── --}}
     <h2>Graduierung</h2>
     <table class="meta">

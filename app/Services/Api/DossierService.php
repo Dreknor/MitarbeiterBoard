@@ -4,7 +4,10 @@ namespace App\Services\Api;
 
 use App\Models\DiagnosticDevelopmentGoal;
 use App\Models\DiagnosticSession;
+use App\Models\PaedDiaryElterngespraech;
+use App\Models\PaedDiaryElterngespraechVereinbarung;
 use App\Models\PaedDiaryGoal;
+use App\Support\PdfLayout;
 use App\Models\Schueler;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -89,6 +92,30 @@ class DossierService
                 'achieved_by_name' => $g->achievedByUser?->name,
             ]);
 
+        // Elterngespräche im Zeitraum (ohne abgesagte); vertrauliche nur mit include_confidential
+        $parentMeetings = PaedDiaryElterngespraech::with(['vereinbarungen', 'user:id,name'])
+            ->where('schueler_id', $schueler->id)
+            ->where('status', '!=', PaedDiaryElterngespraech::STATUS_ABGESAGT)
+            ->whereBetween('datum', [$from->toDateString(), $to->format('Y-m-d 23:59:59')])
+            ->sichtbarFuer($user)
+            ->when(!$includeConfidentialRequested, fn ($q) => $q->where('vertraulich', false))
+            ->orderBy('datum')
+            ->get()
+            ->map(fn ($g) => [
+                'id' => $g->id,
+                'date' => $g->datum->toDateString(),
+                'status' => $g->status,
+                'status_label' => PaedDiaryElterngespraech::STATUS[$g->status] ?? $g->status,
+                'confidential' => (bool) $g->vertraulich,
+                'reason' => $g->anlass,
+                'created_by_name' => $g->user?->name,
+                'agreements' => $g->vereinbarungen->map(fn ($v) => [
+                    'text' => $v->text,
+                    'responsible' => PaedDiaryElterngespraechVereinbarung::VERANTWORTLICH[$v->verantwortlich] ?? null,
+                    'due_date' => $v->bis?->toDateString(),
+                ])->values(),
+            ]);
+
         // Graduierung
         $grading = [
             'current_stage' => $this->data->currentStage($schueler),
@@ -130,6 +157,7 @@ class DossierService
             'entries' => $entries,
             'by_category' => $byCategory,
             'diary_goals' => $diaryGoals,
+            'parent_meetings' => $parentMeetings,
             'grading' => $grading,
             'diagnostic' => $diagnostic,
             'meta' => [
@@ -146,22 +174,16 @@ class DossierService
      */
     public function pdfResponse(array $dossier): Response
     {
+        $layout = app(PdfLayout::class);
         $pdf = Pdf::loadView('pdf.dossier', array_merge($dossier, [
             'schoolName' => $this->app->schoolName(),
-            'logo' => $this->logoDataUri(),
+            'logo' => $layout->logoDataUri(),
         ]))
             ->setPaper('a4')
             // Nur verwendete Glyphen einbetten (sonst ~1 MB je Schriftschnitt – relevant beim Teilen aus der App)
             ->setOption('enable_font_subsetting', true);
 
-        // Seitenzahlen über die Canvas-API (PHP in Views ist in dompdf deaktiviert)
-        $pdf->render();
-        $dompdf = $pdf->getDomPDF();
-        $canvas = $dompdf->getCanvas();
-        $font = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
-        $canvas->page_text($canvas->get_width() - 110, $canvas->get_height() - 47, 'Seite {PAGE_NUM} von {PAGE_COUNT}', $font, 7, [0.4, 0.4, 0.4]);
-
-        return response($pdf->output(), 200, [
+        return response($layout->rendern($pdf), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $this->filename($dossier) . '"',
             'Cache-Control' => 'no-store, private',
@@ -180,17 +202,5 @@ class DossierService
             $dossier['from']->toDateString(),
             $dossier['to']->toDateString()
         );
-    }
-
-    private function logoDataUri(): ?string
-    {
-        $path = public_path('img/' . config('app.logo'));
-        if (!config('app.logo') || !is_file($path)) {
-            return null;
-        }
-
-        $mime = mime_content_type($path) ?: 'image/png';
-
-        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
     }
 }

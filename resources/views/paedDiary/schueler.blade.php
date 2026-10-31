@@ -235,6 +235,19 @@
                                     </li>
                                     <li class="mr-2" role="presentation">
                                         <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
+                                                :class="activeTab === 'parentMeetings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
+                                                @click="activeTab = 'parentMeetings'"
+                                                role="tab"
+                                                :aria-selected="activeTab === 'parentMeetings'">
+                                            <i class="fas fa-comments"></i>
+                                            <span>Elterngespräche</span>
+                                            <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+                                                  :class="activeTab === 'parentMeetings' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'"
+                                                  x-text="$store.elterngespraeche ? $store.elterngespraeche.liste.length : 0">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="mr-2" role="presentation">
+                                        <button class="tab-btn inline-flex items-center gap-2 p-4 border-b-2 rounded-t-lg group"
                                                 :class="activeTab === 'columns' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300'"
                                                 @click="activeTab = 'columns'"
                                                 role="tab"
@@ -363,6 +376,13 @@
                             </div>
 
                             <!-- Spalten Tab -->
+                            <!-- Elterngespräche Tab (gemeinsames Partial mit der neuen Ansicht) -->
+                            <div x-show="activeTab === 'parentMeetings'" id="parentMeetings" role="tabpanel" x-cloak>
+                                <div class="pdn" style="padding:0">
+                                    @include('paedDiary.partials.elterngespraeche')
+                                </div>
+                            </div>
+
                             <div x-show="activeTab === 'columns'" id="columns" role="tabpanel">
                                 <div class="bg-white rounded-lg shadow overflow-hidden">
                                     <div class="overflow-x-auto">
@@ -1132,6 +1152,7 @@
 @endpush
 
 @push('js')
+@vite(['resources/js/paed-diary-elterngespraeche.js'])
 <script src="{{ asset('/js/paed-diary.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ asset('/js/tablet-scroll-optimization.js?v=20261009')}}"></script>
