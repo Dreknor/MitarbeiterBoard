@@ -27,9 +27,9 @@ class GradingStage extends Model
     /**
      * Öffentliche URL des Stufenbilds (wenn vorhanden).
      *
-     * Neue Uploads liegen unter public/img/stages und werden als "img/stages/…" gespeichert –
-     * dafür wird die URL ohne Dateisystemzugriff gebildet. Ältere Einträge (nur Dateiname oder
-     * Pfad auf der Storage-Disk "public") werden wie bisher gesucht, das Ergebnis aber gemerkt.
+     * Neue Uploads liegen unter public/img/stages und werden als "img/stages/…" gespeichert; ältere
+     * Einträge (nur Dateiname oder Pfad auf der Storage-Disk "public") werden ebenfalls gefunden.
+     * Das Ergebnis wird pro Request je Pfad gemerkt; fehlt die Datei, ist die URL null.
      */
     public function getImageUrlAttribute(): ?string
     {
@@ -37,10 +37,8 @@ class GradingStage extends Model
         if (!$image) return null;
         if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) return $image;
 
-        if (str_starts_with($image, 'img/') || str_starts_with($image, 'images/')) {
-            return asset($image);
-        }
-
+        // Ergebnis pro Request merken: höchstens eine Dateisystem-Prüfung je Bildpfad. Fehlende
+        // Dateien liefern null (sonst zeigt die Oberfläche ein kaputtes Bild).
         if (!array_key_exists($image, self::$legacyUrls)) {
             self::$legacyUrls[$image] = self::legacyUrl($image);
         }

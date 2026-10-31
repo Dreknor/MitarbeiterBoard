@@ -174,13 +174,11 @@ const cellMethods = {
     },
 };
 
-export function registerColumnsManager(Alpine) {
-    // Schlanke Komponente für die Tabellenzellen (kein Verwaltungs-State, kein Watcher).
-    // Vorher bekam jede Zelle eine komplette columnsManager()-Instanz: Beim Öffnen der
-    // Spaltenverwaltung lud jede davon die Spaltenliste neu.
-    Alpine.data('columnCell', () => ({ ...cellMethods }));
-
-    Alpine.data('columnsManager', () => ({
+/**
+ * Zustand und Methoden der Spaltenverwaltung – auch von der neuen Ansicht (Seitenleiste) genutzt.
+ */
+export function columnsManagerMethods() {
+    return {
         /** Alle Spalten (inkl. deaktivierte), geladen via columnsAll */
         allColumns: [],
         /** Deaktivierte anzeigen */
@@ -382,10 +380,11 @@ export function registerColumnsManager(Alpine) {
             }
         },
 
-        async deactivateColumn(colId) {
+        async deactivateColumn(colId, bestaetigt = false) {
             const store = this.$store.diary;
             const col = this.allColumns.find(c => c.id === colId);
-            if (!col || !confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`)) return;
+            // Die neue Ansicht fragt selbst (inline) nach und übergibt bestaetigt = true
+            if (!col || (!bestaetigt && !confirm(`Spalte "${col.name}" ab dieser Woche deaktivieren?`))) return;
 
             const params = new URLSearchParams({
                 week_start: formatDate(store.currentWeekStart),
@@ -448,6 +447,13 @@ export function registerColumnsManager(Alpine) {
             this.columnsFeedbackType = type;
             setTimeout(() => { this.columnsFeedback = ''; }, 4000);
         },
-    }));
+    };
 }
 
+export function registerColumnsManager(Alpine) {
+    // Schlanke Komponente für die Tabellenzellen (kein Verwaltungs-State, kein Watcher).
+    // Vorher bekam jede Zelle eine komplette columnsManager()-Instanz: Beim Öffnen der
+    // Spaltenverwaltung lud jede davon die Spaltenliste neu.
+    Alpine.data('columnCell', () => ({ ...cellMethods }));
+    Alpine.data('columnsManager', columnsManagerMethods);
+}

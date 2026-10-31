@@ -35,10 +35,8 @@
         </div>
     </template>
 
-    {{-- Spaltenverwaltung der bisherigen Ansicht (aufklappbar) --}}
-    <div class="row">
-        @include('paedDiary.v2.partials._columns-manager')
-    </div>
+    {{-- Spaltenverwaltung (Seitenleiste) --}}
+    @include('paedDiary.neu._spalten')
 
     <div class="pdn-screen" data-tour="pdn-woche">
         {{-- ── Zeile 1: Klasse, Kopplung, Woche ── --}}
@@ -119,8 +117,9 @@
                         <span class="pdn-dot"></span><span>Ohne Kategorie</span>
                     </label>
                     <div style="display:flex;flex-wrap:wrap;gap:6px">
-                        <button type="button" class="pdn-btn" x-data="columnsManager()" @click="toggleColumnsCard(); filterOffen = false"
-                                :disabled="!!$store.diary.selectedGroupId">Spalten verwalten</button>
+                        <button type="button" class="pdn-btn" @click="$store.diary.columnsCardOpen = true; filterOffen = false"
+                                :disabled="!!$store.diary.selectedGroupId"
+                                :title="$store.diary.selectedGroupId ? 'Spalten werden je Klasse verwaltet – bitte zuerst eine einzelne Klasse wählen' : ''">Spalten verwalten</button>
                         <a class="pdn-btn" href="{{ route('paedDiary.categories.manage') }}">Kategorien</a>
                     </div>
                 </div>
@@ -152,6 +151,9 @@
                     </label>
                     <label class="pdn-switch">Pausierte Notizen zeigen
                         <input type="checkbox" :checked="darstellung.pausierte" @change="setze('pausierte', $event.target.checked)"><i></i>
+                    </label>
+                    <label class="pdn-switch">Spaltengruppen-Überschriften
+                        <input type="checkbox" :checked="$store.diary.show_column_categories" @change="$store.diary.toggleShowColumnCategories()"><i></i>
                     </label>
                     <p class="pdn-label-sm">Wird für dein Konto gespeichert und gilt auf allen Geräten.</p>
                     <form method="post" action="{{ route('paedDiary.settings.darstellung') }}" class="pdn-ansicht-aktionen">
@@ -185,6 +187,13 @@
         {{-- ═══════════ Layout: Klassisch und Kompakt (Tabelle) ═══════════ --}}
         <template x-if="darstellung.layout !== 'karten' && !$store.diary.loading && $store.diary.schueler.length">
             <div>
+                {{-- Legende der Spaltengruppen (wenn die Überschriften in den Zellen aus sind) --}}
+                <div class="pdn-spaltenlegende" x-show="!$store.diary.show_column_categories && spaltenLegende.length" aria-label="Spaltengruppen">
+                    <template x-for="g in spaltenLegende" :key="'sl-' + g.name">
+                        <span><b x-text="g.name + ':'"></b> <span x-text="g.spalten.join(' ')"></span></span>
+                    </template>
+                </div>
+
                 {{-- Legende der Kategoriefarben (nur Kompakt) --}}
                 <div class="pdn-legend" x-show="darstellung.layout === 'kompakt' && darstellung.kategorie_farben && genutzteKategorien.length">
                     <template x-for="cat in genutzteKategorien" :key="'lg-' + cat.id">
@@ -230,15 +239,19 @@
                                         <th scope="row" class="pdn-name">
                                             <div class="pdn-stu">
                                                 <span x-data="stageDropdown()">
-                                                    <button type="button" class="pdn-stage pdn-stage--klickbar"
+                                                    <button type="button" class="pdn-stage pdn-stage--klickbar" :class="stufeKlasse(stu)"
                                                             x-show="$store.diary.can_change_stage"
                                                             @click.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
-                                                            :aria-label="'Stufe von ' + stu.name + ' ändern'"
-                                                            :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
-                                                        <span x-html="stageHtml(stu)"></span>
+                                                            :aria-label="stu.stage ? 'Stufe ' + stu.stage.name + ' – ändern' : 'Stufe vergeben für ' + stu.name"
+                                                            :title="stu.stage ? stu.stage.name : 'Stufe vergeben'">
+                                                        <template x-if="stufeBild(stu)"><img :src="stufeBild(stu)" alt="" x-on:error="bildFehlt(stu)"></template>
+                                                        <span x-show="!stufeBild(stu)" x-text="stufeKurz(stu)"></span>
                                                     </button>
-                                                    <span class="pdn-stage" x-show="!$store.diary.can_change_stage"
-                                                          :title="stu.stage ? stu.stage.name : 'Keine Stufe'" x-html="stageHtml(stu)"></span>
+                                                    <span class="pdn-stage" :class="stufeKlasse(stu)" x-show="!$store.diary.can_change_stage"
+                                                          :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
+                                                        <template x-if="stufeBild(stu)"><img :src="stufeBild(stu)" alt="" x-on:error="bildFehlt(stu)"></template>
+                                                        <span x-show="!stufeBild(stu)" x-text="stufeKurz(stu)"></span>
+                                                    </span>
                                                     <template x-teleport="body">
                                                         <div x-show="dropdownOpen && dropdownStuId === stu.id" x-cloak
                                                              class="bg-white border rounded shadow-sm p-1"
@@ -284,6 +297,13 @@
                                                 <button type="button" class="pdn-cell-add" @click="neueNotiz(stu.id, day.date)"
                                                         :aria-label="'Neue Notiz für ' + stu.name + ', ' + day.label"></button>
                                                 <div class="pdn-cell-top">
+                                                    <button type="button" class="pdn-iconbtn pdn-iconbtn--neu"
+                                                            x-show="!$store.diary.isAbsent(stu.id, day.date)"
+                                                            @click="neueNotiz(stu.id, day.date)"
+                                                            :aria-label="'Neue Notiz für ' + stu.name + ', ' + day.label"
+                                                            title="Neue Notiz">
+                                                        <i class="fas fa-plus" aria-hidden="true"></i>
+                                                    </button>
                                                     <button type="button" class="pdn-iconbtn"
                                                             @click="toggleAbsence(stu.id, stu.klasse_id, day.date)"
                                                             :aria-pressed="$store.diary.isAbsent(stu.id, day.date)"
@@ -336,30 +356,40 @@
                                                         </template>
 
                                                         {{-- Zusatzspalten --}}
-                                                        <div class="pdn-cols" x-data="columnCell()">
-                                                            <template x-for="col in getColumnsForStudent(stu)" :key="col.id">
-                                                                <span>
-                                                                    <template x-if="col.type === 'boolean'">
-                                                                        <button type="button" class="pdn-tog" :class="boolKlasse(getColumnValue(col.id, stu.id, day.date))"
-                                                                                @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
-                                                                                :aria-pressed="getColumnValue(col.id, stu.id, day.date) === '1'"
-                                                                                :title="col.name"
-                                                                                x-text="darstellung.layout === 'kompakt' ? col.name.slice(0, 1) : col.name"></button>
-                                                                    </template>
-                                                                    <template x-if="col.type === 'ampel'">
-                                                                        <button type="button" class="pdn-tog" :class="ampelKlasse(getColumnValue(col.id, stu.id, day.date))"
-                                                                                @click.stop="toggleAmpelColumn(col.id, stu.id, day.date)"
-                                                                                :title="col.name + ': ' + ampelState(col.id, stu.id, day.date).label"
-                                                                                x-text="darstellung.layout === 'kompakt' ? col.name.slice(0, 1) : col.name"></button>
-                                                                    </template>
-                                                                    <template x-if="col.type !== 'boolean' && col.type !== 'ampel'">
-                                                                        <input type="text" maxlength="255" class="pdn-colinput"
-                                                                               :class="hasSaveError(col.id, stu.id, day.date) && 'is-fehler'"
-                                                                               :value="getColumnValue(col.id, stu.id, day.date)"
-                                                                               @click.stop
-                                                                               @input.stop="debouncedSaveColumn(col.id, stu.id, day.date, $event.target.value)"
-                                                                               :placeholder="col.name" :aria-label="col.name + ' für ' + stu.name">
-                                                                    </template>
+                                                        {{-- Zusatzspalten, nach Spaltengruppe (z. B. „Mitarbeit: + 0 -“) --}}
+                                                        <div class="pdn-cols" :class="!$store.diary.show_column_categories && 'pdn-cols--flach'" x-data="columnCell()">
+                                                            <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'g' + stu.id + day.date + group.category">
+                                                                <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'">
+                                                                    <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category"
+                                                                          :title="group.category"
+                                                                          x-text="kuerzel(group.category)"></span>
+                                                                    <span class="pdn-colgroup__items">
+                                                                        <template x-for="col in group.columns" :key="col.id">
+                                                                            <span>
+                                                                                <template x-if="col.type === 'boolean'">
+                                                                                    <button type="button" class="pdn-tog" :class="boolKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                            @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
+                                                                                            :aria-pressed="getColumnValue(col.id, stu.id, day.date) === '1'"
+                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name"
+                                                                                            x-text="col.name"></button>
+                                                                                </template>
+                                                                                <template x-if="col.type === 'ampel'">
+                                                                                    <button type="button" class="pdn-tog" :class="ampelKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                            @click.stop="toggleAmpelColumn(col.id, stu.id, day.date)"
+                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name + ' – ' + ampelState(col.id, stu.id, day.date).label"
+                                                                                            x-text="col.name"></button>
+                                                                                </template>
+                                                                                <template x-if="col.type !== 'boolean' && col.type !== 'ampel'">
+                                                                                    <input type="text" maxlength="255" class="pdn-colinput"
+                                                                                           :class="hasSaveError(col.id, stu.id, day.date) && 'is-fehler'"
+                                                                                           :value="getColumnValue(col.id, stu.id, day.date)"
+                                                                                           @click.stop
+                                                                                           @input.stop="debouncedSaveColumn(col.id, stu.id, day.date, $event.target.value)"
+                                                                                           :placeholder="col.name" :aria-label="col.name + ' für ' + stu.name">
+                                                                                </template>
+                                                                            </span>
+                                                                        </template>
+                                                                    </span>
                                                                 </span>
                                                             </template>
                                                         </div>
@@ -408,7 +438,10 @@
                             <template x-for="stu in $store.diary.schueler" :key="'k-' + stu.id">
                                 <article class="pdn-card" :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'">
                                     <header>
-                                        <span class="pdn-stage" :title="stu.stage ? stu.stage.name : 'Keine Stufe'" x-data="stageDropdown()" x-html="stageHtml(stu)"></span>
+                                        <span class="pdn-stage" :class="stufeKlasse(stu)" :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
+                                            <template x-if="stufeBild(stu)"><img :src="stufeBild(stu)" alt="" x-on:error="bildFehlt(stu)"></template>
+                                            <span x-show="!stufeBild(stu)" x-text="stufeKurz(stu)"></span>
+                                        </span>
                                         <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name"></a>
                                         <button type="button" class="pdn-presence"
                                                 :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'"
@@ -435,13 +468,21 @@
                                                     <button type="button" @click="closeOpenTask(task.id)" aria-label="Aufgabe erledigt">✓</button>
                                                 </div>
                                             </template>
-                                            <div class="pdn-cols" x-data="columnCell()">
-                                                <template x-for="col in getColumnsForStudent(stu).filter(c => c.type === 'boolean' || c.type === 'ampel')" :key="'kc-' + col.id">
-                                                    <button type="button" class="pdn-tog"
-                                                            :class="col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date))"
-                                                            @click="col.type === 'ampel' ? toggleAmpelColumn(col.id, stu.id, day.date) : toggleBoolColumn(col.id, stu.id, day.date)"
-                                                            :title="col.type === 'ampel' ? col.name + ': ' + ampelState(col.id, stu.id, day.date).label : col.name"
-                                                            x-text="col.name"></button>
+                                            <div class="pdn-cols" :class="!$store.diary.show_column_categories && 'pdn-cols--flach'" x-data="columnCell()">
+                                                <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'kg' + stu.id + group.category">
+                                                    <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'"
+                                                          x-show="group.columns.some(c => c.type === 'boolean' || c.type === 'ampel')">
+                                                        <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category" x-text="group.category"></span>
+                                                        <span class="pdn-colgroup__items">
+                                                            <template x-for="col in group.columns.filter(c => c.type === 'boolean' || c.type === 'ampel')" :key="'kc-' + col.id">
+                                                                <button type="button" class="pdn-tog"
+                                                                        :class="col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                        @click="col.type === 'ampel' ? toggleAmpelColumn(col.id, stu.id, day.date) : toggleBoolColumn(col.id, stu.id, day.date)"
+                                                                        :title="(group.category ? group.category + ': ' : '') + (col.type === 'ampel' ? col.name + ' – ' + ampelState(col.id, stu.id, day.date).label : col.name)"
+                                                                        x-text="col.name"></button>
+                                                            </template>
+                                                        </span>
+                                                    </span>
                                                 </template>
                                             </div>
                                             <template x-for="apt in getClassAppointmentsForStudent(stu.id, day.date).concat(getStudentAppointments(stu.id, day.date))" :key="'ka-' + stu.id + apt.id">

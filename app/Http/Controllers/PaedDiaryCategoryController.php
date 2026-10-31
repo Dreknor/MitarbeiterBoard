@@ -5,20 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\PaedDiaryCategory;
 use App\Models\PaedDiaryColumn;
 use App\Models\PaedDiaryEntry;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PaedDiaryCategoryController extends Controller
 {
+    /** Erlaubte Farbangabe: Hex-Farbe wie #1d4ed8 */
+    private const FARBE = ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'];
+
     // ── Verwaltungs-View ─────────────────────────────────────────────────────
 
     /**
      * GET /paed-diary/categories/manage
-     * Rendert den Verwaltungs-View mit Tab "Notizkategorien" und Tab "Spaltengruppen".
+     * Verwaltung der Notizkategorien (Name, Farbe, Sichtbarkeit) und der Spaltengruppen.
      */
     public function manageView()
     {
         $canManageGlobal = Auth::user()->can('manage global paed diary categories');
+
         return view('paedDiary.categories.index', compact('canManageGlobal'));
     }
 
@@ -26,26 +31,22 @@ class PaedDiaryCategoryController extends Controller
 
     /**
      * GET /paed-diary/categories
-     * JSON: Alle Kategorien (global + eigene des Users).
+     * JSON: Alle Kategorien (global + eigene des Users) inkl. Farbe, Sichtbarkeit und Anzahl Einträge.
      */
     public function getCategories()
     {
-        $user            = Auth::user();
-        $canManageGlobal = $user->can('manage global paed diary categories');
+        $user = Auth::user();
 
         $categories = PaedDiaryCategory::forUser($user->id)
+            ->withCount('entries')
             ->orderByRaw('user_id IS NULL DESC')   // global zuerst
             ->orderBy('name')
-            ->get(['id', 'name', 'user_id']);
+            ->get(['id', 'name', 'color', 'user_id']);
+
+        $ausgeblendet = $user->hiddenPaedDiaryCategories()->pluck('paed_diary_categories.id')->map(fn ($id) => (int) $id)->all();
 
         return response()->json([
-            'categories' => $categories->map(fn ($c) => [
-                'id'         => $c->id,
-                'name'       => $c->name,
-                'is_global'  => $c->isGlobal(),
-                'can_edit'   => $c->isGlobal() ? $canManageGlobal : $c->isOwnedBy($user->id),
-                'can_delete' => $c->isGlobal() ? $canManageGlobal : $c->isOwnedBy($user->id),
-            ]),
+            'categories' => $categories->map(fn ($c) => $this->alsDaten($c, $user, $ausgeblendet)),
         ]);
     }
 
@@ -59,6 +60,7 @@ class PaedDiaryCategoryController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'color' => self::FARBE,
         ]);
 
         $name = trim($data['name']);
@@ -70,24 +72,16 @@ class PaedDiaryCategoryController extends Controller
 
         $category = PaedDiaryCategory::create([
             'name'    => $name,
+            'color'   => $this->farbe($data),
             'user_id' => $user->id,
         ]);
 
-        return response()->json([
-            'success'  => true,
-            'category' => [
-                'id'         => $category->id,
-                'name'       => $category->name,
-                'is_global'  => false,
-                'can_edit'   => true,
-                'can_delete' => true,
-            ],
-        ]);
+        return response()->json(['success' => true, 'category' => $this->alsDaten($category, $user)]);
     }
 
     /**
      * PUT /paed-diary/categories/{category}/rename
-     * Eigene Kategorie umbenennen.
+     * Eigene Kategorie umbenennen und/oder Farbe ändern.
      */
     public function renameCategory(PaedDiaryCategory $category, Request $request)
     {
@@ -98,24 +92,28 @@ class PaedDiaryCategoryController extends Controller
         }
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
+            'name' => ['sometimes', 'required', 'string', 'max:100'],
+            'color' => self::FARBE,
         ]);
 
-        $newName = trim($data['name']);
+        if (array_key_exists('name', $data)) {
+            $newName = trim($data['name']);
+            $exists = PaedDiaryCategory::where('name', $newName)
+                ->where('user_id', $user->id)
+                ->where('id', '!=', $category->id)
+                ->exists();
 
-        $exists = PaedDiaryCategory::where('name', $newName)
-            ->where('user_id', $user->id)
-            ->where('id', '!=', $category->id)
-            ->exists();
-
-        if ($exists) {
-            return response()->json(['message' => 'Kategorie mit diesem Namen existiert bereits'], 422);
+            if ($exists) {
+                return response()->json(['message' => 'Kategorie mit diesem Namen existiert bereits'], 422);
+            }
+            $category->name = $newName;
         }
-
-        $category->name = $newName;
+        if (array_key_exists('color', $data)) {
+            $category->color = $this->farbe($data);
+        }
         $category->save();
 
-        return response()->json(['success' => true, 'name' => $category->name]);
+        return response()->json(['success' => true, 'name' => $category->name, 'color' => $category->color]);
     }
 
     /**
@@ -187,6 +185,7 @@ class PaedDiaryCategoryController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'color' => self::FARBE,
         ]);
 
         $name = trim($data['name']);
@@ -195,23 +194,14 @@ class PaedDiaryCategoryController extends Controller
             return response()->json(['message' => 'Globale Kategorie mit diesem Namen existiert bereits'], 422);
         }
 
-        $category = PaedDiaryCategory::create(['name' => $name, 'user_id' => null]);
+        $category = PaedDiaryCategory::create(['name' => $name, 'color' => $this->farbe($data), 'user_id' => null]);
 
-        return response()->json([
-            'success'  => true,
-            'category' => [
-                'id'         => $category->id,
-                'name'       => $category->name,
-                'is_global'  => true,
-                'can_edit'   => true,
-                'can_delete' => true,
-            ],
-        ]);
+        return response()->json(['success' => true, 'category' => $this->alsDaten($category, Auth::user())]);
     }
 
     /**
      * PUT /paed-diary/categories/global/{category}
-     * Globale Kategorie bearbeiten.
+     * Globale Kategorie umbenennen und/oder Farbe ändern.
      */
     public function updateGlobalCategory(PaedDiaryCategory $category, Request $request)
     {
@@ -220,24 +210,28 @@ class PaedDiaryCategoryController extends Controller
         }
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
+            'name' => ['sometimes', 'required', 'string', 'max:100'],
+            'color' => self::FARBE,
         ]);
 
-        $newName = trim($data['name']);
+        if (array_key_exists('name', $data)) {
+            $newName = trim($data['name']);
+            $exists = PaedDiaryCategory::whereNull('user_id')
+                ->where('name', $newName)
+                ->where('id', '!=', $category->id)
+                ->exists();
 
-        $exists = PaedDiaryCategory::whereNull('user_id')
-            ->where('name', $newName)
-            ->where('id', '!=', $category->id)
-            ->exists();
-
-        if ($exists) {
-            return response()->json(['message' => 'Kategorie mit diesem Namen existiert bereits'], 422);
+            if ($exists) {
+                return response()->json(['message' => 'Kategorie mit diesem Namen existiert bereits'], 422);
+            }
+            $category->name = $newName;
         }
-
-        $category->name = $newName;
+        if (array_key_exists('color', $data)) {
+            $category->color = $this->farbe($data);
+        }
         $category->save();
 
-        return response()->json(['success' => true, 'name' => $category->name]);
+        return response()->json(['success' => true, 'name' => $category->name, 'color' => $category->color]);
     }
 
     /**
@@ -290,5 +284,36 @@ class PaedDiaryCategoryController extends Controller
 
         return response()->json(['success' => true, 'updated' => $count]);
     }
-}
 
+    // ── Hilfen ────────────────────────────────────────────────────────────────
+
+    /** Farbe aus validierten Daten (leer = keine Farbe), einheitlich klein geschrieben */
+    private function farbe(array $data): ?string
+    {
+        $farbe = $data['color'] ?? null;
+
+        return $farbe ? strtolower($farbe) : null;
+    }
+
+    /**
+     * Antwortformat einer Kategorie für die Verwaltung.
+     *
+     * @param int[]|null $ausgeblendet IDs der vom Benutzer ausgeblendeten Kategorien
+     */
+    private function alsDaten(PaedDiaryCategory $c, User $user, ?array $ausgeblendet = null): array
+    {
+        $canManageGlobal = $user->can('manage global paed diary categories');
+        $darf = $c->isGlobal() ? $canManageGlobal : $c->isOwnedBy($user->id);
+
+        return [
+            'id'            => $c->id,
+            'name'          => $c->name,
+            'color'         => $c->color,
+            'is_global'     => $c->isGlobal(),
+            'can_edit'      => $darf,
+            'can_delete'    => $darf,
+            'hidden'        => $ausgeblendet !== null && in_array((int) $c->id, $ausgeblendet, true),
+            'entries_count' => (int) ($c->entries_count ?? 0),
+        ];
+    }
+}

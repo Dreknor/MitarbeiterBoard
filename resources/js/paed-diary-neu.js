@@ -16,7 +16,7 @@ import { registerDiaryStore } from './paed-diary-v2/store.js';
 import { diaryTableMethods } from './paed-diary-v2/diary-table.js';
 import { registerDiaryTable } from './paed-diary-v2/diary-table.js';
 import { registerNoteEditor, noteEditorMethods } from './paed-diary-v2/note-editor.js';
-import { registerColumnsManager } from './paed-diary-v2/columns-manager.js';
+import { registerColumnsManager, columnsManagerMethods } from './paed-diary-v2/columns-manager.js';
 import { registerTaskPanel } from './paed-diary-v2/task-panel.js';
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
@@ -85,6 +85,35 @@ function registerNeu(Alpine) {
             if (LAYOUTS.includes(layout)) this.setze('layout', layout);
         },
 
+        // ── Stufen-Symbol ──────────────────────────────────────────
+        kaputteBilder: {},
+
+        /** Bild der Stufe, sofern vorhanden und ladbar */
+        stufeBild(stu) {
+            const url = stu?.stage?.image_url;
+            return url && !this.kaputteBilder[url] ? url : null;
+        },
+
+        bildFehlt(stu) {
+            const url = stu?.stage?.image_url;
+            if (url) this.kaputteBilder = { ...this.kaputteBilder, [url]: true };
+        },
+
+        /** Kürzel im Kreis: Symbol (max. 2 Zeichen) oder Anfangsbuchstaben des Stufennamens */
+        stufeKurz(stu) {
+            const stage = stu?.stage;
+            if (!stage) return '+';
+            const symbol = (stage.symbol || '').trim();
+            if (symbol && symbol.length <= 2) return symbol;
+            const woerter = (stage.name || '?').trim().split(/\s+/);
+            return (woerter.length > 1 ? woerter[0][0] + woerter[1][0] : woerter[0].slice(0, 2)).toUpperCase();
+        },
+
+        stufeKlasse(stu) {
+            if (!stu?.stage) return 'pdn-stage--leer';
+            return this.stufeBild(stu) ? 'pdn-stage--bild' : 'pdn-stage--gesetzt';
+        },
+
         /** Inline-Style für Kategoriefarben einer Notiz */
         farbe(entry) {
             return entry?.category_color ? `--kat:${entry.category_color}` : '';
@@ -115,6 +144,25 @@ function registerNeu(Alpine) {
             return day?.label || '';
         },
 
+        /** Kurzform einer Spaltengruppe für die Zelle (voller Name im Tooltip) */
+        kuerzel(name) {
+            const text = (name || '').trim();
+            return text.length <= 4 ? text : text.slice(0, 3);
+        },
+
+        /** Spaltengruppen der Woche mit ihren Spaltennamen (Legende über der Tabelle) */
+        get spaltenLegende() {
+            const gruppen = new Map();
+            (this.$store.diary.columns || []).forEach(c => {
+                const name = c.category || 'Ohne Gruppe';
+                if (!gruppen.has(name)) gruppen.set(name, []);
+                if (!gruppen.get(name).includes(c.name)) gruppen.get(name).push(c.name);
+            });
+            return [...gruppen.entries()]
+                .map(([name, spalten]) => ({ name, spalten }))
+                .sort((a, b) => (a.name === 'Ohne Gruppe') - (b.name === 'Ohne Gruppe') || a.name.localeCompare(b.name, 'de'));
+        },
+
         /** Kategorien, die in der Woche tatsächlich vorkommen (Legende im Kompakt-Layout) */
         get genutzteKategorien() {
             const store = this.$store.diary;
@@ -125,7 +173,44 @@ function registerNeu(Alpine) {
 
     // ── Notiz-Editor als Seitenleiste ─────────────────────────────
     // Gleiche Logik wie noteEditor() (Speichern, Löschen, Schülerauswahl), nur andere Darstellung.
+    // ── Spaltenverwaltung als Seitenleiste (Logik aus columnsManager()) ──
+    Alpine.data('spaltenSeite', () => kombiniere(columnsManagerMethods(), {
+        /** Spalte, deren Deaktivierung gerade bestätigt wird */
+        bestaetigen: null,
+        /** Spalte, deren Gruppe gerade geändert wird */
+        gruppeFuer: null,
+        gruppeNeu: '',
+        typen: { boolean: 'Ja/Nein', ampel: 'Ampel', text: 'Text', number: 'Zahl' },
+
+        schliessen() {
+            this.$store.diary.columnsCardOpen = false;
+            this.bestaetigen = null;
+            this.gruppeFuer = null;
+            this.copyOpenFor = null;
+        },
+
+        async deaktivieren(col) {
+            await this.deactivateColumn(col.id, true);
+            this.bestaetigen = null;
+        },
+
+        gruppeAendern(col) {
+            this.gruppeFuer = col.id;
+            this.gruppeNeu = col.category || '';
+        },
+
+        async gruppeSpeichern(col) {
+            await this.updateColumnCategory(col.id, this.gruppeNeu.trim());
+            this.gruppeFuer = null;
+            // Gruppen-Überschriften in der Woche aktualisieren
+            this.$store.diary.loadWeek();
+        },
+    }));
+
     Alpine.data('notizSeite', () => kombiniere(noteEditorMethods(), {
+        // Die Seitenleiste liegt fest am Rand – kein Sprung ans Seitenende beim Öffnen
+        zumEditorScrollen: false,
+
         init() {
             this.$watch('editorOpen', offen => {
                 document.body.style.overflow = offen ? 'hidden' : '';
@@ -376,6 +461,176 @@ function registerSchuelerAkte(Alpine) {
     }));
 }
 
+// ── Kategorien & Spaltengruppen ────────────────────────────────────
+/** Abgestimmte Farben: kräftig genug als Rand, als 14-%-Fläche hinter dunkler Schrift gut lesbar */
+const KATEGORIE_PALETTE = [
+    { wert: '#1d4ed8', name: 'Blau' },
+    { wert: '#0e7490', name: 'Petrol' },
+    { wert: '#047857', name: 'Grün' },
+    { wert: '#4d7c0f', name: 'Oliv' },
+    { wert: '#a16207', name: 'Ocker' },
+    { wert: '#c2410c', name: 'Orange' },
+    { wert: '#be123c', name: 'Rot' },
+    { wert: '#9d174d', name: 'Beere' },
+    { wert: '#7c3aed', name: 'Violett' },
+    { wert: '#475569', name: 'Schiefer' },
+];
+
+async function jsonAnfrage(url, methode = 'GET', daten = null) {
+    const resp = await fetch(url, {
+        method: methode,
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+        body: daten ? JSON.stringify(daten) : undefined,
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const details = json.errors ? Object.values(json.errors).flat().join(' ') : '';
+        throw new Error(details || json.message || 'Die Änderung wurde nicht gespeichert.');
+    }
+    return json;
+}
+
+function registerKategorien(Alpine) {
+    Alpine.data('kategorienVerwaltung', (konfig) => ({
+        darfGlobal: !!konfig.darfGlobal,
+        palette: KATEGORIE_PALETTE,
+        tab: 'kategorien',
+        kategorien: [],
+        geladen: false,
+        gruppen: [],
+        gruppenGeladen: false,
+        neu: { name: '', color: KATEGORIE_PALETTE[0].wert, global: false },
+        speichert: false,
+        farbOffen: null,
+        bearbeitet: null,
+        neuerName: '',
+        loeschen: null,
+        gruppeBearbeitet: null,
+        neuerGruppenName: '',
+        meldung: '',
+        meldungTyp: 'ok',
+
+        init() {
+            this.lade();
+        },
+
+        melde(text, typ = 'ok') {
+            this.meldung = text;
+            this.meldungTyp = typ;
+        },
+
+        istPalette(farbe) {
+            return !farbe || this.palette.some(f => f.wert === farbe);
+        },
+
+        async lade() {
+            try {
+                this.kategorien = (await jsonAnfrage('/paed-diary/categories')).categories || [];
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            } finally {
+                this.geladen = true;
+            }
+        },
+
+        async ladeGruppen() {
+            if (this.gruppenGeladen) return;
+            try {
+                this.gruppen = (await jsonAnfrage('/paed-diary/column-groups')).groups || [];
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            } finally {
+                this.gruppenGeladen = true;
+            }
+        },
+
+        /** Bearbeiten-Endpunkt: eigene oder globale Kategorie */
+        url(k) {
+            return k.is_global ? `/paed-diary/categories/global/${k.id}` : `/paed-diary/categories/${k.id}/rename`;
+        },
+
+        async anlegen() {
+            const name = this.neu.name.trim();
+            if (!name) return;
+            this.speichert = true;
+            try {
+                const url = this.neu.global && this.darfGlobal ? '/paed-diary/categories/global' : '/paed-diary/categories';
+                const json = await jsonAnfrage(url, 'POST', { name, color: this.neu.color });
+                this.kategorien = [...this.kategorien, { ...json.category, entries_count: 0, hidden: false }]
+                    .sort((a, b) => (b.is_global - a.is_global) || a.name.localeCompare(b.name, 'de'));
+                this.neu = { name: '', color: this.neu.color, global: this.neu.global };
+                this.melde(`„${name}“ wurde angelegt.`);
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            } finally {
+                this.speichert = false;
+            }
+        },
+
+        async farbeSetzen(k, farbe) {
+            const vorher = k.color;
+            k.color = farbe;
+            this.farbOffen = null;
+            try {
+                await jsonAnfrage(this.url(k), 'PUT', { color: farbe });
+            } catch (e) {
+                k.color = vorher;
+                this.melde(e.message, 'fehler');
+            }
+        },
+
+        bearbeiten(k) {
+            this.bearbeitet = k.id;
+            this.neuerName = k.name;
+        },
+
+        async umbenennen(k) {
+            const name = this.neuerName.trim();
+            if (!name || name === k.name) { this.bearbeitet = null; return; }
+            try {
+                const json = await jsonAnfrage(this.url(k), 'PUT', { name });
+                k.name = json.name;
+                this.bearbeitet = null;
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            }
+        },
+
+        async sichtbarkeit(k) {
+            try {
+                const json = await jsonAnfrage(`/paed-diary/categories/${k.id}/toggle-hidden`, 'POST');
+                k.hidden = !!json.hidden;
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            }
+        },
+
+        async entfernen(k) {
+            try {
+                await jsonAnfrage(k.is_global ? `/paed-diary/categories/global/${k.id}` : `/paed-diary/categories/${k.id}`, 'DELETE');
+                this.kategorien = this.kategorien.filter(x => x.id !== k.id);
+                this.loeschen = null;
+                this.melde(`„${k.name}“ wurde gelöscht.`);
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            }
+        },
+
+        async gruppeUmbenennen(g) {
+            const name = this.neuerGruppenName.trim();
+            if (!name || name === g.name) { this.gruppeBearbeitet = null; return; }
+            try {
+                const json = await jsonAnfrage('/paed-diary/column-groups/rename', 'POST', { old_name: g.name, new_name: name });
+                this.melde(`Spaltengruppe umbenannt (${json.updated} Spalten).`);
+                g.name = name;
+                this.gruppeBearbeitet = null;
+            } catch (e) {
+                this.melde(e.message, 'fehler');
+            }
+        },
+    }));
+}
+
 // ── Graduierung: Einschätzung der Lehrkraft als Matrix ─────────────
 function registerBewertungsMatrix(Alpine) {
     Alpine.data('bewertungsMatrix', (konfig) => ({
@@ -469,6 +724,7 @@ function registerBewertungsMatrix(Alpine) {
 }
 
 function registerAll(Alpine) {
+    registerKategorien(Alpine);
     registerBewertungsMatrix(Alpine);
     registerDiaryStore(Alpine);
     registerDiaryTable(Alpine);

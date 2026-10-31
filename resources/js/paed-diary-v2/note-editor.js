@@ -15,6 +15,8 @@ import { csrfToken, formatDate } from './utils.js';
 export function noteEditorMethods() {
     return {
         editorOpen: false,
+        /** Beim Öffnen zum Editor scrollen (Karte über der Tabelle); die Seitenleiste braucht das nicht */
+        zumEditorScrollen: true,
         editingEntryId: null,
         saving: false,
         statusText: '',
@@ -82,6 +84,7 @@ export function noteEditorMethods() {
             if (detail?.stuId) this.formSchuelerIds = [String(detail.stuId)];
             this.editorOpen = true;
             this.$nextTick(() => {
+                if (!this.zumEditorScrollen) return;
                 const el = this.$refs?.editorCard || this.$el;
                 el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
             });
@@ -108,6 +111,7 @@ export function noteEditorMethods() {
             this.formDossierOnly = !!entry.dossier_only;
             this.editorOpen = true;
             this.$nextTick(() => {
+                if (!this.zumEditorScrollen) return;
                 const el = this.$refs?.editorCard || this.$el;
                 el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
             });

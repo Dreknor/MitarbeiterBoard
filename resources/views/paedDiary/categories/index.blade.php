@@ -1,206 +1,184 @@
+{{--
+    Pädagogisches Tagebuch – Kategorien & Spaltengruppen (Stil der neuen Ansicht, für alle Nutzer)
+    Notizkategorien: Name, Farbe (Palette oder eigene), Sichtbarkeit in der eigenen Woche, Löschen.
+    Spaltengruppen: Übersicht und – mit Recht „manage global paed diary categories“ – Umbenennen.
+    Logik: kategorienVerwaltung() in resources/js/paed-diary-neu.js
+--}}
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid" x-data="{ activeTab: 'kategorien' }">
-
-    {{-- ── Moderner Gradient-Header ─────────────────────────────────────────── --}}
-    <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-xl shadow-lg p-2 sm:p-4 mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div class="bg-white/20 backdrop-blur-sm rounded-full p-3 shrink-0">
-                    <i class="fas fa-tags text-white text-xl"></i>
-                </div>
-                <div>
-                    <h5 class="text-2xl font-bold text-white leading-tight">
-                        Kategorien &amp; Spaltengruppen
-                    </h5>
-                    <p class="text-indigo-200 text-sm mt-0.5">
-                        Notizkategorien und Spaltengruppen verwalten
-                    </p>
-                </div>
-            </div>
-            <a href="{{ route('paedDiary.index') }}"
-               class="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 font-medium self-start sm:self-auto">
-                <i class="fas fa-arrow-left text-sm"></i>
-                <span>Zurück zur Übersicht</span>
-            </a>
+<div class="pdn pdn--farben" x-data="kategorienVerwaltung(@js(['darfGlobal' => $canManageGlobal]))">
+    <div class="pdn-screen">
+        <div class="pdn-tb">
+            <h1 class="pdn-title">Kategorien &amp; Spaltengruppen</h1>
+            <span class="pdn-spacer"></span>
+            <a class="pdn-btn" href="{{ route('paedDiary.index') }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Zurück zur Woche</a>
         </div>
-    </div>
 
-    {{-- ── Flash-Meldung ────────────────────────────────────────────────────── --}}
-    @if(session('Meldung'))
-        <div class="flex items-start gap-3 px-4 py-3 rounded-xl mb-5 shadow-sm
-            @if(session('type') === 'success') bg-emerald-50 border border-emerald-200 text-emerald-800
-            @elseif(session('type') === 'danger' || session('type') === 'error') bg-red-50 border border-red-200 text-red-800
-            @elseif(session('type') === 'warning') bg-amber-50 border border-amber-200 text-amber-800
-            @else bg-blue-50 border border-blue-200 text-blue-800 @endif">
-            <i class="fas fa-circle-info mt-0.5 flex-shrink-0"></i>
-            <span class="text-sm font-medium">{{ session('Meldung') }}</span>
-        </div>
-    @endif
-
-    {{-- ── Tab-Navigation ───────────────────────────────────────────────────── --}}
-    <div class="flex bg-white rounded-t-xl shadow-sm border border-gray-200 border-b-0 px-2 pt-1">
-        <button @click="activeTab = 'kategorien'"
-                :class="activeTab === 'kategorien'
-                    ? 'border-b-2 border-indigo-600 text-indigo-700 font-semibold'
-                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700'"
-                class="flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all duration-200 -mb-px">
-            <i class="fas fa-tags"></i>
-            Notizkategorien
-        </button>
-        <button @click="activeTab = 'spaltengruppen'"
-                :class="activeTab === 'spaltengruppen'
-                    ? 'border-b-2 border-indigo-600 text-indigo-700 font-semibold'
-                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700'"
-                class="flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all duration-200 -mb-px">
-            <i class="fas fa-layer-group"></i>
-            Spaltengruppen
-        </button>
-    </div>
-
-    {{-- ── Tab-Inhalt ───────────────────────────────────────────────────────── --}}
-    <div class="bg-white rounded-b-xl rounded-tr-xl shadow-md border border-gray-200 border-t-0 p-5 sm:p-6">
-
-        {{-- AJAX-Feedback --}}
-        <div id="catFeedback" class="mb-4 text-sm hidden"></div>
-
-        {{-- ═══════════════════════════════════════════════════════════════════ --}}
-        {{-- Tab 1: Notizkategorien                                             --}}
-        {{-- ═══════════════════════════════════════════════════════════════════ --}}
-        <div x-show="activeTab === 'kategorien'" x-transition.opacity>
-
-            {{-- Info-Banner --}}
-            <div class="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6">
-                <i class="fas fa-circle-info text-blue-500 mt-0.5 flex-shrink-0"></i>
-                <p class="text-sm text-blue-800">
-                    <strong>Globale Kategorien</strong> stehen allen Lehrkräften zur Verfügung und können nur von Nutzern mit der Berechtigung
-                    <em>„manage global paed diary categories"</em> bearbeitet werden.
-                    <strong>Eigene Kategorien</strong> sind nur für Sie persönlich sichtbar.
-                </p>
+        <div class="pdn-main">
+            <div class="pdn-tabs" role="tablist" aria-label="Bereiche">
+                <button type="button" role="tab" :aria-selected="tab === 'kategorien'" @click="tab = 'kategorien'">Notizkategorien <em x-text="kategorien.length"></em></button>
+                <button type="button" role="tab" :aria-selected="tab === 'gruppen'" @click="tab = 'gruppen'; ladeGruppen()">Spaltengruppen <em x-text="gruppen.length || ''"></em></button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div x-show="meldung" x-cloak role="alert" class="pdn-meldung" :class="meldungTyp === 'ok' ? 'pdn-meldung--info' : 'pdn-meldung--danger'" style="border-radius:8px">
+                <span x-text="meldung"></span>
+                <button type="button" aria-label="Meldung schließen" @click="meldung = ''">&times;</button>
+            </div>
 
-                {{-- ── Globale Kategorien ─────────────────────────────────── --}}
-                <div class="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                    <div class="flex items-center gap-2.5 mb-4">
-                        <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
-                            <i class="fas fa-globe-europe text-indigo-600 text-sm"></i>
+            {{-- ═══════════ Notizkategorien ═══════════ --}}
+            <section x-show="tab === 'kategorien'" aria-label="Notizkategorien" style="display:flex;flex-direction:column;gap:16px">
+
+                {{-- Neue Kategorie --}}
+                <form class="pdn-panelbox" @submit.prevent="anlegen()">
+                    <h3>Neue Kategorie</h3>
+                    <div class="pdn-katform">
+                        <label class="pdn-field" style="flex:1 1 220px">Name
+                            <input type="text" x-model="neu.name" maxlength="100" required placeholder="z. B. Lernen, Verhalten, Elternkontakt">
+                        </label>
+                        <div class="pdn-field">Farbe
+                            <div class="pdn-palette" role="radiogroup" aria-label="Farbe der neuen Kategorie">
+                                <template x-for="f in palette" :key="'n' + f.wert">
+                                    <button type="button" class="pdn-swatch" role="radio" :aria-checked="neu.color === f.wert"
+                                            :style="'--swatch:' + f.wert" :title="f.name" :aria-label="f.name" @click="neu.color = f.wert"></button>
+                                </template>
+                                <label class="pdn-swatch pdn-swatch--eigen" title="Eigene Farbe" :style="'--swatch:' + (istPalette(neu.color) ? '#ffffff' : neu.color)">
+                                    <input type="color" :value="neu.color || '#1d4ed8'" @input="neu.color = $event.target.value" aria-label="Eigene Farbe wählen">
+                                    <i class="fas fa-eye-dropper" aria-hidden="true"></i>
+                                </label>
+                                <button type="button" class="pdn-swatch pdn-swatch--keine" role="radio" :aria-checked="!neu.color" title="Keine Farbe" aria-label="Keine Farbe" @click="neu.color = null"></button>
+                            </div>
                         </div>
-                        <h2 class="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                            Globale Notizkategorien
-                        </h2>
-                    </div>
-
-                    <ul id="globalCatList" class="space-y-1.5 mb-4 min-h-12">
-                        <li class="text-gray-400 text-sm py-2 px-3 italic">Wird geladen…</li>
-                    </ul>
-
-                    @if($canManageGlobal)
-                    <form id="addGlobalCatForm" class="flex gap-2">
-                        <input type="text" name="name"
-                               class="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg
-                                      focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition-all bg-white"
-                               placeholder="Neue globale Kategorie" maxlength="100" required>
-                        <button type="submit"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700
-                                       active:scale-95 text-white text-sm font-medium rounded-lg transition-all duration-150 shrink-0">
-                            <i class="fas fa-plus text-xs"></i> Hinzufügen
-                        </button>
-                    </form>
-                    @else
-                    <p class="flex items-center gap-1.5 text-gray-400 text-xs mt-2">
-                        <i class="fas fa-lock"></i>
-                        Nur Administratoren können globale Kategorien bearbeiten.
-                    </p>
-                    @endif
-                </div>
-
-                {{-- ── Eigene Kategorien ──────────────────────────────────── --}}
-                <div class="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                    <div class="flex items-center gap-2.5 mb-4">
-                        <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
-                            <i class="fas fa-user text-emerald-600 text-sm"></i>
+                        <template x-if="darfGlobal">
+                            <label class="pdn-check" style="align-self:flex-end"><input type="checkbox" x-model="neu.global"><span>Für alle (globale Kategorie)</span></label>
+                        </template>
+                        <div style="display:flex;align-items:flex-end;gap:10px">
+                            <span class="pdn-entry pdn-vorschau" :data-farbe="neu.color ? '' : null" :style="neu.color ? '--kat:' + neu.color : ''">
+                                <span class="pdn-entry__text" x-text="neu.name || 'Vorschau einer Notiz'"></span>
+                            </span>
+                            <button type="submit" class="pdn-btn pdn-btn--pri" :disabled="!neu.name.trim() || speichert">Anlegen</button>
                         </div>
-                        <h2 class="text-xs font-bold text-gray-600 uppercase tracking-widest">
-                            Meine Notizkategorien
-                        </h2>
                     </div>
+                </form>
 
-                    <ul id="ownCatList" class="space-y-1.5 mb-4 min-h-12">
-                        <li class="text-gray-400 text-sm py-2 px-3 italic">Wird geladen…</li>
-                    </ul>
-
-                    <form id="addCatForm" class="flex gap-2">
-                        <input type="text" name="name"
-                               class="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg
-                                      focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none transition-all bg-white"
-                               placeholder="Neue Kategorie" maxlength="100" required>
-                        <button type="submit"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700
-                                       active:scale-95 text-white text-sm font-medium rounded-lg transition-all duration-150 shrink-0">
-                            <i class="fas fa-plus text-xs"></i> Erstellen
-                        </button>
-                    </form>
+                {{-- Liste --}}
+                <div class="pdn-panelbox">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+                        <h3>Vorhandene Kategorien</h3>
+                        <p class="pdn-label-sm">Farbe und Name ändern per Klick. „In der Woche zeigen“ gilt nur für dich.</p>
+                    </div>
+                    <p class="pdn-leer" x-show="geladen && !kategorien.length" x-cloak>Noch keine Kategorien angelegt.</p>
+                    <div class="pdn-scroll" x-show="kategorien.length">
+                        <table class="pdn-table">
+                            <thead>
+                                <tr><th style="width:56px">Farbe</th><th>Name</th><th>Vorschau</th><th>Art</th><th style="text-align:right">Einträge</th><th>In der Woche zeigen</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="k in kategorien" :key="'k' + k.id">
+                                    <tr>
+                                        <td>
+                                            <div class="pdn-pop" @click.outside="farbOffen === k.id && (farbOffen = null)">
+                                                <button type="button" class="pdn-swatch" :class="!k.color && 'pdn-swatch--keine'" :style="k.color ? '--swatch:' + k.color : ''"
+                                                        :disabled="!k.can_edit" @click="farbOffen = farbOffen === k.id ? null : k.id"
+                                                        :aria-label="'Farbe von ' + k.name + ' ändern'" :aria-expanded="farbOffen === k.id"></button>
+                                                <div class="pdn-panel" x-show="farbOffen === k.id" x-cloak style="left:0;right:auto;width:auto">
+                                                    <div class="pdn-palette" role="radiogroup" :aria-label="'Farbe von ' + k.name">
+                                                        <template x-for="f in palette" :key="k.id + f.wert">
+                                                            <button type="button" class="pdn-swatch" role="radio" :aria-checked="k.color === f.wert"
+                                                                    :style="'--swatch:' + f.wert" :title="f.name" :aria-label="f.name" @click="farbeSetzen(k, f.wert)"></button>
+                                                        </template>
+                                                        <label class="pdn-swatch pdn-swatch--eigen" title="Eigene Farbe" :style="'--swatch:' + (istPalette(k.color) ? '#ffffff' : (k.color || '#ffffff'))">
+                                                            <input type="color" :value="k.color || '#1d4ed8'" @change="farbeSetzen(k, $event.target.value)" aria-label="Eigene Farbe wählen">
+                                                            <i class="fas fa-eye-dropper" aria-hidden="true"></i>
+                                                        </label>
+                                                        <button type="button" class="pdn-swatch pdn-swatch--keine" role="radio" :aria-checked="!k.color" title="Keine Farbe" aria-label="Keine Farbe" @click="farbeSetzen(k, null)"></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <template x-if="bearbeitet !== k.id">
+                                                <button type="button" class="pdn-namebtn" :disabled="!k.can_edit" @click="bearbeiten(k)" :title="k.can_edit ? 'Umbenennen' : ''">
+                                                    <span x-text="k.name"></span> <i class="fas fa-pen" aria-hidden="true" x-show="k.can_edit"></i>
+                                                </button>
+                                            </template>
+                                            <template x-if="bearbeitet === k.id">
+                                                <form @submit.prevent="umbenennen(k)" style="display:flex;gap:6px;align-items:center">
+                                                    <label class="sr-only" :for="'kn' + k.id">Neuer Name</label>
+                                                    <input :id="'kn' + k.id" type="text" class="pdn-colinput" style="max-width:220px" x-model="neuerName" maxlength="100"
+                                                           x-init="$nextTick(() => $el.select())" @keydown.escape="bearbeitet = null">
+                                                    <button type="submit" class="pdn-btn">Speichern</button>
+                                                    <button type="button" class="pdn-btn pdn-btn--ghost" @click="bearbeitet = null">Abbrechen</button>
+                                                </form>
+                                            </template>
+                                        </td>
+                                        <td><span class="pdn-entry pdn-vorschau" :data-farbe="k.color ? '' : null" :style="k.color ? '--kat:' + k.color : ''"><span class="pdn-entry__text">Beispielnotiz</span></span></td>
+                                        <td><span class="pdn-tag" x-text="k.is_global ? 'Für alle' : 'Eigene'"></span></td>
+                                        <td style="text-align:right;font-variant-numeric:tabular-nums" x-text="k.entries_count"></td>
+                                        <td>
+                                            <label class="pdn-switch" style="justify-content:flex-start">
+                                                <input type="checkbox" :checked="!k.hidden" @change="sichtbarkeit(k)" :aria-label="'Kategorie ' + k.name + ' in der Woche zeigen'"><i></i>
+                                            </label>
+                                        </td>
+                                        <td style="text-align:right;white-space:nowrap">
+                                            <template x-if="k.can_delete && loeschen !== k.id">
+                                                <button type="button" class="pdn-btn pdn-btn--ghost" @click="loeschen = k.id" :aria-label="'Kategorie ' + k.name + ' löschen'"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                                            </template>
+                                            <template x-if="loeschen === k.id">
+                                                <span style="display:inline-flex;gap:6px;align-items:center">
+                                                    <span class="pdn-label-sm" x-text="k.entries_count ? k.entries_count + ' Einträge werden ohne Kategorie.' : 'Wirklich löschen?'"></span>
+                                                    <button type="button" class="pdn-btn" style="color:var(--pdn-danger)" @click="entfernen(k)">Löschen</button>
+                                                    <button type="button" class="pdn-btn pdn-btn--ghost" @click="loeschen = null">Abbrechen</button>
+                                                </span>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+            </section>
 
-            </div>
-        </div>
-
-        {{-- ═══════════════════════════════════════════════════════════════════ --}}
-        {{-- Tab 2: Spaltengruppen                                              --}}
-        {{-- ═══════════════════════════════════════════════════════════════════ --}}
-        <div x-show="activeTab === 'spaltengruppen'" x-transition.opacity>
-
-            <div id="colGroupFeedback" class="mb-4 text-sm hidden"></div>
-
-            {{-- Info-Banner --}}
-            <div class="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6">
-                <i class="fas fa-circle-info text-gray-400 mt-0.5 flex-shrink-0"></i>
-                <p class="text-sm text-gray-600">
-                    Spaltengruppen dienen zur visuellen Gruppierung der Zusatzspalten in der Wochenansicht.
-                    @if($canManageGlobal)
-                        Das Umbenennen einer Gruppe aktualisiert <strong>alle</strong> Spalten mit diesem Gruppenname.
-                    @else
-                        Das Umbenennen von Spaltengruppen erfordert die Berechtigung <em>„manage global paed diary categories"</em>.
-                    @endif
+            {{-- ═══════════ Spaltengruppen ═══════════ --}}
+            <section x-show="tab === 'gruppen'" x-cloak aria-label="Spaltengruppen" class="pdn-panelbox">
+                <h3>Spaltengruppen</h3>
+                <p class="pdn-label-sm">Spaltengruppen fassen Zusatzspalten zusammen, z. B. „Mitarbeit: + 0 -“. Angelegt werden sie in der Wochenansicht unter „Filter → Spalten verwalten“.
+                    @unless($canManageGlobal) Umbenennen können nur Personen mit Verwaltungsrecht, weil es alle Klassen betrifft. @endunless
                 </p>
-            </div>
-
-            <div class="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                Gruppenname
-                            </th>
-                            <th class="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest w-36">
-                                Anzahl Spalten
-                            </th>
-                            @if($canManageGlobal)
-                            <th class="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest w-40">
-                                Aktion
-                            </th>
-                            @endif
-                        </tr>
-                    </thead>
-                    <tbody id="colGroupList" class="divide-y divide-gray-100">
-                        <tr>
-                            <td colspan="3" class="text-gray-400 text-sm text-center py-8 italic">
-                                Wird geladen…
-                            </td>
-                        </tr>
+                <p class="pdn-leer" x-show="gruppenGeladen && !gruppen.length">Noch keine Spaltengruppen vorhanden.</p>
+                <table class="pdn-table" x-show="gruppen.length">
+                    <thead><tr><th>Name</th><th style="text-align:right">Spalten</th><th></th></tr></thead>
+                    <tbody>
+                        <template x-for="g in gruppen" :key="'g' + g.name">
+                            <tr>
+                                <td>
+                                    <template x-if="gruppeBearbeitet !== g.name"><b x-text="g.name"></b></template>
+                                    <template x-if="gruppeBearbeitet === g.name">
+                                        <form @submit.prevent="gruppeUmbenennen(g)" style="display:flex;gap:6px;align-items:center">
+                                            <label class="sr-only" :for="'gn' + g.name">Neuer Name</label>
+                                            <input :id="'gn' + g.name" type="text" class="pdn-colinput" style="max-width:220px" x-model="neuerGruppenName" maxlength="100" x-init="$nextTick(() => $el.select())">
+                                            <button type="submit" class="pdn-btn">Speichern</button>
+                                            <button type="button" class="pdn-btn pdn-btn--ghost" @click="gruppeBearbeitet = null">Abbrechen</button>
+                                        </form>
+                                    </template>
+                                </td>
+                                <td style="text-align:right" x-text="g.count"></td>
+                                <td style="text-align:right">
+                                    <template x-if="darfGlobal && gruppeBearbeitet !== g.name">
+                                        <button type="button" class="pdn-btn pdn-btn--ghost" @click="gruppeBearbeitet = g.name; neuerGruppenName = g.name"><i class="fas fa-pen" aria-hidden="true"></i> Umbenennen</button>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
-            </div>
-
+            </section>
         </div>
-
-    </div>{{-- /card --}}
+    </div>
 </div>
 @endsection
 
 @push('js')
-<script src="{{ asset('/js/paedDiary/categories.js?v=' . filemtime(public_path('js/paedDiary/categories.js'))) }}"></script>
+    @vite(['resources/js/paed-diary-neu.js'])
 @endpush

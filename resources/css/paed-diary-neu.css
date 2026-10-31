@@ -41,6 +41,11 @@
     padding: 12px 16px 48px;
 }
 .pdn *, .pdn *::before, .pdn *::after { box-sizing: border-box; }
+
+/* sidebar.css setzt für alle Buttons in #tw-main „border-width: 0“ (Spezifität 1,1,1).
+   Die Bedienelemente der neuen Ansicht brauchen ihren Rahmen – daher hier gezielt zurück. */
+#tw-main .pdn :is(.pdn-btn, .pdn-tog, .pdn-iconbtn, .pdn-presence, .pdn-card-add, .pdn-days button, .pdn-stage--leer) { border-width: 1px; }
+#tw-main .pdn :is(.pdn-btn--ghost) { border-color: transparent; }
 .pdn.pdn--gross { --pdn-schrift: 15px; }
 .pdn :focus-visible { outline: 3px solid var(--pdn-accent); outline-offset: 2px; }
 .pdn h1, .pdn h2, .pdn h3, .pdn h4 { margin: 0; color: inherit; }
@@ -90,22 +95,28 @@
 .pdn-check .pdn-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; background: var(--pdn-line); }
 
 /* ── Stufe, Kategorie-Legende ───────────────────────────────── */
-.pdn-stage { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .8em; font-weight: 800; flex: none; background: var(--pdn-surface-2); color: var(--pdn-ink-2); border: 0; padding: 0; overflow: hidden; cursor: default; }
+.pdn-stage { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .8em; font-weight: 800; flex: none; background: var(--pdn-surface-2); color: var(--pdn-ink-2); border: 0; padding: 0; overflow: hidden; cursor: default; line-height: 1; }
 .pdn-stage img { width: 100%; height: 100%; object-fit: contain; }
+.pdn-stage--gesetzt { background: var(--pdn-ok); color: #fff; }
+.pdn-stage--bild { background: transparent; }
+.pdn-stage--leer { border: 1px dashed var(--pdn-line); background: transparent; color: var(--pdn-ink-2); }
 .pdn-stage--klickbar { cursor: pointer; }
 .pdn-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--pdn-line); font-size: .88em; color: var(--pdn-ink-2); }
 .pdn-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .pdn-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
 /* ── Tabellen (Klassisch, Kompakt) ──────────────────────────── */
-.pdn-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.pdn-grid { border-collapse: collapse; width: 100%; min-width: 860px; }
+/* width:0 + min-width:100%: die Tabelle scrollt in sich, statt die Seite (Flex-Layout #tw-main) zu verbreitern */
+.pdn-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 0; min-width: 100%; }
+.pdn-grid { border-collapse: collapse; width: 100%; min-width: 820px; table-layout: fixed; }
 .pdn-grid th, .pdn-grid td { border: 1px solid var(--pdn-line); vertical-align: top; padding: 6px 8px; text-align: left; }
 .pdn-grid thead th { background: var(--pdn-surface-2); font-size: .92em; position: sticky; top: 0; z-index: 2; }
 .pdn-grid thead th.is-today, .pdn-grid td.is-today { background: var(--pdn-today); }
 .pdn-grid thead th.is-today { color: var(--pdn-accent); }
 .pdn-grid th.is-ferien, .pdn-grid td.is-ferien { background: var(--pdn-ferien); }
-.pdn-grid .pdn-name { width: 200px; position: sticky; left: 0; background: var(--pdn-surface); z-index: 1; }
+.pdn-grid .pdn-name { width: 190px; position: sticky; left: 0; background: var(--pdn-surface); z-index: 1; }
+/* iPad quer (1024–1366 px): schmalere Namensspalte, damit fünf Tage ohne Scrollen passen */
+@media (max-width: 1366px) { .pdn-grid .pdn-name { width: 150px; } .pdn-grid { min-width: 760px; } }
 .pdn-grid thead .pdn-name { background: var(--pdn-surface-2); z-index: 3; }
 .pdn-grid .pdn-trenner td { background: var(--pdn-surface-2); font-weight: 800; font-size: .85em; }
 .pdn-dayhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -126,8 +137,22 @@
 .pdn-cell { position: relative; min-height: 44px; }
 .pdn-cell-add { position: absolute; inset: 0; border: 0; background: transparent; cursor: copy; padding: 0; z-index: 0; }
 .pdn-cell-add:focus-visible { outline: 2px dashed var(--pdn-accent); outline-offset: -3px; }
-.pdn-cell > *:not(.pdn-cell-add) { position: relative; z-index: 1; }
-.pdn-cell-top { display: flex; justify-content: flex-end; }
+/* Freie Fläche der Zelle legt eine neue Notiz an: Der Inhalt lässt Klicks zur Fläche
+   (.pdn-cell-add) durch, nur die Bedienelemente selbst fangen sie ab. */
+.pdn-cell > *:not(.pdn-cell-add) { position: relative; z-index: 1; pointer-events: none; }
+.pdn-cell :is(button:not(.pdn-cell-add), a, input, select, textarea, label, .pdn-entry, [role="button"]) { pointer-events: auto; }
+.pdn-cell:hover { background-color: color-mix(in srgb, var(--pdn-accent) 4%, transparent); }
+.pdn-cell.is-today:hover { background-color: color-mix(in srgb, var(--pdn-accent) 9%, var(--pdn-today)); }
+.pdn-cell-top { display: flex; justify-content: flex-end; gap: 2px; height: 22px; margin: -2px -4px 0 0; }
+.pdn-cell-top .pdn-iconbtn--neu { color: var(--pdn-accent); }
+.pdn-cell-top .pdn-iconbtn { width: 22px; height: 22px; font-size: .75em; opacity: .35; border-color: transparent; background: transparent; }
+@media (pointer: coarse) {
+    /* Kein Hover auf dem iPad: Symbole dezent, aber gut treffbar */
+    .pdn-cell-top { height: 28px; }
+    .pdn-cell-top .pdn-iconbtn { width: 28px; height: 28px; opacity: .6; }
+}
+.pdn-cell:hover .pdn-cell-top .pdn-iconbtn, .pdn-cell-top .pdn-iconbtn:focus-visible { opacity: 1; border-color: var(--pdn-line); }
+.pdn-cell-top .pdn-iconbtn[aria-pressed="true"] { opacity: 1; }
 .pdn-cathead { font-size: .78em; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: var(--pdn-ink-2); margin-top: 4px; }
 
 /* Notiz-Chips (alle Layouts) */
@@ -142,8 +167,30 @@
 .pdn-entry--paused { opacity: .6; font-style: italic; }
 .pdn--farben .pdn-entry[data-farbe] { background: color-mix(in srgb, var(--kat) 14%, white); border-left-color: var(--kat); }
 
-/* Zusatzspalten */
-.pdn-cols { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+/* Zusatzspalten: je Spaltengruppe ein Etikett und ein zusammenhängender Schalterblock */
+/* Jede Spaltengruppe ist ein zusammenhängender Segmentblock [- | 0 | +]; die Gruppe ist an der
+   Form erkennbar, deshalb braucht es in der Zelle höchstens ein kurzes Kürzel davor. */
+.pdn-cols { --pdn-seg-h: 26px; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.pdn-colgroup { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
+.pdn-colgroup__label { font-size: .62em; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--pdn-ink-2); white-space: nowrap; }
+.pdn-colgroup__items { display: inline-flex; flex-wrap: nowrap; }
+.pdn-colgroup__items .pdn-tog { min-width: var(--pdn-seg-h); height: var(--pdn-seg-h); min-height: 0; padding: 0 5px; font-size: .8em; line-height: 1; text-align: center;
+    border-radius: 0; margin-left: -1px; position: relative; }
+.pdn-colgroup__items > span:first-child .pdn-tog, .pdn-colgroup__items > .pdn-tog:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.pdn-colgroup__items > span:last-child .pdn-tog, .pdn-colgroup__items > .pdn-tog:last-child { border-radius: 0 6px 6px 0; }
+.pdn-colgroup__items > span:only-child .pdn-tog, .pdn-colgroup__items > .pdn-tog:only-child { border-radius: 6px; }
+.pdn-colgroup__items .pdn-tog:is(.is-ja, .is-mitte, .is-nein, :focus-visible) { z-index: 1; }
+.pdn-colgroup__items .pdn-colinput { height: var(--pdn-seg-h); min-width: 70px; }
+/* Touch (iPad): etwas größere Ziele, ohne Hover-Abhängigkeit */
+@media (pointer: coarse) {
+    .pdn-cols { --pdn-seg-h: 30px; }
+    .pdn-colgroup__items .pdn-tog { padding: 0 7px; }
+}
+/* Legende über der Tabelle, wenn die Spaltengruppen-Überschriften aus sind */
+.pdn-spaltenlegende { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px; border-bottom: 1px solid var(--pdn-line); font-size: .82em; color: var(--pdn-ink-2); }
+.pdn-spaltenlegende b { color: var(--pdn-ink); font-weight: 700; }
+/* Ohne Spaltengruppen-Überschriften: alle Schalter in einer fortlaufenden Reihe */
+
 .pdn-tog { font: inherit; font-size: .88em; font-weight: 700; border-radius: 5px; padding: 3px 8px; border: 1px solid var(--pdn-line); background: var(--pdn-surface); color: var(--pdn-ink-2); min-height: 28px; cursor: pointer; }
 .pdn-tog.is-ja { background: var(--pdn-ok-soft); color: var(--pdn-ok); border-color: var(--pdn-ok); }
 .pdn-tog.is-mitte { background: var(--pdn-warn-soft); color: var(--pdn-warn); border-color: var(--pdn-warn); }
@@ -163,8 +210,9 @@
 .pdn--kompakt .pdn-entry { padding: 2px 6px; }
 .pdn--kompakt .pdn-entry__text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pdn--kompakt .pdn-entry__who, .pdn--kompakt .pdn-entry__actions { display: none; }
-.pdn--kompakt .pdn-cols { gap: 3px; margin-top: 4px; }
-.pdn--kompakt .pdn-tog { font-size: .72em; min-height: 20px; min-width: 20px; padding: 1px 4px; }
+.pdn--kompakt .pdn-cols { --pdn-seg-h: 22px; gap: 3px 4px; margin-top: 3px; }
+.pdn--kompakt .pdn-colgroup__items .pdn-tog { font-size: .72em; padding: 0 3px; }
+@media (pointer: coarse) { .pdn--kompakt .pdn-cols { --pdn-seg-h: 28px; } }
 
 /* ── Tageskarten ────────────────────────────────────────────── */
 .pdn-days { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--pdn-line); overflow-x: auto; }
@@ -180,7 +228,10 @@
 .pdn-card.is-absent header a { text-decoration: line-through; color: var(--pdn-ink-2); }
 .pdn-presence { margin-left: auto; font: inherit; font-size: .9em; font-weight: 700; border-radius: 999px; padding: 6px 12px; min-height: 36px; border: 1px solid var(--pdn-ok); color: var(--pdn-ok); background: var(--pdn-ok-soft); cursor: pointer; white-space: nowrap; }
 .pdn-presence.is-absent { border-color: var(--pdn-danger); color: var(--pdn-danger); background: var(--pdn-danger-soft); }
-.pdn-card .pdn-tog { min-height: 40px; padding: 6px 12px; font-size: 1em; }
+.pdn-card .pdn-cols { --pdn-seg-h: 40px; gap: 8px 10px; }
+.pdn-card .pdn-colgroup { flex-direction: column; align-items: flex-start; gap: 2px; }
+.pdn-card .pdn-colgroup__label { font-size: .7em; }
+.pdn-card .pdn-colgroup__items .pdn-tog { min-width: 40px; padding: 0 10px; font-size: .95em; }
 .pdn-card-add { min-height: 44px; border-radius: 8px; border: 1px dashed var(--pdn-line); background: var(--pdn-surface-2); color: var(--pdn-ink-2); font: inherit; font-weight: 700; cursor: pointer; }
 .pdn-card-add:hover { color: var(--pdn-accent); border-color: var(--pdn-accent); }
 .pdn-leer { padding: 24px; text-align: center; color: var(--pdn-ink-2); }
@@ -259,6 +310,37 @@
 .pdn-rate { display: inline-grid; place-items: center; min-width: 26px; height: 22px; border-radius: 5px; font-weight: 800; font-size: .9em; background: var(--pdn-surface-2); padding: 0 6px; }
 .pdn-rate--self { border: 1px dashed var(--pdn-ink-2); }
 .pdn-diff { font-size: .82em; font-weight: 700; color: var(--pdn-warn); }
+
+/* ── Spaltenverwaltung (Seitenleiste) ───────────────────────── */
+.pdn-drawer--breit { width: min(560px, 100vw); }
+.pdn-drawer__body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 18px; }
+.pdn-spaltengruppe { border: 1px solid var(--pdn-line); border-radius: 8px; overflow: hidden; }
+.pdn-spaltengruppe__kopf { background: var(--pdn-surface-2); padding: 6px 10px; font-size: .8em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--pdn-ink-2); }
+.pdn-spalte { border-top: 1px solid var(--pdn-line); padding: 6px 10px; }
+.pdn-spalte:first-of-type { border-top: 0; }
+.pdn-spalte.is-aus { background: var(--pdn-hatch); }
+.pdn-spalte.is-aus .pdn-tog { text-decoration: line-through; }
+.pdn-spalte__zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pdn-spalte__zeile .pdn-btn--ghost { min-height: 30px; padding: 4px 8px; }
+.pdn-spalte__extra { margin-top: 8px; padding: 10px; border-radius: 6px; background: var(--pdn-surface-2); display: flex; flex-direction: column; gap: 8px; font-size: .95em; }
+
+/* ── Kategorien: Farbwahl, Vorschau ─────────────────────────── */
+.pdn-katform { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-start; }
+.pdn-palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.pdn-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--pdn-surface); box-shadow: 0 0 0 1px var(--pdn-line);
+    background: var(--swatch, var(--pdn-surface)); cursor: pointer; padding: 0; position: relative; display: inline-grid; place-items: center; flex: none; }
+.pdn-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--pdn-ink); }
+.pdn-swatch[disabled] { cursor: default; }
+.pdn-swatch--keine { background: linear-gradient(135deg, transparent 45%, var(--pdn-danger) 45% 55%, transparent 55%), var(--pdn-surface); }
+.pdn-swatch--eigen { overflow: hidden; color: var(--pdn-ink-2); font-size: .8em; }
+.pdn-swatch--eigen input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.pdn-swatch--eigen:focus-within { outline: 3px solid var(--pdn-accent); outline-offset: 2px; }
+#tw-main .pdn .pdn-swatch { border-width: 2px; }
+.pdn-vorschau { width: auto; min-width: 160px; max-width: 260px; cursor: default; margin: 0; }
+.pdn-namebtn { border: 0; background: none; font: inherit; font-weight: 700; color: var(--pdn-ink); padding: 2px 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.pdn-namebtn i { font-size: .75em; color: var(--pdn-ink-2); opacity: 0; }
+.pdn-namebtn:hover i, .pdn-namebtn:focus-visible i { opacity: 1; }
+.pdn-namebtn[disabled] { cursor: default; }
 
 @media (max-width: 900px) {
     .pdn-profile { grid-template-columns: 1fr; }
