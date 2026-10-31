@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\ProtokollErstellt;
+use App\Support\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,6 +25,11 @@ class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Aud
         $protocol = str_replace('&amp;', ' und ',$protocol);
         $protocol = str_replace('  ', ' ',$protocol);
         $this->attributes['protocol'] = $protocol;
+    }
+
+    public function getProtocolHtmlAttribute(): string
+    {
+        return HtmlSanitizer::clean($this->protocol);
     }
 
     public function ersteller()

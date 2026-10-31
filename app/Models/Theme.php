@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\ThemaErstellt;
+use App\Support\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,6 +60,11 @@ class Theme extends Model implements HasMedia
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function getInformationHtmlAttribute(): string
+    {
+        return HtmlSanitizer::clean($this->information);
     }
 
     public function getPriorityAttribute(): float|int|null

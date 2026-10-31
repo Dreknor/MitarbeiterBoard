@@ -426,6 +426,31 @@ class TicketSystemTest extends TestCase
         $this->actingAs($this->editor())->get(route('tickets.files', [$ticket, $media]))->assertOk();
     }
 
+    public function test_html_und_svg_anhaenge_werden_nur_heruntergeladen(): void
+    {
+        Storage::fake('tickets');
+        $owner = $this->reporter();
+        $ticket = Ticket::factory()->for($owner, 'user')->create();
+        $html = $ticket->addMedia(UploadedFile::fake()->createWithContent('x.html', '<script>alert(1)</script>'))
+            ->toMediaCollection('ticket_files');
+        $svg = $ticket->addMedia(UploadedFile::fake()->createWithContent('x.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'))
+            ->toMediaCollection('ticket_files');
+        $pdf = $ticket->addMedia(UploadedFile::fake()->createWithContent('ok.pdf', "%PDF-1.4
+%%EOF
+"))
+            ->toMediaCollection('ticket_files');
+
+        foreach ([$html, $svg] as $media) {
+            $response = $this->actingAs($owner)->get(route('tickets.files', [$ticket, $media]))->assertOk();
+            $this->assertStringStartsWith('attachment', $response->headers->get('Content-Disposition'));
+            $this->assertSame('application/octet-stream', $response->headers->get('Content-Type'));
+            $response->assertHeader('X-Content-Type-Options', 'nosniff');
+        }
+
+        $response = $this->actingAs($owner)->get(route('tickets.files', [$ticket, $pdf]))->assertOk();
+        $this->assertStringStartsWith('inline', $response->headers->get('Content-Disposition'));
+    }
+
     // ─── Automatisches Schließen ─────────────────────────────────────────────
 
     public function test_wartende_tickets_werden_nach_frist_automatisch_geschlossen(): void

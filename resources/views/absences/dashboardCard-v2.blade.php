@@ -105,7 +105,7 @@
             <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
                 @foreach($absences as $absence)
                     <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50"
-                         x-show="search === '' || '{{ strtolower($absence->user->name . ' ' . $absence->reason) }}'.includes(search.toLowerCase())">
+                         x-show="search === '' || @js(mb_strtolower($absence->user->name . ' ' . $absence->reason)).includes(search.toLowerCase())">
                         <div class="shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                             {{ strtoupper(substr($absence->user->name ?? 'U', 0, 1)) }}
                         </div>

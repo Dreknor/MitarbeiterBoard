@@ -77,13 +77,13 @@
                 @if(filled(strip_tags((string) $theme->information)))
                     <div x-show="showInfo" style="display:none;" class="rounded-xl bg-gray-50 border border-gray-100 p-3">
                         <div class="text-xs font-semibold text-gray-500 mb-1">Informationen zum Thema</div>
-                        <div class="mtg-prose">{!! $theme->information !!}</div>
+                        <div class="mtg-prose">{!! $theme->information_html !!}</div>
                     </div>
                 @endif
                 @foreach($theme->protocols as $protocol)
                     <div>
                         <div class="text-xs text-gray-500 mb-1">{{ $protocol->ersteller->name }} · {{ $protocol->created_at->format('H:i') }} Uhr</div>
-                        <div class="mtg-prose">{!! $protocol->protocol !!}</div>
+                        <div class="mtg-prose">{!! $protocol->protocol_html !!}</div>
                     </div>
                 @endforeach
                 @if($theme->tasks->isNotEmpty())

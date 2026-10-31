@@ -13,7 +13,7 @@
 </p>
 <p>
     Informationen:<br>
-    {!! $theme->information !!}}
+    {!! $theme->information_html !!}
 </p>
 <p>
     <br>

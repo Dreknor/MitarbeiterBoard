@@ -73,7 +73,7 @@
                         </div>
                     @endif
                     @if($theme->information)
-                        <div class="mtg-prose mt-4">{!! $theme->information !!}</div>
+                        <div class="mtg-prose mt-4">{!! $theme->information_html !!}</div>
                     @endif
                     @if($themeFiles->isNotEmpty())
                         <ul class="mt-4 flex flex-wrap gap-2">
@@ -154,7 +154,7 @@
                                     @if($isSystem)
                                         <p class="text-sm text-gray-500 italic">{{ strip_tags($protocol->protocol) }}</p>
                                     @else
-                                        <div class="mtg-prose" x-show="editing !== {{ $protocol->id }}">{!! $protocol->protocol !!}</div>
+                                        <div class="mtg-prose" x-show="editing !== {{ $protocol->id }}">{!! $protocol->protocol_html !!}</div>
                                     @endif
 
                                     @if($canEdit)

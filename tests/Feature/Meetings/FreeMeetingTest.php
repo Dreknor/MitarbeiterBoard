@@ -184,6 +184,30 @@ class FreeMeetingTest extends TestCase
     }
 
     /** @test */
+    public function themen_und_protokoll_html_wird_bereinigt_ausgegeben(): void
+    {
+        $creator = User::factory()->create();
+        $type    = Type::factory()->create();
+        $meeting = $this->freeMeeting($creator);
+        $theme   = Theme::create([
+            'theme' => 'Sicherheit', 'goal' => 'Test', 'duration' => 5, 'date' => now(), 'type_id' => $type->id,
+            'creator_id' => $creator->id, 'information' => '<p>Info</p><script>alert("theme")</script>',
+        ]);
+        $meeting->themes()->attach($theme->id);
+        Protocol::create([
+            'theme_id' => $theme->id, 'creator_id' => $creator->id,
+            'protocol' => '<p onclick="alert(1)">Beschluss</p><img src="x" onerror="alert(2)">',
+        ]);
+
+        $this->actingAs($creator)->get(route('meetings.themes.show', [$meeting, $theme]))
+            ->assertOk()
+            ->assertSee('Beschluss')
+            ->assertDontSee('<script>alert("theme")</script>', false)
+            ->assertDontSee('onerror="alert(2)"', false)
+            ->assertDontSee('onclick="alert(1)"', false);
+    }
+
+    /** @test */
     public function neues_thema_kann_einer_eingeladenen_gruppe_zugeordnet_werden(): void
     {
         $creator = User::factory()->create();

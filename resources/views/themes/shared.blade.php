@@ -39,7 +39,7 @@
                 </div>
                 <div class="flex flex-col sm:flex-row gap-1 sm:gap-3">
                     <span class="thm-section-title sm:w-32 shrink-0">Informationen</span>
-                    <div class="thm-prose flex-1 text-gray-800">{!! $theme->information !!}</div>
+                    <div class="thm-prose flex-1 text-gray-800">{!! $theme->information_html !!}</div>
                 </div>
                 @if (count($theme->getMedia()) > 0)
                     <div class="flex flex-col sm:flex-row gap-1 sm:gap-3 pt-2">
@@ -108,7 +108,7 @@
                                     <a href="{{ url(request()->segment(1).'/protocols/'.$protocol->id.'/edit') }}" class="thm-btn thm-btn-secondary thm-btn-sm"><i class="fas fa-pen"></i> bearbeiten</a>
                                 @endif
                             </div>
-                            <div class="thm-prose text-gray-800">{!! $protocol->protocol !!}</div>
+                            <div class="thm-prose text-gray-800">{!! $protocol->protocol_html !!}</div>
                         </li>
                     @endforeach
                 </ul>

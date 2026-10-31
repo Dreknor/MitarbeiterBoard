@@ -16,6 +16,11 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class TicketController extends Controller
 {
+    /** Anhänge, die im Browser angezeigt werden dürfen; alles andere wird heruntergeladen. */
+    private const INLINE_MIME_TYPES = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain',
+    ];
+
     public function __construct(private TicketService $tickets)
     {
         $this->middleware('permission:view tickets');
@@ -238,8 +243,15 @@ class TicketController extends Controller
         $path = $media->getPath();
         abort_unless(is_file($path), 404, 'Datei nicht gefunden');
 
-        $response = response()->file($path, ['Content-Type' => $media->mime_type]);
-        $response->setContentDisposition('inline', $media->file_name, \Illuminate\Support\Str::ascii($media->file_name));
+        // Nur unbedenkliche Typen im Browser anzeigen; HTML, SVG usw. könnten
+        // sonst Skripte im Kontext der Anwendung ausführen.
+        $inline = in_array($media->mime_type, self::INLINE_MIME_TYPES, true);
+
+        $response = response()->file($path, [
+            'Content-Type' => $inline ? $media->mime_type : 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+        $response->setContentDisposition($inline ? 'inline' : 'attachment', $media->file_name, \Illuminate\Support\Str::ascii($media->file_name));
 
         return $response;
     }

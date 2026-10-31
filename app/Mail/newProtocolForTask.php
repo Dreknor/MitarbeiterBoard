@@ -33,7 +33,7 @@ class newProtocolForTask extends Mailable
         $this->theme = $theme->theme;
         $this->theme_id = $theme->id;
         $this->groupname = $groupname;
-        $this->protocol = $protocol->protocol;
+        $this->protocol = $protocol->protocol_html;
     }
 
     public function envelope(): Envelope
