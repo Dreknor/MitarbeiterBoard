@@ -36,7 +36,8 @@ class TagesvorschauEinstellung extends Model
     public static function standardWerte(): array
     {
         return [
-            'per_mail'            => true,
+            // Zentral zunächst aus – Opt-in in den eigenen Einstellungen
+            'per_mail'            => (bool) config('benachrichtigungen.tagesvorschau.standard_aktiv', false),
             'per_push'            => false,
             'zeitpunkt'           => self::MORGENS,
             'uhrzeit'             => config('benachrichtigungen.tagesvorschau.standard_uhrzeit', '06:30').':00',

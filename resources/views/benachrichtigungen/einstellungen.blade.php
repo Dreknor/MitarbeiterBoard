@@ -188,6 +188,11 @@
                         <p class="text-xs text-gray-500 mt-0.5">
                             Eine kurze Übersicht über alles, was an einem Arbeitstag ansteht. Sie kommt nur, wenn auch etwas ansteht, und nicht an Tagen, an denen Sie selbst abwesend sind.
                         </p>
+                        @if(!$tv->per_mail && !$tv->per_push)
+                            <p class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-info-circle"></i> Derzeit ausgeschaltet. Schalten Sie unten E-Mail oder Push ein, um die Tagesübersicht zu erhalten.
+                            </p>
+                        @endif
                     </div>
                 </div>
                 <a href="{{ route('benachrichtigungen.tag') }}" class="bn-btn bn-btn-secondary bn-btn-sm shrink-0" target="_blank">
