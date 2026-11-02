@@ -290,7 +290,7 @@
                                                 <template x-for="entry in getOpenEntriesForStudent(stu.id)" :key="'oe-' + entry.id">
                                                     <div class="pdn-pill pdn-pill--note">
                                                         <span x-text="trimText(entry.content, darstellung.layout === 'kompakt' ? 40 : 70)" :title="entry.content"></span>
-                                                        <button type="button" @click="completeOpenEntry(entry.id)" aria-label="Notiz abschließen" title="Notiz abschließen">✓</button>
+                                                        <button type="button" @click="completeOpenEntry(entry.id, stu.id)" aria-label="Notiz abschließen" title="Notiz abschließen">✓</button>
                                                     </div>
                                                 </template>
                                                 <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'ot-' + task.id">

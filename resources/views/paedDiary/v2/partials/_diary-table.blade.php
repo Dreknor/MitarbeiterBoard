@@ -158,7 +158,7 @@
                                 </div>
                                 <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
                                         title="Notiz abschließen" aria-label="Notiz abschließen"
-                                        @click.stop="completeOpenEntry(entry.id)">✔</button>
+                                        @click.stop="completeOpenEntry(entry.id, stu.id)">✔</button>
                             </div>
                         </template>
 
