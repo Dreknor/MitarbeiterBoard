@@ -470,10 +470,27 @@
                                     <template x-if="!$store.diary.isAbsent(stu.id, day.date)">
                                         <div style="display:flex;flex-direction:column;gap:8px">
                                             <template x-for="entry in notizen(stu.id, day.date)" :key="'kn-' + entry.id">
-                                                <button type="button" class="pdn-entry" :data-farbe="entry.category_color ? '' : null" :style="farbe(entry)"
-                                                        @click="bearbeiten(entry, day.date)">
+                                                <div class="pdn-entry" role="button" tabindex="0" :data-farbe="entry.category_color ? '' : null" :style="farbe(entry)"
+                                                     @click="bearbeiten(entry, day.date)"
+                                                     @keydown.enter.prevent="bearbeiten(entry, day.date)">
                                                     <span class="pdn-entry__text" x-text="entry.content"></span>
-                                                </button>
+                                                    <span class="pdn-entry__actions" x-show="!entry.completed_at">
+                                                        <button type="button" @click.stop="completeEntry(entry.id, stu.id, day.date)" aria-label="Notiz abschließen" title="Abschließen"><i class="fas fa-check" aria-hidden="true"></i></button>
+                                                        <button type="button" @click.stop="pauseEntry(entry.id, stu.id, day.date)" aria-label="Notiz an diesem Tag pausieren" title="An diesem Tag pausieren"><i class="fas fa-pause" aria-hidden="true"></i></button>
+                                                    </span>
+                                                </div>
+                                            </template>
+                                            <template x-if="$store.diary.showPaused">
+                                                <div style="display:flex;flex-direction:column;gap:8px">
+                                                    <template x-for="entry in getPausedEntries(stu.id, day.date)" :key="'kp-' + entry.id">
+                                                        <div class="pdn-entry pdn-entry--paused">
+                                                            <span class="pdn-entry__text" x-text="'Pausiert: ' + entry.content"></span>
+                                                            <span class="pdn-entry__actions">
+                                                                <button type="button" @click.stop="unpauseEntry(entry.id, stu.id, day.date)" aria-label="An diesem Tag wieder zeigen" title="Wieder zeigen"><i class="fas fa-play" aria-hidden="true"></i></button>
+                                                            </span>
+                                                        </div>
+                                                    </template>
+                                                </div>
                                             </template>
                                             <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'kt-' + task.id">
                                                 <div class="pdn-pill pdn-pill--task" :class="task.highlighted && 'pdn-pill--wichtig'">

@@ -218,7 +218,11 @@
 .pdn--kompakt .pdn-grid td, .pdn--kompakt .pdn-grid th { padding: 4px 6px; }
 .pdn--kompakt .pdn-entry { padding: 2px 6px; }
 .pdn--kompakt .pdn-entry__text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pdn--kompakt .pdn-entry__who, .pdn--kompakt .pdn-entry__actions { display: none; }
+/* Kompakt: Abschließen/Pausieren bleiben sichtbar, nur kleiner; der Text kürzt sich davor */
+.pdn--kompakt .pdn-entry__who { display: none; }
+.pdn--kompakt .pdn-entry { align-items: center; }
+.pdn--kompakt .pdn-entry__actions button { width: 20px; height: 20px; font-size: .8em; }
+@media (pointer: coarse) { .pdn--kompakt .pdn-entry__actions button { width: 28px; height: 28px; } }
 .pdn--kompakt .pdn-cols { --pdn-seg-h: 22px; gap: 3px 4px; margin-top: 3px; }
 .pdn--kompakt .pdn-colgroup__items .pdn-tog { font-size: .72em; padding: 0 3px; }
 @media (pointer: coarse) { .pdn--kompakt .pdn-cols { --pdn-seg-h: 28px; } }
@@ -238,6 +242,10 @@
 .pdn-presence { margin-left: auto; font: inherit; font-size: .9em; font-weight: 700; border-radius: 999px; padding: 6px 12px; min-height: 36px; border: 1px solid var(--pdn-ok); color: var(--pdn-ok); background: var(--pdn-ok-soft); cursor: pointer; white-space: nowrap; }
 .pdn-presence.is-absent { border-color: var(--pdn-danger); color: var(--pdn-danger); background: var(--pdn-danger-soft); }
 .pdn-card .pdn-cols { --pdn-seg-h: 40px; gap: 8px 10px; }
+/* Tageskarten (iPad): große Knöpfe zum Abschließen/Pausieren */
+.pdn-card .pdn-entry { align-items: center; }
+.pdn-card .pdn-entry__actions { gap: 4px; }
+.pdn-card .pdn-entry__actions button { width: 40px; height: 40px; }
 .pdn-card .pdn-colgroup { flex-direction: column; align-items: flex-start; gap: 2px; }
 .pdn-card .pdn-colgroup__label { font-size: .7em; }
 .pdn-card .pdn-colgroup__items .pdn-tog { min-width: 40px; padding: 0 10px; font-size: .95em; }
