@@ -27,6 +27,36 @@ class TagesvorschauTest extends TestCase
         parent::setUp();
         Mail::fake();
         Notification::fake();
+        // Die meisten Tests prüfen den Versand ohne eigene Einstellung → Standard hier einschalten
+        config(['benachrichtigungen.tagesvorschau.standard_aktiv' => true]);
+    }
+
+    public function test_standardmaessig_ausgeschaltet(): void
+    {
+        config(['benachrichtigungen.tagesvorschau.standard_aktiv' => false]);
+        Carbon::setTestNow(self::MONTAG.' 06:30:00');
+        $user = User::factory()->create();
+        Vertretung::factory()->create(['users_id' => $user->id, 'date' => self::MONTAG, 'stunde' => 3]);
+
+        $standard = $this->service()->einstellung($user);
+        $this->assertFalse($standard->per_mail);
+        $this->assertFalse($standard->per_push);
+
+        $this->assertSame(0, $this->service()->versendeFaellige(now()));
+        Mail::assertNothingQueued();
+        $this->assertNull($user->fresh()->tagesvorschauEinstellung);
+    }
+
+    public function test_nach_eigenem_einschalten_wird_versendet(): void
+    {
+        config(['benachrichtigungen.tagesvorschau.standard_aktiv' => false]);
+        Carbon::setTestNow(self::MONTAG.' 06:30:00');
+        $user = User::factory()->create();
+        Vertretung::factory()->create(['users_id' => $user->id, 'date' => self::MONTAG, 'stunde' => 3]);
+        $this->einstellung($user, ['per_mail' => true]);
+
+        $this->assertSame(1, $this->service()->versendeFaellige(now()));
+        Mail::assertQueued(Tagesvorschau::class, fn ($mail) => $mail->hasTo($user->email));
     }
 
     protected function tearDown(): void

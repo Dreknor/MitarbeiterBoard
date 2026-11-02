@@ -156,6 +156,9 @@ return [
     | Tagesübersicht („Dein Tag“) – morgens oder am Vorabend.
     */
     'tagesvorschau' => [
+        // Ohne eigene Einstellung ist die Tagesübersicht aus; jede Person kann sie
+        // in ihren Benachrichtigungs-Einstellungen selbst einschalten (Opt-in).
+        'standard_aktiv' => (bool) env('TAGESVORSCHAU_STANDARD_AKTIV', false),
         'standard_uhrzeit' => '06:30',
         'fenster' => [
             'morgens'  => ['05:00', '10:00'],
