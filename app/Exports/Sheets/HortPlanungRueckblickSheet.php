@@ -38,23 +38,16 @@ class HortPlanungRueckblickSheet implements FromArray, WithStyles, WithColumnWid
 
         // ── Haupttabelle: Person × Monat ──────────────────────────────
         // Header
-        $header = ['Person', 'Monat', 'Soll SP1', 'Soll SP2', 'Vertrag', 'Ist', 'Abw. Soll–Vertrag', 'Abw. Soll–Ist'];
+        $header = ['Person', 'Monat', 'Soll SP1', 'Soll SP2'];
         $rows[] = $header;
 
         foreach ($vergMonate as $monat) {
             foreach ($monat->personen->sortBy(fn($p) => $p->user?->name) as $person) {
-                $abwVertrag = ($person->stunden_gesamt ?? 0) - ($person->stunden_vertrag ?? 0);
-                $abwIst     = ($person->stunden_gesamt ?? 0) - ($person->stunden_ist ?? 0);
-
                 $rows[] = [
                     $person->user?->name ?? '–',
                     $monat->monat->translatedFormat('F Y'),
                     number_format((float) ($person->stunden_gesamt ?? 0), 2, ',', '.'),
                     number_format((float) ($person->stunden_stadt ?? 0), 2, ',', '.'),
-                    number_format((float) ($person->stunden_vertrag ?? 0), 2, ',', '.'),
-                    number_format((float) ($person->stunden_ist ?? 0), 2, ',', '.'),
-                    number_format($abwVertrag, 2, ',', '.'),
-                    number_format($abwIst, 2, ',', '.'),
                 ];
             }
         }
@@ -86,7 +79,7 @@ class HortPlanungRueckblickSheet implements FromArray, WithStyles, WithColumnWid
     {
         return [
             // Personen-Tabelle Header
-            'A1:H1' => [
+            'A1:D1' => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '7C3AED']],
             ],
