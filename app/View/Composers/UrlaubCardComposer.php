@@ -22,22 +22,25 @@ class UrlaubCardComposer
      */
     public function compose(View $view): void
     {
-        $unapproved = [];
+        $user = auth()->user();
+        $unapproved = collect();
 
-        if (auth()->user()->can('approve holidays')) {
-            // Nur Urlaubsanfragen von Mitarbeitern anzeigen, für die der User als Vorgesetzter verantwortlich ist
-            $subordinateIds = auth()->user()->subordinates()->pluck('id');
-
-            $unapproved = Holiday::where('approved', false)
-                ->where('rejected', false)
-                ->whereIn('employe_id', $subordinateIds)
-                ->get();
+        if ($user->can('approve holidays')) {
+            // Nur Anträge, über die der Benutzer entscheiden darf (Vorgesetztenkette bzw. "approve all holidays")
+            $zugriff = app(\App\Services\Personal\Zeit\ZeitZugriff::class);
+            $unapproved = Holiday::query()->offen()
+                ->with('employe')
+                ->where('employe_id', '!=', $user->id)
+                ->orderBy('start_date')
+                ->get()
+                ->filter(fn (Holiday $h) => $h->employe !== null && $zugriff->darfUrlaubGenehmigen($user, $h->employe))
+                ->values();
         }
 
         $view->with([
             'unapproved' => $unapproved,
-            'holidays' => Holiday::where('employe_id', auth()->id())
-                ->where('start_date', '>=', Carbon::today())
+            'holidays' => Holiday::where('employe_id', $user->id)
+                ->whereDate('end_date', '>=', Carbon::today())
                 ->orderBy('start_date', 'asc')
                 ->get(),
         ]);

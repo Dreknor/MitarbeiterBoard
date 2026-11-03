@@ -1,0 +1,598 @@
+<?php
+
+namespace App\Services\Personal\Zeit;
+
+use App\Models\Absence;
+use App\Models\personal\Holiday;
+use App\Models\User;
+use App\Notifications\Personal\ZeitwirtschaftNotification;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Einzige Schreibstelle für Urlaubsanträge.
+ *
+ * Nach jedem Statuswechsel gleicht der HolidayObserver Abwesenheit (Vertretungsplan),
+ * Arbeitszeitnachweis und Dienstplan über abgleichen() ab; der Service benachrichtigt
+ * die Beteiligten.
+ */
+class HolidayService
+{
+    public function __construct(
+        private readonly UrlaubskontoService $urlaubskonto,
+        private readonly TimesheetService $timesheets,
+        private readonly RosterService $rosters,
+        private readonly ZeitZugriff $zugriff,
+    ) {
+    }
+
+    /**
+     * Vorschau für das Antragsformular: Tage, Rest danach, Überschneidungen im Team.
+     *
+     * @return array{tage: float, rest_vorher: float, rest_nachher: float, jahr: int, ueberschneidung_eigen: bool, team: array<int, array{name: string, von: string, bis: string, status: string}>}
+     */
+    public function vorschau(User $employe, CarbonInterface $start, CarbonInterface $ende, bool $halberTag = false): array
+    {
+        $tage = $this->tageFuer($employe, $start, $ende, $halberTag);
+        $jahr = $start->year;
+        $rest = $this->urlaubskonto->rest($employe, $jahr) - $this->urlaubskonto->beantragt($employe, $jahr);
+
+        return [
+            'tage' => $tage,
+            'jahr' => $jahr,
+            'rest_vorher' => round($rest, 1),
+            'rest_nachher' => round($rest - $tage, 1),
+            'ueberschneidung_eigen' => $this->hatUeberschneidung($employe, $start, $ende),
+            'team' => $this->teamAbwesenheiten($employe, $start, $ende)->all(),
+        ];
+    }
+
+    public function tageFuer(User $employe, CarbonInterface $start, CarbonInterface $ende, bool $halberTag = false): float
+    {
+        return $this->urlaubskonto->tageFuerZeitraum($employe, $start, $ende, $halberTag);
+    }
+
+    /**
+     * Gespeicherte Urlaubstage aller nicht abgelehnten Anträge eines Jahres neu berechnen,
+     * die Heiligabend oder Silvester enthalten (nach Änderung der Urlaubseinstellungen
+     * "heiligabend_feiertag" / "silvester_feiertag"). Liefert die Anzahl geänderter Anträge.
+     */
+    public function tageNeuBerechnen(int $jahr): int
+    {
+        $stichtage = [Carbon::create($jahr, 12, 24), Carbon::create($jahr, 12, 31)];
+
+        $antraege = Holiday::query()
+            ->nichtAbgelehnt()
+            ->where(function ($query) use ($stichtage) {
+                foreach ($stichtage as $tag) {
+                    $query->orWhere(fn ($q) => $q->ueberschneidet($tag, $tag));
+                }
+            })
+            ->with('employe')
+            ->get();
+
+        $geaendert = 0;
+        foreach ($antraege as $antrag) {
+            if ($antrag->employe === null) {
+                continue;
+            }
+
+            $tage = $this->tageFuer($antrag->employe, $antrag->start_date, $antrag->end_date, (bool) $antrag->half_day);
+            if ($antrag->days !== null && (float) $antrag->days === $tage) {
+                continue;
+            }
+
+            // "days" gehört nicht zu den abgleichsrelevanten Feldern – Abwesenheit, Nachweis
+            // und Dienstplan richten sich nach dem Datum und bleiben unberührt.
+            $antrag->update(['days' => $tage]);
+            $this->urlaubskonto->vergessen($antrag->employe);
+            $geaendert++;
+        }
+
+        return $geaendert;
+    }
+
+    /**
+     * Antrag stellen. Darf der Antragstellende selbst genehmigen (nie für sich selbst),
+     * wird der Urlaub direkt genehmigt. Jahresübergreifende Anträge werden geteilt.
+     *
+     * @return Collection<int, Holiday>
+     */
+    public function beantragen(User $actor, User $employe, CarbonInterface $start, CarbonInterface $ende, bool $halberTag = false, ?string $kommentar = null): Collection
+    {
+        $start = Carbon::parse($start)->startOfDay();
+        $ende = Carbon::parse($ende)->startOfDay();
+
+        if ($ende->lt($start)) {
+            throw ValidationException::withMessages(['end_date' => 'Das Enddatum darf nicht vor dem Startdatum liegen.']);
+        }
+        if ($halberTag && !$start->isSameDay($ende)) {
+            throw ValidationException::withMessages(['half_day' => 'Ein halber Urlaubstag ist nur für einen einzelnen Tag möglich.']);
+        }
+        if ($this->hatUeberschneidung($employe, $start, $ende)) {
+            throw ValidationException::withMessages(['start_date' => 'Für diesen Zeitraum gibt es bereits einen Urlaubsantrag.']);
+        }
+        if ($this->tageFuer($employe, $start, $ende, $halberTag) <= 0) {
+            throw ValidationException::withMessages(['start_date' => 'Im gewählten Zeitraum liegen keine Arbeitstage.']);
+        }
+
+        $genehmigt = $this->zugriff->darfUrlaubGenehmigen($actor, $employe);
+
+        $antraege = DB::transaction(function () use ($employe, $start, $ende, $halberTag, $kommentar, $genehmigt, $actor) {
+            $antraege = collect();
+            foreach ($this->nachJahrenTeilen($start, $ende) as [$von, $bis]) {
+                $tage = $this->tageFuer($employe, $von, $bis, $halberTag);
+                if ($tage <= 0) {
+                    continue;
+                }
+                $antraege->push($employe->holidays()->create([
+                    'start_date' => $von->toDateString(),
+                    'end_date' => $bis->toDateString(),
+                    'half_day' => $halberTag,
+                    'comment' => $kommentar,
+                    'days' => $tage,
+                    'approved' => $genehmigt,
+                    'approved_by' => $genehmigt ? $actor->id : null,
+                    'approved_at' => $genehmigt ? now() : null,
+                ]));
+            }
+
+            return $antraege;
+        });
+
+        $this->urlaubskonto->vergessen($employe);
+
+        // Abgleich (Abwesenheit, Nachweis, Dienstplan) übernimmt der HolidayObserver
+        if ($genehmigt) {
+            if ($actor->id !== $employe->id) {
+                $antraege->each(fn (Holiday $h) => $this->benachrichtigeEntscheidung($h, $actor));
+            }
+        } else {
+            $antraege->each(fn (Holiday $h) => $this->benachrichtigeAntrag($h));
+        }
+
+        return $antraege;
+    }
+
+    /**
+     * Urlaub für mehrere Mitarbeitende (z. B. Betriebsferien) – direkt genehmigt,
+     * bestehende Überschneidungen werden übersprungen.
+     *
+     * @param iterable<User> $mitarbeitende
+     */
+    public function fuerMehrereEintragen(User $actor, iterable $mitarbeitende, CarbonInterface $start, CarbonInterface $ende, ?string $kommentar = null): int
+    {
+        $anzahl = 0;
+        foreach ($mitarbeitende as $employe) {
+            if ($employe->id === $actor->id || $this->hatUeberschneidung($employe, $start, $ende)) {
+                continue;
+            }
+            if ($this->tageFuer($employe, $start, $ende) <= 0) {
+                continue;
+            }
+            $anzahl += $this->beantragen($actor, $employe, $start, $ende, false, $kommentar)->count();
+        }
+
+        return $anzahl;
+    }
+
+    public function genehmigen(Holiday $holiday, User $actor): void
+    {
+        $holiday->update([
+            'approved' => true,
+            'rejected' => false,
+            'rejection_reason' => null,
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->urlaubskonto->vergessen($holiday->employe);
+        $this->benachrichtigeEntscheidung($holiday, $actor);
+    }
+
+    public function ablehnen(Holiday $holiday, User $actor, ?string $grund = null): void
+    {
+        $holiday->update([
+            'approved' => false,
+            'rejected' => true,
+            'rejection_reason' => $grund,
+            'cancellation_requested_at' => null,
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->urlaubskonto->vergessen($holiday->employe);
+        $this->benachrichtigeEntscheidung($holiday, $actor);
+    }
+
+    /**
+     * Zeitraum eines bestehenden Urlaubs korrigieren (Status bleibt erhalten).
+     * Der HolidayObserver gleicht den neuen Zeitraum ab, der alte wird hier nachgezogen.
+     */
+    public function korrigieren(Holiday $holiday, CarbonInterface $start, CarbonInterface $ende, bool $halberTag = false): void
+    {
+        $start = Carbon::parse($start)->startOfDay();
+        $ende = Carbon::parse($ende)->startOfDay();
+        $employe = $holiday->employe;
+
+        if ($ende->lt($start)) {
+            throw ValidationException::withMessages(['end_date' => 'Das Enddatum darf nicht vor dem Startdatum liegen.']);
+        }
+        if ($start->year !== $ende->year) {
+            throw ValidationException::withMessages(['end_date' => 'Der korrigierte Urlaub muss innerhalb eines Kalenderjahres liegen.']);
+        }
+        if ($halberTag && !$start->isSameDay($ende)) {
+            throw ValidationException::withMessages(['half_day' => 'Ein halber Urlaubstag ist nur für einen einzelnen Tag möglich.']);
+        }
+        if ($this->hatUeberschneidung($employe, $start, $ende, $holiday->id)) {
+            throw ValidationException::withMessages(['start_date' => 'Für diesen Zeitraum gibt es bereits einen Urlaubsantrag.']);
+        }
+        $tage = $this->tageFuer($employe, $start, $ende, $halberTag);
+        if ($tage <= 0) {
+            throw ValidationException::withMessages(['start_date' => 'Im gewählten Zeitraum liegen keine Arbeitstage.']);
+        }
+
+        $alterStart = $holiday->start_date->copy();
+        $altesEnde = $holiday->end_date->copy();
+
+        $holiday->update([
+            'start_date' => $start->toDateString(),
+            'end_date' => $ende->toDateString(),
+            'half_day' => $halberTag,
+            'days' => $tage,
+        ]);
+
+        // Gutschriften und Dienstplan im nicht mehr abgedeckten alten Zeitraum bereinigen
+        $this->timesheets->syncAbwesenheiten($employe, $alterStart, $altesEnde);
+        $this->rosters->abwesenheitenAbgleichen($employe, $alterStart, $altesEnde);
+        $this->urlaubskonto->vergessen($employe);
+    }
+
+    public function stornoBeantragen(Holiday $holiday, User $actor, ?string $grund = null): void
+    {
+        $holiday->update([
+            'cancellation_requested_at' => now(),
+            'cancellation_reason' => $grund,
+        ]);
+
+        $this->benachrichtigen(
+            $this->zugriff->urlaubsGenehmigende($holiday->employe),
+            new ZeitwirtschaftNotification(
+                'holiday_cancellation_requested',
+                'Stornierung beantragt: '.$holiday->employe->name,
+                [
+                    $holiday->employe->name.' möchte den genehmigten Urlaub vom '.$this->zeitraum($holiday).' stornieren.',
+                    $grund ? 'Begründung: '.$grund : 'Keine Begründung angegeben.',
+                ],
+                route('holidays.index'),
+                'Zur Urlaubsverwaltung'
+            )
+        );
+    }
+
+    public function stornoEntscheiden(Holiday $holiday, User $actor, bool $zustimmen): void
+    {
+        if ($zustimmen) {
+            $this->stornieren($holiday, $actor);
+            return;
+        }
+
+        $holiday->update(['cancellation_requested_at' => null, 'cancellation_reason' => null]);
+        $this->benachrichtigen(collect([$holiday->employe]), new ZeitwirtschaftNotification(
+            'holiday_cancellation_denied',
+            'Stornierung abgelehnt',
+            ['Die Stornierung deines Urlaubs vom '.$this->zeitraum($holiday).' wurde von '.$actor->name.' abgelehnt. Der Urlaub bleibt bestehen.'],
+            route('holidays.index'),
+            'Zur Urlaubsverwaltung'
+        ));
+    }
+
+    /**
+     * Genehmigten Urlaub stornieren bzw. Antrag löschen (Soft-Delete, bleibt nachvollziehbar).
+     */
+    public function stornieren(Holiday $holiday, User $actor): void
+    {
+        $warGenehmigt = $holiday->approved;
+        $employe = $holiday->employe;
+
+        $holiday->update(['cancelled_by' => $actor->id]);
+        $holiday->delete();
+
+        $this->urlaubskonto->vergessen($employe);
+
+        if ($warGenehmigt && $actor->id !== $holiday->employe_id) {
+            $this->benachrichtigen(collect([$employe]), new ZeitwirtschaftNotification(
+                'holiday_cancelled',
+                'Urlaub storniert',
+                ['Dein Urlaub vom '.$this->zeitraum($holiday).' wurde von '.$actor->name.' storniert.'],
+                route('holidays.index'),
+                'Zur Urlaubsverwaltung'
+            ));
+        }
+    }
+
+    /**
+     * Abwesenheit (Vertretungsplan), Arbeitszeitnachweis und Dienstplan an den Antrag angleichen.
+     */
+    public function abgleichen(Holiday $holiday): void
+    {
+        $employe = $holiday->employe;
+        if ($employe === null) {
+            return;
+        }
+
+        $aktiv = !$holiday->trashed() && $holiday->approved && !$holiday->rejected;
+
+        if ($aktiv && (string) settings('absence_auto_create', 'holidays') === '1') {
+            $absence = Absence::where('holiday_id', $holiday->id)->first()
+                // Altbestand: vom früheren Observer angelegte, noch unverknüpfte Absence übernehmen
+                ?? Absence::whereNull('holiday_id')
+                    ->where('users_id', $employe->id)
+                    ->where('reason', 'Urlaub')
+                    ->whereDate('start', $holiday->start_date->toDateString())
+                    ->whereDate('end', $holiday->end_date->toDateString())
+                    ->first();
+            if ($absence === null) {
+                $absence = new Absence(['holiday_id' => $holiday->id, 'users_id' => $employe->id, 'reason' => 'Urlaub']);
+                $absence->creator_id = $holiday->approved_by ?? $employe->id;
+            }
+            $absence->holiday_id = $holiday->id;
+            $absence->start = $holiday->start_date;
+            $absence->end = $holiday->end_date;
+            $absence->save();
+        } elseif (!$aktiv) {
+            Absence::where('holiday_id', $holiday->id)->get()->each->delete();
+
+            // Altbestand: vom früheren Observer oder von Hand angelegte, nie verknüpfte Urlaubs-Abwesenheit
+            if ($holiday->approved || $holiday->wasChanged('approved')) {
+                $this->verwaisteAbwesenheitenEntfernen($holiday);
+            }
+        }
+
+        $this->timesheets->syncAbwesenheiten($employe, $holiday->start_date, $holiday->end_date);
+        $this->rosters->abwesenheitenAbgleichen($employe, $holiday->start_date, $holiday->end_date);
+    }
+
+    /**
+     * Für wen darf der Benutzer Urlaub eintragen? (sich selbst mit "has holidays", dazu Unterstellte
+     * bzw. mit "approve all holidays" alle)
+     *
+     * @return Collection<int, User>
+     */
+    public function antragsNutzer(User $actor): Collection
+    {
+        $nutzer = collect($actor->can('has holidays') ? [$actor] : []);
+
+        if ($actor->can('approve all holidays') && $actor->can('approve holidays')) {
+            return $nutzer->merge(User::permission('has holidays')->where('id', '!=', $actor->id)->orderBy('name')->get())->unique('id')->values();
+        }
+
+        return $nutzer->merge($this->unterstellteMitUrlaub($actor))->unique('id')->values();
+    }
+
+    /**
+     * Unterstellte Mitarbeitende mit Urlaubsanspruch.
+     */
+    public function unterstellteMitUrlaub(User $actor): EloquentCollection
+    {
+        $ids = $this->zugriff->unterstellteIds($actor);
+
+        return $ids === [] ? new EloquentCollection() : User::permission('has holidays')->whereIn('id', $ids)->orderBy('name')->get();
+    }
+
+    /**
+     * Offene Anträge und Stornierungswünsche, über die der Benutzer entscheiden darf.
+     *
+     * @return Collection<int, Holiday>
+     */
+    public function zuEntscheiden(User $actor): Collection
+    {
+        if (!$actor->can('approve holidays')) {
+            return collect();
+        }
+
+        return Holiday::query()
+            ->with('employe')
+            ->where('employe_id', '!=', $actor->id)
+            ->where(fn ($q) => $q->where(fn ($o) => $o->offen())->orWhereNotNull('cancellation_requested_at'))
+            ->where('rejected', false)
+            ->orderBy('start_date')
+            ->get()
+            ->filter(fn (Holiday $h) => $h->employe !== null && $this->zugriff->darfUrlaubGenehmigen($actor, $h->employe))
+            ->values();
+    }
+
+    /**
+     * Unverknüpfte "Urlaub"-Abwesenheiten im Zeitraum eines stornierten/abgelehnten Urlaubs entfernen.
+     * Tage, die ein anderer genehmigter Urlaub abdeckt, bleiben. Ragt die Abwesenheit über den Urlaub
+     * hinaus, wird sie gekürzt bzw. geteilt statt gelöscht. Mit $ausfuehren = false nur Vorschau.
+     *
+     * @return Collection<int, Absence> betroffene Abwesenheiten (Stand vor der Änderung)
+     */
+    public function verwaisteAbwesenheitenEntfernen(Holiday $holiday, bool $ausfuehren = true): Collection
+    {
+        $start = $holiday->start_date->copy()->startOfDay();
+        $ende = $holiday->end_date->copy()->startOfDay();
+
+        $abwesenheiten = Absence::query()
+            ->whereNull('holiday_id')
+            ->where('users_id', $holiday->employe_id)
+            ->where('reason', 'Urlaub')
+            ->whereDate('start', '<=', $ende->toDateString())
+            ->whereDate('end', '>=', $start->toDateString())
+            ->get();
+
+        if ($abwesenheiten->isEmpty()) {
+            return $abwesenheiten;
+        }
+
+        $genehmigt = Holiday::query()->genehmigt()
+            ->where('employe_id', $holiday->employe_id)
+            ->where('id', '!=', $holiday->id)
+            ->ueberschneidet($start, $ende)
+            ->get();
+
+        $entfernen = function (Carbon $tag) use ($start, $ende, $genehmigt): bool {
+            $datum = $tag->toDateString();
+
+            return $tag->between($start, $ende)
+                && !$genehmigt->contains(fn (Holiday $h) => $h->start_date->toDateString() <= $datum && $h->end_date->toDateString() >= $datum);
+        };
+
+        $betroffen = collect();
+        foreach ($abwesenheiten as $absence) {
+            // verbleibende Tage als zusammenhängende Abschnitte
+            $abschnitte = [];
+            $aktuell = null;
+            for ($tag = $absence->start->copy()->startOfDay(); $tag->lte($absence->end); $tag->addDay()) {
+                if ($entfernen($tag)) {
+                    $aktuell = null;
+                    continue;
+                }
+                if ($aktuell === null) {
+                    $abschnitte[] = [$tag->copy(), $tag->copy()];
+                    $aktuell = array_key_last($abschnitte);
+                } else {
+                    $abschnitte[$aktuell][1] = $tag->copy();
+                }
+            }
+
+            $unveraendert = count($abschnitte) === 1
+                && $abschnitte[0][0]->isSameDay($absence->start)
+                && $abschnitte[0][1]->isSameDay($absence->end);
+            if ($unveraendert) {
+                continue;
+            }
+
+            $betroffen->push($absence->replicate()->setAttribute('id', $absence->id));
+            if (!$ausfuehren) {
+                continue;
+            }
+
+            if ($abschnitte === []) {
+                $absence->delete();
+                continue;
+            }
+
+            foreach (array_slice($abschnitte, 1) as [$von, $bis]) {
+                $teil = $absence->replicate();
+                $teil->start = $von;
+                $teil->end = $bis;
+                $teil->save();
+            }
+            $absence->update(['start' => $abschnitte[0][0], 'end' => $abschnitte[0][1]]);
+        }
+
+        return $betroffen;
+    }
+
+    public function hatUeberschneidung(User $employe, CarbonInterface $start, CarbonInterface $ende, ?int $ausser = null): bool
+    {
+        return Holiday::query()
+            ->nichtAbgelehnt()
+            ->where('employe_id', $employe->id)
+            ->ueberschneidet($start->toDateString(), $ende->toDateString())
+            ->when($ausser, fn ($q) => $q->where('id', '!=', $ausser))
+            ->exists();
+    }
+
+    /**
+     * Wer aus denselben Gruppen/Abteilungen ist im Zeitraum ebenfalls weg?
+     */
+    public function teamAbwesenheiten(User $employe, CarbonInterface $start, CarbonInterface $ende): Collection
+    {
+        $gruppen = $employe->groups_rel()->pluck('groups.id');
+        if ($gruppen->isEmpty()) {
+            return collect();
+        }
+
+        return Holiday::query()
+            ->nichtAbgelehnt()
+            ->ueberschneidet($start->toDateString(), $ende->toDateString())
+            ->where('employe_id', '!=', $employe->id)
+            ->whereHas('employe.groups_rel', fn ($q) => $q->whereIn('groups.id', $gruppen))
+            ->with('employe')
+            ->orderBy('start_date')
+            ->get()
+            ->map(fn (Holiday $h) => [
+                'name' => $h->employe?->name ?? 'Unbekannt',
+                'von' => $h->start_date->format('d.m.'),
+                'bis' => $h->end_date->format('d.m.'),
+                'status' => $h->status_label,
+            ]);
+    }
+
+    /**
+     * @return array<int, array{0: Carbon, 1: Carbon}>
+     */
+    private function nachJahrenTeilen(Carbon $start, Carbon $ende): array
+    {
+        $teile = [];
+        $von = $start->copy();
+        while ($von->lte($ende)) {
+            $bis = $von->copy()->endOfYear()->startOfDay()->min($ende);
+            $teile[] = [$von->copy(), $bis->copy()];
+            $von = $bis->copy()->addDay();
+        }
+
+        return $teile;
+    }
+
+    private function benachrichtigeAntrag(Holiday $holiday): void
+    {
+        $this->benachrichtigen(
+            $this->zugriff->urlaubsGenehmigende($holiday->employe),
+            new ZeitwirtschaftNotification(
+                'holiday_requested',
+                'Neuer Urlaubsantrag: '.$holiday->employe->name,
+                array_values(array_filter([
+                    $holiday->employe->name.' beantragt Urlaub vom '.$this->zeitraum($holiday).' ('.$holiday->days_label.').',
+                    $holiday->comment ? 'Bemerkung: '.$holiday->comment : null,
+                ])),
+                route('holidays.index'),
+                'Antrag prüfen'
+            )
+        );
+    }
+
+    private function benachrichtigeEntscheidung(Holiday $holiday, User $actor): void
+    {
+        if ($holiday->employe === null || $holiday->employe_id === $actor->id) {
+            return;
+        }
+
+        $genehmigt = $holiday->approved;
+        $this->benachrichtigen(collect([$holiday->employe]), new ZeitwirtschaftNotification(
+            $genehmigt ? 'holiday_approved' : 'holiday_rejected',
+            $genehmigt ? 'Urlaub genehmigt' : 'Urlaub abgelehnt',
+            array_values(array_filter([
+                'Dein Urlaub vom '.$this->zeitraum($holiday).' wurde von '.$actor->name.($genehmigt ? ' genehmigt.' : ' abgelehnt.'),
+                !$genehmigt && $holiday->rejection_reason ? 'Begründung: '.$holiday->rejection_reason : null,
+            ])),
+            route('holidays.index'),
+            'Zur Urlaubsverwaltung'
+        ));
+    }
+
+    private function zeitraum(Holiday $holiday): string
+    {
+        return $holiday->start_date->isSameDay($holiday->end_date)
+            ? $holiday->start_date->format('d.m.Y').($holiday->half_day ? ' (halber Tag)' : '')
+            : $holiday->start_date->format('d.m.Y').' bis '.$holiday->end_date->format('d.m.Y');
+    }
+
+    private function benachrichtigen(Collection $empfaenger, ZeitwirtschaftNotification $notification): void
+    {
+        foreach ($empfaenger->filter()->unique('id') as $user) {
+            try {
+                $user->notify($notification);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+}

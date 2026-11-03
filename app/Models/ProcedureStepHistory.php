@@ -17,6 +17,14 @@ class ProcedureStepHistory extends Model
         'created_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        // Keine Laravel-Timestamps: created_at in App-Zeitzone setzen statt DB-Default.
+        static::creating(function (self $history) {
+            $history->created_at ??= now();
+        });
+    }
+
     public function step()
     {
         return $this->belongsTo(Procedure_Step::class, 'step_id');

@@ -30,7 +30,7 @@ class TicketAssignmentMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Ticket Assigned: ' . $this->ticket->title,
+            subject: 'Ticket zugewiesen: ' . $this->ticket->title,
         );
     }
 

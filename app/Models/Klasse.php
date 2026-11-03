@@ -99,4 +99,13 @@ class Klasse extends Model
         return $this->zeitraster_id ?? Zeitraster::getStandard()?->id;
     }
 
+    /**
+     * Scope (API v1): Klassen, denen die Lehrkraft zugeordnet ist.
+     */
+    public function scopeForTeacher($query, int $teacherId)
+    {
+        return $query->whereIn('klassen.id', function ($sub) use ($teacherId) {
+            $sub->select('klasse_id')->from('klasse_user')->where('user_id', $teacherId);
+        });
+    }
 }

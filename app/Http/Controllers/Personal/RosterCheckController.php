@@ -12,6 +12,8 @@ class RosterCheckController extends Controller
 {
     public function storeCheck(CreateRosterCheckRequest $request)
     {
+        $this->authorize('manageDepartment', [\App\Models\personal\Roster::class, (int) $request->department_id]);
+
 
         foreach ($request->weekday as $weekday) {
             $check = new RosterCheck($request->validated());
@@ -32,5 +34,13 @@ class RosterCheckController extends Controller
 
 
         return redirectBack('success', 'Check wurde erstellt');
+    }
+
+    public function destroy(RosterCheck $check)
+    {
+        $this->authorize('manageDepartment', [\App\Models\personal\Roster::class, (int) $check->department_id]);
+        $check->delete();
+
+        return redirectBack('success', 'Check gelöscht.');
     }
 }

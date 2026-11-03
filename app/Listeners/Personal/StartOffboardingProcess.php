@@ -3,16 +3,17 @@
 namespace App\Listeners\Personal;
 
 use App\Events\Personal\EmploymentTerminated;
+use App\Services\Personal\PersonalProcessService;
 
 /**
- * Startet Offboarding-Prozess bei Anstellungsende.
- * Implementierung folgt in Phase 3 (P3-01).
+ * Startet den Offboarding-Prozess, wenn eine Person keine weitere laufende Anstellung hat.
  */
 class StartOffboardingProcess
 {
+    public function __construct(private readonly PersonalProcessService $processes) {}
+
     public function handle(EmploymentTerminated $event): void
     {
-        // Stub – Implementierung folgt in Phase 3
+        $this->processes->startOffboarding($event->employment);
     }
 }
-

@@ -39,12 +39,12 @@
                             </span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm text-gray-800 font-medium">{{ $task->taskable->name ?? '' }}</div>
+                            <div class="text-sm text-gray-800 font-medium">{{ $task->ownerLabel() }}</div>
                             <div class="text-xs text-gray-600 mt-0.5 truncate">{{ $task->task }}</div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            @if($task->theme?->group)
-                                <a href="{{ url($task->theme->group->name . '/themes/' . $task->theme_id) }}"
+                            @if($themeUrl = $task->themeUrl())
+                                <a href="{{ $themeUrl }}"
                                    class="text-xs text-blue-600 hover:text-blue-800 no-underline"
                                    title="Zum Thema">
                                     <i class="fas fa-external-link-alt"></i>
@@ -76,12 +76,12 @@
                             </span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm text-gray-800 font-medium">{{ $task->taskable->name ?? '' }}</div>
+                            <div class="text-sm text-gray-800 font-medium">{{ $task->ownerLabel() }}</div>
                             <div class="text-xs text-gray-600 mt-0.5 truncate">{{ $task->task }}</div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            @if($task->theme?->group)
-                                <a href="{{ url($task->theme->group->name . '/themes/' . $task->theme_id) }}"
+                            @if($themeUrl = $task->themeUrl())
+                                <a href="{{ $themeUrl }}"
                                    class="text-xs text-blue-600 hover:text-blue-800 no-underline"
                                    title="Zum Thema">
                                     <i class="fas fa-external-link-alt"></i>
@@ -111,12 +111,12 @@
                             <span class="text-xs text-gray-500">{{ $task->date->format('d.m.Y') }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm text-gray-800 font-medium">{{ $task->taskable->name ?? '' }}</div>
+                            <div class="text-sm text-gray-800 font-medium">{{ $task->ownerLabel() }}</div>
                             <div class="text-xs text-gray-600 mt-0.5 truncate">{{ $task->task }}</div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            @if($task->theme?->group)
-                                <a href="{{ url($task->theme->group->name . '/themes/' . $task->theme_id) }}"
+                            @if($themeUrl = $task->themeUrl())
+                                <a href="{{ $themeUrl }}"
                                    class="text-xs text-blue-600 hover:text-blue-800 no-underline"
                                    title="Zum Thema">
                                     <i class="fas fa-external-link-alt"></i>

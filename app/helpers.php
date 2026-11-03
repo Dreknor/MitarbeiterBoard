@@ -35,7 +35,7 @@ function random_color()
  * @param string|null $anchor
  * @return RedirectResponse
  */
-function redirectBack(string $type = null, string $meldung = null, string $anchor = null): RedirectResponse
+function redirectBack(?string $type = null, ?string $meldung = null, ?string $anchor = null): RedirectResponse
 {
     return redirect()->to(url()->previous().$anchor)->with([
         'type' => $type,
@@ -121,61 +121,28 @@ function getHolidayCellData($holiday, $day)
  */
 function is_holiday(Carbon $date)
 {
-    try {
-        // Feiertage für das Jahr zwischenspeichern und abrufen
-        $holidays = Cache::remember(
-            'holidays_' . $date->year,
-            now()->addDays(31), // Cache für 31 Tage speichern
-            fn() => fetch_holidays_by_year($date->year) // Hilfsfunktion für API-Aufruf
-        );
+    // Feiertage werden lokal berechnet (App\Support\Feiertage) und pro Request zusätzlich
+    // im Speicher gehalten – die Funktion wird in Monats-/Wochenschleifen sehr oft aufgerufen.
+    static $jahre = [];
+    $land = (string) (settings('ferien_state', 'holidays') ?: 'SN');
+    $key = $land.'_'.$date->year.'_'.\App\Support\Feiertage::einstellungsSchluessel();
 
-        // Datum auf Feiertag prüfen
-        return $holidays->first(function ($item) use ($date) {
-            return $item['date'] == $date->format('Y-m-d');
-        });
+    $jahre[$key] ??= fetch_holidays_by_year($date->year)->keyBy('date');
 
-    } catch (Throwable $e) { // Throwable deckt Fehler wie Exception & Error ab
-        Log::error('Feiertags-Helfer: Fehler beim Überprüfen von Feiertagen: ', [
-            'date' => $date->toDateString(),
-            'year' => $date->year,
-            'error' => $e->getMessage(),
-        ]);
-        return false;
-    }
+    return $jahre[$key]->get($date->format('Y-m-d'));
 }
 
 /**
- * Ruft Feiertage für ein bestimmtes Jahr von der API ab.
+ * Gesetzliche Feiertage eines Jahres ([['date' => 'Y-m-d', 'title' => '…'], …]).
+ * Früher über ipty.de geladen – jetzt lokal berechnet, damit ein API-Ausfall nicht
+ * wochenlang falsche Arbeitstage und Salden erzeugt.
  *
  * @param int $year
  * @return Collection
  */
 function fetch_holidays_by_year(int $year): Collection
 {
-    $apiUrl = "https://ipty.de/feiertag/api.php?do=getFeiertage&jahr={$year}&outformat=Y-m-d&loc=SN";
-
-    try {
-        $response = Http::timeout(5)->get($apiUrl);
-
-        // Verarbeiten der API-Antwort (zur Sicherheit immer JSON prüfen)
-        if ($response->successful()) {
-            return collect($response->json());
-        }
-
-        Log::warning("Feiertage konnten nicht von der API geladen werden für Jahr $year", [
-            'url' => $apiUrl,
-            'status' => $response->status()
-        ]);
-    } catch (Throwable $e) {
-        Log::error('Feiertags-API: Fehler beim Abrufen der Feiertage von der API: ', [
-            'url' => $apiUrl,
-            'year' => $year,
-            'error' => $e->getMessage(),
-        ]);
-    }
-
-    // Bei Fehlern: Leere Sammlung zurückgeben
-    return collect([]);
+    return \App\Support\Feiertage::fuerJahr($year);
 }
 
 /**
@@ -250,7 +217,7 @@ function is_ferien(Carbon $date, $state = null, $year = null)
     }
 }
 
-function calculateWorkingTime(Collection $working_times, Collection $roster_events = null)
+function calculateWorkingTime(Collection $working_times, ?Collection $roster_events = null)
 {
     if (!is_null($roster_events)) {
         $break = $roster_events->filter(function ($event) {

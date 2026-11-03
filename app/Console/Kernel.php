@@ -18,6 +18,8 @@ class Kernel extends ConsoleKernel
         RemindProcedureUser::class,
         \App\Console\Commands\Personal\ReEncryptPersonalData::class,
         \App\Console\Commands\Personal\AuditTimesheets::class,
+        \App\Console\Commands\Personal\PruefeZeitUmstellung::class,
+        \App\Console\Commands\Personal\BeendeAbgelaufeneVertraege::class,
     ];
 
     /**
@@ -33,7 +35,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\MailController@invitation')->dailyAt('12:00');
         $schedule->call('App\Http\Controllers\MailController@remindTaskMail')->mondays()->at('07:15');
         $schedule->call('App\Http\Controllers\ThemeController@remind_assigned_themes')->mondays()->at('07:15');
-        $schedule->call('App\Http\Controllers\AbsenceController@dailyReport')->weekdays()->at('07:30');
+        // Täglicher Abwesenheitsbericht ist in der Tagesübersicht (benachrichtigungen:tagesvorschau) aufgegangen
         $schedule->call('App\Http\Controllers\ProcedureController@remindStepMail')->weekdays()->at('07:30');
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
@@ -48,6 +50,10 @@ class Kernel extends ConsoleKernel
 
         // Cleanup expired grading tokens
         $schedule->command('grading:cleanup-tokens')->daily();
+
+        // Pädagogen-App: Idempotency-Keys (48 h) und abgelaufene App-Tokens aufräumen
+        $schedule->command('paed-app:prune-idempotency')->hourly();
+        $schedule->command('sanctum:prune-expired --hours=24')->daily();
 
         // VP-Raumbuchungen aufräumen (älter als X Tage, konfigurierbar via settings)
         $schedule->command('room-bookings:cleanup-vp')->weekly();
@@ -98,6 +104,41 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             app(\App\Services\Personal\QualificationService::class)->checkExpiringQualifications();
         })->dailyAt('07:30')->name('personal-expiring-qualifications')->withoutOverlapping();
+
+        // Wiedervorlagen (Probezeit, Vertragsende, Aufbewahrungsfristen) an die Personalverwaltung melden
+        $schedule->call(function () {
+            app(\App\Services\Personal\PersonalReminderService::class)->notifyDue();
+        })->dailyAt('07:45')->name('personal-reminders')->withoutOverlapping();
+
+        // Abgelaufene Verträge vor der Prüfengine auf "beendet" setzen (Offboarding nur ohne Folgevertrag)
+        $schedule->command('personal:vertraege-abschliessen')
+            ->dailyAt('02:30')
+            ->name('personal-vertraege-abschliessen')
+            ->withoutOverlapping(30);
+
+        // Benachrichtigungen: Tagesübersicht „Dein Tag“ (Uhrzeit pro Person, morgens oder am Vorabend)
+        $schedule->command('benachrichtigungen:tagesvorschau')
+            ->everyFifteenMinutes()
+            ->name('benachrichtigungen-tagesvorschau')
+            ->withoutOverlapping(14);
+
+        // Benachrichtigungen: Nachmittags-Zusammenfassung (Mail-Modus „Zusammenfassung“)
+        $schedule->command('benachrichtigungen:zusammenfassung')
+            ->weekdays()
+            ->at(config('benachrichtigungen.zusammenfassung.uhrzeit', '16:00'))
+            ->name('benachrichtigungen-zusammenfassung')
+            ->withoutOverlapping(30);
+
+        // Benachrichtigungen: gelesene Einträge nach Aufbewahrungsfrist löschen (täglich um 03:15)
+        $schedule->call(function () {
+            $tage = (int) config('benachrichtigungen.aufbewahrung_tage', 180);
+            $deleted = \Illuminate\Notifications\DatabaseNotification::whereNotNull('read_at')
+                ->where('read_at', '<', now()->subDays($tage))
+                ->delete();
+            if ($deleted > 0) {
+                \Illuminate\Support\Facades\Log::info("Benachrichtigungen: {$deleted} alte gelesene Einträge gelöscht (>{$tage} Tage)");
+            }
+        })->dailyAt('03:15')->name('benachrichtigungen-aufraeumen');
 
         // Löschkonzept: Führungszeugnisse löschen (§ 72a SGB VIII) und Admins über fällige Stufen informieren
         $schedule->call(function () {

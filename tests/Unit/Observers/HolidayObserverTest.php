@@ -93,20 +93,28 @@ class HolidayObserverTest extends TestCase
         $this->assertEquals(0, $count, 'Nicht genehmigter Urlaub darf keine Absence erzeugen');
     }
 
-    /** firstOrCreate verhindert Duplikat-Absences */
-    public function test_doppelter_urlaub_erzeugt_keine_doppelte_absence(): void
+    /** Eine bereits vorhandene, unverknüpfte Urlaubs-Absence (Altbestand) wird übernommen statt gedoppelt */
+    public function test_altbestand_absence_wird_verknuepft_statt_gedoppelt(): void
     {
         $this->settingAktiv();
         $employee = User::factory()->create();
 
-        $data = ['start_date' => '2026-05-01', 'end_date' => '2026-05-02'];
-        Holiday::factory()->for($employee, 'employe')->approved()->create($data);
-        Holiday::factory()->for($employee, 'employe')->approved()->create($data);
+        Absence::create([
+            'users_id'   => $employee->id,
+            'creator_id' => $this->actor->id,
+            'reason'     => 'Urlaub',
+            'start'      => '2026-05-04',
+            'end'        => '2026-05-05',
+        ]);
 
-        $count = Absence::where('users_id', $employee->id)
-            ->where('reason', 'Urlaub')
-            ->count();
-        $this->assertEquals(1, $count, 'Doppelter Urlaub darf nur eine Absence erzeugen');
+        $holiday = Holiday::factory()->for($employee, 'employe')->approved()->create([
+            'start_date' => '2026-05-04',
+            'end_date'   => '2026-05-05',
+        ]);
+
+        $absences = Absence::where('users_id', $employee->id)->where('reason', 'Urlaub')->get();
+        $this->assertCount(1, $absences, 'Altbestand darf nicht gedoppelt werden');
+        $this->assertEquals($holiday->id, $absences->first()->holiday_id);
     }
 
     // ─── updated ─────────────────────────────────────────────────────────────
@@ -135,14 +143,11 @@ class HolidayObserverTest extends TestCase
     }
 
     /**
-     * Update leert den Tages-Cache.
-     * Hinweis: touch() feuert kein updated-Event wenn updated_at unverändert bleibt.
-     * Deshalb wird approved_by explizit geändert, um den Observer sicher auszulösen.
+     * Jede Änderung leert den Urlaubs-Cache des Mitarbeiters (User::holidays_date()).
      */
     public function test_updated_urlaub_leert_cache(): void
     {
         $this->settingInaktiv(); // Absence-Erstellung überspringen
-        $this->actingAs($this->actor);
 
         $employee = User::factory()->create();
         $holiday  = Holiday::factory()->for($employee, 'employe')->approved()->create([
@@ -150,19 +155,47 @@ class HolidayObserverTest extends TestCase
             'end_date'   => '2026-07-02',
         ]);
 
-        $authId = auth()->id();
-        $key1 = 'holiday_' . $authId . '_2026-07-01';
-        $key2 = 'holiday_' . $authId . '_2026-07-02';
+        $key = 'user_holidays_' . $employee->id;
+        Cache::put($key, 'daten', 300);
+        $this->assertEquals('daten', Cache::get($key), 'Voraussetzung: Cache muss befüllt sein');
 
-        Cache::put($key1, 'daten', 300);
-        Cache::put($key2, 'daten', 300);
-        $this->assertEquals('daten', Cache::get($key1), 'Voraussetzung: Cache muss befüllt sein');
-
-        // update() statt touch(), damit das Model dirty ist und der updated-Event ausgelöst wird
         $holiday->update(['approved_by' => $this->actor->id]);
 
-        $this->assertNull(Cache::get($key1), 'Cache-Schlüssel für Tag 1 wurde nicht geleert');
-        $this->assertNull(Cache::get($key2), 'Cache-Schlüssel für Tag 2 wurde nicht geleert');
+        $this->assertNull(Cache::get($key), 'Urlaubs-Cache des Mitarbeiters wurde nicht geleert');
+    }
+
+    /** Ablehnung nach Genehmigung entfernt die verknüpfte Absence wieder */
+    public function test_ablehnung_nach_genehmigung_entfernt_absence(): void
+    {
+        $this->settingAktiv();
+        $employee = User::factory()->create();
+
+        $holiday = Holiday::factory()->for($employee, 'employe')->approved()->create([
+            'start_date' => '2026-08-10',
+            'end_date'   => '2026-08-12',
+        ]);
+        $this->assertEquals(1, Absence::where('holiday_id', $holiday->id)->count());
+
+        $holiday->update(['approved' => false, 'rejected' => true]);
+
+        $this->assertEquals(0, Absence::where('holiday_id', $holiday->id)->count());
+    }
+
+    /** Löscht ein anderer Benutzer den Urlaub, verschwindet die Absence trotzdem */
+    public function test_loeschen_durch_andere_person_entfernt_absence(): void
+    {
+        $this->settingAktiv();
+        $employee = User::factory()->create();
+
+        $holiday = Holiday::factory()->for($employee, 'employe')->approved()->create([
+            'start_date' => '2026-08-17',
+            'end_date'   => '2026-08-18',
+        ]);
+
+        $this->actingAs(User::factory()->create());
+        $holiday->delete();
+
+        $this->assertEquals(0, Absence::where('users_id', $employee->id)->where('reason', 'Urlaub')->count());
     }
 
     // ─── deleted ─────────────────────────────────────────────────────────────

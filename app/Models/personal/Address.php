@@ -2,28 +2,25 @@
 
 namespace App\Models\personal;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\MediaLibrary\InteractsWithMedia;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class Address extends Model
+/**
+ * Anschrift eines Mitarbeitenden. Änderungen werden wie die übrigen Stammdaten
+ * über owen-it/laravel-auditing protokolliert (Änderungsverlauf der Personalakte).
+ */
+class Address extends Model implements Auditable
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes;
+    use \OwenIt\Auditing\Auditable;
 
-    protected $fillable = ['employe_id', 'plz', 'ort', 'nr', 'strasse'];
+    protected $fillable = ['employe_id', 'plz', 'ort', 'nr', 'strasse', 'land'];
 
-    public function employe(){
-        return $this->belongsTo(Employe::class, 'employe_id');
-    }
-
-    public function getActivitylogOptions(): LogOptions
+    public function employe(): BelongsTo
     {
-        return LogOptions::defaults()
-            ->useLogName('employe')
-            ->dontSubmitEmptyLogs()
-            ->logOnlyDirty();
+        return $this->belongsTo(User::class, 'employe_id');
     }
 }

@@ -2,12 +2,14 @@
 
 namespace App\Services\Procedure;
 
-use App\Mail\newStepMail;
+use App\Notifications\ProzessschrittZugewiesen;
 use App\Mail\StepErinnerungMail;
 use App\Models\Procedure_Step;
 use App\Models\ProcedureStepComment;
 use App\Models\User;
+use App\Notifications\ProzessKommentar;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -22,8 +24,8 @@ use Illuminate\Support\Facades\Mail;
 class ProcedureNotificationService
 {
     /**
-     * Benachrichtigt alle Empfänger eines neuen / fälligen Schrittes per Mail.
-     * Abwesende Empfänger (`hasAbsence(now())`) werden übersprungen.
+     * Benachrichtigt alle Empfänger eines neuen / fälligen Schrittes
+     * (Glocke, Push, Mail nach Einstellung; keine Mail an Abwesende).
      */
     public function notifyStepAssigned(Procedure_Step $step, ?User $exclude = null): int
     {
@@ -36,18 +38,9 @@ class ProcedureNotificationService
             if ($exclude && $user->id === $exclude->id) {
                 continue;
             }
-            if (method_exists($user, 'hasAbsence') && $user->hasAbsence(Carbon::now())) {
-                continue;
-            }
-
             try {
-                Mail::to($user)->queue(new newStepMail(
-                    $user->name,
-                    $endDate,
-                    $step->name,
-                    optional($step->procedure)->name ?? '',
-                    optional($step->procedure)->id ?? 0
-                ));
+                // Glocke/Push immer nach Einstellung, Mail nicht an Abwesende (siehe Notification)
+                $user->notify(new ProzessschrittZugewiesen($step, $endDate));
                 $sent++;
             } catch (\Throwable $e) {
                 Log::error('Prozesse: Mailversand fehlgeschlagen', [
@@ -72,14 +65,72 @@ class ProcedureNotificationService
         if (empty($pendingSteps)) {
             return;
         }
+        if (!app(\App\Services\Benachrichtigungen\BenachrichtigungsService::class)->mailErlaubt($user, 'prozesse')) {
+            return;
+        }
         Mail::to($user)->queue(new StepErinnerungMail($user->name, $pendingSteps));
+    }
+
+    /**
+     * Täglicher Erinnerungslauf: Jede Person mit fälligen/überfälligen offenen Schritten
+     * in laufenden Prozessen erhält eine Sammelmail (Abwesende werden übersprungen).
+     *
+     * @return int Anzahl der erinnerten Personen.
+     */
+    public function sendDueReminders(): int
+    {
+        $sent = 0;
+
+        User::whereHas('steps', fn (Builder $q) => $this->dueStepsConstraint($q))
+            ->get()
+            ->each(function (User $user) use (&$sent) {
+                if ($user->hasAbsence(Carbon::now())) {
+                    return;
+                }
+                $pending = $this->pendingStepsFor($user);
+                if ($pending !== []) {
+                    $this->sendReminder($user, $pending);
+                    $sent++;
+                }
+            });
+
+        return $sent;
+    }
+
+    /**
+     * Fällige/überfällige offene Schritte einer Person, aufbereitet für die Erinnerungsmail.
+     * Schritte aus beendeten, gelöschten oder nicht gestarteten Prozessen werden ignoriert.
+     */
+    public function pendingStepsFor(User $user): array
+    {
+        return $user->steps()
+            ->with('procedure')
+            ->where(fn (Builder $q) => $this->dueStepsConstraint($q))
+            ->orderBy('endDate')
+            ->get()
+            ->map(fn (Procedure_Step $step) => [
+                'endDate'       => $step->endDate->format('d.m.Y'),
+                'procedureName' => $step->procedure->name,
+                'procedureId'   => $step->procedure_id,
+                'stepName'      => $step->name,
+                'stepId'        => $step->id,
+            ])
+            ->all();
+    }
+
+    private function dueStepsConstraint(Builder $query): Builder
+    {
+        return $query->where('done', false)
+            ->whereNotNull('endDate')
+            ->whereDate('endDate', '<=', Carbon::today())
+            ->whereHas('procedure', fn (Builder $p) => $p->laufend());
     }
 
     /**
      * Benachrichtigt Verantwortliche eines Schrittes über einen neuen Kommentar.
      * Author wird ausgenommen, Eltern-/Kindschritte optional (Settings-gesteuert).
      *
-     * @return int Anzahl tatsächlich versendeter Mails.
+     * @return int Anzahl benachrichtigter Personen.
      */
     public function notifyComment(ProcedureStepComment $comment): int
     {
@@ -105,20 +156,12 @@ class ProcedureNotificationService
 
         $recipients = $recipients
             ->unique('id')
-            ->filter(fn ($u) => $u && $u->id !== $comment->user_id)
-            ->filter(fn ($u) => !(method_exists($u, 'hasAbsence') && $u->hasAbsence(Carbon::now())));
+            ->filter(fn ($u) => $u && $u->id !== $comment->user_id);
 
         $sent = 0;
         foreach ($recipients as $user) {
             try {
-                Mail::to($user)->queue(new \App\Mail\ProcedureStepCommentMail(
-                    recipientName: $user->name,
-                    authorName:    optional($comment->user)->name ?? 'System',
-                    stepName:      $step->name,
-                    procedureName: optional($step->procedure)->name ?? '',
-                    procedureId:   optional($step->procedure)->id ?? 0,
-                    body:          $comment->body
-                ));
+                $user->notify(new ProzessKommentar($comment, $step));
                 $sent++;
             } catch (\Throwable $e) {
                 Log::error('Prozesse: Kommentar-Mailversand fehlgeschlagen', [

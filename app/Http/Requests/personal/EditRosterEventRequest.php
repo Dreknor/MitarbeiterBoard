@@ -24,12 +24,13 @@ class EditRosterEventRequest extends FormRequest
     public function rules()
     {
         return [
-            'event' => ['required', 'string'],
-            'date' => ['required', 'date'],
+            'event' => ['required', 'string', 'max:190'],
+            'date' => ['required', 'date_format:Y-m-d'],
             'start' => ['required', 'date_format:H:i', 'before:end'],
             'end' => ['required', 'date_format:H:i', 'after:start'],
-            'employes' => ['required', 'array'],
-            'employes.*' => ['numeric', 'exists:users,id']
+            // Leer = Termin landet in der Merkliste (nicht zugewiesen)
+            'employes' => ['nullable', 'array'],
+            'employes.*' => ['integer', 'exists:users,id']
         ];
     }
 }

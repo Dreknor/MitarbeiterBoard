@@ -1,17 +1,29 @@
 <div class="space-y-4">
     <h3 class="font-semibold text-gray-900">Meine Anstellungen</h3>
 
-    @forelse($rawEmploye->employments as $emp)
-    <div class="personal-card">
+    {{-- Alle eigenen Anstellungen inkl. beendeter (eigene Seite und Reiter der Übersicht) --}}
+    @php
+        $meineAnstellungen = $employments ?? $rawEmploye->employments;
+        $canViewSalary = $canViewSalary ?? auth()->user()->can('view salary');
+    @endphp
+
+    @forelse($meineAnstellungen->sortByDesc('start') as $emp)
+    @php $abgelaufen = $emp->end && $emp->end->isPast(); @endphp
+    <div class="personal-card {{ $abgelaufen ? 'opacity-75' : '' }}">
         <div class="flex items-start justify-between mb-3">
             <div>
                 <span class="font-semibold">{{ $emp->employment_type?->label() ?? 'Anstellung' }}</span>
-                <span class="badge-{{ $emp->status?->value === 'aktiv' ? 'green' : 'yellow' }} ml-2">
+                @if($abgelaufen)
+                <span class="badge-gray ml-2">Beendet</span>
+                @else
+                <span class="badge-{{ match($emp->status?->value) { 'aktiv' => 'green', 'ruhend' => 'yellow', default => 'gray' } }} ml-2">
                     {{ $emp->status?->label() }}
                 </span>
+                @endif
                 @if($emp->contract_type)
                 <span class="badge-gray ml-1">{{ $emp->contract_type->label() }}</span>
                 @endif
+                @include('personal.partials._vertrag_kennzeichen', ['employment' => $emp, 'class' => 'mt-2'])
             </div>
         </div>
 
@@ -26,7 +38,7 @@
             </div>
             <div>
                 <dt class="text-gray-500">Ende</dt>
-                <dd class="{{ $emp->end && $emp->end->isPast() ? 'text-red-600 font-semibold' : 'font-medium' }}">
+                <dd class="font-medium">
                     {{ $emp->end?->format('d.m.Y') ?? 'unbefristet' }}
                 </dd>
             </div>

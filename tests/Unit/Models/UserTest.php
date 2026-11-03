@@ -204,13 +204,6 @@ class UserTest extends TestCase
 
     // ─── Casts ───────────────────────────────────────────────────────────────
 
-    public function test_absence_abo_daily_ist_boolean(): void
-    {
-        $user = User::factory()->create(['absence_abo_daily' => true]);
-        $this->assertIsBool($user->absence_abo_daily);
-        $this->assertTrue($user->absence_abo_daily);
-    }
-
     public function test_email_verified_at_ist_datetime(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
@@ -335,6 +328,46 @@ class UserTest extends TestCase
 
         $result = $user->employments_date(Carbon::now());
         $this->assertCount(1, $result);
+    }
+
+    public function test_employments_date_beruecksichtigt_beendete_vertraege_fuer_vergangene_zeitraeume(): void
+    {
+        $user = User::factory()->create();
+
+        Employment::factory()->for($user, 'employe')->create([
+            'start'  => '2025-01-01',
+            'end'    => '2026-03-31',
+            'status' => \App\Enums\EmploymentStatus::Beendet,
+        ]);
+
+        // Zeitraum vollständig im (inzwischen beendeten) Vertrag
+        $this->assertCount(1, $user->employments_date(Carbon::parse('2026-03-01'), Carbon::parse('2026-03-31')));
+        // Nach Vertragsende
+        Cache::flush();
+        $this->assertCount(0, $user->employments_date(Carbon::parse('2026-04-01')));
+    }
+
+    public function test_employments_date_schliesst_ruhende_vertraege_aus_und_veraendert_daten_nicht(): void
+    {
+        $user = User::factory()->create();
+
+        Employment::factory()->for($user, 'employe')->create([
+            'start'  => '2025-01-01',
+            'end'    => null,
+            'status' => \App\Enums\EmploymentStatus::Ruhend,
+        ]);
+        $aktiv = Employment::factory()->for($user, 'employe')->create([
+            'start'  => '2025-01-01',
+            'end'    => '2026-12-31',
+            'status' => \App\Enums\EmploymentStatus::Aktiv,
+        ]);
+
+        $bis = Carbon::parse('2026-06-30 08:00');
+        $result = $user->employments_date(Carbon::parse('2026-06-01'), $bis);
+
+        $this->assertSame([$aktiv->id], $result->pluck('id')->values()->all());
+        $this->assertSame('2026-12-31', $result->first()->end->toDateString());
+        $this->assertSame('2026-06-30 08:00:00', $bis->toDateTimeString());
     }
 
     // ─── getHolidayClaim ─────────────────────────────────────────────────────

@@ -27,72 +27,94 @@
         'delete_url' => route('calendar.ical.destroy', $f),
         'fehler'     => $f->fehler_meldung,
     ]))->values();
+
+    $schreibbarFrontend = $schreibbareKalender->map(fn($c) => [
+        'id'    => $c->id,
+        'name'  => $c->name,
+        'farbe' => $c->farbe,
+    ])->values();
+
+    // Nach Validierungsfehlern das Formular mit den eingegebenen Werten erneut öffnen
+    $formularAlt = old('_formular') ? [
+        'termin_id'    => old('_termin_id'),
+        'updated_at'   => old('expected_updated_at'),
+        'kalender_ids' => array_map('intval', (array) old('kalender_ids', [])),
+        'titel'        => old('titel'),
+        'beginn'       => old('beginn'),
+        'ende'         => old('ende'),
+        'ganztaegig'   => (bool) old('ganztaegig'),
+        'ort'          => old('ort'),
+        'beschreibung' => old('beschreibung'),
+        'rrule'        => old('rrule'),
+        'room_id'      => old('room_id'),
+    ] : null;
+
+    $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP;
 @endphp
-<div class="px-4 py-4 {{ $canCreate ? '' : 'calendar-no-create' }}"
+<div class="calendar-wrapper px-4 py-4 max-md:px-2 {{ $canCreate ? '' : 'calendar-no-create' }}"
      x-data="calendarApp"
-     data-calendars='{!! json_encode($alleKalenderFrontend, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'
+     data-calendars='{!! json_encode($alleKalenderFrontend, $jsonFlags) !!}'
+     data-writable-calendars='{!! json_encode($schreibbarFrontend, $jsonFlags) !!}'
+     data-rooms='{!! json_encode($raeume, $jsonFlags) !!}'
+     data-form-old='{!! json_encode($formularAlt, $jsonFlags) !!}'
      data-default-view="{{ $defaultView }}"
      data-can-create="{{ $canCreate ? 'true' : 'false' }}"
      data-can-edit="{{ $canEdit ? 'true' : 'false' }}"
+     data-can-book-rooms="{{ $canBookRooms ? 'true' : 'false' }}"
+     data-import-error="{{ $errors->has('datei') ? 'true' : 'false' }}"
      data-user-colors='{!! json_encode($userColors, JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'>
 
     {{-- ─── Seiten-Header ─────────────────────────────────────────────── --}}
-    <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-            {{-- Sidebar-Toggle --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div class="flex items-center gap-3 min-w-0">
             <button type="button"
                     @click="toggleSidebar()"
-                    class="no-print inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    title="Kalender-Liste ein-/ausblenden">
+                    class="no-print inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    :aria-expanded="sidebarVisible.toString()"
+                    title="Seitenleiste ein-/ausblenden">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M4 6h16M4 12h16M4 18h16"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
-            <h1 class="text-2xl font-bold text-gray-900">📅 Kalender</h1>
+            <h1 class="text-2xl font-bold text-gray-900 leading-tight truncate">Kalender</h1>
         </div>
 
-        <div class="flex items-center gap-2">
-            {{-- PDF-Export (TODO 28) --}}
-            @can('view calendar')
-                <a :href="`/calendar/export-pdf?date=${currentWeekDate()}`"
-                   class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-green-50 border border-gray-300 hover:border-green-300 text-gray-600 hover:text-green-700 text-sm rounded-md transition-colors"
-                   title="Wochenansicht als PDF herunterladen">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    PDF
-                </a>
-            @endcan
+        <div class="no-print flex flex-wrap items-center gap-2">
+            @if($canImport)
+                <button type="button"
+                        @click="showImportModal = true"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-sm rounded-md transition-colors"
+                        title="Termine aus einer .ics-Datei importieren">
+                    <i class="fas fa-file-import text-xs"></i>
+                    Import
+                </button>
+            @endif
+            <a :href="`{{ route('calendar.export.pdf') }}?date=${currentWeekDate()}&calendars=${pdfCalendarsParam || 'none'}`"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-sm rounded-md transition-colors"
+               title="Wochenansicht als PDF herunterladen">
+                <i class="fas fa-file-pdf text-xs"></i>
+                PDF
+            </a>
             @can('manage calendar')
                 <a href="{{ route('calendar.admin') }}"
-                   class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-amber-50 border border-gray-300 hover:border-amber-300 text-gray-600 hover:text-amber-700 text-sm rounded-md transition-colors"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 text-sm rounded-md transition-colors"
                    title="Kalender-Verwaltung">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
+                    <i class="fas fa-cog text-xs"></i>
                     Verwaltung
                 </a>
             @endcan
             @can('create calendar events')
                 @if($schreibbareKalender->isNotEmpty())
                     <button type="button"
-                            @click="showCreateModal = true"
-                            class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
+                            @click="openCreateModal()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <i class="fas fa-plus text-xs"></i>
                         Neuer Termin
                     </button>
                 @else
-                    <span class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-200 text-gray-500 text-sm font-medium rounded-md cursor-not-allowed"
+                    <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-200 text-gray-500 text-sm font-medium rounded-md cursor-not-allowed"
                           title="Kein schreibbarer Kalender verfügbar.">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
+                        <i class="fas fa-plus text-xs"></i>
                         Neuer Termin
                     </span>
                 @endif
@@ -102,20 +124,33 @@
 
     {{-- ─── Sync-Warnung ──────────────────────────────────────────────── --}}
     @if($syncVeraltet)
-        <div class="no-print flex items-center gap-2 px-3 py-2 mb-3 bg-amber-50 border border-amber-400 rounded-md text-amber-800 text-sm">
-            ⚠️ Kalender-Daten möglicherweise nicht aktuell. Letzte Synchronisation:
-            {{ \Carbon\Carbon::parse($aeltesteSync)->diffForHumans() }}
+        <div class="no-print flex items-center gap-2 px-3 py-2 mb-3 bg-amber-50 border border-amber-300 rounded-md text-amber-800 text-sm">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>
+                Kalender-Daten möglicherweise nicht aktuell. Letzte Synchronisation:
+                {{ \Carbon\Carbon::parse($aeltesteSync)->diffForHumans() }}
+            </span>
         </div>
     @endif
 
     {{-- ─── Layout: Sidebar + FullCalendar ───────────────────────────── --}}
-    <div class="flex items-start relative">
+    <div class="relative flex items-start gap-4">
+        {{-- Mobile: Hintergrund hinter der ausgeklappten Sidebar --}}
+        <div x-show="sidebarVisible && isMobile"
+             x-cloak
+             @click="sidebarVisible = false"
+             class="no-print fixed inset-0 bg-black/30 z-[60] md:hidden"></div>
+
         @include('calendar.partials.filterSidebar')
-        <div class="flex-1 min-w-0 cal-fc" x-ref="calendarEl"></div>
+
+        {{-- .cal-fc muss ein Vorfahre sein: FullCalendar setzt .fc auf das x-ref-Element selbst --}}
+        <div class="cal-fc flex-1 min-w-0 bg-white border border-gray-200 rounded-lg p-3 max-md:p-2 shadow-sm">
+            <div x-ref="calendarEl"></div>
+        </div>
     </div>
 
     {{-- ─── Footer ────────────────────────────────────────────────────── --}}
-    <p class="mt-3 text-sm text-gray-400">
+    <p class="mt-3 text-sm text-gray-500">
         @if($kalender->isNotEmpty() && $kalender->max('letzte_synchronisation'))
             Zuletzt synchronisiert:
             {{ \Carbon\Carbon::parse($kalender->max('letzte_synchronisation'))->diffForHumans() }}
@@ -127,9 +162,12 @@
     {{-- Modals --}}
     @include('calendar.partials.terminModal')
     @include('calendar.partials.icalFeedModal')
-    @can('create calendar events')
+    @if($canImport)
+        @include('calendar.partials.importModal')
+    @endif
+    @if($canCreate || $canEdit)
         @include('calendar.partials.terminForm')
-    @endcan
+    @endif
 </div>
 @endsection
 
@@ -148,18 +186,15 @@
             };
 
             if (navigator.clipboard && window.isSecureContext) {
-                // Secure context (HTTPS / localhost): moderne Clipboard-API
                 navigator.clipboard.writeText(input.value)
                     .then(showSuccess)
                     .catch(() => { input.select(); document.execCommand('copy'); showSuccess(); });
             } else {
-                // Fallback für HTTP-Kontext (execCommand)
                 input.select();
-                input.setSelectionRange(0, 99999); // Mobile
+                input.setSelectionRange(0, 99999);
                 try { document.execCommand('copy'); } catch (_) {}
                 showSuccess();
             }
         }
     </script>
 @endpush
-

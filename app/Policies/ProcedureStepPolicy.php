@@ -10,14 +10,10 @@ class ProcedureStepPolicy
 {
     use HandlesAuthorization;
 
+    /** Wer den Prozess sehen darf, darf auch dessen Schritte (inkl. Kommentare/Verlauf) sehen. */
     public function view(User $user, Procedure_Step $step): bool
     {
-        if ($user->can('manage procedures')) return true;
-        if (!$user->can('view assigned procedures')) return false;
-
-        if ($step->users()->where('users.id', $user->id)->exists()) return true;
-        if (($user->position_id ?? null) === $step->position_id) return true;
-        return false;
+        return $step->procedure !== null && $user->can('view', $step->procedure);
     }
 
     public function update(User $user, Procedure_Step $step): bool

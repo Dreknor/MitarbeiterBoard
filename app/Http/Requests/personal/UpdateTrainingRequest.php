@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Personal;
+namespace App\Http\Requests\personal;
 
 use App\Enums\TrainingStatus;
 use Illuminate\Validation\Rule;

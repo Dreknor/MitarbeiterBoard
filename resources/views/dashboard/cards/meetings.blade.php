@@ -6,7 +6,7 @@
 @else
     <div class="divide-y divide-gray-100">
         @foreach($naechsteMeetings as $meeting)
-            <a href="{{ route('meetings.index', ['group' => $meeting->group->name]) }}"
+            <a href="{{ route('meetings.show', $meeting) }}"
                class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 no-underline">
                 <div class="text-center min-w-[3rem]">
                     <div class="text-sm font-bold text-gray-800">{{ $meeting->date->format('d.m.') }}</div>
@@ -18,11 +18,11 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="text-sm text-gray-800 font-medium truncate">
-                        {{ $meeting->title ?? $meeting->group->name }}
+                        {{ $meeting->title ?? $meeting->contextLabel() }}
                     </div>
                     <div class="text-xs text-gray-500 truncate">
-                        <i class="fas fa-users mr-1"></i>{{ $meeting->group->name }}
-                        @if($meeting->themes_count ?? 0 > 0)
+                        <i class="fas {{ $meeting->isFree() ? 'fa-globe' : 'fa-users' }} mr-1"></i>{{ $meeting->contextLabel() }}
+                        @if(($meeting->themes_count ?? 0) > 0)
                             &middot; {{ $meeting->themes_count }} Themen
                         @endif
                     </div>

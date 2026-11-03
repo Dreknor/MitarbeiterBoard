@@ -9,10 +9,9 @@ use App\Exports\SickNotesByUserExport;
 use App\Exports\SickNotesExport;
 use App\Exports\SickNotesUserSummaryExport;
 use App\Http\Requests\CreateAbsenceRequest;
-use App\Mail\DailyAbsenceReport;
-use App\Mail\NewAbsenceMail;
 use App\Models\Absence;
 use App\Models\User;
+use App\Services\AbsenceService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -22,7 +21,6 @@ use Illuminate\Routing\Redirector;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -61,51 +59,8 @@ class AbsenceController extends Controller
      * @param CreateAbsenceRequest $request
      * @return RedirectResponse
      */
-    public function store(CreateAbsenceRequest $request){
-
-        $absence = Absence::whereDate('end', '>=', Carbon::parse($request->start)->subDay())
-            ->where('users_id', $request->users_id)
-            ->where('reason', $request->reason)
-            ->first();
-
-        if (is_null($absence)){
-            $absence = new Absence($request->validated());
-            if (!auth()->user()->can('create absences')){
-                $absence->users_id = auth()->id();
-            }
-            $absence->save();
-
-            Log::debug(
-                'Abwesenheit: Abwesenheit gespeichert',
-                [
-                    'user' => auth()->user(),
-                    'absence' => $absence,
-                    'route' => 'absences.store'
-                ]
-            );
-
-
-        } else {
-            $absence->update([
-                'end' => $request->end,
-                'sick_note_required' => $request->sick_note_required,
-            ]);
-
-            Log::debug(
-                'Abwesenheit: Abwesenheit aktualisiert',
-                [
-                    'user' => auth()->user(),
-                    'absence' => $absence,
-                    'route' => 'absences.store'
-                ]
-            );
-        }
-        $users = User::where('absence_abo_now', 1)->get();
-        foreach ($users as $user){
-            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))){
-                $mail = Mail::to($user)->queue(new NewAbsenceMail($absence->user->name,$absence->start->format('d.m.Y'),$absence->end->format('d.m.Y'),$absence->reason));
-            }
-        }
+    public function store(CreateAbsenceRequest $request, AbsenceService $absences){
+        $absences->melden($request->user(), $request->validated());
 
         return redirect()->back()->with([
             'type' => 'success',
@@ -114,112 +69,29 @@ class AbsenceController extends Controller
     }
 
     /**
-     * @param $type
-     * @return RedirectResponse
-     */
-    public function abo($type){
-        $user = auth()->user();
-        if ($type == 'daily'){
-            if ($user->absence_abo_daily == 1){
-                $user->update(['absence_abo_daily' => 0]);
-            } else {
-                $user->update(['absence_abo_daily' => 1]);
-            }
-        }
-        if ($type == 'now'){
-            if (auth()->user()->absence_abo_now == 1){
-                auth()->user()->update(['absence_abo_now' => 0]);
-            } else {
-                auth()->user()->update(['absence_abo_now' => 1]);
-            }
-        }
-        return redirect()->back();
-    }
-
-    /**
-     * @return void
-     */
-    public function dailyReport(){
-
-        Log::debug(
-            'Abwesenheit: täglicher Report',
-            [
-
-            ]
-        );
-
-        $absences = Absence::where('start', '<=', Carbon::now()->format('Y-m-d'))
-                            ->where('end', '>=', Carbon::now()->format('Y-m-d'))
-                            ->get();
-
-        $users = User::where('absence_abo_daily', 1)->get();
-
-        Log::debug(
-            'Abwesenheit: täglicher Report',
-            [
-                'absences' => $absences,
-                'users' => $users,
-            ]
-        );
-
-        foreach ($users as $user){
-            if ($user->send_mails_if_absence == true or (!$user->hasAbsence(now()) and !$user->hasHoliday(now()))) {
-                $absence_user = Absence::where('start', '<=', \Illuminate\Support\Carbon::now()->format('Y-m-d'))
-                    ->where('end', '>=', \Carbon\Carbon::now()->format('Y-m-d'))
-                    ->where('users_id', $user->id)
-                    ->first();
-
-                if (is_null($absence_user)) {
-                    Mail::to($user)
-                        ->queue(new DailyAbsenceReport($absences));
-                }
-            }
-        }
-    }
-
-    /**
      * @param Absence $absence
      * @return RedirectResponse
      */
-    public function delete(Absence $absence){
-        if ((auth()->user()->can('delete absences') or auth()->id() == $absence->creator_id)){
-            if ($absence->end->greaterThan(Carbon::today()->startOfDay())){
-                Log::debug(
-                    'Abwesenheit: Abwesenheit gelöscht',
-                    [
-                        'user' => auth()->user(),
-                        'absence' => $absence,
-                        'route' => 'absences.delete'
-                    ]
-                );
-                $absence->delete();
-
-                return redirect()->back()->with([
-                    'type' => 'info',
-                    'Meldung' => 'Abwesenheitsmitteilung gelöscht'
-                ]);
-
-
-            } else {
-                Log::debug(
-                    'Abwesenheit: Abwesenheit löschen fehlgeschlagen',
-                    [
-                        'user' => auth()->user(),
-                        'absence' => $absence,
-                        'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
-                    ]
-                );
-                return redirect()->back()->with([
-                    'type' => 'danger',
-                    'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
-                ]);
-            }
-
+    public function delete(Absence $absence, AbsenceService $absences){
+        if (!$absences->darfLoeschen(auth()->user(), $absence)){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
         }
 
+        if (!$absences->loeschbar($absence)){
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Abwesenheitsmitteilung kann nicht gelöscht werden, da das Ende in der Zukunft liegen muss.'
+            ]);
+        }
+
+        $absences->loeschen(auth()->user(), $absence);
+
         return redirect()->back()->with([
-            'type' => 'danger',
-            'Meldung' => 'Berechtigung fehlt'
+            'type' => 'info',
+            'Meldung' => 'Abwesenheitsmitteilung gelöscht'
         ]);
     }
 

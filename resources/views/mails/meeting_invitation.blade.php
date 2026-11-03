@@ -22,9 +22,13 @@
             @endif
         </li>
     @endif
-    @if($group->meeting_url)
-        <li><strong>Meeting-Link:</strong> <a href="{{ $group->meeting_url }}">{{ $group->meeting_url }}</a></li>
+    @if($meeting->location)
+        <li><strong>Ort:</strong> {{ $meeting->location }}</li>
     @endif
+    @if($meeting->effectiveMeetingUrl())
+        <li><strong>Meeting-Link:</strong> <a href="{{ $meeting->effectiveMeetingUrl() }}">{{ $meeting->effectiveMeetingUrl() }}</a></li>
+    @endif
+    <li><strong>Kontext:</strong> {{ $meeting->contextLabel() }}</li>
     <li><strong>Themen:</strong>
         <ul>
             @forelse($meeting->themes as $theme)
@@ -35,6 +39,7 @@
         </ul>
     </li>
 </ul>
+<p><a href="{{ route('meetings.show', $meeting) }}">Meeting im MitarbeiterBoard öffnen</a></p>
 <p>Viele Grüße<br>
 {{$absender}}
 </p>

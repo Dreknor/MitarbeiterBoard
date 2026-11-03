@@ -3,38 +3,33 @@
 namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Anschrift eines Mitarbeitenden (Teil der Stammdaten).
+ */
 class AddressController extends Controller
 {
-
-
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\address  $address
-     * @return RedirectResponse
+     * Anschrift speichern – je Person genau ein Datensatz; Änderungen protokolliert das Activity-Log des Modells.
      */
-    public function update(CreateAddressRequest $request,  Employe $employe)
+    public function update(Request $request, User $employe): RedirectResponse
     {
-        $employe->address()->create($request->validated());
+        $data = $request->validate([
+            'strasse' => ['nullable', 'string', 'max:255'],
+            'nr'      => ['nullable', 'string', 'max:20'],
+            'plz'     => ['nullable', 'string', 'max:10'],
+            'ort'     => ['nullable', 'string', 'max:255'],
+            'land'    => ['nullable', 'string', 'max:255'],
+        ]);
 
-        activity('employe')->performedOn($employe)->causedBy(auth()->user())->log('Anschrift geändert.');
-
+        $address = $employe->address()->firstOrNew();
+        $address->fill($data);
+        $address->employe_id = $employe->id;
+        $address->save();
 
         return redirectBack('success', 'Anschrift wurde gespeichert.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\address  $address
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(address $address)
-    {
-        //todo
     }
 }

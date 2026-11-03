@@ -17,9 +17,7 @@ class SendRosterMail extends Mailable
     protected $files;
 
     /**
-     * Create a new message instance.
-     *
-     * @return void
+     * @param array<string, string> $files Dateiname => PDF-Inhalt (Binärdaten)
      */
     public function __construct($vorname, $nachname, $date, $absender, array $files)
     {
@@ -28,7 +26,9 @@ class SendRosterMail extends Mailable
         $this->nachname = $nachname;
         $this->date = $date;
         $this->absender = $absender;
-        $this->files = $files;
+        // Inhalte statt Dateipfaden: die Mail kann gequeued werden, ohne dass temporäre
+        // Dateien liegen bleiben oder zwischen Empfängern überschrieben werden.
+        $this->files = array_map('base64_encode', $files);
     }
 
     /**
@@ -47,8 +47,8 @@ class SendRosterMail extends Mailable
             'absender' => $this->absender,
         ]);
 
-        foreach ($this->files as $file) {
-            $view->attach(storage_path($file));
+        foreach ($this->files as $name => $inhalt) {
+            $view->attachData(base64_decode($inhalt), $name, ['mime' => 'application/pdf']);
         }
 
         return $view;

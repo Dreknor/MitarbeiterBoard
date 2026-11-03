@@ -3,17 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProtocolRequest;
-use App\Mail\newProtocolForTask;
 use App\Mail\newTaskMail;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Theme;
-use App\Notifications\Push;
+use App\Notifications\ProtokollErstellt;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\Style\Language;
@@ -124,8 +121,10 @@ class ProtocolController extends Controller
         if ($theme->type->type == 'Aufgabe' and $theme->creator_id != auth()->id()) {
             $user = auth()->user()->name;
             $ersteller = $theme->ersteller;
-            Notification::send($ersteller, new Push('neues Protokoll', 'Thema: '.$theme->theme));
-            Mail::to($ersteller)->queue(new newProtocolForTask($user, $theme, $groupname, $protocol));
+            // Abonnenten werden bereits über Protocol::booted() benachrichtigt
+            if ($ersteller && !$theme->subscriptionable()->where('users_id', $ersteller->id)->exists()) {
+                $ersteller->notify(new ProtokollErstellt($protocol, $user));
+            }
         }
 
         if ($request->hasFile('files')) {

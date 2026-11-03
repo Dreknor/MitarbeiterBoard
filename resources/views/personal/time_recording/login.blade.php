@@ -1,67 +1,43 @@
 @extends('personal.time_recording.layout')
+
+@php
+    $kommen = $aktion === \App\Services\Personal\Zeit\TimeRecordingService::KOMMEN;
+    $minuten = (int) round($timesheet->working_time_account / 60);
+    $saldo = ($minuten < 0 ? '−' : '+').intdiv(abs($minuten), 60).':'.str_pad((string) (abs($minuten) % 60), 2, '0', STR_PAD_LEFT);
+@endphp
+
 @section('content')
-    <div class="container">
-        <!--vertical align on parent using my-auto-->
-        <div class="row h-100">
-            <div class="col-sm-12 my-auto">
-                <div class="card bg-gradient-directional-teal">
-                    <div class="card-header m-auto text-white border-bottom">
-                        <h1>
-                            digitale Zeiterfassung
-                        </h1>
-                    </div>
-                    <div class="card-body">
-                        <div class="w-25 mx-auto">
-                            <div class="text-center text-light">
-                                Läuft ab in:
-                                <div class="autologouttimer">
-                                    <div id="progressbar" class="progressbar color-red"></div>
-                                    <span>1 Min.</span>
-                                </div><br/>
-                            </div>
-                        </div>
+    <div class="rounded-3xl px-6 py-10 text-center" style="background: {{ $kommen ? 'rgba(16,185,129,.35)' : 'rgba(59,130,246,.35)' }};">
+        <i class="fas {{ $kommen ? 'fa-sign-in-alt' : 'fa-sign-out-alt' }}" style="font-size: 3.5rem;"></i>
+        <h1 class="text-3xl font-bold mt-4">{{ $kommen ? 'Hallo' : 'Tschüss' }}, {{ $user->vorname ?: $user->name }}!</h1>
+        <p class="text-xl mt-3">
+            @if($kommen)
+                Kommen um <strong>{{ $timesheet_day->start->format('H:i') }} Uhr</strong> erfasst.
+            @else
+                Gehen um <strong>{{ $timesheet_day->end->format('H:i') }} Uhr</strong> erfasst.
+            @endif
+        </p>
+        @unless($kommen)
+            <p class="text-white/80 mt-1">
+                Anwesenheit {{ $timesheet_day->start->diff($timesheet_day->end)->format('%H:%I') }} h
+                @if($timesheet_day->pause) · Pause {{ $timesheet_day->pause }} Min. automatisch eingetragen @endif
+            </p>
+        @endunless
+        <p class="mt-6 text-white/80">Stundenkonto aktuell</p>
+        <p class="text-3xl font-bold tabular-nums">{{ $saldo }} h</p>
 
-                    </div>
-                    <div class="card-body text-white" style="min-height: 25vH">
-                        <h4 class="mx-auto text-center" id="hinweis">
-                            Hallo {{$user->name}},<br>
-                        </h4>
-                        <p class="text-center">
-                            @if(is_null($timesheet_day->end))
-                                Arbeitszeitbeginn wurde für {{$timesheet_day->start->format('H:i')}} Uhr erfasst.
-                            @else
-                                Arbeitszeitende wurde für {{$timesheet_day->end->format('H:i')}} Uhr erfasst. <br>
-                                Die erfasste Arbeitszeit betrug {{$timesheet_day->start->diff($timesheet_day->end)->format('%H:%I')}} Stunden.
-                            @endif
-                            <br>
-                            <br>
-                                <b>Aktueller Stand der Arbeitszeit:<br></b>
-                            {{convertTime($timesheet->working_time_account)}} h
-                        </p>
-                        @if(!is_null($dayBefore))
-                            <p class="text-center text-light">
-                                Kein Arbeitszeitende erfasst für {{$dayBefore->start->format('d.m.Y')}}.<br>
-                                Dies bitte nachtragen.
-                            </p>
-                        @endif
-                    </div>
-                    <div class="card-footer border-top">
-                        <a href="{{route('time_recording.logout')}}" class="btn btn-danger btn-lg float-right">Abmelden</a>
-                    </div>
-                </div>
+        @if($dayBefore)
+            <div class="mt-6 rounded-2xl bg-amber-500/90 px-4 py-3 text-base">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                Am {{ $dayBefore->date->format('d.m.Y') }} fehlt das Gehen – bitte im Arbeitszeitnachweis nachtragen.
             </div>
-        </div>
+        @endif
+
+        <div class="zw-timer mt-8"><span style="animation-duration: 8s;"></span></div>
+        <a href="{{ route('time_recording.logout') }}" class="inline-block mt-6 rounded-2xl bg-white/20 px-6 py-3 text-lg font-semibold">Fertig</a>
     </div>
-
 @endsection
-@push('js')
-    <script>
 
-        $(document).ready(function() {
-            /* Change time here to make the animation longer */
-            $('#progressbar').animate({width: '0'}, 60000, 'linear', function () {
-                window.location.href = "{{route('time_recording.logout')}}";
-            });
-        });
-    </script>
+@push('js')
+    <script>setTimeout(() => { window.location.href = @json(route('time_recording.logout')); }, 8000);</script>
 @endpush

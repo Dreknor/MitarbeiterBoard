@@ -7,17 +7,22 @@
  * - Editor öffnen/schließen
  */
 
-import { csrfToken } from './utils.js';
+import { csrfToken, formatDate } from './utils.js';
 
-export function registerNoteEditor(Alpine) {
-    Alpine.data('noteEditor', () => ({
+/**
+ * Zustand und Methoden des Notiz-Editors – auch von der neuen Ansicht (Seitenleiste) genutzt.
+ */
+export function noteEditorMethods() {
+    return {
         editorOpen: false,
+        /** Beim Öffnen zum Editor scrollen (Karte über der Tabelle); die Seitenleiste braucht das nicht */
+        zumEditorScrollen: true,
         editingEntryId: null,
         saving: false,
         statusText: '',
 
         // Formular-Felder
-        formDate: new Date().toISOString().slice(0, 10),
+        formDate: formatDate(new Date()),
         formContent: '',
         formSchuelerIds: [],
         formCategoryId: '',
@@ -79,6 +84,7 @@ export function registerNoteEditor(Alpine) {
             if (detail?.stuId) this.formSchuelerIds = [String(detail.stuId)];
             this.editorOpen = true;
             this.$nextTick(() => {
+                if (!this.zumEditorScrollen) return;
                 const el = this.$refs?.editorCard || this.$el;
                 el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
             });
@@ -95,7 +101,9 @@ export function registerNoteEditor(Alpine) {
 
             this.resetForm();
             this.editingEntryId = entry.id;
-            this.formDate = detail?.date || entry.date;
+            // Startdatum der Notiz beibehalten – der angeklickte Tag (detail.date) ist nur die Zelle,
+            // über die geöffnet wurde. Sonst verschiebt Speichern den Beginn der Notiz.
+            this.formDate = entry.date || detail?.date;
             this.formContent = entry.content || '';
             this.formSchuelerIds = (entry.schueler_ids || []).map(String);
             this.formCategoryId = entry.category_id ? String(entry.category_id) : '';
@@ -103,6 +111,7 @@ export function registerNoteEditor(Alpine) {
             this.formDossierOnly = !!entry.dossier_only;
             this.editorOpen = true;
             this.$nextTick(() => {
+                if (!this.zumEditorScrollen) return;
                 const el = this.$refs?.editorCard || this.$el;
                 el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
             });
@@ -121,7 +130,7 @@ export function registerNoteEditor(Alpine) {
          */
         resetForm() {
             this.editingEntryId = null;
-            this.formDate = new Date().toISOString().slice(0, 10);
+            this.formDate = formatDate(new Date());
             this.formContent = '';
             this.formSchuelerIds = [];
             this.formCategoryId = '';
@@ -171,6 +180,10 @@ export function registerNoteEditor(Alpine) {
                 const j = await resp.json();
                 if (j.success) {
                     this.statusText = 'Gespeichert';
+                    // Vertrauliche Notizen erscheinen nicht in der Wochenansicht – Hinweis statt "verschwunden"
+                    if (this.formDossierOnly) {
+                        store.showError('Vertrauliche Notiz gespeichert. Sie erscheint nicht in der Wochenansicht, sondern in der Schülerakte und im Dossier.', 'info');
+                    }
                     this.closeEditor();
                     store.loadWeek();
                 } else {
@@ -213,6 +226,9 @@ export function registerNoteEditor(Alpine) {
                 this.statusText = 'Fehler beim Löschen';
             }
         },
-    }));
+    };
 }
 
+export function registerNoteEditor(Alpine) {
+    Alpine.data('noteEditor', noteEditorMethods);
+}

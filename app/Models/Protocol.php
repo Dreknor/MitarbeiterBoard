@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use App\Mail\newProtocolForTask;
+use App\Notifications\ProtokollErstellt;
+use App\Support\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -25,6 +25,11 @@ class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Aud
         $protocol = str_replace('&amp;', ' und ',$protocol);
         $protocol = str_replace('  ', ' ',$protocol);
         $this->attributes['protocol'] = $protocol;
+    }
+
+    public function getProtocolHtmlAttribute(): string
+    {
+        return HtmlSanitizer::clean($this->protocol);
     }
 
     public function ersteller()
@@ -55,10 +60,15 @@ class Protocol extends Model implements HasMedia, \OwenIt\Auditing\Contracts\Aud
     {
         static::created(function ($protocol) {
             $theme = $protocol->theme;
+
+            // Freie Meeting-Themen: Abonnements laufen nicht über Gruppen-Links
+            if (! $theme?->group) {
+                return;
+            }
+
             foreach ($theme->subscriptionable as $subscription) {
-                if ($subscription->user != $protocol->ersteller){
-                    Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme, $theme->group->name, $protocol));
-                    //Mail::to($subscription->user)->queue(new newProtocolForTask($protocol->ersteller->name, $theme->theme));
+                if ($subscription->user && (int) $subscription->user->id !== (int) $protocol->creator_id) {
+                    $subscription->user->notify(new ProtokollErstellt($protocol, $protocol->ersteller?->name ?? 'Jemand'));
                 }
             }
         });

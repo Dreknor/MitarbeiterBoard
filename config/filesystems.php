@@ -48,6 +48,14 @@ return [
             'visibility' => 'public',
         ],
 
+        // Private Ablage für Ticket-Anhänge (nicht über /storage erreichbar,
+        // Auslieferung nur über TicketController::file mit Berechtigungsprüfung)
+        'tickets' => [
+            'driver' => 'local',
+            'root' => storage_path('app/tickets'),
+            'visibility' => 'private',
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

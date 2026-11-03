@@ -10,6 +10,8 @@
 @import "tailwindcss/utilities" layer(utilities);
 
 @source "../views/meetings/**/*.blade.php";
+@source "../views/search/global.blade.php";
+@source "../views/tasks/partials/*.blade.php";
 
 /* Alpine.js Cloak */
 [x-cloak] { display: none !important; }
@@ -94,13 +96,20 @@
 }
 .meeting-wrapper .mtg-card:hover { @apply shadow-md; }
 
-/* Meeting-Kopfband-Varianten */
+/* Meeting-Kopf (Gruppen-Karten) – dezent mit farbiger Akzentleiste */
 .meeting-wrapper .mtg-band {
-    @apply px-5 py-4 text-white;
+    @apply px-5 py-4 bg-white text-gray-900 border-b border-gray-100;
+    border-left: 4px solid transparent;
 }
-.meeting-wrapper .mtg-band-today     { @apply bg-gradient-to-r from-blue-600 to-indigo-600; }
-.meeting-wrapper .mtg-band-upcoming  { @apply bg-gradient-to-r from-slate-600 to-slate-700; }
-.meeting-wrapper .mtg-band-cancelled { @apply bg-gradient-to-r from-red-500 to-rose-600; }
+.meeting-wrapper .mtg-band-today     { border-left-color: #3b82f6; @apply bg-blue-50/40; }
+.meeting-wrapper .mtg-band-upcoming  { border-left-color: #cbd5e1; }
+.meeting-wrapper .mtg-band-cancelled { border-left-color: #ef4444; @apply bg-red-50/40; }
+
+/* Neutrale Icon-Aktionen */
+.meeting-wrapper .mtg-icon-ghost {
+    @apply bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 shadow-none;
+}
+.meeting-wrapper .mtg-icon-ghost.is-danger { @apply hover:bg-red-50 hover:text-red-600; }
 
 /* ---------------------------------------------------------------
  * Badges
@@ -191,3 +200,235 @@
     .meeting-wrapper h1.mtg-page-title { @apply text-xl; }
 }
 
+
+/* ---------------------------------------------------------------
+ * Gruppenunabhängige Meetings: Übersicht, Detail, Agenda
+ * ------------------------------------------------------------- */
+.meeting-wrapper .mtg-hint { @apply text-xs text-gray-500 mt-1; }
+.meeting-wrapper .mtg-breadcrumb { @apply flex flex-wrap items-center gap-1.5 text-sm text-gray-500 mb-4; }
+.meeting-wrapper .mtg-breadcrumb a { @apply text-blue-600 hover:text-blue-800; }
+.meeting-wrapper .mtg-breadcrumb .sep { @apply text-gray-300; }
+
+/* Kennzahlen */
+.meeting-wrapper .mtg-stat {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3;
+}
+.meeting-wrapper .mtg-stat-icon {
+    @apply w-10 h-10 rounded-xl flex items-center justify-center text-base shrink-0;
+}
+.meeting-wrapper .mtg-stat-value { @apply text-2xl font-bold text-gray-900 leading-none; }
+.meeting-wrapper .mtg-stat-label { @apply text-xs text-gray-500 mt-1; }
+
+/* Filter-Pills */
+.meeting-wrapper .mtg-pills { @apply flex flex-wrap gap-2; }
+.meeting-wrapper .mtg-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold
+           bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-700 transition-colors;
+}
+.meeting-wrapper .mtg-pill.is-active { @apply bg-blue-600 text-white border-blue-600 hover:text-white; }
+
+/* Meeting-Zeile in der Übersicht */
+.meeting-wrapper .mtg-row {
+    @apply flex items-stretch gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4
+           hover:shadow-md hover:border-blue-200 transition-all;
+}
+.meeting-wrapper .mtg-row.is-cancelled { @apply opacity-70; }
+.meeting-wrapper .mtg-datetile {
+    @apply w-16 shrink-0 rounded-xl flex flex-col items-center justify-center text-center py-2
+           bg-slate-100 text-slate-700;
+}
+.meeting-wrapper .mtg-datetile.is-today { @apply bg-blue-600 text-white; }
+.meeting-wrapper .mtg-datetile.is-cancelled { @apply bg-red-50 text-red-600; }
+.meeting-wrapper .mtg-datetile-day { @apply text-[11px] font-semibold uppercase tracking-wide opacity-80; }
+.meeting-wrapper .mtg-datetile-num { @apply text-2xl font-bold leading-none my-0.5; }
+.meeting-wrapper .mtg-datetile-month { @apply text-[11px] font-medium uppercase opacity-80; }
+.meeting-wrapper .mtg-meta { @apply flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500; }
+.meeting-wrapper .mtg-meta i { @apply text-gray-400 mr-1; }
+
+/* Kontext-Badges */
+.meeting-wrapper .mtg-badge-free   { @apply bg-violet-100 text-violet-700; }
+.meeting-wrapper .mtg-badge-group  { @apply bg-sky-100 text-sky-700; }
+.meeting-wrapper .mtg-badge-live   { @apply bg-emerald-500 text-white; }
+.meeting-wrapper .mtg-live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-white;
+    animation: mtg-pulse 1.4s ease-in-out infinite;
+}
+@keyframes mtg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* Kopf der Detailseite – dezente Karte mit farbiger Akzentleiste */
+.meeting-wrapper .mtg-hero {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 sm:px-6;
+    border-left-width: 4px;
+}
+.meeting-wrapper .mtg-hero-free      { border-left-color: #8b5cf6; }
+.meeting-wrapper .mtg-hero-group     { border-left-color: #0ea5e9; }
+.meeting-wrapper .mtg-hero-cancelled { border-left-color: #ef4444; @apply bg-red-50/40; }
+.meeting-wrapper .mtg-hero-past      { border-left-color: #94a3b8; }
+
+/* Karten-Kopf */
+.meeting-wrapper .mtg-card-head {
+    @apply flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100;
+}
+.meeting-wrapper .mtg-card-title { @apply text-base font-bold text-gray-900 flex items-center gap-2; }
+.meeting-wrapper .mtg-card-title i { @apply text-gray-400; }
+
+/* Agenda */
+.meeting-wrapper .mtg-agenda-item {
+    @apply flex items-start gap-3 px-5 py-4 border-b border-gray-100 hover:bg-gray-50/80 transition-colors;
+}
+.meeting-wrapper .mtg-agenda-item:last-child { border-bottom-width: 0; }
+.meeting-wrapper .mtg-agenda-num {
+    @apply w-8 h-8 shrink-0 rounded-full bg-gray-100 text-gray-600 text-sm font-bold flex items-center justify-center;
+}
+.meeting-wrapper .mtg-agenda-item.is-done .mtg-agenda-num { @apply bg-emerald-100 text-emerald-700; }
+.meeting-wrapper .mtg-agenda-item.is-closed .mtg-agenda-num { @apply bg-gray-200 text-gray-400; }
+.meeting-wrapper .mtg-agenda-item.is-closed .mtg-agenda-title { @apply line-through text-gray-400; }
+.meeting-wrapper .mtg-agenda-title { @apply font-semibold text-gray-900 hover:text-blue-700; }
+.meeting-wrapper .mtg-timebar { @apply h-1.5 w-full rounded-full bg-gray-100 overflow-hidden; }
+.meeting-wrapper .mtg-timebar > span { @apply block h-full rounded-full bg-blue-500; }
+.meeting-wrapper .mtg-timebar.is-over > span { @apply bg-amber-500; }
+
+/* Personen-Liste */
+.meeting-wrapper .mtg-person { @apply flex items-center gap-2.5 py-1.5; }
+.meeting-wrapper .mtg-avatar.mtg-avatar-sm { width: 1.75rem; height: 1.75rem; font-size: 10px; }
+
+/* Tabs (Modals) */
+.meeting-wrapper .mtg-tabs { @apply flex gap-1 p-1 rounded-xl bg-gray-100 mb-4; }
+.meeting-wrapper .mtg-tab {
+    @apply flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           text-gray-600 bg-transparent cursor-pointer transition-colors;
+    border-width: 0;
+}
+.meeting-wrapper .mtg-tab.is-active { @apply bg-white text-gray-900 shadow-sm; }
+
+/* Teilnehmer-Picker */
+.meeting-wrapper .mtg-picker-results {
+    @apply absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg py-1;
+}
+.meeting-wrapper .mtg-picker-option {
+    @apply w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer bg-transparent;
+    border-width: 0;
+}
+.meeting-wrapper .mtg-picker-option.is-highlighted { @apply bg-blue-50 text-blue-800; }
+.meeting-wrapper .mtg-chips { @apply flex flex-wrap gap-1.5 mt-3; }
+.meeting-wrapper .mtg-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1 py-1 text-xs font-medium border;
+}
+.meeting-wrapper .mtg-chip-user  { @apply bg-blue-50 text-blue-800 border-blue-100; }
+.meeting-wrapper .mtg-chip-group { @apply bg-sky-50 text-sky-800 border-sky-100; }
+.meeting-wrapper .mtg-chip-role  { @apply bg-amber-50 text-amber-800 border-amber-100; }
+.meeting-wrapper .mtg-chip button {
+    @apply inline-flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/10 cursor-pointer bg-transparent text-current;
+    border-width: 0;
+}
+
+/* Protokoll-Timeline */
+.meeting-wrapper .mtg-timeline { @apply relative pl-6; }
+.meeting-wrapper .mtg-timeline::before {
+    content: "";
+    @apply absolute left-2 top-2 bottom-2 w-px bg-gray-200;
+}
+.meeting-wrapper .mtg-timeline-item { @apply relative pb-5; }
+.meeting-wrapper .mtg-timeline-item:last-child { padding-bottom: 0; }
+.meeting-wrapper .mtg-timeline-dot {
+    @apply absolute top-1.5 w-3 h-3 rounded-full bg-white border-2 border-blue-500;
+    left: -1.3rem;
+}
+.meeting-wrapper .mtg-timeline-item.is-system .mtg-timeline-dot { @apply border-gray-300; }
+.meeting-wrapper .mtg-prose { @apply text-sm text-gray-800 leading-relaxed break-words; }
+.meeting-wrapper .mtg-prose p { margin: 0 0 .5rem; }
+.meeting-wrapper .mtg-prose ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 .5rem; }
+.meeting-wrapper .mtg-prose ol { list-style: decimal; padding-left: 1.25rem; margin: 0 0 .5rem; }
+.meeting-wrapper .mtg-prose a { @apply text-blue-600 underline; }
+.meeting-wrapper .mtg-prose table { @apply border-collapse my-2; }
+.meeting-wrapper .mtg-prose td,
+.meeting-wrapper .mtg-prose th { @apply border border-gray-200 px-2 py-1; }
+
+/* Globale Suche */
+.meeting-wrapper .mtg-search-input {
+    @apply block w-full rounded-2xl border border-gray-200 bg-white pr-4 py-3.5 text-base shadow-sm
+           focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none;
+    padding-left: 3rem;
+}
+.meeting-wrapper .mtg-result {
+    @apply flex items-start gap-3 px-5 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors;
+}
+.meeting-wrapper .mtg-result:last-child { border-bottom-width: 0; }
+.meeting-wrapper .mtg-result mark { @apply bg-yellow-100 text-gray-900 rounded px-0.5; }
+
+/* ---------------------------------------------------------------
+ * Legacy-Kompatibilität: paper-dashboard/Bootstrap setzen h1–h6 und a
+ * ohne Cascade-Layer – Tailwind-Utilities (layer utilities) verlieren
+ * dort immer. Daher Größen/Farben hier ungelayert im Scope abbilden.
+ * ------------------------------------------------------------- */
+.meeting-wrapper :is(h1, h2, h3, h4, h5, h6) { font-weight: 700; font-size: 1rem; line-height: 1.35; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-sm   { font-size: .875rem;  line-height: 1.25rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-base { font-size: 1rem;     line-height: 1.5rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-lg   { font-size: 1.125rem; line-height: 1.75rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-xl   { font-size: 1.25rem;  line-height: 1.75rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-2xl  { font-size: 1.5rem;   line-height: 2rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).text-3xl  { font-size: 1.875rem; line-height: 2.25rem; }
+.meeting-wrapper :is(h1, h2, h3, h4).font-semibold { font-weight: 600; }
+@media (min-width: 640px) {
+    .meeting-wrapper :is(h1, h2, h3, h4).sm\:text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+}
+@media (max-width: 640px) {
+    .meeting-wrapper h1.mtg-page-title { font-size: 1.25rem; line-height: 1.75rem; }
+}
+
+.meeting-wrapper a.mtg-link { color: #2563eb; font-weight: 500; }
+.meeting-wrapper a.mtg-link:hover { color: #1e40af; text-decoration: underline; }
+.meeting-wrapper .mtg-picker-option.is-danger { @apply text-red-600 hover:bg-red-50; }
+.meeting-wrapper .mtg-row h3 { color: #111827; }
+.meeting-wrapper .mtg-row:hover h3 { color: #1d4ed8; }
+.meeting-wrapper a.mtg-title-link:hover { color: #1d4ed8; }
+
+/* ---------------------------------------------------------------
+ * Bootstrap 4 definiert .p-5, .mb-3 … mit !important und abweichenden
+ * Werten (p-5 = 3rem). Im Meeting-Scope gelten die Tailwind-Werte.
+ * ------------------------------------------------------------- */
+.meeting-wrapper .p-3 { padding: .75rem !important; }
+.meeting-wrapper .p-4 { padding: 1rem !important; }
+.meeting-wrapper .p-5 { padding: 1.25rem !important; }
+.meeting-wrapper .px-3 { padding-left: .75rem !important; padding-right: .75rem !important; }
+.meeting-wrapper .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.meeting-wrapper .px-5 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+.meeting-wrapper .py-3 { padding-top: .75rem !important; padding-bottom: .75rem !important; }
+.meeting-wrapper .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.meeting-wrapper .py-5 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
+.meeting-wrapper .pt-3 { padding-top: .75rem !important; }
+.meeting-wrapper .pt-4 { padding-top: 1rem !important; }
+.meeting-wrapper .pt-5 { padding-top: 1.25rem !important; }
+.meeting-wrapper .pr-3 { padding-right: .75rem !important; }
+.meeting-wrapper .pr-4 { padding-right: 1rem !important; }
+.meeting-wrapper .pr-5 { padding-right: 1.25rem !important; }
+.meeting-wrapper .pb-3 { padding-bottom: .75rem !important; }
+.meeting-wrapper .pb-4 { padding-bottom: 1rem !important; }
+.meeting-wrapper .pb-5 { padding-bottom: 1.25rem !important; }
+.meeting-wrapper .pl-3 { padding-left: .75rem !important; }
+.meeting-wrapper .pl-4 { padding-left: 1rem !important; }
+.meeting-wrapper .pl-5 { padding-left: 1.25rem !important; }
+.meeting-wrapper .m-3 { margin: .75rem !important; }
+.meeting-wrapper .m-4 { margin: 1rem !important; }
+.meeting-wrapper .m-5 { margin: 1.25rem !important; }
+.meeting-wrapper .mx-3 { margin-left: .75rem !important; margin-right: .75rem !important; }
+.meeting-wrapper .mx-4 { margin-left: 1rem !important; margin-right: 1rem !important; }
+.meeting-wrapper .mx-5 { margin-left: 1.25rem !important; margin-right: 1.25rem !important; }
+.meeting-wrapper .my-3 { margin-top: .75rem !important; margin-bottom: .75rem !important; }
+.meeting-wrapper .my-4 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
+.meeting-wrapper .my-5 { margin-top: 1.25rem !important; margin-bottom: 1.25rem !important; }
+.meeting-wrapper .mt-3 { margin-top: .75rem !important; }
+.meeting-wrapper .mt-4 { margin-top: 1rem !important; }
+.meeting-wrapper .mt-5 { margin-top: 1.25rem !important; }
+.meeting-wrapper .mr-3 { margin-right: .75rem !important; }
+.meeting-wrapper .mr-4 { margin-right: 1rem !important; }
+.meeting-wrapper .mr-5 { margin-right: 1.25rem !important; }
+.meeting-wrapper .mb-3 { margin-bottom: .75rem !important; }
+.meeting-wrapper .mb-4 { margin-bottom: 1rem !important; }
+.meeting-wrapper .mb-5 { margin-bottom: 1.25rem !important; }
+.meeting-wrapper .ml-3 { margin-left: .75rem !important; }
+.meeting-wrapper .ml-4 { margin-left: 1rem !important; }
+.meeting-wrapper .ml-5 { margin-left: 1.25rem !important; }
+@media (min-width: 640px) {
+    .meeting-wrapper .sm\:p-6 { padding: 1.5rem !important; }
+}

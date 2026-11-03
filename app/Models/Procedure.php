@@ -66,4 +66,32 @@ class Procedure extends Model
     {
         return $query->whereNotNull('started_at')->whereNull('ended_at');
     }
+
+    /**
+     * Filtert auf Prozesse, die der Nutzer sehen darf:
+     *  - `manage procedures` → alle
+     *  - `view assigned procedures` → Prozesse mit mindestens einem Schritt, dem der
+     *    Nutzer direkt zugewiesen ist oder dessen Position er innehat.
+     */
+    public function scopeSichtbarFuer(Builder $query, User $user): Builder
+    {
+        if ($user->can('manage procedures')) {
+            return $query;
+        }
+
+        if (!$user->can('view assigned procedures')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $positionIds = $user->positions()->pluck('positions.id');
+
+        return $query->whereHas('steps', function (Builder $steps) use ($user, $positionIds) {
+            $steps->where(function (Builder $q) use ($user, $positionIds) {
+                $q->whereHas('users', fn (Builder $u) => $u->where('users.id', $user->id));
+                if ($positionIds->isNotEmpty()) {
+                    $q->orWhereIn('position_id', $positionIds);
+                }
+            });
+        });
+    }
 }

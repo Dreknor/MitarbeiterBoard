@@ -2,13 +2,13 @@
 @if(auth()->user()->can('manage procedures') || auth()->user()->can('view assigned procedures'))
     @if($steps && $steps->count() > 0)
         <div class="divide-y divide-gray-100">
-            @foreach($steps->sortByDate('endDate', 'desc') as $step)
+            @foreach($steps as $step)
                 <a href="{{ url('procedure/' . $step->procedure->id . '/start') }}"
                    class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 no-underline">
                     <div class="text-center min-w-[3.5rem]">
                         @php
-                            $isOverdue = $step->endDate->isPast();
-                            $isSoon    = !$isOverdue && $step->endDate->lte(now()->addDays(3));
+                            $isOverdue = $step->endDate->lt(today());
+                            $isSoon    = !$isOverdue && $step->endDate->lte(today()->addDays(3));
                         @endphp
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                             {{ $isOverdue ? 'bg-red-100 text-red-700' : ($isSoon ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600') }}">

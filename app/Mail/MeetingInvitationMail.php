@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Parts\CalendarPart;
 use App\Models\Meeting;
 use App\Models\Group;
 use App\Models\User;
@@ -9,7 +10,11 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Sabre\VObject\Component\VCalendar;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\AlternativePart;
+use Symfony\Component\Mime\Part\Multipart\MixedPart;
+use Symfony\Component\Mime\Part\TextPart;
 
 class MeetingInvitationMail extends Mailable
 {
@@ -25,7 +30,7 @@ class MeetingInvitationMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(Meeting $meeting, Group $group, User $user, $messageText = null, $absender = null, $absenderEmail = null)
+    public function __construct(Meeting $meeting, ?Group $group, User $user, $messageText = null, $absender = null, $absenderEmail = null)
     {
         $this->meeting = $meeting;
         $this->group = $group;
@@ -51,23 +56,27 @@ class MeetingInvitationMail extends Mailable
             $mail->replyTo($this->absenderEmail, $this->absender);
         }
 
-        // ICS als regulären Attachment anhängen (für Clients die den
-        // alternativen Part nicht unterstützen)
-        $mail->attachData(
-            $icalString,
-            'einladung.ics',
-            ['mime' => 'application/ics']
-        );
+        // Einladung so aufbauen, wie es Kalender-Clients und Mailserver erwarten
+        // (Aufbau wie bei Google/Outlook, RFC 6047):
+        //   multipart/mixed
+        //     multipart/alternative
+        //       text/plain
+        //       text/html
+        //       text/calendar; method=REQUEST   (inline, nicht als Anhang)
+        //     application/ics                   (einladung.ics für einfache Clients)
+        // Zwei REQUEST-Teile als Anhang (ohne Inline-Kalenderteil) werden von
+        // Empfangsservern teils abgelehnt oder in Quarantäne verschoben.
+        $html = view('mails.meeting_invitation', $this->buildViewData())->render();
 
-        // ICS zusätzlich als text/calendar Alternative-Part einbetten,
-        // damit Outlook & Co. die Einladung direkt als Kalender-Event erkennen.
-        $mail->withSymfonyMessage(function (\Symfony\Component\Mime\Email $message) use ($icalString) {
-            $calendarPart = new DataPart(
-                $icalString,
-                'einladung.ics',
-                'text/calendar; charset=UTF-8; method=REQUEST'
-            );
-            $message->attachPart($calendarPart);
+        $mail->withSymfonyMessage(function (Email $message) use ($html, $icalString) {
+            $message->setBody(new MixedPart(
+                new AlternativePart(
+                    new TextPart($this->buildPlainText($html), 'utf-8', 'plain'),
+                    new TextPart($html, 'utf-8', 'html'),
+                    new CalendarPart($icalString)
+                ),
+                new DataPart($icalString, 'einladung.ics', 'application/ics')
+            ));
         });
 
         return $mail;
@@ -80,8 +89,10 @@ class MeetingInvitationMail extends Mailable
     {
         $tz       = config('app.timezone', 'Europe/Berlin');
         $date     = $this->meeting->date->format('Y-m-d');
-        $dtstart  = \Carbon\Carbon::parse($date . ' ' . $this->meeting->start_time, $tz);
-        $dtend    = \Carbon\Carbon::parse($date . ' ' . $this->meeting->end_time, $tz);
+        // Zeiten in UTC ausgeben: TZID=Europe/Berlin ohne VTIMEZONE-Block ist
+        // laut RFC 5545 ungültig und wird von manchen Servern verworfen.
+        $dtstart  = \Carbon\Carbon::parse($date . ' ' . $this->meeting->start_time, $tz)->utc();
+        $dtend    = \Carbon\Carbon::parse($date . ' ' . $this->meeting->end_time, $tz)->utc();
         $fromAddr = config('mail.from.address', 'noreply@example.com');
         $fromName = config('mail.from.name', config('app.name', 'MitarbeiterBoard'));
 
@@ -113,6 +124,13 @@ class MeetingInvitationMail extends Mailable
         $organizer = $vevent->add('ORGANIZER', 'mailto:' . $organizerAddr);
         $organizer['CN'] = $organizerName;
 
+        // Die Mail kommt von der noreply-Adresse, nicht vom Organisator. Ohne
+        // SENT-BY sieht das für Mailserver nach einer gefälschten Einladung aus
+        // (iMIP-Absender ≠ ORGANIZER, RFC 6047 §3).
+        if (strcasecmp($organizerAddr, $fromAddr) !== 0) {
+            $organizer['SENT-BY'] = 'mailto:' . $fromAddr;
+        }
+
         // ATTENDEE mit korrekten Parametern (RFC 5545 §3.8.4.1)
         $attendee = $vevent->add('ATTENDEE', 'mailto:' . $this->user->email);
         $attendee['CN']       = $this->user->name;
@@ -140,9 +158,15 @@ class MeetingInvitationMail extends Mailable
             $lines[] = 'Raum: ' . $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
         }
 
-        if (!empty($this->group->meeting_url)) {
-            $lines[] = 'Meeting-Link: ' . $this->group->meeting_url;
+        if (!empty($this->meeting->location)) {
+            $lines[] = 'Ort: ' . $this->meeting->location;
         }
+
+        if (!empty($this->meeting->effectiveMeetingUrl())) {
+            $lines[] = 'Meeting-Link: ' . $this->meeting->effectiveMeetingUrl();
+        }
+
+        $lines[] = 'Details: ' . route('meetings.show', $this->meeting);
 
         foreach ($this->meeting->themes as $theme) {
             $lines[] = '- ' . $theme->theme . ' (' . $theme->duration . ' min)';
@@ -154,6 +178,14 @@ class MeetingInvitationMail extends Mailable
         return $desc;
     }
 
+    private function buildPlainText(string $html): string
+    {
+        $text = preg_replace('/<(br|\/p|\/li|\/ul)\s*\/?>/i', "\n", $html);
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace("/\n\s*\n+/", "\n", preg_replace('/^[ \t]+/m', '', $text)));
+    }
+
     private function buildLocation(): ?string
     {
         $parts = [];
@@ -163,8 +195,12 @@ class MeetingInvitationMail extends Mailable
             $parts[] = $room->name . ($room->room_number ? ' (Nr. ' . $room->room_number . ')' : '');
         }
 
-        if (!empty($this->group->meeting_url)) {
-            $parts[] = $this->group->meeting_url;
+        if (!empty($this->meeting->location)) {
+            $parts[] = $this->meeting->location;
+        }
+
+        if (!empty($this->meeting->effectiveMeetingUrl())) {
+            $parts[] = $this->meeting->effectiveMeetingUrl();
         }
 
         if (empty($parts)) {

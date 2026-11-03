@@ -7,8 +7,10 @@ use App\Models\Group;
 use App\Models\User;
 use App\Services\UserDeletion\UserDeletionService;
 use App\Providers\RouteServiceProvider;
+use App\Services\Api\AppSsoService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -19,6 +21,17 @@ class KeycloakLoginController extends Controller
 {
 
     public function login()
+    {
+        // Ein normaler Web-Login verwirft einen evtl. abgebrochenen App-Login (Pädagogen-App)
+        app(AppSsoService::class)->forgetFlow();
+
+        return $this->redirectToKeycloak();
+    }
+
+    /**
+     * Startet den Keycloak-Redirect. Wird auch vom App-Login (GET /api/v1/auth/sso/start) genutzt.
+     */
+    public function redirectToKeycloak()
     {
         try {
             return Socialite::driver('keycloak')->scopes([
@@ -34,6 +47,11 @@ class KeycloakLoginController extends Controller
                 'url' => url()->current(),
             ]);
 
+            $appSso = app(AppSsoService::class);
+            if ($appSso->hasFlow()) {
+                return $appSso->errorRedirect('sso_unavailable');
+            }
+
             return redirect()->route('login')->with([
                 'type' => 'danger',
                 'Meldung' => 'Login failed']);
@@ -41,8 +59,24 @@ class KeycloakLoginController extends Controller
 
 
     }
-    public function auth()
+    public function auth(Request $request)
     {
+        $appSso = app(AppSsoService::class);
+
+        // Direkter Aufruf ohne Keycloak-Antwort (z. B. Link aus der SSO-Plattform auf /auth/callback):
+        // Es gibt weder "code" noch "error", also wurde kein Login gestartet. Statt "Login failed"
+        // wird der normale SSO-Login gestartet. Besteht in Keycloak bereits eine Sitzung,
+        // kommt der Benutzer ohne weitere Eingabe angemeldet zurück.
+        if (!$request->has('code') && !$request->has('error') && !$appSso->hasFlow()) {
+            if (Auth::check()) {
+                return redirect(url('/'));
+            }
+
+            Log::info('OIDC: Callback ohne Code aufgerufen, starte SSO-Login');
+
+            return $this->login();
+        }
+
         try {
             $user = Socialite::driver('keycloak')->user();
 
@@ -52,12 +86,36 @@ class KeycloakLoginController extends Controller
                 'url' => url()->current(),
             ]);
 
+            if ($appSso->hasFlow()) {
+                return $appSso->errorRedirect('sso_failed');
+            }
+
             return redirect()->route('login')->with([
                 'type' => 'danger',
                 'Meldung' => 'Login failed']);
         }
 
+        $laravelUser = $this->resolveUser($user);
 
+        // Pädagogen-App: Einmal-Code statt Web-Login (kein Login-Cookie für die Web-Oberfläche)
+        if ($appSso->hasFlow()) {
+            return $appSso->completeFlow($laravelUser);
+        }
+
+        Log::info('OIDC: User logged in by KeyCloak: ' . $laravelUser->username);
+
+        Auth::loginUsingId($laravelUser->id);
+        session()->regenerate();
+
+        return redirect(url('/'));
+    }
+
+    /**
+     * Ordnet den Keycloak-Benutzer einem lokalen Benutzer zu (legt ihn bei Bedarf an).
+     * Gemeinsame Logik für Web- und App-Login.
+     */
+    private function resolveUser($user): User
+    {
         $laravelUser = User::where('username', $user->nickname)
             ->orWhere('email', $user->email)
             ->first();
@@ -133,13 +191,7 @@ class KeycloakLoginController extends Controller
             $laravelUser->roles()->attach($roles);
         }
 
-
-        Log::info('OIDC: User logged in by KeyCloak: ' . $laravelUser->username);
-
-        Auth::loginUsingId($laravelUser->id);
-        session()->regenerate();
-
-        return redirect(url('/'));
+        return $laravelUser;
     }
 
 }

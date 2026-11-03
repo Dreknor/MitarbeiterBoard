@@ -176,7 +176,7 @@
                         <div>
                             <form method="post" action="{{ route('admin.grading.system.delete', ['system'=>$system->id]) }}" style="display:inline">
                                 @csrf
-                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('System wirklich löschen? Alle Stufen werden ebenfalls gelöscht.')">
+                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('System wirklich löschen? Das geht nur, solange keine Klasse, Dokumentation oder Stufenvergabe daran hängt.')">
                                     <i class="fas fa-trash"></i> <span class="d-none d-md-inline">Löschen</span>
                                 </button>
                             </form>
@@ -302,7 +302,7 @@
                                                                     </div>
                                                                     <div class="col-md-8 mb-2">
                                                                         <label class="small font-weight-bold">Bild hochladen</label>
-                                                                        <input type="file" name="image" accept="image/*"
+                                                                        <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"
                                                                                class="form-control-file form-control-sm"
                                                                                onchange="previewImage(event, 'preview-stage-{{ $stage->id }}', this)">
                                                                     </div>
@@ -362,7 +362,7 @@
                                                 </div>
                                                 <div class="form-group">
                                                     <label class="small font-weight-bold">Bild <span class="text-muted font-weight-normal">(optional)</span></label>
-                                                    <input type="file" name="image" accept="image/*" class="form-control-file"
+                                                    <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control-file"
                                                            onchange="previewImage(event, 'preview-new-{{ $system->id }}', this)">
                                                     <div class="mt-2">
                                                         <img id="preview-new-{{ $system->id }}" src="" alt="Vorschau Bild"

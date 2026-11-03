@@ -14,10 +14,9 @@ use App\Http\Controllers\Inventory\LocationTypeController;
 use App\Http\Controllers\KlasseController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MeetingController;
-use App\Http\Controllers\PeadDiaryWeekController;
+use App\Http\Controllers\PaedDiaryWeekDisplayController;
 use App\Http\Controllers\Personal\AddressController;
 use App\Http\Controllers\Personal\EmployeController;
-use App\Http\Controllers\Personal\EmploymentController;
 use App\Http\Controllers\Personal\HolidayController;
 use App\Http\Controllers\Personal\RosterCheckController;
 use App\Http\Controllers\Personal\RosterController;
@@ -34,6 +33,7 @@ use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\BenachrichtigungController;
 use App\Http\Controllers\RecurringProcedureController;
 use App\Http\Controllers\RecurringThemeController;
 use App\Http\Controllers\RolesController;
@@ -84,7 +84,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 Route::get('/auth/redirect', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'login']);
 
-Route::get('display-week/{secret?}', [PeadDiaryWeekController::class, 'displayWeek']);
+Route::get('display-week/{secret?}', [PaedDiaryWeekDisplayController::class, 'displayWeek'])->middleware('throttle:60,1');
 
 Route::get('/auth/callback', [\App\Http\Controllers\Auth\KeycloakLoginController::class,'auth']);
 
@@ -123,14 +123,13 @@ Route::post('inventory/item/{uuid}', [ItemsController::class,'scanUpdate']);
 /*
 * digitale Arbeitszeiterfassung
 */
-Route::prefix('time_recording')->group(callback: function (){
+Route::prefix('time_recording')->middleware('time_recording.terminal')->group(callback: function (){
     Route::get('start', [TimeRecordingController::class, 'start'])->name('time_recording.start');
-    Route::post('start', [TimeRecordingController::class, 'read_key'])->name('time_recording.read_key');
-    Route::post('check_secret/', [TimeRecordingController::class, 'check_secret'])->name('time_recording.check_secret');
-    Route::post('login', [TimeRecordingController::class, 'login'])->name('time_recording.login');
+    Route::post('start', [TimeRecordingController::class, 'read_key'])->middleware('throttle:20,1')->name('time_recording.read_key');
+    Route::post('login', [TimeRecordingController::class, 'login'])->middleware('throttle:10,1')->name('time_recording.login');
     Route::get('logout', [TimeRecordingController::class, 'logout'])->name('time_recording.logout');
 
-    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->name('time_recording.storeSecret');
+    Route::post('storeSecret', [TimeRecordingController::class, 'storeSecret'])->middleware('throttle:10,1')->name('time_recording.storeSecret');
 });
 
 
@@ -167,6 +166,19 @@ Route::group([
                 Route::post('notifications/mark-all-read', [DashboardController::class, 'markNotificationsRead'])->name('notifications.markAllRead');
 
                 /*
+                 * Benachrichtigungen (Glocke, Verlauf, Einstellungen, Tagesübersicht) – nur eigene
+                 */
+                Route::prefix('benachrichtigungen')->name('benachrichtigungen.')->group(function () {
+                    Route::get('/', [BenachrichtigungController::class, 'index'])->name('index');
+                    Route::get('neueste', [BenachrichtigungController::class, 'neueste'])->name('neueste');
+                    Route::post('gelesen', [BenachrichtigungController::class, 'alleGelesen'])->name('gelesen');
+                    Route::get('einstellungen', [BenachrichtigungController::class, 'einstellungen'])->name('einstellungen');
+                    Route::put('einstellungen', [BenachrichtigungController::class, 'einstellungenSpeichern'])->name('einstellungen.speichern');
+                    Route::get('tag/{datum?}', [BenachrichtigungController::class, 'tag'])->where('datum', '\d{4}-\d{2}-\d{2}')->name('tag');
+                    Route::get('{id}/oeffnen', [BenachrichtigungController::class, 'oeffnen'])->whereUuid('id')->name('oeffnen');
+                });
+
+                /*
                  * Dashboard v2 – Schnellzugriff (Quicklinks)
                  */
                 Route::post('dashboard/quicklinks', [DashboardController::class, 'storeQuicklink'])->name('dashboard.quicklinks.store');
@@ -195,14 +207,16 @@ Route::group([
                         Route::resource('categories', \App\Http\Controllers\Ticketsystem\TicketCategoryController::class)->middleware('permission:edit tickets')->only(['index', 'store', 'destroy']);
                         Route::post('comments/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketCommentController::class, 'store'])->name('tickets.comments.store');
                     });
-                    Route::get('import/tickets/group/{group}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'createTicketsFromThemes']);
+                    Route::get('import/tickets/group/{group}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'createTicketsFromThemes'])->middleware('permission:edit tickets');
                     Route::get('tickets/archiv', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'archived'])->name('tickets.archive');
                     Route::get('tickets/archiv/{ticket}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'showClosedTicket'])->name('tickets.archiveTicket');
-                    Route::resource('tickets', \App\Http\Controllers\Ticketsystem\TicketController::class)->except('create', 'edit');
-                    Route::get('tickets/{ticket}/close', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'close'])->name('tickets.close');
-                    Route::get('tickets/{ticket}/assign/{user}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'assign'])->name('tickets.assign');
-                    /*Pin a Ticket*/
-                    Route::get('tickets/{ticket}/pin', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'pin'])->name('tickets.pin');
+                    Route::resource('tickets', \App\Http\Controllers\Ticketsystem\TicketController::class)->only('index', 'show', 'store', 'update');
+                    Route::post('tickets/{ticket}/close', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'close'])->name('tickets.close');
+                    Route::post('tickets/{ticket}/reopen', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'reopen'])->name('tickets.reopen');
+                    Route::get('tickets/{ticket}/files/{media}', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'file'])->name('tickets.files');
+                    Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'assign'])->name('tickets.assign');
+                    /*Pin a Ticket (Umschalter)*/
+                    Route::post('tickets/{ticket}/pin', [\App\Http\Controllers\Ticketsystem\TicketController::class, 'pin'])->name('tickets.pin');
                 });
 
 
@@ -215,6 +229,15 @@ Route::group([
 
 
                 Route::middleware(['permission:edit employe'])->group(function () {
+                    // Vorgesetzte & Stellvertretungen (Zuständigkeit für Urlaub und Arbeitszeitnachweise)
+                    Route::get('personal/vorgesetzte', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'index'])->name('personal.vorgesetzte.index');
+                    Route::post('personal/vorgesetzte', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'update'])->name('personal.vorgesetzte.update');
+                    Route::post('personal/vorgesetzte/{leitung}/stellvertretungen', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'addDeputy'])->name('personal.vorgesetzte.deputies.store');
+                    Route::delete('personal/vorgesetzte/{leitung}/stellvertretungen/{deputy}', [\App\Http\Controllers\Personal\VorgesetzteController::class, 'removeDeputy'])->name('personal.vorgesetzte.deputies.destroy');
+
+                    // Stammdaten bearbeiten – Unterseite der Personalakte (/personal/mitarbeiter/{employe})
+                    Route::get('personal/mitarbeiter/{employe}/stammdaten', [EmployeController::class, 'stammdaten'])->whereNumber('employe')->middleware('personal.audit')->name('personal.personalakte.stammdaten');
+
                     // Bulk-Update für Urlaubsanspruch nach Gruppen (muss vor resource Route stehen)
                     Route::get('employes/bulk-holiday-claim', [EmployeController::class, 'bulkHolidayClaimForm'])->name('employes.bulk-holiday-claim');
                     Route::post('employes/bulk-holiday-claim', [EmployeController::class, 'bulkUpdateHolidayClaim'])->name('employes.bulk-holiday-claim.update');
@@ -222,75 +245,108 @@ Route::group([
                     Route::resource('employes', EmployeController::class)->names([
                         'show' => 'employes.show',
                         'index' => 'employes.index',
-                    ])->except('create');
+                    ])->only(['index', 'show', 'update']);
                     Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
+                    Route::put('employes/{employe}/anschrift', [AddressController::class, 'update'])->name('employes.address.update');
                 });
 
+
+                /*
+                 * Zeitwirtschaft – Urlaub, Arbeitszeitnachweis, Dienstplan
+                 * Alle schreibenden Aktionen sind POST/PUT/DELETE (CSRF-geschützt).
+                 * Rechte: HolidayPolicy, TimesheetPolicy, RosterPolicy.
+                 */
 
                 //Urlaubsverwaltung
                 Route::middleware(['permission:has holidays|approve holidays'])->group(function () {
                     // Spezifische Routen zuerst (vor parametrisierten Routen)
-                    Route::get('holidays/manage', [HolidayController::class, 'manage'])->middleware(['permission:approve holidays']);
-                    Route::post('holidays/manage/delete/{holiday}', [HolidayController::class, 'manageDelete'])->middleware(['permission:approve holidays']);
-                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export']);
-                    Route::get('holidays/{holiday}/delete', [HolidayController::class, 'delete']);
-                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index']);
+                    Route::get('holidays/manage', [HolidayController::class, 'manage'])->name('holidays.manage');
+                    Route::get('holidays/preview', [HolidayController::class, 'preview'])->name('holidays.preview');
+                    Route::get('holidays/export/{year?}/{group?}', [HolidayController::class, 'export'])->whereNumber('year')->name('holidays.export');
+                    Route::get('holidays/konto/{employe}/{year?}', [HolidayController::class, 'account'])->whereNumber(['employe', 'year'])->name('holidays.account');
+                    Route::post('holidays/konto/{employe}/buchungen', [HolidayController::class, 'storeAccountEntry'])->name('holidays.account.entries.store');
+                    Route::delete('holidays/konto/buchungen/{entry}', [HolidayController::class, 'destroyAccountEntry'])->name('holidays.account.entries.destroy');
 
-                    Route::resource('holidays', HolidayController::class);
+                    Route::post('holidays', [HolidayController::class, 'store'])->name('holidays.store');
+                    Route::post('holidays/{holiday}/approve', [HolidayController::class, 'approve'])->name('holidays.approve');
+                    Route::post('holidays/{holiday}/reject', [HolidayController::class, 'reject'])->name('holidays.reject');
+                    Route::post('holidays/{holiday}/cancel', [HolidayController::class, 'requestCancellation'])->name('holidays.cancel');
+                    Route::post('holidays/{holiday}/cancel-decision', [HolidayController::class, 'decideCancellation'])->name('holidays.cancel-decision');
+                    Route::put('holidays/{holiday}/correct', [HolidayController::class, 'correct'])->name('holidays.correct');
+                    Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
+
+                    Route::get('holidays/{month?}/{year?}', [HolidayController::class, 'index'])->whereNumber(['month', 'year'])->name('holidays.index');
                 });
 
 
-                //Timesheets
-                Route::get('timesheets/update/employe/{user}', [TimesheetController::class, 'updateTimesheets']);
-                Route::get('timesheets/{user}/login', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
-                Route::get('timesheets/{user}/logout', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet']);
-                Route::get('timesheets/{user}/{timesheet}/lock', [TimesheetController::class, 'lock']);
-                Route::get('timesheets/{user}/{timesheet}/unlock', [TimesheetController::class, 'unlock']);
-                Route::get('timesheets/{user}/{timesheet}/update', [TimesheetController::class, 'updateSheet']);
-                Route::get('timesheets/overview/{user}/', [TimesheetController::class, 'overviewTimesheetsUser']);
-
-
+                //Timesheets – Arbeitszeitnachweise
+                Route::get('timesheets', [TimesheetController::class, 'index'])->name('timesheets.index');
                 Route::get('timesheets/select/employe', [TimesheetController::class, 'index']);
-                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show']);
-                Route::get('timesheets/{user}/export/{timesheet}', [TimesheetController::class, 'export']);
-                Route::get('timesheets/{user}/{timesheet}/{month}/add', [TimesheetController::class, 'addDay']);
-                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay']);
-                Route::put('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'updateDay']);
-                Route::get('timesheets/{user}/{timesheet}/{date}/addFromAbsence/{absence}', [TimesheetController::class, 'addFromAbsence']);
-                Route::post('timesheets/{user}/{timesheet}/{date}/store', [TimesheetController::class, 'storeDay']);
-                Route::get('timesheets/{user}/{timesheet}/{timesheetDay}/delete', [TimesheetController::class, 'deleteDay']);
-                Route::post('timesheets/{user}/{timesheet}/{date}/apply-roster', [TimesheetController::class, 'applyRosterSuggestion']);
+                Route::post('timesheets/stempeln', [TimeRecordingController::class, 'checkin_checkout'])->middleware(['permission:has timesheet', 'throttle:10,1'])->name('timesheets.stamp');
+                Route::get('timesheets/overview/{user}', [TimesheetController::class, 'overviewTimesheetsUser'])->whereNumber('user')->name('timesheets.overview');
+                Route::post('timesheets/recalculate/{user}', [TimesheetController::class, 'updateTimesheets'])->whereNumber('user')->name('timesheets.recalculate-all');
 
-                //Anstellungen
-                Route::post('employments/{employe}/add', [EmploymentController::class, 'store']);
+                Route::get('timesheets/day/{timesheetDay}/edit', [TimesheetController::class, 'editDay'])->name('timesheets.day.edit');
+                Route::put('timesheets/day/{timesheetDay}', [TimesheetController::class, 'updateDay'])->name('timesheets.day.update');
+                Route::delete('timesheets/day/{timesheetDay}', [TimesheetController::class, 'deleteDay'])->name('timesheets.day.destroy');
 
-                Route::post('addresses/{employe}', [AddressController::class, 'update']);
+                // {timesheet} muss zu {user} gehören (verhindert Zugriff auf fremde Nachweise über die eigene ID)
+                Route::prefix('timesheets/{user}/{timesheet}')->whereNumber(['user', 'timesheet'])->scopeBindings()->group(function () {
+                    Route::get('export', [TimesheetController::class, 'export'])->name('timesheets.export');
+                    Route::post('recalculate', [TimesheetController::class, 'updateSheet'])->name('timesheets.recalculate');
+                    Route::post('apply-roster', [TimesheetController::class, 'applyRosterMonth'])->name('timesheets.plan-month');
+                    Route::post('submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
+                    Route::post('lock', [TimesheetController::class, 'lock'])->name('timesheets.lock');
+                    Route::post('return', [TimesheetController::class, 'returnToEmploye'])->name('timesheets.return');
+                    Route::post('unlock', [TimesheetController::class, 'unlock'])->name('timesheets.unlock');
+
+                    Route::get('{date}/add', [TimesheetController::class, 'addDay'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.create');
+                    Route::post('{date}', [TimesheetController::class, 'storeDay'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.store');
+                    Route::post('{date}/absence', [TimesheetController::class, 'addFromAbsence'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.absence');
+                    Route::post('{date}/apply-roster', [TimesheetController::class, 'applyRosterSuggestion'])->where('date', '\d{4}-\d{2}-\d{2}')->name('timesheets.day.plan');
+                });
+
+                Route::get('timesheets/{user}/{date?}', [TimesheetController::class, 'show'])->whereNumber('user')->where('date', '\d{4}-\d{2}')->name('timesheets.show');
+
+                // Anstellungen: siehe personal.contracts.* (ContractController)
+                // Anschrift: siehe employes.address.update (Gruppe "edit employe")
 
 
+                // Dienstplan – Ansicht für Mitarbeitende
+                Route::get('mein-dienstplan', [RosterController::class, 'mine'])->name('roster.mine');
+                Route::post('mein-dienstplan/abo', [RosterController::class, 'feedToken'])->name('roster.feed-token');
                 Route::get('roster/{roster}/export/pdf', [RosterController::class, 'exportPDF'])->name('roster.export.pdf');
+                Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
 
                 Route::middleware(['permission:create roster'])->group(function () {
                     //Roster - Dienstpläne
-                    Route::resource('roster', RosterController::class)
-                        ->except(['create'])
-                        ->names([
-                            'index' => 'roster.index',
-                            'show' => 'roster.show',
-                        ]);
+                    Route::get('roster', [RosterController::class, 'index'])->name('roster.index');
+                    Route::post('roster', [RosterController::class, 'store'])->name('roster.store');
                     Route::get('roster/create/{department}', [RosterController::class, 'create'])->name('roster.create');
-                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
-                    Route::get('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
-                    Route::get('roster/{roster}/export/nextcloud', [RosterController::class, 'sendRosterToNextcloudTalk'])->name('roster.export.nextcloud');
-                    Route::get('roster/{roster}/exportEmploye/{employe}/pdf', [RosterController::class, 'exportPdfEmploye'])->name('roster.export.employe.pdf');
-                    Route::get('roster/news/{news}/delete', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
-                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
+                    Route::put('roster/department/{department}/settings', [RosterController::class, 'updateSettings'])->name('roster.department.settings');
+                    //Create Checks
+                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
+                    Route::delete('roster/checks/{check}', [RosterCheckController::class, 'destroy'])->name('roster.checks.destroy');
+                    Route::delete('roster/news/{news}', [RosterNewsController::class, 'destroy'])->name('roster.news.delete');
+                    Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'update'])->name('roster.taskRequirements.update');
+                    Route::delete('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'destroy'])->name('roster.taskRequirements.destroy');
 
-                    Route::get('roster/{roster}/toggleView/{day}', [RosterController::class, 'toogleDayView'])->name('toggleDayView');
+                    Route::get('roster/{roster}', [RosterController::class, 'show'])->whereNumber('roster')->name('roster.show');
+                    Route::get('roster/{roster}/data', [RosterController::class, 'data'])->name('roster.data');
+                    Route::delete('roster/{roster}', [RosterController::class, 'destroy'])->name('roster.delete');
+                    Route::post('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
+                    Route::post('roster/{roster}/unpublish', [RosterController::class, 'unpublish'])->name('roster.unpublish');
+                    Route::post('roster/{roster}/revert', [RosterController::class, 'revertChanges'])->name('roster.revert');
+                    Route::post('roster/{roster}/notify-changes', [RosterController::class, 'notifyChanges'])->name('roster.notify-changes');
+                    Route::post('roster/{roster}/copy', [RosterController::class, 'copy'])->name('roster.copy');
+                    Route::post('roster/{roster}/export/mail', [RosterController::class, 'sendRosterMail'])->name('roster.export.mail');
+                    Route::post('roster/{roster}/export/nextcloud', [RosterController::class, 'sendRosterToNextcloudTalk'])->name('roster.export.nextcloud');
+                    Route::post('roster/{roster}/news/add', [RosterNewsController::class, 'store'])->name('roster.news.add');
 
                     // Auto-Umplanung
                     Route::get('roster/{roster}/auto-plan', [RosterController::class, 'autoPlan'])->name('roster.autoPlan');
                     Route::post('roster/{roster}/auto-plan/apply', [RosterController::class, 'applyAutoPlan'])->name('roster.autoPlan.apply');
-                    Route::get('roster/{roster}/auto-plan/undo', [RosterController::class, 'undoAutoPlan'])->name('roster.autoPlan.undo');
+                    Route::post('roster/{roster}/auto-plan/undo', [RosterController::class, 'undoAutoPlan'])->name('roster.autoPlan.undo');
 
                     // Kalender-Import
                     Route::get('roster/{roster}/import-calendar', [RosterEventsController::class, 'importFromCalendarPreview'])->name('roster.importCalendar.preview');
@@ -298,22 +354,15 @@ Route::group([
 
                     // Task Requirements
                     Route::post('roster/{roster}/task-requirements', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'store'])->name('roster.taskRequirements.store');
-                    Route::put('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'update'])->name('roster.taskRequirements.update');
-                    Route::delete('roster/task-requirements/{requirement}', [\App\Http\Controllers\Personal\RosterTaskRequirementController::class, 'destroy'])->name('roster.taskRequirements.destroy');
 
-                    //Create Checks
-                    Route::post('roster/checks', [RosterCheckController::class, 'storeCheck'])->name('roster.checks.store');
-                    //Publish Roster
-                    Route::get('roster/{roster}/publish', [RosterController::class, 'publish'])->name('roster.publish');
-
-                    Route::post('working_time', [WorkingTimeController::class, 'store']);
-                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay']);
+                    Route::post('working_time', [WorkingTimeController::class, 'store'])->name('roster.working-time.store');
+                    Route::delete('roster/{roster}/trashDay', [RosterEventsController::class, 'trashDay'])->name('roster.trash-day');
                     //events
-                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store']);
-                    Route::get('tasks/{event}/remember', [RosterEventsController::class, 'remember']);
-                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update']);
-                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate']);
-                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy']);
+                    Route::patch('tasks/update', [RosterEventsController::class, 'dropUpdate'])->name('roster.events.drop');
+                    Route::post('tasks/{roster}', [RosterEventsController::class, 'store'])->name('roster.events.store');
+                    Route::post('tasks/{event}/remember', [RosterEventsController::class, 'remember'])->name('roster.events.remember');
+                    Route::put('tasks/{rosterEvent}', [RosterEventsController::class, 'update'])->name('roster.events.update');
+                    Route::delete('tasks/{rosterEvent}', [RosterEventsController::class, 'destroy'])->name('roster.events.destroy');
                 });
 
                 // ── Hortstunden-Planung ───────────────────────────────────────────────
@@ -525,7 +574,8 @@ Route::group([
                     Route::post('absences', [AbsenceController::class, 'store']);
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
                     Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
-                    Route::get('absences/abo/{type}', [AbsenceController::class, 'abo']);
+                    // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
+                    Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
                 });
 
                 Route::middleware(['permission:manage sick_notes'])->group(function () {
@@ -606,6 +656,40 @@ Route::group([
                 Route::post('search/search', [SearchController::class, 'searchGlobal']);
                 Route::get('search', [SearchController::class, 'globalSearch']);
 
+
+                // Meetings gruppenübergreifend (Gruppen-Meetings + freie Besprechungen).
+                // Muss vor den {groupname}-Routen stehen, sonst greifen z. B. {groupname}/archive.
+                Route::prefix('meetings')->where(['meeting' => '[0-9]+', 'theme' => '[0-9]+', 'task' => '[0-9]+', 'protocol' => '[0-9]+'])->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'index'])->name('meetings.overview');
+                    Route::get('archive', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'archive'])->name('meetings.archive');
+                    Route::post('/', [\App\Http\Controllers\Meetings\MeetingOverviewController::class, 'store'])->name('meetings.create');
+
+                    Route::get('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'show'])->name('meetings.show');
+                    Route::put('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'update'])->name('meetings.details.update');
+                    Route::delete('{meeting}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroy'])->name('meetings.details.destroy');
+                    Route::post('{meeting}/cancel', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'cancel'])->name('meetings.details.cancel');
+                    Route::post('{meeting}/reactivate', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'reactivate'])->name('meetings.details.reactivate');
+                    Route::post('{meeting}/invite', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'invite'])->name('meetings.details.invite');
+                    Route::post('{meeting}/roles', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'storeTask'])->name('meetings.details.tasks.store');
+                    Route::delete('{meeting}/roles/{task}', [\App\Http\Controllers\Meetings\MeetingDetailController::class, 'destroyTask'])->name('meetings.details.tasks.destroy');
+
+                    Route::post('{meeting}/agenda', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'store'])->name('meetings.agenda.store');
+                    Route::delete('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'remove'])->name('meetings.agenda.remove');
+                    Route::get('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'show'])->name('meetings.themes.show');
+                    Route::put('{meeting}/agenda/{theme}/group', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'move'])->name('meetings.themes.move');
+                    Route::post('{meeting}/agenda/{theme}/protocols', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeProtocol'])->name('meetings.themes.protocols.store');
+                    Route::put('{meeting}/agenda/{theme}/protocols/{protocol}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'updateProtocol'])->name('meetings.themes.protocols.update');
+                    Route::post('{meeting}/agenda/{theme}/tasks', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'storeTask'])->name('meetings.themes.tasks.store');
+                    Route::put('{meeting}/agenda/{theme}', [\App\Http\Controllers\Meetings\MeetingThemeController::class, 'update'])->name('meetings.themes.update');
+
+                    Route::post('{meeting}/presence', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'store'])->name('meetings.presence.store');
+                    Route::post('{meeting}/presence/guests', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'addGuest'])->name('meetings.presence.guests.store');
+                    Route::delete('{meeting}/presence/{presence}', [\App\Http\Controllers\Meetings\MeetingPresenceController::class, 'deleteGuest'])->whereNumber('presence')->name('meetings.presence.guests.destroy');
+
+                    Route::get('{meeting}/protocol', [\App\Http\Controllers\Meetings\MeetingProtocolController::class, 'show'])->name('meetings.protocol.show');
+                    Route::post('{meeting}/protocol/pdf', [\App\Http\Controllers\Meetings\MeetingProtocolController::class, 'pdf'])->name('meetings.protocol.pdf');
+
+                });
 
                 //recurring Themes
                 Route::middleware('permission:manage recurring themes')->group(function () {
@@ -759,12 +843,14 @@ Route::group([
 
 
                 //Tasks
-                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store']);
-                Route::get('tasks/{task}/complete', [TaskController::class, 'complete']);
+                Route::post('{groupname}/{theme}/tasks', [TaskController::class, 'store'])->name('themes.tasks.store');
+                Route::get('tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+                Route::delete('theme-tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
                 //Push-Notification
-                Route::post('{groupname?}/push', [PushController::class, 'store']);
-                Route::post('push', [PushController::class, 'store']);
+                Route::post('push', [PushController::class, 'store'])->name('push.store');
+                Route::delete('push', [PushController::class, 'destroy'])->name('push.destroy');
+                Route::post('push/test', [PushController::class, 'test'])->middleware('throttle:5,1')->name('push.test');
 
                 Route::group(['middlewareGroups' => ['role:Admin']], function () {
                     Route::get('showUser/{id}', [UserController::class, 'loginAsUser']);
@@ -807,7 +893,6 @@ Route::group([
 
                     Route::post('/recurring', [RecurringProcedureController::class, 'store']);
                     Route::delete('/recurring/{recurringProcedure}', [RecurringProcedureController::class, 'destroy']);
-                    Route::get('/recurring/{recurringProcedure}/start/{redirect?}', [RecurringProcedureController::class, 'start']);
 
                     //Procedures
                     Route::post('create/template', [ProcedureController::class, 'storeTemplate']);
@@ -881,8 +966,16 @@ Route::group([
 
 
                     Route::resource('settings', SettingController::class)->only(['index', 'store']);
+                });
 
-                    Route::put('employes/{employe}/data/update', [EmployeController::class, 'updateData'])->name('employes.data.update');
+                /*
+                 * Online-Updater (Permission "make updates" im Controller)
+                 */
+                Route::prefix('updater')->name('updater.')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\UpdateController::class, 'index'])->name('index');
+                    Route::get('status', [\App\Http\Controllers\UpdateController::class, 'status'])->name('status');
+                    Route::post('check', [\App\Http\Controllers\UpdateController::class, 'check'])->name('check');
+                    Route::post('/', [\App\Http\Controllers\UpdateController::class, 'update'])->name('update');
                 });
 
 
@@ -898,17 +991,14 @@ Route::group([
 
                 // Pädagogisches Tagebuch
                 Route::middleware(['permission:view paed diary'])->group(function () {
-                    //V1 - view
-                    Route::get('paed-diary/v1', [\App\Http\Controllers\PaedDiaryController::class, 'index'])->name('paedDiary.v1.index');
-
-                    // v2: Blade + Alpine.js Frontend (parallel zum bestehenden)
+                    // Wochenansicht (Blade + Alpine.js)
                     Route::get('paed-diary/', [\App\Http\Controllers\PaedDiaryController::class, 'indexV2'])->name('paedDiary.index');
 
                    Route::get('paed-diary/week', [\App\Http\Controllers\PaedDiaryController::class, 'weekData'])->name('paedDiary.week');
-                    Route::get('paed-diary/cell-entries', [\App\Http\Controllers\PaedDiaryController::class, 'cellEntries'])->name('paedDiary.cell');
                     Route::get('paed-diary/schueler/{schueler}', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerView'])->name('paedDiary.schueler.view');
                     Route::get('paed-diary/schueler/{schueler}/data', [\App\Http\Controllers\PaedDiaryController::class, 'schuelerData'])->name('paedDiary.schueler.data');
-                    Route::get('paed-diary/schueler/{schueler}/export/word', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerWord'])->name('paedDiary.schueler.export.word');
+                    Route::get('paed-diary/schueler/{schueler}/export/excel', [\App\Http\Controllers\PaedDiaryController::class, 'exportSchuelerExcel'])->name('paedDiary.schueler.export.excel');
+                    Route::get('paed-diary/schueler/{schueler}/dossier.pdf', [\App\Http\Controllers\PaedDiaryDossierController::class, 'pdf'])->name('paedDiary.schueler.dossier.pdf');
                     Route::post('paed-diary/entry', [\App\Http\Controllers\PaedDiaryController::class, 'storeEntry'])->name('paedDiary.entry.store');
                     Route::post('paed-diary/entry/{entry}', [\App\Http\Controllers\PaedDiaryController::class, 'updateEntry'])->name('paedDiary.entry.update');
                     Route::post('paed-diary/entry/{entry}/complete', [\App\Http\Controllers\PaedDiaryController::class, 'completeEntry'])->name('paedDiary.entry.complete');
@@ -919,6 +1009,17 @@ Route::group([
                     // Ziele ("Ziel an dem ich arbeiten möchte") mit Historie
                     Route::post('paed-diary/schueler/{schueler}/goals', [\App\Http\Controllers\PaedDiaryController::class, 'storeGoal'])->name('paedDiary.goal.store');
                     Route::put('paed-diary/goals/{goal}/achieve', [\App\Http\Controllers\PaedDiaryController::class, 'achieveGoal'])->name('paedDiary.goal.achieve');
+
+                    // Elterngespräche (Planung, Vorbereitung, Protokoll) → PaedDiaryElterngespraechController
+                    Route::get('paed-diary/schueler/{schueler}/gespraeche', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'index'])->name('paedDiary.gespraeche.index');
+                    Route::post('paed-diary/schueler/{schueler}/gespraeche', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'store'])->name('paedDiary.gespraeche.store');
+                    Route::put('paed-diary/gespraeche/{gespraech}', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'update'])->middleware('throttle:120,1')->name('paedDiary.gespraeche.update');
+                    Route::post('paed-diary/gespraeche/{gespraech}/abschliessen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'abschliessen'])->name('paedDiary.gespraeche.abschliessen');
+                    Route::post('paed-diary/gespraeche/{gespraech}/wieder-oeffnen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'wiederOeffnen'])->name('paedDiary.gespraeche.wiederOeffnen');
+                    Route::post('paed-diary/gespraeche/{gespraech}/absagen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'absagen'])->name('paedDiary.gespraeche.absagen');
+                    Route::delete('paed-diary/gespraeche/{gespraech}', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'destroy'])->name('paedDiary.gespraeche.destroy');
+                    Route::post('paed-diary/gespraeche/vereinbarungen/{vereinbarung}/uebernehmen', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'uebernehmen'])->name('paedDiary.gespraeche.uebernehmen');
+                    Route::get('paed-diary/gespraeche/{gespraech}/protokoll.pdf', [\App\Http\Controllers\PaedDiaryElterngespraechController::class, 'pdf'])->name('paedDiary.gespraeche.pdf');
 
                     // Tages-Pause für gesamte Klasse/Gruppe (Veranstaltungen, Ferienüberschreibung)
                     Route::post('paed-diary/day/pause', [\App\Http\Controllers\PaedDiaryController::class, 'pauseClassDay'])->name('paedDiary.day.pause');
@@ -933,7 +1034,7 @@ Route::group([
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
 
-                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->middleware('permission:manage grading systems')->name('paedDiary.changeStage');
+                    Route::post('paed-diary/change-stage', [\App\Http\Controllers\PaedDiaryController::class, 'changeSchuelerStage'])->name('paedDiary.changeStage');
                     Route::get('paed-diary/klasse/{klasse}/stages', [\App\Http\Controllers\PaedDiaryController::class, 'getClassStages'])->name('paedDiary.klasse.stages');
                     Route::get('paed-diary/klasse/{klasse}/schueler', [\App\Http\Controllers\PaedDiaryController::class, 'getClassSchueler'])->name('paedDiary.klasse.schueler');
 
@@ -963,6 +1064,8 @@ Route::group([
                         Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
                     });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
+                    // Persönliche Darstellung (bisherige/neue Ansicht, Layout, Schrift, Tour)
+                    Route::post('paed-diary/settings/darstellung', [\App\Http\Controllers\PaedDiaryController::class, 'updateDarstellung'])->name('paedDiary.settings.darstellung');
 
                     // Klassen-Gruppen → PaedDiaryClassGroupController (TODO 16)
                     Route::get('paed-diary/class-groups', [\App\Http\Controllers\PaedDiaryClassGroupController::class, 'index'])->name('paedDiary.classGroups.index');
@@ -1072,22 +1175,26 @@ Route::group([
                         });
 
                         // Legacy routes for backward compatibility (deprecated)
-                        Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
-                        Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
-                        Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
-                        Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
+                        // Sicherheitsfix: Diese Legacy-Routen waren nur mit "view diagnostics" geschützt,
+                        // obwohl sie Katalogdaten ändern. Jetzt – wie der Admin-Bereich – nur mit "manage diagnostics".
+                        Route::middleware(['permission:manage diagnostics'])->group(function () {
+                            Route::post('/areas', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeArea'])->name('areas.store');
+                            Route::put('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateArea'])->name('areas.update');
+                            Route::delete('/areas/{area}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyArea'])->name('areas.destroy');
+                            Route::post('/areas/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderAreas'])->name('areas.reorder');
 
-                        // Stages
-                        Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
-                        Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
-                        Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
-                        Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
+                            // Stages
+                            Route::post('/areas/{area}/stages', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeStage'])->name('stages.store');
+                            Route::put('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateStage'])->name('stages.update');
+                            Route::delete('/stages/{stage}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyStage'])->name('stages.destroy');
+                            Route::post('/areas/{area}/stages/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderStages'])->name('stages.reorder');
 
-                        // Goals
-                        Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
-                        Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
-                        Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
-                        Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                            // Goals
+                            Route::post('/stages/{stage}/goals', [\App\Http\Controllers\DiagnosticAdminController::class, 'storeGoal'])->name('goals.store');
+                            Route::put('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'updateGoal'])->name('goals.update');
+                            Route::delete('/goals/{goal}', [\App\Http\Controllers\DiagnosticAdminController::class, 'destroyGoal'])->name('goals.destroy');
+                            Route::post('/stages/{stage}/goals/reorder', [\App\Http\Controllers\DiagnosticAdminController::class, 'reorderGoals'])->name('goals.reorder');
+                        });
                     });
                 });
 
@@ -1142,6 +1249,21 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
         Route::post('/termine', [\App\Http\Controllers\CalendarController::class, 'store'])
             ->name('calendar.store')
             ->middleware('throttle:calendar-write');
+        Route::get('/raum-verfuegbarkeit', [\App\Http\Controllers\CalendarController::class, 'raumVerfuegbarkeit'])
+            ->name('calendar.rooms.availability');
+
+        // ICS-Import (Vorschau mit Auswahl + Hinweisen, danach Import nach OX)
+        Route::middleware('permission:import calendar events|manage calendar')->prefix('import')->group(function () {
+            Route::post('/', [\App\Http\Controllers\CalendarImportController::class, 'vorschau'])
+                ->name('calendar.import.preview');
+            Route::get('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'show'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.show');
+            Route::post('/{token}', [\App\Http\Controllers\CalendarImportController::class, 'store'])
+                ->where('token', '[A-Za-z0-9]{32}')
+                ->name('calendar.import.store')
+                ->middleware('throttle:calendar-write');
+        });
     });
 
     // Bearbeiten/Löschen (edit calendar events)
@@ -1182,10 +1304,10 @@ Route::prefix('calendar')->middleware(['auth'])->group(function () {
 Route::get('/calendar/feed/{token}.ics', [\App\Http\Controllers\CalendarController::class, 'feed'])
     ->name('calendar.feed');
 
-// Personal-Modul: Temporäre Test-Route (Phase 0 – nach Verifizierung entfernen)
-Route::get('/personal/test-ui', function () {
-    return view('personal.test-ui');
-})->middleware('auth')->name('personal.test-ui');
+// Persönlicher Dienstplan als Kalender-Abo (Token-geschützt, ohne Login)
+Route::get('/dienstplan/feed/{token}.ics', [\App\Http\Controllers\Personal\RosterController::class, 'feed'])
+    ->middleware('throttle:60,1')
+    ->name('roster.feed');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Personalakte-Hub: Übersichtsseite je Mitarbeiter (alle Sub-Module)
@@ -1195,7 +1317,10 @@ Route::middleware(['auth', 'permission:view personal_data', 'personal.audit', 't
     ->name('personal.')
     ->group(function () {
         Route::get('/mitarbeiter/{employe}', [App\Http\Controllers\Personal\PersonalakteController::class, 'show'])
-            ->name('personalakte.show');
+            ->whereNumber('employe')->name('personalakte.show');
+        // Änderungsverlauf (Audit) der Personalakte – eigenes Recht, da sensibel
+        Route::get('/mitarbeiter/{employe}/verlauf', [App\Http\Controllers\Personal\PersonalakteController::class, 'verlauf'])
+            ->whereNumber('employe')->middleware('permission:view personal_audit')->name('personalakte.verlauf');
     });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1215,6 +1340,14 @@ Route::middleware(['auth', 'throttle:30,1', 'personal.audit'])
         // Einwilligungen (Self-Service)
         Route::post('/einwilligungen/{type}/erteilen',   [App\Http\Controllers\Personal\ConsentController::class, 'grant'])  ->name('consents.grant');
         Route::post('/einwilligungen/{type}/widerrufen', [App\Http\Controllers\Personal\ConsentController::class, 'revoke']) ->name('consents.revoke');
+
+        // Pädagogen-App: eigene App-Geräte abmelden
+        Route::delete('/app-geraete/{token}', [App\Http\Controllers\PaedAppDeviceController::class, 'destroy'])
+            ->whereNumber('token')->name('app-devices.destroy');
+
+        // Anwendungstokens (API) erstellen – widerrufen über app-devices.destroy
+        Route::post('/api-tokens', [App\Http\Controllers\ApiTokenController::class, 'store'])
+            ->middleware('permission:create api tokens')->name('api-tokens.store');
 
         // Stundenzettel: Passwort-Bestätigung erforderlich
         Route::middleware('password.confirm')->group(function () {

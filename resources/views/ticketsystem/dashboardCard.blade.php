@@ -21,7 +21,7 @@
                             </small>
                         </div>
                         <div class="text-right">
-                            <span class="badge badge-{{ $t->status == 'waiting' ? 'warning' : 'primary' }}">{{ $t->status }}</span>
+                            <span class="badge badge-{{ $t->status == 'waiting' ? 'warning' : 'primary' }}">{{ $t->status_label }}</span>
                             <br>
                             <small title="Letzte Aktivität">{{ optional($t->last_activity)->diffForHumans() }}</small>
                         </div>
@@ -30,7 +30,7 @@
                         <div class="mt-1">
                             <small>
                                 <i class="fa fa-clock"></i>
-                                Termin: <span class="text-{{ $t->waiting_until->isPast() ? 'danger' : 'secondary' }}">{{ $t->waiting_until->format('d.m.Y H:i') }}</span>
+                                Wartet bis: <span class="text-{{ $t->waiting_until->isPast() ? 'danger' : 'secondary' }}">{{ $t->waiting_until->format('d.m.Y') }}</span>
                             </small>
                         </div>
                     @endif

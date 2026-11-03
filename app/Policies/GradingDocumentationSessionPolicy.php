@@ -13,7 +13,8 @@ class GradingDocumentationSessionPolicy
     public function view(User $user, GradingDocumentationSession $session)
     {
         // Benutzer muss der Ersteller der Session sein oder Zugriff auf die Klasse haben
-        return $session->user_id === $user->id ||
+        return (int) $session->user_id === (int) $user->id ||
+               $user->canAccessAllStudents() ||
                $user->paed_klassen()->where('klassen.id', $session->klasse_id)->exists();
     }
 
@@ -23,7 +24,7 @@ class GradingDocumentationSessionPolicy
     public function update(User $user, GradingDocumentationSession $session)
     {
         // Nur der Ersteller kann die Session bearbeiten
-        return $session->user_id === $user->id;
+        return (int) $session->user_id === (int) $user->id;
     }
 }
 

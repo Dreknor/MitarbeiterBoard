@@ -8,8 +8,8 @@ use App\Models\Klasse;
 use App\Models\User;
 use App\Models\GradingStage;
 use App\Models\PaedDiaryEntry;
-use App\Models\SchuelerGradingHistory;
 use App\Models\Zeitraster;
+use App\Services\GradingStageService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -141,48 +141,22 @@ class KlasseController extends Controller
                 // find lowest stage by sort_order
                 $stage = GradingStage::where('grading_system_id', $newSystem)->orderBy('sort_order')->first();
                 if ($stage) {
-                    // students without a stage
-                    $students = $klassen->schueler()->whereNull('grading_stage_id')->get();
-                    if ($students->isNotEmpty()) {
-                        $assignedNames = [];
-                        foreach ($students as $s) {
-                            $assignedNames[] = $s->vorname . ' ' . $s->nachname;
-                        }
-
-                        // Create paed diary entry describing assignment
-                        $userId = auth()->id() ?? null;
-                        $content = 'Automatische Stufen-Zuweisung: Schüler ohne Stufe wurden der Stufe "' . $stage->name . '" zugewiesen: ' . implode(', ', $assignedNames) . '.';
+                    // Je Schüler ohne Stufe ein eigener, bereits abgeschlossener Tagebucheintrag –
+                    // keine gemeinsame offene Notiz mit allen Namen, die bei jedem Schüler hängen bleibt.
+                    $user = auth()->user();
+                    $gradingStages = app(GradingStageService::class);
+                    foreach ($klassen->schueler()->whereNull('grading_stage_id')->get() as $s) {
                         $entry = PaedDiaryEntry::create([
                             'klasse_id' => $klassen->id,
-                            'user_id' => $userId,
-                            'datum' => now(),
-                            'content' => $content
+                            'user_id' => $user->id,
+                            'datum' => now()->toDateString(),
+                            'content' => 'Automatische Stufen-Zuweisung: ' . $s->vorname . ' ' . $s->nachname . ' wurde der Stufe "' . $stage->name . '" zugewiesen.',
+                            'completed_at' => now(),
                         ]);
-                        // attach schueler to the paed diary entry
-                        $entry->schueler()->sync($students->pluck('id')->toArray());
+                        $entry->schueler()->sync([$s->id]);
 
-                        // Invalidate week cache for the class so the new diary entry becomes visible immediately
-                        try {
-                            $weekStart = Carbon::parse($entry->datum)->startOfWeek();
-                            Cache::forget('paed_week_'.$klassen->id.'_'. $weekStart->format('Ymd'));
-                        } catch (\Throwable $e) {
-                            // non-fatal
-                        }
-
-                        // update students and create history entries
-                        foreach ($students as $s) {
-                            SchuelerGradingHistory::create([
-                                'schueler_id' => $s->id,
-                                'grading_system_id' => $newSystem,
-                                'grading_stage_id' => $stage->id,
-                                'previous_grading_stage_id' => null,
-                                'changed_by' => $userId,
-                                'paed_diary_entry_id' => $entry->id,
-                                'created_at' => now()
-                            ]);
-                            $s->grading_stage_id = $stage->id;
-                            $s->save();
-                        }
+                        // Stufe, Historie und Wochen-Cache wie bei jeder anderen Stufenänderung
+                        $gradingStages->changeStage($s, $stage, $user, $klassen, $entry->id);
                     }
                 }
             }

@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="px-4 py-4">
+<div class="calendar-wrapper px-4 py-4">
 
     {{-- ─── Seiten-Header ─────────────────────────────────────────────── --}}
     <div class="flex items-center justify-between mb-6">

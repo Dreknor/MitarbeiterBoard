@@ -3,53 +3,109 @@
 namespace App\Models\personal;
 
 use App\Models\User;
-use Attribute;
+use App\Services\Personal\Zeit\TimesheetService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Cache;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * Arbeitszeitnachweis eines Monats.
+ *
+ * Berechnung (Saldo, Urlaubsfelder) und Workflow laufen über
+ * App\Services\Personal\Zeit\TimesheetService.
+ */
 class Timesheet extends Model implements Auditable
 {
     use HasFactory;
     use SoftDeletes;
     use \OwenIt\Auditing\Auditable;
 
+    public const STATUS_OFFEN = 'offen';
+    public const STATUS_EINGEREICHT = 'eingereicht';
+    public const STATUS_ABGESCHLOSSEN = 'abgeschlossen';
+
     public $fillable = [
         'month', 'year', 'employe_id', 'holidays_old', 'holidays_new', 'holidays_rest', 'working_time_account', 'comment', 'locked_at', 'locked_by',
         'requires_review', 'review_reason', 'reviewed_at', 'reviewed_by',
+        'submitted_at', 'submitted_by', 'return_reason', 'plan_uebernommen_bis',
     ];
 
     protected $casts = [
         'requires_review' => 'boolean',
         'reviewed_at'      => 'datetime',
+        'locked_at'        => 'datetime',
+        'submitted_at'     => 'datetime',
+        'plan_uebernommen_bis' => 'date',
+        'holidays_old'     => 'float',
+        'holidays_new'     => 'float',
+        'holidays_rest'    => 'float',
     ];
 
-    public function working_time_account(): Attribute
+    public function getWorkingTimeAccountAttribute($value): int
     {
-        return Attribute::make(
-            get: fn ($value) => (!is_null($value))? $value : 0,
-        );
+        return (int) ($value ?? 0);
     }
 
-    public function getIsLockedAttribute(){
-        if ($this->locked_at != null){
-            return true;
+    public function getIsLockedAttribute(): bool
+    {
+        return $this->locked_at !== null;
+    }
+
+    public function getStatusAttribute(): string
+    {
+        if ($this->is_locked) {
+            return self::STATUS_ABGESCHLOSSEN;
         }
-        return false;
+
+        return $this->submitted_at !== null ? self::STATUS_EINGEREICHT : self::STATUS_OFFEN;
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_ABGESCHLOSSEN => 'Abgeschlossen',
+            self::STATUS_EINGEREICHT => 'Eingereicht',
+            default => 'Offen',
+        };
+    }
+
+    public function monthStart(): Carbon
+    {
+        return Carbon::create($this->year, $this->month, 1)->startOfDay();
+    }
+
+    public function monthEnd(): Carbon
+    {
+        return $this->monthStart()->endOfMonth();
     }
 
     public function timesheet_days(){
         return $this->hasMany(TimesheetDays::class);
     }
+
+    /**
+     * Alias für Route-Model-Binding mit scopeBindings().
+     */
+    public function timesheetDays(){
+        return $this->timesheet_days();
+    }
+
     public function employe(){
         return $this->belongsTo(User::class, 'employe_id');
     }
 
     public function locked_by(){
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'locked_by');
+    }
+
+    public function lockedBy(){
+        return $this->belongsTo(User::class, 'locked_by');
+    }
+
+    public function submittedBy(){
+        return $this->belongsTo(User::class, 'submitted_by');
     }
 
     public function reviewed_by(){
@@ -88,58 +144,17 @@ class Timesheet extends Model implements Auditable
         ]);
     }
 
-
-
-
-
-    public function updateTime(){
-        if ($this->is_locked){
+    /**
+     * Saldo und Urlaubsfelder neu berechnen (gesperrte Nachweise bleiben unverändert).
+     */
+    public function updateTime(): bool
+    {
+        if ($this->is_locked) {
             return false;
         }
 
+        app(TimesheetService::class)->recalculate($this);
 
-        $timesheet_days = $this->timesheet_days;
-        $start_of_month = Carbon::createFromFormat('m-Y', $this->month.'-'.$this->year)->startOfMonth();
-        $monthBefore = $start_of_month->copy()->subMonth();
-        $employe = $this->employe;
-
-        $timesheet_old = Cache::remember('timesheet_'.$this->employe_id.'_'.$monthBefore->format('Y_m'), 1, function () use ($employe, $monthBefore){
-            return Timesheet::where('month', $monthBefore->month)->where('year', $monthBefore->year)->where('employe_id', $employe->id)->first();
-        });
-
-        $working_time = $timesheet_old?->working_time_account;
-
-        for ($x = $start_of_month->copy(); $x->lessThanOrEqualTo($start_of_month->endOfMonth()); $x->addDay()){
-            $timesheet_day = $timesheet_days->filterDay($x);
-            $employment = $employe->employments_date($x);
-
-            if ($x->lessThanOrEqualTo(Carbon::now())){
-                if($x->isWeekday() and !is_holiday($x)){
-                    $working_time += $timesheet_day->sum('duration')- percent_to_seconds($employment->sum('percent'))/5;
-                } else{
-                    $working_time += $timesheet_day->sum('duration');
-                }
-            }
-
-        }
-
-        $this->working_time_account = $working_time;
-
-        //Urlaub berechnen
-        $this->holidays_new = $timesheet_days->where('comment', 'LIKE','Urlaub')->count();
-        $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->holidays_old + $timesheet_old-> holidays_new: 0;
-        $this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $timesheet_old->holidays_rest - $this->holidays_new;
-
-        if ($this->month == 1){
-            $this->holidays_old =  0-$timesheet_old?->holidays_rest;
-            $this->holidays_rest = $this->employe->getHolidayClaim($start_of_month) + $timesheet_old?->holidays_rest - $this->holidays_new;
-        } else {
-            $this->holidays_old = ($timesheet_old != null)? $timesheet_old?->holidays_old+$timesheet_old?->holidays_new : 0;
-            //$this->holidays_rest = ($this->holidays_old == 0)? ceil($this->employe->getHolidayClaim($start_of_month)/12*$this->month) - $this->holidays_new : $timesheet_old?->holidays_rest - $this->holidays_new;
-            $this->holidays_rest = $timesheet_old?->holidays_rest - $this->holidays_new ;
-        }
-
-
-        $this->save();
+        return true;
     }
 }

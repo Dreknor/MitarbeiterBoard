@@ -15,17 +15,18 @@ use Illuminate\Validation\ValidationException;
 
 class CreateMeetingWithRoomBookingAction
 {
-    public function execute(Group $group, array $data, User $user): Meeting
+    public function execute(?Group $group, array $data, User $user): Meeting
     {
         return DB::transaction(function () use ($group, $data, $user) {
-            $meetingData = Arr::only($data, ['title', 'date', 'start_time', 'end_time']);
-            $meetingData['group_id'] = $group->id;
+            $meetingData = Arr::only($data, ['title', 'date', 'start_time', 'end_time', 'description', 'location', 'meeting_url']);
+            $meetingData['group_id']   = $group?->id;
+            $meetingData['creator_id'] = $user->id;
 
             $meeting = Meeting::create($meetingData);
 
             Log::info('Meeting erstellt', [
                 'meeting_id' => $meeting->id,
-                'group_id' => $group->id,
+                'group_id' => $group?->id,
                 'user_id' => $user->id,
             ]);
 

@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Traits;
 
 use App\Models\PaedDiaryColumn;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -12,16 +10,6 @@ use Illuminate\Support\Str;
  */
 trait PaedDiaryHelperTrait
 {
-    private function weekCacheKey(int|string $klasseId, Carbon $weekStart): string
-    {
-        return "paed_diary_week_{$klasseId}_{$weekStart->startOfWeek()->toDateString()}";
-    }
-
-    private function forgetWeekCache(int|string $klasseId, Carbon $date): void
-    {
-        Cache::forget($this->weekCacheKey($klasseId, $date->copy()->startOfWeek()));
-    }
-
     private function generateUniqueSlug(string $baseSlug, int $klasseId): string
     {
         $slug    = $baseSlug;

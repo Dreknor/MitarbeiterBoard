@@ -2,87 +2,34 @@
 
 namespace App\Http\Controllers\Personal;
 
-
-
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\CreateWorkingTimeRequest;
 use App\Models\personal\Roster;
-use App\Models\personal\WorkingTime;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
-use Spatie\GoogleCalendar\Event;
+use App\Services\Personal\Zeit\RosterService;
+use Carbon\Carbon;
 
 class WorkingTimeController extends Controller
 {
+    public function __construct(private readonly RosterService $rosters)
+    {
+    }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param CreateWorkingTimeRequest $request
-     * @return RedirectResponse
+     * Arbeitszeit einer Person an einem Tag setzen (leere Zeiten = frei).
      */
     public function store(CreateWorkingTimeRequest $request)
     {
         $roster = Roster::findOrFail($request->roster_id);
-        $working_time = WorkingTime::updateOrCreate([
-            'roster_id' => $request->roster_id,
-            'employe_id' => $request->employe_id,
-            'date' => $request->date,
-        ], [
-            'start' => $request->start,
-            'end' => $request->end,
-            'function' => $request->function,
-        ]);
+        $this->authorize('manage', $roster);
 
-        if ($working_time->employe->employe_data?->google_calendar_link != null and $roster->type != 'template'){
-            if ($working_time->googleCalendarId != null){
-                try {
-                    $event = Event::find($working_time->googleCalendarId, $working_time->employe->employe_data->google_calendar_link);
+        $tag = Carbon::parse($request->date)->startOfDay();
+        [, $hinweis] = $this->rosters->arbeitszeitSetzen($roster, (int) $request->employe_id, $tag->toDateString(), $request->start, $request->end, $request->function);
 
-                    if (isset($request->start) and isset($request->end)){
-                        $event->startDateTime = Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->start);
-                        $event->endDateTime = Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->end);
-                        $event->save();
-                    } else {
-                        $event->delete();
-                        $working_time->update([
-                            'googleCalendarId'=>null
-                        ]);
-                    }
-                } catch (\Exception $exception){
-
-                }
-
-            } else {
-                if (isset($request->start) and isset($request->end)){
-                    try {
-                        $event = Event::create([
-                            'name' => 'Dienst',
-                            'startDateTime' => Carbon::parse($request->date.' '.$request->start),
-                            'endDateTime' => Carbon::createFromFormat('Y-m-d H:i', $request->date.' '.$request->end),
-                        ],
-                            $working_time->employe->employe_data->google_calendar_link
-                        );
-                        $event->save();
-
-                        $working_time->googleCalendarId = $event->id;
-                        $working_time->save();
-                    } catch (\Exception $exception){
-                        Log::error("Arbeitszeit: Kalendereintrag fehlgeschlagen:", [
-                            'message' => $exception->getMessage(),
-                        ]);
-
-                        return redirectBack('warning', 'Arbeitszeit gespeichert, aber Kalendereintrag fehlgeschlagen');
-                    }
-
-                }
-            }
-
+        if ($request->expectsJson()) {
+            return response()->json(['type' => $hinweis ? 'warning' : 'success', 'message' => $hinweis ?? 'Arbeitszeit gespeichert.']);
         }
 
-        return redirectBack('success', 'Arbeitszeit gespeichert', '#' . $request->date);
+        return redirect(route('roster.show', $roster->id).'#tag-'.$tag->toDateString())
+            ->with(['type' => $hinweis ? 'warning' : 'success', 'Meldung' => $hinweis ?? 'Arbeitszeit gespeichert.']);
     }
-
-
 }

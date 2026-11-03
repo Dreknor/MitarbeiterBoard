@@ -14,6 +14,10 @@
             <p class="text-sm text-gray-500 mt-0.5">Gruppe: {{ $group->name }}</p>
         </div>
         <div class="flex items-center gap-2">
+            <a href="{{ route('meetings.overview') }}" class="mtg-btn mtg-btn-secondary" title="Alle Meetings, auch gruppenübergreifend">
+                <i class="fas fa-layer-group"></i>
+                <span class="hidden sm:inline">Alle meine Meetings</span>
+            </a>
             <a href="{{ route('meetings.past', ['groupname' => $group->name]) }}" class="mtg-btn mtg-btn-secondary">
                 <i class="fas fa-archive"></i>
                 <span class="hidden sm:inline">Archiv</span>

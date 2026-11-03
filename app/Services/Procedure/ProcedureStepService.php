@@ -3,6 +3,7 @@
 namespace App\Services\Procedure;
 
 use App\Models\Procedure_Step;
+use App\Models\ProcedureStepHistory;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +39,8 @@ class ProcedureStepService
                 ));
             }
 
-            // Folgeschritte: endDate setzen + Mails
-            foreach ($step->childs as $child) {
+            // Folgeschritte: endDate setzen + Mails (bereits erledigte Kinder bleiben unberührt)
+            foreach ($step->childs()->where('done', false)->get() as $child) {
                 $child->update([
                     'endDate' => Carbon::now()->addDays((int) ($child->durationDays ?? 0)),
                 ]);
@@ -64,7 +65,7 @@ class ProcedureStepService
     /**
      * Schritt wieder öffnen (§B-16). Setzt done = false, löscht completed_*.
      */
-    public function reopen(Procedure_Step $step): void
+    public function reopen(Procedure_Step $step, ?User $performedBy = null): void
     {
         $step->update([
             'done'         => false,
@@ -76,6 +77,8 @@ class ProcedureStepService
         if ($step->procedure && $step->procedure->ended_at) {
             $step->procedure()->update(['ended_at' => null, 'ended_reason' => null]);
         }
+
+        ProcedureStepHistory::logReopened($step->id, $performedBy?->id);
     }
 
     /**
@@ -83,20 +86,25 @@ class ProcedureStepService
      *
      * @param int[] $userIds
      */
-    public function assignUsers(Procedure_Step $step, array $userIds): int
+    public function assignUsers(Procedure_Step $step, array $userIds, ?User $performedBy = null): int
     {
         $existing = $step->users()->pluck('users.id')->all();
         $toAttach = array_values(array_diff($userIds, $existing));
         if ($toAttach) {
             $step->users()->attach($toAttach);
+            foreach (User::whereIn('id', $toAttach)->get() as $user) {
+                ProcedureStepHistory::logUserAdded($step->id, $user, $performedBy?->id);
+            }
         }
         return count($toAttach);
     }
 
     /** Einen User von einem Schritt entfernen. */
-    public function removeUser(Procedure_Step $step, User $user): void
+    public function removeUser(Procedure_Step $step, User $user, ?User $performedBy = null): void
     {
-        $step->users()->detach($user->id);
+        if ($step->users()->detach($user->id) > 0) {
+            ProcedureStepHistory::logUserRemoved($step->id, $user, $performedBy?->id);
+        }
     }
 
     /**
@@ -147,7 +155,7 @@ class ProcedureStepService
 
                 // Zirkuläre Elternschaft verhindern, falls der Schritt in einen
                 // anderen Elternknoten verschoben wird (Drag zwischen Ebenen).
-                if ($parentId !== null && $step->parent !== $parentId && $this->isDescendant($step, $parentId)) {
+                if ($parentId !== null && (int) $step->parent !== $parentId && $this->isDescendant($step, $parentId)) {
                     throw new \InvalidArgumentException('Ein Schritt kann nicht unter seinen eigenen Nachfahren verschoben werden.');
                 }
 
@@ -159,17 +167,25 @@ class ProcedureStepService
         });
     }
 
-    /** Prüft ob $ancestor ein Vorfahre von $step ist (zirkuläre Verschiebung verhindern). */
-    private function isDescendant(Procedure_Step $step, int $candidateParentId): bool
+    /**
+     * Prüft, ob $candidateParentId der Schritt selbst oder einer seiner Nachfahren ist
+     * (zirkuläre Elternschaft verhindern). Läuft vom Kandidaten die Eltern-Kette hinauf –
+     * eine Query je Ebene statt eines rekursiven Abstiegs durch den ganzen Unterbaum.
+     */
+    public function isDescendant(Procedure_Step $step, int $candidateParentId): bool
     {
-        if ($step->id === $candidateParentId) {
-            return true;
-        }
-        foreach ($step->childs as $child) {
-            if ($this->isDescendant($child, $candidateParentId)) {
+        $currentId = $candidateParentId;
+        $visited   = [];
+
+        while ($currentId !== null && !isset($visited[$currentId])) {
+            if ($currentId === $step->id) {
                 return true;
             }
+            $visited[$currentId] = true;
+            $parent    = Procedure_Step::whereKey($currentId)->value('parent');
+            $currentId = $parent !== null ? (int) $parent : null;
         }
+
         return false;
     }
 }

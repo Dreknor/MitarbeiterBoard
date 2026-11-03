@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Http\Controllers\ProcedureController;
 use App\Models\User;
+use App\Services\Procedure\ProcedureNotificationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -27,7 +27,7 @@ class RemindProcedureUser extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(ProcedureNotificationService $notifications): int
     {
         $input = $this->argument('user');
 
@@ -42,12 +42,20 @@ class RemindProcedureUser extends Command
             return 1;
         }
 
-        // Make the controller and call the wrapper method we added
-        $controller = app()->make(ProcedureController::class);
+        if ($user->hasAbsence(now())) {
+            $this->info('Benutzer ist abwesend – keine Erinnerung gesendet: ' . $user->id);
+            return 0;
+        }
 
         try {
-            $controller->sendReminderEmailForUser($user);
-            $this->info('Erinnerung für Benutzer gesendet (oder übersprungen bei Abwesenheit): ' . $user->id);
+            $pending = $notifications->pendingStepsFor($user);
+            if ($pending === []) {
+                $this->info('Keine fälligen Schritte für Benutzer: ' . $user->id);
+                return 0;
+            }
+
+            $notifications->sendReminder($user, $pending);
+            $this->info('Erinnerung für Benutzer gesendet: ' . $user->id);
             return 0;
         } catch (\Exception $e) {
             $this->error('Fehler beim Senden der Erinnerung: ' . $e->getMessage());

@@ -230,7 +230,7 @@
                                     </b>
                                 </div>
                                 <div class="col-sm-12 col-md-12 col-lg-9">
-                                    {!! $theme->information !!}
+                                    {!! $theme->information_html !!}
                                 </div>
                             </div>
                             @if($theme->share)
@@ -463,7 +463,7 @@
                                                     {{$protocol->created_at->format('d.m.Y H:i')}} - @if($protocol->ersteller->getMedia('profile')->count() != 0)<img src="{{$protocol->ersteller->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;">@endif {{$protocol->ersteller->name}}
                                                 </p>
 
-                                                {!! $protocol->protocol !!}
+                                                {!! $protocol->protocol_html !!}
 
                                                 <ul class="list-group">
                                                     @foreach($protocol->getMedia()->sortBy('name') as $media)

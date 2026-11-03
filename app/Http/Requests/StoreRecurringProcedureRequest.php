@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreRecurringProcedureRequest extends FormRequest
 {
@@ -23,7 +24,8 @@ class StoreRecurringProcedureRequest extends FormRequest
     {
         return [
             'name'              => 'required|string|max:120',
-            'procedure_id'      => 'required|exists:procedures,id',
+            // nur (nicht gelöschte) Vorlagen – keine laufenden Prozesse
+            'procedure_id'      => ['required', Rule::exists('procedures', 'id')->whereNull('started_at')->whereNull('deleted_at')],
             'faelligkeit_typ'   => 'required|in:datum,vor_ferien,nach_ferien,wochentag,schuljahres_stichtag',
             'month'             => 'nullable|integer|min:1|max:12|required_if:faelligkeit_typ,datum',
             'wochen'            => 'nullable|integer|min:0|max:52|required_if:faelligkeit_typ,vor_ferien|required_if:faelligkeit_typ,nach_ferien',

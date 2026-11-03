@@ -11,6 +11,7 @@ class Presence extends Model
 
     public $fillable = [
         'group_id',
+        'meeting_id',
         'date',
         'user_id',
         'presence',

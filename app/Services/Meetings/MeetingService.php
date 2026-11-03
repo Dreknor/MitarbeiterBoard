@@ -1,0 +1,448 @@
+<?php
+
+namespace App\Services\Meetings;
+
+use App\Mail\MeetingInvitationMail;
+use App\Models\Group;
+use App\Models\Meeting;
+use App\Models\MeetingParticipant;
+use App\Models\RoomBooking;
+use App\Models\Theme;
+use App\Models\User;
+use App\Notifications\Push;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Spatie\Permission\Models\Role;
+
+/**
+ * Gemeinsame Logik für gruppengebundene und freie Meetings
+ * (Teilnehmer, Agenda-Themen, Einladungen, Absage).
+ */
+class MeetingService
+{
+    /**
+     * Teilnehmer (Personen, Gruppen/Bereiche, Rollen) vollständig ersetzen.
+     *
+     * @param  array{users?: array<int>, organizers?: array<int>, groups?: array<int>, roles?: array<int>}  $data
+     */
+    public function syncParticipants(Meeting $meeting, array $data): void
+    {
+        $userIds      = collect($data['users'] ?? [])->map(fn ($id) => (int) $id)->filter()->unique();
+        $organizerIds = collect($data['organizers'] ?? [])->map(fn ($id) => (int) $id)->filter()->unique();
+        $groupIds     = collect($data['groups'] ?? [])->map(fn ($id) => (int) $id)->filter()->unique();
+        $roleIds      = collect($data['roles'] ?? [])->map(fn ($id) => (int) $id)->filter()->unique();
+
+        // Organisatoren sind immer auch Teilnehmer
+        $userIds = $userIds->merge($organizerIds)->unique();
+
+        DB::transaction(function () use ($meeting, $userIds, $organizerIds, $groupIds, $roleIds) {
+            $meeting->participants()->delete();
+
+            $rows = collect();
+            foreach ($userIds as $id) {
+                $rows->push(['type' => User::class, 'id' => $id, 'organizer' => $organizerIds->contains($id)]);
+            }
+            foreach ($groupIds as $id) {
+                $rows->push(['type' => Group::class, 'id' => $id, 'organizer' => false]);
+            }
+            foreach ($roleIds as $id) {
+                $rows->push(['type' => Role::class, 'id' => $id, 'organizer' => false]);
+            }
+
+            foreach ($rows as $row) {
+                MeetingParticipant::create([
+                    'meeting_id'       => $meeting->id,
+                    'participant_type' => $row['type'],
+                    'participant_id'   => $row['id'],
+                    'is_organizer'     => $row['organizer'],
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Auswahllisten für den Teilnehmer-Picker (Personen, Gruppen/Bereiche, Rollen).
+     *
+     * @return array{users: array, groups: array, roles: array}
+     */
+    public function participantOptions(): array
+    {
+        return [
+            'users'  => User::query()->orderBy('name')->get(['id', 'name'])
+                ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->values()->all(),
+            'groups' => Group::query()->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Group $g) => ['id' => $g->id, 'name' => $g->name])->values()->all(),
+            'roles'  => Role::query()->where('guard_name', 'web')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Role $r) => ['id' => $r->id, 'name' => $r->name])->values()->all(),
+        ];
+    }
+
+    /**
+     * Aktuelle Teilnehmer eines Meetings im Format des Pickers.
+     *
+     * @return array{users: array<int>, organizers: array<int>, groups: array<int>, roles: array<int>}
+     */
+    public function participantSelection(?Meeting $meeting): array
+    {
+        if (! $meeting) {
+            return ['users' => [], 'organizers' => [], 'groups' => [], 'roles' => []];
+        }
+
+        $rows = $meeting->participants()->get();
+
+        return [
+            'users'      => $rows->where('participant_type', User::class)->pluck('participant_id')->values()->all(),
+            'organizers' => $rows->where('participant_type', User::class)->where('is_organizer', true)->pluck('participant_id')->values()->all(),
+            'groups'     => $rows->where('participant_type', Group::class)->pluck('participant_id')->values()->all(),
+            'roles'      => $rows->where('participant_type', Role::class)->pluck('participant_id')->values()->all(),
+        ];
+    }
+
+    /**
+     * Offene Themen, die der Nutzer diesem Meeting zuweisen darf – gruppiert nach Kontext.
+     *
+     * Enthält: offene Themen der Meeting-Gruppe, der eigenen Gruppen sowie
+     * freie Themen aus Meetings, an denen der Nutzer teilnimmt oder die er erstellt hat.
+     *
+     * @return Collection<string, Collection<int, Theme>>
+     */
+    public function assignableThemes(Meeting $meeting, User $user): Collection
+    {
+        $groupIds = $user->groups_rel()->pluck('groups.id');
+        if ($meeting->group_id) {
+            $groupIds->push($meeting->group_id);
+        }
+
+        $visibleMeetingIds = Meeting::query()->visibleTo($user)->pluck('id');
+        $assignedIds       = $meeting->themes()->pluck('themes.id');
+
+        $themes = Theme::query()
+            ->where('completed', false)
+            ->whereNotIn('id', $assignedIds)
+            ->where(function ($q) use ($groupIds, $visibleMeetingIds, $user) {
+                $q->whereIn('group_id', $groupIds->unique())
+                    ->orWhere(function ($q) use ($visibleMeetingIds, $user) {
+                        $q->whereNull('group_id')
+                            ->where(function ($q) use ($visibleMeetingIds, $user) {
+                                $q->where('creator_id', $user->id)
+                                    ->orWhereHas('meetings', fn ($m) => $m->whereIn('meetings.id', $visibleMeetingIds));
+                            });
+                    });
+            })
+            ->with('group')
+            ->orderBy('date')
+            ->get();
+
+        $ownGroupName = $meeting->group?->name;
+
+        return $themes
+            ->groupBy(fn (Theme $t) => $t->group?->name ?? 'Freie Themen')
+            ->sortBy(fn ($items, $label) => match (true) {
+                $label === $ownGroupName  => '0',
+                $label === 'Freie Themen' => '1',
+                default                   => '2' . $label,
+            });
+    }
+
+    /**
+     * Darf der Nutzer dieses Thema einem Meeting zuweisen?
+     */
+    public function canAssignTheme(Meeting $meeting, Theme $theme, User $user): bool
+    {
+        return $this->assignableThemes($meeting, $user)
+            ->flatten(1)
+            ->contains(fn (Theme $t) => $t->id === $theme->id);
+    }
+
+    public function attachTheme(Meeting $meeting, Theme $theme): void
+    {
+        if (! $meeting->themes()->where('theme_id', $theme->id)->exists()) {
+            $meeting->themes()->attach($theme->id);
+            $theme->update(['date' => $meeting->date]);
+        }
+    }
+
+    /**
+     * Gruppen, denen ein neues Agenda-Thema zugeordnet werden kann:
+     * die Meeting-Gruppe sowie alle eingeladenen Gruppen. So bleiben nicht
+     * abgeschlossene Themen im Themenspeicher der Gruppe erhalten.
+     *
+     * @return Collection<int, Group>
+     */
+    public function themeGroupOptions(Meeting $meeting): Collection
+    {
+        $meeting->loadMissing(['group', 'participantGroups']);
+
+        return collect([$meeting->group])
+            ->merge($meeting->participantGroups)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Ist die gewählte Gruppe (null = freies Thema) für ein neues Thema zulässig?
+     * Freie Themen gibt es nur in freien Meetings.
+     */
+    public function isValidThemeGroup(Meeting $meeting, ?int $groupId): bool
+    {
+        if ($groupId === null) {
+            return $meeting->isFree();
+        }
+
+        return $this->themeGroupOptions($meeting)->contains('id', $groupId);
+    }
+
+    /**
+     * Zielgruppen, in die ein Agenda-Thema umgehängt werden darf (null = freies Thema).
+     * Nur offene Themen des Meetings, deren aktuelle Zuordnung selbst im Meeting-Kontext
+     * liegt (frei, Meeting-Gruppe oder eingeladene Gruppe) – fremde Gruppenthemen bleiben unberührt.
+     *
+     * @return Collection<int, int|null>
+     */
+    public function themeMoveTargets(Meeting $meeting, Theme $theme): Collection
+    {
+        if ($theme->completed || ! $meeting->themes()->whereKey($theme->id)->exists()) {
+            return collect();
+        }
+
+        $currentGroupId = $theme->group_id !== null ? (int) $theme->group_id : null;
+        if (! $this->isValidThemeGroup($meeting, $currentGroupId) && $currentGroupId !== null) {
+            return collect();
+        }
+
+        $targets = $this->themeGroupOptions($meeting)->pluck('id')->map(fn ($id) => (int) $id);
+        if ($meeting->isFree()) {
+            $targets->prepend(null);
+        }
+
+        return $targets->reject(fn ($id) => $id === $currentGroupId)->values();
+    }
+
+    /**
+     * Hängt ein Agenda-Thema in eine andere Gruppe (oder macht es frei).
+     *
+     * @return bool false, wenn das Ziel nicht zulässig ist
+     */
+    public function moveTheme(Meeting $meeting, Theme $theme, ?int $groupId): bool
+    {
+        if (! $this->themeMoveTargets($meeting, $theme)->contains(fn ($id) => $id === $groupId)) {
+            return false;
+        }
+
+        $theme->group_id = $groupId;
+        $theme->save();
+
+        return true;
+    }
+
+    /**
+     * Legt ein neues Thema an. Ohne Angabe von `group_id` gehört es bei
+     * Gruppen-Meetings zur Gruppe, bei freien Meetings ist es ein freies Thema.
+     * Mit `group_id` wird es einer eingeladenen Gruppe zugeordnet
+     * (vorher per isValidThemeGroup() prüfen).
+     */
+    public function createTheme(Meeting $meeting, array $data, User $user): Theme
+    {
+        $theme = new Theme([
+            'theme'       => $data['theme'],
+            'goal'        => $data['goal'] ?? null,
+            'information' => $data['information'] ?? null,
+            'duration'    => $data['duration'],
+        ]);
+        $theme->group_id   = array_key_exists('group_id', $data) ? $data['group_id'] : $meeting->group_id;
+        $theme->type_id    = $data['type'];
+        $theme->creator_id = $user->id;
+        $theme->date       = $meeting->date;
+        $theme->save();
+
+        $meeting->themes()->attach($theme->id);
+
+        return $theme;
+    }
+
+    /**
+     * Mögliche Empfänger einer Einladung (alle aufgelösten Teilnehmenden).
+     * `extra` = zusätzlich eingeladen (direkt, über Gruppen/Bereiche, Rollen oder Ersteller),
+     * also nicht nur über die Mitgliedschaft in der Meeting-Gruppe dabei.
+     *
+     * @return Collection<int, array{id: int, name: string, email: bool, extra: bool}>
+     */
+    public function invitationRecipients(Meeting $meeting): Collection
+    {
+        $meeting->loadMissing(['group.users', 'creator', 'participantUsers', 'participantGroups.users', 'participantRoles']);
+
+        $extraIds = $meeting->participantUsers->pluck('id')
+            ->merge($meeting->participantGroups->flatMap(fn (Group $g) => $g->users->pluck('id')))
+            ->when($meeting->participantRoles->isNotEmpty(), fn ($ids) => $ids->merge(
+                User::role($meeting->participantRoles->pluck('name')->all())->pluck('id')
+            ))
+            ->when($meeting->creator_id, fn ($ids) => $ids->push($meeting->creator_id))
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        return $meeting->resolvedParticipants()->map(fn (User $u) => [
+            'id'    => (int) $u->id,
+            'name'  => $u->name,
+            'email' => ! empty($u->email),
+            'extra' => ! $meeting->group_id || $extraIds->contains((int) $u->id),
+        ])->values();
+    }
+
+    /**
+     * Validiert das Einladungsformular und liefert die gewählten Empfänger
+     * (null = an alle Teilnehmenden, wenn keine Auswahl getroffen wurde).
+     *
+     * @return array<int>|null
+     */
+    public function validateInvitationRequest(Request $request): ?array
+    {
+        $request->validate([
+            'message'           => ['nullable', 'string', 'max:2000'],
+            'select_recipients' => ['nullable', 'boolean'],
+            'recipients'        => ['required_if_accepted:select_recipients', 'array'],
+            'recipients.*'      => ['integer'],
+        ], [
+            'recipients.required_if_accepted' => 'Bitte mindestens eine Person für die Einladung auswählen.',
+        ]);
+
+        return $request->boolean('select_recipients')
+            ? array_map('intval', $request->input('recipients', []))
+            : null;
+    }
+
+    /**
+     * Versendet Einladungen an die Teilnehmer. Mit `$recipientIds` nur an diese Auswahl
+     * (nur Personen, die ohnehin Teilnehmende sind) – der Meetingzugriff bleibt davon unberührt.
+     *
+     * @param  array<int>|null  $recipientIds  null = an alle Teilnehmenden
+     * @return array{gesendet: int, fehlerhaft: array<int, string>}
+     */
+    public function sendInvitations(Meeting $meeting, ?string $message, User $sender, ?array $recipientIds = null): array
+    {
+        $meeting->loadMissing(['themes', 'roomBooking.room', 'group', 'creator', 'participantUsers', 'participantGroups.users', 'participantRoles']);
+
+        $gesendet   = 0;
+        $fehlerhaft = [];
+
+        $recipients = $meeting->resolvedParticipants();
+        if ($recipientIds !== null) {
+            $auswahl    = collect($recipientIds)->map(fn ($id) => (int) $id);
+            $recipients = $recipients->filter(fn (User $u) => $auswahl->contains((int) $u->id));
+        }
+
+        foreach ($recipients as $user) {
+            if (empty($user->email)) {
+                Log::warning('Meeting-Einladung: Keine E-Mail-Adresse für Benutzer', [
+                    'user_id'    => $user->id,
+                    'meeting_id' => $meeting->id,
+                ]);
+                $fehlerhaft[] = $user->name . ' (keine E-Mail-Adresse)';
+                continue;
+            }
+
+            try {
+                // Einladung ist ein bewusster Versand → Mail immer; Glocke/Push zusätzlich nach Einstellung
+                Mail::to($user->email)->queue(
+                    new MeetingInvitationMail($meeting, $meeting->group, $user, $message, $sender->name, $sender->email)
+                );
+                $user->notify(new Push(
+                    'Einladung: '.($meeting->title ?: $meeting->contextLabel()),
+                    $meeting->date->format('d.m.Y').($meeting->getRawOriginal('start_time') ? ', '.$meeting->start_time.' Uhr' : ''),
+                    'meetings',
+                    route('meetings.show', $meeting)
+                ));
+                $gesendet++;
+            } catch (\Throwable $e) {
+                Log::error('Meeting-Einladung: Fehler beim Einreihen der Mail', [
+                    'user_id'    => $user->id,
+                    'meeting_id' => $meeting->id,
+                    'error'      => $e->getMessage(),
+                ]);
+                $fehlerhaft[] = $user->name . ' (' . $user->email . ')';
+            }
+        }
+
+        if ($gesendet > 0) {
+            $meeting->update([
+                'invitation_sent_at' => now(),
+                'invitation_sent_by' => $sender->id,
+            ]);
+            Log::info('Meeting-Einladungen eingereiht', [
+                'meeting_id'   => $meeting->id,
+                'gesendet'     => $gesendet,
+                'fehlerhaft'   => count($fehlerhaft),
+                'versender_id' => $sender->id,
+            ]);
+        }
+
+        return ['gesendet' => $gesendet, 'fehlerhaft' => $fehlerhaft];
+    }
+
+    /**
+     * Flash-Meldung für das Ergebnis eines Einladungsversands.
+     *
+     * @return array{type: string, Meldung: string}
+     */
+    public function invitationFlash(array $result): array
+    {
+        if (! empty($result['fehlerhaft'])) {
+            return [
+                'type'    => $result['gesendet'] > 0 ? 'warning' : 'danger',
+                'Meldung' => "Einladungen wurden an {$result['gesendet']} Teilnehmende eingereiht. "
+                    . 'Folgende Empfänger konnten nicht berücksichtigt werden: '
+                    . implode(', ', $result['fehlerhaft']),
+            ];
+        }
+
+        return [
+            'type'    => 'success',
+            'Meldung' => "Einladungen wurden an {$result['gesendet']} Teilnehmende eingereiht.",
+        ];
+    }
+
+    public function cancel(Meeting $meeting, User $user): void
+    {
+        $meeting->update([
+            'cancelled'    => true,
+            'cancelled_by' => $user->id,
+            'cancelled_at' => now(),
+        ]);
+
+        $this->releaseRoomBooking($meeting);
+
+        Log::info('Meeting abgesagt und Raumbuchung freigegeben', [
+            'meeting_id' => $meeting->id,
+            'group_id'   => $meeting->group_id,
+            'user_id'    => $user->id,
+        ]);
+    }
+
+    public function reactivate(Meeting $meeting): void
+    {
+        $meeting->update([
+            'cancelled'    => false,
+            'cancelled_by' => null,
+            'cancelled_at' => null,
+        ]);
+    }
+
+    public function delete(Meeting $meeting): void
+    {
+        // Verknüpfung zu Themen lösen (die Themen selbst bleiben erhalten)
+        $meeting->themes()->detach();
+        $this->releaseRoomBooking($meeting);
+        $meeting->delete();
+    }
+
+    private function releaseRoomBooking(Meeting $meeting): void
+    {
+        RoomBooking::query()
+            ->where('meeting_id', $meeting->id)
+            ->where('cancelled', false)
+            ->update(['cancelled' => true]);
+    }
+}

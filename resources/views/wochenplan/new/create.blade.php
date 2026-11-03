@@ -27,7 +27,7 @@
     {{-- Aus Vorlage erstellen --}}
     @if($vorlagen->count() > 0)
         @php $preselectedVorlageId = request('vorlage_id'); @endphp
-        <div x-data="{ vorlageId: '{{ old('vorlage_id', $preselectedVorlageId) }}' }" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div x-data="{ vorlageId: @js((string) old('vorlage_id', $preselectedVorlageId)) }" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <label class="block text-sm font-medium text-blue-800 mb-2">Aus Vorlage erstellen (optional)</label>
             <select x-model="vorlageId" @change="document.getElementById('vorlage_id').value = vorlageId"
                     class="w-full px-3 py-2 border border-blue-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">

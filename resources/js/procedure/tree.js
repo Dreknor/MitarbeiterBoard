@@ -120,9 +120,15 @@ document.addEventListener('alpine:init', () => {
                     },
 
                     onEnd: (evt) => {
-                        const orderedIds = Array.from(evt.to.querySelectorAll(':scope > .flex-col.items-center > [data-step-id]'))
+                        // Direkte Kinder sind je nach Ebene der Knoten selbst (Wurzel in start.blade)
+                        // oder ein Wrapper mit Verbindungslinie um den Knoten (Kinder-Ebenen, edit.blade).
+                        const orderedIds = Array.from(evt.to.children)
+                            .map(el => el.matches('[data-step-id]') ? el : el.querySelector(':scope > [data-step-id]'))
+                            .filter(Boolean)
                             .map(el => parseInt(el.dataset.stepId))
                             .filter(Boolean);
+
+                        if (orderedIds.length === 0) return;
 
                         const newParentId = evt.to.dataset.parentId
                             ? parseInt(evt.to.dataset.parentId)
@@ -152,10 +158,13 @@ document.addEventListener('alpine:init', () => {
                 } else {
                     const err = await resp.json().catch(() => ({}));
                     this.addToast(err.message ?? 'Fehler beim Speichern der Reihenfolge', 'error');
+                    // DOM entspricht nicht mehr dem Server-Stand → neu laden
+                    setTimeout(() => window.location.reload(), 1500);
                 }
             } catch (e) {
                 console.error('Reorder-Fehler', e);
                 this.addToast('Netzwerkfehler beim Speichern', 'error');
+                setTimeout(() => window.location.reload(), 1500);
             }
         },
 

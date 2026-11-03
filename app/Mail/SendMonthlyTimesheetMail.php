@@ -20,14 +20,19 @@ class SendMonthlyTimesheetMail extends Mailable
 
     protected $user;
     protected $date;
+    protected string $pdf;
 
     /**
      * Create a new message instance.
+     *
+     * Die PDF wird direkt eingelesen – die temporäre Datei darf danach gelöscht werden
+     * (keine gemeinsam genutzte Datei mehr, keine Race Condition zwischen Empfängern).
      */
-    public function __construct(User $user, Carbon $date)
+    public function __construct(User $user, Carbon $date, string $pdfPath)
     {
         $this->user = $user;
         $this->date = $date;
+        $this->pdf = base64_encode((string) file_get_contents($pdfPath));
     }
 
     /**
@@ -63,8 +68,8 @@ class SendMonthlyTimesheetMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromPath(storage_path('timesheet.pdf'))
-            ->as('Arbeitszeitnachweis'.Str::slug($this->user->name).'_'.$this->date->format('m_Y').'.pdf'),
+            Attachment::fromData(fn () => base64_decode($this->pdf), 'Arbeitszeitnachweis_'.Str::slug($this->user->name).'_'.$this->date->format('m_Y').'.pdf')
+                ->withMime('application/pdf'),
         ];
     }
 }

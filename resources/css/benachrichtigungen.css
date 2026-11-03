@@ -1,0 +1,101 @@
+/*
+ * Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht) – Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .bn-wrapper gescopet, Komponenten mit Präfix bn-
+ *   - Utilities ungelayert + !important (wie tickets.css), damit Bootstrap sie nicht überschreibt
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/benachrichtigungen/**/*.blade.php";
+@source not inline("container collapse table");
+
+[x-cloak] { display: none !important; }
+
+.bn-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1100px;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 640px) { .bn-wrapper { padding: 1rem .75rem 5rem; } }
+.bn-wrapper *, .bn-wrapper *::before, .bn-wrapper *::after { box-sizing: border-box; }
+.bn-wrapper :is(h1, h2, h3, h4) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.35; color: inherit; }
+.bn-wrapper p { margin: 0; }
+.bn-wrapper a { color: inherit; text-decoration: none; }
+.bn-wrapper a:hover { text-decoration: none; }
+.bn-wrapper ul, .bn-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.bn-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; }
+.bn-wrapper label { margin: 0; }
+.bn-wrapper form { margin: 0; }
+
+/* Karten */
+.bn-wrapper .bn-card {
+    @apply bg-white rounded-2xl shadow-sm overflow-hidden;
+    border: 1px solid #e5e7eb;
+}
+.bn-wrapper .bn-card-head {
+    @apply flex items-center justify-between gap-3 px-5 py-4;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+/* Buttons */
+.bn-wrapper .bn-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2.5 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.5rem;
+}
+.bn-wrapper .bn-btn-sm { @apply px-3 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2.25rem; }
+.bn-wrapper .bn-btn-primary   { @apply bg-blue-600 hover:bg-blue-700 text-white focus-visible:ring-blue-500; }
+.bn-wrapper .bn-btn-secondary { @apply bg-white hover:bg-gray-50 text-gray-700 focus-visible:ring-blue-400; border: 1px solid #e5e7eb; }
+.bn-wrapper .bn-btn-danger    { @apply bg-white hover:bg-red-50 text-red-600 focus-visible:ring-red-400; border: 1px solid #fecaca; }
+
+/* Formular */
+.bn-wrapper .bn-select,
+.bn-wrapper .bn-input {
+    @apply block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900
+           shadow-sm sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none;
+    min-height: 2.5rem;
+    height: auto;
+}
+.bn-wrapper .bn-check {
+    @apply h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer;
+    accent-color: #2563eb;
+}
+
+/* Umschalter (Checkbox als Schalter) */
+.bn-wrapper .bn-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.bn-wrapper .bn-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.bn-wrapper .bn-switch span {
+    width: 2.5rem; height: 1.4rem; border-radius: 9999px; background: #d1d5db; position: relative; transition: background-color .15s;
+}
+.bn-wrapper .bn-switch span::after {
+    content: ''; position: absolute; top: .2rem; left: .2rem; width: 1rem; height: 1rem; border-radius: 9999px;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s;
+}
+.bn-wrapper .bn-switch input:checked + span { background: #2563eb; }
+.bn-wrapper .bn-switch input:checked + span::after { transform: translateX(1.1rem); }
+.bn-wrapper .bn-switch input:focus-visible + span { outline: 2px solid #93c5fd; outline-offset: 2px; }
+
+/* Segment-Auswahl (Mail-Modus) */
+.bn-wrapper .bn-segment { @apply inline-flex rounded-xl p-0.5 bg-gray-100; }
+.bn-wrapper .bn-segment label { @apply relative; }
+.bn-wrapper .bn-segment input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.bn-wrapper .bn-segment label span {
+    @apply block px-2.5 py-1 text-xs font-medium rounded-lg text-gray-600 cursor-pointer whitespace-nowrap;
+}
+.bn-wrapper .bn-segment input:checked + span { @apply bg-white text-gray-900 shadow-sm; }
+.bn-wrapper .bn-segment input:focus-visible + span { outline: 2px solid #93c5fd; }
+
+/* Icons */
+.bn-wrapper .bn-icon {
+    @apply shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm bg-blue-50 text-blue-600;
+}

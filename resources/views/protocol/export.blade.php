@@ -96,7 +96,7 @@
                                 </p>
                                 <p>
                                     <!--
-                                    {!! $theme->information !!}
+                                    {!! $theme->information_html !!}
                                         -->
                                 </p>
                             </td>
@@ -105,7 +105,7 @@
                                     return $value->created_at->format('Y-m-d') == $date->format('Y-m-d');
                                 })  as $protocol)
                                     <p>
-                                        {!! $protocol->protocol !!}
+                                        {!! $protocol->protocol_html !!}
                                     </p>
 
                                 @endforeach

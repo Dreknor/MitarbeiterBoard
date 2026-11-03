@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\TicketCategory;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class createTicketRequest extends FormRequest
 {
@@ -11,7 +13,7 @@ class createTicketRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('view tickets');
+        return $this->user()->can('view tickets');
     }
 
     /**
@@ -23,10 +25,28 @@ class createTicketRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'category_id' => 'sometimes|exists:ticket_categories,id',
+            'description' => 'required|string|max:65000',
+            // Kategorie ist Pflicht, sobald Kategorien existieren
+            'category_id' => [
+                Rule::requiredIf(fn () => TicketCategory::query()->exists()),
+                'nullable',
+                'integer',
+                'exists:ticket_categories,id',
+            ],
             'priority' => 'required|in:low,medium,high',
-            'file' => 'sometimes|file|max:10240',
+            'files' => 'nullable|array|max:10',
+            'files.*' => 'file|max:20480',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'title' => 'Titel',
+            'description' => 'Beschreibung',
+            'category_id' => 'Kategorie',
+            'priority' => 'Priorität',
+            'files.*' => 'Datei',
         ];
     }
 }

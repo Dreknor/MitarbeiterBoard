@@ -15,17 +15,9 @@ class MeetingsComposer
             return;
         }
 
-        // User::groups() liefert eine Collection (gecacht) – nicht den
-        // Relationship-Query-Builder. Daher darf hier nicht per Dot-Notation
-        // 'groups.id' geplucked werden, sondern direkt 'id'.
-        $groupIds = $user->groups()->pluck('id')->filter()->all();
-
-        if (empty($groupIds)) {
-            $view->with('naechsteMeetings', collect());
-            return;
-        }
-
-        $meetings = Meeting::whereIn('group_id', $groupIds)
+        // Gruppen-Meetings und freie Meetings, zu denen der Nutzer eingeladen ist
+        $meetings = Meeting::query()
+            ->visibleTo($user)
             ->upcoming()
             ->where('date', '<=', now()->addDays(21))
             ->where('cancelled', false)

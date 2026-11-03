@@ -3,6 +3,7 @@
 namespace App\Models;
 
 
+use App\Enums\EmploymentStatus;
 use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
 use App\Models\personal\Employment;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -31,6 +33,7 @@ use Staudenmeir\EloquentHasManyDeep\HasRelationships;
  */
 class User extends Authenticatable implements HasMedia
 {
+    use HasApiTokens;
     use HasFactory;
     use Notifiable;
     use HasRoles;
@@ -45,10 +48,10 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
+        'name', 'email', 'password', 'changePassword','kuerzel', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
-        'name', 'email', 'changePassword','kuerzel', 'absence_abo_daily', 'absence_abo_now', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
+        'name', 'email', 'changePassword','kuerzel', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
     ];
 
     /**
@@ -67,16 +70,45 @@ class User extends Authenticatable implements HasMedia
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'absence_abo_daily' => 'boolean',
-        'absence_abo_now' => 'boolean',
         'remind_assign_themes' => 'boolean',
         'send_mails_if_absence' => 'boolean',
+        'paed_diary_darstellung' => 'array',
         'left_at' => 'date',
         'anonymized_at' => 'datetime',
         'legal_hold' => 'boolean',
         'is_placeholder' => 'boolean',
         'deletion_reviewed_at' => 'datetime',
     ];
+
+    /** Standardwerte der Darstellung im Pädagogischen Tagebuch (siehe paedDiaryDarstellung()). */
+    public const PAED_DIARY_DARSTELLUNG = [
+        'ansicht' => 'bisher',            // bisher | neu
+        'layout' => 'klassisch',          // klassisch | kompakt | karten (neue Wochenansicht)
+        'schrift' => 'standard',          // standard | gross
+        'kategorie_farben' => true,       // Notizen in den Farben ihrer Kategorie
+        'pausierte' => false,             // pausierte Notizen in der Woche zeigen
+        'bewertung' => 'schuelerweise',   // schuelerweise | matrix (Graduierung, Lehrkraft)
+        'schueler_zeitraum' => 'schuljahr', // 30tage | schuljahr (Start der Schülerakte)
+        'hinweis_ausgeblendet' => false,  // Hinweis auf die neue Ansicht weggeklickt
+        'tour_gesehen' => false,          // Tour der neuen Ansicht einmal gezeigt
+    ];
+
+    /**
+     * Persönliche Darstellung im Pädagogischen Tagebuch (gespeicherte Werte + Standardwerte).
+     */
+    public function paedDiaryDarstellung(): array
+    {
+        return array_merge(self::PAED_DIARY_DARSTELLUNG, array_intersect_key(
+            (array) ($this->paed_diary_darstellung ?? []),
+            self::PAED_DIARY_DARSTELLUNG
+        ));
+    }
+
+    /** Nutzt die Person die neue Ansicht des Pädagogischen Tagebuchs? */
+    public function nutztNeueTagebuchAnsicht(): bool
+    {
+        return $this->paedDiaryDarstellung()['ansicht'] === 'neu';
+    }
 
 
     public function getGeburtstagAttribute(){
@@ -127,6 +159,19 @@ class User extends Authenticatable implements HasMedia
         return $this->belongsToMany(Group::class)->orderBy('name');
     }
 
+    /*
+     * Benachrichtigungen
+     */
+    public function notificationPreferences()
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
+    public function tagesvorschauEinstellung()
+    {
+        return $this->hasOne(TagesvorschauEinstellung::class);
+    }
+
     public function dashboardCards()
     {
         return $this->hasMany(DashBoardUser::class,  'user_id');
@@ -145,7 +190,8 @@ class User extends Authenticatable implements HasMedia
      */
     public function group_tasks()
     {
-        return $this->hasMany(GroupTaskUser::class, 'users_id');
+        // Nur offene Zuständigkeiten – erledigte bleiben für den Verlauf erhalten
+        return $this->hasMany(GroupTaskUser::class, 'users_id')->whereNull('completed_at');
     }
 
     /**
@@ -221,13 +267,13 @@ class User extends Authenticatable implements HasMedia
     }
 
     #TODO neue anlegen
-    public function getHolidayClaim(Carbon $year = null){
+    public function getHolidayClaim(?Carbon $year = null){
         if ($year == null) {$year = Carbon::now();}
 
         $claim = $this->holiday_claim()->whereDate('date_start', '<=', $year)->orderByDesc('date_start')->first();
 
         if ($claim == null){
-            $claim = Setting::query()->where('setting', 'holiday_claim')->first()->value;
+            $claim = (int) (settings('holiday_claim') ?? 0);
         } else {
             $claim = $claim->holiday_claim;
         }
@@ -250,32 +296,41 @@ class User extends Authenticatable implements HasMedia
         return $this->hasMany(Employment::class, 'employe_id');
     }
 
-    public function employments_date(DateTime $date = null, DateTime $end = null)
+    /**
+     * Anstellungen, die den gesamten Zeitraum $date bis $end abdecken.
+     *
+     * Maßgeblich sind Beginn und Ende des Vertrags, nicht der heutige Status: abgelaufene
+     * Verträge setzt ContractService::endExpired() täglich auf "beendet" – für vergangene
+     * Zeiträume müssen sie trotzdem zählen. Ausgeschlossen sind (wie in
+     * ArbeitszeitService::vertraege()) ruhende Verträge sowie beendete ohne Enddatum (Altdaten).
+     */
+    public function employments_date(?DateTime $date = null, ?DateTime $end = null)
     {
-        if (is_null($date)) {
-            $date = Carbon::now();
-        }
-        if (is_null($end)) {
-            $end = $date;
-        }
+        $von = Carbon::instance($date ?? Carbon::now())->toDateString();
+        $bis = Carbon::instance($end ?? $date ?? Carbon::now())->toDateString();
 
         $employments = Cache::remember('user_employments_'.$this->id, 1, function (){
             return $this->employments;
         });
 
-        return $employments->filter(function ($item) use ($date, $end){
-                return ($item->status === null || $item->status === \App\Enums\EmploymentStatus::Aktiv || $item->status?->value === 'aktiv')
-                    && $item->start->startOfDay()->lessThanOrEqualTo($date)
-                    && (is_null($item->end) or $item->end->addDay()->startOfDay()->greaterThan($end->endOfDay()));
-        });
+        return $employments->filter(function ($item) use ($von, $bis) {
+            if ($item->status === EmploymentStatus::Ruhend || $item->start === null) {
+                return false;
+            }
+            if ($item->status === EmploymentStatus::Beendet && $item->end === null) {
+                return false;
+            }
 
+            return $item->start->toDateString() <= $von
+                && ($item->end === null || $item->end->toDateString() >= $bis);
+        });
     }
 
     public function holidays(){
         return $this->hasMany(Holiday::class, 'employe_id');
     }
 
-    public function holidays_date(DateTime $date = null, DateTime $end = null)
+    public function holidays_date(?DateTime $date = null, ?DateTime $end = null)
     {
         if (is_null($date)) {
             $date = Carbon::now();
@@ -294,27 +349,21 @@ class User extends Authenticatable implements HasMedia
 
     }
 
-    public function hasHoliday(Carbon $start_date, Carbon $end_date = null){
+    /**
+     * Gibt es einen (nicht abgelehnten) Urlaub, der den Zeitraum berührt?
+     * Erkennt auch Urlaube, die den Zeitraum vollständig umschließen.
+     */
+    public function hasHoliday(Carbon $start_date, ?Carbon $end_date = null){
 
         if (is_null($end_date)){
             $end_date = $start_date;
         }
 
-            $holidays = $this->holidays;
-
-            $found = $holidays->filter(function ($item) use ($start_date, $end_date){
-                if (($item->start_date->between($start_date, $end_date)
-                    or $item->end_date->between($start_date, $end_date)) and !$item->rejected )
-                {
-                    return $item;
-                }
-            })->first();
-
-            if ($found != null){
-                return true;
-            } else {
-                return false;
-            }
+        return $this->holidays()
+            ->where('rejected', false)
+            ->whereDate('start_date', '<=', $end_date->toDateString())
+            ->whereDate('end_date', '>=', $start_date->toDateString())
+            ->exists();
     }
 
     public function timesheets(){
@@ -391,7 +440,7 @@ class User extends Authenticatable implements HasMedia
 
     }
 
-    public function hasAbsence(Carbon $start_date, Carbon $end_date = null){
+    public function hasAbsence(Carbon $start_date, ?Carbon $end_date = null){
 
         if (is_null($end_date)){
             $end_date = $start_date;
@@ -426,7 +475,7 @@ class User extends Authenticatable implements HasMedia
 
     public function pinned_tickets()
     {
-        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id');
+        return $this->belongsToMany(Ticket::class, 'tickets_pinned', 'user_id', 'ticket_id')->withTimestamps();
     }
 
     public function superior()
@@ -437,6 +486,22 @@ class User extends Authenticatable implements HasMedia
     public function subordinates()
     {
         return $this->hasMany(User::class, 'superior_id');
+    }
+
+    /**
+     * Stellvertretungen dieser Leitung (dürfen genehmigen, was die Leitung darf).
+     */
+    public function deputies()
+    {
+        return $this->belongsToMany(User::class, 'user_deputies', 'user_id', 'deputy_id')->withTimestamps();
+    }
+
+    /**
+     * Leitungen, die dieser Benutzer vertritt.
+     */
+    public function deputyFor()
+    {
+        return $this->belongsToMany(User::class, 'user_deputies', 'deputy_id', 'user_id')->withTimestamps();
     }
 
     /**
@@ -464,6 +529,61 @@ class User extends Authenticatable implements HasMedia
     public function paed_diary_class_groups()
     {
         return $this->hasMany(\App\Models\PaedDiaryClassGroup::class,'user_id');
+    }
+
+    // ── API v1 (Pädagogen-App): Sonderrechte ──────────────────────────────
+
+    /**
+     * Klassenübergreifender Zugriff auf alle Schüler (Schulleitung / Admin).
+     */
+    public function canAccessAllStudents(): bool
+    {
+        return $this->hasRole('Admin') || $this->safeHasPermission('view all students');
+    }
+
+    /**
+     * Einsicht in vertrauliche Tagebucheinträge (dossier_only = true) fremder Autoren.
+     */
+    public function canViewConfidentialDiaryEntries(): bool
+    {
+        return $this->hasRole('Admin') || $this->safeHasPermission('view confidential diary entries');
+    }
+
+    /**
+     * Prüft, ob der Benutzer einer Klasse im Pädagogischen Tagebuch zugeordnet ist
+     * oder klassenübergreifende Rechte besitzt.
+     */
+    public function hasPaedClassAccess(?int $klasseId): bool
+    {
+        if ($this->canAccessAllStudents()) {
+            return true;
+        }
+        if (!$klasseId) {
+            return false;
+        }
+
+        return $this->paed_klassen()->where('klassen.id', $klasseId)->exists();
+    }
+
+    /**
+     * IDs der zugeordneten Klassen im Pädagogischen Tagebuch.
+     */
+    public function paedKlassenIds(): \Illuminate\Support\Collection
+    {
+        return $this->paed_klassen()->pluck('klassen.id')->map(fn ($id) => (int) $id);
+    }
+
+    /**
+     * hasPermissionTo() wirft eine Exception, wenn die Permission (noch) nicht existiert –
+     * z.B. wenn die Migration noch nicht gelaufen ist. Hier wird dann false geliefert.
+     */
+    private function safeHasPermission(string $permission): bool
+    {
+        try {
+            return $this->hasPermissionTo($permission);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+            return false;
+        }
     }
 
     // ── Kalender-Modul ────────────────────────────────────────────────────

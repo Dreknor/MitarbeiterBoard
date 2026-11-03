@@ -3,47 +3,59 @@
 namespace App\Notifications\Personal;
 
 use App\Models\personal\EmployeeQualification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
+use App\Notifications\Benachrichtigung;
 
-class QualificationExpiringNotification extends Notification
+class QualificationExpiringNotification extends Benachrichtigung
 {
-    use Queueable;
-
     public function __construct(
         private readonly EmployeeQualification $qualification
     ) {}
 
-    public function via(object $notifiable): array
+    public function kategorie(): string
     {
-        return ['mail', 'database'];
+        return 'personal';
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function titel(object $notifiable): string
     {
-        $daysLeft    = now()->diffInDays($this->qualification->expiry_date, false);
-        $qualName    = $this->qualification->qualificationType->name;
-        $employeName = $this->qualification->employe->name;
-
-        return (new MailMessage)
-            ->subject("Qualifikation läuft ab: {$qualName}")
-            ->greeting('Hinweis: Ablaufende Qualifikation')
-            ->line("Die Qualifikation „{$qualName}" von {$employeName} läuft in {$daysLeft} Tagen ab.")
-            ->line("Ablaufdatum: " . $this->qualification->expiry_date->format('d.m.Y'))
-            ->action('Qualifikationen anzeigen', route('personal.qualifications.index', $this->qualification->employe_id))
-            ->line('Bitte veranlassen Sie eine Erneuerung rechtzeitig.');
+        return 'Qualifikation läuft ab: ' . $this->qualification->qualificationType->name;
     }
 
-    public function toArray(object $notifiable): array
+    public function text(object $notifiable): string
+    {
+        return "„{$this->qualification->qualificationType->name}“ von {$this->qualification->employe->name} läuft am "
+            . $this->qualification->expiry_date?->format('d.m.Y') . ' ab.';
+    }
+
+    public function zeilen(object $notifiable): array
+    {
+        $daysLeft = now()->diffInDays($this->qualification->expiry_date, false);
+
+        return [
+            "Die Qualifikation „{$this->qualification->qualificationType->name}“ von {$this->qualification->employe->name} läuft in {$daysLeft} Tagen ab.",
+            'Ablaufdatum: ' . $this->qualification->expiry_date?->format('d.m.Y'),
+            'Bitte veranlassen Sie eine Erneuerung rechtzeitig.',
+        ];
+    }
+
+    public function url(object $notifiable): ?string
+    {
+        return route('personal.qualifications.index', $this->qualification->employe_id);
+    }
+
+    public function aktionText(): string
+    {
+        return 'Qualifikationen anzeigen';
+    }
+
+    public function zusatzdaten(object $notifiable): array
     {
         return [
-            'type'                 => 'qualification_expiring',
-            'qualification_id'     => $this->qualification->id,
-            'qualification_name'   => $this->qualification->qualificationType->name,
-            'employe_id'           => $this->qualification->employe_id,
-            'expiry_date'          => $this->qualification->expiry_date?->format('Y-m-d'),
+            'type'               => 'qualification_expiring',
+            'qualification_id'   => $this->qualification->id,
+            'qualification_name' => $this->qualification->qualificationType->name,
+            'employe_id'         => $this->qualification->employe_id,
+            'expiry_date'        => $this->qualification->expiry_date?->format('Y-m-d'),
         ];
     }
 }
-

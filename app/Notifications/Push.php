@@ -2,49 +2,57 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
+use App\Models\User;
+use App\Services\Benachrichtigungen\BenachrichtigungsService;
 use NotificationChannels\WebPush\WebPushChannel;
-use NotificationChannels\WebPush\WebPushMessage;
 
-class Push extends Notification
+/**
+ * Einfache Push-Benachrichtigung ohne eigene Mail.
+ *
+ * Landet immer in der Glocke, als Push nur wenn die Person Push für die
+ * Kategorie aktiviert und ein Gerät registriert hat. Für neue Ereignisse
+ * besser eine eigene Unterklasse von Benachrichtigung anlegen.
+ */
+class Push extends Benachrichtigung
 {
-    use Queueable;
-
-    public $body;
-    public $title;
-
-    public function __construct($title, $body)
-    {
-        $this->body = $body;
-        $this->title = $title;
+    public function __construct(
+        public string $title,
+        public string $body,
+        public string $kategorieSchluessel = 'system',
+        public ?string $ziel = null,
+    ) {
     }
 
-    public function via($notifiable)
+    public function kategorie(): string
     {
-        return [WebPushChannel::class];
+        return $this->kategorieSchluessel;
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return array
-     */
-    public function toArray($notifiable)
+    public function titel(object $notifiable): string
     {
-        return [
-            'created' => Carbon::now()->toIso8601String(),
-        ];
+        return $this->title;
     }
 
-    public function toWebPush($notifiable, $notification)
+    public function text(object $notifiable): string
     {
-        $push = new WebPushMessage;
-        $push->title($this->title)
-            ->icon(asset('img/'.config('config.logo_small')))
-            ->body($this->body);
+        return $this->body;
+    }
 
-        return $push;
+    public function url(object $notifiable): ?string
+    {
+        return $this->ziel;
+    }
+
+    public function via(object $notifiable): array
+    {
+        if (!$notifiable instanceof User) {
+            return [];
+        }
+
+        // Mail-Kanal bewusst ausgelassen – Push ist kein Mail-Ersatz.
+        return array_values(array_filter(
+            app(BenachrichtigungsService::class)->kanaeleFuer($notifiable, $this->kategorie()),
+            fn (string $kanal) => $kanal !== 'mail'
+        ));
     }
 }

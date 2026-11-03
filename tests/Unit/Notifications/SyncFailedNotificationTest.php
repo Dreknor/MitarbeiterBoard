@@ -4,6 +4,7 @@ namespace Tests\Unit\Notifications;
 
 use App\Models\OxSyncLog;
 use App\Models\User;
+use App\Notifications\Channels\BenachrichtigungDatabaseChannel;
 use App\Notifications\SyncFailedNotification;
 use App\Services\OxCalendarService;
 use Illuminate\Support\Facades\Cache;
@@ -140,7 +141,8 @@ class SyncFailedNotificationTest extends TestCase
         $notification = new SyncFailedNotification(3, 'Test');
         $user         = User::factory()->create();
 
-        $this->assertSame(['mail', 'database'], $notification->via($user));
+        // Glocke (Datenbank) immer, Mail per Standard der Kategorie „system“
+        $this->assertSame([BenachrichtigungDatabaseChannel::class, 'mail'], $notification->via($user));
     }
 }
 

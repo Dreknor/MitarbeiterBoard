@@ -11,6 +11,9 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\StringValueBinder;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -50,8 +53,23 @@ class PaedDiarySchuelerExport implements WithMultipleSheets
     }
 }
 
-class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+/**
+ * Blatt „Einträge“: eine Zeile je Tag (bzw. je Eintrag), danach die Zusatzspalten nach Spaltengruppen.
+ * Kopfzeilen und Daten werden aus derselben Spaltenliste erzeugt; Zellwerte werden als Text
+ * geschrieben (StringValueBinder), damit Notizen wie „=…“ nicht als Formel ausgeführt werden.
+ */
+class SchuelerEntriesSheet extends StringValueBinder implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithCustomValueBinder
 {
+    /** Feste Spalten vor den Zusatzspalten: Überschrift => Breite */
+    private const FESTE_SPALTEN = [
+        'Datum' => 22,
+        'Kategorie' => 20,
+        'Notizen' => 50,
+        'Autor' => 18,
+        'Status' => 12,
+        'Vertraulich' => 12,
+    ];
+
     protected $schueler;
     protected $entries;
     protected $columns;
@@ -60,6 +78,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     protected $columnValues;
     protected $dateFrom;
     protected $dateTo;
+    private ?array $rows = null;
 
     public function __construct(Schueler $schueler, $entries, $columns, $columnValues, Carbon $dateFrom, Carbon $dateTo)
     {
@@ -70,7 +89,6 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
         $this->dateFrom = $dateFrom;
         $this->dateTo = $dateTo;
 
-        // Gruppiere Spalten nach Kategorien und sortiere
         $this->groupAndSortColumns();
     }
 
@@ -78,133 +96,83 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     {
         $grouped = [];
         foreach ($this->columns as $column) {
-            $category = $column['category'] ?? 'Unkategorisiert';
-            if (!isset($grouped[$category])) {
-                $grouped[$category] = [];
-            }
+            $category = $column['category'] ?? null ?: 'Unkategorisiert';
             $grouped[$category][] = $column;
         }
 
         // Sortiere Kategorien (Unkategorisiert am Ende)
-        uksort($grouped, function($a, $b) {
+        uksort($grouped, function ($a, $b) {
             if ($a === 'Unkategorisiert') return 1;
             if ($b === 'Unkategorisiert') return -1;
             return strcoll($a, $b);
         });
 
         $this->columnsByCategory = $grouped;
+        $this->sortedColumns = array_merge(...array_values($grouped ?: [[]]));
+    }
 
-        // Erstelle flaches Array mit sortierten Spalten
-        $this->sortedColumns = [];
-        foreach ($grouped as $columns) {
-            foreach ($columns as $column) {
-                $this->sortedColumns[] = $column;
-            }
-        }
+    /** Spaltenbuchstabe zu einer 1-basierten Spaltennummer (auch jenseits von Z). */
+    private function spalte(int $index): string
+    {
+        return Coordinate::stringFromColumnIndex($index);
     }
 
     public function array(): array
     {
-        $data = [];
-
-        // Gruppierte Einträge nach ihrem Startdatum indexieren
-        $entriesByStartDate = collect();
-        foreach ($this->entries as $entry) {
-            $startDate = $entry['date_from'] ?? $entry['date'];
-            if (!$entriesByStartDate->has($startDate)) {
-                $entriesByStartDate[$startDate] = collect();
-            }
-            $entriesByStartDate[$startDate]->push($entry);
+        if ($this->rows !== null) {
+            return $this->rows;
         }
 
-        // Erstelle eine Zeile für jeden Tag im Zeitraum
-        $period = new \DatePeriod(
-            $this->dateFrom,
-            new \DateInterval('P1D'),
-            $this->dateTo->copy()->addDay()
-        );
+        // Gruppierte Einträge nach ihrem Startdatum indexieren
+        $entriesByStartDate = collect($this->entries)->groupBy(fn ($entry) => $entry['date_from'] ?? $entry['date']);
+
+        $data = [];
+        $period = new \DatePeriod($this->dateFrom->copy()->startOfDay(), new \DateInterval('P1D'), $this->dateTo->copy()->startOfDay()->addDay());
 
         foreach ($period as $date) {
             $dateString = $date->format('Y-m-d');
-            $dayEntries = $entriesByStartDate->get($dateString, collect());
+            $dayEntries = $entriesByStartDate->get($dateString, collect())->values();
+            $werte = $this->columnValuesFor($dateString);
 
             if ($dayEntries->isEmpty()) {
-                // Leere Zeile für Tage ohne (startende) Einträge – nur Spalten-Werte
-                $row = [
-                    'Datum'     => $date->format('d.m.Y'),
-                    'Kategorie' => '',
-                    'Notizen'   => '',
-                    'Autor'     => '',
-                    'Status'    => '',
-                ];
-                $this->appendColumnValues($row, $dateString);
-                $data[] = $row;
-            } else {
-                // Eine Zeile pro (gruppiertem) Eintrag
-                foreach ($dayEntries as $index => $entry) {
-                    $dateFrom = $entry['date_from'] ?? $entry['date'];
-                    $dateTo   = $entry['date_to'] ?? $entry['date'];
+                // Tage ohne (startende) Einträge – nur Spaltenwerte
+                $data[] = array_merge([$date->format('d.m.Y'), '', '', '', '', ''], $werte);
+                continue;
+            }
 
-                    // Datumsbereich formatieren
-                    if ($dateFrom !== $dateTo) {
-                        $datumLabel = Carbon::parse($dateFrom)->format('d.m.Y') . ' – ' . Carbon::parse($dateTo)->format('d.m.Y');
-                    } else {
-                        $datumLabel = $date->format('d.m.Y');
-                    }
+            foreach ($dayEntries as $index => $entry) {
+                $from = $entry['date_from'] ?? $entry['date'];
+                $to = $entry['date_to'] ?? $entry['date'];
+                $datumLabel = $from !== $to
+                    ? Carbon::parse($from)->format('d.m.Y') . ' – ' . Carbon::parse($to)->format('d.m.Y')
+                    : $date->format('d.m.Y');
 
-                    $row = [
-                        'Datum'     => $datumLabel,
-                        'Kategorie' => $entry['category'] ?? '',
-                        'Notizen'   => $entry['content'] ?? '',
-                        'Autor'     => $entry['user'] ?? '',
-                        'Status'    => !empty($entry['completed_at']) ? 'Erledigt' : 'Offen',
-                    ];
-
-                    // Spalten-Werte nur beim ersten Eintrag des Tages
-                    if ($index === 0) {
-                        $this->appendColumnValues($row, $dateString);
-                    } else {
-                        foreach ($this->sortedColumns as $column) {
-                            $row[$column['name']] = '';
-                        }
-                    }
-
-                    $data[] = $row;
-                }
+                $data[] = array_merge([
+                    $datumLabel,
+                    $entry['category'] ?? '',
+                    $entry['content'] ?? '',
+                    $entry['user'] ?? '',
+                    !empty($entry['completed_at']) ? 'Erledigt' : 'Offen',
+                    !empty($entry['dossier_only']) ? 'Ja' : '',
+                ], $index === 0 ? $werte : array_fill(0, count($this->sortedColumns), ''));
             }
         }
 
-        return $data;
+        return $this->rows = $data;
     }
 
     /**
-     * Hängt die Spalten-Werte für ein bestimmtes Datum an die Zeile an.
+     * Werte der Zusatzspalten für ein Datum (in der Reihenfolge von sortedColumns).
      */
-    protected function appendColumnValues(array &$row, string $dateString): void
+    protected function columnValuesFor(string $dateString): array
     {
-        foreach ($this->sortedColumns as $column) {
-            $columnId = $column['id'];
-            $columnName = $column['name'];
-            $value = '';
+        $dayValues = $this->columnValues->get($dateString) ?? $this->columnValues->get($dateString . ' 00:00:00');
 
-            $searchKeys = [
-                $dateString,
-                $dateString . ' 00:00:00'
-            ];
+        return array_map(function ($column) use ($dayValues) {
+            $value = $dayValues && $dayValues->has($column['id']) ? ($dayValues->get($column['id'])->value ?? '') : '';
 
-            foreach ($searchKeys as $searchKey) {
-                if ($this->columnValues->has($searchKey)) {
-                    $dayValues = $this->columnValues->get($searchKey);
-                    if ($dayValues->has($columnId)) {
-                        $valueModel = $dayValues->get($columnId);
-                        $value = $valueModel->value ?? '';
-                        break;
-                    }
-                }
-            }
-
-            $row[$columnName] = $this->formatColumnValue($column['type'] ?? 'text', $value);
-        }
+            return $this->formatColumnValue($column['type'] ?? 'text', $value);
+        }, $this->sortedColumns);
     }
 
     /**
@@ -227,35 +195,24 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
     public function headings(): array
     {
-        $headings = ['Datum', 'Kategorie', 'Notizen', 'Autor', 'Status'];
-
-        foreach ($this->sortedColumns as $column) {
-            $headings[] = $column['name'];
-        }
-
-        return $headings;
+        return array_merge(array_keys(self::FESTE_SPALTEN), array_map(fn ($c) => $c['name'], $this->sortedColumns));
     }
 
     public function title(): string
     {
-        return 'Einträge - ' . $this->schueler->vorname . ' ' . $this->schueler->nachname;
+        // Excel erlaubt max. 31 Zeichen im Blattnamen
+        return mb_substr('Einträge ' . $this->schueler->vorname . ' ' . $this->schueler->nachname, 0, 31);
     }
 
     public function columnWidths(): array
     {
-        $widths = [
-            'A' => 22, // Datum (ggf. Bereich DD.MM.YYYY – DD.MM.YYYY)
-            'B' => 20, // Kategorie
-            'C' => 50, // Notizen
-            'D' => 15, // Autor
-            'E' => 12, // Status
-        ];
-
-        // Dynamische Breite für Spalten (ab F)
-        $letter = 'F';
-        foreach ($this->sortedColumns as $column) {
-            $widths[$letter] = 12;
-            $letter++;
+        $widths = [];
+        $i = 1;
+        foreach (self::FESTE_SPALTEN as $breite) {
+            $widths[$this->spalte($i++)] = $breite;
+        }
+        foreach ($this->sortedColumns as $_) {
+            $widths[$this->spalte($i++)] = 12;
         }
 
         return $widths;
@@ -263,145 +220,61 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
 
     public function styles(Worksheet $sheet)
     {
-        // Titel-Zeile hinzufügen (3 Zeilen)
+        $fest = count(self::FESTE_SPALTEN);
+        $lastColumn = $this->spalte($fest + count($this->sortedColumns));
+
+        // Titel-Zeilen (1–3)
         $sheet->insertNewRowBefore(1, 3);
         $sheet->setCellValue('A1', 'Pädagogisches Tagebuch');
         $stageName = $this->schueler->grading_stage?->name ?? '-';
-        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . $this->schueler->klasse->name . ') - Stufe: ' . $stageName);
+        $sheet->setCellValue('A2', $this->schueler->vorname . ' ' . $this->schueler->nachname . ' (' . ($this->schueler->klasse?->name ?? '-') . ') - Stufe: ' . $stageName);
         $sheet->setCellValue('A3', 'Zeitraum: ' . $this->dateFrom->format('d.m.Y') . ' - ' . $this->dateTo->format('d.m.Y'));
+        $sheet->getStyle('A1:A3')->applyFromArray(['font' => ['bold' => true, 'size' => 14]]);
+        $sheet->getStyle('A1')->applyFromArray(['font' => ['size' => 16]]);
 
-        // Titel-Styling
-        $sheet->getStyle('A1:A3')->applyFromArray([
-            'font' => [
-                'bold' => true,
-                'size' => 14,
-            ],
-        ]);
-
-        $sheet->getStyle('A1')->applyFromArray([
-            'font' => ['size' => 16],
-        ]);
-
-        // Kategorien-Header-Zeile hinzufügen (jetzt in Zeile 4)
+        // Zeile 4: Spaltengruppen; Zeile 5: Spaltenüberschriften (von headings())
         $sheet->insertNewRowBefore(4, 1);
+        $i = 1;
+        foreach (array_keys(self::FESTE_SPALTEN) as $titel) {
+            $col = $this->spalte($i++);
+            $sheet->mergeCells("{$col}4:{$col}5");
+            $sheet->setCellValue("{$col}4", $titel);
+        }
 
-        // "Datum" Zelle über beide Header-Zeilen mergen
-        $sheet->mergeCells('A4:A5');
-        $sheet->setCellValue('A4', 'Datum');
-        $sheet->mergeCells('B4:B5');
-        $sheet->setCellValue('B4', 'Notizen');
-        $sheet->mergeCells('C4:C5');
-        $sheet->setCellValue('C4', 'Autor');
-
-        // Kategorien-Header mit Merges für Spalten-Gruppen
-        $currentColumn = 68; // ASCII für 'D'
-        $categoryBoundaries = []; // Speichere Grenzen zwischen Kategorien
-
+        $categoryBoundaries = [$this->spalte($fest)];
         foreach ($this->columnsByCategory as $category => $columns) {
-            $startCol = chr($currentColumn);
-            $endCol = chr($currentColumn + count($columns) - 1);
-
-            // Merge cells für Kategorie
+            $startCol = $this->spalte($i);
+            $endCol = $this->spalte($i + count($columns) - 1);
             if (count($columns) > 1) {
                 $sheet->mergeCells("{$startCol}4:{$endCol}4");
             }
             $sheet->setCellValue("{$startCol}4", $category);
-
-            // Speichere die rechte Grenze dieser Kategorie (außer für die letzte)
-            if ($currentColumn > 68) {
-                $categoryBoundaries[] = chr($currentColumn - 1);
-            }
-
-            $currentColumn += count($columns);
+            $categoryBoundaries[] = $endCol;
+            $i += count($columns);
         }
 
-        // Kategorie-Header-Styling (Zeile 4)
-        $lastColumn = chr(67 + count($this->sortedColumns)); // C + Anzahl Spalten
-        $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray([
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '2C5F8D'],
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => 'FFFFFF'],
-                ],
-            ],
-        ]);
+        $kopf = fn (string $farbe) => [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $farbe]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+        $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray($kopf('2C5F8D'));
+        $sheet->getStyle("A5:{$lastColumn}5")->applyFromArray($kopf('4A90E2'));
 
-        // Spalten-Header-Styling (Zeile 5)
-        $sheet->getStyle("A5:{$lastColumn}5")->applyFromArray([
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '4A90E2'],
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => 'FFFFFF'], // Weiß statt Schwarz
-                ],
-            ],
-        ]);
-
-        // Daten-Styling
-        $lastRow = count($this->array()) + 5; // +5 wegen Titel (3) + Kategorie-Header (1) + Spalten-Header (1)
+        $lastRow = count($this->array()) + 5;
         if ($lastRow > 5) {
             $sheet->getStyle("A6:{$lastColumn}{$lastRow}")->applyFromArray([
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => 'CCCCCC'],
-                    ],
-                ],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_TOP,
-                    'wrapText' => true,
-                ],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
             ]);
-
-            // Datum-Spalte zentrieren
             $sheet->getStyle("A6:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
 
-        // Optische Trennung zwischen Kategorien: Dickere vertikale Borders
-        foreach ($categoryBoundaries as $boundaryCol) {
-            // Trennlinie von Zeile 4 bis zur letzten Datenzeile
+        // Optische Trennung zwischen festen Spalten und Spaltengruppen
+        foreach (array_slice($categoryBoundaries, 0, -1) as $boundaryCol) {
             $sheet->getStyle("{$boundaryCol}4:{$boundaryCol}{$lastRow}")->applyFromArray([
-                'borders' => [
-                    'right' => [
-                        'borderStyle' => Border::BORDER_MEDIUM,
-                        'color' => ['rgb' => 'CCCCCC'], // Hellgrau statt Dunkelblau
-                    ],
-                ],
-            ]);
-        }
-
-        // Auch die Trennung zwischen "Autor" und der ersten Spalte
-        if (count($this->sortedColumns) > 0) {
-            $sheet->getStyle("C4:C{$lastRow}")->applyFromArray([
-                'borders' => [
-                    'right' => [
-                        'borderStyle' => Border::BORDER_MEDIUM,
-                        'color' => ['rgb' => 'CCCCCC'], // Hellgrau statt Dunkelblau
-                    ],
-                ],
+                'borders' => ['right' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'CCCCCC']]],
             ]);
         }
 
@@ -409,7 +282,7 @@ class SchuelerEntriesSheet implements FromArray, WithHeadings, WithStyles, WithC
     }
 }
 
-class SchuelerTasksSheet implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+class SchuelerTasksSheet extends StringValueBinder implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithCustomValueBinder
 {
     protected $schueler;
     protected $tasks;
@@ -531,7 +404,7 @@ class SchuelerTasksSheet implements FromArray, WithHeadings, WithStyles, WithCol
     }
 }
 
-class SchuelerGradingDocumentationSheet implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+class SchuelerGradingDocumentationSheet extends StringValueBinder implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithCustomValueBinder
 {
     protected $schueler;
     protected $gradingSessions;

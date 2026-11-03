@@ -31,8 +31,6 @@ class HourTypeController extends Controller
         $type = new HourType($request->validated());
         $type->save();
 
-        activity()->causedBy(auth()->user())->on($type)->useLog('settings')->log('Stundentype wurde erstellt.');
-
         return redirectBack('success', 'Stundentyp wurde angelegt');
     }
 

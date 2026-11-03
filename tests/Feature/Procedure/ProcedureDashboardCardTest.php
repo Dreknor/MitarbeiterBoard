@@ -83,5 +83,25 @@ class ProcedureDashboardCardTest extends TestCase
 
         $this->assertCount(0, $view->getData()['steps']);
     }
-}
 
+    public function test_dashboard_card_ignoriert_geloeschte_prozesse_und_rendert(): void
+    {
+        $user = $this->actingAsWithPermission('view assigned procedures');
+
+        $geloescht = Procedure::factory()->gestartet()->create();
+        $step = Procedure_Step::factory()->create([
+            'procedure_id' => $geloescht->id,
+            'done'         => false,
+            'endDate'      => now()->addDay(),
+        ]);
+        $step->users()->attach($user->id);
+        $geloescht->delete();
+
+        $view = view('procedure.dashboardCard-v2');
+        (new \App\View\Composers\ProcedureComposer())->compose($view);
+
+        $this->assertCount(0, $view->getData()['steps']);
+        // Rendering darf nicht an fehlender Prozess-Relation scheitern
+        $this->assertStringContainsString('Keine offenen Prozessschritte', $view->render());
+    }
+}

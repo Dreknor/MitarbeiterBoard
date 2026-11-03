@@ -11,8 +11,12 @@
 
 import { formatDate, trimText, formatTime, escapeHtml, csrfToken, getBrightness } from './utils.js';
 
-export function registerDiaryTable(Alpine) {
-    Alpine.data('diaryTable', () => ({
+/**
+ * Methoden der Wochentabelle als eigenständige Fabrik – auch von der neuen Ansicht genutzt
+ * (paed-diary-neu.js kombiniert sie mit Eigenschaftsdeskriptoren, damit Getter erhalten bleiben).
+ */
+export function diaryTableMethods() {
+    return {
 
 
         // ── Einträge pro Zelle berechnen ───────────────────────────
@@ -134,14 +138,14 @@ export function registerDiaryTable(Alpine) {
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        completed_at: new Date().toISOString().slice(0, 10),
+                        completed_at: formatDate(new Date()),
                         schueler_id: stuId,
                     })
                 });
                 const j = await resp.json();
                 if (j.success) this.$store.diary.loadWeek();
             } catch (_) {
-                alert('Fehler beim Abschließen der Notiz');
+                this.$store.diary.showError('Fehler beim Abschließen der Notiz');
             }
         },
 
@@ -157,7 +161,7 @@ export function registerDiaryTable(Alpine) {
                 const j = await resp.json();
                 if (j.success) this.$store.diary.loadWeek();
             } catch (_) {
-                alert('Fehler beim Schließen der Aufgabe');
+                this.$store.diary.showError('Fehler beim Schließen der Aufgabe');
             }
         },
 
@@ -256,10 +260,10 @@ export function registerDiaryTable(Alpine) {
                         date: date
                     }];
                 } else {
-                    alert(j.message || 'Fehler beim Pausieren');
+                    this.$store.diary.showError(j.message || 'Fehler beim Pausieren');
                 }
             } catch (_) {
-                alert('Fehler beim Pausieren');
+                this.$store.diary.showError('Fehler beim Pausieren');
             }
         },
 
@@ -286,10 +290,10 @@ export function registerDiaryTable(Alpine) {
                           p.date === date)
                     );
                 } else {
-                    alert(j.message || 'Fehler beim Reaktivieren');
+                    this.$store.diary.showError(j.message || 'Fehler beim Reaktivieren');
                 }
             } catch (_) {
-                alert('Fehler beim Reaktivieren');
+                this.$store.diary.showError('Fehler beim Reaktivieren');
             }
         },
 
@@ -313,10 +317,10 @@ export function registerDiaryTable(Alpine) {
                 if (j.success) {
                     this.$store.diary.loadWeek();
                 } else {
-                    alert(j.message || 'Fehler');
+                    this.$store.diary.showError(j.message || 'Fehler');
                 }
             } catch (_) {
-                alert('Fehler beim Abschließen');
+                this.$store.diary.showError('Fehler beim Abschließen');
             }
         },
 
@@ -364,10 +368,10 @@ export function registerDiaryTable(Alpine) {
                         );
                     }
                 } else {
-                    alert(j.message || 'Fehler beim Setzen der Abwesenheit');
+                    this.$store.diary.showError(j.message || 'Fehler beim Setzen der Abwesenheit');
                 }
             } catch (_) {
-                alert('Fehler beim Setzen der Abwesenheit');
+                this.$store.diary.showError('Fehler beim Setzen der Abwesenheit');
             }
         },
 
@@ -418,7 +422,7 @@ export function registerDiaryTable(Alpine) {
             }
 
             if (!isPaused) {
-                const reason = window.prompt('Grund der Tages-Pause (leer lassen für "Veranstaltung"):', 'Veranstaltung');
+                const reason = await store.askText('Tag pausieren', 'Grund (z. B. Wandertag). Leer lassen für „Veranstaltung“.', 'Veranstaltung');
                 if (reason === null) return; // Abgebrochen
                 body.reason = reason.trim() || 'Veranstaltung';
             }
@@ -437,10 +441,10 @@ export function registerDiaryTable(Alpine) {
                 if (j.success) {
                     store.loadWeek();
                 } else {
-                    alert(j.message || 'Fehler beim Ändern der Tages-Pause');
+                    this.$store.diary.showError(j.message || 'Fehler beim Ändern der Tages-Pause');
                 }
             } catch (_) {
-                alert('Fehler beim Ändern der Tages-Pause');
+                this.$store.diary.showError('Fehler beim Ändern der Tages-Pause');
             }
         },
 
@@ -586,6 +590,10 @@ export function registerDiaryTable(Alpine) {
         trimText(str, len) { return trimText(str, len); },
         escapeHtml(str) { return escapeHtml(str); },
         getBrightness(hex) { return getBrightness(hex); },
-    }));
+    };
+}
+
+export function registerDiaryTable(Alpine) {
+    Alpine.data('diaryTable', diaryTableMethods);
 }
 

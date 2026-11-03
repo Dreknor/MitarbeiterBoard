@@ -122,7 +122,7 @@
     }
 
     function getTeacherAssessmentUrl() {
-        return `/paed-diary/documentation/session/${sessionId}/teacher-assessment`;
+        return @json(route('gradingDocumentation.teacherAssessment', $session->id));
     }
 
     // Hilfsfunktionen
@@ -155,7 +155,7 @@
         loading = true;
 
         try {
-            const response = await fetch('/paed-diary/documentation/student-answer', {
+            const response = await fetch(@json(route('gradingDocumentation.saveStudentAnswer')), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -267,6 +267,55 @@ class OxCalendarServiceSichtbarkeitTest extends TestCase
         $this->assertFalse($this->service->canWriteCalendar($user, $kalender));
     }
 
+    public function test_gruppen_schreibrecht_gilt_auch_ohne_globales_schreibrecht(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['create calendar events', 'edit calendar events']);
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $gruppe = Group::factory()->create();
+        $user->groups_rel()->attach($gruppe);
+
+        $kalender = OxCalendar::factory()->create(['schreibbar' => false]);
+        $kalender->groups()->attach($gruppe->id, ['schreibbar' => true]);
+        $kalender->load('groups');
+
+        $this->assertTrue($this->service->canWriteCalendar($user, $kalender));
+        $this->assertTrue($this->service->canEditTermin($user, $kalender));
+    }
+
+    public function test_ohne_globales_schreibrecht_nur_lesende_gruppe_darf_nicht_schreiben(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['create calendar events', 'edit calendar events']);
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $gruppe       = Group::factory()->create();
+        $andereGruppe = Group::factory()->create();
+        $user->groups_rel()->attach($gruppe);
+
+        $kalender = OxCalendar::factory()->create(['schreibbar' => false]);
+        $kalender->groups()->attach($gruppe->id, ['schreibbar' => false]);
+        $kalender->groups()->attach($andereGruppe->id, ['schreibbar' => true]);
+        $kalender->load('groups');
+
+        $this->assertFalse($this->service->canWriteCalendar($user, $kalender));
+        $this->assertFalse($this->service->canEditTermin($user, $kalender));
+    }
+
+    public function test_admin_darf_ohne_globales_schreibrecht_in_gruppen_schreibbaren_kalender_schreiben(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo(['manage calendar', 'create calendar events']);
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $kalender = OxCalendar::factory()->create(['schreibbar' => false]);
+        $kalender->groups()->attach(Group::factory()->create()->id, ['schreibbar' => true]);
+        $kalender->load('groups');
+
+        $this->assertTrue($this->service->canWriteCalendar($admin, $kalender));
+    }
+
     // =========================================================================
     // Rückgabetyp
     // =========================================================================

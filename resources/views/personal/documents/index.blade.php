@@ -8,26 +8,14 @@
     Dokumente – {{ $employe->vorname }} {{ $employe->familienname }}
 @endsection
 
+@section('title')
+    Personalverwaltung
+@endsection
+
 @section('content')
 <div class="personal-wrapper">
 
-    {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Personalakte – Dokumente</h1>
-            <p class="text-gray-500 text-sm mt-1">{{ $employe->name }}</p>
-        </div>
-        <div class="flex gap-3">
-            <a href="{{ route('personal.personalakte.show', $employe->id) }}"
-               class="btn-personal-secondary text-sm">← Zurück zur Akte</a>
-        </div>
-    </div>
-
-    @if(session('Meldung'))
-    <div class="rounded-lg p-4 mb-4 {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : (session('type') === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-red-50 text-red-800 border border-red-200') }}">
-        {{ session('Meldung') }}
-    </div>
-    @endif
+    @include('personal.partials._akte_header', ['active' => 'dokumente'])
 
     {{-- Upload-Formular --}}
     @can('manage personal_documents')

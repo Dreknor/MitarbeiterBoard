@@ -22,9 +22,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
+use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Employment extends Model implements Auditable
+// HasMedia ist Pflicht für InteractsWithMedia – ohne das Interface wirft jedes delete() einen TypeError
+class Employment extends Model implements Auditable, HasMedia
 {
     use HasFactory, InteractsWithMedia, SoftDeletes;
     use \OwenIt\Auditing\Auditable;
@@ -38,6 +40,8 @@ class Employment extends Model implements Auditable
         'employment_type', 'contract_type', 'status', 'status_reason', 'termination_reason',
         'probation_end', 'notice_period', 'salary_group', 'salary_level',
         'is_amendment', 'amendment_description', 'is_internal_transfer',
+        // Arbeitszeitmodell (ISO-Wochentage, NULL = Mo–Fr)
+        'workdays',
     ];
 
     protected $casts = [
@@ -51,6 +55,7 @@ class Employment extends Model implements Auditable
         'termination_reason' => TerminationReason::class,
         'is_amendment'       => 'boolean',
         'is_internal_transfer' => 'boolean',
+        'workdays'           => 'array',
     ];
 
     protected $with = ['hour_type'];
@@ -79,6 +84,14 @@ class Employment extends Model implements Auditable
     public function salaryTable(): BelongsTo
     {
         return $this->belongsTo(SalaryTable::class, 'salary_table_id');
+    }
+
+    /**
+     * Vorgängervertrag, den diese Anstellung ersetzt (Änderungsvertrag, interner Wechsel, Nachfolge).
+     */
+    public function replacedEmployment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaced_employment_id');
     }
 
     public function teacherDetails(): HasMany
@@ -134,7 +147,7 @@ class Employment extends Model implements Auditable
      * WICHTIG: Scopet auf status = 'aktiv' UND gültigen Zeitraum.
      * Ohne Parameter wird gegen heute geprüft – abgelaufene Verträge werden ausgeschlossen.
      */
-    public function scopeActive(Builder $query, DateTime $start = null, DateTime $end = null): Builder
+    public function scopeActive(Builder $query, ?DateTime $start = null, ?DateTime $end = null): Builder
     {
         $query->where('status', EmploymentStatus::Aktiv->value);
 
@@ -196,20 +209,52 @@ class Employment extends Model implements Auditable
     /**
      * Setzt Status auf 'beendet'. Nur von 'aktiv' oder 'ruhend' möglich (final).
      */
-    public function setBeendet(TerminationReason $reason, ?Carbon $endDate = null): void
+    public function setBeendet(TerminationReason $reason, ?Carbon $endDate = null, bool $dispatchEvent = true): void
     {
         if ($this->status === EmploymentStatus::Beendet) {
             throw new \LogicException('Bereits beendete Anstellungen können nicht erneut beendet werden.');
         }
+
+        // Ohne Enddatum endet die Anstellung heute – ein beendeter Vertrag ohne Ende bliebe sonst unbegrenzt gültig.
+        $end = $endDate ?? $this->end ?? Carbon::today();
+        if ($this->start && $end->lessThan($this->start)) {
+            throw new \LogicException('Das Enddatum darf nicht vor dem Vertragsbeginn liegen.');
+        }
+
+        // Liegt das Ende in der Zukunft, arbeitet die Person noch: Status bleibt "aktiv", der Grund wird vorgemerkt.
+        // Der tägliche Job (ContractService::endExpired) setzt den Vertrag nach Ablauf auf "beendet".
+        if ($end->isFuture()) {
+            $this->update(['termination_reason' => $reason, 'end' => $end]);
+            return;
+        }
+
         $this->update([
             'status'             => EmploymentStatus::Beendet,
             'termination_reason' => $reason,
-            'end'                => $endDate ?? $this->end,
+            'end'                => $end,
         ]);
-        event(new EmploymentTerminated($this));
+
+        // Nahtlos fortgeführte Verträge (Nachfolge/Änderung) lösen kein Offboarding aus.
+        if ($dispatchEvent) {
+            event(new EmploymentTerminated($this));
+        }
     }
 
     // ---- Accessors ----
+
+    /**
+     * Arbeitstage dieses Vertrags als ISO-Wochentage (1 = Montag … 7 = Sonntag).
+     *
+     * @return int[]
+     */
+    public function arbeitstage(): array
+    {
+        $tage = array_values(array_unique(array_map('intval', (array) ($this->workdays ?? []))));
+        $tage = array_values(array_filter($tage, fn (int $t) => $t >= 1 && $t <= 7));
+        sort($tage);
+
+        return $tage === [] ? [1, 2, 3, 4, 5] : $tage;
+    }
 
     public function getPercentAttribute(): float
     {

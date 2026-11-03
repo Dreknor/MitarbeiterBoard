@@ -27,12 +27,15 @@ class TasksComposer
         });
 
         $group_tasks = Cache::remember('group_tasks_'.auth()->id(), Carbon::now()->addMinutes(5), function () {
-            return auth()->user()->group_tasks;
+            return auth()->user()->group_tasks()->with('task.theme')->get();
         });
 
-        foreach ($group_tasks as $group_task){
-            $tasks = $tasks->push($group_task->task);
-        }
+        // Gemeinsame Aufgaben ergänzen; erledigte/gelöschte (null) und doppelte Einträge entfernen
+        $tasks = collect($tasks)
+            ->concat($group_tasks->pluck('task'))
+            ->filter()
+            ->unique('id')
+            ->values();
 
         $view->with(['tasks' => $tasks]);
     }

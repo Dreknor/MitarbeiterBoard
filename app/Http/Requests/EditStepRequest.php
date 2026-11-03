@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class EditStepRequest extends FormRequest
 {
@@ -24,9 +25,10 @@ class EditStepRequest extends FormRequest
     public function rules()
     {
         return [
-            'parent' => 'nullable|exists:procedure_steps,id',
+            // Vorgänger muss zum selben Prozess gehören
+            'parent' => ['nullable', Rule::exists('procedure_steps', 'id')->where('procedure_id', $this->route('step')?->procedure_id)],
             'position_id' => 'required|exists:positions,id',
-            'name'=>    'required|string',
+            'name'=>    'required|string|max:60',
             'description'=>'string|nullable',
             'durationDays'=>'integer|min:1',
             'endDate'=>'nullable|date',

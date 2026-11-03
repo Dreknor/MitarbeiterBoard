@@ -44,7 +44,7 @@ class newTicketCommentMail extends Mailable implements ShouldQueue
     {
         return new Content(
             view: 'mails.commentNotification',
-            with: ['comment' => $this->comment, 'ticket' => $this->ticket, 'name' => $this->comment->user->name],
+            with: ['comment' => $this->comment, 'ticket' => $this->ticket, 'name' => $this->comment->author_name],
         );
     }
 

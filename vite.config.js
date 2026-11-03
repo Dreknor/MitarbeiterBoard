@@ -16,6 +16,10 @@ export default defineConfig({
                 'resources/css/paed-diary.css',
                 'resources/css/paed-diary-v2.css',
                 'resources/js/paed-diary-v2.js',
+                // Pädagogisches Tagebuch – neue Ansicht (parallel zur bisherigen, CSS wird importiert)
+                'resources/js/paed-diary-neu.js',
+                // Elterngespräche in der bisherigen Schülerakte (nutzt das CSS der neuen Ansicht)
+                'resources/js/paed-diary-elterngespraeche.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',
@@ -41,6 +45,24 @@ export default defineConfig({
                 // Themen-Modul (Tailwind-Migration)
                 'resources/css/themes.css',
                 'resources/js/themes.js',
+
+                // Ticketsystem (Tailwind-Migration)
+                'resources/css/tickets.css',
+                'resources/js/tickets.js',
+
+                // Zeitwirtschaft: Urlaub, Arbeitszeitnachweis, Dienstplan, Terminal
+                'resources/css/zeit.css',
+                'resources/js/zeit.js',
+
+                // Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht)
+                'resources/css/benachrichtigungen.css',
+
+                // Online-Updater
+                'resources/css/updater.css',
+                'resources/js/updater.js',
+
+                // Geführte Touren (<x-tour>, für alle Bereiche)
+                'resources/js/tour.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -67,11 +89,20 @@ export default defineConfig({
                 // Meetings-Modul (Tailwind-Migration)
                 'resources/views/meetings/**/*.blade.php',
                 'app/Http/Controllers/MeetingController.php',
+                'app/Http/Controllers/Meetings/*.php',
+                'resources/views/search/global.blade.php',
                 // Themenarchiv (Tailwind-Migration)
                 'resources/views/themes/archive.blade.php',
                 // Themen-Modul (Tailwind-Migration)
                 'resources/views/themes/**/*.blade.php',
                 'app/Http/Controllers/ThemeController.php',
+                // Ticketsystem (Tailwind-Migration)
+                'resources/views/ticketsystem/**/*.blade.php',
+                'app/Http/Controllers/Ticketsystem/*.php',
+                // Online-Updater
+                'resources/views/updater/**/*.blade.php',
+                // Zeitwirtschaft
+                'app/Services/Personal/Zeit/*.php',
             ],
         }),
     ],

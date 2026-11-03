@@ -212,16 +212,20 @@ class HelpersTest extends TestCase
         $this->assertFalse((bool)$result);
     }
 
-    public function test_is_holiday_api_fehler_gibt_false_zurueck(): void
+    /**
+     * Feiertage werden lokal berechnet – ein API-Ausfall kann keine falschen
+     * Arbeitstage mehr erzeugen (früher: leere Liste 31 Tage im Cache).
+     */
+    public function test_is_holiday_funktioniert_ohne_externe_api(): void
     {
         \Illuminate\Support\Facades\Http::fake([
-            'ipty.de/*' => \Illuminate\Support\Facades\Http::response(null, 500),
+            '*' => \Illuminate\Support\Facades\Http::response(null, 500),
         ]);
         Cache::flush();
 
-        $result = is_holiday(Carbon::parse('2026-01-01'));
-
-        $this->assertFalse((bool)$result);
+        $this->assertSame('Neujahr', is_holiday(Carbon::parse('2026-01-01'))['title']);
+        $this->assertSame('Buß- und Bettag', is_holiday(Carbon::parse('2026-11-18'))['title']);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
     }
 
     // ─── is_ferien ──────────────────────────────────────────────────────────

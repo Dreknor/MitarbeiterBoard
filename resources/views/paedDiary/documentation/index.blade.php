@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid gd-wrapper">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -292,25 +292,26 @@
 </div>
 
 <style>
-:root{ --primary: #0d6efd; --muted:#6c757d; --radius:12px; }
+/* Auf diese Seite beschränkt (vorher global über :root und .card/.btn) */
+.gd-wrapper{ --primary: #0d6efd; --muted:#6c757d; --radius:12px; }
 
-.card { border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,0.06); border: none; }
-.card-header { background: linear-gradient(90deg,var(--primary), #0b5ed7); color: #fff; }
+.gd-wrapper .card { border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,0.06); border: none; }
+.gd-wrapper .card-header { background: linear-gradient(90deg,var(--primary), #0b5ed7); color: #fff; }
 
-.form-control { border-radius: 8px; border: 1px solid #e6e9ef; }
-.form-group label { font-weight: 600; }
+.gd-wrapper .form-control { border-radius: 8px; border: 1px solid #e6e9ef; }
+.gd-wrapper .form-group label { font-weight: 600; }
 
-.btn { border-radius: 10px; transition: transform 160ms ease, box-shadow 160ms ease; }
-.btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(13,110,253,0.08); }
+.gd-wrapper .btn { border-radius: 10px; transition: transform 160ms ease, box-shadow 160ms ease; }
+.gd-wrapper .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(13,110,253,0.08); }
 
-.alert-info { border-radius: 10px; background: linear-gradient(90deg,#e9f2ff,#f7fbff); color: #08325a; }
+.gd-wrapper .alert-info { border-radius: 10px; background: linear-gradient(90deg,#e9f2ff,#f7fbff); color: #08325a; }
 
-.nav-tabs .nav-link { border-radius: 8px 8px 0 0; font-weight: 500; }
-.nav-tabs .nav-link.active { background: #fff; border-bottom-color: #fff; }
+.gd-wrapper .nav-tabs .nav-link { border-radius: 8px 8px 0 0; font-weight: 500; }
+.gd-wrapper .nav-tabs .nav-link.active { background: #fff; border-bottom-color: #fff; }
 
-.table-hover tbody tr:hover { background-color: #f8f9fa; }
+.gd-wrapper .table-hover tbody tr:hover { background-color: #f8f9fa; }
 
-@media (max-width: 768px){ .card { margin-bottom: 0.8rem; } }
+@media (max-width: 768px){ .gd-wrapper .card { margin-bottom: 0.8rem; } }
 </style>
 
 <script>
@@ -407,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Lade Schüler der ausgewählten Klasse
-        fetch(`/paed-diary/klasse/${klasseId}/schueler`)
+        fetch(@json(route('paedDiary.klasse.schueler', ['klasse' => '__KLASSE__'])).replace('__KLASSE__', encodeURIComponent(klasseId)))
             .then(response => response.json())
             .then(data => {
                 schuelerSelect.disabled = false;
@@ -443,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            fetch(`/paed-diary/documentation/session/${sessionId}/cancel`, {
+            fetch(@json(route('gradingDocumentation.cancelSession', ['session' => '__SESSION__'])).replace('__SESSION__', encodeURIComponent(sessionId)), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -479,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            fetch(`/paed-diary/documentation/session/${sessionId}/reopen`, {
+            fetch(@json(route('gradingDocumentation.reopenSession', ['session' => '__SESSION__'])).replace('__SESSION__', encodeURIComponent(sessionId)), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

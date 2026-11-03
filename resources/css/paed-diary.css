@@ -4,7 +4,6 @@
 
 /* ── Quell-Dateien für Tailwind-Klassen-Scan ────────────────────────────── */
 @source "../views/paedDiary/**/*.blade.php";
-@source "../../public/js/paedDiary/categories.js";
 
 [x-cloak] { display: none !important; }
 

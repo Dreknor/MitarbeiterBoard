@@ -34,7 +34,7 @@
     </div>
 
     {{-- Aktuelle Anstellung --}}
-    <div class="personal-card">
+    <div class="personal-card" data-tour="anstellung">
         <h3 class="font-semibold text-gray-900 mb-3">Meine Anstellung</h3>
         @if(count($employe['employments']) > 0)
         @php $currentEmp = $employe['employments']->first(); @endphp
@@ -74,6 +74,48 @@
         </dl>
         @else
         <p class="text-gray-400 text-sm">Keine aktive Anstellung</p>
+        @endif
+
+        {{-- Anstellungshistorie: alle Vertragsversionen, neueste zuerst --}}
+        @if(($anstellungshistorie ?? collect())->isNotEmpty())
+        @php $aktuelleIds = $rawEmploye->employments->pluck('id'); @endphp
+        <div x-data="{ offen: false }" class="mt-4 pt-3 border-t border-gray-100">
+            <button type="button" @click="offen = !offen" class="text-sm text-blue-600 hover:underline" :aria-expanded="offen">
+                <span x-text="offen ? 'Anstellungshistorie ausblenden' : 'Anstellungshistorie anzeigen'"></span>
+                ({{ $anstellungshistorie->count() }})
+            </button>
+            <ol x-show="offen" class="mt-3 space-y-3 border-l-2 border-gray-200 pl-4">
+                @foreach($anstellungshistorie as $emp)
+                @php
+                    $aktuell = $aktuelleIds->contains($emp->id);
+                    $beendet = $emp->end && $emp->end->isPast();
+                @endphp
+                <li class="relative text-sm">
+                    <span class="absolute -left-[1.4rem] top-1.5 w-2.5 h-2.5 rounded-full {{ $aktuell ? 'bg-green-500' : 'bg-gray-300' }}"></span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-medium text-gray-900">
+                            {{ $emp->start?->format('d.m.Y') }} – {{ $emp->end?->format('d.m.Y') ?? 'unbefristet' }}
+                        </span>
+                        @if($aktuell)
+                            <span class="badge-green">aktuell</span>
+                        @elseif($beendet)
+                            <span class="badge-gray">beendet</span>
+                        @elseif($emp->start?->isFuture())
+                            <span class="badge-blue">künftig</span>
+                        @else
+                            <span class="badge-{{ match($emp->status?->value) { 'ruhend' => 'yellow', default => 'gray' } }}">{{ $emp->status?->label() }}</span>
+                        @endif
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        {{ $emp->employment_type?->label() ?? 'Anstellung' }}@if($emp->contract_type) · {{ $emp->contract_type->label() }}@endif
+                        · {{ $emp->hours }}h/Woche
+                        @if($emp->department) · {{ $emp->department->name }}@endif
+                    </div>
+                    @include('personal.partials._vertrag_kennzeichen', ['employment' => $emp])
+                </li>
+                @endforeach
+            </ol>
+        </div>
         @endif
     </div>
 

@@ -74,16 +74,7 @@ class ProcedureApiController extends Controller
         }
 
         // Sichtbarkeit für Nicht-Admins
-        if (!$user->can('manage procedures')) {
-            $userId     = $user->id;
-            $positionId = $user->position_id ?? null;
-            $q->where(function ($qq) use ($userId, $positionId) {
-                $qq->whereHas('steps.users', fn ($s) => $s->where('users.id', $userId));
-                if ($positionId) {
-                    $qq->orWhereHas('steps', fn ($s) => $s->where('position_id', $positionId));
-                }
-            });
-        }
+        $q->sichtbarFuer($user);
 
         $procedures = $q->orderByDesc('started_at')->limit(200)->get();
 
@@ -92,8 +83,9 @@ class ProcedureApiController extends Controller
         $data = $procedures->map(function (Procedure $p) {
             $totalSteps     = $p->steps->count();
             $doneSteps      = $p->steps->where('done', true)->count();
-            $overdueSteps   = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->isPast())->count();
-            $dueSoonSteps   = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->isFuture() && $s->endDate->diffInDays(now()) <= 3)->count();
+            $today          = today();
+            $overdueSteps   = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->lt($today))->count();
+            $dueSoonSteps   = $p->steps->filter(fn ($s) => !$s->done && $s->endDate && $s->endDate->gte($today) && $s->endDate->lte($today->copy()->addDays(3)))->count();
 
             return [
                 'id'             => $p->id,
@@ -114,6 +106,7 @@ class ProcedureApiController extends Controller
                 'overdue' => $p['steps_overdue'] > 0,
                 'due'     => $p['steps_due_soon'] > 0,
                 'open'    => $p['steps_done'] < $p['steps_total'],
+                'done'    => $p['steps_total'] > 0 && $p['steps_done'] === $p['steps_total'],
                 default   => true,
             })->values();
         }
@@ -177,26 +170,37 @@ class ProcedureApiController extends Controller
         ]);
     }
 
-    /** B-20: Schritt-Verlauf (Audit) – Phase 1 minimal: completed_at/by + Kommentare. */
+    /** B-20: Schritt-Verlauf (Audit): Erledigung, Kommentare und protokollierte Änderungen. */
     public function stepHistory(Procedure_Step $step): JsonResponse
     {
-        $step->load(['comments.user', 'completedBy']);
+        $this->authorize('view', $step);
 
+        $step->load(['comments.user', 'completedBy', 'histories.performer']);
+
+        $person = fn ($user) => $user ? ['id' => $user->id, 'name' => $user->name] : null;
         $items = [];
 
         if ($step->completed_at) {
             $items[] = [
                 'type' => 'completed',
                 'at'   => $step->completed_at->toAtomString(),
-                'by'   => $step->completedBy ? ['id' => $step->completedBy->id, 'name' => $step->completedBy->name] : null,
+                'by'   => $person($step->completedBy),
             ];
         }
         foreach ($step->comments as $c) {
             $items[] = [
                 'type' => 'comment',
                 'at'   => $c->created_at->toAtomString(),
-                'by'   => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
+                'by'   => $person($c->user),
                 'body' => $c->body,
+            ];
+        }
+        foreach ($step->histories as $h) {
+            $items[] = [
+                'type' => $h->type,
+                'at'   => $h->created_at?->toAtomString(),
+                'by'   => $person($h->performer),
+                'meta' => $h->meta,
             ];
         }
 
@@ -205,4 +209,3 @@ class ProcedureApiController extends Controller
         return response()->json(['data' => $items]);
     }
 }
-

@@ -3,26 +3,24 @@
 namespace App\View\Composers;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class ProcedureComposer
 {
     /**
-     *
-     */
-    public function __construct()
-    {
-
-    }
-
-    /**
-     * Bind data to the view.
+     * Offene, bereits fällig gestellte Schritte des Nutzers aus laufenden Prozessen –
+     * dringendste zuerst. Schritte gelöschter/beendeter Prozesse werden ausgeblendet.
      */
     public function compose(View $view): void
     {
-        $steps = auth()->user()->steps()->where('done', 0)->whereNotNull('endDate')->get();
-        $steps->load('procedure');
-        $view->with(['steps' =>  $steps]);
+        $steps = auth()->user()->steps()
+            ->where('done', false)
+            ->whereNotNull('endDate')
+            ->whereHas('procedure', fn (Builder $q) => $q->laufend())
+            ->with('procedure')
+            ->orderBy('endDate')
+            ->get();
+
+        $view->with(['steps' => $steps]);
     }
 }

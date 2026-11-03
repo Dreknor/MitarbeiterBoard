@@ -21,6 +21,7 @@ export function registerStageDropdown(Alpine) {
         triggerEl: null,
         _repositionHandler: null,
         _closeOnPointerDown: null,
+        _openedAt: 0,
 
         /**
          * Gibt HTML für das Stufen-Symbol eines Schülers zurück.
@@ -43,18 +44,24 @@ export function registerStageDropdown(Alpine) {
          * Dropdown für einen Schüler öffnen und Stufen laden.
          */
         async openDropdown(stuId, klasseId, triggerEl) {
-            if (!this.$store.diary.can_manage_grading) return;
+            if (!this.$store.diary.can_change_stage) return;
 
-            // Wenn schon für diesen Schüler offen → schließen
+            // Wenn schon für diesen Schüler offen → schließen.
+            // Ausnahme: Ein Touch-Tap kann (je nach Browser/Gerät) einen zweiten
+            // Klick erzeugen – der würde das Menü sofort wieder zuklappen.
             if (this.dropdownOpen && this.dropdownStuId === stuId) {
+                if (Date.now() - this._openedAt < 500) return;
                 this.closeDropdown();
                 return;
             }
+            // Ein noch offenes Menü (Listener) sauber schließen
+            if (this.dropdownOpen) this.closeDropdown();
 
             this.triggerEl = triggerEl || null;
             this.dropdownStuId = stuId;
             this.dropdownKlasseId = klasseId;
             this.dropdownOpen = true;
+            this._openedAt = Date.now();
             this.stageLoading = true;
             this.stages = [];
 
@@ -74,7 +81,14 @@ export function registerStageDropdown(Alpine) {
                     this.closeDropdown();
                 }
             };
-            document.addEventListener('pointerdown', this._closeOnPointerDown);
+            // Erst nach dem aktuellen Tap registrieren, damit dessen Events
+            // das Menü nicht direkt wieder schließen
+            const closeHandler = this._closeOnPointerDown;
+            setTimeout(() => {
+                if (this._closeOnPointerDown === closeHandler) {
+                    document.addEventListener('pointerdown', closeHandler);
+                }
+            }, 0);
 
             try {
                 const resp = await fetch(`/paed-diary/klasse/${klasseId}/stages`, {
@@ -142,12 +156,15 @@ export function registerStageDropdown(Alpine) {
          * Stufe für den Schüler setzen (optimistisches Update).
          */
         async selectStage(stageId) {
-            if (this.stageSaving) return;
+            // Schüler vor dem Request merken: schließt sich das Menü zwischendurch (Klick-Handler),
+            // wäre dropdownStuId sonst schon leer und der Request ohne Schüler.
+            const stuId = this.dropdownStuId;
+            if (this.stageSaving || !stuId) return;
             this.stageSaving = true;
 
             const fd = new FormData();
             fd.append('grading_stage_id', stageId || '');
-            fd.append('schueler_id', this.dropdownStuId);
+            fd.append('schueler_id', stuId);
 
             try {
                 const resp = await fetch('/paed-diary/change-stage', {
@@ -155,11 +172,11 @@ export function registerStageDropdown(Alpine) {
                     headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' },
                     body: fd
                 });
-                const j = await resp.json();
-                if (j.success) {
-                    // Optimistisches Store-Update
+                const j = await resp.json().catch(() => ({}));
+                if (resp.ok && j.success) {
+                    // Store aktualisieren (Symbol in der Woche)
                     const stu = this.$store.diary.schueler.find(
-                        s => String(s.id) === String(this.dropdownStuId)
+                        s => String(s.id) === String(stuId)
                     );
                     if (stu) {
                         stu.stage = j.new_stage
@@ -168,10 +185,10 @@ export function registerStageDropdown(Alpine) {
                     }
                     this.closeDropdown();
                 } else {
-                    alert(j.message || 'Fehler beim Speichern');
+                    this.$store.diary.showError(j.message || 'Die Stufe wurde nicht gespeichert.');
                 }
             } catch (_) {
-                alert('Netzwerkfehler');
+                this.$store.diary.showError('Keine Verbindung zum Server. Die Stufe wurde nicht gespeichert.');
             } finally {
                 this.stageSaving = false;
             }

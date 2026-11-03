@@ -11,7 +11,11 @@
                 @if($employment->contract_type)
                 <span class="badge-gray">{{ $employment->contract_type->label() }}</span>
                 @endif
+                @if($employment->start?->isFuture())
+                <span class="badge-blue">beginnt am {{ $employment->start->format('d.m.Y') }}</span>
+                @endif
             </div>
+            @include('personal.partials._vertrag_kennzeichen', ['employment' => $employment, 'class' => '-mt-1 mb-3'])
 
             <dl class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div>
@@ -34,13 +38,23 @@
                         <span class="text-gray-400">({{ number_format($employment->percent, 1) }}%)</span>
                     </dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">Arbeitstage</dt>
+                    <dd class="font-medium">{{ collect($employment->arbeitstage())->map(fn ($t) => ['', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][$t])->implode(', ') }}</dd>
+                </div>
                 @if($employment->probation_end)
                 <div>
                     <dt class="text-gray-500">Probezeit bis</dt>
                     <dd class="font-medium">{{ $employment->probation_end->format('d.m.Y') }}</dd>
                 </div>
                 @endif
-                @if($employment->termination_reason)
+                @if($employment->termination_reason && $employment->status?->value !== 'beendet')
+                <div class="col-span-2">
+                    <dt class="text-gray-500">Beendigung vorgemerkt</dt>
+                    <dd class="font-medium text-red-600">{{ $employment->termination_reason->label() }} zum {{ $employment->end?->format('d.m.Y') }}</dd>
+                </div>
+                @endif
+                @if($employment->termination_reason && $employment->status?->value === 'beendet')
                 <div>
                     <dt class="text-gray-500">Austrittsgrund</dt>
                     <dd class="font-medium">{{ $employment->termination_reason->label() }}</dd>
@@ -71,7 +85,7 @@
         </div>
 
         @if(!isset($readonly) || !$readonly)
-        @can('edit contracts')
+        @can('update', $employment)
         <div class="ml-4 flex flex-col gap-2">
             <a href="{{ route('personal.contracts.edit', $employment->id) }}"
                class="btn-personal-secondary text-xs">Bearbeiten</a>
@@ -99,7 +113,7 @@
 </div>
 
 {{-- Dialog: Ruhend setzen --}}
-@can('edit contracts')
+@can('update', $employment)
 <dialog id="modal-ruhend-{{ $employment->id }}" class="rounded-xl shadow-2xl p-6 w-full max-w-md backdrop:bg-black/40">
     <form method="POST" action="{{ route('personal.contracts.setRuhend', $employment->id) }}">
         @csrf @method('PATCH')
@@ -129,9 +143,11 @@
             <option value="{{ $reason->value }}">{{ $reason->label() }}</option>
             @endforeach
         </select>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Austrittsdatum (optional)</label>
-        <input type="date" name="end_date" class="input-personal mb-4"
-               value="{{ $employment->end?->format('Y-m-d') }}">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Letzter Arbeitstag</label>
+        <input type="date" name="end_date" class="input-personal mb-1"
+               min="{{ $employment->start?->format('Y-m-d') }}"
+               value="{{ $employment->end?->format('Y-m-d') ?? today()->format('Y-m-d') }}">
+        <p class="text-xs text-gray-500 mb-4">Liegt das Datum in der Zukunft, bleibt die Anstellung bis dahin aktiv und wird danach automatisch beendet.</p>
         <div class="flex gap-3 justify-end">
             <button type="button" onclick="document.getElementById('modal-beendet-{{ $employment->id }}').close()"
                     class="btn-personal-secondary text-sm">Abbrechen</button>

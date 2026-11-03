@@ -122,6 +122,30 @@ class HortPlanungControllerTest extends TestCase
         $response->assertViewHasAll(['planung', 'berechnungenNachMonat', 'allePersonen']);
     }
 
+    public function test_export_planung_enthält_sp2_spalte(): void
+    {
+        $user    = $this->actingAsWithPermission('view hort planung');
+        $planung = $this->erstellePlanung($user);
+        $monat   = $planung->monate->first();
+        $person  = User::factory()->create();
+
+        HortPlanungPerson::create([
+            'hort_planung_monat_id' => $monat->id,
+            'user_id'               => $person->id,
+            'stunden_gesamt'        => 30,
+            'stunden_stadt'         => 25,
+        ]);
+
+        $rows = (new \App\Exports\Sheets\HortPlanungPlanungSheet($planung, app(HortPlanungService::class)))->array();
+
+        $this->assertSame('SP1', $rows[2][1]);
+        $this->assertSame('SP2', $rows[2][2]);
+
+        $personRows = array_values(array_filter($rows, fn(array $row) => ($row[0] ?? null) === $person->name));
+        $this->assertNotEmpty($personRows);
+        $this->assertSame('25,00', $personRows[0][2]);
+    }
+
     public function test_destroy_soft_delete(): void
     {
         $user    = $this->actingAsWithPermission('view hort planung', 'manage hort planung');
@@ -356,6 +380,24 @@ class HortPlanungControllerTest extends TestCase
             'hort_faktor_id' => $faktor->id,
             'gueltig_ab'     => '2024-04-01',
         ]);
+    }
+
+    public function test_storeFaktorWert_gleicher_monat_ueberschreibt(): void
+    {
+        $user    = $this->actingAsWithPermission('view hort planung', 'manage hort planung');
+        $planung = $this->erstellePlanung($user);
+        $faktor  = $planung->faktoren->firstWhere('kuerzel', 'kinderschluessel');
+        $start   = $faktor->werte->sortBy('gueltig_ab')->first()->gueltig_ab->format('Y-m');
+        $anzahl  = $faktor->werte->count();
+
+        $this->post(
+            route('hort-planung.storeFaktorWert', [$planung, $faktor]),
+            ['wert' => 20.473, 'gueltig_ab' => $start, 'notiz' => 'Korrektur']
+        )->assertRedirect();
+
+        $faktor->refresh();
+        $this->assertCount($anzahl, $faktor->werte);
+        $this->assertEqualsWithDelta(20.473, $faktor->werte->sortBy('gueltig_ab')->first()->wert, 0.0001);
     }
 
     public function test_deleteFaktorWert_entfernt_aenderung(): void

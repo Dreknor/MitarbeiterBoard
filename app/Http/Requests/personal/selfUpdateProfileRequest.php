@@ -29,12 +29,13 @@ class selfUpdateProfileRequest extends FormRequest
             'geburtsort' => 'nullable|string|max:255',
             'staatsangehoerigkeit' => 'nullable|string|max:255',
             'schwerbehindert' => 'nullable|boolean',
-            'geschlecht' => 'string|max:255',
+            'geschlecht' => ['required', 'in:männlich,weiblich,anderes'],
             'google_calendar_link' => 'nullable|string|max:255',
             'caldav_working_time' => 'nullable|boolean',
             'caldav_events' => 'nullable|boolean',
             'sozialversicherungsnummer' => 'nullable|string|max:255',
-            'send_mails_if_absence' => ['nullable', 'integer', 'digits:1', 'min:0', 'max:1'],
+            // Formularfeld heißt "send_mail_if_absence" (Spalte am User: send_mails_if_absence)
+            'send_mail_if_absence' => ['nullable', 'boolean'],
             'atom_feed_url'         => ['nullable', 'url', 'max:500'],
         ];
     }

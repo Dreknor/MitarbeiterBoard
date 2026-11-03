@@ -2,6 +2,21 @@
     PaedDiary v2 – Diary-Table Partial
     Haupttabelle: Schüler × Wochentage, Einträge, Spalten, Termine
 --}}
+{{-- Tagesauswahl – nur auf Smartphones (< 768px), dort wird je ein Tag angezeigt --}}
+<div class="diary-mobile-days" x-show="!$store.diary.loading && $store.diary.days.length" x-cloak>
+    <template x-for="day in $store.diary.days" :key="'md-' + day.date">
+        <button type="button"
+                class="diary-mobile-day-btn"
+                :class="{
+                    'is-active': day.date === $store.diary.mobileDay,
+                    'is-today': day.date === $store.diary.todayStr,
+                    'is-ferien': day.is_ferien
+                }"
+                @click="$store.diary.mobileDay = day.date"
+                x-text="day.label"></button>
+    </template>
+</div>
+
 <div class="table-responsive" x-show="!$store.diary.loading" x-data="diaryTable()" x-cloak>
     <table class="table table-sm table-bordered mb-0" id="diaryTable">
         {{-- ── Tabellenkopf ─────────────────────────────────────────── --}}
@@ -13,7 +28,8 @@
                         :class="{
                             'today-header': day.date === $store.diary.todayStr,
                             'ferien-header': day.is_ferien,
-                            'class-paused-header': isDayPaused(day.date) && !day.is_ferien
+                            'class-paused-header': isDayPaused(day.date) && !day.is_ferien,
+                            'mobile-hidden-day': day.date !== $store.diary.mobileDay
                         }"
                         :title="day.is_ferien ? (day.ferien_name || 'Ferien') : (isDayPaused(day.date) ? ('Pausiert: ' + getDayPauseReason(day.date)) : '')"
                         :data-date="day.date">
@@ -87,13 +103,13 @@
                                        @pointerdown.stop
                                        @keydown.enter.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
                                        @keydown.space.stop.prevent="openDropdown(stu.id, stu.klasse_id, $event.currentTarget)"
-                                       x-show="$store.diary.can_manage_grading"
+                                       x-show="$store.diary.can_change_stage"
                                        class="stage-trigger-btn"
                                        aria-label="Graduierungsstufe wählen"
                                        :aria-expanded="dropdownOpen && dropdownStuId === stu.id ? 'true' : 'false'">
                                     <span x-html="stageHtml(stu)"></span>
                                 </button>
-                                <span x-show="!$store.diary.can_manage_grading"
+                                <span x-show="!$store.diary.can_change_stage"
                                       x-html="stageHtml(stu)"></span>
 
                                 {{-- Stufen-Dropdown (per Teleport an <body>, damit es nicht von --}}
@@ -141,8 +157,8 @@
 
                                 </div>
                                 <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
-                                        title="Notiz abschließen"
-                                        @click.stop="completeOpenEntry(entry.id)">✔</button>
+                                        title="Notiz abschließen" aria-label="Notiz abschließen"
+                                        @click.stop="completeOpenEntry(entry.id, stu.id)">✔</button>
                             </div>
                         </template>
 
@@ -161,7 +177,7 @@
                                     </template>
                                 </div>
                                 <button class="diary-btn diary-btn-complete ml-1" style="flex-shrink:0;"
-                                        title="Aufgabe ausblenden"
+                                        title="Aufgabe ausblenden" aria-label="Aufgabe ausblenden"
                                         @click.stop="closeOpenTask(task.id)">✕</button>
                             </div>
                         </template>
@@ -175,21 +191,27 @@
                                 'ferien-cell': day.is_ferien,
                                 'absent-cell': $store.diary.isAbsent(stu.id, day.date),
                                 'stu-has-task-cell': hasTaskForStudent(stu.id),
-                                'class-paused-cell': isDayPaused(day.date) && !day.is_ferien
+                                'class-paused-cell': isDayPaused(day.date) && !day.is_ferien,
+                                'mobile-hidden-day': day.date !== $store.diary.mobileDay
                             }"
                             :data-stu="stu.id"
                             :data-date="day.date">
 
                             {{-- Abwesenheits-Toggle + Click-Bereich --}}
                             <div class="entry-add-space" style="min-height:18px; cursor:pointer;"
+                                 role="button" tabindex="0"
                                  title="Neue Notiz erstellen"
-                                 @click="$dispatch('diary-new-entry', { date: day.date, stuId: stu.id })">
+                                 :aria-label="'Neue Notiz für ' + stu.name + ' am ' + day.label"
+                                 @click="$dispatch('diary-new-entry', { date: day.date, stuId: stu.id })"
+                                 @keydown.enter.self.prevent="$dispatch('diary-new-entry', { date: day.date, stuId: stu.id })">
                                 <div style="float:right">
                                     <button type="button"
                                             class="absence-toggle diary-btn"
                                             :class="$store.diary.isAbsent(stu.id, day.date) ? 'diary-btn-absent' : 'diary-btn-present'"
                                             @click.stop="toggleAbsence(stu.id, stu.klasse_id, day.date)"
-                                            :title="$store.diary.isAbsent(stu.id, day.date) ? 'Abwesenheit aufheben' : 'Als abwesend markieren'">
+                                            :title="$store.diary.isAbsent(stu.id, day.date) ? 'Abwesenheit aufheben' : 'Als abwesend markieren'"
+                                            :aria-label="($store.diary.isAbsent(stu.id, day.date) ? 'Abwesenheit aufheben: ' : 'Als abwesend markieren: ') + stu.name"
+                                            :aria-pressed="$store.diary.isAbsent(stu.id, day.date) ? 'true' : 'false'">
                                         <span x-text="$store.diary.isAbsent(stu.id, day.date) ? '🚫' : '👤'"></span>
                                     </button>
                                 </div>
@@ -229,12 +251,12 @@
                                                         <template x-if="!entry.completed_at">
                                                             <button class="diary-btn diary-btn-complete entry-complete-btn"
                                                                     @click.stop="completeEntry(entry.id, stu.id, day.date)"
-                                                                    title="Notiz abschließen" aria-label="Abschließen">✔</button>
+                                                                    title="Notiz abschließen" aria-label="Notiz abschließen">✔</button>
                                                         </template>
                                                         <template x-if="!entry.completed_at">
                                                             <button class="diary-btn diary-btn-pause entry-pause-btn"
                                                                     @click.stop="pauseEntry(entry.id, stu.id, day.date)"
-                                                                    title="Notiz an diesem Tag ausblenden" aria-label="Pausieren">⏸</button>
+                                                                    title="Notiz an diesem Tag ausblenden" aria-label="Notiz an diesem Tag pausieren">⏸</button>
                                                         </template>
                                                     </div>
                                                 </div>
@@ -264,7 +286,7 @@
                             </template>
 
                             {{-- Spalten-Inputs (bei Abwesenheit ausblenden) --}}
-                            <div class="col-inputs-row" x-data="columnsManager()"
+                            <div class="col-inputs-row" x-data="columnCell()"
                                  x-show="!$store.diary.isAbsent(stu.id, day.date)">
                                 <div class="col-inputs" :class="$store.diary.show_column_categories ? 'col-inputs--grouped' : ''">
                                     <template x-for="group in getGroupedColumnsForStudent(stu)" :key="group.category">
@@ -300,6 +322,7 @@
                                                         {{-- Text-Input --}}
                                                         <template x-if="col.type !== 'boolean' && col.type !== 'ampel'">
                                                             <input type="text" maxlength="255"
+                                                                   :class="hasSaveError(col.id, stu.id, day.date) ? 'is-invalid' : ''"
                                                                    class="form-control form-control-sm col-val-input"
                                                                    :value="getColumnValue(col.id, stu.id, day.date)"
                                                                    @input.stop="debouncedSaveColumn(col.id, stu.id, day.date, $event.target.value)"

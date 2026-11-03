@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\createThemeRequest;
 use App\Http\Requests\moveThemesRequest;
-use App\Mail\newThemeAssignMail;
 use App\Mail\RemindAssignedThemes;
+use App\Notifications\ThemaZugewiesen;
 use App\Models\Group;
 use App\Models\Protocol;
 use App\Models\Subscription;
@@ -91,7 +91,7 @@ class ThemeController extends Controller
         }
 
         //Benachrichtigen
-        Mail::to($user->email)->queue(new newThemeAssignMail($theme, $user));
+        $user->notify(new ThemaZugewiesen($theme));
 
         //Log erstellen
         $protocol = new Protocol([
@@ -116,7 +116,12 @@ class ThemeController extends Controller
             ->where('remind_assign_themes', 1)
             ->with('assigned_themes')->get();
 
+        $einstellungen = app(\App\Services\Benachrichtigungen\BenachrichtigungsService::class);
+
         foreach ($users as $user){
+            if (!$einstellungen->mailErlaubt($user, 'themen')) {
+                continue;
+            }
             Mail::to($user->email)->queue(new RemindAssignedThemes($user, $user->assigned_themes->where('completed', 0)));
         }
     }
@@ -161,13 +166,13 @@ class ThemeController extends Controller
 
         switch ($viewType) {
             case 'date':
+                // Tage aufsteigend nach Datum (groupBy behält die Reihenfolge des
+                // ersten Auftretens bei). Beim Stapeln steht "offen" (alle
+                // vergangenen Termine) dadurch ganz oben.
                 if ($group->stack_themes == true) {
-
-                    $themes = $themes->sortByDesc('priority')->groupBy(function ($item) {
+                    $themes = $themes->sortBy('date')->groupBy(function ($item) {
                         return  $item->date->lessThan(Carbon::today()) ? 'offen' : $item->date->format('d.m.Y');
                     });
-
-
                 } else {
                     $themes = $themes->sortBy('date')->groupBy(function ($item) {
                         return  $item->date->format('d.m.Y');
@@ -406,9 +411,10 @@ class ThemeController extends Controller
         $subscription = auth()->user()->subscriptions->where('subscriptionable_type', Theme::class)->where('subscriptionable_id', $theme->id)->first();
 
         return view('themes.show', [
-            'theme' => $theme->load(['protocols', 'tasks', 'type', 'priorities', 'tasks.taskable']),
+            'theme' => $theme->load(['protocols', 'type', 'priorities']),
             'subscription' => $subscription,
             'group' => $group,
+            'themeTasks' => app(\App\Services\Tasks\ThemeTaskService::class)->tasksForTheme($theme),
         ]);
     }
 

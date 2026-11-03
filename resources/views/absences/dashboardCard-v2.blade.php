@@ -105,7 +105,7 @@
             <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
                 @foreach($absences as $absence)
                     <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50"
-                         x-show="search === '' || '{{ strtolower($absence->user->name . ' ' . $absence->reason) }}'.includes(search.toLowerCase())">
+                         x-show="search === '' || @js(mb_strtolower($absence->user->name . ' ' . $absence->reason)).includes(search.toLowerCase())">
                         <div class="shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                             {{ strtoupper(substr($absence->user->name ?? 'U', 0, 1)) }}
                         </div>
@@ -155,10 +155,10 @@
         Alle Abwesenheiten →
     </a>
     <div class="flex items-center gap-2">
-        <a href="{{ url('absences/abo/' . (auth()->user()->absence_abo_daily ? 'daily' : 'daily')) }}"
+        <a href="{{ route('benachrichtigungen.einstellungen') }}"
            class="text-xs text-gray-500 hover:text-gray-700 no-underline"
-           title="{{ auth()->user()->absence_abo_daily ? 'Tägl. E-Mail deaktivieren' : 'Tägl. E-Mail aktivieren' }}">
-            <i class="fas fa-bell{{ auth()->user()->absence_abo_daily ? '-slash' : '' }}"></i>
+           title="Abwesenheiten per Benachrichtigung oder Tagesübersicht erhalten">
+            <i class="fas fa-bell"></i>
         </a>
         @can('export absence')
             <a href="{{ url('absences/export') }}"

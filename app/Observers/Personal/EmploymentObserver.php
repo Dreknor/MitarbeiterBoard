@@ -26,6 +26,12 @@ class EmploymentObserver
         $this->handleRetroactivity($employment, $audit, $employment->start, $employment->end);
     }
 
+    public function saved(Employment $employment): void
+    {
+        // Wiedervorlagen (Probezeit, Befristungsende) folgen den Vertragsdaten – idempotent
+        app(\App\Services\Personal\PersonalReminderService::class)->syncForEmployment($employment);
+    }
+
     public function updated(Employment $employment): void
     {
         // Scope-Cache invalidieren bei Änderungen (z.B. department_id)

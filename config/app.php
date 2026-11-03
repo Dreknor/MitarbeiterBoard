@@ -88,6 +88,12 @@ return [
     'timezone' => 'Europe/Berlin',
 
     /*
+    | Secret für die Kiosk-Wochenanzeige des Pädagogischen Tagebuchs (/display-week/{secret}).
+    | Leer = nur für angemeldete Personen mit "view paed diary".
+    */
+    'paed_diary_secret' => env('PAED_DIARY_SECRET'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

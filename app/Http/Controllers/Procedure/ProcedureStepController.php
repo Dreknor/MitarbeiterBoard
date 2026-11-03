@@ -7,6 +7,7 @@ use App\Models\Procedure_Step;
 use App\Services\Procedure\ProcedureStepService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * AJAX-Controller für Schritt-Aktionen (Phase 3):
@@ -27,12 +28,13 @@ class ProcedureStepController extends Controller
         $user = $request->user();
 
         // Berechtigung: eigene Schritte oder manage
-        $canComplete = $user->can('complete own procedure steps')
-            && $step->users->contains('id', $user->id);
-        $canManage   = $user->can('manage procedures');
-
-        if (!$canComplete && !$canManage) {
+        if (!$user->can('complete', $step)) {
             return response()->json(['message' => 'Keine Berechtigung.'], 403);
+        }
+
+        $procedure = $step->procedure;
+        if ($procedure === null || $procedure->isTemplate() || $procedure->ended_at !== null) {
+            return response()->json(['message' => 'Schritte können nur in laufenden Prozessen erledigt werden.'], 422);
         }
 
         if ($step->done) {
@@ -64,7 +66,7 @@ class ProcedureStepController extends Controller
             return response()->json(['message' => 'Schritt ist nicht erledigt.'], 422);
         }
 
-        $this->stepService->reopen($step);
+        $this->stepService->reopen($step, $user);
 
         return response()->json(['message' => 'Schritt wieder geöffnet.']);
     }
@@ -121,9 +123,10 @@ class ProcedureStepController extends Controller
 
         $validated = $request->validate([
             'procedure_id' => 'required|integer|exists:procedures,id',
-            'parent_id'    => 'nullable|integer|exists:procedure_steps,id',
-            'ordered_ids'  => 'required|array',
-            'ordered_ids.*' => 'integer|exists:procedure_steps,id',
+            // Eltern-Schritt muss zum selben Prozess gehören
+            'parent_id'    => ['nullable', 'integer', Rule::exists('procedure_steps', 'id')->where('procedure_id', $request->integer('procedure_id'))],
+            'ordered_ids'  => 'required|array|min:1',
+            'ordered_ids.*' => 'integer',
         ]);
 
         try {

@@ -14,7 +14,7 @@ class TicketsCardV2Test extends TestCase
 
     public function test_tickets_v2_shows_open_tickets(): void
     {
-        $user = $this->actingAsWithPermission('use dashboard v2');
+        $user = $this->actingAsWithPermission('use dashboard v2', 'view tickets');
 
         Ticket::create([
             'title'       => 'Test-Ticket',
@@ -52,7 +52,7 @@ class TicketsCardV2Test extends TestCase
 
     public function test_tickets_v2_shows_correct_status_badge(): void
     {
-        $user = $this->actingAsWithPermission('use dashboard v2');
+        $user = $this->actingAsWithPermission('use dashboard v2', 'view tickets');
 
         Ticket::create([
             'title'       => 'Warte-Ticket',

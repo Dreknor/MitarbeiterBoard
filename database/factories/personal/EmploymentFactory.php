@@ -62,7 +62,7 @@ class EmploymentFactory extends Factory
     }
 
     /** Befristete Anstellung */
-    public function befristet(\DateTimeInterface $end = null): static
+    public function befristet(?\DateTimeInterface $end = null): static
     {
         return $this->state(fn () => [
             'contract_type' => ContractType::Befristet,

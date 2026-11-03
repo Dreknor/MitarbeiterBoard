@@ -21,37 +21,46 @@ class GradingStage extends Model
         return $this->belongsTo(GradingSystem::class, 'grading_system_id');
     }
 
-    // Liefert öffentlich zugängliche URL zum Stufen-Bild (wenn vorhanden)
+    /** Je Request ermittelte URLs alter Bildpfade (vermeidet wiederholte file_exists-Aufrufe) */
+    private static array $legacyUrls = [];
+
+    /**
+     * Öffentliche URL des Stufenbilds (wenn vorhanden).
+     *
+     * Neue Uploads liegen unter public/img/stages und werden als "img/stages/…" gespeichert; ältere
+     * Einträge (nur Dateiname oder Pfad auf der Storage-Disk "public") werden ebenfalls gefunden.
+     * Das Ergebnis wird pro Request je Pfad gemerkt; fehlt die Datei, ist die URL null.
+     */
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image) return null;
-        if (str_starts_with($this->image, 'http')) return $this->image;
+        $image = $this->image ? ltrim(str_replace('\\', '/', $this->image), '/') : null;
+        if (!$image) return null;
+        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) return $image;
 
-        // Prefer files placed directly in public/ (no storage symlink required).
-        // Check several common public locations and return an asset() URL if found.
-        $candidates = [
-            $this->image, // if image already includes a path relative to public
-            'img/' . $this->image,
-            'images/' . $this->image,
-            'img/stages/' . $this->image,
-            'images/stages/' . $this->image,
-        ];
-        foreach ($candidates as $rel) {
-            $abs = public_path($rel);
-            if (file_exists($abs)) {
-                // build web path relative to public
-                $web = str_replace('\\','/', ltrim(str_replace(public_path(), '', $abs), '/'));
-                return asset($web);
+        // Ergebnis pro Request merken: höchstens eine Dateisystem-Prüfung je Bildpfad. Fehlende
+        // Dateien liefern null (sonst zeigt die Oberfläche ein kaputtes Bild).
+        if (!array_key_exists($image, self::$legacyUrls)) {
+            self::$legacyUrls[$image] = self::legacyUrl($image);
+        }
+
+        return self::$legacyUrls[$image];
+    }
+
+    private static function legacyUrl(string $image): ?string
+    {
+        foreach ([$image, 'img/stages/' . $image, 'images/stages/' . $image, 'img/' . $image, 'images/' . $image] as $rel) {
+            if (file_exists(public_path($rel))) {
+                return asset($rel);
             }
         }
 
-        // Fallback: check storage public disk (if still used)
+        // Fallback: Storage-Disk "public" (falls noch genutzt)
         try {
-            if (Storage::disk('public')->exists($this->image)) {
-                return Storage::disk('public')->url($this->image);
+            if (Storage::disk('public')->exists($image)) {
+                return Storage::disk('public')->url($image);
             }
         } catch (\Throwable $_) {
-            // ignore and fall through to null
+            // ignorieren
         }
 
         return null;

@@ -85,6 +85,14 @@ class DiagnosticSession extends Model
     }
 
     /**
+     * Individuelle Entwicklungsziele, die in dieser Session erfasst wurden (API v1)
+     */
+    public function developmentGoals()
+    {
+        return $this->hasMany(DiagnosticDevelopmentGoal::class, 'diagnostic_session_id');
+    }
+
+    /**
      * Scope für offene Sessions
      */
     public function scopeOpen($query)

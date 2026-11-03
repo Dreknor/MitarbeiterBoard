@@ -23,7 +23,7 @@ class RecurringProcedureFactory extends Factory
     }
 
     /** Typ: Datum (jeden Monat am 1.) */
-    public function datum(int $month = null): static
+    public function datum(?int $month = null): static
     {
         return $this->state(fn () => [
             'faelligkeit_typ' => 'datum',

@@ -11,7 +11,7 @@ class createTicketCommentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('view tickets');
+        return $this->user()->can('comment', $this->route('ticket'));
     }
 
     /**
@@ -22,9 +22,20 @@ class createTicketCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'comment' => 'required|string',
+            'comment' => 'required|string|max:65000',
             'internal' => 'sometimes|boolean',
-            'wait_until' => 'sometimes|date|after:now',
+            'waiting_until' => 'nullable|date|after_or_equal:today',
+            'files' => 'nullable|array|max:10',
+            'files.*' => 'file|max:20480',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'comment' => 'Kommentar',
+            'waiting_until' => 'Warten bis',
+            'files.*' => 'Datei',
         ];
     }
 }

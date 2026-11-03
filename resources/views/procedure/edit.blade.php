@@ -13,15 +13,6 @@
      x-init="init()"
      x-cloak>
 
-    {{-- ── Flash-Meldung ──────────────────────────────────── --}}
-    @if(session('Meldung'))
-    <div class="procedure-flash procedure-flash-{{ session('type', 'info') }}"
-         x-data="{show:true}" x-show="show">
-        <span>{{ session('Meldung') }}</span>
-        <button @click="show=false" class="ml-auto text-current opacity-60 hover:opacity-100 text-lg leading-none">×</button>
-    </div>
-    @endif
-
     {{-- ── Kopfzeile ──────────────────────────────────────── --}}
     <div class="procedure-card mb-4">
         <div class="flex items-start justify-between gap-4">
@@ -31,7 +22,7 @@
                 </p>
                 <h1 class="text-xl font-bold text-gray-900 leading-tight mb-1">{{ $procedure->name }}</h1>
                 @if($procedure->description)
-                    <p class="text-sm text-gray-500">{!! $procedure->description !!}</p>
+                    <p class="text-sm text-gray-500 whitespace-pre-line">{{ $procedure->description }}</p>
                 @endif
             </div>
             <a href="{{ url('procedure') }}" class="btn-procedure-secondary text-xs whitespace-nowrap">← Zurück</a>

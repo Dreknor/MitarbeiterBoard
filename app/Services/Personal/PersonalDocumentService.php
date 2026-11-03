@@ -100,12 +100,14 @@ class PersonalDocumentService
      * Nextcloud-Pfad für einen Mitarbeiter ermitteln.
      * Format: /Personal/{PrimäreGruppe}/{Status}/{Nachname}_{Vorname}_{ID}
      */
-    public function getEmployeePath(User $employe): string
+    public function getEmployeePath(User $employe, ?string $familienname = null, ?string $vorname = null, ?bool $angestellt = null): string
     {
         $group  = $this->getPrimaryGroup($employe);
-        $status = $employe->employments()->where('status', 'aktiv')->exists() ? 'Angestellt' : 'Ausgeschieden';
+        // Ruhende Anstellungen (Elternzeit …) gelten weiterhin als "Angestellt"
+        $angestellt ??= $employe->employments()->where('status', '!=', 'beendet')->exists();
+        $status = $angestellt ? 'Angestellt' : 'Ausgeschieden';
         $name   = $this->sanitizeFolderName(
-            ($employe->familienname ?: '') . '_' . ($employe->vorname ?: '') . '_' . $employe->id
+            ($familienname ?? $employe->familienname ?: '') . '_' . ($vorname ?? $employe->vorname ?: '') . '_' . $employe->id
         );
         $base   = config('nextcloud.personal.base_path', '/Personal');
 
@@ -124,7 +126,7 @@ class PersonalDocumentService
         }
 
         $employment = $employe->employments()
-            ->where('status', 'aktiv')
+            ->where('status', '!=', 'beendet')
             ->orderByDesc('hours')
             ->orderBy('start')
             ->first();

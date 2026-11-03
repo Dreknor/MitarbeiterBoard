@@ -1,149 +1,324 @@
+{{-- Ticket-Detail (eingebunden in index und archiv, innerhalb von .ticket-wrapper) --}}
+@php
+    $canManage = auth()->user()->can('manage', $show_ticket);
+    $canComment = auth()->user()->can('comment', $show_ticket);
+    $isPinned = auth()->user()->pinned_tickets->contains($show_ticket->id);
+    $heroClass = $show_ticket->isClosed() ? 'is-closed' : 'prio-'.$show_ticket->priority;
+    $replies = $show_ticket->comments->reject->isSystem()->count();
+@endphp
 
-@can('edit tickets')
-    <div class="floating-button-menu menu-off">
-        <div class="floating-button-menu-links">
-            <a href="{{ route('tickets.pin', $show_ticket->id) }}" class="text-primary floating-button-menu-link">
-                <i class="fa fa-thumbtack"></i>  @if(auth()->user()->pinned_tickets->contains($show_ticket->id)) Lösen @else Anpinnen @endif
-            </a>
+<div class="flex flex-col gap-5" x-data="{ closeOpen: false, replyVisible: false }" @keydown.escape.window="closeOpen = false">
 
-            @if($show_ticket->status != 'closed')
-                <a href="{{ route('tickets.close', $show_ticket->id) }}" class="text-danger floating-button-menu-link ">
-                    <i class="fa fa-check"></i> Schließen
-                </a>
-                    <div class="dropdown">
-                        <a class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            @if($show_ticket->assigned != null)
-                                zugewiesen: {{$show_ticket->assigned->name}}
-                            @else
-                                Zuweisen an
-                            @endif
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                            <span class="dropdown-item bg-gradient-directional-amber text-white">Zuweisen an</span>
-                            @foreach($assignable as $user)
-                                @if($show_ticket->assigned_to != $user->id)
-                                    <a class="dropdown-item" href="{{ route('tickets.assign', [$show_ticket->id, $user->id]) }}">{{ $user->name }}</a>
-                                @endif
-                            @endforeach
-                        </div>
-                    </div>
-            @endif
-        </div>
-        <div class="floating-button-menu-label"><i class="fa fa-bars"></i></div>
-    </div>
-    <div class="floating-button-menu-close"></div>
-@endcan
-<div class="card">
-    <div class="card-header bg-gradient-directional-blue text-white">
-        <span class="badge badge-info">{{ $show_ticket->category?->name }}</span>
-        <span class="badge badge-warning">{{ $show_ticket->priority}}</span>
-        <h5>
-            Ticket: {{ $show_ticket->title }}
-        </h5>
-        <p >
-            Erstellt am {{ $show_ticket->created_at->format('d.m.Y H:i') }} von {{ $show_ticket->user->name }}
-        </p>
-
-    </div>
-    <div class="card-body">
-        <p>{!! $show_ticket->description  !!} </p>
-    </div>
-    @if($show_ticket->getMedia('ticket_files')->count() > 0)
-        <div class="card-footer">
-            {{-- Dateien anzeigen --}}
-
-                <h6>Dateien</h6>
-                <ul class="list-group">
-                    @foreach($show_ticket->getMedia('ticket_files') as $file)
-                        <li class="list-group-item">
-                            <a href="{{url('/image/'.$file->id)}}" target="_blank">{{ $file->name }}</a>
-                        </li>
-                    @endforeach
-                </ul>
-
-        </div>
-    @endif
-    @if($show_ticket->status != 'closed')
-        <div class="card-footer border-top">
-        <form action="{{ route('tickets.comments.store', $show_ticket->id) }}" method="post">
-            @csrf
-            <div class="form-group">
-                <label for="comments">Kommentar</label>
-                <textarea class="form-control" id="comment" name="comment"></textarea>
+    {{-- ── Kopf ──────────────────────────────────────────────── --}}
+    <section class="tkt-hero {{ $heroClass }}">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-1.5 min-w-0">
+                <span class="tkt-badge tkt-badge-outline">#{{ $show_ticket->id }}</span>
+                @include('ticketsystem.partials.badges', ['ticket' => $show_ticket])
             </div>
-            @can('edit tickets')
-                <div class="row">
-                    <div class="col-12 col-md-6">
-                        <div class="form-group">
-                            <label for="internal">Sichtbarkeit</label>
-                            <select class="form-control" id="internal" name="internal" required>
-                                <option value="0">Öffentlich</option>
-                                <option value="1">Intern</option>
+            <div class="flex items-center gap-1.5 ml-auto">
+                <form action="{{ route('tickets.pin', $show_ticket) }}" method="post">
+                    @csrf
+                    <button type="submit" class="tkt-btn-icon {{ $isPinned ? 'is-active' : '' }}"
+                            title="{{ $isPinned ? 'Nicht mehr anpinnen' : 'Anpinnen' }}" aria-label="{{ $isPinned ? 'Nicht mehr anpinnen' : 'Anpinnen' }}">
+                        <i class="fas fa-thumbtack"></i>
+                    </button>
+                </form>
+                @can('reopen', $show_ticket)
+                    <form action="{{ route('tickets.reopen', $show_ticket) }}" method="post">
+                        @csrf
+                        <button type="submit" class="tkt-btn tkt-btn-sm tkt-btn-warning">
+                            <i class="fas fa-undo"></i> Wieder öffnen
+                        </button>
+                    </form>
+                @endcan
+                @can('close', $show_ticket)
+                    <button type="button" class="tkt-btn tkt-btn-sm tkt-btn-success" @click="closeOpen = true">
+                        <i class="fas fa-check"></i> Schließen
+                    </button>
+                @endcan
+            </div>
+        </div>
+
+        <h2 class="tkt-hero-title mt-3">{{ $show_ticket->title }}</h2>
+
+        <dl class="tkt-facts mt-4 pt-4 border-t border-gray-100">
+            <div class="min-w-0">
+                <dt class="tkt-fact-label">Erstellt von</dt>
+                <dd class="tkt-fact-value">
+                    @include('ticketsystem.partials.avatar', ['user' => $show_ticket->user, 'small' => true])
+                    <span class="min-w-0 leading-tight">{{ $show_ticket->user?->name ?? 'unbekannt' }}</span>
+                </dd>
+            </div>
+            <div class="min-w-0">
+                <dt class="tkt-fact-label">Zuständig</dt>
+                <dd class="tkt-fact-value">
+                    @if($show_ticket->assigned)
+                        @include('ticketsystem.partials.avatar', ['user' => $show_ticket->assigned, 'small' => true])
+                        <span class="min-w-0 leading-tight">{{ $show_ticket->assigned->name }}</span>
+                    @else
+                        <span class="text-amber-600"><i class="fas fa-user-slash mr-1"></i>niemand</span>
+                    @endif
+                </dd>
+            </div>
+            <div class="min-w-0">
+                <dt class="tkt-fact-label">Erstellt</dt>
+                <dd class="tkt-fact-value" title="{{ $show_ticket->created_at->format('d.m.Y H:i') }}">
+                    {{ $show_ticket->created_at->format('d.m.Y') }}
+                    <span class="text-gray-400 font-normal">{{ $show_ticket->created_at->format('H:i') }}</span>
+                </dd>
+            </div>
+            <div class="min-w-0">
+                @if($show_ticket->isClosed())
+                    <dt class="tkt-fact-label">Geschlossen</dt>
+                    <dd class="tkt-fact-value">
+                        {{ ($show_ticket->closed_at ?? $show_ticket->updated_at)->format('d.m.Y') }}
+                        <span class="text-gray-400 font-normal truncate">{{ $show_ticket->closedBy?->name ?? 'automatisch' }}</span>
+                    </dd>
+                @elseif($show_ticket->isWaiting() && $show_ticket->waiting_until)
+                    <dt class="tkt-fact-label">Wartet bis</dt>
+                    <dd class="tkt-fact-value {{ $show_ticket->isWaitingOverdue() ? 'text-red-600' : '' }}">
+                        <i class="fas fa-hourglass-half text-xs"></i> {{ $show_ticket->waiting_until->format('d.m.Y') }}
+                    </dd>
+                @else
+                    <dt class="tkt-fact-label">Letzte Aktivität</dt>
+                    <dd class="tkt-fact-value">{{ ($show_ticket->comments->max('created_at') ?? $show_ticket->updated_at)?->diffForHumans() }}</dd>
+                @endif
+            </div>
+        </dl>
+    </section>
+
+    {{-- ── Bearbeitung (nur Bearbeiter, offene Tickets) ─────────── --}}
+    @if($canManage && !$show_ticket->isClosed())
+        <section class="tkt-card">
+            <div class="grid gap-5 p-4 sm:p-5 xl:grid-cols-2">
+                <form action="{{ route('tickets.assign', $show_ticket) }}" method="post" data-ticket-form>
+                    @csrf
+                    <label for="assign_user" class="tkt-label"><i class="fas fa-user-check text-gray-400 mr-1"></i> Zuständig</label>
+                    <div class="flex gap-2">
+                        <select name="user_id" id="assign_user" class="tkt-select flex-1 min-w-0">
+                            <option value="">– niemand –</option>
+                            @foreach($assignable as $user)
+                                <option value="{{ $user->id }}" @selected($show_ticket->assigned_to == $user->id)>{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="tkt-btn tkt-btn-secondary" title="Zuweisung speichern">
+                            <i class="fas fa-check"></i><span class="hidden sm:inline">Zuweisen</span>
+                        </button>
+                    </div>
+                    @if($show_ticket->assigned_to != auth()->id())
+                        <button type="submit" name="user_id" value="{{ auth()->id() }}"
+                                class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-hand-paper"></i> Ich übernehme das Ticket
+                        </button>
+                    @endif
+                </form>
+
+                <form action="{{ route('tickets.update', $show_ticket) }}" method="post" data-ticket-form>
+                    @csrf
+                    @method('PATCH')
+                    <span class="tkt-label"><i class="fas fa-tag text-gray-400 mr-1"></i> Kategorie &amp; Priorität</span>
+                    <div class="flex flex-col gap-2">
+                        <select name="category_id" class="tkt-select w-full" aria-label="Kategorie">
+                            <option value="">– keine Kategorie –</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected($show_ticket->category_id == $category->id)>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="flex gap-2">
+                            <select name="priority" class="tkt-select flex-1 min-w-0" aria-label="Priorität">
+                                @foreach(\App\Models\Ticket::PRIORITY_LABELS as $value => $label)
+                                    <option value="{{ $value }}" @selected($show_ticket->priority == $value)>{{ ucfirst($label) }}</option>
+                                @endforeach
                             </select>
+                            <button type="submit" class="tkt-btn tkt-btn-secondary" title="Speichern">
+                                <i class="fas fa-save"></i><span class="hidden sm:inline">Speichern</span>
+                            </button>
                         </div>
                     </div>
-                    <div class="col-12 col-md-6">
-                        <div class="form-group">
-                            <label for="status">Warten bis</label>
-                            <input type="date" class="form-control" id="waiting_until" name="waiting_until">
+                </form>
+            </div>
+        </section>
+    @endif
+
+    {{-- ── Beschreibung ─────────────────────────────────────────── --}}
+    <section class="tkt-card">
+        <div class="tkt-card-head">
+            <h3 class="tkt-card-title"><i class="fas fa-align-left"></i> Beschreibung</h3>
+        </div>
+        <div class="tkt-card-body">
+            <div class="tkt-prose">{!! $show_ticket->description_html !!}</div>
+            @include('ticketsystem.partials.attachments', [
+                'files' => $show_ticket->getMedia('ticket_files'),
+                'ticket' => $show_ticket,
+                'class' => 'mt-4 pt-4 border-t border-gray-100',
+            ])
+        </div>
+    </section>
+
+    {{-- ── Verlauf ─────────────────────────────────────────────── --}}
+    <section>
+        <div class="flex items-center justify-between gap-3 mb-3 px-1">
+            <h3 class="tkt-section-title">Verlauf</h3>
+            <span class="text-xs text-gray-500">{{ $replies }} {{ $replies === 1 ? 'Antwort' : 'Antworten' }}</span>
+        </div>
+
+        <div class="tkt-thread">
+            @forelse($show_ticket->comments as $comment)
+                @if($comment->isSystem())
+                    <div class="tkt-event">
+                        <span class="tkt-event-icon"><i class="fas fa-info"></i></span>
+                        <p class="tkt-event-text min-w-0">
+                            @if($comment->user)<strong>{{ $comment->user->name }}</strong> · @endif
+                            {!! $comment->comment_html !!}
+                            <span class="text-gray-400 whitespace-nowrap" title="{{ $comment->created_at->format('d.m.Y H:i') }}">· {{ $comment->created_at->format('d.m.Y H:i') }}</span>
+                        </p>
+                    </div>
+                @else
+                    @php $fromOwner = $comment->user_id && $comment->user_id == $show_ticket->user_id; @endphp
+                    <article class="tkt-msg {{ $comment->internal ? 'is-internal' : '' }} {{ $fromOwner ? 'is-owner' : '' }}">
+                        <span class="hidden sm:flex">
+                            @include('ticketsystem.partials.avatar', ['user' => $comment->user])
+                        </span>
+                        <div class="tkt-msg-bubble">
+                            <header class="tkt-msg-head">
+                                <span class="sm:hidden">@include('ticketsystem.partials.avatar', ['user' => $comment->user, 'small' => true])</span>
+                                <strong class="text-gray-900">{{ $comment->author_name }}</strong>
+                                @if($fromOwner)
+                                    <span class="tkt-badge tkt-badge-blue">Ersteller</span>
+                                @endif
+                                @if($comment->internal)
+                                    <span class="tkt-badge tkt-badge-amber"><i class="fas fa-lock text-[10px]"></i> intern</span>
+                                @endif
+                                <time class="ml-auto text-xs text-gray-400" datetime="{{ $comment->created_at->toIso8601String() }}"
+                                      title="{{ $comment->created_at->format('d.m.Y H:i') }}">
+                                    {{ $comment->created_at->format('d.m.Y H:i') }}
+                                </time>
+                            </header>
+                            <div class="tkt-msg-body">
+                                <div class="tkt-prose">{!! $comment->comment_html !!}</div>
+                                @include('ticketsystem.partials.attachments', [
+                                    'files' => $comment->media,
+                                    'ticket' => $show_ticket,
+                                    'class' => 'mt-3',
+                                ])
+                            </div>
                         </div>
+                    </article>
+                @endif
+            @empty
+                <div class="tkt-card">
+                    <div class="tkt-empty">
+                        <span class="tkt-empty-icon"><i class="far fa-comments"></i></span>
+                        <p>Noch keine Antworten.</p>
                     </div>
                 </div>
+            @endforelse
+        </div>
+    </section>
 
-            @endcan
-            <button type="submit" class="btn btn-primary">Kommentar hinzufügen</button>
-        </form>
-    </div>
-    @endif
-    <div class="card-footer bg-gradient-directional-grey-blue text-white">
-        <h6>Kommentare</h6>
-    @forelse($show_ticket->comments->sortByDesc('created_at') as $comment)
-        <div class="card  @if($comment->internal) bg-light border border-secondary @endif">
-            <div class="card-header">
-                @if($comment->internal)
-                    <span class="badge badge-warning">Intern</span>
+    {{-- ── Antworten ─────────────────────────────────────────────── --}}
+    @if($canComment)
+        <section class="tkt-card scroll-mt-4" id="antworten" x-data="{ internal: '{{ old('internal') ? '1' : '0' }}' }"
+                 x-intersect:enter="replyVisible = true" x-intersect:leave="replyVisible = false">
+            <div class="tkt-card-head">
+                <h3 class="tkt-card-title"><i class="fas fa-reply"></i> Antworten</h3>
+            </div>
+            <form action="{{ route('tickets.comments.store', $show_ticket) }}" method="post" enctype="multipart/form-data"
+                  class="tkt-card-body flex flex-col gap-4" data-ticket-form>
+                @csrf
+
+                @if($canManage)
+                    <div class="tkt-segment" role="radiogroup" aria-label="Sichtbarkeit">
+                        <input type="radio" name="internal" id="vis_public" value="0" x-model="internal" @checked(!old('internal'))>
+                        <label for="vis_public"><i class="fas fa-globe-europe"></i> Öffentlich</label>
+                        <input type="radio" name="internal" id="vis_internal" value="1" x-model="internal" @checked(old('internal'))>
+                        <label for="vis_internal" class="is-internal"><i class="fas fa-lock"></i> Interne Notiz</label>
+                    </div>
+                    <p class="tkt-hint -mt-2" x-show="internal !== '1'">Der Ersteller wird per Mail benachrichtigt.</p>
+                    <p class="tkt-hint -mt-2 text-amber-700" x-show="internal === '1'" x-cloak>Nur für Bearbeiter sichtbar – der Ersteller erfährt nichts davon.</p>
                 @endif
-                    <p>
-                        @if($comment->user?->getMedia('profile')->count() != 0)<img src="{{$comment->user?->photo()}}" class="avatar-xs" style="max-height: 30px; max-width: 30px;"> @else <strong>{{ $comment->user?->name }}</strong> @endif schrieb am {{ $comment->created_at->format('d.m.Y H:i') }}:
-                    </p>
-            </div>
-            <div class="card-body">
-                {!! $comment->comment !!}
-            </div>
 
-        </div>
-    @empty
-        <div class="card-footer bg-gradient-directional-grey-blue text-white">
-            <p>
-                Das Ticket wurde noch nicht bearbeitet.
-            </p>
-        </div>
-    @endforelse
-    </div>
+                <div>
+                    <label for="comment" class="sr-only">Nachricht</label>
+                    <textarea class="tkt-textarea ticket-editor" id="comment" name="comment">{{ old('comment') }}</textarea>
+                    <p class="tkt-error hidden" data-editor-error>Bitte eine Nachricht eingeben.</p>
+                    @error('comment')<p class="tkt-error">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="grid gap-4 {{ $canManage ? 'md:grid-cols-2' : '' }}">
+                    <div>
+                        <span class="tkt-label">Anhänge</span>
+                        @include('ticketsystem.partials.file-picker', ['compact' => true])
+                    </div>
+                    @if($canManage)
+                        <div x-show="internal !== '1'">
+                            <label for="waiting_until" class="tkt-label">Auf Rückmeldung warten bis <span class="font-normal text-gray-400">(optional)</span></label>
+                            <input type="date" class="tkt-input" id="waiting_until" name="waiting_until"
+                                   min="{{ now()->format('Y-m-d') }}" value="{{ old('waiting_until') }}">
+                            <p class="tkt-hint">Setzt das Ticket auf „wartend“. Ohne Antwort wird es danach automatisch geschlossen.</p>
+                            @error('waiting_until')<p class="tkt-error">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
+                </div>
+
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <button type="submit" class="tkt-btn tkt-btn-primary w-full sm:w-auto">
+                        <i class="fas fa-paper-plane"></i>
+                        <span data-loading-label="Wird gesendet …" x-text="internal === '1' ? 'Notiz speichern' : 'Antwort senden'">Antwort senden</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        {{-- Schnellzugriff auf Mobilgeräten --}}
+        <a href="#antworten" class="lg:hidden fixed bottom-5 right-5 z-30 tkt-btn tkt-btn-primary rounded-full shadow-lg" style="padding-inline: 1.1rem"
+           x-show.important="!replyVisible" x-transition.opacity>
+            <i class="fas fa-reply"></i> Antworten
+        </a>
+    @elseif($show_ticket->isClosed())
+        <section class="tkt-card">
+            <div class="tkt-empty">
+                <span class="tkt-empty-icon"><i class="fas fa-lock"></i></span>
+                <p class="font-medium text-gray-700">Dieses Ticket ist geschlossen.</p>
+                @can('reopen', $show_ticket)
+                    <p>Besteht das Problem weiterhin, kannst du es wieder öffnen.</p>
+                    <form action="{{ route('tickets.reopen', $show_ticket) }}" method="post" class="mt-2">
+                        @csrf
+                        <button type="submit" class="tkt-btn tkt-btn-secondary"><i class="fas fa-undo"></i> Wieder öffnen</button>
+                    </form>
+                @endcan
+            </div>
+        </section>
+    @endif
+
+    {{-- ── Schließen-Dialog ─────────────────────────────────────── --}}
+    @can('close', $show_ticket)
+        <template x-teleport="body">
+            <div class="ticket-wrapper" style="padding: 0">
+                <div class="tkt-modal-backdrop" x-show="closeOpen" x-transition.opacity x-cloak @click.self="closeOpen = false">
+                    <form action="{{ route('tickets.close', $show_ticket) }}" method="post" class="tkt-modal" role="dialog" aria-modal="true" aria-labelledby="closeTitle" data-ticket-form>
+                        @csrf
+                        <div class="tkt-modal-header">
+                            <h3 class="tkt-modal-title" id="closeTitle">Ticket schließen</h3>
+                            <button type="button" class="tkt-btn-icon" @click="closeOpen = false" aria-label="Abbrechen"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="tkt-modal-body">
+                            <p class="text-sm text-gray-600 mb-4">
+                                „{{ $show_ticket->title }}“ wird archiviert.
+                                @if(auth()->id() != $show_ticket->user_id) Der Ersteller wird benachrichtigt. @endif
+                            </p>
+                            <label for="close_reason" class="tkt-label">Abschlussnotiz <span class="font-normal text-gray-400">(optional, für alle sichtbar)</span></label>
+                            <textarea name="reason" id="close_reason" rows="3" maxlength="1000" class="tkt-textarea" style="min-height: 5rem"
+                                      placeholder="z. B. Problem behoben, Gerät getauscht …"></textarea>
+                        </div>
+                        <div class="tkt-modal-footer">
+                            <button type="button" class="tkt-btn tkt-btn-secondary" @click="closeOpen = false">Abbrechen</button>
+                            <button type="submit" class="tkt-btn tkt-btn-success"><i class="fas fa-check"></i> <span data-loading-label="Wird geschlossen …">Ticket schließen</span></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </template>
+    @endcan
 </div>
-
-@push('js')
-
-
-    <script>
-        $( ".menu-off" ).click(function() {
-            $( this ).removeClass( "menu-off" );
-            $( this ).addClass( "menu-on" );
-            $('.floating-button-menu-close').addClass('menu-on');
-        });
-        $('.floating-button-menu-close').click(function(){
-            $( this ).addClass( "menu-off" );
-            $( this ).removeClass( "menu-on" );
-            $('.floating-button-menu').toggleClass('menu-on');
-        });
-
-
-
-    </script>
-
-@endpush
-
-@push('css')
-    <link href="{{asset('css/floating_menu.css')}}" rel="stylesheet">
-
-@endpush

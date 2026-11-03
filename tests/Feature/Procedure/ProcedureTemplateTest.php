@@ -20,10 +20,11 @@ class ProcedureTemplateTest extends TestCase
     public function test_admin_sieht_vorlagen_index(): void
     {
         $this->actingAsWithPermission('manage procedures');
+        $vorlage = Procedure::factory()->vorlage()->create(['name' => 'Sichtbare Vorlage']);
 
-        $response = $this->get('/procedure/template');
-
-        $response->assertStatus(200);
+        // Phase 4: Vorlagen sind ein Tab der Übersicht
+        $this->get('/procedure/template')->assertRedirect(url('procedure') . '#templates');
+        $this->get('/procedure')->assertOk()->assertSee('Sichtbare Vorlage');
     }
 
     public function test_benutzer_ohne_permission_wird_abgewiesen_auf_vorlagen(): void
@@ -31,7 +32,7 @@ class ProcedureTemplateTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $response = $this->get('/procedure/template');
+        $response = $this->get('/procedure');
 
         $response->assertStatus(403);
     }
@@ -315,5 +316,40 @@ class ProcedureTemplateTest extends TestCase
 
         $response->assertSessionHasErrors(['name']);
     }
-}
 
+    public function test_kategorie_loeschen_per_formular_leitet_zurueck(): void
+    {
+        $this->actingAsWithPermission('manage procedures');
+        $kategorie = Procedure_Category::factory()->create();
+
+        $this->from('/procedure')
+            ->delete("/procedure/categories/{$kategorie->id}")
+            ->assertRedirect('/procedure');
+
+        $this->assertDatabaseMissing('procedure_categories', ['id' => $kategorie->id]);
+    }
+
+    public function test_vorlage_anlegen_schreibt_auch_procedure_templates(): void
+    {
+        $admin     = $this->actingAsWithPermission('manage procedures');
+        $kategorie = Procedure_Category::factory()->create();
+
+        $this->post('/procedure/create/template', ['name' => 'Doppelt geführt', 'category_id' => $kategorie->id]);
+
+        $legacy = Procedure::where('name', 'Doppelt geführt')->firstOrFail();
+        $this->assertNotNull($legacy->template_id);
+        $this->assertDatabaseHas('procedure_templates', ['id' => $legacy->template_id, 'legacy_procedure_id' => $legacy->id]);
+    }
+
+    public function test_vorlage_loeschen_pausiert_wiederkehrende_prozesse(): void
+    {
+        $this->actingAsWithPermission('manage procedures', 'delete procedures');
+        $vorlage = Procedure::factory()->vorlage()->create();
+        $rp = \App\Models\RecurringProcedure::factory()->create(['procedure_id' => $vorlage->id, 'active' => true]);
+
+        $this->delete("/procedure/{$vorlage->id}")->assertRedirect();
+
+        $this->assertSoftDeleted('procedures', ['id' => $vorlage->id]);
+        $this->assertFalse($rp->fresh()->active);
+    }
+}

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Personal;
 
+use App\Enums\EmploymentStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\personal\CreateEmployeRequest;
 use App\Http\Requests\personal\selfUpdateProfileRequest;
 use App\Http\Requests\UpdateEmployeDataRequest;
@@ -11,17 +11,18 @@ use App\Http\Requests\personal\BulkUpdateHolidayClaimRequest;
 use App\Models\Group;
 use App\Models\personal\EmployeData;
 use App\Models\personal\EmployeHolidayClaim;
-use App\Models\personal\HourType;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Personal\Zeit\UrlaubskontoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use function PHPUnit\Framework\greaterThanOrEqual;
 
 class EmployeController extends Controller
 {
+    /** Maximale Größe des Profilfotos in KB. */
+    private const MAX_FOTO_KB = 5120;
+
     /**
      * Display a listing of the resource.
      *
@@ -29,25 +30,46 @@ class EmployeController extends Controller
      */
     public function index()
     {
-        return view('personal.employes.index', [
-           'employes' => User::all()
-        ]);
-    }
+        $employes = User::query()
+            ->with([
+                'employe_data:id,user_id,familienname,vorname',
+                'employments' => fn ($q) => $q->with('department:id,name')->orderBy('start'),
+            ])
+            ->get()
+            ->map(function (User $user) {
+                $offen   = $user->employments->filter(fn ($e) => $e->status !== EmploymentStatus::Beendet);
+                $laufend = $offen->filter(fn ($e) => $e->status === EmploymentStatus::Aktiv
+                    && $e->start->lessThanOrEqualTo(today())
+                    && ($e->end === null || $e->end->greaterThanOrEqualTo(today())));
+                $naechstesEnde = $offen->pluck('end')->filter()->sort()->first();
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return View|RedirectResponse
-     */
-    public function create()
-    {
-        if (!auth()->user()->can('create employe')){
-            return redirect()->back()->with([
-               'type'   => 'warning',
-               'Meldung' => 'Berechtigung fehlt'
-            ]);
-        }
-        return view('employes.create');
+                $status = match (true) {
+                    $laufend->isNotEmpty()                                            => 'aktiv',
+                    $offen->contains(fn ($e) => $e->status === EmploymentStatus::Ruhend) => 'ruhend',
+                    $offen->isNotEmpty()                                              => 'kuenftig',
+                    $user->employments->isNotEmpty()                                  => 'ausgeschieden',
+                    default                                                           => 'ohne',
+                };
+
+                return [
+                    'id'           => $user->id,
+                    'familienname' => $user->familienname,
+                    'vorname'      => $user->vorname,
+                    'email'        => $user->email,
+                    'bereiche'     => $offen->map(fn ($e) => $e->department?->name)->filter()->unique()->values()->implode(', '),
+                    'prozent'      => round($laufend->sum(fn ($e) => $e->percent), 1),
+                    'status'       => $status,
+                    'ende'         => $naechstesEnde?->format('d.m.Y'),
+                    'endeBald'     => $naechstesEnde !== null && $naechstesEnde->lessThanOrEqualTo(today()->addDays(90)),
+                ];
+            })
+            ->sortBy(fn ($e) => mb_strtolower($e['familienname'] . ' ' . $e['vorname']))
+            ->values();
+
+        return view('personal.employes.index', [
+            'employes' => $employes,
+            'counts'   => $employes->countBy('status'),
+        ]);
     }
 
     /**
@@ -58,33 +80,37 @@ class EmployeController extends Controller
      */
     public function show(User $employe)
     {
-
-        if (is_null($employe->employe_data)){
-            $employe->employe_data()->create([
-                'familienname' => Str::afterLast($employe->name, ' '),
-                'vorname' => Str::before($employe->name, ' '),
-                'user_id' => $employe->id,
-                'geschlecht' => 'anderes',
-                'mail_timesheet' => 0
-            ]);
+        // /employes/{id} und /personal/mitarbeiter/{id} sind dieselbe Stelle:
+        // Einstieg ist die Personalakte, die Stammdaten-Bearbeitung ist eine Unterseite davon.
+        if (auth()->user()->can('view personal_data')) {
+            return redirect()->route('personal.personalakte.show', $employe->id);
         }
 
-        //$employments = $employe->employments()->active()->get()->sortByDesc('start');
-        $employments = $employe->employments->filter(function ($employment){
-            return $employment->end == null or $employment->end->greaterThan(Carbon::now());
-        })->sortByDesc('start');
+        return redirect()->route('personal.personalakte.stammdaten', $employe->id);
+    }
 
-        $employments_old = $employe->employments->filter(function ($employment){
-            return $employment->end != null and $employment->end->lessThan(Carbon::now());
-        })->sortByDesc('end');
+    /**
+     * Stammdaten bearbeiten (Unterseite der Personalakte).
+     */
+    public function stammdaten(User $employe)
+    {
+        // Ohne gespeicherte Stammdaten wird das Formular mit Vorschlägen aus dem Benutzernamen gefüllt;
+        // angelegt wird der Datensatz erst beim Speichern (kein Schreibzugriff beim bloßen Ansehen).
+        $data = $employe->employe_data ?? new EmployeData([
+            'familienname'         => Str::contains($employe->name, ' ') ? Str::afterLast($employe->name, ' ') : $employe->name,
+            'vorname'              => Str::contains($employe->name, ' ') ? Str::beforeLast($employe->name, ' ') : '',
+            'staatsangehoerigkeit' => 'deutsch',
+        ]);
 
+        $holidayRest = app(UrlaubskontoService::class)->rest($employe, now()->year);
 
         return view('personal.employes.show', [
-            'employe' => $employe,
-            'departments' => Group::all(),
-            'hour_types' => HourType::all(),
-            'employments' => $employments,
-            'employments_old' => $employments_old
+            'employe'      => $employe,
+            'data'         => $data,
+            'holidayClaim' => $employe->getHolidayClaim(),
+            'holidayRest'  => UrlaubskontoService::format($holidayRest),
+            'workingTimeAccount' => $employe->timesheet_latest?->working_time_account,
+            'firstStart'   => $employe->employments()->min('start'),
         ]);
     }
 
@@ -101,88 +127,59 @@ class EmployeController extends Controller
     {
 
         $settings = $employe->employe_data;
+        $validated = $request->validated();
+        // Leeres PIN-Feld bedeutet "unverändert lassen"
+        if (empty($validated['secret_key'] ?? null)) {
+            unset($validated['secret_key']);
+        }
         if (is_null($settings)){
-            $settings = new EmployeData($request->validated());
+            $settings = new EmployeData($validated);
             $settings->user_id = $employe->id;
             $settings->save();
         } else {
-            $settings->update($request->validated() );
+            $settings->update($validated);
         }
 
-        if (($settings->caldav_working_time == 1 or $settings->caldav_events == 1) and $settings->caldav_uuid == null){
-            $settings->update([
-                'caldav_uuid' => Str::uuid()
+        if ($request->filled('send_mail_if_absence')) {
+            $employe->update([
+                'send_mails_if_absence' => (bool) $request->send_mail_if_absence
             ]);
         }
-
-        if (($settings->caldav_working_time == 0 and $settings->caldav_events == 0) and $settings->caldav_uuid != null){
-            $settings->update([
-                'caldav_uuid' => null
-            ]);
-        }
-
-        $employe->update([
-            'send_mails_if_absence' => $request->send_mail_if_absence
-        ]);
-
 
         return redirect()->back()->with([
             'type' => "success",
             'Meldung' => 'Daten aktualisiert.'
         ]);
     }
+
     public function updateData(UpdateEmployeDataRequest $request, User $employe)
     {
-
-        if ($request->holidayClaim !=  $employe->getHolidayClaim()){
-            $claim = new EmployeHolidayClaim([
+        if ((int) $request->holidayClaim !== (int) $employe->getHolidayClaim()) {
+            EmployeHolidayClaim::create([
                 'holiday_claim' => $request->holidayClaim,
                 'employe_id' => $employe->id,
                 'date_start' => $request->date_start,
                 'changedBy' => auth()->id()
             ]);
-            $claim->save();
         }
 
-        if ($request->time_recording_key != null){
-            $employe->employe_data()->update([
-                'time_recording_key' => $request->time_recording_key
-            ]);
+        // Nur übermittelte Felder ändern. filled() statt "!= null": sonst würde "0" (= nein) nie gespeichert.
+        $fields = collect(['time_recording_key', 'secret_key', 'mail_timesheet', 'google_calendar_link'])
+            ->filter(fn ($field) => $request->filled($field))
+            ->mapWithKeys(fn ($field) => [$field => $request->input($field)])
+            ->all();
+
+        if ($fields !== []) {
+            // Über das Model speichern, damit die PIN gehasht und die Änderung protokolliert wird
+            $data = $employe->employe_data ?? new EmployeData(['user_id' => $employe->id]);
+            $data->fill($fields);
+            $data->user_id = $employe->id;
+            $data->save();
         }
 
-        if ($request->secret_key != null){
-            $employe->employe_data()->update([
-                'secret_key' => $request->secret_key
-            ]);
-        }
-
-        if ($request->mail_timesheet != null){
-            $employe->employe_data()->update([
-                'mail_timesheet' => $request->mail_timesheet
-            ]);
-        }
-
-        if ($request->google_calendar_link != null){
-            $employe->employe_data()->update([
-                'google_calendar_link' => $request->google_calendar_link
-            ]);
-        }
-
-        if ($request->caldav_working_time != null){
-            $employe->employe_data()->update([
-                'caldav_working_time' => $request->caldav_working_time
-            ]);
-        }
-
-        if ($request->caldav_events != null){
-            $employe->employe_data()->update([
-                'caldav_events' => $request->caldav_events
-            ]);
-        }
-
-        if ($request->send_mails_if_absence != null){
+        if ($request->filled('send_mails_if_absence')) {
             $employe->update([
-                'send_mails_if_absence' => $request->send_mails_if_absence
+                'send_mails_if_absence' => (bool) $request->send_mails_if_absence
             ]);
         }
 
@@ -199,91 +196,57 @@ class EmployeController extends Controller
         ]);
     }
 
-
-
-    public function addSalary(CreateEmployeSalaryRequest $request, User $employe){
-
-        if (!is_null($employe->salary) and $employe->salary->start->greaterThan(Carbon::createFromFormat('Y-m-d',$request->start))){
-            return redirectBack('danger', 'Das Datum muss nach dem derzeit genutzten Datum liegen');
-        }
-
-        $employe->salaryGroups()->create($request->validated());
-
-
-
-        return redirectBack('success', 'Einstufung wurde festgelegt');
-    }
-
-    public function ical($employe, $uuid){
-        $employe = User::findOrFail($employe);
-        if (isset($uuid) and $employe?->settings?->caldav_uuid == $uuid){
-            $icalObject = "BEGIN:VCALENDAR
-               VERSION:2.0
-               METHOD:PUBLISH
-               PRODID:-//" . config('app.name') . "//Termine//DE\n
-               ";
-
-            if ($employe?->settings?->caldav_events == 1){
-                $events = $employe->roster_events()->whereDate('date', '>=', Carbon::now()->startOfDay())->get();
-                foreach ($events as $event){
-                    $icalObject.=$event->getICal();
-                }
-            }
-
-            if ($employe?->settings?->caldav_working_time == 1){
-                $working_times = $employe->working_times()->whereDate('date', '>=', Carbon::now()->startOfDay())->get();
-                foreach ($working_times as $working_time){
-                    $icalObject.=$working_time->getICal();
-                }
-            }
-
-
-            // close calendar
-            $icalObject .= "END:VCALENDAR";
-
-            // Set the headers
-            header('Content-type: text/calendar; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . config('app.name') . '_'.$employe->familienname. '.ics"');
-
-            $icalObject = str_replace(' ', '', $icalObject);
-            $icalObject = str_replace('__', ' ', $icalObject);
-
-            return $icalObject;
-        }
-
-        abort(404);
-    }
-
     public function show_self(){
+        $user = auth()->user();
+
         return view('personal.employes.selfEdit', [
-            'employe' => auth()->user(),
+            'employe'      => $user,
+            'data'         => $user->employe_data ?? new EmployeData([
+                'familienname' => Str::contains($user->name, ' ') ? Str::afterLast($user->name, ' ') : $user->name,
+                'vorname'      => Str::contains($user->name, ' ') ? Str::beforeLast($user->name, ' ') : '',
+            ]),
+            'employments'  => $user->employments()->active()->with('department:id,name')->orderBy('start')->get(),
+            'firstStart'   => $user->employments()->min('start'),
+            'holidayClaim' => $user->getHolidayClaim(),
+            'groups'       => collect($user->groups()),
+            'maxFotoKb'    => self::MAX_FOTO_KB,
         ]);
     }
 
     public function update_self(selfUpdateProfileRequest $request){
 
         $user = auth()->user();
-        $data = $user->employe_data;
-        if (is_null($data)){
-            $data = new EmployeData($request->validated());
-            $data->user_id = $user->id;
-            $data->save();
-        } else {
-            $data->update($request->validated() );
-        }
+        $validated = $request->validated();
 
-        $user->update([
+        $data = $user->employe_data ?? new EmployeData(['user_id' => $user->id]);
+        $data->fill($validated);
+        $data->user_id = $user->id;
+        $data->save();
+
+        $userData = [
             'name' => $request->vorname . ' ' . $request->familienname,
-            'send_mails_if_absence' => $request->send_mail_if_absence
-        ]);
+            // Leer = Standard-Feed
+            'atom_feed_url' => $validated['atom_feed_url'] ?? null,
+        ];
+        if ($request->filled('send_mail_if_absence')) {
+            $userData['send_mails_if_absence'] = (bool) $validated['send_mail_if_absence'];
+        }
+        $user->update($userData);
 
         return redirect()->back()->with([
             'type' => 'success',
-            'message' => 'Daten aktualisiert'
+            'Meldung' => 'Daten aktualisiert.'
         ]);
     }
 
     public function photo(Request $request){
+        $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,gif', 'max:' . self::MAX_FOTO_KB],
+        ], [
+            'file.image' => 'Bitte ein Bild (JPG, PNG oder GIF) hochladen.',
+            'file.max'   => 'Das Foto ist zu groß.',
+        ]);
+
         $user = auth()->user();
         $user->clearMediaCollection('profile');
         $user->addMedia($request->file('file'))->toMediaCollection('profile');
@@ -292,7 +255,7 @@ class EmployeController extends Controller
 
         return redirect()->back()->with([
             'type' => 'success',
-            'message' => 'Foto aktualisiert'
+            'Meldung' => 'Foto aktualisiert.'
         ]);
     }
 
@@ -310,7 +273,7 @@ class EmployeController extends Controller
             ]);
         }
 
-        $groups = Group::all();
+        $groups = Group::withCount('users')->orderBy('name')->get();
 
         return view('personal.employes.bulk-holiday-claim', [
             'groups' => $groups

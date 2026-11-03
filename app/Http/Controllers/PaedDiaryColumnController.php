@@ -46,7 +46,6 @@ class PaedDiaryColumnController extends Controller
                 $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
                 if ($category) $colData['category'] = $category;
                 $col     = PaedDiaryColumn::create($colData);
-                $this->forgetWeekCache($klasse->id, Carbon::now());
                 $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name, 'category' => $col->category ?? null];
             }
             return response()->json(['success' => true, 'columns' => $created]);
@@ -64,7 +63,6 @@ class PaedDiaryColumnController extends Controller
             $colData = ['klasse_id' => $klasse->id, 'name' => $data['name'], 'slug' => $slug, 'type' => $type, 'sort_order' => $sort];
             if ($category) $colData['category'] = $category;
             $col = PaedDiaryColumn::create($colData);
-            $this->forgetWeekCache($klasse->id, Carbon::now());
             $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $col->name, 'category' => $col->category ?? null];
         }
 
@@ -111,7 +109,6 @@ class PaedDiaryColumnController extends Controller
             $colData = ['klasse_id' => $klasse->id, 'name' => $column->name, 'slug' => $slug, 'type' => $column->type, 'sort_order' => $sort];
             if ($column->category) $colData['category'] = $column->category;
             $col = PaedDiaryColumn::create($colData);
-            $this->forgetWeekCache($klasse->id, Carbon::now());
             $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $klasse->name];
         }
 
@@ -134,7 +131,6 @@ class PaedDiaryColumnController extends Controller
                 $column->deactivated_from = $weekStart->toDateString();
                 $column->save();
             }
-            $this->forgetWeekCache($klasse->id, $weekStart);
             return response()->json(['success' => true]);
         } catch (Exception $e) {
             Log::error('destroyColumn error: ' . $e->getMessage());
@@ -155,12 +151,21 @@ class PaedDiaryColumnController extends Controller
         $klasse  = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
         $schueler = Schueler::where('id', $data['schueler_id'])->where('klasse_id', $klasse->id)->firstOrFail();
         $dateObj = Carbon::parse($data['date']);
+
+        // Wert passend zum Spaltentyp: Ja/Nein ('' | '1'), Ampel ('' | '1' Ja | '2' In Bearbeitung | '3' Nein)
+        $erlaubt = match ($column->type) {
+            'boolean' => ['', '1'],
+            'ampel' => ['', '1', '2', '3'],
+            default => null,
+        };
+        if ($erlaubt !== null && !in_array((string) ($data['value'] ?? ''), $erlaubt, true)) {
+            return response()->json(['message' => 'Ungültiger Wert für diese Spalte.', 'errors' => ['value' => ['Ungültiger Wert für diese Spalte.']]], 422);
+        }
         PaedDiaryColumnValue::updateOrCreate([
             'paed_diary_column_id' => $column->id,
             'schueler_id'          => $schueler->id,
             'datum'                => $dateObj->toDateString(),
         ], ['value' => $data['value']]);
-        $this->forgetWeekCache($klasse->id, $dateObj);
         return response()->json(['success' => true]);
     }
 
@@ -171,7 +176,6 @@ class PaedDiaryColumnController extends Controller
         $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
         $column->category = $data['category'] ?? null;
         $column->save();
-        $this->forgetWeekCache($klasse->id, Carbon::now());
         return response()->json(['success' => true, 'category' => $column->category]);
     }
 
@@ -198,7 +202,6 @@ class PaedDiaryColumnController extends Controller
         if ($column->deactivated_from) {
             $column->deactivated_from = null;
             $column->save();
-            $this->forgetWeekCache($klasse->id, Carbon::now());
         }
         return response()->json(['success' => true]);
     }
