@@ -9,6 +9,7 @@ use App\Providers\RouteServiceProvider;
 use App\Services\Api\AppSsoService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -57,9 +58,23 @@ class KeycloakLoginController extends Controller
 
 
     }
-    public function auth()
+    public function auth(Request $request)
     {
         $appSso = app(AppSsoService::class);
+
+        // Direkter Aufruf ohne Keycloak-Antwort (z. B. Link aus der SSO-Plattform auf /auth/callback):
+        // Es gibt weder "code" noch "error", also wurde kein Login gestartet. Statt "Login failed"
+        // wird der normale SSO-Login gestartet. Besteht in Keycloak bereits eine Sitzung,
+        // kommt der Benutzer ohne weitere Eingabe angemeldet zurück.
+        if (!$request->has('code') && !$request->has('error') && !$appSso->hasFlow()) {
+            if (Auth::check()) {
+                return redirect(url('/'));
+            }
+
+            Log::info('OIDC: Callback ohne Code aufgerufen, starte SSO-Login');
+
+            return $this->login();
+        }
 
         try {
             $user = Socialite::driver('keycloak')->user();
