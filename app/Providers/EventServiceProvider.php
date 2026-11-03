@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Aacotroneo\Saml2\Events\Saml2LoginEvent;
+use App\Listeners\LogAuthentication;
 use App\Listeners\LogEmail;
 use App\Models\Group;
 use App\Models\personal\Holiday;
@@ -31,6 +32,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $subscribe = [
         LogEmail::class,
+        LogAuthentication::class,
     ];
 
     /**

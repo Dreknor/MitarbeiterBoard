@@ -893,6 +893,7 @@ Route::group([
                     Route::get('logs', [LogController::class, 'index']);
                     Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
                     Route::get('logs/set_filter/{filter}', [LogController::class, 'set_filter'])->name('logs.set_filter');
+                    Route::get('logs/set_category/{category}', [LogController::class, 'set_category'])->name('logs.set_category');
                 });
 
                 // Pädagogisches Tagebuch
