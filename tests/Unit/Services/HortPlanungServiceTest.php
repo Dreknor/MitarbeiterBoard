@@ -126,26 +126,64 @@ class HortPlanungServiceTest extends TestCase
         $this->assertArrayNotHasKey('mentor',        $ergebnis['faktoren'], 'Mentor ist inaktiv und darf nicht erscheinen');
     }
 
-    // ── §12.1 Test: faktor_auf_summe ──────────────────────────────────
+    // ── §12.1 Test: Aufschläge nach § 12 Abs. 2 SächsKitaG a. F. ─────────
+
+    public function test_berechneMonat_anpassung_auf_bs(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat(
+            Carbon::create(2024, 1, 1), 100, 40
+        );
+        $monat->load(['personen', 'monatZusatzstunden.typ']);
+
+        $ergebnis = $this->service->berechneMonat($monat, $planung);
+
+        // 4 % Vorhalten zusätzl. Personal je Fachkraft nach Nr. 1–3 → nur auf den BS
+        $bs  = $ergebnis['faktoren']['kinderschluessel']['vz'];
+        $anp = $ergebnis['faktoren']['anpassung']['vz'];
+        $this->assertEqualsWithDelta($bs * 0.04, $anp, 0.0001, 'Anpassung = BS × 0.04');
+
+        // 100 Kinder: 4,5 × (1 + 0,1 + 0,054 + 0,04) = 5,373 VZÄ
+        $this->assertEqualsWithDelta(5.373, $ergebnis['summe_gesetz_vz'], 0.0005);
+    }
 
     public function test_berechneMonat_faktor_auf_summe(): void
     {
         ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat(
             Carbon::create(2024, 1, 1), 100, 40
         );
+
+        // Eigener Faktor vom Typ „Aufschlag auf Summe" an letzter Position
+        $faktor = HortFaktor::create([
+            'hort_planung_id' => $planung->id, 'kuerzel' => 'extra', 'bezeichnung' => 'Extra',
+            'berechnungs_typ' => 'faktor_auf_summe', 'position' => 9, 'aktiv' => true,
+        ]);
+        HortFaktorWert::create(['hort_faktor_id' => $faktor->id, 'wert' => 0.1, 'gueltig_ab' => '2024-01-01']);
+
         $monat->load(['personen', 'monatZusatzstunden.typ']);
-        $planung->load('faktoren.werte');
+        $ergebnis = $this->service->berechneMonat($monat, $planung->fresh());
 
-        $ergebnis = $this->service->berechneMonat($monat);
+        $this->assertEqualsWithDelta(5.373 * 0.1, $ergebnis['faktoren']['extra']['vz'], 0.0005);
+    }
 
-        // Anpassung = (BS + Leitung + Vorbereitung) × 0.04
-        $bs    = $ergebnis['faktoren']['kinderschluessel']['vz'];
-        $leit  = $ergebnis['faktoren']['leitung']['vz'];
-        $vorb  = $ergebnis['faktoren']['vorbereitung']['vz'];
-        $anp   = $ergebnis['faktoren']['anpassung']['vz'];
+    public function test_standardfaktoren_neufassung_ab_august_2025(): void
+    {
+        $user = User::factory()->create();
+        $dept = Group::factory()->asDepartment()->create();
+        $planung = HortPlanung::create([
+            'name' => 'Übergang', 'department_id' => $dept->id, 'typ' => 'planung', 'aktiv' => false,
+            'start_monat' => '2025-06-01', 'end_monat' => '2025-09-01', 'created_by' => $user->id,
+        ]);
+        $this->service->erstelleStandardFaktoren($planung);
+        $this->service->erstelleMonate($planung, 100);
 
-        $erwartet = round(($bs + $leit + $vorb) * 0.04, 5);
-        $this->assertEqualsWithDelta($erwartet, $anp, 0.0001, 'Anpassung = (BS+Leitung+Vorb) × 0.04');
+        $monate = $planung->monate()->get()->keyBy(fn($m) => $m->monat->format('Y-m'));
+
+        $juli = $this->service->berechneMonat($monate['2025-07'], $planung->fresh());
+        $aug  = $this->service->berechneMonat($monate['2025-08'], $planung->fresh());
+
+        $this->assertEqualsWithDelta(5.373, $juli['summe_gesetz_vz'], 0.0005, 'Juli: alte Fassung');
+        // August: 100 / 20,473 × 1,1 (nur Leitung)
+        $this->assertEqualsWithDelta(100 / 20.473 * 1.1, $aug['summe_gesetz_vz'], 0.0005, 'August: Neufassung');
     }
 
     // ── §12.1 Test: zeitlich variabler Faktor-Wert ───────────────────
@@ -334,6 +372,86 @@ class HortPlanungServiceTest extends TestCase
 
         // VZ-Anteil = Wochenstunden / Vollzeitstunden
         $this->assertEqualsWithDelta(1.0, $aufschluesselung['vz_anteil'], 0.01, 'Vollzeitkraft hat VZ-Anteil 1.0');
+    }
+
+    public function test_grundarbeitszeit_summe_der_anteile_ergibt_vz_anteil(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat();
+        $person = $this->fuegePersonHinzu($monat, 30, 25);
+
+        $a = $this->service->berechneGrundarbeitszeit($person);
+
+        // Erzieher × (1 + 0,1 + 0,054 + 0,04) = VZ-Anteil
+        $this->assertEqualsWithDelta(0.75 / 1.194, $a['erzieher_vz'], 0.0001);
+        $this->assertEqualsWithDelta(
+            $a['vz_anteil'],
+            $a['erzieher_vz'] + $a['leitung_vz'] + $a['vorbereitung_vz'] + $a['anpassung_vz'],
+            0.0005,
+            'Summe der Anteile = VZ-Anteil'
+        );
+    }
+
+    public function test_vertragsstunden_stichtag_erster_des_monats_ohne_ruhende(): void
+    {
+        $user = User::factory()->create();
+        $dept = Group::factory()->asDepartment()->create();
+        $andere = Group::factory()->asDepartment()->create();
+        $basis  = ['employe_id' => $user->id, 'department_id' => $dept->id];
+
+        // Gilt am 1.3. → zählt
+        \App\Models\personal\Employment::factory()->create($basis + ['start' => '2024-01-01', 'end' => '2024-03-15', 'hours' => 25]);
+        // Paralleler Vertrag → wird summiert
+        \App\Models\personal\Employment::factory()->create($basis + ['start' => '2024-02-01', 'end' => null, 'hours' => 5]);
+        // Beginnt mitten im Monat → zählt erst ab April
+        \App\Models\personal\Employment::factory()->create($basis + ['start' => '2024-03-16', 'end' => null, 'hours' => 30]);
+        // Ruhend → zählt nie
+        \App\Models\personal\Employment::factory()->create($basis + ['start' => '2024-01-01', 'end' => null, 'hours' => 10,
+            'status' => \App\Enums\EmploymentStatus::Ruhend]);
+        // Anderer Bereich → zählt nicht
+        \App\Models\personal\Employment::factory()->create(['employe_id' => $user->id, 'department_id' => $andere->id,
+            'start' => '2024-01-01', 'end' => null, 'hours' => 8]);
+
+        $employments = $user->employments()->get();
+
+        $this->assertEquals(30.0, $this->service->vertragsstundenAmStichtag($employments, Carbon::create(2024, 3, 1), $dept->id));
+        $this->assertEquals(35.0, $this->service->vertragsstundenAmStichtag($employments, Carbon::create(2024, 4, 1), $dept->id));
+    }
+
+    public function test_berechneMonat_deaktivierter_zusatztyp_zaehlt_nicht(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat();
+
+        foreach ($planung->zusatzstundenTypen as $typ) {
+            HortMonatZusatz::create([
+                'hort_planung_monat_id'     => $monat->id,
+                'hort_zusatzstunden_typ_id' => $typ->id,
+                'stunden'                   => 5.0,
+            ]);
+        }
+        $planung->zusatzstundenTypen->first()->update(['aktiv' => false]);
+
+        $monat->load(['personen', 'monatZusatzstunden.typ']);
+        $ergebnis = $this->service->berechneMonat($monat, $planung);
+
+        $this->assertEquals(5.0, $ergebnis['summe_zusatzstunden'], 'Nur der aktive Typ zählt');
+        $this->assertEquals(5.0, $monat->summeZusatzstunden());
+    }
+
+    public function test_erstelleMonate_erweiterung_uebernimmt_parameter_und_personen(): void
+    {
+        ['planung' => $planung, 'hortMonat' => $monat] = $this->erstellePlanungMitMonat(Carbon::create(2024, 1, 1), 87, 39);
+        $person = $this->fuegePersonHinzu($monat, 30, 25);
+
+        $planung->update(['end_monat' => '2024-03-01']);
+        $this->service->erstelleMonate($planung);
+
+        $monate = $planung->monate()->with('personen')->get();
+        $this->assertCount(3, $monate);
+        foreach ($monate as $m) {
+            $this->assertEquals(87, $m->kinderanzahl, 'Kinderanzahl vom Nachbarmonat');
+            $this->assertEquals(39.0, $m->vollzeitstunden);
+            $this->assertTrue($m->personen->contains('user_id', $person->user_id), 'Person in jedem Monat angelegt');
+        }
     }
 
     // ── §12.1 Test: erstelleStandardFaktoren ─────────────────────────
@@ -577,33 +695,6 @@ class HortPlanungServiceTest extends TestCase
         $this->assertArrayHasKey('vz_sp1',          $trend['datasets']);
         $this->assertArrayHasKey('vz_gesetzlich',   $trend['datasets']);
         $this->assertArrayHasKey('budget_rest_sp1', $trend['datasets']);
-    }
-
-    // ── §12.1 Test: syncIstStunden – nur vergangene Monate ───────────
-
-    public function test_syncIstStunden_nur_vergangene_monate(): void
-    {
-        $user = User::factory()->create();
-        $dept = Group::factory()->asDepartment()->create();
-        $this->actingAs($user);
-
-        $planung = HortPlanung::create([
-            'name'          => 'Test',
-            'department_id' => $dept->id,
-            'start_monat'   => now()->addMonths(1)->startOfMonth(),
-            'end_monat'     => now()->addMonths(3)->startOfMonth(),
-            'typ'           => 'planung',
-            'aktiv'         => false,
-            'created_by'    => $user->id,
-        ]);
-
-        $this->service->erstelleMonate($planung);
-        $planung->load('monate.personen');
-
-        // Kein Monat in der Vergangenheit → 0 synchronisiert
-        $count = $this->service->syncIstStunden($planung);
-
-        $this->assertEquals(0, $count, 'Keine Sync für zukünftige Monate');
     }
 
     // ── §12.1 Test: erstelleSnapshot ─────────────────────────────────

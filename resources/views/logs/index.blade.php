@@ -10,23 +10,45 @@
                     </div>
                     <div class="card-body">
 
-                        <div class="row">
+                        <div class="row align-items-center mb-2">
+                            <div class="col-12 col-md-2">
+                                <h6 class="mb-1">Level:</h6>
+                            </div>
                             <div class="col">
-                                <h6>Filter:</h6>
-                            </div>
-                            <div class="col-auto">
-                                <a href="{{ route('logs.set_filter', ['filter' => "all"]) }}" class="badge badge-primary  text-uppercase p-2">Alle</a>
-                            </div>
-                            @foreach($colors as $level => $color)
-                                <div class="col-auto">
-                                    <a href="{{route('logs.set_filter', ['filter' => $level])}}">
-                                        <span class="badge badge-{{ $color }} text-uppercase p-2">
-                                            {{ ucfirst($level) }}
-                                        </span>
+                                <a href="{{ route('logs.set_filter', ['filter' => 'all']) }}"
+                                   class="badge {{ $activeLevel ? 'badge-secondary' : 'badge-primary' }} text-uppercase p-2 mb-1">Alle</a>
+                                @foreach($colors as $level => $color)
+                                    <a href="{{ route('logs.set_filter', ['filter' => $level]) }}"
+                                       class="badge {{ $activeLevel === $level ? 'badge-primary' : 'badge-'.$color }} text-uppercase p-2 mb-1 border">
+                                        {{ ucfirst(strtolower($level)) }}
                                     </a>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
+                        <div class="row align-items-center">
+                            <div class="col-12 col-md-2">
+                                <h6 class="mb-1">Kategorie:</h6>
+                            </div>
+                            <div class="col">
+                                <a href="{{ route('logs.set_category', ['category' => 'all']) }}"
+                                   class="badge {{ $activeCategory ? 'badge-secondary' : 'badge-primary' }} p-2 mb-1">Alle</a>
+                                @foreach($categories as $key => $category)
+                                    <a href="{{ route('logs.set_category', ['category' => $key]) }}"
+                                       class="badge {{ $activeCategory === $key ? 'badge-primary' : 'badge-light' }} p-2 mb-1 border">
+                                        <i class="{{ $category['icon'] }}"></i> {{ $category['label'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                        @if($activeLevel || $activeCategory)
+                            <div class="small text-muted mt-2">
+                                Aktiver Filter:
+                                @if($activeLevel) Level <strong>{{ ucfirst(strtolower($activeLevel)) }}</strong>@endif
+                                @if($activeLevel && $activeCategory) · @endif
+                                @if($activeCategory) Kategorie <strong>{{ $categories[$activeCategory]['label'] }}</strong>@endif
+                                – {{ $logs->total() }} Einträge
+                            </div>
+                        @endif
                     </div>
                     <div class="card-body">
                         <div class="table">
@@ -36,26 +58,34 @@
                                     <th style="width: 30px"></th>
                                     <th>Zeitstempel</th>
                                     <th>Level</th>
+                                    <th>Kategorie</th>
                                     <th>Nachricht</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 @forelse($logs as $log)
-                                    <tr class="log-header table-{{$colors[$log->level_name]}} "
+                                    <tr class="log-header table-{{ $colors[$log->level_name] ?? 'light' }} "
                                         data-log-id="{{ $log->id }}">
                                         <td>
                                             <i class="fas fa-chevron-down toggle-icon"></i>
                                         </td>
                                         <td>{{ $log->created_at->format('d.m.Y H:i:s') }}</td>
                                         <td>
-                                            <span class="badge badge-{{ $colors[$log->level_name] }} text-uppercase">
-                                                {{ ucfirst($log->level) }}
+                                            <span class="badge badge-{{ $colors[$log->level_name] ?? 'light' }} text-uppercase">
+                                                {{ ucfirst(strtolower($log->level_name)) }}
+                                            </span>
+                                        </td>
+                                        @php($logCategory = \App\Support\LogCategories::categorize($log->message))
+                                        <td class="text-nowrap">
+                                            <span class="badge badge-light border">
+                                                <i class="{{ $categories[$logCategory]['icon'] }}"></i>
+                                                {{ $categories[$logCategory]['label'] }}
                                             </span>
                                         </td>
                                         <td>{{ $log->message }}</td>
                                     </tr>
                                     <tr class="details-row d-none" id="details{{ $log->id }}">
-                                        <td colspan="4" class="border-top-0">
+                                        <td colspan="5" class="border-top-0">
                                                 @if($log->context)
                                                     <div class="mb-3  text-wrap">
                                                         <strong class="d-block mb-2">Kontext Details:</strong>
@@ -76,7 +106,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center">Keine Logs vorhanden</td>
+                                        <td colspan="5" class="text-center">Keine Logs vorhanden</td>
                                     </tr>
                                 @endforelse
                                 </tbody>
@@ -105,6 +135,15 @@
                                     <option value="warning">Warning</option>
                                     <option value="info">Info</option>
                                     <option value="debug">Debug</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Kategorie</label>
+                                <select class="custom-select form-control-sm" id="category" name="category">
+                                    <option value="">Alle</option>
+                                    @foreach($categories as $key => $category)
+                                        <option value="{{ $key }}" @selected($activeCategory === $key)>{{ $category['label'] }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm btn-block">

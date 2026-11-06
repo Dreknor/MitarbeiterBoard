@@ -51,7 +51,7 @@ class User extends Authenticatable implements HasMedia
         'name', 'email', 'password', 'changePassword','kuerzel', 'username','remind_assign_themes', 'send_mails_if_absence', 'superior_id', 'atom_feed_url', 'calendar_token',
     ];
     protected $visible = [
-        'name', 'email', 'password', 'changePassword','kuerzel', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
+        'name', 'email', 'changePassword','kuerzel', 'username','remind_assign_themes','send_mails_if_absence', 'superior_id', 'atom_feed_url'
     ];
 
     /**
@@ -60,7 +60,7 @@ class User extends Authenticatable implements HasMedia
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token', 'calendar_token',
+        'password', 'remember_token', 'calendar_token', 'sso_uid_hash',
     ];
 
     /**
@@ -73,6 +73,11 @@ class User extends Authenticatable implements HasMedia
         'remind_assign_themes' => 'boolean',
         'send_mails_if_absence' => 'boolean',
         'paed_diary_darstellung' => 'array',
+        'left_at' => 'date',
+        'anonymized_at' => 'datetime',
+        'legal_hold' => 'boolean',
+        'is_placeholder' => 'boolean',
+        'deletion_reviewed_at' => 'datetime',
     ];
 
     /** Standardwerte der Darstellung im Pädagogischen Tagebuch (siehe paedDiaryDarstellung()). */

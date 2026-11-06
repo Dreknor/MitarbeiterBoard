@@ -1,0 +1,350 @@
+/*
+ * Klassenraum-Tools – Vollbildseiten (/klassenraum/{tool})
+ *
+ * Eigenständige Seiten ohne App-Layout, Bootstrap und Tailwind: reines CSS mit Präfix krt-
+ * (gemeinsame Bedienung) bzw. tmr- (Timer). Zwei Farbwelten über Klassen am body:
+ *   .krt-dunkel – Lautstärke-Szenen (Glas-Elemente über der Zeichenfläche)
+ *   .krt-hell   – Timer (heller Hintergrund, gut lesbar am Beamer)
+ */
+
+.krt {
+    --krt-schrift: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --krt-radius: 18px;
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--krt-schrift);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+}
+.krt *, .krt *::before, .krt *::after { box-sizing: border-box; }
+.krt button, .krt input { font: inherit; color: inherit; }
+.krt button { cursor: pointer; }
+.krt h2, .krt h3, .krt p { margin: 0; }
+.krt [hidden] { display: none !important; }
+.krt :focus-visible { outline: 3px solid var(--krt-akzent); outline-offset: 2px; border-radius: 10px; }
+.krt .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.krt kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8em;
+    padding: .05em .4em; border-radius: 6px; border: 1px solid var(--krt-linie); background: var(--krt-feld);
+}
+
+.krt-dunkel {
+    --krt-text: #f1f5f9;
+    --krt-leise: #a7b3c4;
+    --krt-glas: rgba(9, 14, 28, .62);
+    --krt-glas-stark: rgba(12, 18, 34, .92);
+    --krt-linie: rgba(255, 255, 255, .14);
+    --krt-feld: rgba(255, 255, 255, .08);
+    --krt-feld-hover: rgba(255, 255, 255, .16);
+    --krt-akzent: #5eead4;
+    --krt-akzent-text: #042f2e;
+    --krt-schatten: 0 18px 50px rgba(0, 0, 0, .45);
+    background: #05070f;
+    color: var(--krt-text);
+    overflow: hidden;
+    user-select: none;
+}
+.krt-hell {
+    --krt-text: #0f172a;
+    --krt-leise: #64748b;
+    --krt-glas: rgba(255, 255, 255, .9);
+    --krt-glas-stark: #ffffff;
+    --krt-linie: #e2e8f0;
+    --krt-feld: #f1f5f9;
+    --krt-feld-hover: #e2e8f0;
+    --krt-akzent: var(--tmr-farbe, #e11d48);
+    --krt-akzent-text: #ffffff;
+    --krt-schatten: 0 18px 50px rgba(15, 23, 42, .14);
+    background: radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f1f5f9 70%);
+    color: var(--krt-text);
+}
+
+.krt-szene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+
+/* ── Kopfleiste ───────────────────────────────────────────────────────── */
+.krt-leiste {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left));
+    transition: opacity .5s ease, transform .5s ease;
+}
+.krt-leiste-links, .krt-leiste-rechts { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.krt-titel { display: flex; flex-direction: column; min-width: 0; text-shadow: 0 1px 8px rgba(0, 0, 0, .25); }
+.krt-hell .krt-titel { text-shadow: none; }
+.krt-dunkel .krt-titel {
+    padding: 5px 14px 6px; border-radius: 14px;
+    background: var(--krt-glas); border: 1px solid var(--krt-linie);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.krt-titel b { font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.krt-titel span { font-size: .7rem; text-transform: uppercase; letter-spacing: .14em; color: var(--krt-leise); white-space: nowrap; }
+
+/* ── Knöpfe ───────────────────────────────────────────────────────────── */
+.krt-knopf {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 42px; padding: 0 16px; border-radius: 999px;
+    border: 1px solid var(--krt-linie); background: var(--krt-glas); color: var(--krt-text);
+    font-weight: 600; font-size: .9rem; text-decoration: none; white-space: nowrap;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: background .2s ease, transform .1s ease, border-color .2s ease;
+}
+.krt-knopf:hover { background: var(--krt-glas-stark); border-color: color-mix(in srgb, var(--krt-akzent) 50%, transparent); }
+.krt-knopf:active { transform: scale(.97); }
+.krt-knopf:disabled { opacity: .5; cursor: wait; }
+.krt-knopf-rund { width: 42px; padding: 0; }
+.krt-knopf-klein { width: 34px; min-height: 34px; font-size: .8rem; }
+.krt-knopf-gross { min-height: 50px; padding: 0 22px; font-size: 1rem; }
+.krt-knopf-akzent { background: var(--krt-akzent); color: var(--krt-akzent-text); border-color: transparent; }
+.krt-knopf-akzent:hover { background: color-mix(in srgb, var(--krt-akzent) 85%, white); }
+.krt-hell .krt-knopf-akzent:hover { background: color-mix(in srgb, var(--krt-akzent) 85%, black); }
+.krt-knopf-an { background: color-mix(in srgb, var(--krt-akzent) 22%, var(--krt-glas)); border-color: color-mix(in srgb, var(--krt-akzent) 60%, transparent); }
+.krt-knopf-an i { color: var(--krt-akzent); }
+
+@media (max-width: 640px) {
+    .krt-leiste .krt-knopf span { display: none; }
+    .krt-leiste .krt-knopf { width: 42px; padding: 0; }
+    .krt-titel span { display: none; }
+}
+
+/* ── Lautstärkeanzeige ────────────────────────────────────────────────── */
+.krt-anzeige {
+    --krt-status-farbe: #94a3b8;
+    position: fixed; z-index: 6;
+    left: max(20px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom));
+    width: min(360px, calc(100vw - 40px));
+    padding: 14px 16px 12px; border-radius: var(--krt-radius);
+    background: var(--krt-glas); border: 1px solid var(--krt-linie); box-shadow: var(--krt-schatten);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: opacity .5s ease;
+}
+.krt-anzeige[data-status="ruhig"] { --krt-status-farbe: #34d399; }
+.krt-anzeige[data-status="fast"] { --krt-status-farbe: #fbbf24; }
+.krt-anzeige[data-status="laut"] { --krt-status-farbe: #f87171; }
+.krt-anzeige-kopf { display: flex; align-items: center; gap: 8px; font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; }
+.krt-anzeige-kopf b { font-weight: 700; }
+.krt-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--krt-status-farbe); box-shadow: 0 0 10px var(--krt-status-farbe); }
+.krt-anzeige[data-status="laut"] .krt-punkt { animation: krt-blinken 1s ease-in-out infinite; }
+.krt-info { margin-left: auto; color: var(--krt-leise); letter-spacing: .02em; text-transform: none; font-size: .78rem; }
+.krt-balken {
+    position: relative; height: 16px; margin: 10px 0 8px; border-radius: 999px; overflow: hidden;
+    background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px var(--krt-linie);
+}
+.krt-balken-fuellung {
+    height: 100%; width: 0; border-radius: 999px;
+    background: linear-gradient(90deg, #34d399, color-mix(in srgb, var(--krt-status-farbe) 90%, white));
+    transition: background .4s ease;
+}
+.krt-balken-grenze { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #fff; border-radius: 2px; box-shadow: 0 0 6px rgba(0, 0, 0, .5); }
+.krt-anzeige-fuss { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; }
+.krt-status { font-weight: 600; }
+.krt-grenze { color: var(--krt-leise); white-space: nowrap; }
+.krt-anzeige-aktionen { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--krt-linie); }
+.krt-ruhezeit { font-size: .82rem; color: var(--krt-leise); font-variant-numeric: tabular-nums; }
+
+@keyframes krt-blinken { 50% { opacity: .35; } }
+
+/* ── Uhr ──────────────────────────────────────────────────────────────── */
+.krt-uhr {
+    position: fixed; z-index: 6; right: max(24px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: flex-end; pointer-events: none;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, .35);
+}
+.krt-hell .krt-uhr { text-shadow: none; }
+.krt-dunkel .krt-uhr span { color: rgba(255, 255, 255, .85); }
+@media (max-width: 640px) { .krt-dunkel .krt-uhr { display: none; } }
+.krt-uhr b { font-size: clamp(1.6rem, 3.4vw, 2.6rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+.krt-uhr span { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--krt-leise); margin-top: 4px; }
+
+/* ── Startkarte (Mikrofon-Erlaubnis) ──────────────────────────────────── */
+.krt-start { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(3, 6, 15, .45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.krt-start-karte {
+    width: min(480px, 100%); padding: 28px 28px 24px; text-align: center; border-radius: 24px;
+    background: var(--krt-glas-stark); border: 1px solid var(--krt-linie); box-shadow: var(--krt-schatten);
+}
+.krt-start-symbol {
+    width: 58px; height: 58px; margin: 0 auto 14px; display: grid; place-items: center; border-radius: 18px;
+    font-size: 1.5rem; color: var(--krt-akzent-text); background: var(--krt-akzent);
+}
+.krt-start-karte h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.01em; }
+.krt-start-karte > p { margin-top: 10px; color: var(--krt-leise); }
+.krt-start-datenschutz { font-size: .85rem; padding: 10px 12px; border-radius: 12px; background: var(--krt-feld); text-align: left; }
+.krt-start-datenschutz i { color: var(--krt-akzent); margin-right: 4px; }
+.krt-fehler { color: #fecaca !important; background: rgba(239, 68, 68, .16); padding: 10px 12px; border-radius: 12px; font-weight: 600; }
+.krt-start-knoepfe { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+
+/* ── Einstellungsfenster ──────────────────────────────────────────────── */
+.krt-panel {
+    position: fixed; z-index: 30; top: 12px; right: 12px; bottom: 12px;
+    width: min(380px, calc(100vw - 24px)); overflow-y: auto; overscroll-behavior: contain;
+    padding: 20px 20px 16px; border-radius: 22px;
+    background: var(--krt-glas-stark); border: 1px solid var(--krt-linie); box-shadow: var(--krt-schatten);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    animation: krt-hinein .25s ease both; user-select: auto;
+}
+@keyframes krt-hinein { from { opacity: 0; transform: translateX(16px); } }
+.krt-panel-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.krt-panel-kopf h2 { font-size: 1.25rem; font-weight: 700; }
+.krt-panel-kopf p { font-size: .82rem; color: var(--krt-leise); margin-top: 2px; }
+.krt-panel-abschnitt { padding: 14px 0; border-top: 1px solid var(--krt-linie); display: grid; gap: 14px; }
+.krt-panel-abschnitt:first-of-type { border-top: 0; }
+.krt-panel-abschnitt h3 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--krt-leise); }
+.krt-regler { display: grid; gap: 6px; }
+.krt-regler > span { display: flex; justify-content: space-between; gap: 8px; }
+.krt-regler em { font-style: normal; color: var(--krt-akzent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.krt-hell .krt-regler em { color: var(--krt-text); }
+.krt-regler small, .krt-schalter small { display: block; font-size: .8rem; color: var(--krt-leise); font-weight: 400; }
+.krt-regler input[type="range"] { width: 100%; accent-color: var(--krt-akzent); }
+.krt-schalter { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.krt-schalter input {
+    appearance: none; -webkit-appearance: none; flex: none; position: relative; cursor: pointer;
+    width: 42px; height: 24px; margin: 1px 0 0; border-radius: 999px; background: var(--krt-feld-hover); transition: background .2s ease;
+}
+.krt-schalter input::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s ease;
+}
+.krt-schalter input:checked { background: var(--krt-akzent); }
+.krt-schalter input:checked::after { transform: translateX(18px); }
+.krt-panel-fuss { border-top: 1px solid var(--krt-linie); padding-top: 14px; display: grid; gap: 12px; justify-items: start; }
+.krt-panel-fuss p { font-size: .8rem; color: var(--krt-leise); }
+
+/* ── Zustände ─────────────────────────────────────────────────────────── */
+.krt-leerlauf { cursor: none; }
+.krt-leerlauf .krt-leiste { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.krt-dunkel.krt-leerlauf .krt-anzeige-aktionen { display: none; }
+.krt-ohne-uhr .krt-uhr { display: none; }
+.krt-ohne-anzeige .krt-anzeige { display: none; }
+.krt-noscript { position: fixed; inset: auto 0 0; padding: 12px; text-align: center; background: #b91c1c; color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+    .krt *, .krt *::before, .krt *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ══ Timer ════════════════════════════════════════════════════════════════ */
+.tmr {
+    --tmr-groesse: min(70vh, 44vw);
+    min-height: 100vh; min-height: 100dvh;
+    display: grid; grid-template-columns: auto minmax(0, 520px); align-items: center; justify-content: center;
+    gap: clamp(24px, 5vw, 80px); padding: 90px max(24px, 4vw) 70px;
+}
+.tmr-scheibe-rahmen {
+    width: var(--tmr-groesse); aspect-ratio: 1; border-radius: 50%;
+    background: #fff; box-shadow: 0 30px 80px rgba(15, 23, 42, .16), inset 0 0 0 1px #e2e8f0;
+}
+.tmr-scheibe { width: 100%; height: 100%; display: block; }
+.tmr-ziffernblatt { fill: #ffffff; }
+.tmr-strich { stroke: #cbd5e1; stroke-width: .8; stroke-linecap: round; }
+.tmr-strich-lang { stroke: #64748b; stroke-width: 1.6; }
+.tmr-keil { fill: var(--tmr-farbe); transition: fill .3s ease; }
+.tmr-nabe { fill: #0f172a; }
+/* Ende: drei ruhige Pulse, danach Stillstand */
+.tmr[data-status="fertig"] .tmr-scheibe-rahmen { animation: tmr-puls 2.4s ease-in-out 3; }
+@keyframes tmr-puls {
+    50% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--tmr-farbe) 18%, transparent), 0 30px 80px rgba(15, 23, 42, .16); }
+}
+
+.tmr-mitte { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.tmr-aufgabe {
+    width: 100%; border: 0; border-bottom: 2px dashed transparent; background: transparent; padding: 2px 0;
+    font-size: clamp(1.2rem, 2.4vw, 2rem); font-weight: 700; color: var(--krt-text);
+}
+.tmr-aufgabe::placeholder { color: #94a3b8; font-weight: 500; }
+.tmr-aufgabe:hover, .tmr-aufgabe:focus { border-bottom-color: #cbd5e1; outline: none; }
+.tmr-zeit {
+    font-size: clamp(4rem, 12vw, 11rem); font-weight: 700; line-height: 1; letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums; margin-top: 8px; color: var(--krt-text);
+}
+.tmr[data-status="fertig"] .tmr-zeit { color: var(--tmr-farbe); }
+.tmr-hinweis { font-size: clamp(1rem, 1.6vw, 1.35rem); color: var(--krt-leise); font-weight: 600; margin-top: 6px; }
+.tmr[data-status="fertig"] .tmr-hinweis { color: var(--tmr-farbe); }
+
+.tmr-bedienung { width: 100%; margin-top: 28px; display: grid; gap: 16px; transition: opacity .5s ease; }
+.tmr-schnellwahl { display: flex; flex-wrap: wrap; gap: 8px; }
+.tmr-chip {
+    min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--krt-linie);
+    background: #fff; font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums;
+    transition: background .2s ease, border-color .2s ease;
+}
+.tmr-chip:hover { border-color: var(--tmr-farbe); }
+.tmr-chip-aktiv { background: var(--tmr-farbe); border-color: var(--tmr-farbe); color: #fff; }
+.tmr-eigene { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tmr-eigene .krt-knopf { background: #fff; }
+.tmr-feld { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; min-height: 42px; border-radius: 12px; background: #fff; border: 1px solid var(--krt-linie); }
+.tmr-feld input { width: 3.4em; border: 0; background: transparent; font-weight: 700; font-size: 1.05rem; text-align: right; font-variant-numeric: tabular-nums; }
+.tmr-feld input:focus { outline: none; }
+.tmr-feld:focus-within { border-color: var(--tmr-farbe); }
+.tmr-feld span { color: var(--krt-leise); font-size: .85rem; }
+.tmr-aktionen { display: flex; gap: 10px; flex-wrap: wrap; }
+.tmr-start {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 30px; border-radius: 999px; border: 0;
+    background: var(--tmr-farbe); color: #fff; font-size: 1.15rem; font-weight: 700;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--tmr-farbe) 35%, transparent); transition: transform .1s ease, background .2s ease;
+}
+.krt .tmr-start { color: #fff; }
+.tmr-start:hover { background: color-mix(in srgb, var(--tmr-farbe) 85%, black); }
+.tmr-start:active { transform: scale(.97); }
+.tmr-aktionen .krt-knopf { min-height: 56px; padding: 0 22px; background: #fff; }
+.tmr-tasten { font-size: .8rem; color: var(--krt-leise); }
+
+.tmr-farben { display: flex; gap: 10px; }
+.tmr-farbe { width: 36px; height: 36px; border-radius: 50%; border: 3px solid #fff; background: var(--farbe); box-shadow: 0 0 0 1px var(--krt-linie); }
+.tmr-farbe[aria-checked="true"] { box-shadow: 0 0 0 3px var(--farbe); }
+
+/* ── Fokusmodus (läuft, Pause, Ende): nur Zeitscheibe, Aufgabe, ruhige Restzeit ── */
+.tmr-fokus { background: #f8fafc; }
+.tmr-fokus .krt-leiste, .tmr-fokus .krt-uhr, .tmr-fokus .krt-panel, .tmr-fokus .tmr-bedienung { display: none !important; }
+.tmr-fokus .tmr {
+    --tmr-groesse: min(58vh, 86vw);
+    grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center;
+    gap: clamp(12px, 2.5vh, 24px); padding: 28px 24px 120px;
+    animation: tmr-einblenden .6s ease both;
+}
+.tmr-fokus .tmr-scheibe-rahmen { box-shadow: 0 16px 50px rgba(15, 23, 42, .08), inset 0 0 0 1px #e2e8f0; }
+.tmr-fokus .tmr-mitte { align-items: center; text-align: center; }
+.tmr-fokus .tmr-aufgabe {
+    text-align: center; pointer-events: none; border-bottom-color: transparent !important;
+    font-size: clamp(1.4rem, 3.4vh, 2.2rem); color: #334155;
+}
+.tmr-fokus .tmr-aufgabe:placeholder-shown { display: none; }
+.tmr-fokus .tmr-zeit {
+    margin-top: 4px; font-size: clamp(1.8rem, 5.5vh, 3.4rem); font-weight: 600; letter-spacing: -.01em; color: #64748b;
+}
+.tmr-fokus .tmr[data-status="fertig"] .tmr-zeit { color: var(--tmr-farbe); font-weight: 700; }
+.tmr-fokus .tmr-hinweis { font-size: clamp(.95rem, 2vh, 1.15rem); font-weight: 500; }
+.tmr-fokus .tmr-hinweis:empty { display: none; }
+@keyframes tmr-einblenden { from { opacity: 0; } }
+
+/* Kompakte Steuerung: nur kurz nach Antippen/Taste, bei Pause und Ende dauerhaft */
+.tmr-fokusleiste {
+    position: fixed; z-index: 15; left: 50%; bottom: max(24px, env(safe-area-inset-bottom));
+    display: none; align-items: center; gap: 8px; padding: 8px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--krt-linie); box-shadow: var(--krt-schatten);
+    opacity: 0; pointer-events: none; transform: translate(-50%, 10px);
+    transition: opacity .35s ease, transform .35s ease;
+}
+.tmr-fokus .tmr-fokusleiste { display: flex; }
+.tmr-leiste-sichtbar .tmr-fokusleiste, .tmr-leiste-dauerhaft .tmr-fokusleiste { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.tmr-fokusleiste .tmr-start { min-height: 46px; padding: 0 20px; font-size: 1rem; box-shadow: none; }
+.tmr-fokusleiste .krt-knopf { min-height: 46px; background: #fff; }
+.tmr-fokusleiste .krt-knopf-rund { width: 46px; }
+.tmr-fokus-info { padding: 0 10px 0 4px; font-size: .9rem; color: var(--krt-leise); white-space: nowrap; }
+.tmr-fokus-info:empty { display: none; }
+@media (max-width: 640px) {
+    .tmr-fokusleiste .krt-knopf span, .tmr-fokus-info { display: none; }
+    .tmr-fokusleiste .krt-knopf { width: 46px; padding: 0; }
+}
+
+@media (max-width: 900px), (orientation: portrait) {
+    .tmr { --tmr-groesse: min(46vh, 80vw); grid-template-columns: minmax(0, 560px); justify-items: center; padding-top: 80px; gap: 24px; }
+    .tmr-mitte { align-items: center; text-align: center; }
+    .tmr-aufgabe { text-align: center; }
+    .tmr-schnellwahl, .tmr-eigene, .tmr-aktionen { justify-content: center; }
+    /* Die feste Uhr würde die Bedienelemente überdecken */
+    .krt-tool-timer .krt-uhr { display: none; }
+}

@@ -140,6 +140,17 @@ class Kernel extends ConsoleKernel
             }
         })->dailyAt('03:15')->name('benachrichtigungen-aufraeumen');
 
+        // Löschkonzept: Führungszeugnisse löschen (§ 72a SGB VIII) und Admins über fällige Stufen informieren
+        $schedule->call(function () {
+            app(\App\Services\UserDeletion\UserDeletionService::class)->runScheduledChecks();
+        })->dailyAt('06:30')->name('user-deletion-checks')->withoutOverlapping();
+
+        // Löschkonzept: Datenbank-Logs nach Ablauf von max_hours (config/logging.php) entfernen
+        $schedule->command('log:delete')->dailyAt('03:45')->name('log-db-cleanup');
+
+        // Löschkonzept: fehlgeschlagene Jobs enthalten serialisierte Modelle, nach 30 Tagen entfernen
+        $schedule->command('queue:prune-failed', ['--hours' => 24 * 30])->dailyAt('03:50');
+
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')
             ->dailyAt('03:00')
