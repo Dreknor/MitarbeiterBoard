@@ -38,6 +38,17 @@ export const KLANGWELTEN = {
         hall: {dauer: 6, anteil: 0.7},
         textur: 'funkeln',
     },
+    // G-Dur-pentatonisch, Marimba-artig: fröhlich, aber ruhig
+    zoo: {
+        grundton: 55,
+        akkorde: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]],
+        akkordDauer: [7, 9],
+        flaeche: {typ: 'triangle', filter: 950, lautstaerke: 0.03, anschlag: 2, ausklang: 3.5, verstimmung: 6},
+        tonleiter: [0, 2, 4, 7, 9],
+        melodie: {oktave: 12, typ: 'triangle', abstand: [0.55, 1.5], dauer: 0.6, lautstaerke: 0.05, obertoene: [[3, 0.06], [4, 0.04]], anschlag: 0.006},
+        hall: {dauer: 2.2, anteil: 0.3},
+        textur: 'voegel',
+    },
     // C-Dur, sehr langsam und leise: zum Atmen
     atemuebung: {
         grundton: 48,

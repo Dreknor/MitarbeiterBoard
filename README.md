@@ -27,7 +27,7 @@ Das System ist modular aufgebaut und umfasst unter anderem folgende Bereiche:
 *   **Pädagogisches Tagebuch**: Dokumentation von Beobachtungen, Tagesverläufen und Gruppenereignissen.
 *   **Diagnostik**: Erfassung von Entwicklungsständen, Zielen und Förderplänen.
 *   **Wochenpläne**: Planung und Dokumentation der pädagogischen Arbeit in den Gruppen.
-*   **Klassenraum-Tools**: Vollbild-Werkzeuge für Beamer und Tafel – Lautstärke-Szenen (Aquarium, Sternenhimmel, Blumenwiese) mit Hintergrundmusik, die über das Mikrofon auf die Raumlautstärke reagieren, ein Timer (Zeitscheibe, Sanduhr, Kerze, Raupe), Arbeitsphasen und eine Atemübung.
+*   **Klassenraum-Tools**: Vollbild-Werkzeuge für Beamer und Tafel – Lautstärke-Szenen (Aquarium, Sternenhimmel, Blumenwiese, Zoo) mit Hintergrundmusik, die über das Mikrofon auf die Raumlautstärke reagieren, ein Timer (Zeitscheibe, Sanduhr, Kerze, Raupe), Arbeitsphasen und eine Atemübung.
 
 
 ### 🛠 Technik & Sicherheit

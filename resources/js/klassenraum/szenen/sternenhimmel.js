@@ -3,7 +3,9 @@
  * erscheint der Große Wagen. Nach längerer Ruhe fallen Sternschnuppen. Bei Lärm ziehen
  * Wolken auf, Sterne verlöschen und im Haus geht das Licht an.
  *
- * Seltene Besuche (nur bei Ruhe): Komet, Polarlicht, Eule auf dem Dach, Glühwürmchen.
+ * Fledermäuse flattern ständig über den Himmel (bei Lärm fliegen sie davon).
+ * Seltene Besuche (nur bei Ruhe): Komet, Polarlicht, Eule (fliegt heran, landet auf dem Dach und
+ * fliegt wieder fort), Eulen im Überflug, Glühwürmchen.
  */
 
 import {ellipse, glatt, klemme, mische, mischeFarbe, zufall, zufallMitSaat} from '../shared/hilfen';
@@ -27,6 +29,8 @@ export function erzeugeSternenhimmel() {
     let t = 0;
     let naechsteSchnuppe = 12;
     let licht = 0;
+    let fledermaeuse = [];
+    let fledermausWeg = 0;
     const schnuppen = [];
 
     const huegel = (x, basis, a1, a2, phase) => basis + Math.sin(x * a1 + phase) * h * 0.03 + Math.sin(x * a2 + phase * 2) * h * 0.015;
@@ -75,6 +79,12 @@ export function erzeugeSternenhimmel() {
             })).filter((baum) => Math.abs(baum.x - b * 0.68) > b * 0.07);
 
             haus = {x: b * 0.68, breite: Math.max(60, b * 0.07)};
+
+            fledermaeuse = Array.from({length: 4}, (_, i) => ({
+                cx: zz.zwischen(0.2, 0.8), cy: zz.zwischen(0.25, 0.55), rx: zz.zwischen(0.12, 0.25), ry: zz.zwischen(0.06, 0.14),
+                a: zz.zwischen(0.18, 0.32) * (i % 2 ? 1 : -1), bb: zz.zwischen(0.3, 0.55), phase: zz.zwischen(0, 6.3),
+                groesse: Math.min(b, h) * zz.zwischen(0.03, 0.04),
+            }));
         }
     }
 
@@ -173,82 +183,176 @@ export function erzeugeSternenhimmel() {
         };
     }
 
+    // Eule: Körper und Kopf (sitzend und fliegend gemeinsam genutzt)
+    function zeichneEulenKoerper(ctx, g, e, fluegel) {
+        if (fluegel !== null) {
+            // ausgebreitete Flügel, schlagen auf und ab
+            [-1, 1].forEach((seite) => {
+                ctx.save();
+                ctx.translate(seite * g * 0.22, -g * 0.6);
+                ctx.rotate(seite * (0.25 + fluegel * 0.6));
+                ctx.fillStyle = '#4a3b5c';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(seite * g * 0.5, -g * 0.35, seite * g * 1.05, -g * 0.1);
+                for (let i = 0; i < 4; i++) {
+                    ctx.quadraticCurveTo(seite * g * (0.95 - i * 0.2), g * 0.12, seite * g * (0.85 - i * 0.22), g * 0.02);
+                }
+                ctx.lineTo(0, g * 0.18);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+        ctx.fillStyle = '#5b4a6e';
+        ellipse(ctx, 0, -g * 0.45, g * 0.32, g * 0.45);
+        ctx.fill();
+        ctx.fillStyle = '#7a6890';
+        ellipse(ctx, 0, -g * 0.36, g * 0.2, g * 0.3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(60,45,75,.6)';
+        ctx.lineWidth = Math.max(1, g * 0.025);
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(0, -g * (0.5 - i * 0.1), g * 0.08, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+        }
+        ctx.save();
+        ctx.translate(0, -g * 0.95);
+        ctx.rotate(e.kopf * 0.4);
+        ctx.fillStyle = '#5b4a6e';
+        ellipse(ctx, 0, 0, g * 0.3, g * 0.25);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-g * 0.28, -g * 0.1);
+        ctx.lineTo(-g * 0.22, -g * 0.36);
+        ctx.lineTo(-g * 0.1, -g * 0.18);
+        ctx.moveTo(g * 0.28, -g * 0.1);
+        ctx.lineTo(g * 0.22, -g * 0.36);
+        ctx.lineTo(g * 0.1, -g * 0.18);
+        ctx.fill();
+        const zu = e.blinzeln < 0;
+        [-1, 1].forEach((seite) => {
+            const ax = seite * g * 0.12 + e.kopf * g * 0.08;
+            if (zu) {
+                ctx.strokeStyle = '#f5d76e';
+                ctx.lineWidth = Math.max(1, g * 0.03);
+                ctx.beginPath();
+                ctx.moveTo(ax - g * 0.07, 0);
+                ctx.lineTo(ax + g * 0.07, 0);
+                ctx.stroke();
+            } else {
+                const schein = ctx.createRadialGradient(ax, 0, 0, ax, 0, g * 0.2);
+                schein.addColorStop(0, 'rgba(255,220,110,.45)');
+                schein.addColorStop(1, 'rgba(255,220,110,0)');
+                ctx.fillStyle = schein;
+                ctx.fillRect(ax - g * 0.2, -g * 0.2, g * 0.4, g * 0.4);
+                ctx.fillStyle = '#fcd34d';
+                ellipse(ctx, ax, 0, g * 0.085, g * 0.085);
+                ctx.fill();
+                ctx.fillStyle = '#111827';
+                ellipse(ctx, ax, 0, g * 0.04, g * 0.04);
+                ctx.fill();
+            }
+        });
+        ctx.fillStyle = '#e0a458';
+        ctx.beginPath();
+        ctx.moveTo(-g * 0.03, g * 0.05);
+        ctx.lineTo(g * 0.03, g * 0.05);
+        ctx.lineTo(0, g * 0.13);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    const eulenAuge = () => ({blinzeln: 3, kopf: 0, kopfZiel: 0});
+    function blinzelnUndUmsehen(e, dt) {
+        e.blinzeln -= dt;
+        if (e.blinzeln < -0.18) e.blinzeln = zufall(2, 5);
+        if (Math.random() < dt * 0.3) e.kopfZiel = zufall(-0.35, 0.35);
+        e.kopf += (e.kopfZiel - e.kopf) * Math.min(1, dt * 3);
+    }
+
+    // Eule fliegt heran, landet auf dem Dachfirst, sitzt eine Weile und fliegt wieder fort
     function neueEule() {
-        const e = {zeit: 0, dauer: 30, alpha: 0, blinzeln: 3, kopf: 0, kopfZiel: 0};
-        let flucht = false;
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const e = {...eulenAuge(), zustand: 'anflug', p: 0, zeit: 0, schlag: 0, startX: richtung > 0 ? -b * 0.08 : b * 1.08, startY: h * zufall(0.2, 0.35)};
+        const dach = () => {
+            const boden = huegelVorne(haus.x) + 4;
+            return {x: haus.x, y: boden - haus.breite * 0.62 - haus.breite * 0.45 + 2};
+        };
+        let ende = null;
         return {
             ebene: 'vorne',
             schritt(dt, z) {
-                e.zeit += dt;
-                if (z.unruhe > 0.45) flucht = true;
-                e.blinzeln -= dt;
-                if (e.blinzeln < -0.18) e.blinzeln = zufall(2, 5);
-                if (Math.random() < dt * 0.3) e.kopfZiel = zufall(-0.35, 0.35);
-                e.kopf += (e.kopfZiel - e.kopf) * Math.min(1, dt * 3);
-                const ziel = flucht || e.zeit > e.dauer ? 0 : 1;
-                e.alpha = blende(e.alpha, ziel, dt, flucht ? 1.2 : 0.4);
-                return !(ziel === 0 && e.alpha <= 0.01);
+                blinzelnUndUmsehen(e, dt);
+                e.schlag += dt * (e.zustand === 'sitzt' ? 0 : 7);
+                if (z.unruhe > 0.45 && e.zustand !== 'abflug') {
+                    e.zustand = 'abflug';
+                    e.p = 0;
+                }
+                if (e.zustand === 'anflug') {
+                    e.p = Math.min(1, e.p + dt / 7);
+                    if (e.p >= 1) e.zustand = 'sitzt';
+                } else if (e.zustand === 'sitzt') {
+                    e.zeit += dt;
+                    if (e.zeit > 22) {
+                        e.zustand = 'abflug';
+                        e.p = 0;
+                    }
+                } else {
+                    if (!ende) ende = {x: richtung > 0 ? b * 1.1 : -b * 0.1, y: h * zufall(0.05, 0.2)};
+                    e.p = Math.min(1, e.p + dt / (z.unruhe > 0.45 ? 3 : 6));
+                    if (e.p >= 1) return false;
+                }
+                return true;
             },
             zeichne(ctx) {
-                const {x, breite} = haus;
-                const boden = huegelVorne(x) + 4;
-                const first = boden - breite * 0.62 - breite * 0.45;
-                const g = breite * 0.5;
-                ctx.globalAlpha = e.alpha;
-                ctx.translate(x, first + 2);
-                // Körper
-                ctx.fillStyle = '#5b4a6e';
-                ellipse(ctx, 0, -g * 0.45, g * 0.32, g * 0.45);
-                ctx.fill();
-                ctx.fillStyle = '#7a6890';
-                ellipse(ctx, 0, -g * 0.36, g * 0.2, g * 0.3);
-                ctx.fill();
-                // Kopf (dreht leicht)
-                ctx.save();
-                ctx.translate(0, -g * 0.95);
-                ctx.rotate(e.kopf * 0.4);
-                ctx.fillStyle = '#5b4a6e';
-                ellipse(ctx, 0, 0, g * 0.3, g * 0.25);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(-g * 0.28, -g * 0.1);
-                ctx.lineTo(-g * 0.22, -g * 0.36);
-                ctx.lineTo(-g * 0.1, -g * 0.18);
-                ctx.moveTo(g * 0.28, -g * 0.1);
-                ctx.lineTo(g * 0.22, -g * 0.36);
-                ctx.lineTo(g * 0.1, -g * 0.18);
-                ctx.fill();
-                const zu = e.blinzeln < 0;
-                [-1, 1].forEach((seite) => {
-                    const ax = seite * g * 0.12 + e.kopf * g * 0.08;
-                    if (zu) {
-                        ctx.strokeStyle = '#f5d76e';
-                        ctx.lineWidth = Math.max(1, g * 0.03);
-                        ctx.beginPath();
-                        ctx.moveTo(ax - g * 0.07, 0);
-                        ctx.lineTo(ax + g * 0.07, 0);
-                        ctx.stroke();
-                    } else {
-                        const schein = ctx.createRadialGradient(ax, 0, 0, ax, 0, g * 0.2);
-                        schein.addColorStop(0, 'rgba(255,220,110,.45)');
-                        schein.addColorStop(1, 'rgba(255,220,110,0)');
-                        ctx.fillStyle = schein;
-                        ctx.fillRect(ax - g * 0.2, -g * 0.2, g * 0.4, g * 0.4);
-                        ctx.fillStyle = '#fcd34d';
-                        ellipse(ctx, ax, 0, g * 0.085, g * 0.085);
-                        ctx.fill();
-                        ctx.fillStyle = '#111827';
-                        ellipse(ctx, ax, 0, g * 0.04, g * 0.04);
-                        ctx.fill();
-                    }
+                const d = dach();
+                const g = haus.breite * 0.5;
+                let x = d.x;
+                let y = d.y;
+                let fluegel = null;
+                const glatt2 = (p) => p * p * (3 - 2 * p);
+                if (e.zustand === 'anflug') {
+                    x = mische(e.startX, d.x, glatt2(e.p));
+                    y = mische(e.startY, d.y, e.p) - Math.sin(e.p * Math.PI) * h * 0.1;
+                    fluegel = e.p > 0.93 ? -0.4 : Math.sin(e.schlag);
+                } else if (e.zustand === 'abflug' && ende) {
+                    x = mische(d.x, ende.x, glatt2(e.p));
+                    y = mische(d.y, ende.y, e.p) - Math.sin(e.p * Math.PI) * h * 0.05;
+                    fluegel = Math.sin(e.schlag);
+                }
+                ctx.translate(x, y);
+                zeichneEulenKoerper(ctx, g, e, fluegel);
+            },
+        };
+    }
+
+    // Eulen im Überflug (eine oder zwei)
+    function neueEulenFlug() {
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const anzahl = Math.random() < 0.5 ? 1 : 2;
+        const eulen = Array.from({length: anzahl}, (_, i) => ({...eulenAuge(), versatz: i * 0.08, hoehe: zufall(0.1, 0.4), schlag: i * 1.3, groesse: Math.min(b, h) * zufall(0.04, 0.055)}));
+        let p = 0;
+        return {
+            ebene: 'vorne',
+            schritt(dt, z) {
+                p += dt / (z.unruhe > 0.45 ? 5 : 14);
+                eulen.forEach((e) => {
+                    e.schlag += dt * 6;
+                    blinzelnUndUmsehen(e, dt);
                 });
-                ctx.fillStyle = '#e0a458';
-                ctx.beginPath();
-                ctx.moveTo(-g * 0.03, g * 0.05);
-                ctx.lineTo(g * 0.03, g * 0.05);
-                ctx.lineTo(0, g * 0.13);
-                ctx.fill();
-                ctx.restore();
+                return p < 1.25;
+            },
+            zeichne(ctx) {
+                eulen.forEach((e) => {
+                    const q = p - e.versatz;
+                    const x = richtung > 0 ? mische(-b * 0.1, b * 1.1, q) : mische(b * 1.1, -b * 0.1, q);
+                    const y = h * e.hoehe + Math.sin(q * 9 + e.versatz * 20) * h * 0.02;
+                    ctx.save();
+                    ctx.translate(x, y);
+                    zeichneEulenKoerper(ctx, e.groesse, e, Math.sin(e.schlag));
+                    ctx.restore();
+                });
             },
         };
     }
@@ -293,12 +397,14 @@ export function erzeugeSternenhimmel() {
         komet: neuerKomet,
         polarlicht: neuesPolarlicht,
         eule: neueEule,
+        eulenflug: neueEulenFlug,
         gluehwuermchen: neueGluehwuermchen,
     });
 
     function schritt(dt, z) {
         t += dt;
         besuche.schritt(dt, z);
+        fledermausWeg = blende(fledermausWeg, z.unruhe > 0.45 ? 1 : 0, dt, z.unruhe > 0.45 ? 0.8 : 0.15);
 
         // Sterne sammeln (in der Stille) bzw. verlieren (bei Lärm)
         if (z.unruhe < 0.15) sichtbar += dt * (maximum / 75) * (z.status === 'aus' ? 0.6 : 1);
@@ -371,6 +477,47 @@ export function erzeugeSternenhimmel() {
             }
             ctx.fillStyle = mischeFarbe('#141a35', '#ffd38a', an);
             ctx.fillRect(wx, wy, fb, fb);
+        });
+    }
+
+    function zeichneFledermaeuse(ctx) {
+        if (fledermausWeg >= 0.99) return;
+        fledermaeuse.forEach((fm) => {
+            const x = (fm.cx + Math.sin(t * fm.a + fm.phase) * fm.rx + Math.sin(t * fm.a * 2.7 + fm.phase) * 0.03) * b;
+            const y = (fm.cy + Math.sin(t * fm.bb + fm.phase * 1.7) * fm.ry - fledermausWeg * 0.8) * h;
+            const s = fm.groesse;
+            const schlag = Math.sin(t * 15 + fm.phase * 3);
+            ctx.save();
+            ctx.globalAlpha = 1 - fledermausWeg;
+            ctx.translate(x, y);
+            ctx.fillStyle = '#241f38';
+            ctx.strokeStyle = 'rgba(190,180,255,.35)';
+            ctx.lineWidth = 1;
+            [-1, 1].forEach((seite) => {
+                const spitzeY = -s * 0.7 * schlag;
+                ctx.beginPath();
+                ctx.moveTo(0, -s * 0.15);
+                ctx.quadraticCurveTo(seite * s * 0.6, spitzeY - s * 0.2, seite * s * 1.35, spitzeY);
+                ctx.quadraticCurveTo(seite * s * 1.05, spitzeY * 0.4 + s * 0.15, seite * s * 0.95, spitzeY * 0.3 + s * 0.3);
+                ctx.quadraticCurveTo(seite * s * 0.7, s * 0.12, seite * s * 0.55, s * 0.3);
+                ctx.quadraticCurveTo(seite * s * 0.35, s * 0.15, 0, s * 0.25);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            });
+            ellipse(ctx, 0, 0, s * 0.18, s * 0.32);
+            ctx.fill();
+            ellipse(ctx, 0, -s * 0.32, s * 0.14, s * 0.13);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-s * 0.12, -s * 0.38);
+            ctx.lineTo(-s * 0.08, -s * 0.58);
+            ctx.lineTo(-s * 0.02, -s * 0.42);
+            ctx.moveTo(s * 0.12, -s * 0.38);
+            ctx.lineTo(s * 0.08, -s * 0.58);
+            ctx.lineTo(s * 0.02, -s * 0.42);
+            ctx.fill();
+            ctx.restore();
         });
     }
 
@@ -477,6 +624,9 @@ export function erzeugeSternenhimmel() {
             ctx.fill();
         });
         ctx.restore();
+
+        // Fledermäuse (vor dem Mond gut als Silhouette zu sehen)
+        zeichneFledermaeuse(ctx);
 
         // Wolken
         const wolkenFaktor = glatt(z.unruhe * 1.15);

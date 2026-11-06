@@ -73,6 +73,17 @@ class KlassenraumTools
             'thema' => 'dunkel',
             'vorschau' => 'img/klassenraum/blumenwiese.jpg',
         ],
+        'zoo' => [
+            'titel' => 'Zoo',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Elefanten, Giraffen, Affen und Pinguine. Je leiser es ist, desto mehr Tierbabys trauen sich heraus – und manchmal kommt die Tierpflegerin zum Füttern. Bei Lärm verstecken sich alle im Stall.',
+            'icon' => 'fas fa-paw',
+            'farbe' => '#c2410c',
+            'entry' => 'resources/js/klassenraum/zoo.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/zoo.jpg',
+        ],
         'timer' => [
             'titel' => 'Timer',
             'kategorie' => 'zeit',
