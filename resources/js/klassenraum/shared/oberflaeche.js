@@ -114,6 +114,35 @@ export function initPanel(panel, oeffnenKnopf) {
     };
 }
 
+/**
+ * Kompakte Steuerleiste im Fokusmodus (Timer, Arbeitsphasen, Atemübung): erscheint nur kurz
+ * nach Antippen oder Tastendruck (body.tmr-leiste-sichtbar). Mausbewegungen zeigen nichts an.
+ * Dauerhaft sichtbar ist sie, solange das Tool body.tmr-leiste-dauerhaft setzt.
+ *
+ * @param {HTMLElement} leiste
+ * @param {function(): boolean} aktiv  true, solange der Fokusmodus läuft
+ */
+export function initFokusleiste(leiste, aktiv, sichtbarMs = 4000) {
+    let zeitgeber = null;
+
+    const verberge = () => {
+        clearTimeout(zeitgeber);
+        document.body.classList.remove('tmr-leiste-sichtbar');
+    };
+    const zeige = () => {
+        if (!aktiv()) return;
+        document.body.classList.add('tmr-leiste-sichtbar');
+        clearTimeout(zeitgeber);
+        zeitgeber = setTimeout(verberge, sichtbarMs);
+    };
+
+    document.addEventListener('pointerdown', (e) => {
+        if (!leiste.contains(e.target)) zeige();
+    });
+
+    return {zeige, verberge};
+}
+
 /** true, wenn das Tastenkürzel nicht in einem Eingabefeld getippt wurde. */
 export function istKuerzel(e) {
     const ziel = e.target;
@@ -147,6 +176,12 @@ export class Ton {
             this.kontext = null;
         }
         return this.kontext;
+    }
+
+    /** Einzelner sanfter Ton, versatz in Sekunden ab jetzt. */
+    ton(frequenz, versatz = 0, dauer = 1.2, lautstaerke = 0.2, typ = 'sine') {
+        if (!this.entsperre()) return;
+        this.#note(frequenz, this.kontext.currentTime + 0.02 + versatz, dauer, lautstaerke, typ);
     }
 
     #note(frequenz, start, dauer, lautstaerke, typ = 'sine') {

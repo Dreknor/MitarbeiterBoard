@@ -1,7 +1,8 @@
 /*
  * Klassenraum-Tool „Timer“ – Vite-Entrypoint.
  *
- * Großer Countdown mit schwindender Zeitscheibe (voller Kreis = eingestellte Dauer).
+ * Großer Countdown mit wählbarer Darstellung (Zeitscheibe, Sanduhr, Kerze, Raupe –
+ * siehe shared/zeitanzeige.js).
  * Die Restzeit wird aus einer festen Endzeit berechnet, damit der Timer auch in einem
  * Hintergrund-Tab oder bei ruckelnder Darstellung exakt bleibt.
  *
@@ -16,6 +17,7 @@
 import {bindeEinstellungen, ladeEinstellungen, speichereEinstellungen} from './shared/einstellungen';
 import {$, initLeerlauf, initPanel, initUhr, initVollbild, istKuerzel, schalteVollbild, Ton} from './shared/oberflaeche';
 import {formatiereDauer, klemme} from './shared/hilfen';
+import {DARSTELLUNGEN, erzeugeZeitanzeige} from './shared/zeitanzeige';
 
 const FARBEN = {rot: '#e11d48', orange: '#ea580c', gruen: '#16a34a', blau: '#2563eb', lila: '#7c3aed'};
 const MAX_SEKUNDEN = 180 * 60;
@@ -23,6 +25,7 @@ const MAX_SEKUNDEN = 180 * 60;
 const STANDARD = {
     dauer: 300,
     farbe: 'rot',
+    darstellung: 'scheibe',
     gong: true,
     gongLautstaerke: 60,
     ueberziehen: true,
@@ -33,12 +36,12 @@ const STANDARD = {
 
 const einstellungen = ladeEinstellungen('timer', STANDARD);
 if (!FARBEN[einstellungen.farbe]) einstellungen.farbe = STANDARD.farbe;
+if (!DARSTELLUNGEN[einstellungen.darstellung]) einstellungen.darstellung = STANDARD.darstellung;
 einstellungen.dauer = klemme(Math.round(einstellungen.dauer), 5, MAX_SEKUNDEN);
 
 const el = {
     wurzel: $('#tmr'),
-    keil: $('#tmr-keil'),
-    striche: $('#tmr-striche'),
+    rahmen: $('#tmr-rahmen'),
     zeit: $('#tmr-zeit'),
     hinweis: $('#tmr-hinweis'),
     aufgabe: $('#tmr-aufgabe'),
@@ -63,29 +66,16 @@ let restMs = einstellungen.dauer * 1000;
 let endeMs = 0;
 let leisteZeitgeber = null;
 
-// ── Zifferblatt ──────────────────────────────────────────────────────────
-for (let i = 0; i < 60; i++) {
-    const w = (i / 60) * Math.PI * 2;
-    const lang = i % 5 === 0;
-    const r1 = lang ? 82 : 88;
-    const strich = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    strich.setAttribute('x1', String(100 + Math.sin(w) * r1));
-    strich.setAttribute('y1', String(100 - Math.cos(w) * r1));
-    strich.setAttribute('x2', String(100 + Math.sin(w) * 93));
-    strich.setAttribute('y2', String(100 - Math.cos(w) * 93));
-    strich.setAttribute('class', lang ? 'tmr-strich tmr-strich-lang' : 'tmr-strich');
-    el.striche.appendChild(strich);
-}
+const anzeige = erzeugeZeitanzeige($('#tmr-anzeige'));
 
-function keilPfad(anteil) {
-    const a = klemme(anteil, 0, 1);
-    const r = 78;
-    if (a <= 0) return '';
-    if (a >= 0.9999) return `M100,${100 - r} A${r},${r} 0 1,1 99.99,${100 - r} Z`;
-    const w = a * Math.PI * 2;
-    const x = 100 + Math.sin(w) * r;
-    const y = 100 - Math.cos(w) * r;
-    return `M100,100 L100,${100 - r} A${r},${r} 0 ${a > 0.5 ? 1 : 0},1 ${x.toFixed(3)},${y.toFixed(3)} Z`;
+function setzeDarstellung() {
+    anzeige.setzeArt(einstellungen.darstellung);
+    el.rahmen.dataset.art = einstellungen.darstellung;
+    document.querySelectorAll('.tmr-darstellung').forEach((k) => {
+        const aktiv = k.dataset.darstellung === einstellungen.darstellung;
+        k.setAttribute('aria-checked', String(aktiv));
+        k.classList.toggle('tmr-chip-aktiv', aktiv);
+    });
 }
 
 // ── Darstellung ──────────────────────────────────────────────────────────
@@ -99,7 +89,7 @@ function setzeFarbe() {
 function zeigeEingaben() {
     el.minuten.value = Math.floor(einstellungen.dauer / 60);
     el.sekunden.value = einstellungen.dauer % 60;
-    document.querySelectorAll('.tmr-chip').forEach((chip) => {
+    document.querySelectorAll('.tmr-chip[data-minuten]').forEach((chip) => {
         chip.classList.toggle('tmr-chip-aktiv', Number(chip.dataset.minuten) * 60 === einstellungen.dauer);
     });
 }
@@ -142,7 +132,7 @@ function anzeigen() {
     if (el.zeit.textContent !== text) el.zeit.textContent = text;
     if (el.hinweis.textContent !== hinweis) el.hinweis.textContent = hinweis;
     if (el.fokusInfo.textContent !== info) el.fokusInfo.textContent = info;
-    el.keil.setAttribute('d', keilPfad(anteil));
+    anzeige.zeige(anteil, status === 'laeuft');
     el.wurzel.dataset.status = status;
 
     const body = document.body.classList;
@@ -226,7 +216,7 @@ function aendere(deltaSekunden) {
     }
 }
 
-document.querySelectorAll('.tmr-chip').forEach((chip) => {
+document.querySelectorAll('.tmr-chip[data-minuten]').forEach((chip) => {
     chip.addEventListener('click', () => setzeDauer(Number(chip.dataset.minuten) * 60));
 });
 document.querySelectorAll('[data-plus]').forEach((knopf) => {
@@ -262,6 +252,15 @@ el.aufgabe.addEventListener('input', () => {
 });
 el.aufgabe.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') el.aufgabe.blur();
+});
+
+document.querySelectorAll('.tmr-darstellung').forEach((knopf) => {
+    knopf.addEventListener('click', () => {
+        einstellungen.darstellung = knopf.dataset.darstellung;
+        speichern();
+        setzeDarstellung();
+        anzeigen();
+    });
 });
 
 document.querySelectorAll('.tmr-farbe').forEach((knopf) => {
@@ -318,6 +317,7 @@ function takt() {
 setInterval(takt, 200);
 
 setzeFarbe();
+setzeDarstellung();
 anwenden();
 zeigeEingaben();
 anzeigen();

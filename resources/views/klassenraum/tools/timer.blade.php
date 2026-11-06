@@ -17,13 +17,9 @@
 </header>
 
 <main class="tmr" id="tmr" data-status="bereit">
-    <div class="tmr-scheibe-rahmen">
-        <svg class="tmr-scheibe" viewBox="0 0 200 200" role="img" aria-labelledby="tmr-zeit">
-            <circle class="tmr-ziffernblatt" cx="100" cy="100" r="96"></circle>
-            <g class="tmr-striche" id="tmr-striche"></g>
-            <path class="tmr-keil" id="tmr-keil" d=""></path>
-            <circle class="tmr-nabe" cx="100" cy="100" r="5"></circle>
-        </svg>
+    <div class="tmr-scheibe-rahmen" id="tmr-rahmen">
+        {{-- Zeitscheibe, Sanduhr, Kerze oder Raupe – gezeichnet von shared/zeitanzeige.js --}}
+        <div class="tmr-anzeige" id="tmr-anzeige"></div>
     </div>
 
     <div class="tmr-mitte">
@@ -39,6 +35,8 @@
                     <button type="button" class="tmr-chip" data-minuten="{{ $minuten }}">{{ $minuten }}&nbsp;min</button>
                 @endforeach
             </div>
+
+            @include('klassenraum.partials.darstellungen')
 
             <div class="tmr-eigene" role="group" aria-label="Eigene Dauer">
                 <button type="button" class="krt-knopf krt-knopf-rund" data-plus="-60" title="1 Minute weniger" aria-label="1 Minute weniger"><i class="fas fa-minus"></i></button>
@@ -58,7 +56,7 @@
                 <button type="button" class="krt-knopf" id="tmr-reset" title="Zurücksetzen (R)"><i class="fas fa-undo"></i><span>Zurücksetzen</span></button>
             </div>
             <p class="tmr-tasten">
-                Nach dem Start ist nur noch die Zeitscheibe zu sehen. Antippen oder eine Taste zeigt kurz die Steuerung.<br>
+                Nach dem Start ist nur noch die Zeitanzeige zu sehen. Antippen oder eine Taste zeigt kurz die Steuerung.<br>
                 Leertaste: Start/Pause · R: Beenden · F: Vollbild
             </p>
         </div>

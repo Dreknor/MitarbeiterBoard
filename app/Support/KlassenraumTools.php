@@ -26,10 +26,18 @@ class KlassenraumTools
             'titel' => 'Zeit',
             'beschreibung' => 'Zeit sichtbar machen – für Arbeitsphasen, Aufräumen und Pausen.',
         ],
+        'ruhe' => [
+            'titel' => 'Ruhe & Ankommen',
+            'beschreibung' => 'Kurze Übungen, um nach der Pause oder vor einer Arbeitsphase zur Ruhe zu kommen.',
+        ],
     ];
 
     /**
-     * @var array<string, array{titel: string, kategorie: string, beschreibung: string, icon: string, farbe: string, entry: string, mikrofon: bool}>
+     * Felder: titel, kategorie, beschreibung, icon (Font Awesome), farbe (Karte), entry (Vite),
+     * mikrofon (nutzt die gemeinsame Lautstärke-Oberfläche), thema ('dunkel'|'hell' für die Vollbildseite),
+     * vorschau (Bild in public/img/klassenraum/ für die Übersicht).
+     *
+     * @var array<string, array{titel: string, kategorie: string, beschreibung: string, icon: string, farbe: string, entry: string, mikrofon: bool, thema: string, vorschau: string}>
      */
     public const TOOLS = [
         'aquarium' => [
@@ -40,6 +48,8 @@ class KlassenraumTools
             'farbe' => '#0e7490',
             'entry' => 'resources/js/klassenraum/aquarium.js',
             'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/aquarium.jpg',
         ],
         'sternenhimmel' => [
             'titel' => 'Sternenhimmel',
@@ -49,6 +59,8 @@ class KlassenraumTools
             'farbe' => '#3730a3',
             'entry' => 'resources/js/klassenraum/sternenhimmel.js',
             'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/sternenhimmel.jpg',
         ],
         'blumenwiese' => [
             'titel' => 'Blumenwiese',
@@ -58,15 +70,41 @@ class KlassenraumTools
             'farbe' => '#4d7c0f',
             'entry' => 'resources/js/klassenraum/blumenwiese.js',
             'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/blumenwiese.jpg',
         ],
         'timer' => [
             'titel' => 'Timer',
             'kategorie' => 'zeit',
-            'beschreibung' => 'Großer, gut sichtbarer Countdown mit schwindender Zeitscheibe, Schnellwahl und sanftem Gong am Ende.',
+            'beschreibung' => 'Großer, ruhiger Countdown als Zeitscheibe, Sanduhr, Kerze oder Raupe – mit Schnellwahl und sanftem Gong am Ende.',
             'icon' => 'fas fa-hourglass-half',
             'farbe' => '#b45309',
             'entry' => 'resources/js/klassenraum/timer.js',
             'mikrofon' => false,
+            'thema' => 'hell',
+            'vorschau' => 'img/klassenraum/timer.jpg',
+        ],
+        'arbeitsphasen' => [
+            'titel' => 'Arbeitsphasen',
+            'kategorie' => 'zeit',
+            'beschreibung' => 'Mehrere Schritte nacheinander, z. B. 8 min Lesen → 2 min Aufräumen → Sitzkreis – mit Gong und Vorschau auf den nächsten Schritt.',
+            'icon' => 'fas fa-list-ol',
+            'farbe' => '#1d4ed8',
+            'entry' => 'resources/js/klassenraum/arbeitsphasen.js',
+            'mikrofon' => false,
+            'thema' => 'hell',
+            'vorschau' => 'img/klassenraum/arbeitsphasen.jpg',
+        ],
+        'atemuebung' => [
+            'titel' => 'Atemübung',
+            'kategorie' => 'ruhe',
+            'beschreibung' => 'Ein Kreis wächst beim Einatmen und wird beim Ausatmen kleiner – zum Ankommen nach der Pause.',
+            'icon' => 'fas fa-wind',
+            'farbe' => '#0f766e',
+            'entry' => 'resources/js/klassenraum/atemuebung.js',
+            'mikrofon' => false,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/atemuebung.jpg',
         ],
     ];
 

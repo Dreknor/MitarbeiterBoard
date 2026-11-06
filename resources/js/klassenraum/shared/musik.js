@@ -38,6 +38,17 @@ export const KLANGWELTEN = {
         hall: {dauer: 6, anteil: 0.7},
         textur: 'funkeln',
     },
+    // C-Dur, sehr langsam und leise: zum Atmen
+    atemuebung: {
+        grundton: 48,
+        akkorde: [[0, 7, 12, 16], [-3, 4, 9, 12], [5, 9, 12, 17], [-5, 2, 7, 11]],
+        akkordDauer: [12, 16],
+        flaeche: {typ: 'sine', filter: 900, lautstaerke: 0.05, anschlag: 5, ausklang: 6, verstimmung: 4},
+        tonleiter: [0, 2, 4, 7, 9],
+        melodie: {oktave: 24, typ: 'sine', abstand: [4, 8], dauer: 4, lautstaerke: 0.028, obertoene: [[2, 0.15]], anschlag: 0.05},
+        hall: {dauer: 5, anteil: 0.6},
+        textur: null,
+    },
     // C-Dur-pentatonisch: hell, leicht, sonnig
     blumenwiese: {
         grundton: 48,

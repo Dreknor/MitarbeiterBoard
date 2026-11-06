@@ -16,7 +16,7 @@
     <link href="{{ asset('css/solid.css') }}" rel="stylesheet">
     @vite(['resources/css/klassenraum-tool.css', $tool['entry']])
 </head>
-<body class="krt krt-tool-{{ $schluessel }} {{ $tool['mikrofon'] ? 'krt-dunkel' : 'krt-hell' }}">
+<body class="krt krt-tool-{{ $schluessel }} krt-{{ $tool['thema'] ?? ($tool['mikrofon'] ? 'dunkel' : 'hell') }}">
     @if($tool['mikrofon'])
         @include('klassenraum.partials.lautstaerke')
     @else
