@@ -50,13 +50,17 @@
 
                 {{-- Tabellen-Body --}}
                 <div class="card-body p-2">
-                    {{-- Fehler und Hinweise (statt alert()) --}}
+                    {{-- Fehler und Hinweise (statt alert()).
+                         Kein d-flex am x-show-Element: Bootstraps „display:flex !important“
+                         würde das Ausblenden durch x-show aushebeln (leerer Balken). --}}
                     <div x-show="$store.diary.errorMessage" x-cloak role="alert"
                          :class="$store.diary.messageType === 'info' ? 'alert-info' : 'alert-danger'"
-                         class="alert d-flex justify-content-between align-items-start py-2 mb-2">
-                        <span x-text="$store.diary.errorMessage"></span>
-                        <button type="button" class="close ml-2" aria-label="Meldung schließen"
-                                @click="$store.diary.errorMessage = ''">&times;</button>
+                         class="alert py-2 mb-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span x-text="$store.diary.errorMessage"></span>
+                            <button type="button" class="close ml-2" aria-label="Meldung schließen"
+                                    @click="$store.diary.errorMessage = ''">&times;</button>
+                        </div>
                     </div>
                     {{-- Loading --}}
                     <div x-show="$store.diary.loading" x-cloak class="text-center py-4">
