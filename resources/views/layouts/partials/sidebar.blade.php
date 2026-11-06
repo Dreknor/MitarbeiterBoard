@@ -132,6 +132,15 @@
                     </div>
                 @endcan
 
+                {{-- Klassenraum-Tools (Lautstärke-Szenen, Timer) --}}
+                @can('use classroom tools')
+                    <a href="{{ route('klassenraum.index') }}"
+                       class="sidebar-link @if(request()->segment(1) == 'klassenraum') active @endif">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Klassenraum-Tools</span>
+                    </a>
+                @endcan
+
                 <div class="sidebar-section-label">Organisation</div>
 
                 {{-- ── BERATUNGEN (dynamisch nach Gruppen) ────────────── --}}

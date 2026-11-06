@@ -969,6 +969,16 @@ Route::group([
                 });
 
                 /*
+                 * Klassenraum-Tools (Lautstärke-Szenen, Timer) – Vollbildseiten für Beamer/Tafel
+                 */
+                Route::prefix('klassenraum')->name('klassenraum.')->middleware('permission:use classroom tools')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\KlassenraumToolsController::class, 'index'])->name('index');
+                    Route::get('{tool}', [\App\Http\Controllers\KlassenraumToolsController::class, 'show'])
+                        ->where('tool', '[a-z0-9-]+')
+                        ->name('show');
+                });
+
+                /*
                  * Online-Updater (Permission "make updates" im Controller)
                  */
                 Route::prefix('updater')->name('updater.')->group(function () {

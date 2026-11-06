@@ -77,6 +77,9 @@ class TestPermissionSeeder extends Seeder
         'view diagnostics',
         'manage diagnostics',
 
+        // ─── Klassenraum-Tools ──────────────────────────────────────────────
+        'use classroom tools',
+
         // ─── Meetings & Themen ──────────────────────────────────────────────
         'manage recurring themes',
         'unarchive theme',
