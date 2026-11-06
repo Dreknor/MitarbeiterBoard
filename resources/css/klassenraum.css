@@ -1,0 +1,88 @@
+/*
+ * Klassenraum-Tools – Übersicht (/klassenraum), Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .kr-wrapper gescopet, Komponenten mit Präfix kr-
+ *   - Utilities ungelayert + !important (wie tickets.css), damit Bootstrap sie nicht überschreibt
+ *   - Die Vollbild-Tools selbst nutzen resources/css/klassenraum-tool.css (ohne Tailwind)
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/klassenraum/index.blade.php";
+@source not inline("container collapse table");
+
+.kr-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1280px;
+    margin-inline: auto;
+}
+@media (max-width: 640px) { .kr-wrapper { padding: 1rem .75rem 5rem; } }
+.kr-wrapper *, .kr-wrapper *::before, .kr-wrapper *::after { box-sizing: border-box; }
+.kr-wrapper :is(h1, h2, h3) { margin: 0; line-height: 1.3; color: inherit; }
+.kr-wrapper p { margin: 0; }
+.kr-wrapper a { text-decoration: none; }
+.kr-wrapper code, .kr-wrapper kbd {
+    @apply font-mono text-xs rounded-md px-1.5 py-0.5 bg-gray-100 text-gray-700;
+}
+
+/* Karten */
+.kr-wrapper .kr-karte {
+    @apply flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden transition-shadow;
+    border: 1px solid #e5e7eb;
+}
+.kr-wrapper .kr-karte:hover { @apply shadow-md; }
+.kr-wrapper .kr-karte-bild {
+    @apply relative flex items-center justify-center overflow-hidden;
+    aspect-ratio: 16 / 9;
+    background:
+        radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--kr-farbe) 55%, white) 0%, transparent 60%),
+        linear-gradient(135deg, var(--kr-farbe), color-mix(in srgb, var(--kr-farbe) 60%, black));
+}
+.kr-wrapper .kr-karte-symbol {
+    @apply flex items-center justify-center w-14 h-14 rounded-2xl text-2xl text-white;
+    background: rgba(255, 255, 255, .18);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3);
+}
+/* Vorschau der Szene (public/img/klassenraum/*.jpg); das Symbol wird dann zum kleinen Abzeichen */
+.kr-wrapper .kr-karte-vorschau {
+    @apply absolute inset-0 w-full h-full;
+    object-fit: cover;
+    transition: transform .5s ease;
+}
+.kr-wrapper .kr-karte:hover .kr-karte-vorschau { transform: scale(1.04); }
+.kr-wrapper .kr-karte-vorschau ~ .kr-karte-symbol {
+    @apply absolute left-3 bottom-3 w-10 h-10 text-base rounded-xl;
+    background: color-mix(in srgb, var(--kr-farbe) 88%, transparent);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .25), inset 0 0 0 1px rgba(255, 255, 255, .3);
+}
+.kr-wrapper .kr-karte-inhalt { @apply px-5 pt-4 pb-3 flex-1; }
+.kr-wrapper .kr-karte-fuss { @apply flex flex-wrap gap-2 px-5 pb-5; }
+
+.kr-wrapper .kr-marke {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
+    background: color-mix(in srgb, var(--kr-farbe) 12%, white);
+    color: color-mix(in srgb, var(--kr-farbe) 80%, black);
+}
+
+/* Buttons */
+.kr-wrapper .kr-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2 text-sm
+           transition-colors whitespace-nowrap select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    min-height: 2.5rem;
+}
+.kr-wrapper .kr-btn-primary { background: var(--kr-farbe); color: #fff; }
+.kr-wrapper .kr-btn-primary:hover { background: color-mix(in srgb, var(--kr-farbe) 85%, black); color: #fff; }
+.kr-wrapper .kr-btn-secondary { @apply bg-gray-100 text-gray-700; }
+.kr-wrapper .kr-btn-secondary:hover { @apply bg-gray-200 text-gray-900; }
+
+/* Hinweisbox */
+.kr-wrapper .kr-hinweis {
+    @apply flex gap-3 rounded-2xl px-5 py-4 bg-sky-50;
+    border: 1px solid #bae6fd;
+}
+.kr-wrapper .kr-hinweis > i { @apply text-sky-600 mt-0.5; }

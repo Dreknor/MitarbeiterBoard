@@ -63,6 +63,16 @@ export default defineConfig({
 
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
+
+                // Klassenraum-Tools (Übersicht + Vollbild-Tools, siehe app/Support/KlassenraumTools.php)
+                'resources/css/klassenraum.css',
+                'resources/css/klassenraum-tool.css',
+                'resources/js/klassenraum/aquarium.js',
+                'resources/js/klassenraum/sternenhimmel.js',
+                'resources/js/klassenraum/blumenwiese.js',
+                'resources/js/klassenraum/timer.js',
+                'resources/js/klassenraum/arbeitsphasen.js',
+                'resources/js/klassenraum/atemuebung.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',
@@ -103,6 +113,8 @@ export default defineConfig({
                 'resources/views/updater/**/*.blade.php',
                 // Zeitwirtschaft
                 'app/Services/Personal/Zeit/*.php',
+                // Klassenraum-Tools
+                'resources/views/klassenraum/**/*.blade.php',
             ],
         }),
     ],
