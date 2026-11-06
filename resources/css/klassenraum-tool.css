@@ -243,7 +243,8 @@
 .tmr-strich-lang { stroke: #64748b; stroke-width: 1.6; }
 .tmr-keil { fill: var(--tmr-farbe); transition: fill .3s ease; }
 .tmr-nabe { fill: #0f172a; }
-.tmr[data-status="fertig"] .tmr-scheibe-rahmen { animation: tmr-puls 1.6s ease-in-out infinite; }
+/* Ende: drei ruhige Pulse, danach Stillstand */
+.tmr[data-status="fertig"] .tmr-scheibe-rahmen { animation: tmr-puls 2.4s ease-in-out 3; }
 @keyframes tmr-puls {
     50% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--tmr-farbe) 18%, transparent), 0 30px 80px rgba(15, 23, 42, .16); }
 }
@@ -260,13 +261,10 @@
     font-variant-numeric: tabular-nums; margin-top: 8px; color: var(--krt-text);
 }
 .tmr[data-status="fertig"] .tmr-zeit { color: var(--tmr-farbe); }
-.tmr-knapp .tmr-zeit { animation: krt-blinken 1s ease-in-out infinite; color: var(--tmr-farbe); }
 .tmr-hinweis { font-size: clamp(1rem, 1.6vw, 1.35rem); color: var(--krt-leise); font-weight: 600; margin-top: 6px; }
 .tmr[data-status="fertig"] .tmr-hinweis { color: var(--tmr-farbe); }
 
 .tmr-bedienung { width: 100%; margin-top: 28px; display: grid; gap: 16px; transition: opacity .5s ease; }
-.krt-leerlauf.tmr-laeuft .tmr-bedienung { opacity: 0; pointer-events: none; }
-.krt-leerlauf.tmr-laeuft .tmr-aufgabe::placeholder { color: transparent; }
 .tmr-schnellwahl { display: flex; flex-wrap: wrap; gap: 8px; }
 .tmr-chip {
     min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--krt-linie);
@@ -288,6 +286,7 @@
     background: var(--tmr-farbe); color: #fff; font-size: 1.15rem; font-weight: 700;
     box-shadow: 0 10px 24px color-mix(in srgb, var(--tmr-farbe) 35%, transparent); transition: transform .1s ease, background .2s ease;
 }
+.krt .tmr-start { color: #fff; }
 .tmr-start:hover { background: color-mix(in srgb, var(--tmr-farbe) 85%, black); }
 .tmr-start:active { transform: scale(.97); }
 .tmr-aktionen .krt-knopf { min-height: 56px; padding: 0 22px; background: #fff; }
@@ -296,6 +295,50 @@
 .tmr-farben { display: flex; gap: 10px; }
 .tmr-farbe { width: 36px; height: 36px; border-radius: 50%; border: 3px solid #fff; background: var(--farbe); box-shadow: 0 0 0 1px var(--krt-linie); }
 .tmr-farbe[aria-checked="true"] { box-shadow: 0 0 0 3px var(--farbe); }
+
+/* ── Fokusmodus (läuft, Pause, Ende): nur Zeitscheibe, Aufgabe, ruhige Restzeit ── */
+.tmr-fokus { background: #f8fafc; }
+.tmr-fokus .krt-leiste, .tmr-fokus .krt-uhr, .tmr-fokus .krt-panel, .tmr-fokus .tmr-bedienung { display: none !important; }
+.tmr-fokus .tmr {
+    --tmr-groesse: min(58vh, 86vw);
+    grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center;
+    gap: clamp(12px, 2.5vh, 24px); padding: 28px 24px 120px;
+    animation: tmr-einblenden .6s ease both;
+}
+.tmr-fokus .tmr-scheibe-rahmen { box-shadow: 0 16px 50px rgba(15, 23, 42, .08), inset 0 0 0 1px #e2e8f0; }
+.tmr-fokus .tmr-mitte { align-items: center; text-align: center; }
+.tmr-fokus .tmr-aufgabe {
+    text-align: center; pointer-events: none; border-bottom-color: transparent !important;
+    font-size: clamp(1.4rem, 3.4vh, 2.2rem); color: #334155;
+}
+.tmr-fokus .tmr-aufgabe:placeholder-shown { display: none; }
+.tmr-fokus .tmr-zeit {
+    margin-top: 4px; font-size: clamp(1.8rem, 5.5vh, 3.4rem); font-weight: 600; letter-spacing: -.01em; color: #64748b;
+}
+.tmr-fokus .tmr[data-status="fertig"] .tmr-zeit { color: var(--tmr-farbe); font-weight: 700; }
+.tmr-fokus .tmr-hinweis { font-size: clamp(.95rem, 2vh, 1.15rem); font-weight: 500; }
+.tmr-fokus .tmr-hinweis:empty { display: none; }
+@keyframes tmr-einblenden { from { opacity: 0; } }
+
+/* Kompakte Steuerung: nur kurz nach Antippen/Taste, bei Pause und Ende dauerhaft */
+.tmr-fokusleiste {
+    position: fixed; z-index: 15; left: 50%; bottom: max(24px, env(safe-area-inset-bottom));
+    display: none; align-items: center; gap: 8px; padding: 8px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--krt-linie); box-shadow: var(--krt-schatten);
+    opacity: 0; pointer-events: none; transform: translate(-50%, 10px);
+    transition: opacity .35s ease, transform .35s ease;
+}
+.tmr-fokus .tmr-fokusleiste { display: flex; }
+.tmr-leiste-sichtbar .tmr-fokusleiste, .tmr-leiste-dauerhaft .tmr-fokusleiste { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.tmr-fokusleiste .tmr-start { min-height: 46px; padding: 0 20px; font-size: 1rem; box-shadow: none; }
+.tmr-fokusleiste .krt-knopf { min-height: 46px; background: #fff; }
+.tmr-fokusleiste .krt-knopf-rund { width: 46px; }
+.tmr-fokus-info { padding: 0 10px 0 4px; font-size: .9rem; color: var(--krt-leise); white-space: nowrap; }
+.tmr-fokus-info:empty { display: none; }
+@media (max-width: 640px) {
+    .tmr-fokusleiste .krt-knopf span, .tmr-fokus-info { display: none; }
+    .tmr-fokusleiste .krt-knopf { width: 46px; padding: 0; }
+}
 
 @media (max-width: 900px), (orientation: portrait) {
     .tmr { --tmr-groesse: min(46vh, 80vw); grid-template-columns: minmax(0, 560px); justify-items: center; padding-top: 80px; gap: 24px; }

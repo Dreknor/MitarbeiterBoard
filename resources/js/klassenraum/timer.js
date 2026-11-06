@@ -4,6 +4,13 @@
  * Großer Countdown mit schwindender Zeitscheibe (voller Kreis = eingestellte Dauer).
  * Die Restzeit wird aus einer festen Endzeit berechnet, damit der Timer auch in einem
  * Hintergrund-Tab oder bei ruckelnder Darstellung exakt bleibt.
+ *
+ * Zwei Ansichten:
+ *   Einstellen (bereit)            – Schnellwahl, eigene Dauer, Aufgabe, Einstellungen
+ *   Fokus (läuft, Pause, fertig)   – nur Zeitscheibe, Aufgabe und ruhige Restzeit (body.tmr-fokus).
+ *     Die kompakte Steuerung erscheint nur kurz nach Antippen/Taste (body.tmr-leiste-sichtbar),
+ *     bei Pause und Ende dauerhaft (body.tmr-leiste-dauerhaft). Mausbewegungen zeigen nichts an,
+ *     nichts blinkt.
  */
 
 import {bindeEinstellungen, ladeEinstellungen, speichereEinstellungen} from './shared/einstellungen';
@@ -20,7 +27,7 @@ const STANDARD = {
     gongLautstaerke: 60,
     ueberziehen: true,
     uhr: true,
-    ausblenden: true,
+    sekunden: false,
     aufgabe: '',
 };
 
@@ -40,7 +47,12 @@ const el = {
     start: $('#tmr-start'),
     reset: $('#tmr-reset'),
     panel: $('#krt-panel'),
+    fokusStart: $('#tmr-fokus-start'),
+    fokusEnde: $('#tmr-fokus-ende'),
+    fokusInfo: $('#tmr-fokus-info'),
 };
+
+const LEISTE_SICHTBAR_MS = 4000;
 
 const ton = new Ton();
 const speichern = () => speichereEinstellungen('timer', einstellungen);
@@ -49,6 +61,7 @@ const uhrzeit = new Intl.DateTimeFormat('de-DE', {hour: '2-digit', minute: '2-di
 let status = 'bereit'; // bereit | laeuft | pause | fertig
 let restMs = einstellungen.dauer * 1000;
 let endeMs = 0;
+let leisteZeitgeber = null;
 
 // ── Zifferblatt ──────────────────────────────────────────────────────────
 for (let i = 0; i < 60; i++) {
@@ -91,45 +104,71 @@ function zeigeEingaben() {
     });
 }
 
+/** Ruhige Restzeit für den Fokusmodus: ganze Minuten statt tickender Sekunden. */
+function restText(ms) {
+    if (einstellungen.sekunden) return formatiereDauer(Math.ceil(ms / 1000));
+    return ms > 60_000 ? `noch ${Math.ceil(ms / 60_000)} min` : 'noch < 1 min';
+}
+
+function setzeKnopf(knopf, symbolKlasse, text) {
+    const symbol = knopf.querySelector('i');
+    const beschriftung = knopf.querySelector('span');
+    if (symbol.className !== symbolKlasse) symbol.className = symbolKlasse;
+    if (beschriftung.textContent !== text) beschriftung.textContent = text;
+}
+
 function anzeigen() {
     const jetzt = Date.now();
     let text;
     let anteil;
-    let hinweis;
+    let hinweis = '';
+    let info = '';
 
     if (status === 'fertig') {
-        const drueber = (jetzt - endeMs) / 1000;
-        text = einstellungen.ueberziehen ? `+${formatiereDauer(drueber)}` : '0:00';
+        text = 'Die Zeit ist um!';
         anteil = 0;
-        hinweis = 'Die Zeit ist um!';
+        if (einstellungen.ueberziehen) hinweis = `seit ${formatiereDauer((jetzt - endeMs) / 1000)}`;
+    } else if (status === 'bereit') {
+        text = formatiereDauer(einstellungen.dauer);
+        anteil = 1;
+        hinweis = 'Bereit';
     } else {
-        const sekunden = Math.ceil(restMs / 1000);
-        text = formatiereDauer(sekunden);
+        text = restText(restMs);
         anteil = restMs / (einstellungen.dauer * 1000);
-        if (status === 'laeuft') hinweis = `Ende um ${uhrzeit.format(new Date(endeMs))} Uhr`;
-        else if (status === 'pause') hinweis = 'Pausiert';
-        else hinweis = 'Bereit';
+        if (status === 'pause') hinweis = 'Pausiert';
+        else info = `Ende um ${uhrzeit.format(new Date(endeMs))} Uhr`;
     }
 
     if (el.zeit.textContent !== text) el.zeit.textContent = text;
     if (el.hinweis.textContent !== hinweis) el.hinweis.textContent = hinweis;
+    if (el.fokusInfo.textContent !== info) el.fokusInfo.textContent = info;
     el.keil.setAttribute('d', keilPfad(anteil));
     el.wurzel.dataset.status = status;
-    el.wurzel.classList.toggle('tmr-knapp', status === 'laeuft' && restMs <= 10_000);
-    document.body.classList.toggle('tmr-laeuft', status === 'laeuft');
+
+    const body = document.body.classList;
+    body.toggle('tmr-fokus', status !== 'bereit');
+    body.toggle('tmr-laeuft', status === 'laeuft');
+    body.toggle('tmr-leiste-dauerhaft', status === 'pause' || status === 'fertig');
 
     const titel = einstellungen.aufgabe ? `${einstellungen.aufgabe} · ` : '';
     document.title = status === 'bereit' ? 'Timer · Klassenraum-Tools' : `${text} · ${titel}Timer`;
 
-    const symbol = el.start.querySelector('i');
-    const beschriftung = el.start.querySelector('span');
     if (status === 'laeuft') {
-        symbol.className = 'fas fa-pause';
-        beschriftung.textContent = 'Pause';
+        setzeKnopf(el.start, 'fas fa-pause', 'Pause');
+        setzeKnopf(el.fokusStart, 'fas fa-pause', 'Pause');
     } else {
-        symbol.className = 'fas fa-play';
-        beschriftung.textContent = status === 'pause' ? 'Weiter' : status === 'fertig' ? 'Neu starten' : 'Start';
+        const beschriftung = status === 'pause' ? 'Weiter' : status === 'fertig' ? 'Neu starten' : 'Start';
+        setzeKnopf(el.start, 'fas fa-play', beschriftung);
+        setzeKnopf(el.fokusStart, status === 'fertig' ? 'fas fa-redo' : 'fas fa-play', beschriftung);
     }
+}
+
+/** Kompakte Steuerung im Fokusmodus kurz einblenden. */
+function zeigeLeiste() {
+    if (status === 'bereit') return;
+    document.body.classList.add('tmr-leiste-sichtbar');
+    clearTimeout(leisteZeitgeber);
+    leisteZeitgeber = setTimeout(() => document.body.classList.remove('tmr-leiste-sichtbar'), LEISTE_SICHTBAR_MS);
 }
 
 // ── Steuerung ────────────────────────────────────────────────────────────
@@ -147,7 +186,10 @@ function start() {
     if (status === 'bereit' || status === 'fertig') restMs = einstellungen.dauer * 1000;
     endeMs = Date.now() + restMs;
     status = 'laeuft';
+    if (panel.offen()) panel.schliesse();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     anzeigen();
+    zeigeLeiste();
 }
 
 function pause() {
@@ -159,6 +201,8 @@ function pause() {
 function zuruecksetzen() {
     status = 'bereit';
     restMs = einstellungen.dauer * 1000;
+    clearTimeout(leisteZeitgeber);
+    document.body.classList.remove('tmr-leiste-sichtbar');
     anzeigen();
 }
 
@@ -199,6 +243,16 @@ el.sekunden.addEventListener('change', ausEingaben);
 
 el.start.addEventListener('click', umschalten);
 el.reset.addEventListener('click', zuruecksetzen);
+el.fokusStart.addEventListener('click', () => {
+    umschalten();
+    zeigeLeiste();
+});
+el.fokusEnde.addEventListener('click', zuruecksetzen);
+
+// Im Fokusmodus: Antippen/Klicken irgendwo zeigt die Steuerung – Mausbewegungen nicht.
+document.addEventListener('pointerdown', (e) => {
+    if (status !== 'bereit' && !e.target.closest('#tmr-fokusleiste')) zeigeLeiste();
+});
 
 el.aufgabe.value = einstellungen.aufgabe;
 el.aufgabe.addEventListener('input', () => {
@@ -228,8 +282,10 @@ bindeEinstellungen(document, einstellungen, (name) => {
 
 const panel = initPanel(el.panel, $('#krt-einstellungen-oeffnen'));
 initVollbild($('#krt-vollbild'));
+initVollbild($('#tmr-fokus-vollbild'));
 initUhr($('#krt-uhr'));
-initLeerlauf(() => einstellungen.ausblenden && status === 'laeuft' && !panel.offen() && document.activeElement !== el.aufgabe);
+// Mauszeiger im Fokusmodus nach kurzer Zeit ausblenden
+initLeerlauf(() => status === 'laeuft' && !document.body.classList.contains('tmr-leiste-sichtbar'), 2000);
 
 document.addEventListener('keydown', (e) => {
     if (!istKuerzel(e)) return;
@@ -237,10 +293,13 @@ document.addEventListener('keydown', (e) => {
     if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault();
         umschalten();
+        zeigeLeiste();
     } else if (taste === 'r') {
         zuruecksetzen();
     } else if (taste === 'f') {
         schalteVollbild();
+    } else {
+        zeigeLeiste();
     }
 });
 

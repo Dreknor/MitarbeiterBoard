@@ -71,6 +71,9 @@ class KlassenraumToolsTest extends TestCase
             ->assertSee('id="tmr-zeit"', false)
             ->assertSee('data-minuten="5"', false)
             ->assertSee('Gong am Ende')
+            // Fokusmodus: kompakte Steuerung und ruhige Minutenanzeige
+            ->assertSee('id="tmr-fokusleiste"', false)
+            ->assertSee('Sekunden anzeigen')
             ->assertDontSee('id="krt-mikro"', false);
     }
 

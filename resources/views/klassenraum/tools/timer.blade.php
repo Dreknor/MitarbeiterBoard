@@ -57,10 +57,24 @@
                 <button type="button" class="tmr-start" id="tmr-start"><i class="fas fa-play"></i><span>Start</span></button>
                 <button type="button" class="krt-knopf" id="tmr-reset" title="Zurücksetzen (R)"><i class="fas fa-undo"></i><span>Zurücksetzen</span></button>
             </div>
-            <p class="tmr-tasten">Leertaste: Start/Pause · R: Zurücksetzen · F: Vollbild</p>
+            <p class="tmr-tasten">
+                Nach dem Start ist nur noch die Zeitscheibe zu sehen. Antippen oder eine Taste zeigt kurz die Steuerung.<br>
+                Leertaste: Start/Pause · R: Beenden · F: Vollbild
+            </p>
         </div>
     </div>
 </main>
+
+{{-- Fokusmodus: kompakte Steuerung, erscheint nur kurz nach Antippen/Taste (bei Pause/Ende dauerhaft) --}}
+<div class="tmr-fokusleiste" id="tmr-fokusleiste" role="toolbar" aria-label="Timer-Steuerung">
+    <button type="button" class="tmr-start" id="tmr-fokus-start"><i class="fas fa-pause"></i><span>Pause</span></button>
+    <button type="button" class="krt-knopf" data-plus="60" title="1 Minute mehr"><i class="fas fa-plus"></i><span>1 min</span></button>
+    <button type="button" class="krt-knopf" id="tmr-fokus-ende" title="Beenden (R)"><i class="fas fa-stop"></i><span>Beenden</span></button>
+    <button type="button" class="krt-knopf krt-knopf-rund" id="tmr-fokus-vollbild" title="Vollbild (F)" aria-label="Vollbild (F)" aria-pressed="false">
+        <i class="fas fa-expand"></i>
+    </button>
+    <span class="tmr-fokus-info" id="tmr-fokus-info"></span>
+</div>
 
 <div class="krt-uhr" id="krt-uhr"></div>
 
@@ -101,12 +115,12 @@
     <section class="krt-panel-abschnitt">
         <h3>Anzeige</h3>
         <label class="krt-schalter">
-            <input type="checkbox" data-einstellung="uhr">
-            <span><b>Uhrzeit anzeigen</b></span>
+            <input type="checkbox" data-einstellung="sekunden">
+            <span><b>Sekunden anzeigen</b><small>Während der Timer läuft. Aus: ruhige Anzeige in Minuten („noch 7 min“) ohne ständig wechselnde Ziffern.</small></span>
         </label>
         <label class="krt-schalter">
-            <input type="checkbox" data-einstellung="ausblenden">
-            <span><b>Bedienung ausblenden</b><small>Während der Timer läuft, nach kurzer Zeit ohne Mausbewegung.</small></span>
+            <input type="checkbox" data-einstellung="uhr">
+            <span><b>Uhrzeit anzeigen</b><small>Nur beim Einstellen – während der Timer läuft, ist sie ausgeblendet.</small></span>
         </label>
     </section>
 </aside>
