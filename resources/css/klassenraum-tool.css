@@ -75,6 +75,9 @@
     transition: opacity .5s ease, transform .5s ease;
 }
 .krt-leiste-links, .krt-leiste-rechts { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.krt-leiste-links { flex: 1 1 auto; }
+.krt-leiste-rechts { flex: none; }
+.krt-leiste .krt-knopf { flex: none; }
 .krt-titel { display: flex; flex-direction: column; min-width: 0; text-shadow: 0 1px 8px rgba(0, 0, 0, .25); }
 .krt-hell .krt-titel { text-shadow: none; }
 .krt-dunkel .krt-titel {
@@ -82,7 +85,7 @@
     background: var(--krt-glas); border: 1px solid var(--krt-linie);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.krt-titel b { font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.krt-titel b { font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .krt-titel span { font-size: .7rem; text-transform: uppercase; letter-spacing: .14em; color: var(--krt-leise); white-space: nowrap; }
 
 /* ── Knöpfe ───────────────────────────────────────────────────────────── */

@@ -31,7 +31,12 @@ export class Mikrofon {
         this.beiEnde = null;
     }
 
-    async starte() {
+    /**
+     * @param {{echoUnterdrueckung?: boolean}} optionen  true, wenn die Seite selbst Ton abspielt
+     *        (Hintergrundmusik): Der Browser rechnet die eigene Wiedergabe dann aus dem
+     *        Mikrofonsignal heraus, damit die Musik nicht als Lärm zählt.
+     */
+    async starte({echoUnterdrueckung = false} = {}) {
         if (this.aktiv) return;
 
         if (!window.isSecureContext) throw new MikrofonFehler('unsicher');
@@ -42,7 +47,7 @@ export class Mikrofon {
             stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     // Rohsignal: automatische Pegelanpassung würde Lärm "wegregeln"
-                    echoCancellation: false,
+                    echoCancellation: echoUnterdrueckung,
                     noiseSuppression: false,
                     autoGainControl: false,
                 },

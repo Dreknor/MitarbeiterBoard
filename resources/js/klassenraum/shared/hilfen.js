@@ -66,7 +66,7 @@ export function mitAlpha(hex, alpha) {
 /** Zeichnet eine Ellipse als eigenen Pfad und füllt sie. */
 export function ellipse(ctx, x, y, rx, ry, drehung = 0) {
     ctx.beginPath();
-    ctx.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), drehung, 0, Math.PI * 2);
+    ctx.ellipse(x, y, Math.max(1e-4, rx), Math.max(1e-4, ry), drehung, 0, Math.PI * 2);
 }
 
 export function formatiereDauer(sekunden) {

@@ -12,6 +12,9 @@
         <button type="button" class="krt-knopf" id="krt-mikro" aria-pressed="false" title="Mikrofon einschalten (M)">
             <i class="fas fa-microphone-slash"></i><span>Zuhören</span>
         </button>
+        <button type="button" class="krt-knopf krt-knopf-rund" id="krt-musik" title="Musik ausschalten (T)" aria-label="Musik ausschalten (T)" aria-pressed="true">
+            <i class="fas fa-music"></i>
+        </button>
         <button type="button" class="krt-knopf krt-knopf-rund" id="krt-vollbild" title="Vollbild (F)" aria-label="Vollbild (F)" aria-pressed="false">
             <i class="fas fa-expand"></i>
         </button>
@@ -99,6 +102,19 @@
     </section>
 
     <section class="krt-panel-abschnitt">
+        <h3>Musik</h3>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="musik">
+            <span><b>Entspannte Hintergrundmusik</b><small>Wird im Browser erzeugt und leiser, wenn es im Raum zu laut wird.</small></span>
+        </label>
+        <label class="krt-regler">
+            <span><b>Lautstärke der Musik</b><em data-anzeige="musikLautstaerke" data-format="prozent"></em></span>
+            <input type="range" min="5" max="100" step="5" data-einstellung="musikLautstaerke">
+            <small>Die Musik wird beim Messen herausgerechnet, soweit der Browser das kann. Reagiert die Szene schon auf die Musik, die Musik leiser stellen.</small>
+        </label>
+    </section>
+
+    <section class="krt-panel-abschnitt">
         <h3>Szene</h3>
         <label class="krt-regler">
             <span><b id="krt-menge-label">Menge</b><em data-anzeige="menge" data-format="prozent"></em></span>
@@ -128,6 +144,6 @@
 
     <div class="krt-panel-fuss">
         <button type="button" class="krt-knopf" id="krt-zuruecksetzen"><i class="fas fa-undo"></i><span>Standardwerte</span></button>
-        <p>Tastatur: <kbd>M</kbd> Mikrofon · <kbd>F</kbd> Vollbild · <kbd>Leertaste</kbd> Pause</p>
+        <p>Tastatur: <kbd>M</kbd> Mikrofon · <kbd>T</kbd> Musik · <kbd>F</kbd> Vollbild · <kbd>Leertaste</kbd> Pause</p>
     </div>
 </aside>

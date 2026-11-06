@@ -1,9 +1,12 @@
 /*
  * Szene „Aquarium“: Fische ziehen ruhig ihre Bahnen. Steigt die Unruhe, verstecken sie
  * sich nacheinander hinter den Felsen, Pflanzen wiegen stärker und das Wasser trübt ein.
+ *
+ * Seltene Besuche (nur bei Ruhe): Meeresschildkröte, Qualle, Seepferdchen.
  */
 
 import {ellipse, glatt, klemme, mischeFarbe, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
+import {Besuchsplaner, blende} from '../shared/besuche';
 
 const ARTEN = [
     {koerper: '#f59e0b', bauch: '#fde68a', flosse: '#ea580c', streifen: null, form: 0.34},
@@ -150,8 +153,213 @@ export function erzeugeAquarium() {
         }
     }
 
+    // ── Seltene Besuche ──────────────────────────────────────────────────
+    function neueSchildkroete() {
+        const g = klemme(Math.min(b, h) * 0.13, 60, 150);
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const k = {x: richtung > 0 ? -g * 1.5 : b + g * 1.5, y: zufall(h * 0.22, h * 0.45), phase: 0, alpha: 0};
+        return {
+            ebene: 'mitte',
+            schritt(dt, z) {
+                const flucht = z.unruhe > 0.45;
+                k.x += richtung * (b / 45) * (flucht ? 3.5 : 1) * dt;
+                k.y += Math.sin(t * 0.35) * 5 * dt;
+                k.phase += dt * (flucht ? 6 : 1.4);
+                k.alpha = blende(k.alpha, 1, dt, 0.5);
+                return richtung > 0 ? k.x < b + g * 2 : k.x > -g * 2;
+            },
+            zeichne(ctx) {
+                const schlag = Math.sin(k.phase);
+                ctx.globalAlpha = k.alpha;
+                ctx.translate(k.x, k.y);
+                ctx.scale(richtung, 1);
+                ctx.rotate(Math.sin(k.phase * 0.5) * 0.04);
+                // hintere Flosse
+                ctx.fillStyle = '#4f7d4c';
+                ellipse(ctx, -g * 0.42, g * 0.12, g * 0.16, g * 0.06, 0.5 + schlag * 0.3);
+                ctx.fill();
+                // Kopf und Hals
+                ctx.fillStyle = '#6f9a5e';
+                ellipse(ctx, g * 0.42, g * 0.02, g * 0.16, g * 0.08, -0.1);
+                ctx.fill();
+                ellipse(ctx, g * 0.58, -g * 0.02, g * 0.12, g * 0.1);
+                ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ellipse(ctx, g * 0.63, -g * 0.05, g * 0.022, g * 0.022);
+                ctx.fill();
+                // Bauchpanzer
+                ctx.fillStyle = '#d9c58a';
+                ellipse(ctx, 0, g * 0.09, g * 0.46, g * 0.08);
+                ctx.fill();
+                // Rückenpanzer mit Schildern
+                const panzer = new Path2D();
+                panzer.moveTo(-g * 0.5, g * 0.08);
+                panzer.bezierCurveTo(-g * 0.42, -g * 0.42, g * 0.36, -g * 0.44, g * 0.46, g * 0.06);
+                panzer.quadraticCurveTo(0, g * 0.16, -g * 0.5, g * 0.08);
+                const v = ctx.createLinearGradient(0, -g * 0.4, 0, g * 0.1);
+                v.addColorStop(0, '#7c9a3d');
+                v.addColorStop(1, '#3f6a2b');
+                ctx.fillStyle = v;
+                ctx.fill(panzer);
+                ctx.save();
+                ctx.clip(panzer);
+                ctx.fillStyle = 'rgba(40,70,25,.45)';
+                [[-0.25, -0.12], [0.02, -0.2], [0.27, -0.1], [-0.08, 0.0], [0.17, 0.02], [-0.33, 0.02]].forEach(([sx, sy]) => {
+                    ellipse(ctx, sx * g, sy * g, g * 0.1, g * 0.07);
+                    ctx.fill();
+                });
+                ctx.restore();
+                ctx.strokeStyle = 'rgba(230,220,160,.6)';
+                ctx.lineWidth = Math.max(1.5, g * 0.02);
+                ctx.stroke(panzer);
+                // vordere Flosse (paddelt)
+                ctx.fillStyle = '#5f8f55';
+                ctx.save();
+                ctx.translate(g * 0.22, g * 0.12);
+                ctx.rotate(0.55 + schlag * 0.5);
+                ellipse(ctx, g * 0.2, 0, g * 0.26, g * 0.07);
+                ctx.fill();
+                ctx.restore();
+            },
+        };
+    }
+
+    function neueQualle() {
+        const g = klemme(Math.min(b, h) * 0.06, 28, 80);
+        const q = {x: zufall(b * 0.15, b * 0.85), y: sandY + g, phase: 0, alpha: 0, farbe: zufallAus(['#f0abfc', '#c4b5fd', '#fda4af'])};
+        let flucht = false;
+        return {
+            ebene: 'mitte',
+            schritt(dt, z) {
+                if (z.unruhe > 0.45) flucht = true;
+                q.phase += dt * 1.5;
+                const puls = (Math.sin(q.phase) + 1) / 2;
+                q.y -= (8 + puls * 26) * dt * (flucht ? 2.5 : 1);
+                q.x += Math.sin(q.phase * 0.25) * 10 * dt;
+                q.alpha = blende(q.alpha, flucht ? 0 : 0.9, dt, flucht ? 0.8 : 0.3);
+                return q.y > -g * 3 && !(flucht && q.alpha <= 0.01);
+            },
+            zeichne(ctx) {
+                const puls = (Math.sin(q.phase) + 1) / 2;
+                const w = g * (1 + puls * 0.12);
+                const hh = g * (0.85 - puls * 0.15);
+                ctx.globalAlpha = q.alpha;
+                ctx.translate(q.x, q.y);
+                const schein = ctx.createRadialGradient(0, -hh * 0.4, 0, 0, -hh * 0.4, g * 2.2);
+                schein.addColorStop(0, mitAlpha(q.farbe, 0.35));
+                schein.addColorStop(1, mitAlpha(q.farbe, 0));
+                ctx.fillStyle = schein;
+                ctx.fillRect(-g * 2.2, -g * 2.6, g * 4.4, g * 4.4);
+                // Tentakel
+                ctx.strokeStyle = mitAlpha(q.farbe, 0.65);
+                ctx.lineWidth = Math.max(1.5, g * 0.04);
+                ctx.lineCap = 'round';
+                for (let i = 0; i < 6; i++) {
+                    const x0 = -w * 0.7 + (i / 5) * w * 1.4;
+                    ctx.beginPath();
+                    ctx.moveTo(x0, 0);
+                    for (let j = 1; j <= 6; j++) {
+                        ctx.lineTo(x0 + Math.sin(q.phase * 1.3 + i + j * 0.8) * g * 0.12, j * g * 0.28);
+                    }
+                    ctx.stroke();
+                }
+                // Schirm
+                ctx.fillStyle = mitAlpha(q.farbe, 0.6);
+                ctx.beginPath();
+                ctx.moveTo(-w, 0);
+                ctx.bezierCurveTo(-w, -hh * 1.35, w, -hh * 1.35, w, 0);
+                for (let i = 4; i >= 0; i--) {
+                    ctx.quadraticCurveTo(-w + (i + 0.5) * (w * 2 / 5), g * 0.12, -w + i * (w * 2 / 5), 0);
+                }
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,.35)';
+                ellipse(ctx, -w * 0.3, -hh * 0.65, w * 0.25, hh * 0.18, -0.4);
+                ctx.fill();
+            },
+        };
+    }
+
+    function neuesSeepferdchen() {
+        const g = klemme(Math.min(b, h) * 0.17, 70, 170);
+        const pflanze = zufallAus(pflanzenHinten.filter((p) => p.x > b * 0.25 && p.x < b * 0.8)) || {x: b * 0.5};
+        const sp = {x: pflanze.x + g * 0.25, y: sandY - h * 0.2, alpha: 0, zeit: 0, phase: zufall(0, 6)};
+        const dauer = 24;
+        let flucht = false;
+        return {
+            ebene: 'mitte',
+            schritt(dt, z) {
+                if (z.unruhe > 0.4) flucht = true;
+                sp.zeit += dt;
+                sp.phase += dt;
+                const ziel = flucht || sp.zeit > dauer ? 0 : 1;
+                sp.alpha = blende(sp.alpha, ziel, dt, flucht ? 1 : 0.35);
+                return !(ziel === 0 && sp.alpha <= 0.01);
+            },
+            zeichne(ctx) {
+                ctx.globalAlpha = sp.alpha;
+                ctx.translate(sp.x, sp.y + Math.sin(sp.phase * 1.2) * g * 0.05);
+                ctx.scale(g, g);
+                ctx.rotate(Math.sin(sp.phase * 0.7) * 0.05);
+                const koerper = '#f59e0b';
+                ctx.lineCap = 'round';
+                // Schwanz mit Kringel
+                ctx.strokeStyle = koerper;
+                ctx.lineWidth = 0.075;
+                ctx.beginPath();
+                ctx.moveTo(0.03, 0.08);
+                ctx.quadraticCurveTo(-0.06, 0.26, 0.0, 0.36);
+                ctx.arc(0.05, 0.36, 0.05, Math.PI, Math.PI * 2.6);
+                ctx.stroke();
+                // Rumpf
+                ctx.fillStyle = koerper;
+                ellipse(ctx, 0.05, -0.06, 0.12, 0.2, -0.15);
+                ctx.fill();
+                // Rückenflosse (flattert)
+                ctx.fillStyle = 'rgba(253,230,138,.85)';
+                ellipse(ctx, -0.09, -0.04, 0.05 * (0.6 + Math.abs(Math.sin(sp.phase * 9)) * 0.4), 0.08, 0.2);
+                ctx.fill();
+                // Kopf und Schnauze
+                ctx.fillStyle = koerper;
+                ellipse(ctx, 0.0, -0.33, 0.085, 0.09);
+                ctx.fill();
+                ellipse(ctx, 0.13, -0.3, 0.09, 0.032, 0.2);
+                ctx.fill();
+                // Krone
+                ctx.beginPath();
+                ctx.moveTo(-0.06, -0.4);
+                ctx.lineTo(-0.02, -0.47);
+                ctx.lineTo(0.0, -0.4);
+                ctx.lineTo(0.04, -0.45);
+                ctx.lineTo(0.05, -0.38);
+                ctx.fill();
+                // Bauchringe
+                ctx.strokeStyle = 'rgba(180,83,9,.55)';
+                ctx.lineWidth = 0.012;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(0.04, -0.2 + i * 0.07, 0.11, 0.1, 1.1);
+                    ctx.stroke();
+                }
+                // Auge
+                ctx.fillStyle = '#ffffff';
+                ellipse(ctx, 0.03, -0.35, 0.028, 0.028);
+                ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ellipse(ctx, 0.036, -0.35, 0.015, 0.015);
+                ctx.fill();
+            },
+        };
+    }
+
+    const besuche = new Besuchsplaner({
+        schildkroete: neueSchildkroete,
+        qualle: neueQualle,
+        seepferdchen: neuesSeepferdchen,
+    });
+
     function schritt(dt, z) {
         t += dt;
+        besuche.schritt(dt, z);
 
         fische.forEach((f) => {
             if (!f.flieht && z.unruhe > f.mut) f.flieht = true;
@@ -443,6 +651,7 @@ export function erzeugeAquarium() {
 
         // Fische (hinter Felsen und vorderen Pflanzen)
         fische.forEach((f) => zeichneFisch(ctx, f, trueb));
+        besuche.zeichne(ctx, 'mitte', z);
 
         // Felsen und Pflanzen vorne
         felsen.forEach((fels) => zeichneFels(ctx, fels, trueb));
@@ -496,5 +705,6 @@ export function erzeugeAquarium() {
         schritt,
         zeichne,
         info,
+        besuch: (name) => besuche.starte(name),
     };
 }
