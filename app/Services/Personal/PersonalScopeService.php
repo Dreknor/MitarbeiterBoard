@@ -17,6 +17,13 @@ class PersonalScopeService
     private const CACHE_TTL = 300; // 5 Minuten
 
     /**
+     * Wer Mitarbeitende verwalten darf, sieht in der Mitarbeiterliste (/employes) alle Personen und
+     * kann deren Stammdaten bearbeiten. Die Unterseiten der Personalakte (Verträge, Dokumente, …)
+     * müssen für diese Personen denselben Umfang haben – sonst liefern die Links der Liste 404.
+     */
+    private const GLOBAL_EMPLOYEE_PERMISSION = 'edit employe';
+
+    /**
      * Gibt Query-Builder zurück, der nur für $user sichtbare Mitarbeiter liefert.
      * IDOR-Schutz: Immer diesen Builder nutzen, nie User::query() direkt.
      */
@@ -24,7 +31,7 @@ class PersonalScopeService
     {
         $user ??= auth()->user();
 
-        if ($user->can('view personal_data:all')) {
+        if ($user->can('view personal_data:all') || $user->can(self::GLOBAL_EMPLOYEE_PERMISSION)) {
             return User::with('employe_data');
         }
 
@@ -65,7 +72,7 @@ class PersonalScopeService
             "personal_scope_{$user->id}_{$suffix}",
             self::CACHE_TTL,
             function () use ($user, $suffix) {
-                if ($user->can("{$suffix} personal_data:all")) return 'all';
+                if ($user->can("{$suffix} personal_data:all") || $user->can(self::GLOBAL_EMPLOYEE_PERMISSION)) return 'all';
                 if ($user->can("{$suffix} personal_data:department")) return 'department';
                 return 'self';
             }
