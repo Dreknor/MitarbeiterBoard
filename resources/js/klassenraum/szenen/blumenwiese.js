@@ -12,6 +12,7 @@
 
 import {ellipse, glatt, klemme, mische, mischeFarbe, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
 import {Besuchsplaner, blende} from '../shared/besuche';
+import {Klassenmaus, mausBesuch} from '../shared/maus';
 
 const BLUETEN = ['#f43f5e', '#fbbf24', '#a855f7', '#f97316', '#ec4899', '#ffffff', '#60a5fa', '#facc15'];
 const FALTER = [['#f97316', '#1f2937'], ['#38bdf8', '#0c4a6e'], ['#facc15', '#78350f'], ['#f472b6', '#831843'], ['#a3e635', '#365314']];
@@ -350,9 +351,23 @@ export function erzeugeBlumenwiese() {
         voegel: neueVoegel,
     }, {manuell: ['regenbogen']});
 
+    // ── Klassenmaus: guckt über den Hügel oder vorne aus dem Gras ──
+    const mausGroesse = () => Math.min(b, h) * 0.06;
+    const huegelOrt = (anteil) => () => {
+        const s = mausGroesse();
+        return {x: b * anteil, y: wiese(b * anteil, h * 0.72, 2.9) + s * 0.3, s, von: 'unten'};
+    };
+    const maus = new Klassenmaus([
+        {name: 'gras', ebene: 'gras', ort: () => ({x: b * 0.56, y: h + mausGroesse() * 0.45, s: mausGroesse() * 1.15, von: 'unten'})},
+        {name: 'gras-links', ebene: 'gras', ort: () => ({x: b * 0.24, y: h + mausGroesse() * 0.45, s: mausGroesse() * 1.15, von: 'unten'})},
+        {name: 'huegel', ebene: 'huegel', ort: huegelOrt(0.42)},
+        {name: 'huegel-links', ebene: 'huegel', ort: huegelOrt(0.62)},
+    ]);
+
     function schritt(dt, z) {
         t += dt;
         besuche.schritt(dt, z);
+        maus.schritt(dt, z);
         // Regenbogen als Belohnung, wenn es nach dem Regen wieder ruhig wird
         if (z.unruhe > 0.6) regnete = true;
         else if (regnete && z.unruhe < 0.12) {
@@ -732,6 +747,7 @@ export function erzeugeBlumenwiese() {
 
         // Hügel
         [[0.6, '#a5d66b', '#7e9670', 0.4], [0.66, '#7cbf4a', '#66805a', 1.7], [0.72, '#5fa83a', '#526d48', 2.9]].forEach(([basis, hell, dunkel, phase], ebene) => {
+            if (ebene === 2) maus.zeichne(ctx, 'huegel');
             ctx.fillStyle = mischeFarbe(hell, dunkel, gewitter);
             ctx.beginPath();
             ctx.moveTo(0, hoehe);
@@ -755,6 +771,8 @@ export function erzeugeBlumenwiese() {
 
         besuche.zeichne(ctx, 'vorne', z);
         zeichnePilze(ctx, gewitter);
+
+        maus.zeichne(ctx, 'gras');
 
         // Grashalme vorne
         halme.forEach((g) => {
@@ -805,6 +823,6 @@ export function erzeugeBlumenwiese() {
         schritt,
         zeichne,
         info: () => `${blumen.filter((bl) => bl.offen > 0.5).length} von ${blumen.length} Blüten offen`,
-        besuch: (name) => besuche.starte(name),
+        besuch: (name) => mausBesuch(maus, name) ?? besuche.starte(name),
     };
 }

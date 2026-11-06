@@ -12,6 +12,7 @@
 
 import {ellipse, glatt, klemme, mische, mischeFarbe, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
 import {Besuchsplaner, blende} from '../shared/besuche';
+import {Klassenmaus, mausBesuch} from '../shared/maus';
 
 const ARTEN = [
     {koerper: '#f59e0b', bauch: '#fde68a', flosse: '#ea580c', streifen: null, form: 0.34},
@@ -873,9 +874,26 @@ export function erzeugeAquarium() {
         ctx.restore();
     }
 
+    // ── Klassenmaus im Taucheranzug: hinter einem Felsen oder am Luftschlauch von oben ──
+    const mausGroesse = () => Math.min(b, h) * 0.065;
+    const felsOrt = (i, seite) => () => {
+        const fels = felsen[i];
+        const s = mausGroesse();
+        return {
+            x: fels.x + seite * fels.b * 0.14, y: fels.y - fels.h * 0.55, s, von: 'unten', taucher: true,
+            clip: (ctx) => ctx.rect(0, 0, b, sandHoehe(fels.x)),
+        };
+    };
+    const maus = new Klassenmaus([
+        {name: 'fels', ebene: 'fels', ort: felsOrt(1, -1)},
+        {name: 'fels-links', ebene: 'fels', ort: felsOrt(0, 1)},
+        {name: 'oben', ebene: 'mitte', ort: () => ({x: b * 0.36, y: h * 0.5, s: mausGroesse(), von: 'oben', taucher: true, schlauch: true})},
+    ]);
+
     function schritt(dt, z) {
         t += dt;
         besuche.schritt(dt, z);
+        maus.schritt(dt, z);
         schrittBewohner(dt, z);
 
         fische.forEach((f) => {
@@ -1171,6 +1189,8 @@ export function erzeugeAquarium() {
         // Fische (hinter Felsen und vorderen Pflanzen)
         fische.forEach((f) => zeichneFisch(ctx, f, trueb));
         besuche.zeichne(ctx, 'mitte', z);
+        maus.zeichne(ctx, 'mitte');
+        maus.zeichne(ctx, 'fels');
 
         // Felsen mit Bewohnern, Anemone, Krabben und Pflanzen vorne
         felsen.forEach((fels) => zeichneFels(ctx, fels, trueb));
@@ -1229,6 +1249,6 @@ export function erzeugeAquarium() {
         schritt,
         zeichne,
         info,
-        besuch: (name) => besuche.starte(name),
+        besuch: (name) => mausBesuch(maus, name) ?? besuche.starte(name),
     };
 }

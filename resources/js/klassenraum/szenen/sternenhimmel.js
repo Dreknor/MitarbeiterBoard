@@ -10,6 +10,7 @@
 
 import {ellipse, glatt, klemme, mische, mischeFarbe, zufall, zufallMitSaat} from '../shared/hilfen';
 import {Besuchsplaner, blende} from '../shared/besuche';
+import {Klassenmaus, mausBesuch} from '../shared/maus';
 
 const GESAMT = 320;
 
@@ -76,9 +77,9 @@ export function erzeugeSternenhimmel() {
             baeume = Array.from({length: Math.round(b / 70)}, () => ({
                 x: zz.zwischen(0, b),
                 hoehe: h * zz.zwischen(0.05, 0.11),
-            })).filter((baum) => Math.abs(baum.x - b * 0.68) > b * 0.07);
+            })).filter((baum) => Math.abs(baum.x - b * 0.68) > b * 0.11);
 
-            haus = {x: b * 0.68, breite: Math.max(60, b * 0.07)};
+            haus = {x: b * 0.68, breite: Math.max(110, Math.min(b * 0.135, h * 0.3))};
 
             fledermaeuse = Array.from({length: 4}, (_, i) => ({
                 cx: zz.zwischen(0.2, 0.8), cy: zz.zwischen(0.25, 0.55), rx: zz.zwischen(0.12, 0.25), ry: zz.zwischen(0.06, 0.14),
@@ -401,9 +402,37 @@ export function erzeugeSternenhimmel() {
         gluehwuermchen: neueGluehwuermchen,
     });
 
+    // ── Klassenmaus: Haustür, hinter dem Mond, über dem Hügel (mit Schlafmütze) ──
+    const mondLage = () => ({mx: b * 0.83, my: h * 0.2, mr: Math.min(b, h) * 0.065});
+    const tuerLage = () => {
+        const boden = huegelVorne(haus.x) + 4;
+        const hoehe = haus.breite * 0.62;
+        return {x: haus.x, boden, breite: haus.breite * 0.34, hoehe: hoehe * 0.74};
+    };
+    const huegelOrt = (anteil) => () => {
+        const s = Math.min(b, h) * 0.065;
+        return {x: b * anteil, y: huegelVorne(b * anteil) + s * 0.3, s, von: 'unten', muetze: true, dunkel: true};
+    };
+    const maus = new Klassenmaus([
+        {name: 'tuer', ebene: 'haus', ort: () => {
+            const d = tuerLage();
+            return {
+                x: d.x, y: d.boden, s: Math.min(d.breite / 1.45, d.hoehe / 2.05), von: 'seite', richtung: -1, muetze: true,
+                clip: (ctx) => ctx.rect(d.x - d.breite / 2, d.boden - d.hoehe, d.breite, d.hoehe),
+            };
+        }},
+        {name: 'mond', ebene: 'mond', ort: () => {
+            const {mx, my, mr} = mondLage();
+            return {x: mx, y: my - mr * 0.3, s: mr * 1.05, von: 'unten', muetze: true, clip: (ctx) => ctx.rect(mx - mr * 2, 0, mr * 4, my)};
+        }},
+        {name: 'huegel', ebene: 'huegel', ort: huegelOrt(0.24)},
+        {name: 'huegel-mitte', ebene: 'huegel', ort: huegelOrt(0.46)},
+    ]);
+
     function schritt(dt, z) {
         t += dt;
         besuche.schritt(dt, z);
+        maus.schritt(dt, z);
         fledermausWeg = blende(fledermausWeg, z.unruhe > 0.45 ? 1 : 0, dt, z.unruhe > 0.45 ? 0.8 : 0.15);
 
         // Sterne sammeln (in der Stille) bzw. verlieren (bei Lärm)
@@ -462,7 +491,25 @@ export function erzeugeSternenhimmel() {
         ctx.fill();
         ctx.fillRect(x + breite * 0.2, boden - hoehe - breite * 0.42, breite * 0.12, breite * 0.3);
 
-        const fenster = [[-0.28, 0.35], [0.12, 0.35]];
+        // Haustür: öffnet sich warm erleuchtet, wenn die Maus herausschaut
+        const tuer = tuerLage();
+        const offen = maus.anteil('tuer');
+        ctx.fillStyle = mischeFarbe('#0c1230', '#ffcf80', offen);
+        if (offen > 0.02) {
+            const schein = ctx.createRadialGradient(tuer.x, tuer.boden - tuer.hoehe / 2, 0, tuer.x, tuer.boden - tuer.hoehe / 2, tuer.hoehe * 1.6);
+            schein.addColorStop(0, `rgba(255,200,110,${0.4 * offen})`);
+            schein.addColorStop(1, 'rgba(255,200,110,0)');
+            const f = ctx.fillStyle;
+            ctx.fillStyle = schein;
+            ctx.fillRect(tuer.x - tuer.hoehe * 1.6, tuer.boden - tuer.hoehe * 2.1, tuer.hoehe * 3.2, tuer.hoehe * 2.6);
+            ctx.fillStyle = f;
+        }
+        ctx.fillRect(tuer.x - tuer.breite / 2, tuer.boden - tuer.hoehe, tuer.breite, tuer.hoehe);
+        ctx.strokeStyle = '#1a2148';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tuer.x - tuer.breite / 2, tuer.boden - tuer.hoehe, tuer.breite, tuer.hoehe);
+
+        const fenster = [[-0.42, 0.3], [0.24, 0.3]];
         fenster.forEach(([fx, fy], i) => {
             const an = i === 0 ? licht : klemme(licht * 1.4 - 0.4, 0, 1);
             const wx = x + fx * breite;
@@ -612,6 +659,7 @@ export function erzeugeSternenhimmel() {
         mondSchein.addColorStop(1, 'rgba(255,240,200,0)');
         ctx.fillStyle = mondSchein;
         ctx.fillRect(mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
+        maus.zeichne(ctx, 'mond');
         ctx.save();
         ctx.beginPath();
         ctx.arc(mx, my, mr, 0, Math.PI * 2);
@@ -653,6 +701,8 @@ export function erzeugeSternenhimmel() {
             ctx.lineTo(baum.x + baum.hoehe * 0.32, fuss);
             ctx.fill();
         });
+        maus.zeichne(ctx, 'huegel');
+        ctx.fillStyle = '#060a1d';
         ctx.beginPath();
         ctx.moveTo(0, hoehe);
         for (let x = 0; x <= breite + 20; x += 20) ctx.lineTo(x, huegelVorne(x));
@@ -660,6 +710,7 @@ export function erzeugeSternenhimmel() {
         ctx.fill();
 
         zeichneHaus(ctx);
+        maus.zeichne(ctx, 'haus');
         besuche.zeichne(ctx, 'vorne', z);
     }
 
@@ -674,6 +725,6 @@ export function erzeugeSternenhimmel() {
         schritt,
         zeichne,
         info: () => `${Math.round(sichtbar)} von ${maximum} Sternen`,
-        besuch: (name) => besuche.starte(name),
+        besuch: (name) => mausBesuch(maus, name) ?? besuche.starte(name),
     };
 }

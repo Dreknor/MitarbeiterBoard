@@ -20,6 +20,7 @@
  */
 
 import {ellipse, glatt, klemme, mische, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
+import {Klassenmaus, mausBesuch} from '../shared/maus';
 import {zeichneAffe, zeichneElefant, zeichneGiraffe, zeichnePfleger, zeichnePinguin, zeichneZebra} from './zoo-tiere';
 
 // art = Gestaltung des Geheges, bewohner = Tierart → Anzahl (bei Menge 100 %)
@@ -926,8 +927,23 @@ export function erzeugeZoo() {
         tier.phase += dt * (tier.laeuft ? 5 : tier.frisst ? 4 : 1.2);
     }
 
+    // ── Klassenmaus: guckt über die Steinkante oder hinter einem Gehegeschild hervor ──
+    const schildOrt = (gi) => () => {
+        const oben = h * 0.862 - klemme(W * 0.065, 11, 22) * 0.9;
+        const s = Math.min(b, h) * 0.055;
+        return {x: gehege[gi].mitte, y: oben + s * 0.5, s, von: 'unten', clip: (ctx) => ctx.rect(0, 0, b, oben + 1)};
+    };
+    const kantenOrt = (gi, versatz) => () => ({x: gehege[gi].mitte + b * versatz, y: h * 0.835, s: Math.min(b, h) * 0.06, von: 'unten'});
+    const maus = new Klassenmaus([
+        {name: 'schild', ebene: 'schild', ort: schildOrt(0)},
+        {name: 'schild-pinguine', ebene: 'schild', ort: schildOrt(3)},
+        {name: 'kante', ebene: 'kante', ort: kantenOrt(1, 0.07)},
+        {name: 'kante-rechts', ebene: 'kante', ort: kantenOrt(3, -0.08)},
+    ]);
+
     function schritt(dt, z) {
         t += dt;
+        maus.schritt(dt, z);
         // Ruhe sammeln: jedes Tier kommt heraus, sobald seine Schwelle erreicht ist;
         // anhaltender Lärm schickt die zuletzt gekommenen Tiere wieder hinein (mit kleiner Hysterese)
         if (z.unruhe < 0.15) ruheZeit += dt;
@@ -1135,7 +1151,9 @@ export function erzeugeZoo() {
             herz(ctx, hz.x + Math.sin(hz.alter * 4) * 4, hz.y, g0 * 0.07);
         });
 
+        maus.zeichne(ctx, 'kante');
         ctx.drawImage(ebeneVorne, 0, 0, breite, hoehe);
+        maus.zeichne(ctx, 'schild');
         if (fuetterung) {
             ctx.save();
             ctx.translate(fuetterung.x, hoehe * 0.95);
@@ -1159,6 +1177,8 @@ export function erzeugeZoo() {
     }
 
     function besuch(name) {
+        const mausDa = mausBesuch(maus, name);
+        if (mausDa !== null) return mausDa;
         if (name === 'alle' || name === 'babys') ruheZeit = maxSchwelle;
         else if (name === 'fuetterung') {
             ruheZeit = maxSchwelle;
