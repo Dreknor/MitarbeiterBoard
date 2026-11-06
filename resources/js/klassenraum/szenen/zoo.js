@@ -874,7 +874,11 @@ export function erzeugeZoo() {
             herzen[i].y -= 18 * dt;
             if (herzen[i].alter > 1.8) herzen.splice(i, 1);
         }
-        wolken.forEach((w) => { w.x = (w.x + w.tempo * dt + 1.2) % 1.2 - 0.1; });
+        // Wolken ziehen langsam nach rechts und kommen links wieder herein
+        wolken.forEach((w) => {
+            w.x += w.tempo * dt;
+            if (w.x > 1.15) w.x -= 1.3;
+        });
     }
 
     // ── Zeichnen (bewegte Teile) ─────────────────────────────────────────
