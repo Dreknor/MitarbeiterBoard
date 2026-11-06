@@ -820,137 +820,401 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
 }
 
 // ══ Zebra ════════════════════════════════════════════════════════════════
-export function zeichneZebra(ctx, g, ph, laeuft, baby, frisst) {
-    const schritt = laeuft ? Math.sin(ph) : 0;
-    const beinH = (baby ? 0.42 : 0.44) * g;
-    const r = -beinH;
-    const weiss = '#f4efe3';
-    const streifen = '#2b2522';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+// Steppenzebra: kräftiger Pferdekörper, Stehmähne, breite senkrechte Rumpfstreifen, die am
+// Hinterteil in waagerechte Bögen übergehen, Ringel an den Beinen, dunkles Maul.
+// Gezeichnet in Einheiten von g (ctx.scale), Ursprung zwischen den Füßen.
+const ZEBRA = {
+    gross: {H: -0.75, B: -0.44, v: 0.27, s: -0.43, KL: 0.29, maehne: 0.055, weiss: '#f3eee2', fern: '#d9d1c2', streifen: '#26201d'},
+    baby: {H: -0.8, B: -0.52, v: 0.21, s: -0.31, KL: 0.32, maehne: 0.075, weiss: '#f3ead9', fern: '#dacebb', streifen: '#5e4232'},
+};
 
-    const bein = (x, s, fern) => {
-        const bx = x * g;
-        const top = r - 0.06 * g;
-        const p = new Path2D();
-        p.moveTo(bx - 0.045 * g, top);
-        p.lineTo(bx - 0.028 * g + s * g * 0.06, -0.03 * g);
-        p.lineTo(bx + 0.028 * g + s * g * 0.06, -0.03 * g);
-        p.lineTo(bx + 0.045 * g, top);
-        p.closePath();
-        ctx.save();
-        ctx.fillStyle = fern ? '#d9d2c4' : weiss;
-        ctx.fill(p);
-        ctx.clip(p);
-        ctx.strokeStyle = streifen;
-        ctx.lineWidth = g * 0.022;
-        for (let y = top + 0.04 * g; y < -0.03 * g; y += 0.05 * g) linie(ctx, bx - 0.08 * g, y, bx + 0.08 * g, y + 0.01 * g);
-        ctx.restore();
-        konturiere(ctx, p, g, 0.01);
-        ctx.fillStyle = '#2b2522';
-        ctx.fillRect(bx - 0.03 * g + s * g * 0.06, -0.035 * g, 0.06 * g, 0.035 * g);
-    };
-    bein(-0.26, -schritt, true);
-    bein(0.18, schritt, true);
+function qp(p0, p1, p2, t) {
+    return [
+        (1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
+        (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1],
+    ];
+}
 
-    // Schwanz mit schwarzer Quaste
-    ctx.strokeStyle = weiss;
-    ctx.lineWidth = Math.max(1, g * 0.018);
-    const ende = [-0.44 * g + Math.sin(ph * 0.8) * g * 0.025, r + 0.12 * g];
+/** Gefülltes Band entlang einer quadratischen Kurve, Breite b0 → b1, an den Enden spitz. */
+function zBand(ctx, p0, p1, p2, b0, b1) {
+    const n = 16;
+    const links = [];
+    const rechts = [];
+    for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const p = qp(p0, p1, p2, t);
+        const a = qp(p0, p1, p2, Math.max(0, t - 0.02));
+        const b = qp(p0, p1, p2, Math.min(1, t + 0.02));
+        const nx = a[1] - b[1];
+        const ny = b[0] - a[0];
+        const l = Math.hypot(nx, ny) || 1;
+        const breite = mische(b0, b1, t) * Math.min(1, 0.35 + t * 5, 0.35 + (1 - t) * 5) / 2;
+        links.push([p[0] + nx / l * breite, p[1] + ny / l * breite]);
+        rechts.push([p[0] - nx / l * breite, p[1] - ny / l * breite]);
+    }
     ctx.beginPath();
-    ctx.moveTo(-0.36 * g, r - 0.24 * g);
-    ctx.quadraticCurveTo(-0.44 * g, r - 0.1 * g, ende[0], ende[1]);
-    ctx.stroke();
-    ctx.fillStyle = streifen;
-    ellipse(ctx, ende[0], ende[1] + 0.03 * g, 0.022 * g, 0.05 * g);
+    links.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+    for (let i = rechts.length - 1; i >= 0; i--) ctx.lineTo(rechts[i][0], rechts[i][1]);
+    ctx.closePath();
     ctx.fill();
+}
 
-    // Körper, Hals und Kopf (grasend gesenkt)
-    const koerper = new Path2D();
-    koerper.moveTo(-0.38 * g, r - 0.2 * g);
-    koerper.bezierCurveTo(-0.38 * g, r - 0.34 * g, -0.1 * g, r - 0.32 * g, 0.18 * g, r - 0.32 * g);
-    koerper.bezierCurveTo(0.3 * g, r - 0.3 * g, 0.34 * g, r - 0.12 * g, 0.26 * g, r - 0.02 * g);
-    koerper.bezierCurveTo(0.1 * g, r + 0.02 * g, -0.2 * g, r + 0.02 * g, -0.32 * g, r - 0.04 * g);
-    koerper.bezierCurveTo(-0.4 * g, r - 0.08 * g, -0.4 * g, r - 0.16 * g, -0.38 * g, r - 0.2 * g);
-    const kopfX = frisst ? 0.5 * g : 0.44 * g;
-    const kopfY = frisst ? -0.12 * g + Math.sin(ph * 1.5) * g * 0.015 : r - 0.5 * g;
-    const hals = new Path2D();
-    hals.moveTo(0.1 * g, r - 0.3 * g);
-    hals.quadraticCurveTo(0.26 * g, (r - 0.3 * g + kopfY) / 2 - 0.05 * g, kopfX - 0.06 * g, kopfY - 0.03 * g);
-    hals.lineTo(kopfX + 0.04 * g, kopfY + 0.05 * g);
-    hals.quadraticCurveTo(0.34 * g, (r - 0.15 * g + kopfY) / 2 + 0.03 * g, 0.3 * g, r - 0.1 * g);
-    hals.closePath();
-    const winkel = frisst ? 1.25 : 0.55;
-    const kopf = new Path2D();
-    kopf.moveTo(-0.05 * g, -0.05 * g);
-    kopf.bezierCurveTo(0.06 * g, -0.08 * g, 0.18 * g, -0.06 * g, 0.24 * g, 0.0);
-    kopf.bezierCurveTo(0.27 * g, 0.04 * g, 0.24 * g, 0.08 * g, 0.18 * g, 0.075 * g);
-    kopf.bezierCurveTo(0.08 * g, 0.07 * g, -0.02 * g, 0.06 * g, -0.06 * g, 0.03 * g);
-    kopf.closePath();
-    const kopfPfad = new Path2D();
-    kopfPfad.addPath(kopf, new DOMMatrix().translateSelf(kopfX, kopfY).rotateSelf(winkel * 57.3));
+/** Glatter Linienzug durch die Punkte (Mittelpunkt-Glättung). */
+function glatt(pfad, pts, neu) {
+    if (neu) pfad.moveTo(pts[0][0], pts[0][1]);
+    else pfad.lineTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length - 1; i++) {
+        pfad.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+    }
+    pfad.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+}
 
+/** Dreht einen Vektor; positiver Winkel schwenkt „nach unten“ zeigende Vektoren nach vorn (+x). */
+const dreh = (w, dx, dy) => [dx * Math.cos(w) + dy * Math.sin(w), -dx * Math.sin(w) + dy * Math.cos(w)];
+const plus = (p, d) => [p[0] + d[0], p[1] + d[1]];
+
+/** Bein mit Gelenken (Vorderbein: Unterarm–Karpus–Röhre; Hinterbein: Unterschenkel–Sprunggelenk). */
+function zebraBein(ctx, g, F, vorne, x, y, a, beuge, fern, schnitt = null) {
+    const hufH = 0.045;
+    let pts;
+    if (vorne) {
+        const p0 = [x, y - 0.07];
+        const L = (-p0[1] - hufH) / 0.94;
+        const knie = plus(p0, dreh(a, 0, 0.47 * L));
+        const fessel = plus(knie, dreh(a + beuge, 0, 0.37 * L));
+        const krone = plus(fessel, dreh(a + beuge * 0.5, 0.075 * L, 0.1 * L));
+        pts = [[...p0, 0.1], [...plus(p0, dreh(a, 0, 0.2 * L)), 0.072], [...knie, 0.05],
+            [...plus(knie, dreh(a + beuge, 0, 0.07 * L)), 0.035], [...fessel, 0.043], [...krone, 0.034]];
+    } else {
+        const p0 = [x, y - 0.1];
+        const L = (-p0[1] - hufH) / 0.92;
+        const sprung = plus(p0, dreh(a, -0.09 * L, 0.42 * L));
+        const fessel = plus(sprung, dreh(a * 0.4 + beuge, 0.03 * L, 0.4 * L));
+        const krone = plus(fessel, dreh(a * 0.4 + beuge * 0.5, 0.075 * L, 0.1 * L));
+        pts = [[...p0, 0.11], [...plus(p0, dreh(a, -0.035 * L, 0.2 * L)), 0.08], [...sprung, 0.056],
+            [...plus(sprung, dreh(a * 0.4 + beuge, 0.005 * L, 0.07 * L)), 0.037], [...fessel, 0.043], [...krone, 0.034]];
+    }
+    const links = [];
+    const rechts = [];
+    pts.forEach((p, i) => {
+        const a2 = pts[Math.max(0, i - 1)];
+        const b2 = pts[Math.min(pts.length - 1, i + 1)];
+        const nx = a2[1] - b2[1];
+        const ny = b2[0] - a2[0];
+        const l = Math.hypot(nx, ny) || 1;
+        links.push([p[0] + nx / l * p[2] / 2, p[1] + ny / l * p[2] / 2]);
+        rechts.push([p[0] - nx / l * p[2] / 2, p[1] - ny / l * p[2] / 2]);
+    });
     const flaeche = new Path2D();
-    flaeche.addPath(koerper);
-    flaeche.addPath(hals);
-    flaeche.addPath(kopfPfad);
+    glatt(flaeche, links, true);
+    glatt(flaeche, [...rechts].reverse(), false);
+    flaeche.closePath();
+    const rand = new Path2D();
+    glatt(rand, links, true);
+    glatt(rand, rechts, true);
+
+    // Zugewandte Beine wachsen erst unterhalb der Bauchlinie aus dem Körper
     ctx.save();
-    ctx.fillStyle = weiss;
+    if (schnitt !== null) {
+        ctx.beginPath();
+        ctx.rect(-2, schnitt, 4, 2);
+        ctx.clip();
+    }
+    ctx.save();
+    ctx.fillStyle = fern ? F.fern : F.weiss;
     ctx.fill(flaeche);
     ctx.clip(flaeche);
-    ctx.strokeStyle = streifen;
-    // Streifen am Körper: senkrecht, leicht geschwungen; am Hinterteil schräg
-    for (let x = -0.4; x < 0.36; x += 0.055) {
-        ctx.lineWidth = g * (0.022 + Math.abs(Math.sin(x * 9)) * 0.012);
+    // Ringel quer zum Bein, nach unten enger und schmaler
+    ctx.strokeStyle = F.streifen;
+    let gesamt = 0;
+    const laengen = [];
+    for (let i = 1; i < pts.length; i++) {
+        laengen.push(Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+        gesamt += laengen[i - 1];
+    }
+    for (let d = 0.03; d < gesamt * 0.93; d += mische(0.06, 0.034, d / gesamt)) {
+        let rest = d;
+        let i = 0;
+        while (i < laengen.length - 1 && rest > laengen[i]) rest -= laengen[i++];
+        const t = rest / laengen[i];
+        const px = mische(pts[i][0], pts[i + 1][0], t);
+        const py = mische(pts[i][1], pts[i + 1][1], t);
+        const dx = (pts[i + 1][0] - pts[i][0]) / laengen[i];
+        const dy = (pts[i + 1][1] - pts[i][1]) / laengen[i];
+        ctx.lineWidth = mische(0.032, 0.015, d / gesamt);
         ctx.beginPath();
-        ctx.moveTo(x * g, r - 0.36 * g);
-        ctx.quadraticCurveTo((x + 0.03) * g, r - 0.16 * g, (x - (x < -0.2 ? 0.08 : 0.01)) * g, r + 0.04 * g);
+        ctx.moveTo(px - dy * 0.1 - dx * 0.008, py + dx * 0.1 - dy * 0.008);
+        ctx.lineTo(px + dy * 0.1 + dx * 0.008, py - dx * 0.1 + dy * 0.008);
         ctx.stroke();
     }
-    // Streifen am Hals und Kopf: quer zur Halsrichtung
-    for (let p = 0; p <= 1.05; p += 0.11) {
-        const x = mische(0.2 * g, kopfX, p);
-        const y = mische(r - 0.2 * g, kopfY, p);
-        ctx.lineWidth = g * 0.026;
-        linie(ctx, x - 0.1 * g, y - 0.03 * g, x + 0.1 * g, y + 0.03 * g);
-    }
-    ctx.fillStyle = 'rgba(90,70,50,.18)';
-    ctx.fillRect(-0.5 * g, r - 0.06 * g, 1.1 * g, 0.1 * g);
+    const schatten = ctx.createLinearGradient(x - 0.06, 0, x + 0.06, 0);
+    schatten.addColorStop(0, 'rgba(70,50,35,.18)');
+    schatten.addColorStop(1, 'rgba(255,248,230,.08)');
+    ctx.fillStyle = fern ? 'rgba(60,45,32,.22)' : schatten;
+    ctx.fill(flaeche);
     ctx.restore();
-    konturiere(ctx, flaeche, g, 0.012);
-
-    // Mähne (kurze, gestreifte Bürste entlang des Halses), Maul, Auge, Ohren
-    ctx.save();
-    const maehne = new Path2D();
-    maehne.moveTo(0.08 * g, r - 0.33 * g);
-    maehne.quadraticCurveTo(0.24 * g, (r - 0.33 * g + kopfY) / 2 - 0.07 * g, kopfX - 0.07 * g, kopfY - 0.05 * g);
-    ctx.lineCap = 'butt';
-    ctx.strokeStyle = streifen;
-    ctx.lineWidth = Math.max(2, g * 0.045);
-    ctx.stroke(maehne);
-    ctx.strokeStyle = weiss;
-    ctx.lineWidth = Math.max(1.5, g * 0.035);
-    ctx.setLineDash([g * 0.025, g * 0.03]);
-    ctx.stroke(maehne);
-    ctx.setLineDash([]);
-    ctx.lineCap = 'round';
-    ctx.translate(kopfX, kopfY);
-    ctx.rotate(winkel);
-    ctx.fillStyle = '#3a302b';
-    ellipse(ctx, 0.2 * g, 0.04 * g, 0.06 * g, 0.042 * g);
-    ctx.fill();
-    ctx.fillStyle = '#1c1714';
-    ellipse(ctx, 0.06 * g, -0.015 * g, 0.018 * g, 0.015 * g);
-    ctx.fill();
-    ctx.fillStyle = weiss;
-    ellipse(ctx, -0.04 * g, -0.08 * g, 0.022 * g, 0.05 * g, -0.4);
-    ctx.fill();
     ctx.strokeStyle = KONTUR;
-    ctx.lineWidth = Math.max(0.8, g * 0.01);
-    ellipse(ctx, -0.04 * g, -0.08 * g, 0.022 * g, 0.05 * g, -0.4);
-    ctx.stroke();
+    ctx.lineWidth = Math.max(0.8 / g, 0.01);
+    ctx.stroke(rand);
     ctx.restore();
 
-    bein(-0.14, schritt, false);
-    bein(0.26, -schritt, false);
+    // Huf
+    const k = pts[pts.length - 1];
+    ctx.fillStyle = fern ? '#3a332e' : '#2a2420';
+    ctx.beginPath();
+    ctx.moveTo(k[0] - 0.02, k[1] - 0.004);
+    ctx.lineTo(k[0] + 0.02, k[1] - 0.004);
+    ctx.lineTo(k[0] + 0.036, 0);
+    ctx.lineTo(k[0] - 0.024, 0);
+    ctx.closePath();
+    ctx.fill();
+}
+
+export function zeichneZebra(ctx, g, ph, laeuft, baby, frisst) {
+    const F = baby ? ZEBRA.baby : ZEBRA.gross;
+    const {H, B, v, s} = F;
+    const schritt = laeuft ? Math.sin(ph) : 0;
+    const k = F.KL / 0.3;
+    ctx.save();
+    ctx.scale(g, g);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const linienBreite = Math.max(0.8 / g, 0.012);
+
+    // Kopfhaltung: aufrecht oder grasend (Maul am Boden)
+    const w = frisst ? 1.45 + Math.sin(ph * 1.5) * 0.04 : 0.98 + Math.sin(ph * 0.4) * 0.04;
+    const cw = Math.cos(w);
+    const sw = Math.sin(w);
+    const genick = frisst
+        ? [v + 0.17, -0.01 - (0.305 * sw + 0.02 * cw) * k]
+        : [v + 0.11, H - 0.25];
+    const T = (x, y) => [genick[0] + (x * cw - y * sw) * k, genick[1] + (x * sw + y * cw) * k];
+
+    const W = [0.08 + (v - 0.27) * 0.6, H - 0.01];      // Widerrist
+    const PT = T(-0.01, -0.03);                          // Genick oben
+    const dK = [PT[0] - W[0], PT[1] - W[1]];
+    const lK = Math.hypot(dK[0], dK[1]);
+    const KAMM = [(W[0] + PT[0]) / 2 + dK[1] / lK * 0.07, (W[1] + PT[1]) / 2 - dK[0] / lK * 0.07];
+    const C = [v, B - 0.12];                             // Bug
+    const KE = T(0.02, 0.075);                           // Kehle
+    const dU = [KE[0] - C[0], KE[1] - C[1]];
+    const lU = Math.hypot(dU[0], dU[1]);
+    const UNTEN = [(C[0] + KE[0]) / 2 - dU[1] / lU * 0.02, (C[1] + KE[1]) / 2 + dU[0] / lU * 0.02];
+    const kammNormale = (t) => {
+        const dx = 2 * (1 - t) * (KAMM[0] - W[0]) + 2 * t * (PT[0] - KAMM[0]);
+        const dy = 2 * (1 - t) * (KAMM[1] - W[1]) + 2 * t * (PT[1] - KAMM[1]);
+        const l = Math.hypot(dx, dy) || 1;
+        return [dy / l, -dx / l];
+    };
+
+    // Halsstreifen: quer vom Mähnenkamm zur Kehle, setzen sich in der Mähne fort
+    const halsStreifen = [];
+    for (let i = 0; i < 6; i++) {
+        const t = 0.1 + i * 0.165;
+        const n = kammNormale(t);
+        const oben = plus(qp(W, KAMM, PT, t), [n[0] * (F.maehne + 0.03), n[1] * (F.maehne + 0.03)]);
+        const unten = plus(qp(C, UNTEN, KE, Math.min(1, t * 1.05)), [-n[0] * 0.04, -n[1] * 0.04]);
+        const mitte = [(oben[0] + unten[0]) / 2 - dK[0] / lK * 0.025, (oben[1] + unten[1]) / 2 - dK[1] / lK * 0.025];
+        halsStreifen.push([oben, mitte, unten, mische(0.06, 0.05, t), mische(0.028, 0.022, t)]);
+    }
+
+    // ── Beine auf der abgewandten Seite ──
+    zebraBein(ctx, g, F, false, s + 0.19, B + 0.03, schritt * 0.3, -Math.max(0, schritt) * 0.45, true);
+    zebraBein(ctx, g, F, true, v - 0.05, B, -schritt * 0.32 + (frisst ? 0.06 : 0), -Math.max(0, -schritt) * 0.6, true);
+
+    // ── fernes Ohr ──
+    const ohr = (basis, zusatz, fern) => {
+        const lx = -0.75;
+        const ly = -0.66;
+        const richtung = Math.atan2(lx * sw + ly * cw, lx * cw - ly * sw) + zusatz;
+        ctx.save();
+        ctx.translate(basis[0], basis[1]);
+        ctx.rotate(richtung);
+        ctx.scale(k, k);
+        const o = new Path2D();
+        o.moveTo(0, -0.026);
+        o.bezierCurveTo(0.05, -0.038, 0.1, -0.024, 0.11, 0);
+        o.bezierCurveTo(0.1, 0.022, 0.05, 0.032, 0, 0.024);
+        o.closePath();
+        ctx.fillStyle = fern ? F.fern : F.weiss;
+        ctx.fill(o);
+        ctx.save();
+        ctx.clip(o);
+        ctx.fillStyle = 'rgba(120,95,80,.35)';
+        ellipse(ctx, 0.05, 0.006, 0.04, 0.011);
+        ctx.fill();
+        ctx.fillStyle = F.streifen;
+        ctx.fillRect(0.068, -0.05, 0.014, 0.1);
+        ctx.fillRect(0.094, -0.05, 0.03, 0.1);
+        ctx.restore();
+        ctx.strokeStyle = KONTUR;
+        ctx.lineWidth = linienBreite / k;
+        ctx.stroke(o);
+        ctx.restore();
+    };
+    ohr(T(0.03, -0.055), -0.12, true);
+
+    // ── Silhouette: Rumpf, Hals und Kopf in einem Umriss ──
+    const S = new Path2D();
+    S.moveTo(W[0], W[1]);
+    S.bezierCurveTo(W[0] - 0.12, H + 0.035, s + 0.22, H + 0.025, s + 0.1, H);
+    S.bezierCurveTo(s + 0.03, H - 0.012, s - 0.012, H + 0.06, s, H + 0.14);
+    S.bezierCurveTo(s + 0.004, H + 0.23, s + 0.04, B + 0.02, s + 0.075, B + 0.05);
+    S.lineTo(s + 0.17, B + 0.05);
+    S.bezierCurveTo(s + 0.2, B, s + 0.25, B - 0.01, s + 0.31, B + 0.005);
+    S.bezierCurveTo(-0.02, B + 0.03, v - 0.16, B + 0.03, v - 0.09, B + 0.012);
+    S.bezierCurveTo(v - 0.03, B, v + 0.008, B - 0.06, C[0], C[1]);
+    S.quadraticCurveTo(UNTEN[0], UNTEN[1], KE[0], KE[1]);
+    S.bezierCurveTo(...T(0.03, 0.12), ...T(0.08, 0.128), ...T(0.12, 0.106));
+    S.bezierCurveTo(...T(0.17, 0.09), ...T(0.22, 0.066), ...T(0.26, 0.062));
+    S.bezierCurveTo(...T(0.29, 0.06), ...T(0.305, 0.045), ...T(0.305, 0.02));
+    S.bezierCurveTo(...T(0.31, -0.01), ...T(0.3, -0.035), ...T(0.28, -0.04));
+    S.bezierCurveTo(...T(0.2, -0.045), ...T(0.1, -0.062), ...T(0.05, -0.062));
+    S.bezierCurveTo(...T(0.02, -0.062), ...T(-0.005, -0.047), PT[0], PT[1]);
+    S.quadraticCurveTo(KAMM[0], KAMM[1], W[0], W[1]);
+    S.closePath();
+
+    ctx.save();
+    ctx.fillStyle = F.weiss;
+    ctx.fill(S);
+    ctx.clip(S);
+    ctx.fillStyle = F.streifen;
+    // Rumpf: breite, leicht nach vorn geschwungene Streifen
+    for (let i = 0; i < 4; i++) {
+        const x0 = v - 0.12 - i * 0.088 * ((v - s) / 0.7);
+        zBand(ctx, [x0, H - 0.06], [x0 + 0.012, (H + B) / 2], [x0 + 0.05, B + 0.04], 0.055, 0.024);
+    }
+    // Hinterteil: Bögen, die von oben nach hinten in waagerechte Streifen übergehen
+    for (let i = 0; i < 4; i++) {
+        const x0 = s + 0.25 - i * 0.075 * ((v - s) / 0.7);
+        const yE = B - 0.01 - i * 0.08 * ((B - H) / -0.31);
+        zBand(ctx, [x0, H - 0.06], [x0 + 0.005, yE], [s - 0.06, yE - 0.01], 0.042, 0.04);
+    }
+    // Rückenstreifen und Bauchnaht
+    zBand(ctx, [W[0] - 0.02, H - 0.025], [-0.1, H + 0.045], [s + 0.06, H - 0.01], 0.03, 0.03);
+    zBand(ctx, [s + 0.27, B + 0.02], [0.0, B + 0.045], [v - 0.06, B + 0.02], 0.035, 0.035);
+    halsStreifen.forEach(([a, m, b, b0, b1]) => zBand(ctx, a, m, b, b0, b1));
+
+    // Kopf: feine Streifen über dem Nasenrücken, dunkles Maul, Auge
+    ctx.save();
+    ctx.translate(genick[0], genick[1]);
+    ctx.rotate(w);
+    ctx.scale(k, k);
+    for (let i = 0; i < 6; i++) {
+        const x = 0.04 + i * 0.031;
+        zBand(ctx, [x, -0.08], [x + 0.006, 0.0], [x - 0.07, 0.14], 0.018, 0.012);
+    }
+    const maul = ctx.createRadialGradient(0.3, 0.012, 0.01, 0.3, 0.012, 0.085);
+    maul.addColorStop(0, '#231c19');
+    maul.addColorStop(0.7, baby ? '#5a4234' : '#3a2f2a');
+    maul.addColorStop(1, 'rgba(58,47,42,0)');
+    ctx.fillStyle = maul;
+    ellipse(ctx, 0.3, 0.012, 0.085, 0.085);
+    ctx.fill();
+    ctx.fillStyle = '#120e0c';
+    ellipse(ctx, 0.284, -0.014, 0.017, 0.008, -0.5);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,12,10,.8)';
+    ctx.lineWidth = 0.006;
+    ctx.beginPath();
+    ctx.moveTo(0.302, 0.042);
+    ctx.quadraticCurveTo(0.28, 0.05, 0.25, 0.048);
+    ctx.stroke();
+    // Auge mit dunklem Rand, Glanzpunkt und Wimpern
+    ctx.fillStyle = 'rgba(40,30,25,.55)';
+    ellipse(ctx, 0.088, -0.022, 0.03, 0.022, 0.25);
+    ctx.fill();
+    ctx.fillStyle = '#140f0c';
+    ellipse(ctx, 0.09, -0.022, 0.019, 0.013, 0.25);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ellipse(ctx, 0.096, -0.027, 0.0055, 0.0045);
+    ctx.fill();
+    ctx.strokeStyle = '#140f0c';
+    ctx.lineWidth = 0.004;
+    for (let i = 0; i < 3; i++) linie(ctx, 0.078 + i * 0.012, -0.035, 0.073 + i * 0.014, -0.047);
+    // Ganasche (runde Backe) leicht schattiert
+    ctx.fillStyle = 'rgba(70,50,35,.12)';
+    ellipse(ctx, 0.07, 0.07, 0.06, 0.045);
+    ctx.fill();
+    ctx.restore();
+
+    // Licht von oben, Schatten am Bauch, Rundung von Schulter und Keule
+    const licht = ctx.createLinearGradient(0, H - 0.3, 0, B + 0.05);
+    licht.addColorStop(0, 'rgba(255,248,230,.14)');
+    licht.addColorStop(0.6, 'rgba(255,248,230,0)');
+    licht.addColorStop(1, 'rgba(70,48,30,.26)');
+    ctx.fillStyle = licht;
+    ctx.fillRect(-1, -1.5, 2, 1.6);
+    const keule = ctx.createRadialGradient(s + 0.12, H + 0.1, 0.02, s + 0.12, H + 0.1, 0.22);
+    keule.addColorStop(0, 'rgba(255,250,235,.12)');
+    keule.addColorStop(1, 'rgba(60,40,25,.1)');
+    ctx.fillStyle = keule;
+    ellipse(ctx, s + 0.12, H + 0.1, 0.22, 0.22);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = KONTUR;
+    ctx.lineWidth = linienBreite;
+    ctx.stroke(S);
+
+    // ── Stehmähne mit dunklen Spitzen ──
+    const kammPunkte = [];
+    const spitzen = [];
+    for (let i = 0; i <= 20; i++) {
+        const t = 0.02 + i * 0.049;
+        const p = qp(W, KAMM, PT, t);
+        const n = kammNormale(t);
+        const h = (F.maehne * (1 - 0.3 * t) + Math.sin(i * 2.3) * 0.004) * Math.min(1, 0.15 + t * 5);
+        kammPunkte.push(plus(p, [-n[0] * 0.01, -n[1] * 0.01]));
+        spitzen.push(plus(p, [n[0] * h, n[1] * h]));
+    }
+    const maehne = new Path2D();
+    glatt(maehne, kammPunkte, true);
+    glatt(maehne, [...spitzen].reverse(), false);
+    maehne.closePath();
+    ctx.save();
+    ctx.fillStyle = F.weiss;
+    ctx.fill(maehne);
+    ctx.clip(maehne);
+    ctx.fillStyle = F.streifen;
+    halsStreifen.forEach(([a, m, b, b0, b1]) => zBand(ctx, a, m, b, b0, b1));
+    ctx.strokeStyle = F.streifen;
+    ctx.lineWidth = 0.018;
+    const spitzenPfad = new Path2D();
+    glatt(spitzenPfad, spitzen, true);
+    ctx.stroke(spitzenPfad);
+    ctx.restore();
+    ctx.strokeStyle = KONTUR;
+    ctx.lineWidth = linienBreite * 0.8;
+    ctx.stroke(maehne);
+    // Stirnschopf
+    ctx.fillStyle = F.streifen;
+    const schopf = T(0.03, -0.05);
+    ellipse(ctx, schopf[0], schopf[1], 0.022 * k, 0.012 * k, w - 0.6);
+    ctx.fill();
+
+    ohr(T(0.0, -0.04), 0.05, false);
+
+    // ── Schwanz mit schwarzer Quaste ──
+    const pendel = Math.sin(ph * 0.8) * 0.025;
+    const sBasis = [s + 0.03, H + 0.04];
+    const sEnde = [s - 0.02 + pendel, B + (baby ? 0.06 : 0.02)];
+    const sMitte = [s - 0.04, H + 0.13];
+    ctx.fillStyle = F.weiss;
+    zBand(ctx, sBasis, sMitte, sEnde, 0.04, 0.022);
+    ctx.strokeStyle = KONTUR;
+    ctx.lineWidth = linienBreite * 0.7;
+    ctx.stroke();
+    ctx.fillStyle = F.streifen;
+    for (let i = 1; i <= 3; i++) {
+        const p = qp(sBasis, sMitte, sEnde, i * 0.2);
+        ellipse(ctx, p[0], p[1], 0.017, 0.007, -0.3);
+        ctx.fill();
+    }
+    zBand(ctx, plus(sEnde, [0, -0.03]), plus(sEnde, [pendel * 0.6, 0.05]), plus(sEnde, [pendel * 1.4 - 0.005, baby ? 0.07 : 0.13]), 0.035, 0.05);
+
+    // ── Beine auf der zugewandten Seite ──
+    zebraBein(ctx, g, F, false, s + 0.13, B + 0.03, -schritt * 0.3, -Math.max(0, -schritt) * 0.45, false, B + 0.035);
+    zebraBein(ctx, g, F, true, v - 0.1, B, schritt * 0.32 + (frisst ? -0.05 : 0), -Math.max(0, schritt) * 0.6, false, B + 0.005);
+    ctx.restore();
 }

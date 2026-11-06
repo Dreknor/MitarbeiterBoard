@@ -31,7 +31,7 @@ const GEHEGE = [
 ];
 const GROESSE = {elefant: 0.95, giraffe: 0.62, zebra: 0.78, affe: 0.5, pinguin: 0.5};
 const TEMPO = {elefant: 0.22, giraffe: 0.3, zebra: 0.35, affe: 0.8, pinguin: 0.4};
-const HOEHE = {elefant: 0.95, giraffe: 1.9, zebra: 0.85, affe: 0.95, pinguin: 0.95};
+const HOEHE = {elefant: 0.95, giraffe: 1.9, zebra: 1.0, affe: 0.95, pinguin: 0.95};
 const KONTUR = 'rgba(62,40,22,.5)';
 const FUTTER_FARBE = {heu: '#e0b54a', blaetter: '#65a30d', bananen: '#facc15', fische: '#64748b'};
 // Babys (in dieser Reihenfolge) kommen erst, wenn alle großen Tiere draußen sind
