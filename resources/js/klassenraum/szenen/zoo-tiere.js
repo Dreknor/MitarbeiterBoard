@@ -1,12 +1,12 @@
 /*
  * Zoo – Zeichnungen der Tiere und der Tierpfleger:innen (Seitenansicht, Blick nach rechts,
- * Ursprung zwischen den Füßen, g = Grundgröße). Licht kommt von oben: Flächen haben Verläufe,
- * Konturen sind weich abgedunkelt; Hautfalten, Fellstruktur und Muster sorgen für Realismus.
+ * Ursprung zwischen den Füßen, g = Grundgröße). Stil: warme Bilderbuch-Illustration – gedämpfte,
+ * warme Farben, Licht von oben, weiche warmbraune Konturen; Hautfalten, Fellstruktur und Muster.
  */
 
 import {ellipse, mische, zufallMitSaat} from '../shared/hilfen';
 
-const KONTUR = 'rgba(25,18,10,.3)';
+const KONTUR = 'rgba(62,40,22,.55)';
 
 function verlauf(ctx, y0, y1, oben, unten) {
     const v = ctx.createLinearGradient(0, y0, 0, y1);
@@ -15,7 +15,7 @@ function verlauf(ctx, y0, y1, oben, unten) {
     return v;
 }
 
-function konturiere(ctx, pfad, g, staerke = 0.012) {
+function konturiere(ctx, pfad, g, staerke = 0.016) {
     ctx.strokeStyle = KONTUR;
     ctx.lineWidth = Math.max(0.8, g * staerke);
     ctx.stroke(pfad);
@@ -44,9 +44,9 @@ function roehre(ctx, p0, p1, p2, r0, r1, fuellung, schritte = 18) {
 export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
     const schritt = laeuft ? Math.sin(ph) : 0;
     const beinH = baby ? 0.3 : 0.36;
-    const oben = baby ? '#b3bac1' : '#9ea5ac';
-    const unten = baby ? '#8a9199' : '#6c737a';
-    const fern = baby ? '#7f868e' : '#5f666d';
+    const oben = baby ? '#b8afa5' : '#a69c91';
+    const unten = baby ? '#8f857a' : '#776d62';
+    const fern = baby ? '#857b71' : '#685f56';
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -80,8 +80,8 @@ export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
     };
 
     // abgewandte Beine
-    bein(-0.24, -schritt, fern, '#4e555b');
-    bein(0.2, schritt, fern, '#4e555b');
+    bein(-0.24, -schritt, fern, '#544b43');
+    bein(0.2, schritt, fern, '#544b43');
 
     // Schwanz mit Quaste
     const wedeln = Math.sin(ph * 0.7) * g * 0.03;
@@ -125,8 +125,8 @@ export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
     konturiere(ctx, kp, g);
 
     // zugewandte Beine
-    bein(-0.36, schritt, '#858c93', '#5d646a');
-    bein(0.3, -schritt, '#858c93', '#5d646a');
+    bein(-0.36, schritt, '#8e8479', '#665c52');
+    bein(0.3, -schritt, '#8e8479', '#665c52');
 
     // Kopf (beim Baby größer)
     ctx.save();
@@ -141,7 +141,7 @@ export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
         : [0.66 * g + Math.sin(ph * 0.6) * g * 0.04, -0.22 * g];
     const p0 = [0.62 * g, -0.64 * g];
     const p1 = [0.76 * g, -0.42 * g];
-    roehre(ctx, p0, p1, spitze, 0.075 * g, 0.032 * g, '#8b9299');
+    roehre(ctx, p0, p1, spitze, 0.075 * g, 0.032 * g, '#958b80');
     ctx.strokeStyle = 'rgba(30,30,35,.22)';
     ctx.lineWidth = Math.max(0.6, g * 0.007);
     for (let i = 2; i < 14; i += 2) {
@@ -158,7 +158,7 @@ export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
     kopf.bezierCurveTo(0.66 * g, -0.76 * g, 0.67 * g, -0.68 * g, 0.64 * g, -0.6 * g);
     kopf.lineTo(0.5 * g, -0.55 * g);
     kopf.bezierCurveTo(0.42 * g, -0.56 * g, 0.34 * g, -0.62 * g, 0.32 * g, -0.82 * g);
-    ctx.fillStyle = verlauf(ctx, -1 * g, -0.55 * g, '#a4abb2', '#7a8188');
+    ctx.fillStyle = verlauf(ctx, -1 * g, -0.55 * g, '#aca296', '#80766b');
     ctx.fill(kopf);
     konturiere(ctx, kopf, g);
 
@@ -196,8 +196,8 @@ export function zeichneElefant(ctx, g, ph, laeuft, baby, frisst) {
     ohr.bezierCurveTo(0.3 * g, -0.44 * g, 0.34 * g, -0.52 * g, 0.36 * g, -0.6 * g);
     ohr.bezierCurveTo(0.4 * g, -0.7 * g, 0.44 * g, -0.82 * g, 0.42 * g, -0.95 * g);
     const ohrVerlauf = ctx.createRadialGradient(0.32 * g, -0.75 * g, 0, 0.26 * g, -0.75 * g, 0.3 * g);
-    ohrVerlauf.addColorStop(0, '#a99ea1');
-    ohrVerlauf.addColorStop(1, '#6f767c');
+    ohrVerlauf.addColorStop(0, '#b9a49c');
+    ohrVerlauf.addColorStop(1, '#776d63');
     ctx.fillStyle = ohrVerlauf;
     ctx.fill(ohr);
     ctx.strokeStyle = 'rgba(70,55,60,.35)';
@@ -224,7 +224,7 @@ function giraffenMuster(saat) {
     bild.width = Math.round(1.4 * G);
     bild.height = Math.round(1.8 * G);
     const c = bild.getContext('2d');
-    c.fillStyle = '#f1dfb8';
+    c.fillStyle = '#f3e1b9';
     c.fillRect(0, 0, bild.width, bild.height);
     const zz = zufallMitSaat(saat);
     const raster = 0.085;
@@ -233,7 +233,7 @@ function giraffenMuster(saat) {
             const cx = (x + zz.zwischen(-0.018, 0.018) + 0.5) * G;
             const cy = (y + zz.zwischen(-0.018, 0.018) + 2.1) * G;
             const r = G * zz.zwischen(0.03, 0.037);
-            c.fillStyle = zz() < 0.5 ? '#b5652b' : '#a3561f';
+            c.fillStyle = zz() < 0.5 ? '#c27a3c' : '#ae672d';
             c.beginPath();
             for (let k = 0; k < 6; k++) {
                 const w = (k / 6) * Math.PI * 2 + zz.zwischen(-0.25, 0.25);
@@ -601,7 +601,7 @@ export function zeichnePinguin(ctx, g, ph, laeuft, baby) {
     koerper.bezierCurveTo(0.24 * g, -0.2 * g, 0.18 * g, -0.04 * g, 0.04 * g, -0.03 * g);
     koerper.bezierCurveTo(-0.12 * g, -0.03 * g, -0.21 * g, -0.18 * g, -0.21 * g, -0.42 * g);
     koerper.bezierCurveTo(-0.21 * g, -0.68 * g, -0.12 * g, -0.98 * g, 0.02 * g, -0.98 * g);
-    ctx.fillStyle = verlauf(ctx, -0.98 * g, 0, '#2b313b', '#0e1218');
+    ctx.fillStyle = verlauf(ctx, -0.98 * g, 0, '#35363b', '#18191d');
     ctx.fill(koerper);
 
     // Bauch mit gelblichem Brustansatz
@@ -611,9 +611,9 @@ export function zeichnePinguin(ctx, g, ph, laeuft, baby) {
     bauch.bezierCurveTo(0.02 * g, -0.04 * g, -0.06 * g, -0.12 * g, -0.06 * g, -0.3 * g);
     bauch.bezierCurveTo(-0.06 * g, -0.5 * g, 0.02 * g, -0.7 * g, 0.12 * g, -0.74 * g);
     const bauchVerlauf = ctx.createLinearGradient(0, -0.74 * g, 0, -0.05 * g);
-    bauchVerlauf.addColorStop(0, '#fde9a8');
-    bauchVerlauf.addColorStop(0.25, '#fffaf0');
-    bauchVerlauf.addColorStop(1, '#e8e4dc');
+    bauchVerlauf.addColorStop(0, '#f6dc96');
+    bauchVerlauf.addColorStop(0.25, '#fbf3e1');
+    bauchVerlauf.addColorStop(1, '#e3d9c6');
     ctx.fillStyle = bauchVerlauf;
     ctx.fill(bauch);
     konturiere(ctx, koerper, g, 0.01);
@@ -706,11 +706,11 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
         ctx.lineTo(fuss[0] - gp * 0.04, fuss[1] + gp * 0.015);
         ctx.fill();
     };
-    bein(-schwung, '#3d4a2e');
+    bein(-schwung, '#6b5b3e');
 
     // hinterer Arm mit Eimer
     const eimerX = -gp * 0.1 - schwung * gp * 0.06;
-    ctx.strokeStyle = '#2f6b3a';
+    ctx.strokeStyle = '#5b7a3a';
     ctx.lineWidth = gp * 0.065;
     linie(ctx, -gp * 0.03, -gp * 0.76, eimerX, -gp * 0.5);
     ctx.fillStyle = '#e0ac7e';
@@ -738,9 +738,9 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
 
     // Rumpf (Hemd mit Brusttasche und Gürtel)
     const hemd = ctx.createLinearGradient(-gp * 0.13, 0, gp * 0.13, 0);
-    hemd.addColorStop(0, '#2f6b3a');
-    hemd.addColorStop(0.55, '#3f8a4c');
-    hemd.addColorStop(1, '#2c6437');
+    hemd.addColorStop(0, '#5b7a3a');
+    hemd.addColorStop(0.55, '#6d8b47');
+    hemd.addColorStop(1, '#536f35');
     ctx.fillStyle = hemd;
     ctx.beginPath();
     ctx.moveTo(-gp * 0.12, -gp * 0.8);
@@ -749,7 +749,7 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
     ctx.lineTo(-gp * 0.11, -gp * 0.47);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#3d4a2e';
+    ctx.fillStyle = '#6b5b3e';
     ctx.fillRect(-gp * 0.11, -gp * 0.5, gp * 0.22, gp * 0.04);
     ctx.fillStyle = '#c9a227';
     ctx.fillRect(gp * 0.02, -gp * 0.5, gp * 0.04, gp * 0.04);
@@ -760,7 +760,7 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
     ellipse(ctx, gp * 0.055, -gp * 0.69, gp * 0.015, gp * 0.015);
     ctx.fill();
 
-    bein(schwung, '#4b5e3a');
+    bein(schwung, '#7a6a4a');
 
     // Hals, Kopf, Haare, Kappe
     ctx.fillStyle = f.haut;
@@ -776,11 +776,11 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
     ctx.fillStyle = f.haar;
     ellipse(ctx, -gp * 0.04, -gp * 0.95, gp * 0.06, gp * 0.06);
     ctx.fill();
-    ctx.fillStyle = '#2f6b3a';
+    ctx.fillStyle = '#5b7a3a';
     ctx.beginPath();
     ctx.arc(gp * 0.0, -gp * 0.97, gp * 0.085, Math.PI * 1.02, -0.05);
     ctx.fill();
-    ctx.fillStyle = '#245530';
+    ctx.fillStyle = '#4a6530';
     ctx.beginPath();
     ctx.ellipse(gp * 0.1, -gp * 0.975, gp * 0.07, gp * 0.016, 0.1, 0, Math.PI * 2);
     ctx.fill();
@@ -805,7 +805,7 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
     const schulter = [gp * 0.03, -gp * 0.76];
     const hand = wurf ? [gp * 0.2, -gp * 1.02] : [gp * 0.07 + schwung * gp * 0.1, -gp * 0.5];
     const ellbogen = wurf ? [gp * 0.14, -gp * 0.86] : [gp * 0.05 + schwung * gp * 0.05, -gp * 0.62];
-    ctx.strokeStyle = '#3f8a4c';
+    ctx.strokeStyle = '#6d8b47';
     ctx.lineWidth = gp * 0.065;
     ctx.beginPath();
     ctx.moveTo(...schulter);
@@ -817,4 +817,140 @@ export function zeichnePfleger(ctx, gp, f, futterFarbe) {
     ctx.moveTo(...ellbogen);
     ctx.lineTo(...hand);
     ctx.stroke();
+}
+
+// ══ Zebra ════════════════════════════════════════════════════════════════
+export function zeichneZebra(ctx, g, ph, laeuft, baby, frisst) {
+    const schritt = laeuft ? Math.sin(ph) : 0;
+    const beinH = (baby ? 0.42 : 0.44) * g;
+    const r = -beinH;
+    const weiss = '#f4efe3';
+    const streifen = '#2b2522';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const bein = (x, s, fern) => {
+        const bx = x * g;
+        const top = r - 0.06 * g;
+        const p = new Path2D();
+        p.moveTo(bx - 0.045 * g, top);
+        p.lineTo(bx - 0.028 * g + s * g * 0.06, -0.03 * g);
+        p.lineTo(bx + 0.028 * g + s * g * 0.06, -0.03 * g);
+        p.lineTo(bx + 0.045 * g, top);
+        p.closePath();
+        ctx.save();
+        ctx.fillStyle = fern ? '#d9d2c4' : weiss;
+        ctx.fill(p);
+        ctx.clip(p);
+        ctx.strokeStyle = streifen;
+        ctx.lineWidth = g * 0.022;
+        for (let y = top + 0.04 * g; y < -0.03 * g; y += 0.05 * g) linie(ctx, bx - 0.08 * g, y, bx + 0.08 * g, y + 0.01 * g);
+        ctx.restore();
+        konturiere(ctx, p, g, 0.01);
+        ctx.fillStyle = '#2b2522';
+        ctx.fillRect(bx - 0.03 * g + s * g * 0.06, -0.035 * g, 0.06 * g, 0.035 * g);
+    };
+    bein(-0.26, -schritt, true);
+    bein(0.18, schritt, true);
+
+    // Schwanz mit schwarzer Quaste
+    ctx.strokeStyle = weiss;
+    ctx.lineWidth = Math.max(1, g * 0.018);
+    const ende = [-0.44 * g + Math.sin(ph * 0.8) * g * 0.025, r + 0.12 * g];
+    ctx.beginPath();
+    ctx.moveTo(-0.36 * g, r - 0.24 * g);
+    ctx.quadraticCurveTo(-0.44 * g, r - 0.1 * g, ende[0], ende[1]);
+    ctx.stroke();
+    ctx.fillStyle = streifen;
+    ellipse(ctx, ende[0], ende[1] + 0.03 * g, 0.022 * g, 0.05 * g);
+    ctx.fill();
+
+    // Körper, Hals und Kopf (grasend gesenkt)
+    const koerper = new Path2D();
+    koerper.moveTo(-0.38 * g, r - 0.2 * g);
+    koerper.bezierCurveTo(-0.38 * g, r - 0.34 * g, -0.1 * g, r - 0.32 * g, 0.18 * g, r - 0.32 * g);
+    koerper.bezierCurveTo(0.3 * g, r - 0.3 * g, 0.34 * g, r - 0.12 * g, 0.26 * g, r - 0.02 * g);
+    koerper.bezierCurveTo(0.1 * g, r + 0.02 * g, -0.2 * g, r + 0.02 * g, -0.32 * g, r - 0.04 * g);
+    koerper.bezierCurveTo(-0.4 * g, r - 0.08 * g, -0.4 * g, r - 0.16 * g, -0.38 * g, r - 0.2 * g);
+    const kopfX = frisst ? 0.5 * g : 0.44 * g;
+    const kopfY = frisst ? -0.12 * g + Math.sin(ph * 1.5) * g * 0.015 : r - 0.5 * g;
+    const hals = new Path2D();
+    hals.moveTo(0.1 * g, r - 0.3 * g);
+    hals.quadraticCurveTo(0.26 * g, (r - 0.3 * g + kopfY) / 2 - 0.05 * g, kopfX - 0.06 * g, kopfY - 0.03 * g);
+    hals.lineTo(kopfX + 0.04 * g, kopfY + 0.05 * g);
+    hals.quadraticCurveTo(0.34 * g, (r - 0.15 * g + kopfY) / 2 + 0.03 * g, 0.3 * g, r - 0.1 * g);
+    hals.closePath();
+    const winkel = frisst ? 1.25 : 0.55;
+    const kopf = new Path2D();
+    kopf.moveTo(-0.05 * g, -0.05 * g);
+    kopf.bezierCurveTo(0.06 * g, -0.08 * g, 0.18 * g, -0.06 * g, 0.24 * g, 0.0);
+    kopf.bezierCurveTo(0.27 * g, 0.04 * g, 0.24 * g, 0.08 * g, 0.18 * g, 0.075 * g);
+    kopf.bezierCurveTo(0.08 * g, 0.07 * g, -0.02 * g, 0.06 * g, -0.06 * g, 0.03 * g);
+    kopf.closePath();
+    const kopfPfad = new Path2D();
+    kopfPfad.addPath(kopf, new DOMMatrix().translateSelf(kopfX, kopfY).rotateSelf(winkel * 57.3));
+
+    const flaeche = new Path2D();
+    flaeche.addPath(koerper);
+    flaeche.addPath(hals);
+    flaeche.addPath(kopfPfad);
+    ctx.save();
+    ctx.fillStyle = weiss;
+    ctx.fill(flaeche);
+    ctx.clip(flaeche);
+    ctx.strokeStyle = streifen;
+    // Streifen am Körper: senkrecht, leicht geschwungen; am Hinterteil schräg
+    for (let x = -0.4; x < 0.36; x += 0.055) {
+        ctx.lineWidth = g * (0.022 + Math.abs(Math.sin(x * 9)) * 0.012);
+        ctx.beginPath();
+        ctx.moveTo(x * g, r - 0.36 * g);
+        ctx.quadraticCurveTo((x + 0.03) * g, r - 0.16 * g, (x - (x < -0.2 ? 0.08 : 0.01)) * g, r + 0.04 * g);
+        ctx.stroke();
+    }
+    // Streifen am Hals und Kopf: quer zur Halsrichtung
+    for (let p = 0; p <= 1.05; p += 0.11) {
+        const x = mische(0.2 * g, kopfX, p);
+        const y = mische(r - 0.2 * g, kopfY, p);
+        ctx.lineWidth = g * 0.026;
+        linie(ctx, x - 0.1 * g, y - 0.03 * g, x + 0.1 * g, y + 0.03 * g);
+    }
+    ctx.fillStyle = 'rgba(90,70,50,.18)';
+    ctx.fillRect(-0.5 * g, r - 0.06 * g, 1.1 * g, 0.1 * g);
+    ctx.restore();
+    konturiere(ctx, flaeche, g, 0.012);
+
+    // Mähne (kurze, gestreifte Bürste entlang des Halses), Maul, Auge, Ohren
+    ctx.save();
+    const maehne = new Path2D();
+    maehne.moveTo(0.08 * g, r - 0.33 * g);
+    maehne.quadraticCurveTo(0.24 * g, (r - 0.33 * g + kopfY) / 2 - 0.07 * g, kopfX - 0.07 * g, kopfY - 0.05 * g);
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = streifen;
+    ctx.lineWidth = Math.max(2, g * 0.045);
+    ctx.stroke(maehne);
+    ctx.strokeStyle = weiss;
+    ctx.lineWidth = Math.max(1.5, g * 0.035);
+    ctx.setLineDash([g * 0.025, g * 0.03]);
+    ctx.stroke(maehne);
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.translate(kopfX, kopfY);
+    ctx.rotate(winkel);
+    ctx.fillStyle = '#3a302b';
+    ellipse(ctx, 0.2 * g, 0.04 * g, 0.06 * g, 0.042 * g);
+    ctx.fill();
+    ctx.fillStyle = '#1c1714';
+    ellipse(ctx, 0.06 * g, -0.015 * g, 0.018 * g, 0.015 * g);
+    ctx.fill();
+    ctx.fillStyle = weiss;
+    ellipse(ctx, -0.04 * g, -0.08 * g, 0.022 * g, 0.05 * g, -0.4);
+    ctx.fill();
+    ctx.strokeStyle = KONTUR;
+    ctx.lineWidth = Math.max(0.8, g * 0.01);
+    ellipse(ctx, -0.04 * g, -0.08 * g, 0.022 * g, 0.05 * g, -0.4);
+    ctx.stroke();
+    ctx.restore();
+
+    bein(-0.14, schritt, false);
+    bein(0.26, -schritt, false);
 }

@@ -1,40 +1,47 @@
 /*
- * Szene „Zoo“: Elefanten, Giraffen, Affen und Pinguine in ihren Gehegen.
+ * Szene „Zoo“: Elefanten, Giraffen mit Zebras (Savanne), Affen und Pinguine in ihren Gehegen.
  *
- * Je länger es ruhig ist, desto mehr Tierbabys trauen sich aus dem Stall (nacheinander).
+ * Zu Beginn sind die Gehege leer. Je länger es ruhig ist, desto mehr Tiere kommen nach und nach
+ * aus ihren Ställen – abwechselnd in allen Gehegen, zuletzt die Tierbabys. Anhaltender Lärm
+ * schickt die zuletzt gekommenen Tiere wieder hinein.
  * Nach längerer Ruhe kommt eine Tierpflegerin oder ein Tierpfleger über den Weg und füttert
  * ein Gehege – die Tiere kommen zum Futter, fressen und freuen sich (Herzen). Die Giraffen
  * fressen aus einem Futterkorb auf Kopfhöhe.
  * Wird es laut, verstecken sich zuerst die Babys, dann die großen Tiere im Stall; die Fütterung
- * wird abgebrochen, und anhaltender Lärm kostet wieder Tierbabys.
+ * wird abgebrochen.
  *
- * Darstellung: Tiere und Pfleger:innen in szenen/zoo-tiere.js. Alles Unbewegte (Himmel,
- * Landschaft mit Gehegen und Häusern, Zaun und Weg) wird bei jeder Größenänderung einmal
- * in eigene Ebenen vorgezeichnet und pro Bild nur noch kopiert – so bleibt die Szene trotz
- * vieler Details flüssig.
+ * Stil: warme Bilderbuch-Illustration – gedämpfte Oliv- und Salbeitöne, goldenes Licht, weiche
+ * warmbraune Konturen, große Bäume als Rahmen, Papierkörnung. Tiere und Pfleger:innen in
+ * szenen/zoo-tiere.js. Alles Unbewegte (Himmel, Landschaft mit Gehegen und Häusern, Bachlauf,
+ * Zaun, Weg, Rahmenbäume, Körnung) wird bei jeder Größenänderung einmal in eigene Ebenen
+ * vorgezeichnet und pro Bild nur noch kopiert – so bleibt die Szene trotz vieler Details flüssig.
  *
- * Vorschau: ?besuch=babys (alle Babys freigeschaltet), ?besuch=fuetterung (Fütterung sofort)
+ * Vorschau: ?besuch=alle bzw. ?besuch=babys (alle Tiere draußen), ?besuch=fuetterung (Fütterung sofort)
  */
 
 import {ellipse, glatt, klemme, mische, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
-import {zeichneAffe, zeichneElefant, zeichneGiraffe, zeichnePfleger, zeichnePinguin} from './zoo-tiere';
+import {zeichneAffe, zeichneElefant, zeichneGiraffe, zeichnePfleger, zeichnePinguin, zeichneZebra} from './zoo-tiere';
 
+// art = Gestaltung des Geheges, bewohner = Tierart → Anzahl (bei Menge 100 %)
 const GEHEGE = [
-    {art: 'elefant', name: 'Elefanten', futter: 'heu'},
-    {art: 'giraffe', name: 'Giraffen', futter: 'blaetter'},
-    {art: 'affe', name: 'Affen', futter: 'bananen'},
-    {art: 'pinguin', name: 'Pinguine', futter: 'fische'},
+    {art: 'elefant', name: 'Elefanten', futter: 'heu', bewohner: {elefant: 2}},
+    {art: 'giraffe', name: 'Savanne', futter: 'blaetter', bewohner: {giraffe: 2, zebra: 2}},
+    {art: 'affe', name: 'Affen', futter: 'bananen', bewohner: {affe: 3}},
+    {art: 'pinguin', name: 'Pinguine', futter: 'fische', bewohner: {pinguin: 4}},
 ];
-const ANZAHL = {elefant: 2, giraffe: 2, affe: 3, pinguin: 4};
-const GROESSE = {elefant: 0.95, giraffe: 0.62, affe: 0.5, pinguin: 0.5};
-const TEMPO = {elefant: 0.22, giraffe: 0.3, affe: 0.8, pinguin: 0.4};
-const HOEHE = {elefant: 0.95, giraffe: 1.9, affe: 0.95, pinguin: 0.95};
+const GROESSE = {elefant: 0.95, giraffe: 0.62, zebra: 0.78, affe: 0.5, pinguin: 0.5};
+const TEMPO = {elefant: 0.22, giraffe: 0.3, zebra: 0.35, affe: 0.8, pinguin: 0.4};
+const HOEHE = {elefant: 0.95, giraffe: 1.9, zebra: 0.85, affe: 0.95, pinguin: 0.95};
+const KONTUR = 'rgba(62,40,22,.5)';
 const FUTTER_FARBE = {heu: '#e0b54a', blaetter: '#65a30d', bananen: '#facc15', fische: '#64748b'};
-// Reihenfolge, in der die Babys bei anhaltender Ruhe erscheinen
-const BABYS = ['elefant', 'pinguin', 'giraffe', 'affe', 'pinguin'];
-const SEKUNDEN_PRO_BABY = 15;
+// Babys (in dieser Reihenfolge) kommen erst, wenn alle großen Tiere draußen sind
+const BABYS = ['elefant', 'pinguin', 'giraffe', 'zebra', 'affe', 'pinguin'];
+// Sekunden Ruhe bis zum ersten Tier, je weiterem großen Tier und je Baby
+const ERSTES_TIER = 2;
+const SEKUNDEN_PRO_TIER = 6;
+const SEKUNDEN_PRO_BABY = 12;
 
-const ZEICHNER = {elefant: zeichneElefant, giraffe: zeichneGiraffe, affe: zeichneAffe, pinguin: zeichnePinguin};
+const ZEICHNER = {elefant: zeichneElefant, giraffe: zeichneGiraffe, zebra: zeichneZebra, affe: zeichneAffe, pinguin: zeichnePinguin};
 
 function linie(ctx, x1, y1, x2, y2) {
     ctx.beginPath();
@@ -94,6 +101,61 @@ function stein(c, x, y, rx, ry, hell, dunkel) {
     c.fill();
 }
 
+/** Blätterwerk im Bilderbuchstil: dunkle Grundform, darauf viele kleine Blätter, oben heller. */
+function blattwerk(c, x, y, rx, ry, [dunkel, mittel, hell], zz, blatt = 4) {
+    c.fillStyle = dunkel;
+    ellipse(c, x, y, rx, ry);
+    c.fill();
+    const anzahl = klemme(Math.round((rx * ry) / (blatt * blatt) * 0.9), 10, 700);
+    for (let i = 0; i < anzahl; i++) {
+        const w = zz() * Math.PI * 2;
+        const a = Math.sqrt(zz());
+        const px = x + Math.cos(w) * rx * a;
+        const py = y + Math.sin(w) * ry * a;
+        const licht = (py - (y - ry)) / (2 * ry) + (px - x) / (rx * 6);
+        c.fillStyle = licht < 0.38 ? hell : licht < 0.72 ? mittel : dunkel;
+        ellipse(c, px, py, blatt * zz.zwischen(0.8, 1.3), blatt * zz.zwischen(0.45, 0.65), zz() * Math.PI);
+        c.fill();
+    }
+}
+
+function baum(c, x, fuss, groesse, farben, zz, stamm = ['#6b4e36', '#4a3424']) {
+    const s = groesse;
+    const v = c.createLinearGradient(x - s * 0.08, 0, x + s * 0.08, 0);
+    v.addColorStop(0, stamm[1]);
+    v.addColorStop(0.45, stamm[0]);
+    v.addColorStop(1, stamm[1]);
+    c.fillStyle = v;
+    c.beginPath();
+    c.moveTo(x - s * 0.08, fuss);
+    c.quadraticCurveTo(x - s * 0.03, fuss - s * 0.5, x - s * 0.04, fuss - s * 0.95);
+    c.lineTo(x + s * 0.04, fuss - s * 0.95);
+    c.quadraticCurveTo(x + s * 0.03, fuss - s * 0.5, x + s * 0.09, fuss);
+    c.fill();
+    c.strokeStyle = KONTUR;
+    c.lineWidth = 1;
+    c.stroke();
+    [[-0.32, -1.05, 0.42, 0.32], [0.3, -1.1, 0.4, 0.3], [0, -1.32, 0.46, 0.34]].forEach(([dx, dy, rx, ry]) => {
+        blattwerk(c, x + dx * s, fuss + dy * s, rx * s, ry * s, farben, zz, Math.max(2, s * 0.05));
+    });
+}
+
+function menschlein(c, x, y, groesse, kleidung, zz) {
+    const s = groesse;
+    c.fillStyle = '#4a3a2c';
+    c.fillRect(x - s * 0.08, y - s * 0.42, s * 0.06, s * 0.42);
+    c.fillRect(x + s * 0.02, y - s * 0.42, s * 0.06, s * 0.42);
+    c.fillStyle = kleidung;
+    rundRechteck(c, x - s * 0.13, y - s * 0.82, s * 0.26, s * 0.44, s * 0.08);
+    c.fill();
+    c.fillStyle = zz.aus(['#f1c9a0', '#c68a5b', '#8d5a3b', '#e0ac7e']);
+    ellipse(c, x, y - s * 0.92, s * 0.1, s * 0.11);
+    c.fill();
+    c.fillStyle = zz.aus(['#4a2e1a', '#2d1b10', '#b8862f']);
+    ellipse(c, x, y - s * 0.98, s * 0.1, s * 0.06);
+    c.fill();
+}
+
 export function erzeugeZoo() {
     let b = 0;
     let h = 0;
@@ -103,7 +165,8 @@ export function erzeugeZoo() {
     let tiere = [];
     let wolken = [];
     let t = 0;
-    let babyStufe = 0;
+    let ruheZeit = 0;
+    let maxSchwelle = 0;
     let fuetterung = null;
     let fuetterWarten = zufall(30, 45);
     let fuetterNaechstes = Math.floor(Math.random() * GEHEGE.length);
@@ -111,10 +174,11 @@ export function erzeugeZoo() {
     let ebeneHimmel = null;
     let ebeneLandschaft = null;
     let ebeneVorne = null;
+    let ebeneKoernung = null;
     const herzen = [];
 
     const tiefe = (y) => mische(0.72, 1, klemme((y - h * 0.62) / (h * 0.2), 0, 1));
-    const bereich = (ge) => ({xMin: ge.x0 + W * 0.1, xMax: ge.x1 - W * 0.1, yMin: h * 0.665, yMax: h * 0.79});
+    const bereich = (ge) => ({xMin: ge.x0 + W * 0.1, xMax: ge.x1 - W * 0.1, yMin: h * 0.665, yMax: h * 0.78});
     const imWasser = (ge, x, y) => ge.wasser
         && ((x - ge.wasser.x) / ge.wasser.rx) ** 2 + ((y - ge.wasser.y) / ge.wasser.ry) ** 2 < 1;
 
@@ -148,7 +212,7 @@ export function erzeugeZoo() {
 
     function waehleZiel(tier) {
         const ge = tier.ge;
-        if (ge.art === 'affe' && Math.random() < 0.45) {
+        if (tier.art === 'affe' && Math.random() < 0.45) {
             const platz = zufallAus(ge.plaetze);
             tier.zx = platz.x + zufall(-0.04, 0.04) * W;
             tier.zy = platz.y;
@@ -159,11 +223,11 @@ export function erzeugeZoo() {
         }
     }
 
-    function neuesTier(ge, baby) {
+    function neuesTier(ge, art, baby) {
         const bb = bereich(ge);
         const tier = {
-            ge, art: ge.art, baby, saat: Math.floor(zufall(1, 9999)),
-            g: g0 * GROESSE[ge.art] * (baby ? 0.55 : 1),
+            ge, art, baby, saat: Math.floor(zufall(1, 9999)),
+            g: g0 * GROESSE[art] * (baby ? 0.55 : 1),
             x: zufall(bb.xMin, bb.xMax), y: zufall(bb.yMin, bb.yMax), zx: 0, zy: 0,
             richtung: Math.random() < 0.5 ? 1 : -1, dirZiel: 1, phase: zufall(0, 6), warten: zufall(0, 3),
             mut: baby ? zufall(0.12, 0.22) : zufall(0.3, 0.7),
@@ -177,23 +241,45 @@ export function erzeugeZoo() {
     function erzeugeTiere() {
         tiere = [];
         gehege.forEach((ge) => {
-            const anzahl = Math.max(1, Math.round(ANZAHL[ge.art] * mengenFaktor));
-            for (let k = 0; k < anzahl; k++) tiere.push(neuesTier(ge, false));
+            Object.entries(ge.bewohner).forEach(([art, anzahl]) => {
+                const n = Math.max(1, Math.round(anzahl * mengenFaktor));
+                for (let k = 0; k < n; k++) tiere.push(neuesTier(ge, art, false));
+            });
         });
         const babysJeArt = {};
         BABYS.forEach((art, nummer) => {
-            const ge = gehege.find((g) => g.art === art);
-            const eltern = tiere.filter((x) => x.ge === ge && !x.baby);
+            const ge = gehege.find((g) => g.bewohner[art]);
+            const eltern = tiere.filter((x) => x.ge === ge && x.art === art && !x.baby);
             babysJeArt[art] = (babysJeArt[art] ?? -1) + 1;
-            const baby = neuesTier(ge, true);
+            const baby = neuesTier(ge, art, true);
             baby.eltern = eltern[babysJeArt[art] % eltern.length];
             baby.nummer = nummer;
-            baby.flieht = true;
-            baby.alpha = 0;
-            baby.x = ge.tuer.x;
-            baby.y = ge.tuer.y;
             tiere.push(baby);
         });
+
+        // Reihenfolge des Erscheinens: große Tiere abwechselnd aus allen Gehegen, dann die Babys
+        const warteschlangen = gehege.map((ge) => {
+            const arten = Object.keys(ge.bewohner);
+            const jeArt = arten.map((art) => tiere.filter((x) => x.ge === ge && x.art === art && !x.baby));
+            const liste = [];
+            for (let i = 0; jeArt.some((l) => l.length > i); i++) jeArt.forEach((l) => l[i] && liste.push(l[i]));
+            return liste;
+        });
+        const reihenfolge = [];
+        for (let i = 0; warteschlangen.some((l) => l.length > i); i++) warteschlangen.forEach((l) => l[i] && reihenfolge.push(l[i]));
+        reihenfolge.push(...tiere.filter((x) => x.baby).sort((a, c) => a.nummer - c.nummer));
+        let schwelle = ERSTES_TIER;
+        reihenfolge.forEach((tier) => {
+            tier.schwelle = schwelle;
+            schwelle += tier.baby ? SEKUNDEN_PRO_BABY : SEKUNDEN_PRO_TIER;
+            // alle Tiere warten zu Beginn im Stall
+            tier.freigeschaltet = false;
+            tier.flieht = true;
+            tier.alpha = 0;
+            tier.x = tier.ge.tuer.x;
+            tier.y = tier.ge.tuer.y;
+        });
+        maxSchwelle = schwelle;
     }
 
     // ── Vorgezeichnete Ebenen ────────────────────────────────────────────
@@ -208,173 +294,152 @@ export function erzeugeZoo() {
         return leinwand;
     }
 
+    // Farben im Bilderbuchstil
+    const LAUB_FERN = ['#a3b48a', '#b2c198', '#c3cfa9'];
+    const LAUB_MITTE = ['#6f8a4a', '#86a05a', '#a4b86c'];
+    const LAUB_NAH = ['#4f6b33', '#68873f', '#8daa52'];
+    const LAUB_RAHMEN = ['#3e5528', '#587a34', '#7fa046'];
+
     function zeichneHimmel(c) {
         const himmel = c.createLinearGradient(0, 0, 0, h * 0.6);
-        himmel.addColorStop(0, '#4fa3dc');
-        himmel.addColorStop(0.7, '#a9d8f0');
-        himmel.addColorStop(1, '#e6f4fa');
+        himmel.addColorStop(0, '#c4dccf');
+        himmel.addColorStop(0.55, '#e7ecd5');
+        himmel.addColorStop(1, '#f6ebcb');
         c.fillStyle = himmel;
         c.fillRect(0, 0, b, h * 0.62);
-        const sx = b * 0.62;
-        const sy = h * 0.12;
-        const sr = Math.min(b, h) * 0.045;
-        const schein = c.createRadialGradient(sx, sy, sr * 0.5, sx, sy, sr * 5);
-        schein.addColorStop(0, 'rgba(255,244,200,.75)');
-        schein.addColorStop(1, 'rgba(255,244,200,0)');
+        const sx = b * 0.55;
+        const sy = h * 0.06;
+        const schein = c.createRadialGradient(sx, sy, 0, sx, sy, Math.max(b, h) * 0.55);
+        schein.addColorStop(0, 'rgba(255,246,214,.95)');
+        schein.addColorStop(0.35, 'rgba(255,240,200,.35)');
+        schein.addColorStop(1, 'rgba(255,240,200,0)');
         c.fillStyle = schein;
-        c.fillRect(sx - sr * 5, sy - sr * 5, sr * 10, sr * 10);
-        const sonne = c.createRadialGradient(sx - sr * 0.3, sy - sr * 0.3, 0, sx, sy, sr);
-        sonne.addColorStop(0, '#fffbe6');
-        sonne.addColorStop(1, '#fcd34d');
-        c.fillStyle = sonne;
-        ellipse(c, sx, sy, sr, sr);
-        c.fill();
+        c.fillRect(0, 0, b, h * 0.62);
     }
 
-    function zeichneStall(c, haus) {
+    function zeichneStall(c, haus, zz) {
         const {x, basis, breite, hoehe, tuerB, tuerH} = haus;
         const links = x - breite / 2;
-        // Schatten am Boden
-        c.fillStyle = 'rgba(40,30,15,.18)';
-        ellipse(c, x + breite * 0.08, basis + 2, breite * 0.62, breite * 0.07);
+        c.fillStyle = 'rgba(70,50,25,.2)';
+        ellipse(c, x + breite * 0.06, basis + 2, breite * 0.65, breite * 0.08);
         c.fill();
         // Steinsockel
-        const sockel = hoehe * 0.16;
-        c.fillStyle = verlauf(c, basis - sockel, basis, '#a8a29e', '#78716c');
+        const sockel = hoehe * 0.15;
+        c.fillStyle = verlauf(c, basis - sockel, basis, '#c2b8a3', '#988d78');
         c.fillRect(links, basis - sockel, breite, sockel);
-        c.strokeStyle = 'rgba(60,55,50,.35)';
-        c.lineWidth = 1;
-        const steinB = breite / 7;
-        for (let reihe = 0; reihe < 2; reihe++) {
-            const y = basis - sockel + reihe * sockel / 2;
-            linie(c, links, y, links + breite, y);
-            for (let s = (reihe % 2) * steinB / 2; s < breite; s += steinB) linie(c, links + s, y, links + s, y + sockel / 2);
-        }
         // Bretterwand
         const wand = c.createLinearGradient(links, 0, links + breite, 0);
-        wand.addColorStop(0, '#9a6a40');
-        wand.addColorStop(0.5, '#b88152');
-        wand.addColorStop(1, '#8a5c35');
+        wand.addColorStop(0, '#a87a4c');
+        wand.addColorStop(0.5, '#c4945f');
+        wand.addColorStop(1, '#94683f');
         c.fillStyle = wand;
         c.fillRect(links, basis - hoehe, breite, hoehe - sockel);
-        c.strokeStyle = 'rgba(70,40,20,.35)';
-        for (let s = links + breite / 9; s < links + breite; s += breite / 9) linie(c, s, basis - hoehe, s, basis - sockel);
-        // Fenster
+        c.strokeStyle = 'rgba(80,50,25,.4)';
+        c.lineWidth = 1;
+        for (let s = links + breite / 8; s < links + breite; s += breite / 8) linie(c, s, basis - hoehe, s + zz.zwischen(-1, 1), basis - sockel);
+        // Fenster mit Laden
         if (breite > hoehe * 0.9) {
-            const fx = links + breite * 0.15;
+            const fx = links + breite * 0.13;
             const fy = basis - hoehe * 0.78;
-            const fb = breite * 0.16;
-            c.fillStyle = '#5b3a20';
+            const fb = breite * 0.17;
+            c.fillStyle = '#5e3d24';
             c.fillRect(fx - 3, fy - 3, fb + 6, fb * 0.8 + 6);
-            c.fillStyle = verlauf(c, fy, fy + fb * 0.8, '#bfe3f5', '#7fb5d1');
+            c.fillStyle = verlauf(c, fy, fy + fb * 0.8, '#f7e2a6', '#d9b56a');
             c.fillRect(fx, fy, fb, fb * 0.8);
-            c.strokeStyle = '#5b3a20';
+            c.strokeStyle = '#5e3d24';
             c.lineWidth = 2;
             linie(c, fx + fb / 2, fy, fx + fb / 2, fy + fb * 0.8);
-            linie(c, fx, fy + fb * 0.4, fx + fb, fy + fb * 0.4);
         }
-        // Tür (Rundbogen) mit dunklem Inneren
-        const tuer = c.createLinearGradient(0, basis - tuerH, 0, basis);
-        tuer.addColorStop(0, '#1c120b');
-        tuer.addColorStop(1, '#3b2416');
-        c.fillStyle = '#6b4226';
+        // Tür
+        c.fillStyle = '#6b4a2c';
         c.beginPath();
         c.moveTo(x - tuerB / 2 - 4, basis);
         c.lineTo(x - tuerB / 2 - 4, basis - tuerH + tuerB / 2);
         c.arc(x, basis - tuerH + tuerB / 2, tuerB / 2 + 4, Math.PI, 0);
         c.lineTo(x + tuerB / 2 + 4, basis);
         c.fill();
-        c.fillStyle = tuer;
+        c.fillStyle = verlauf(c, basis - tuerH, basis, '#241810', '#3d2a1b');
         c.beginPath();
         c.moveTo(x - tuerB / 2, basis);
         c.lineTo(x - tuerB / 2, basis - tuerH + tuerB / 2);
         c.arc(x, basis - tuerH + tuerB / 2, tuerB / 2, Math.PI, 0);
         c.lineTo(x + tuerB / 2, basis);
         c.fill();
-        // Dach mit Ziegelreihen
-        const dachH = breite * 0.3;
+        c.strokeStyle = KONTUR;
+        c.lineWidth = 1.2;
+        c.strokeRect(links, basis - hoehe, breite, hoehe);
+        // Strohdach
+        const dachH = breite * 0.38;
         const dach = new Path2D();
-        dach.moveTo(links - breite * 0.1, basis - hoehe + 2);
-        dach.lineTo(x, basis - hoehe - dachH);
-        dach.lineTo(links + breite * 1.1, basis - hoehe + 2);
-        dach.closePath();
-        c.fillStyle = verlauf(c, basis - hoehe - dachH, basis - hoehe, '#b4441f', '#7c2d12');
+        dach.moveTo(links - breite * 0.14, basis - hoehe + 4);
+        dach.quadraticCurveTo(x - breite * 0.25, basis - hoehe - dachH * 0.75, x, basis - hoehe - dachH);
+        dach.quadraticCurveTo(x + breite * 0.25, basis - hoehe - dachH * 0.75, links + breite * 1.14, basis - hoehe + 4);
+        dach.quadraticCurveTo(x, basis - hoehe - 4, links - breite * 0.14, basis - hoehe + 4);
+        c.fillStyle = verlauf(c, basis - hoehe - dachH, basis - hoehe, '#dcbc6e', '#a98840');
         c.fill(dach);
         c.save();
         c.clip(dach);
-        c.strokeStyle = 'rgba(60,20,8,.35)';
+        c.strokeStyle = 'rgba(120,85,30,.45)';
         c.lineWidth = 1;
-        for (let y = basis - hoehe - dachH + 5; y < basis - hoehe; y += 5) linie(c, links - breite * 0.1, y, links + breite * 1.1, y);
+        for (let i = 0; i < breite * 0.9; i++) {
+            const sx = links - breite * 0.14 + zz() * breite * 1.28;
+            const sy = basis - hoehe - zz() * dachH;
+            linie(c, sx, sy, sx + (sx - x) * 0.06, sy + zz.zwischen(5, 10));
+        }
         c.restore();
-        c.fillStyle = 'rgba(0,0,0,.18)';
-        c.fillRect(links, basis - hoehe, breite, hoehe * 0.06);
+        c.strokeStyle = KONTUR;
+        c.lineWidth = 1.3;
+        c.stroke(dach);
     }
 
     function zeichneLandschaft(c) {
         const zz = zufallMitSaat(31);
-        // Hügel in der Ferne (dunstig)
-        [['#a9c9b0', h * 0.5, 0.004, 1.2], ['#8fb994', h * 0.53, 0.006, 2.8]].forEach(([ton, basis, frequenz, phase]) => {
-            c.fillStyle = ton;
-            c.beginPath();
-            c.moveTo(0, h * 0.6);
-            for (let x = 0; x <= b + 20; x += 20) c.lineTo(x, basis + Math.sin(x * frequenz + phase) * h * 0.02);
-            c.lineTo(b, h * 0.6);
-            c.fill();
-        });
-        // Parkbäume mit Stämmen und mehrlagigen Kronen
-        const baeume = Array.from({length: Math.round(b / 30)}, () => ({
-            x: zz.zwischen(-0.02, 1.02) * b, r: h * zz.zwischen(0.035, 0.065), pappel: zz() < 0.15,
-            ton: zz.aus([['#4f8f3c', '#2f6627'], ['#5f9e47', '#3b7a2e'], ['#6aaa50', '#447f34']]),
-        })).sort((a, d) => a.r - d.r);
-        baeume.forEach((baum) => {
-            const fuss = h * 0.575;
-            c.fillStyle = '#5b4632';
-            c.fillRect(baum.x - baum.r * 0.08, fuss - baum.r * 0.9, baum.r * 0.16, baum.r * 0.9);
-            if (baum.pappel) {
-                const v = c.createLinearGradient(baum.x - baum.r * 0.5, 0, baum.x + baum.r * 0.5, 0);
-                v.addColorStop(0, baum.ton[0]);
-                v.addColorStop(1, baum.ton[1]);
-                c.fillStyle = v;
-                ellipse(c, baum.x, fuss - baum.r * 1.6, baum.r * 0.45, baum.r * 1.3);
-                c.fill();
-                return;
-            }
-            [[-0.45, -0.75, 0.6], [0.45, -0.8, 0.62], [0, -1.15, 0.7], [-0.15, -0.95, 0.65]].forEach(([dx, dy, rr]) => {
-                const v = c.createRadialGradient(baum.x + (dx - 0.2) * baum.r, fuss + (dy - 0.25) * baum.r, 0, baum.x + dx * baum.r, fuss + dy * baum.r, rr * baum.r);
-                v.addColorStop(0, baum.ton[0]);
-                v.addColorStop(1, baum.ton[1]);
-                c.fillStyle = v;
-                ellipse(c, baum.x + dx * baum.r, fuss + dy * baum.r, rr * baum.r, rr * baum.r * 0.9);
-                c.fill();
-            });
-        });
+        const blatt = Math.max(2.2, Math.min(b, h) * 0.0045);
+        // ferner Wald (dunstig)
+        for (let x = -40; x < b + 60; x += zz.zwischen(40, 70)) {
+            blattwerk(c, x, h * 0.46 + zz.zwischen(-0.02, 0.02) * h, h * zz.zwischen(0.05, 0.08), h * zz.zwischen(0.06, 0.09), LAUB_FERN, zz, blatt * 0.8);
+        }
+        c.fillStyle = 'rgba(244,236,208,.35)';
+        c.fillRect(0, h * 0.35, b, h * 0.25);
+        // Bäume dahinter mit Stämmen
+        const reihe = Array.from({length: Math.round(b / 110)}, (_, i) => ({x: (i + zz.zwischen(0.2, 0.8)) * 110, g: h * zz.zwischen(0.12, 0.17)}));
+        reihe.forEach((bm) => baum(c, bm.x, h * 0.565, bm.g, LAUB_MITTE, zz));
+        // Besucherweg hinten mit kleinen Spaziergängern und Bänken
+        c.fillStyle = verlauf(c, h * 0.548, h * 0.572, '#eadcb6', '#d9c59a');
+        c.fillRect(0, h * 0.55, b, h * 0.022);
+        for (let i = 0; i < 4; i++) {
+            const bx = zz.zwischen(0.1, 0.9) * b;
+            c.fillStyle = '#7a5434';
+            c.fillRect(bx, h * 0.552, h * 0.03, h * 0.004);
+            c.fillRect(bx, h * 0.545, h * 0.03, h * 0.003);
+        }
+        for (let i = 0; i < 7; i++) {
+            menschlein(c, zz.zwischen(0.05, 0.95) * b, h * 0.566, h * 0.03, zz.aus(['#c0583e', '#4f7fa8', '#e0b04a', '#7a9a52', '#a8698f']), zz);
+        }
 
-        // Gehegeböden mit Struktur
+        // Gehegeböden in warmen Tönen
         gehege.forEach((ge) => {
-            const oben = h * 0.575;
-            const unten = h * 0.845;
-            const farben = {
-                elefant: ['#d6bc8b', '#c4a06d'], giraffe: ['#c7cf85', '#a8b765'], affe: ['#a2c76d', '#7ea951'], pinguin: ['#e3e9ee', '#c3cfd9'],
-            }[ge.art];
+            const oben = h * 0.57;
+            const unten = h * 0.83;
+            const farben = {elefant: ['#dcbd85', '#c49a5c'], giraffe: ['#cdc77c', '#a9a958'], affe: ['#a6c06a', '#829f4c'], pinguin: ['#ddd6c4', '#bfb6a1']}[ge.art];
             c.fillStyle = verlauf(c, oben, unten, farben[0], farben[1]);
             c.fillRect(ge.x0, oben, W + 1, unten - oben);
             c.save();
             c.beginPath();
             c.rect(ge.x0, oben, W, unten - oben);
             c.clip();
-            const anzahl = Math.round(W * 0.25);
+            const anzahl = Math.round(W * 0.3);
             if (ge.art === 'elefant') {
                 for (let i = 0; i < anzahl; i++) {
-                    c.fillStyle = zz() < 0.5 ? 'rgba(150,110,60,.18)' : 'rgba(255,240,210,.25)';
+                    c.fillStyle = zz() < 0.5 ? 'rgba(150,105,55,.18)' : 'rgba(255,240,205,.28)';
                     ellipse(c, ge.x0 + zz() * W, oben + zz() * (unten - oben), zz.zwischen(4, 16), zz.zwischen(2, 5));
                     c.fill();
                 }
-                // Fußspuren
-                c.strokeStyle = 'rgba(110,80,45,.3)';
-                c.lineWidth = 1.5;
+                c.strokeStyle = 'rgba(115,80,40,.3)';
+                c.lineWidth = 1.4;
                 for (let i = 0; i < 7; i++) {
                     const fx = ge.x0 + zz.zwischen(0.15, 0.9) * W;
-                    const fy = zz.zwischen(h * 0.7, h * 0.83);
+                    const fy = zz.zwischen(h * 0.7, h * 0.8);
                     ellipse(c, fx, fy, W * 0.018, h * 0.006);
                     c.stroke();
                     ellipse(c, fx + W * 0.05, fy + h * 0.004, W * 0.018, h * 0.006);
@@ -382,186 +447,128 @@ export function erzeugeZoo() {
                 }
             } else if (ge.art === 'pinguin') {
                 for (let i = 0; i < anzahl * 0.4; i++) {
-                    const sx = ge.x0 + zz() * W;
-                    const sy = oben + h * 0.03 + zz() * (unten - oben - h * 0.03);
-                    stein(c, sx, sy, zz.zwischen(4, 12), zz.zwischen(3, 7), '#f1f5f9', '#94a3b8');
-                }
-                c.fillStyle = 'rgba(255,255,255,.7)';
-                for (let i = 0; i < 6; i++) {
-                    ellipse(c, ge.x0 + zz() * W, oben + zz() * (unten - oben), zz.zwischen(10, 30), zz.zwischen(3, 7));
-                    c.fill();
+                    stein(c, ge.x0 + zz() * W, oben + h * 0.03 + zz() * (unten - oben - h * 0.03), zz.zwischen(4, 12), zz.zwischen(3, 7), '#ece5d4', '#a39a86');
                 }
             } else {
-                const grasFarben = ge.art === 'giraffe' ? ['#b4b85a', '#8f9a45', '#d0c77a'] : ['#6a9e3f', '#4f8a32', '#8cbf5a'];
-                for (let i = 0; i < anzahl * 1.6; i++) {
+                const grasFarben = ge.art === 'giraffe' ? ['#a39f4c', '#c2b867', '#8a8a3e'] : ['#6f9440', '#5a7f34', '#8fb058'];
+                for (let i = 0; i < anzahl * 1.7; i++) {
                     const gy = oben + h * 0.02 + zz() * (unten - oben - h * 0.02);
-                    grasbueschel(c, ge.x0 + zz() * W, gy, h * mische(0.008, 0.02, (gy - oben) / (unten - oben)), grasFarben, zz);
+                    grasbueschel(c, ge.x0 + zz() * W, gy, h * mische(0.009, 0.022, (gy - oben) / (unten - oben)), grasFarben, zz);
                 }
                 if (ge.art === 'affe') {
-                    c.fillStyle = 'rgba(110,80,50,.45)';
+                    c.fillStyle = 'rgba(115,85,50,.4)';
                     ellipse(c, ge.kletterbaum.x, ge.kletterbaum.fuss, W * 0.12, h * 0.018);
                     c.fill();
-                    for (let i = 0; i < 12; i++) {
-                        c.fillStyle = zz.aus(['#fde047', '#f9a8d4', '#ffffff']);
-                        ellipse(c, ge.x0 + zz() * W, zz.zwischen(h * 0.68, h * 0.83), 2.5, 2.5);
-                        c.fill();
-                    }
+                }
+                for (let i = 0; i < 10; i++) {
+                    c.fillStyle = zz.aus(['#f2d45c', '#f4b6c2', '#fbf6e9']);
+                    ellipse(c, ge.x0 + zz() * W, zz.zwischen(h * 0.68, h * 0.82), 2.4, 2.4);
+                    c.fill();
                 }
             }
             c.restore();
-
-            // Natursteinmauer hinten
-            const mauerHell = ge.art === 'pinguin' ? '#eef2f6' : '#b8afa6';
-            const mauerDunkel = ge.art === 'pinguin' ? '#9fb0c0' : '#857a70';
-            c.fillStyle = verlauf(c, h * 0.54, h * 0.6, mauerHell, mauerDunkel);
-            c.beginPath();
-            c.moveTo(ge.x0, h * 0.6);
-            for (let x = ge.x0; x <= ge.x1 + 8; x += 8) c.lineTo(x, h * 0.565 - Math.abs(Math.sin(x * 0.07)) * h * 0.012 - zz() * h * 0.006);
-            c.lineTo(ge.x1, h * 0.6);
-            c.fill();
-            c.strokeStyle = 'rgba(60,50,40,.25)';
-            c.lineWidth = 1;
-            for (let i = 0; i < 6; i++) {
-                const rx = ge.x0 + zz() * W;
-                linie(c, rx, h * 0.57, rx + zz.zwischen(-6, 6), h * 0.595);
+            // Hecke hinten als Gehegegrenze (Pinguine: Felsen)
+            for (let x = ge.x0 + 6; x < ge.x1; x += zz.zwischen(18, 30)) {
+                if (ge.art === 'pinguin') stein(c, x, h * 0.575, zz.zwischen(12, 22), zz.zwischen(7, 11), '#e3dccb', '#9b917d');
+                else blattwerk(c, x, h * 0.575, zz.zwischen(14, 24), zz.zwischen(8, 12), LAUB_NAH, zz, blatt * 0.8);
             }
         });
 
         // Ausstattung der Gehege
         gehege.forEach((ge) => {
             if (ge.art === 'elefant') {
-                zeichneStall(c, ge.haus);
-                // Heuhaufen
+                zeichneStall(c, ge.haus, zz);
                 const hx = ge.x0 + W * 0.5;
                 const hy = h * 0.655;
-                c.fillStyle = verlauf(c, hy - h * 0.035, hy, '#e8c766', '#b98d2c');
+                c.fillStyle = verlauf(c, hy - h * 0.035, hy, '#e6c56c', '#b48a34');
                 c.beginPath();
                 c.ellipse(hx, hy, W * 0.075, h * 0.035, 0, Math.PI, Math.PI * 2);
                 c.fill();
-                c.strokeStyle = 'rgba(140,100,20,.6)';
+                c.strokeStyle = 'rgba(130,95,25,.6)';
                 c.lineWidth = 1;
-                for (let i = 0; i < 14; i++) {
+                for (let i = 0; i < 16; i++) {
                     const ax = hx + zz.zwischen(-0.06, 0.06) * W;
                     linie(c, ax, hy - zz() * h * 0.03, ax + zz.zwischen(-8, 8), hy - zz() * h * 0.03 - 4);
                 }
-                // Baumstamm
                 const lx = ge.x0 + W * 0.14;
-                const ly = h * 0.8;
+                const ly = h * 0.79;
                 rundRechteck(c, lx, ly - h * 0.03, W * 0.2, h * 0.03, h * 0.015);
-                c.fillStyle = verlauf(c, ly - h * 0.03, ly, '#8b6a47', '#5b4430');
+                c.fillStyle = verlauf(c, ly - h * 0.03, ly, '#93704a', '#5e4630');
                 c.fill();
-                c.fillStyle = '#c9a87a';
+                c.strokeStyle = KONTUR;
+                c.stroke();
+                c.fillStyle = '#d2b07e';
                 ellipse(c, lx + W * 0.2, ly - h * 0.015, h * 0.012, h * 0.015);
                 c.fill();
-                c.strokeStyle = '#8b6a47';
-                ellipse(c, lx + W * 0.2, ly - h * 0.015, h * 0.006, h * 0.008);
-                c.stroke();
             } else if (ge.art === 'giraffe') {
-                zeichneStall(c, ge.haus);
+                zeichneStall(c, ge.haus, zz);
                 // Akazie
                 const tx = ge.baum.x;
                 const fuss = h * 0.69;
                 const top = h * 0.43;
-                const stamm = c.createLinearGradient(tx - W * 0.02, 0, tx + W * 0.02, 0);
-                stamm.addColorStop(0, '#5d4330');
-                stamm.addColorStop(0.5, '#8a6a4c');
-                stamm.addColorStop(1, '#5d4330');
-                c.fillStyle = stamm;
+                c.fillStyle = verlauf(c, top, fuss, '#7a5a3e', '#5b4129');
                 c.beginPath();
                 c.moveTo(tx - W * 0.022, fuss);
                 c.quadraticCurveTo(tx - W * 0.005, (fuss + top) / 2, tx - W * 0.008, top + h * 0.02);
                 c.lineTo(tx + W * 0.008, top + h * 0.02);
                 c.quadraticCurveTo(tx + W * 0.01, (fuss + top) / 2, tx + W * 0.022, fuss);
                 c.fill();
+                c.strokeStyle = KONTUR;
+                c.lineWidth = 1;
+                c.stroke();
                 c.strokeStyle = '#6b4f37';
                 c.lineCap = 'round';
                 c.lineWidth = W * 0.01;
                 linie(c, tx, h * 0.5, tx - W * 0.1, top + h * 0.01);
                 linie(c, tx, h * 0.48, tx + W * 0.09, top);
-                [[-0.08, 0, 0.16, 0.032], [0.07, -0.012, 0.15, 0.03], [-0.005, -0.038, 0.13, 0.026]].forEach(([dx, dy, rx, ry]) => {
-                    const v = c.createLinearGradient(0, top + dy * h - ry * h, 0, top + dy * h + ry * h);
-                    v.addColorStop(0, '#6fae48');
-                    v.addColorStop(1, '#3f7a2a');
-                    c.fillStyle = v;
-                    ellipse(c, tx + dx * W, top + dy * h, rx * W, ry * h);
-                    c.fill();
-                    c.fillStyle = 'rgba(255,255,255,.12)';
-                    for (let i = 0; i < 20; i++) {
-                        ellipse(c, tx + dx * W + zz.zwischen(-0.85, 0.85) * rx * W, top + dy * h + zz.zwischen(-0.7, 0.3) * ry * h, 1.5, 1.5);
-                        c.fill();
-                    }
+                [[-0.08, 0, 0.16, 0.03], [0.07, -0.012, 0.15, 0.028], [-0.005, -0.036, 0.13, 0.024]].forEach(([dx, dy, rx, ry]) => {
+                    blattwerk(c, tx + dx * W, top + dy * h, rx * W, ry * h, LAUB_NAH, zz, blatt * 0.9);
                 });
-                // Futterkorb auf Kopfhöhe
+                // Futterkorb
                 const korb = ge.korb;
-                c.fillStyle = verlauf(c, korb.y, korb.boden, '#8b6a47', '#5d4330');
+                c.fillStyle = verlauf(c, korb.y, korb.boden, '#93704a', '#5e4630');
                 c.fillRect(korb.x - W * 0.009, korb.y, W * 0.018, korb.boden - korb.y);
-                c.fillStyle = verlauf(c, korb.y - h * 0.022, korb.y + h * 0.012, '#c08a3e', '#7c5520');
+                c.fillStyle = verlauf(c, korb.y - h * 0.022, korb.y + h * 0.012, '#c99a52', '#8a6326');
                 c.beginPath();
                 c.moveTo(korb.x - W * 0.055, korb.y - h * 0.022);
                 c.lineTo(korb.x + W * 0.055, korb.y - h * 0.022);
                 c.lineTo(korb.x + W * 0.038, korb.y + h * 0.012);
                 c.lineTo(korb.x - W * 0.038, korb.y + h * 0.012);
+                c.closePath();
                 c.fill();
-                c.strokeStyle = 'rgba(70,40,15,.6)';
-                c.lineWidth = 1;
-                for (let i = -2; i <= 2; i++) linie(c, korb.x + i * W * 0.018, korb.y - h * 0.022, korb.x + i * W * 0.013, korb.y + h * 0.012);
+                c.strokeStyle = KONTUR;
+                c.stroke();
             } else if (ge.art === 'affe') {
                 const {x: tx, fuss, krone} = ge.kletterbaum;
-                [[-0.13, -0.05, 0.11], [0.12, -0.07, 0.1], [0, -0.1, 0.12]].forEach(([dx, dy, r]) => {
-                    const v = c.createRadialGradient(tx + (dx - 0.04) * W, krone + (dy - 0.03) * h, 0, tx + dx * W, krone + dy * h, r * W);
-                    v.addColorStop(0, '#5f9e47');
-                    v.addColorStop(1, '#2f6627');
-                    c.fillStyle = v;
-                    ellipse(c, tx + dx * W, krone + dy * h, r * W, r * W * 0.8);
-                    c.fill();
+                [[-0.15, -0.06, 0.13, 0.1], [0.14, -0.08, 0.12, 0.09], [0, -0.12, 0.14, 0.1]].forEach(([dx, dy, rx, ry]) => {
+                    blattwerk(c, tx + dx * W, krone + dy * h, rx * W, ry * h, LAUB_NAH, zz, blatt);
                 });
-                const stamm = c.createLinearGradient(tx - W * 0.03, 0, tx + W * 0.03, 0);
-                stamm.addColorStop(0, '#4a3322');
-                stamm.addColorStop(0.5, '#7a5638');
-                stamm.addColorStop(1, '#4a3322');
-                c.fillStyle = stamm;
+                c.fillStyle = verlauf(c, krone, fuss, '#7a5638', '#4f3622');
                 c.fillRect(tx - W * 0.026, krone, W * 0.052, fuss - krone);
-                c.strokeStyle = 'rgba(40,25,15,.4)';
+                c.strokeStyle = 'rgba(50,30,15,.45)';
                 c.lineWidth = 1;
                 for (let y = krone + 8; y < fuss; y += zz.zwischen(8, 16)) linie(c, tx - W * 0.02, y, tx + W * zz.zwischen(-0.01, 0.02), y + 4);
+                c.strokeStyle = KONTUR;
+                c.strokeRect(tx - W * 0.026, krone, W * 0.052, fuss - krone);
                 c.strokeStyle = '#6b4a2f';
                 c.lineCap = 'round';
                 c.lineWidth = W * 0.022;
                 linie(c, tx, h * 0.585, tx - W * 0.27, h * 0.56);
                 linie(c, tx, h * 0.515, tx + W * 0.29, h * 0.49);
-                // Baumhaus aus Brettern
+                // Baumhaus mit Strohdach
                 c.fillStyle = '#7a5638';
                 c.fillRect(tx - W * 0.16, krone, W * 0.32, h * 0.013);
-                c.fillStyle = verlauf(c, krone - h * 0.075, krone, '#b07a42', '#8a5a2c');
-                c.fillRect(tx - W * 0.1, krone - h * 0.075, W * 0.2, h * 0.075);
-                c.strokeStyle = 'rgba(60,35,15,.4)';
-                for (let s = tx - W * 0.1 + W * 0.025; s < tx + W * 0.1; s += W * 0.025) linie(c, s, krone - h * 0.075, s, krone);
-                c.fillStyle = verlauf(c, krone - h * 0.125, krone - h * 0.074, '#9a3412', '#6b2410');
-                c.beginPath();
-                c.moveTo(tx - W * 0.13, krone - h * 0.074);
-                c.lineTo(tx, krone - h * 0.125);
-                c.lineTo(tx + W * 0.13, krone - h * 0.074);
-                c.fill();
-                c.fillStyle = '#1c120b';
-                c.beginPath();
-                c.moveTo(tx - W * 0.03, krone);
-                c.lineTo(tx - W * 0.03, krone - h * 0.035);
-                c.arc(tx, krone - h * 0.035, W * 0.03, Math.PI, 0);
-                c.lineTo(tx + W * 0.03, krone);
-                c.fill();
+                zeichneStall(c, {x: tx, basis: krone, breite: W * 0.2, hoehe: h * 0.075, tuerB: W * 0.05, tuerH: h * 0.05}, zz);
             } else {
-                // Felsenhöhle der Pinguine
                 const {x, basis, breite, hoehe} = ge.hoehle;
                 [[-0.38, -0.25, 0.22, 0.3], [0.36, -0.22, 0.2, 0.28], [-0.12, -0.75, 0.3, 0.32], [0.18, -0.7, 0.26, 0.3], [0.02, -0.95, 0.24, 0.2]].forEach(([dx, dy, rx, ry]) => {
-                    stein(c, x + dx * breite, basis + dy * hoehe, rx * breite, ry * hoehe * 1.1, '#e2e8f0', '#64748b');
+                    stein(c, x + dx * breite, basis + dy * hoehe, rx * breite, ry * hoehe * 1.1, '#e6dfcf', '#8c8270');
+                    c.strokeStyle = KONTUR;
+                    c.lineWidth = 1;
+                    ellipse(c, x + dx * breite, basis + dy * hoehe, rx * breite, ry * hoehe * 1.1);
+                    c.stroke();
                 });
-                c.fillStyle = 'rgba(255,255,255,.85)';
-                ellipse(c, x - breite * 0.05, basis - hoehe * 1.05, breite * 0.18, hoehe * 0.08);
-                c.fill();
-                const loch = c.createLinearGradient(0, basis - hoehe * 0.6, 0, basis);
-                loch.addColorStop(0, '#0b1220');
-                loch.addColorStop(1, '#1e293b');
-                c.fillStyle = loch;
+                c.fillStyle = verlauf(c, basis - hoehe * 0.6, basis, '#1d1712', '#3a3026');
                 c.beginPath();
                 c.moveTo(x - breite * 0.17, basis);
                 c.quadraticCurveTo(x - breite * 0.14, basis - hoehe * 0.7, x, basis - hoehe * 0.68);
@@ -570,112 +577,167 @@ export function erzeugeZoo() {
             }
         });
 
-        // Trennmauern aus Naturstein
+        // Hecken zwischen den Gehegen
         for (let i = 1; i < gehege.length; i++) {
             const x = i * W;
-            const mauer = new Path2D();
-            mauer.moveTo(x - 4, h * 0.56);
-            mauer.lineTo(x + 4, h * 0.56);
-            mauer.lineTo(x + 10, h * 0.845);
-            mauer.lineTo(x - 10, h * 0.845);
-            mauer.closePath();
-            const v = c.createLinearGradient(x - 10, 0, x + 10, 0);
-            v.addColorStop(0, '#a8a29e');
-            v.addColorStop(0.5, '#cfc8c1');
-            v.addColorStop(1, '#8a817a');
-            c.fillStyle = v;
-            c.fill(mauer);
-            c.save();
-            c.clip(mauer);
-            c.strokeStyle = 'rgba(60,55,50,.35)';
-            c.lineWidth = 1;
-            for (let y = h * 0.57; y < h * 0.845; y += h * 0.022) linie(c, x - 12, y, x + 12, y + 2);
-            c.restore();
+            for (let y = h * 0.58; y < h * 0.82; y += h * 0.028) {
+                const p = (y - h * 0.58) / (h * 0.24);
+                blattwerk(c, x + zz.zwischen(-4, 4), y, W * mische(0.035, 0.07, p), h * mische(0.022, 0.04, p), LAUB_NAH, zz, blatt);
+            }
+            stein(c, x - W * 0.04, h * 0.815, W * 0.04, h * 0.018, '#d8cfbd', '#8f8573');
         }
     }
 
     function zeichneVorne(c) {
         const zz = zufallMitSaat(77);
-        // Grünstreifen mit Blumen
-        c.fillStyle = verlauf(c, h * 0.84, h * 0.88, '#7fb069', '#5e8f4b');
-        c.fillRect(0, h * 0.84, b, h * 0.04);
-        for (let i = 0; i < b / 6; i++) grasbueschel(c, zz() * b, h * zz.zwischen(0.855, 0.88), h * 0.014, ['#5e8f4b', '#7fb069', '#4a7a3a'], zz);
+        const blatt = Math.max(2.4, Math.min(b, h) * 0.005);
+
+        // felsige Kante vor den Gehegen
+        for (let x = -10; x < b + 20; x += zz.zwischen(16, 30)) {
+            const rx = zz.zwischen(12, 24);
+            const ry = zz.zwischen(7, 12);
+            const y = h * 0.818 + zz.zwischen(-0.006, 0.006) * h;
+            stein(c, x, y, rx, ry, '#d9cfba', '#8d826f');
+            c.strokeStyle = KONTUR;
+            c.lineWidth = 1;
+            ellipse(c, x, y, rx, ry);
+            c.stroke();
+        }
+        // Bachlauf
+        const bach = c.createLinearGradient(0, h * 0.828, 0, h * 0.852);
+        bach.addColorStop(0, '#9ec3b6');
+        bach.addColorStop(1, '#79a59b');
+        c.fillStyle = bach;
+        c.fillRect(0, h * 0.83, b, h * 0.022);
+        c.strokeStyle = 'rgba(255,255,255,.5)';
+        c.lineWidth = 1.2;
         for (let i = 0; i < b / 40; i++) {
-            c.fillStyle = zz.aus(['#f43f5e', '#facc15', '#a855f7', '#ffffff']);
-            ellipse(c, zz() * b, h * zz.zwischen(0.855, 0.875), 2.5, 2.5);
+            const x = zz() * b;
+            linie(c, x, h * zz.zwischen(0.834, 0.848), x + zz.zwischen(8, 20), h * zz.zwischen(0.834, 0.848));
+        }
+        // Grünstreifen mit Gras und Blumen
+        c.fillStyle = verlauf(c, h * 0.85, h * 0.89, '#8fae58', '#6f8f45');
+        c.fillRect(0, h * 0.85, b, h * 0.04);
+        for (let i = 0; i < b / 5; i++) grasbueschel(c, zz() * b, h * zz.zwischen(0.862, 0.892), h * 0.016, ['#5f8a3a', '#7fa34c', '#4f7530'], zz);
+        for (let i = 0; i < b / 35; i++) {
+            c.fillStyle = zz.aus(['#e8674f', '#f2d45c', '#fbf6e9', '#c99adb']);
+            ellipse(c, zz() * b, h * zz.zwischen(0.86, 0.885), 2.6, 2.6);
             c.fill();
         }
 
-        // Holzzaun
-        const pfosten = W / 8;
-        for (let x = 0; x <= b + 1; x += pfosten) {
-            const v = c.createLinearGradient(x - 4, 0, x + 4, 0);
-            v.addColorStop(0, '#6b4226');
-            v.addColorStop(0.5, '#a0693f');
-            v.addColorStop(1, '#5b3720');
-            c.fillStyle = v;
-            c.beginPath();
-            c.moveTo(x - 4, h * 0.865);
-            c.lineTo(x - 4, h * 0.812);
-            c.lineTo(x, h * 0.805);
-            c.lineTo(x + 4, h * 0.812);
-            c.lineTo(x + 4, h * 0.865);
+        // rustikaler Holzzaun
+        const holz = (x0, y0, breite, hoehe) => {
+            c.fillStyle = verlauf(c, y0, y0 + hoehe, '#a87a4a', '#6e4a2b');
+            rundRechteck(c, x0, y0, breite, hoehe, Math.min(breite, hoehe) / 2);
             c.fill();
-        }
-        [h * 0.822, h * 0.846].forEach((y) => {
-            c.fillStyle = verlauf(c, y, y + h * 0.009, '#a0693f', '#6b4226');
-            c.fillRect(0, y, b, h * 0.009);
-            c.fillStyle = 'rgba(0,0,0,.15)';
-            c.fillRect(0, y + h * 0.009, b, 2);
-        });
+            c.strokeStyle = KONTUR;
+            c.lineWidth = 1;
+            c.stroke();
+        };
+        [h * 0.85, h * 0.871].forEach((y) => holz(-5, y + zz.zwischen(-1, 1), b + 10, h * 0.01));
+        for (let x = 0; x <= b + 1; x += W / 6) holz(x - 4, h * 0.838 + zz.zwischen(-2, 2), 8, h * 0.056);
 
         // Schilder
         const schrift = klemme(W * 0.065, 11, 22);
-        c.font = `700 ${schrift}px ui-sans-serif, system-ui, sans-serif`;
+        c.font = `700 ${schrift}px ui-rounded, "Trebuchet MS", system-ui, sans-serif`;
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         gehege.forEach((ge) => {
             const bb = c.measureText(ge.name).width + schrift * 1.6;
             const bh = schrift * 1.8;
-            const y = h * 0.842;
-            c.fillStyle = 'rgba(0,0,0,.2)';
-            rundRechteck(c, ge.mitte - bb / 2 + 3, y - bh / 2 + 3, bb, bh, 6);
+            const y = h * 0.862;
+            c.fillStyle = 'rgba(50,30,15,.25)';
+            rundRechteck(c, ge.mitte - bb / 2 + 3, y - bh / 2 + 3, bb, bh, 7);
             c.fill();
-            c.fillStyle = verlauf(c, y - bh / 2, y + bh / 2, '#b07a48', '#7a4e2b');
-            rundRechteck(c, ge.mitte - bb / 2, y - bh / 2, bb, bh, 6);
+            c.fillStyle = verlauf(c, y - bh / 2, y + bh / 2, '#c4935a', '#8c5f33');
+            rundRechteck(c, ge.mitte - bb / 2, y - bh / 2, bb, bh, 7);
             c.fill();
-            c.strokeStyle = 'rgba(60,35,15,.35)';
-            c.lineWidth = 1;
-            for (let i = 1; i < 4; i++) linie(c, ge.mitte - bb / 2 + 4, y - bh / 2 + (bh / 4) * i, ge.mitte + bb / 2 - 4, y - bh / 2 + (bh / 4) * i + 1);
-            c.fillStyle = '#d6d3d1';
-            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
-                ellipse(c, ge.mitte + sx * (bb / 2 - 6), y + sy * (bh / 2 - 6), 1.8, 1.8);
-                c.fill();
-            });
-            c.fillStyle = 'rgba(0,0,0,.35)';
+            c.strokeStyle = KONTUR;
+            c.lineWidth = 1.5;
+            c.stroke();
+            c.fillStyle = '#5e3d24';
             c.fillText(ge.name, ge.mitte + 1, y + 2);
-            c.fillStyle = '#fef3c7';
+            c.fillStyle = '#fbf0d5';
             c.fillText(ge.name, ge.mitte, y + 1);
         });
 
-        // Besucherweg aus Pflastersteinen
-        c.fillStyle = verlauf(c, h * 0.878, h, '#ddcfae', '#c6b48c');
-        c.fillRect(0, h * 0.878, b, h * 0.122);
-        c.fillStyle = '#a8a29e';
-        c.fillRect(0, h * 0.876, b, h * 0.006);
-        let y = h * 0.884;
-        let reihe = 0;
-        while (y < h) {
-            const hoehe = h * (0.012 + (y - h * 0.88) / h * 0.06);
-            const breite = hoehe * 2.2;
-            for (let x = -((reihe % 2) * breite) / 2; x < b; x += breite) {
-                c.fillStyle = zz.aus(['#e2d5b6', '#d6c7a4', '#cbbb96', '#ddd0af']);
-                rundRechteck(c, x + 1.5, y + 1, breite - 3, hoehe - 2, 3);
-                c.fill();
-            }
-            y += hoehe;
-            reihe++;
+        // sandiger Weg
+        c.fillStyle = verlauf(c, h * 0.89, h, '#efe0bb', '#dcc69a');
+        c.beginPath();
+        c.moveTo(0, h * 0.893);
+        for (let x = 0; x <= b + 20; x += 20) c.lineTo(x, h * 0.893 + Math.sin(x * 0.02) * h * 0.003);
+        c.lineTo(b, h);
+        c.lineTo(0, h);
+        c.fill();
+        for (let i = 0; i < b / 4; i++) {
+            c.fillStyle = zz.aus(['rgba(150,120,70,.25)', 'rgba(255,250,235,.5)', 'rgba(170,140,90,.3)']);
+            ellipse(c, zz() * b, h * zz.zwischen(0.9, 1), zz.zwischen(1, 3), zz.zwischen(0.8, 2));
+            c.fill();
         }
+
+        // große Bäume als Rahmen (links und rechts) mit überhängenden Kronen
+        [[b * 0.025, 1], [b * 0.975, -1]].forEach(([x, seite]) => {
+            const v = c.createLinearGradient(x - h * 0.05, 0, x + h * 0.05, 0);
+            v.addColorStop(0, '#4a3424');
+            v.addColorStop(0.5, '#6e5038');
+            v.addColorStop(1, '#3e2b1d');
+            c.fillStyle = v;
+            c.beginPath();
+            c.moveTo(x - h * 0.06, h);
+            c.quadraticCurveTo(x - h * 0.03 * seite, h * 0.55, x + h * 0.04 * seite, h * 0.12);
+            c.lineTo(x + h * 0.085 * seite, h * 0.12);
+            c.quadraticCurveTo(x + h * 0.03 * seite, h * 0.55, x + h * 0.06, h);
+            c.fill();
+            c.strokeStyle = KONTUR;
+            c.lineWidth = 1.5;
+            c.stroke();
+            c.strokeStyle = 'rgba(40,25,12,.35)';
+            c.lineWidth = 1;
+            for (let y = h * 0.2; y < h; y += zz.zwischen(10, 22)) linie(c, x - h * 0.02, y, x + h * 0.02, y + zz.zwischen(-3, 6));
+            // Äste ins Bild
+            c.strokeStyle = '#5a4030';
+            c.lineCap = 'round';
+            c.lineWidth = h * 0.016;
+            c.beginPath();
+            c.moveTo(x + h * 0.05 * seite, h * 0.22);
+            c.quadraticCurveTo(x + b * 0.1 * seite, h * 0.12, x + b * 0.2 * seite, h * 0.08);
+            c.stroke();
+            // Kronen über der Ecke
+            [[0.0, 0.02, 0.17, 0.14], [0.1, -0.02, 0.15, 0.11], [0.2, 0.03, 0.14, 0.09], [0.05, 0.16, 0.1, 0.09], [0.28, -0.03, 0.1, 0.07]].forEach(([dx, dy, rx, ry]) => {
+                blattwerk(c, x + dx * b * seite, dy * h, rx * b, ry * h, LAUB_RAHMEN, zz, blatt * 1.2);
+            });
+        });
+        // Büsche mit großen Blättern in den unteren Ecken
+        [[b * 0.03, 1], [b * 0.97, -1]].forEach(([x, seite]) => {
+            blattwerk(c, x + b * 0.04 * seite, h * 0.96, b * 0.07, h * 0.08, LAUB_RAHMEN, zz, blatt * 1.6);
+            for (let i = 0; i < 6; i++) {
+                const w = -Math.PI / 2 + (i - 2.5) * 0.35;
+                c.save();
+                c.translate(x + b * 0.03 * seite, h * 1.0);
+                c.rotate(w * seite + (seite < 0 ? Math.PI : 0) * 0);
+                c.fillStyle = i % 2 ? '#5a7f34' : '#4a6b2c';
+                ellipse(c, 0, -h * 0.09, h * 0.025, h * 0.09);
+                c.fill();
+                c.strokeStyle = 'rgba(255,255,255,.2)';
+                linie(c, 0, -h * 0.01, 0, -h * 0.17);
+                c.restore();
+            }
+        });
+    }
+
+    function zeichneKoernung(c) {
+        // Papierkörnung und warme Vignette – einmal vorgezeichnet, pro Bild nur kopiert
+        const zz = zufallMitSaat(5);
+        const anzahl = Math.round((b * h) / 90);
+        for (let i = 0; i < anzahl; i++) {
+            c.fillStyle = zz() < 0.5 ? 'rgba(90,60,25,.05)' : 'rgba(255,248,230,.06)';
+            c.fillRect(zz() * b, zz() * h, zz.zwischen(1, 2.5), zz.zwischen(1, 2.5));
+        }
+        const v = c.createRadialGradient(b / 2, h * 0.45, Math.min(b, h) * 0.35, b / 2, h * 0.5, Math.max(b, h) * 0.75);
+        v.addColorStop(0, 'rgba(60,40,20,0)');
+        v.addColorStop(1, 'rgba(60,40,20,.22)');
+        c.fillStyle = v;
+        c.fillRect(0, 0, b, h);
     }
 
     function groesse(breite, hoehe, einstellungen) {
@@ -695,6 +757,7 @@ export function erzeugeZoo() {
             ebeneHimmel = neueEbene(zeichneHimmel);
             ebeneLandschaft = neueEbene(zeichneLandschaft);
             ebeneVorne = neueEbene(zeichneVorne);
+            ebeneKoernung = neueEbene(zeichneKoernung);
         }
         if (neu || tiere.length === 0 || faktor !== mengenFaktor) {
             mengenFaktor = faktor;
@@ -706,7 +769,14 @@ export function erzeugeZoo() {
 
     // ── Fütterung ────────────────────────────────────────────────────────
     function starteFuetterung(index = null) {
-        const gi = index ?? fuetterNaechstes;
+        // nur dort füttern, wo schon Tiere draußen sind
+        const mitTieren = (i) => tiere.some((x) => x.ge === gehege[i] && x.freigeschaltet);
+        let gi = index ?? fuetterNaechstes;
+        for (let n = 0; n < gehege.length && !mitTieren(gi); n++) gi = (gi + 1) % gehege.length;
+        if (!mitTieren(gi)) {
+            fuetterWarten = 10;
+            return;
+        }
         fuetterNaechstes = (gi + 1) % gehege.length;
         const richtung = gehege[gi].mitte < b / 2 ? 1 : -1;
         fuetterung = {
@@ -778,9 +848,8 @@ export function erzeugeZoo() {
     // ── Tiere bewegen ────────────────────────────────────────────────────
     function schrittTier(tier, dt, z) {
         const ge = tier.ge;
-        let verstecken = z.unruhe > tier.mut;
-        if (tier.baby) verstecken = verstecken || !tier.freigeschaltet || tier.eltern.flieht;
-        const ruhigGenug = z.unruhe < tier.mut - 0.1 && (!tier.baby || (tier.freigeschaltet && !tier.eltern.flieht));
+        const verstecken = z.unruhe > tier.mut || !tier.freigeschaltet || (tier.baby && tier.eltern.flieht);
+        const ruhigGenug = z.unruhe < tier.mut - 0.1 && tier.freigeschaltet && (!tier.baby || !tier.eltern.flieht);
         if (!tier.flieht && verstecken) {
             tier.flieht = true;
         } else if (tier.flieht && ruhigGenug) {
@@ -798,8 +867,9 @@ export function erzeugeZoo() {
         } else if (futterDa.length) {
             const idx = nachbarn.indexOf(tier);
             meinFutter = futterDa[idx % futterDa.length];
+            const abstand = tier.art === 'zebra' ? 1.3 : tier.baby ? 0.9 : 0.5;
             ziel = ge.korb
-                ? {x: ge.korb.x + (idx % 2 ? 1 : -1) * tier.g * (tier.baby ? 0.9 : 0.5), y: ge.korb.boden + (idx % 2 ? 3 : -3)}
+                ? {x: ge.korb.x + (idx % 2 ? 1 : -1) * tier.g * abstand, y: ge.korb.boden + (idx % 2 ? 3 : -3) + (tier.art === 'zebra' ? h * 0.02 : 0)}
                 : {x: meinFutter.zx + (idx % 2 ? 1 : -1) * tier.g * 0.35, y: meinFutter.zy + 2};
         } else if (tier.baby) {
             const e = tier.eltern;
@@ -858,12 +928,13 @@ export function erzeugeZoo() {
 
     function schritt(dt, z) {
         t += dt;
-        const anzahlBabys = tiere.filter((x) => x.baby).length;
-        if (z.unruhe < 0.15) babyStufe += dt / SEKUNDEN_PRO_BABY;
-        else if (z.unruhe > 0.6) babyStufe -= (dt / 5) * z.unruhe;
-        babyStufe = klemme(babyStufe, 0, anzahlBabys);
+        // Ruhe sammeln: jedes Tier kommt heraus, sobald seine Schwelle erreicht ist;
+        // anhaltender Lärm schickt die zuletzt gekommenen Tiere wieder hinein (mit kleiner Hysterese)
+        if (z.unruhe < 0.15) ruheZeit += dt;
+        else if (z.unruhe > 0.6) ruheZeit -= dt * 2.5 * z.unruhe;
+        ruheZeit = klemme(ruheZeit, 0, maxSchwelle + 5);
         tiere.forEach((x) => {
-            if (x.baby) x.freigeschaltet = babyStufe >= x.nummer + 1;
+            x.freigeschaltet = x.freigeschaltet ? ruheZeit >= x.schwelle - 3 : ruheZeit >= x.schwelle;
         });
 
         schrittFuetterung(dt, z);
@@ -889,8 +960,8 @@ export function erzeugeZoo() {
             const r = w.groesse * Math.max(b, h * 1.5);
             [[-0.4, 0.06, 0.28], [-0.12, -0.08, 0.36], [0.2, -0.04, 0.32], [0.45, 0.07, 0.24], [0.02, 0.1, 0.34]].forEach(([dx, dy, rr]) => {
                 const v = ctx.createLinearGradient(0, y + (dy - rr * 0.6) * r, 0, y + (dy + rr * 0.6) * r);
-                v.addColorStop(0, 'rgba(255,255,255,.98)');
-                v.addColorStop(1, 'rgba(214,226,236,.95)');
+                v.addColorStop(0, 'rgba(255,251,238,.97)');
+                v.addColorStop(1, 'rgba(232,222,196,.95)');
                 ctx.fillStyle = v;
                 ellipse(ctx, x + dx * r, y + dy * r, rr * r, rr * r * 0.62);
                 ctx.fill();
@@ -902,12 +973,12 @@ export function erzeugeZoo() {
         const w = ge.wasser;
         const pinguin = ge.art === 'pinguin';
         // Rand: Steine bzw. feuchter Schlamm
-        ctx.fillStyle = pinguin ? '#cbd5e1' : 'rgba(120,90,55,.55)';
+        ctx.fillStyle = pinguin ? '#cfc6b2' : 'rgba(125,92,55,.55)';
         ellipse(ctx, w.x, w.y + w.ry * 0.1, w.rx * 1.07, w.ry * 1.35);
         ctx.fill();
         const v = ctx.createLinearGradient(0, w.y - w.ry, 0, w.y + w.ry);
-        v.addColorStop(0, pinguin ? '#7dd3fc' : '#93c5d8');
-        v.addColorStop(1, pinguin ? '#0369a1' : '#3b7a8f');
+        v.addColorStop(0, pinguin ? '#a9d6cf' : '#a9c8bb');
+        v.addColorStop(1, pinguin ? '#4f8f94' : '#6a978d');
         ctx.fillStyle = v;
         ellipse(ctx, w.x, w.y, w.rx, w.ry);
         ctx.fill();
@@ -930,7 +1001,7 @@ export function erzeugeZoo() {
         ctx.restore();
         if (pinguin) {
             [[-0.95, 0.4], [0.9, 0.5], [-0.5, -0.95], [0.4, -0.98]].forEach(([fx, fy]) => {
-                stein(ctx, w.x + fx * w.rx, w.y + fy * w.ry, W * 0.035, h * 0.012, '#f1f5f9', '#94a3b8');
+                stein(ctx, w.x + fx * w.rx, w.y + fy * w.ry, W * 0.035, h * 0.012, '#ece5d4', '#9b917d');
             });
         }
     }
@@ -948,7 +1019,7 @@ export function erzeugeZoo() {
         // Reifenschaukel
         const rechts = Math.sin(t * 0.7 + 1) * W * 0.02;
         linie(ctx, tx + W * 0.22, h * 0.495, tx + W * 0.22 + rechts, h * 0.64);
-        ctx.strokeStyle = '#1f2937';
+        ctx.strokeStyle = '#3a2f28';
         ctx.lineWidth = Math.max(3, W * 0.014);
         ellipse(ctx, tx + W * 0.22 + rechts, h * 0.655, W * 0.035, h * 0.016);
         ctx.stroke();
@@ -1074,23 +1145,24 @@ export function erzeugeZoo() {
         }
         gehege.forEach((ge) => ge.futterListe.filter((f) => f.flug < 1).forEach((f) => zeichneFutter(ctx, f)));
 
+        ctx.drawImage(ebeneKoernung, 0, 0, breite, hoehe);
         if (unruhe > 0.01) {
-            ctx.fillStyle = `rgba(30,41,59,${0.16 * unruhe})`;
+            ctx.fillStyle = `rgba(45,40,50,${0.18 * unruhe})`;
             ctx.fillRect(0, 0, breite, hoehe);
         }
     }
 
     function info() {
         if (fuetterung && !fuetterung.eilig) return `Fütterung: ${gehege[fuetterung.gi].name}`;
-        const babys = tiere.filter((x) => x.baby);
-        const draussen = babys.filter((x) => !x.flieht && x.alpha > 0.5).length;
-        return `Tierbabys: ${draussen} von ${babys.length}`;
+        const draussen = tiere.filter((x) => !x.flieht && x.alpha > 0.5).length;
+        return `Tiere draußen: ${draussen} von ${tiere.length}`;
     }
 
     function besuch(name) {
-        if (name === 'babys') babyStufe = tiere.filter((x) => x.baby).length;
+        if (name === 'alle' || name === 'babys') ruheZeit = maxSchwelle;
         else if (name === 'fuetterung') {
-            babyStufe = Math.max(babyStufe, 2);
+            ruheZeit = maxSchwelle;
+            tiere.forEach((x) => { x.freigeschaltet = true; });
             starteFuetterung();
         } else return false;
         return true;
@@ -1099,7 +1171,7 @@ export function erzeugeZoo() {
     return {
         mengeLabel: 'Anzahl der Tiere',
         texte: {
-            ruhig: 'Psst – die Tierbabys trauen sich heraus.',
+            ruhig: 'Psst – nach und nach kommen die Tiere heraus.',
             fast: 'Etwas laut – die Tiere werden unruhig.',
             laut: 'Zu laut – alle Tiere verstecken sich im Stall!',
         },

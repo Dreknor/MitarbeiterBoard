@@ -76,7 +76,7 @@ class KlassenraumTools
         'zoo' => [
             'titel' => 'Zoo',
             'kategorie' => 'lautstaerke',
-            'beschreibung' => 'Elefanten, Giraffen, Affen und Pinguine. Je leiser es ist, desto mehr Tierbabys trauen sich heraus – und manchmal kommt die Tierpflegerin zum Füttern. Bei Lärm verstecken sich alle im Stall.',
+            'beschreibung' => 'Elefanten, Giraffen, Zebras, Affen und Pinguine. Je länger es leise ist, desto mehr Tiere kommen nach und nach heraus, zuletzt die Tierbabys – und manchmal kommt die Tierpflegerin zum Füttern. Bei Lärm verstecken sich alle im Stall.',
             'icon' => 'fas fa-paw',
             'farbe' => '#c2410c',
             'entry' => 'resources/js/klassenraum/zoo.js',
