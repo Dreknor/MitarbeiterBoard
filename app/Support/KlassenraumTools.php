@@ -84,6 +84,17 @@ class KlassenraumTools
             'thema' => 'dunkel',
             'vorschau' => 'img/klassenraum/zoo.jpg',
         ],
+        'vulkan' => [
+            'titel' => 'Vulkan',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Ein uralter Vulkan schlummert friedlich inmitten von Dinosauriern und Urwaldpflanzen. Bleibt es leise, grasen die Dinos entspannt. Wird es zu laut, fängt der Vulkan an zu grollen, Rauch steigt auf und er droht auszubrechen.',
+            'icon' => 'fas fa-volcano',
+            'farbe' => '#b91c1c',
+            'entry' => 'resources/js/klassenraum/vulkan.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/vulkan.jpg',
+        ],
         'timer' => [
             'titel' => 'Timer',
             'kategorie' => 'zeit',

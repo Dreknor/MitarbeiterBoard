@@ -37,7 +37,7 @@ class KlassenraumToolsTest extends TestCase
         $antwort = $this->get(route('klassenraum.index'))
             ->assertOk()
             ->assertSee('Klassenraum-Tools')
-            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zoo', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
+            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zoo', 'Vulkan', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
 
         foreach (array_keys(KlassenraumTools::TOOLS) as $tool) {
             $antwort->assertSee(route('klassenraum.show', $tool), false);
@@ -48,7 +48,7 @@ class KlassenraumToolsTest extends TestCase
     {
         $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
 
-        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo'] as $tool) {
+        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan'] as $tool) {
             $this->get(route('klassenraum.show', $tool))
                 ->assertOk()
                 ->assertSee(KlassenraumTools::TOOLS[$tool]['titel'])

@@ -8,10 +8,10 @@
  *
  * Damit sie immer erkennbar ist, sieht sie überall gleich aus: graues Fell, große runde
  * rosa Ohren, rosa Nase und ein rotes Halstuch mit weißen Punkten. Je nach Szene trägt sie
- * zusätzlich etwas (Schlafmütze in der Nacht, Taucheranzug im Aquarium).
+ * zusätzlich etwas (Schlafmütze in der Nacht, Taucheranzug im Aquarium, Forscherhut beim Vulkan).
  *
  * Ein Versteck ist {name, ebene, ort(): {x, y, s, von, richtung?, clip?, muetze?, taucher?,
- * dunkel?, schlauch?}} – x/y = Fußpunkt der sichtbaren Maus, s = Größeneinheit (Kopfbreite),
+ * forscher?, dunkel?, schlauch?}} – x/y = Fußpunkt der sichtbaren Maus, s = Größeneinheit (Kopfbreite),
  * von = 'unten' (taucht hinter einer Kante auf) | 'seite' (guckt seitlich hervor) |
  * 'oben' (kommt von oben, z. B. am Luftschlauch). Die Szene ruft zeichne(ctx, ebene) an der
  * Stelle ihrer Zeichenreihenfolge auf, hinter der die Maus versteckt sein soll.
@@ -39,7 +39,7 @@ const sanft = (p) => p * p * (3 - 2 * p);
  * Zeichnet die Maus von vorn, Fußpunkt im Ursprung, Größeneinheit s (≈ Kopfbreite).
  * Gesamthöhe ≈ 1,95 s (mit Ohren).
  */
-export function zeichneMaus(ctx, s, {t = 0, blick = [0, 0], blinzeln = false, winken = 0, muetze = false, taucher = false} = {}) {
+export function zeichneMaus(ctx, s, {t = 0, blick = [0, 0], blinzeln = false, winken = 0, muetze = false, taucher = false, forscher = false} = {}) {
     ctx.save();
     ctx.scale(s, s);
     ctx.lineCap = 'round';
@@ -244,6 +244,25 @@ export function zeichneMaus(ctx, s, {t = 0, blick = [0, 0], blinzeln = false, wi
         rand(0.025);
     }
 
+    // Forscherhut (Tropenhelm) mit Hutband
+    if (forscher) {
+        ctx.fillStyle = '#e3cf9c';
+        ellipse(ctx, 0, -1.56, 0.62, 0.11);
+        ctx.fill();
+        rand();
+        ctx.beginPath();
+        ctx.moveTo(-0.4, -1.58);
+        ctx.bezierCurveTo(-0.4, -2.0, 0.4, -2.0, 0.4, -1.58);
+        ctx.closePath();
+        ctx.fill();
+        rand();
+        ctx.fillStyle = '#8a6a3c';
+        ctx.fillRect(-0.4, -1.68, 0.8, 0.08);
+        ctx.fillStyle = 'rgba(255,255,255,.35)';
+        ellipse(ctx, -0.14, -1.86, 0.12, 0.04, -0.3);
+        ctx.fill();
+    }
+
     // Taucherhelm: Glaskugel mit Spiegelung
     if (taucher) {
         ctx.fillStyle = 'rgba(200,240,255,.16)';
@@ -377,6 +396,7 @@ export class Klassenmaus {
             blinzeln: a.blinzeln < 0,
             winken,
             muetze: o.muetze,
+            forscher: o.forscher,
             taucher: o.taucher,
         });
         ctx.restore();
