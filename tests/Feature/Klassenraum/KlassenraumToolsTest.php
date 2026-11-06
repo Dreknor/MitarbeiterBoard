@@ -37,7 +37,7 @@ class KlassenraumToolsTest extends TestCase
         $antwort = $this->get(route('klassenraum.index'))
             ->assertOk()
             ->assertSee('Klassenraum-Tools')
-            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zeit', 'Timer']);
+            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
 
         foreach (array_keys(KlassenraumTools::TOOLS) as $tool) {
             $antwort->assertSee(route('klassenraum.show', $tool), false);
@@ -75,6 +75,56 @@ class KlassenraumToolsTest extends TestCase
             ->assertSee('id="tmr-fokusleiste"', false)
             ->assertSee('Sekunden anzeigen')
             ->assertDontSee('id="krt-mikro"', false);
+    }
+
+    public function test_timer_bietet_alle_darstellungen(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $antwort = $this->get(route('klassenraum.show', 'timer'))->assertOk();
+        foreach (['scheibe', 'sanduhr', 'kerze', 'raupe'] as $art) {
+            $antwort->assertSee('data-darstellung="'.$art.'"', false);
+        }
+    }
+
+    public function test_arbeitsphasen_zeigen_planung_und_ablauf(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->get(route('klassenraum.show', 'arbeitsphasen'))
+            ->assertOk()
+            ->assertSee('Arbeitsphasen planen')
+            ->assertSee('id="abl-schritte"', false)
+            ->assertSee('data-vorlage="lesen"', false)
+            ->assertSee('id="abl-naechster"', false)
+            ->assertSee('Automatisch weiter')
+            ->assertSee('data-darstellung="raupe"', false)
+            ->assertSee('class="krt krt-tool-arbeitsphasen krt-hell"', false);
+    }
+
+    public function test_atemuebung_zeigt_kreis_und_auswahl(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->get(route('klassenraum.show', 'atemuebung'))
+            ->assertOk()
+            ->assertSee('id="atm-kreis"', false)
+            ->assertSee('data-gruppe="rhythmus"', false)
+            ->assertSee('data-gruppe="dauer"', false)
+            ->assertSee('Ruhige Musik')
+            ->assertSee('class="krt krt-tool-atemuebung krt-dunkel"', false)
+            ->assertDontSee('id="krt-mikro"', false);
+    }
+
+    public function test_uebersicht_zeigt_vorschaubilder(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $antwort = $this->get(route('klassenraum.index'))->assertOk();
+        foreach (KlassenraumTools::TOOLS as $tool) {
+            $this->assertFileExists(public_path($tool['vorschau']));
+            $antwort->assertSee(asset($tool['vorschau']), false);
+        }
     }
 
     public function test_unbekanntes_tool_liefert_404(): void

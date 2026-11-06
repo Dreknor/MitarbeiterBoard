@@ -29,6 +29,9 @@
                 @foreach($kategorie['tools'] as $toolSchluessel => $tool)
                     <article class="kr-karte" style="--kr-farbe: {{ $tool['farbe'] }}">
                         <a href="{{ route('klassenraum.show', $toolSchluessel) }}" class="kr-karte-bild" aria-hidden="true" tabindex="-1">
+                            @if(! empty($tool['vorschau']) && file_exists(public_path($tool['vorschau'])))
+                                <img src="{{ asset($tool['vorschau']) }}" alt="" loading="lazy" class="kr-karte-vorschau">
+                            @endif
                             <span class="kr-karte-symbol"><i class="{{ $tool['icon'] }}"></i></span>
                         </a>
                         <div class="kr-karte-inhalt">

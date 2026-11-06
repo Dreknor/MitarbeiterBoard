@@ -71,6 +71,8 @@ export default defineConfig({
                 'resources/js/klassenraum/sternenhimmel.js',
                 'resources/js/klassenraum/blumenwiese.js',
                 'resources/js/klassenraum/timer.js',
+                'resources/js/klassenraum/arbeitsphasen.js',
+                'resources/js/klassenraum/atemuebung.js',
             ],
             refresh: [
                 'resources/views/dashboard/**/*.blade.php',

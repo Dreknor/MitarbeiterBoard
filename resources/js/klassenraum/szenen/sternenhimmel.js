@@ -2,9 +2,12 @@
  * Szene „Sternenhimmel“: In der Stille gehen nach und nach Sterne auf; ist der Himmel voll,
  * erscheint der Große Wagen. Nach längerer Ruhe fallen Sternschnuppen. Bei Lärm ziehen
  * Wolken auf, Sterne verlöschen und im Haus geht das Licht an.
+ *
+ * Seltene Besuche (nur bei Ruhe): Komet, Polarlicht, Eule auf dem Dach, Glühwürmchen.
  */
 
 import {ellipse, glatt, klemme, mische, mischeFarbe, zufall, zufallMitSaat} from '../shared/hilfen';
+import {Besuchsplaner, blende} from '../shared/besuche';
 
 const GESAMT = 320;
 
@@ -75,8 +78,227 @@ export function erzeugeSternenhimmel() {
         }
     }
 
+    // ── Seltene Besuche ──────────────────────────────────────────────────
+    const bewoelkung = (z) => glatt(z.unruhe);
+
+    function neuerKomet() {
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const k = {fortschritt: 0, y: zufall(0.1, 0.3), neigung: zufall(0.02, 0.08), dauer: zufall(28, 36)};
+        return {
+            ebene: 'himmel',
+            schritt(dt) {
+                k.fortschritt += dt / k.dauer;
+                return k.fortschritt < 1;
+            },
+            zeichne(ctx, z) {
+                const p = richtung > 0 ? k.fortschritt : 1 - k.fortschritt;
+                const x = mische(-0.1, 1.1, p) * b;
+                const y = (k.y + k.neigung * p) * h;
+                const laenge = Math.min(b, h) * 0.35;
+                const a = Math.sin(k.fortschritt * Math.PI) * (1 - bewoelkung(z));
+                const sx = x - richtung * laenge;
+                const sy = y - k.neigung * h * 0.3;
+                const schweif = ctx.createLinearGradient(x, y, sx, sy);
+                schweif.addColorStop(0, `rgba(210,235,255,${0.75 * a})`);
+                schweif.addColorStop(1, 'rgba(160,200,255,0)');
+                ctx.fillStyle = schweif;
+                ctx.beginPath();
+                ctx.moveTo(x, y - 3);
+                ctx.quadraticCurveTo((x + sx) / 2, y - laenge * 0.06, sx, sy - laenge * 0.08);
+                ctx.lineTo(sx, sy + laenge * 0.05);
+                ctx.quadraticCurveTo((x + sx) / 2, y + laenge * 0.03, x, y + 3);
+                ctx.fill();
+                const kopf = ctx.createRadialGradient(x, y, 0, x, y, 14);
+                kopf.addColorStop(0, `rgba(255,255,255,${a})`);
+                kopf.addColorStop(1, 'rgba(200,230,255,0)');
+                ctx.fillStyle = kopf;
+                ctx.fillRect(x - 14, y - 14, 28, 28);
+            },
+        };
+    }
+
+    function neuesPolarlicht() {
+        const pl = {zeit: 0, dauer: 40, alpha: 0};
+        // Farbe, Phase, Stärke, Lage der leuchtenden Unterkante (Anteil der Höhe), Höhe der Strahlen
+        const vorhaenge = [['#34d399', 0.0, 0.5, 0.36, 0.24], ['#2dd4bf', 2.1, 0.3, 0.3, 0.18], ['#a78bfa', 4.2, 0.22, 0.27, 0.14]];
+        let flucht = false;
+        return {
+            ebene: 'hintergrund',
+            schritt(dt, z) {
+                pl.zeit += dt;
+                if (z.unruhe > 0.5) flucht = true;
+                const ziel = flucht || pl.zeit > pl.dauer ? 0 : 1;
+                pl.alpha = blende(pl.alpha, ziel, dt, 0.15);
+                return !(ziel === 0 && pl.alpha <= 0.005);
+            },
+            zeichne(ctx, z) {
+                const a = pl.alpha * (1 - bewoelkung(z));
+                if (a <= 0.005) return;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.lineCap = 'round';
+                vorhaenge.forEach(([farbe, phase, staerke, lage, hoeheAnteil]) => {
+                    const unten = (x) => h * lage + Math.sin(x * 0.0035 + t * 0.12 + phase) * h * 0.06 + Math.sin(x * 0.011 - t * 0.09) * h * 0.015;
+                    const hoehe = h * hoeheAnteil;
+                    // Verlauf: hell an der Unterkante, nach oben auslaufend
+                    const verlauf = ctx.createLinearGradient(0, h * lage + h * 0.08, 0, h * lage - h * 0.08 - hoehe);
+                    verlauf.addColorStop(0, 'rgba(0,0,0,0)');
+                    verlauf.addColorStop(0.18, farbe);
+                    verlauf.addColorStop(0.45, farbe);
+                    verlauf.addColorStop(1, 'rgba(0,0,0,0)');
+                    // weicher Schleier
+                    ctx.globalAlpha = a * staerke * 0.35;
+                    ctx.fillStyle = verlauf;
+                    ctx.beginPath();
+                    for (let x = 0; x <= b + 20; x += 20) {
+                        const y = unten(x) - hoehe;
+                        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                    }
+                    for (let x = b + 20; x >= 0; x -= 20) ctx.lineTo(x, unten(x));
+                    ctx.fill();
+                    // senkrechte Strahlen, langsam flackernd
+                    ctx.strokeStyle = verlauf;
+                    ctx.lineWidth = Math.max(2, b / 400);
+                    for (let x = 0; x <= b; x += 6) {
+                        const flackern = Math.sin(x * 0.061 + t * 0.7 + phase * 3) * 0.5 + Math.sin(x * 0.017 - t * 0.25 + phase) * 0.5;
+                        if (flackern <= 0) continue;
+                        ctx.globalAlpha = a * staerke * flackern;
+                        const y = unten(x);
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x, y - hoehe * (0.55 + 0.45 * flackern));
+                        ctx.stroke();
+                    }
+                });
+            },
+        };
+    }
+
+    function neueEule() {
+        const e = {zeit: 0, dauer: 30, alpha: 0, blinzeln: 3, kopf: 0, kopfZiel: 0};
+        let flucht = false;
+        return {
+            ebene: 'vorne',
+            schritt(dt, z) {
+                e.zeit += dt;
+                if (z.unruhe > 0.45) flucht = true;
+                e.blinzeln -= dt;
+                if (e.blinzeln < -0.18) e.blinzeln = zufall(2, 5);
+                if (Math.random() < dt * 0.3) e.kopfZiel = zufall(-0.35, 0.35);
+                e.kopf += (e.kopfZiel - e.kopf) * Math.min(1, dt * 3);
+                const ziel = flucht || e.zeit > e.dauer ? 0 : 1;
+                e.alpha = blende(e.alpha, ziel, dt, flucht ? 1.2 : 0.4);
+                return !(ziel === 0 && e.alpha <= 0.01);
+            },
+            zeichne(ctx) {
+                const {x, breite} = haus;
+                const boden = huegelVorne(x) + 4;
+                const first = boden - breite * 0.62 - breite * 0.45;
+                const g = breite * 0.5;
+                ctx.globalAlpha = e.alpha;
+                ctx.translate(x, first + 2);
+                // Körper
+                ctx.fillStyle = '#5b4a6e';
+                ellipse(ctx, 0, -g * 0.45, g * 0.32, g * 0.45);
+                ctx.fill();
+                ctx.fillStyle = '#7a6890';
+                ellipse(ctx, 0, -g * 0.36, g * 0.2, g * 0.3);
+                ctx.fill();
+                // Kopf (dreht leicht)
+                ctx.save();
+                ctx.translate(0, -g * 0.95);
+                ctx.rotate(e.kopf * 0.4);
+                ctx.fillStyle = '#5b4a6e';
+                ellipse(ctx, 0, 0, g * 0.3, g * 0.25);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-g * 0.28, -g * 0.1);
+                ctx.lineTo(-g * 0.22, -g * 0.36);
+                ctx.lineTo(-g * 0.1, -g * 0.18);
+                ctx.moveTo(g * 0.28, -g * 0.1);
+                ctx.lineTo(g * 0.22, -g * 0.36);
+                ctx.lineTo(g * 0.1, -g * 0.18);
+                ctx.fill();
+                const zu = e.blinzeln < 0;
+                [-1, 1].forEach((seite) => {
+                    const ax = seite * g * 0.12 + e.kopf * g * 0.08;
+                    if (zu) {
+                        ctx.strokeStyle = '#f5d76e';
+                        ctx.lineWidth = Math.max(1, g * 0.03);
+                        ctx.beginPath();
+                        ctx.moveTo(ax - g * 0.07, 0);
+                        ctx.lineTo(ax + g * 0.07, 0);
+                        ctx.stroke();
+                    } else {
+                        const schein = ctx.createRadialGradient(ax, 0, 0, ax, 0, g * 0.2);
+                        schein.addColorStop(0, 'rgba(255,220,110,.45)');
+                        schein.addColorStop(1, 'rgba(255,220,110,0)');
+                        ctx.fillStyle = schein;
+                        ctx.fillRect(ax - g * 0.2, -g * 0.2, g * 0.4, g * 0.4);
+                        ctx.fillStyle = '#fcd34d';
+                        ellipse(ctx, ax, 0, g * 0.085, g * 0.085);
+                        ctx.fill();
+                        ctx.fillStyle = '#111827';
+                        ellipse(ctx, ax, 0, g * 0.04, g * 0.04);
+                        ctx.fill();
+                    }
+                });
+                ctx.fillStyle = '#e0a458';
+                ctx.beginPath();
+                ctx.moveTo(-g * 0.03, g * 0.05);
+                ctx.lineTo(g * 0.03, g * 0.05);
+                ctx.lineTo(0, g * 0.13);
+                ctx.fill();
+                ctx.restore();
+            },
+        };
+    }
+
+    function neueGluehwuermchen() {
+        const gw = {zeit: 0, dauer: 34, alpha: 0};
+        const tiere = Array.from({length: 22}, () => ({
+            x: zufall(0.05, 0.95), y: zufall(0.78, 0.95), phase: zufall(0, 6), tempo: zufall(0.4, 1.1),
+        }));
+        let flucht = false;
+        return {
+            ebene: 'vorne',
+            schritt(dt, z) {
+                gw.zeit += dt;
+                if (z.unruhe > 0.45) flucht = true;
+                tiere.forEach((tier) => {
+                    tier.phase += dt * tier.tempo;
+                    tier.x += Math.sin(tier.phase * 0.7) * 0.004 * dt;
+                    tier.y += Math.cos(tier.phase * 0.9) * 0.003 * dt;
+                });
+                const ziel = flucht || gw.zeit > gw.dauer ? 0 : 1;
+                gw.alpha = blende(gw.alpha, ziel, dt, flucht ? 1 : 0.25);
+                return !(ziel === 0 && gw.alpha <= 0.01);
+            },
+            zeichne(ctx) {
+                tiere.forEach((tier) => {
+                    const leuchten = Math.max(0, Math.sin(tier.phase * 2.2)) * gw.alpha;
+                    if (leuchten < 0.02) return;
+                    const x = tier.x * b;
+                    const y = tier.y * h;
+                    const schein = ctx.createRadialGradient(x, y, 0, x, y, 10);
+                    schein.addColorStop(0, `rgba(230,255,140,${0.9 * leuchten})`);
+                    schein.addColorStop(1, 'rgba(230,255,140,0)');
+                    ctx.fillStyle = schein;
+                    ctx.fillRect(x - 10, y - 10, 20, 20);
+                });
+            },
+        };
+    }
+
+    const besuche = new Besuchsplaner({
+        komet: neuerKomet,
+        polarlicht: neuesPolarlicht,
+        eule: neueEule,
+        gluehwuermchen: neueGluehwuermchen,
+    });
+
     function schritt(dt, z) {
         t += dt;
+        besuche.schritt(dt, z);
 
         // Sterne sammeln (in der Stille) bzw. verlieren (bei Lärm)
         if (z.unruhe < 0.15) sichtbar += dt * (maximum / 75) * (z.status === 'aus' ? 0.6 : 1);
@@ -162,6 +384,8 @@ export function erzeugeSternenhimmel() {
         ctx.fillStyle = himmel;
         ctx.fillRect(0, 0, breite, hoehe);
 
+        besuche.zeichne(ctx, 'hintergrund', z);
+
         // Milchstraße (dezent)
         ctx.save();
         ctx.globalAlpha = 0.12 * (1 - bewoelkt) * klemme(sichtbar / maximum, 0.3, 1);
@@ -230,6 +454,8 @@ export function erzeugeSternenhimmel() {
             ctx.stroke();
         });
 
+        besuche.zeichne(ctx, 'himmel', z);
+
         // Mond
         const mr = Math.min(breite, hoehe) * 0.065;
         const mx = breite * 0.83;
@@ -284,6 +510,7 @@ export function erzeugeSternenhimmel() {
         ctx.fill();
 
         zeichneHaus(ctx);
+        besuche.zeichne(ctx, 'vorne', z);
     }
 
     return {
@@ -297,5 +524,6 @@ export function erzeugeSternenhimmel() {
         schritt,
         zeichne,
         info: () => `${Math.round(sichtbar)} von ${maximum} Sternen`,
+        besuch: (name) => besuche.starte(name),
     };
 }

@@ -12,6 +12,11 @@
  *   schritt(dt, zustand, einstellungen)   Simulation (dt in Sekunden, schon mit Tempo verrechnet)
  *   zeichne(ctx, breite, hoehe, zustand)  Zeichnen
  *   info?(zustand): string                optionale Zusatzinfo in der Anzeige
+ *   besuch?(name): void                   seltenen Besuch sofort starten (Vorschau: ?besuch=name)
+ *
+ * Hintergrundmusik: shared/musik.js (Klangwelt je Tool-Schlüssel), abschaltbar, wird bei
+ * Unruhe leiser. Läuft Musik, nutzt das Mikrofon die Echounterdrückung des Browsers,
+ * damit die eigene Wiedergabe nicht als Lärm gemessen wird.
  *
  * Der Zustand enthält: status ('aus'|'ruhig'|'fast'|'laut'), pegel, grenze, unruhe (0–1),
  * ruheSeit (Sekunden ohne „zu laut“), zeit (Sekunden seit Start), mikrofon (bool).
@@ -21,6 +26,7 @@ import {bindeEinstellungen, ladeEinstellungen, speichereEinstellungen} from './e
 import {Mikrofon, MikrofonFehler, MIKROFON_MELDUNGEN} from './mikrofon';
 import {$, initLeerlauf, initPanel, initUhr, initVollbild, istKuerzel, schalteVollbild, Ton} from './oberflaeche';
 import {formatiereDauer, klemme} from './hilfen';
+import {KLANGWELTEN, Musik} from './musik';
 
 export const STANDARD_EINSTELLUNGEN = {
     grenze: 60,
@@ -32,6 +38,8 @@ export const STANDARD_EINSTELLUNGEN = {
     uhr: true,
     anzeige: true,
     ausblenden: true,
+    musik: true,
+    musikLautstaerke: 40,
 };
 
 const ZIEL_UNRUHE = {aus: 0, ruhig: 0, fast: 0.35, laut: 1};
@@ -43,6 +51,7 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const el = {
         leinwand: $('#krt-szene'),
         mikroKnopf: $('#krt-mikro'),
+        musikKnopf: $('#krt-musik'),
         startKarte: $('#krt-start'),
         startMikro: $('#krt-start-mikro'),
         startOhne: $('#krt-start-ohne'),
@@ -65,6 +74,8 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const ctx = el.leinwand.getContext('2d');
     const mikrofon = new Mikrofon();
     const ton = new Ton();
+    const musik = new Musik(KLANGWELTEN[schluessel]);
+    musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
     const wenigBewegung = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const zustand = {
@@ -99,6 +110,8 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
         anwenden();
         if (name === 'menge') szene.groesse(breite, hoehe, einstellungen);
         if (name === 'warnton' && einstellungen.warnton) ton.hinweis(0.25);
+        if (name === 'musik') wendeMusikAn();
+        if (name === 'musikLautstaerke') musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
     });
 
     el.zuruecksetzen?.addEventListener('click', () => {
@@ -107,6 +120,8 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
         bindung.aktualisiere();
         anwenden();
         szene.groesse(breite, hoehe, einstellungen);
+        musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
+        wendeMusikAn();
     });
 
     anwenden();
@@ -137,7 +152,8 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
         el.mikroKnopf.disabled = true;
         el.startMikro.disabled = true;
         try {
-            await mikrofon.starte();
+            await mikrofon.starte({echoUnterdrueckung: einstellungen.musik});
+            if (einstellungen.musik) musik.starte();
             schliesseStartKarte();
             zustand.ruheSeit = 0;
         } catch (fehler) {
@@ -167,8 +183,53 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     el.startMikro.addEventListener('click', starteMikrofon);
     el.startOhne.addEventListener('click', () => {
         ton.entsperre();
+        if (einstellungen.musik) musik.starte();
         schliesseStartKarte();
     });
+
+    // ── Musik ────────────────────────────────────────────────────────────
+    function aktualisiereMusikKnopf() {
+        if (!el.musikKnopf) return;
+        if (!musik.verfuegbar) {
+            el.musikKnopf.hidden = true;
+            return;
+        }
+        const an = einstellungen.musik;
+        el.musikKnopf.setAttribute('aria-pressed', String(an));
+        el.musikKnopf.classList.toggle('krt-knopf-an', an);
+        el.musikKnopf.querySelector('i').className = an ? 'fas fa-music' : 'fas fa-volume-mute';
+        el.musikKnopf.title = an ? 'Musik ausschalten (T)' : 'Musik einschalten (T)';
+        el.musikKnopf.setAttribute('aria-label', el.musikKnopf.title);
+    }
+
+    // Musik an/aus übernehmen; ein laufendes Mikrofon wird mit passender Echounterdrückung neu gestartet.
+    async function wendeMusikAn() {
+        aktualisiereMusikKnopf();
+        if (einstellungen.musik) {
+            // Ton erst nach einer Nutzeraktion – solange die Startkarte offen ist, startet sie die Musik
+            if (el.startKarte.hidden) musik.starte();
+        } else {
+            musik.stoppe();
+        }
+        if (mikrofon.aktiv) {
+            mikrofon.stoppe();
+            try {
+                await mikrofon.starte({echoUnterdrueckung: einstellungen.musik});
+            } catch (_) {
+                // Fehler zeigt der Mikrofon-Knopf (aus); kein erneuter Dialog nötig
+            }
+            aktualisiereMikroKnopf();
+        }
+    }
+
+    const schalteMusik = () => {
+        einstellungen.musik = !einstellungen.musik;
+        speichereEinstellungen(schluessel, einstellungen);
+        bindung.aktualisiere();
+        wendeMusikAn();
+    };
+    el.musikKnopf?.addEventListener('click', schalteMusik);
+    aktualisiereMusikKnopf();
 
     // ── Pause ────────────────────────────────────────────────────────────
     const setzePause = (wert) => {
@@ -178,6 +239,7 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
         el.pauseKnopf.title = pausiert ? 'Weiter (Leertaste)' : 'Pause (Leertaste)';
         el.pauseKnopf.setAttribute('aria-label', el.pauseKnopf.title);
         el.pauseKnopf.querySelector('i').className = pausiert ? 'fas fa-play' : 'fas fa-pause';
+        musik.pausiere(pausiert);
     };
     el.pauseKnopf.addEventListener('click', () => setzePause(!pausiert));
 
@@ -194,6 +256,8 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
             schalteVollbild();
         } else if (taste === 'm') {
             mikrofon.aktiv ? stoppeMikrofon() : starteMikrofon();
+        } else if (taste === 't' && musik.verfuegbar) {
+            schalteMusik();
         } else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) {
             e.preventDefault();
             setzePause(!pausiert);
@@ -295,6 +359,10 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     window.addEventListener('resize', groesse);
     groesse();
 
+    // Vorschau eines seltenen Besuchs, z. B. /klassenraum/aquarium?besuch=schildkroete
+    const vorschauBesuch = new URLSearchParams(window.location.search).get('besuch');
+    if (vorschauBesuch) szene.besuch?.(vorschauBesuch);
+
     let letzteZeit = performance.now();
     const bild = (jetzt) => {
         const dt = Math.min(0.05, Math.max(0, (jetzt - letzteZeit) / 1000));
@@ -305,6 +373,7 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
             zustand.zeit += dt;
             const tempo = (einstellungen.tempo / 100) * (wenigBewegung ? 0.5 : 1);
             szene.schritt(dt * tempo, zustand, einstellungen);
+            musik.setzeUnruhe(zustand.unruhe);
         }
         szene.zeichne(ctx, breite, hoehe, zustand);
 
