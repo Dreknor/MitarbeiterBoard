@@ -652,7 +652,7 @@ export function erzeugeBlumenwiese() {
         });
         ctx.fillStyle = holz;
         const pfostenBreite = Math.max(5, hoeheZaun * 0.16);
-        for (let x = von; x <= bis; x += b * 0.035) {
+        for (let x = von; x <= bis; x += Math.max(8, b * 0.035)) {
             const y = boden(x);
             ctx.beginPath();
             ctx.moveTo(x - pfostenBreite / 2, y);

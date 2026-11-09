@@ -180,7 +180,15 @@ export class Musik {
     // ── Planung (immer ~2 s im Voraus, damit es auch in Hintergrund-Tabs nicht stockt) ──
     #plane() {
         if (!this.an || this.pausiert || !this.ctx) return;
-        const bis = this.ctx.currentTime + 2;
+        const jetzt = this.ctx.currentTime;
+        const bis = jetzt + 2;
+
+        // Lief der Zeitgeber lange nicht (gedrosselter Hintergrund-Tab, Laptop im Ruhezustand),
+        // liegen die Planzeiten weit zurück. Nicht alles Verpasste auf einmal nachholen –
+        // das wären Tausende Klangknoten gleichzeitig –, sondern ab jetzt weiterspielen.
+        if (this.naechsterAkkord < jetzt - 1) this.naechsterAkkord = jetzt + 0.1;
+        if (this.naechsteNote < jetzt - 1) this.naechsteNote = jetzt + zwischen(...this.welt.melodie.abstand);
+        if (this.naechsteTextur < jetzt - 1) this.naechsteTextur = jetzt + zwischen(7, 18);
 
         while (this.naechsterAkkord < bis) {
             const dauer = zwischen(...this.welt.akkordDauer);
