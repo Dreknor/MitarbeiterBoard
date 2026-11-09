@@ -38,6 +38,28 @@ export const KLANGWELTEN = {
         hall: {dauer: 6, anteil: 0.7},
         textur: 'funkeln',
     },
+    // G-Dur-pentatonisch, Marimba-artig: fröhlich, aber ruhig
+    zoo: {
+        grundton: 55,
+        akkorde: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]],
+        akkordDauer: [7, 9],
+        flaeche: {typ: 'triangle', filter: 950, lautstaerke: 0.03, anschlag: 2, ausklang: 3.5, verstimmung: 6},
+        tonleiter: [0, 2, 4, 7, 9],
+        melodie: {oktave: 12, typ: 'triangle', abstand: [0.55, 1.5], dauer: 0.6, lautstaerke: 0.05, obertoene: [[3, 0.06], [4, 0.04]], anschlag: 0.006},
+        hall: {dauer: 2.2, anteil: 0.3},
+        textur: 'voegel',
+    },
+    // E-Moll-pentatonisch, Holz-Marimba über tiefer Fläche: Urzeit, aber gemütlich
+    vulkan: {
+        grundton: 40,
+        akkorde: [[0, 7, 12, 15], [-4, 3, 8, 12], [-2, 5, 10, 14], [-5, 2, 7, 10]],
+        akkordDauer: [9, 12],
+        flaeche: {typ: 'triangle', filter: 700, lautstaerke: 0.04, anschlag: 3, ausklang: 4.5, verstimmung: 6},
+        tonleiter: [0, 3, 5, 7, 10],
+        melodie: {oktave: 24, typ: 'triangle', abstand: [0.9, 2.4], dauer: 0.8, lautstaerke: 0.05, obertoene: [[3, 0.07], [5, 0.03]], anschlag: 0.006},
+        hall: {dauer: 3, anteil: 0.4},
+        textur: 'voegel',
+    },
     // C-Dur, sehr langsam und leise: zum Atmen
     atemuebung: {
         grundton: 48,

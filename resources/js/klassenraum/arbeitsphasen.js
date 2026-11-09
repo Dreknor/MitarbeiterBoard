@@ -235,6 +235,13 @@ function naechster() {
     else beendeAblauf();
 }
 
+/** Einen Schritt zurück; im ersten Schritt beginnt dieser von vorn, nach dem Ende geht es zum letzten. */
+function vorheriger() {
+    if (status === 'bereit') return;
+    if (status === 'fertig') starteSchritt(schritte().length - 1);
+    else starteSchritt(Math.max(0, index - 1));
+}
+
 function beendeAblauf() {
     status = 'fertig';
     fertigSeit = Date.now();
@@ -409,6 +416,7 @@ $('#abl-naechster').addEventListener('click', () => {
     gong();
     naechster();
 });
+$('#abl-zurueck').addEventListener('click', vorheriger);
 $('#abl-plus').addEventListener('click', () => {
     plusMinute();
     leiste.zeige();
@@ -426,6 +434,8 @@ document.addEventListener('keydown', (e) => {
     if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault();
         weiterOderPause();
+    } else if (e.key === 'ArrowLeft') {
+        vorheriger();
     } else if (taste === 'n' || e.key === 'ArrowRight') {
         if (status === 'laeuft' || status === 'pause') gong();
         naechster();

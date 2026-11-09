@@ -77,14 +77,14 @@
 
         {{-- ── Zeile 2: Aktionen, Filter, Darstellung ── --}}
         <div class="pdn-tb">
-            <button type="button" class="pdn-btn pdn-btn--pri" data-tour="pdn-notiz"
+            <button type="button" class="pdn-btn pdn-btn--notiz" data-tour="pdn-notiz"
                     @click="$dispatch('diary-new-entry', {})">
                 <i class="fas fa-plus" aria-hidden="true"></i><span class="pdn-btn-text">Notiz</span>
             </button>
-            <button type="button" class="pdn-btn" @click="$dispatch('pdn-aufgabe-neu', {})">
+            <button type="button" class="pdn-btn pdn-btn--aufgabe" @click="$dispatch('pdn-aufgabe-neu', {})">
                 <i class="fas fa-tasks" aria-hidden="true"></i><span class="pdn-btn-text">Aufgabe</span>
             </button>
-            <button type="button" class="pdn-btn" x-data="appointmentManager()" @click="openCreateModal()">
+            <button type="button" class="pdn-btn pdn-btn--termin" x-data="appointmentManager()" @click="openCreateModal()">
                 <i class="fas fa-calendar-alt" aria-hidden="true"></i><span class="pdn-btn-text">Termin</span>
             </button>
             <a class="pdn-btn" href="{{ route('gradingDocumentation.index') }}">
@@ -243,7 +243,7 @@
                         <template x-for="grp in diaryGroups" :key="grp.key">
                             <tbody>
                                 <template x-if="grp.showDivider">
-                                    <tr class="pdn-trenner"><td :colspan="$store.diary.days.length + 1" x-text="grp.klasseName"></td></tr>
+                                    <tr class="pdn-trenner"><td :colspan="$store.diary.days.length + 1" :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''" x-text="grp.klasseName"></td></tr>
                                 </template>
                                 <template x-for="stu in grp.students" :key="stu.id">
                                     <tr>
@@ -447,84 +447,136 @@
                                 <button type="button" class="pdn-apt" @click="$dispatch('edit-appointment', apt)" x-text="formatAppointmentLabel(apt)"></button>
                             </template>
                         </div>
-                        <div class="pdn-cards">
-                            <template x-for="stu in $store.diary.schueler" :key="'k-' + stu.id">
-                                <article class="pdn-card" :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'">
-                                    <header>
-                                        <span class="pdn-stage" :class="stufeKlasse(stu)" :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
-                                            <template x-if="stufeBild(stu)"><img :src="stufeBild(stu)" alt="" x-on:error="bildFehlt(stu)"></template>
-                                            <span x-show="!stufeBild(stu)" x-text="stufeKurz(stu)"></span>
-                                        </span>
-                                        <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name"></a>
-                                        <button type="button" class="pdn-presence"
-                                                :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'"
-                                                @click="toggleAbsence(stu.id, stu.klasse_id, day.date)"
-                                                :aria-pressed="$store.diary.isAbsent(stu.id, day.date)"
-                                                x-text="$store.diary.isAbsent(stu.id, day.date) ? 'Abwesend' : 'Anwesend'"></button>
-                                    </header>
-
-                                    <template x-if="$store.diary.isAbsent(stu.id, day.date)">
-                                        <p class="pdn-label-sm">Notizen sind für heute pausiert.</p>
-                                    </template>
-
-                                    <template x-if="!$store.diary.isAbsent(stu.id, day.date)">
-                                        <div style="display:flex;flex-direction:column;gap:8px">
-                                            <template x-for="entry in notizen(stu.id, day.date)" :key="'kn-' + entry.id">
-                                                <div class="pdn-entry" role="button" tabindex="0" :data-farbe="entry.category_color ? '' : null" :style="farbe(entry)"
-                                                     @click="bearbeiten(entry, day.date)"
-                                                     @keydown.enter.prevent="bearbeiten(entry, day.date)">
-                                                    <span class="pdn-entry__text" x-text="entry.content"></span>
-                                                    <span class="pdn-entry__actions" x-show="!entry.completed_at">
-                                                        <button type="button" @click.stop="completeEntry(entry.id, stu.id, day.date)" aria-label="Notiz abschließen" title="Abschließen"><i class="fas fa-check" aria-hidden="true"></i></button>
-                                                        <button type="button" @click.stop="pauseEntry(entry.id, stu.id, day.date)" aria-label="Notiz an diesem Tag pausieren" title="An diesem Tag pausieren"><i class="fas fa-pause" aria-hidden="true"></i></button>
-                                                    </span>
-                                                </div>
-                                            </template>
-                                            <template x-if="$store.diary.showPaused">
-                                                <div style="display:flex;flex-direction:column;gap:8px">
-                                                    <template x-for="entry in getPausedEntries(stu.id, day.date)" :key="'kp-' + entry.id">
-                                                        <div class="pdn-entry pdn-entry--paused">
-                                                            <span class="pdn-entry__text" x-text="'Pausiert: ' + entry.content"></span>
-                                                            <span class="pdn-entry__actions">
-                                                                <button type="button" @click.stop="unpauseEntry(entry.id, stu.id, day.date)" aria-label="An diesem Tag wieder zeigen" title="Wieder zeigen"><i class="fas fa-play" aria-hidden="true"></i></button>
-                                                            </span>
-                                                        </div>
+                        {{-- Im Kopplungsmodus je Klasse ein eigener Block (wie die Trennzeilen der Wochenansicht) --}}
+                        <template x-for="grp in diaryGroups" :key="'kg-' + grp.key">
+                            <section class="pdn-kgruppe" :aria-label="grp.klasseName || 'Schüler'">
+                                <h2 class="pdn-kgruppe__kopf" x-show="grp.showDivider" :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''">
+                                    <span x-text="grp.klasseName"></span>
+                                    <span class="pdn-kgruppe__anzahl"
+                                          x-text="grp.students.length + ' Schüler' + (grp.students.filter(s => $store.diary.isAbsent(s.id, day.date)).length ? ' · ' + grp.students.filter(s => $store.diary.isAbsent(s.id, day.date)).length + ' abwesend' : '')"></span>
+                                </h2>
+                                <div class="pdn-cards">
+                                    <template x-for="stu in grp.students" :key="'k-' + stu.id">
+                                        <article class="pdn-card" :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'">
+                                            <header class="pdn-card__kopf">
+                                                <span class="pdn-stage" :class="stufeKlasse(stu)" :title="stu.stage ? stu.stage.name : 'Keine Stufe'">
+                                                    <template x-if="stufeBild(stu)"><img :src="stufeBild(stu)" alt="" x-on:error="bildFehlt(stu)"></template>
+                                                    <span x-show="!stufeBild(stu)" x-text="stufeKurz(stu)"></span>
+                                                </span>
+                                                <span class="pdn-card__name">
+                                                    <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name" title="Schülerakte öffnen"></a>
+                                                    <template x-if="(stu.absence_alerts || []).length">
+                                                        <span class="pdn-warnbadge" :title="stu.absence_alerts.map(a => a.label + ': ' + a.summary).join('\n')"
+                                                              x-text="'⚠ ' + stu.absence_alerts.length"></span>
                                                     </template>
-                                                </div>
+                                                </span>
+                                                <button type="button" class="pdn-presence"
+                                                        :class="$store.diary.isAbsent(stu.id, day.date) && 'is-absent'"
+                                                        @click="toggleAbsence(stu.id, stu.klasse_id, day.date)"
+                                                        :aria-pressed="$store.diary.isAbsent(stu.id, day.date)"
+                                                        :aria-label="($store.diary.isAbsent(stu.id, day.date) ? 'Abwesenheit aufheben: ' : 'Als abwesend markieren: ') + stu.name"
+                                                        x-text="$store.diary.isAbsent(stu.id, day.date) ? 'Abwesend' : 'Anwesend'"></button>
+                                            </header>
+
+                                            <template x-if="$store.diary.isAbsent(stu.id, day.date)">
+                                                <p class="pdn-card__leer">Abwesend – Notizen sind für diesen Tag pausiert.</p>
                                             </template>
-                                            <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'kt-' + task.id">
-                                                <div class="pdn-pill pdn-pill--task" :class="task.highlighted && 'pdn-pill--wichtig'">
-                                                    <span x-text="task.title"></span>
-                                                    <button type="button" @click="closeOpenTask(task.id)" aria-label="Aufgabe erledigt">✓</button>
-                                                </div>
-                                            </template>
-                                            <div class="pdn-cols" :class="!$store.diary.show_column_categories && 'pdn-cols--flach'" x-data="columnCell()">
-                                                <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'kg' + stu.id + group.category">
-                                                    <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'"
-                                                          x-show="group.columns.some(c => c.type === 'boolean' || c.type === 'ampel')">
-                                                        <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category" x-text="group.category"></span>
-                                                        <span class="pdn-colgroup__items">
-                                                            <template x-for="col in group.columns.filter(c => c.type === 'boolean' || c.type === 'ampel')" :key="'kc-' + col.id">
-                                                                <button type="button" class="pdn-tog"
-                                                                        :class="col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date))"
-                                                                        @click="col.type === 'ampel' ? toggleAmpelColumn(col.id, stu.id, day.date) : toggleBoolColumn(col.id, stu.id, day.date)"
-                                                                        :title="(group.category ? group.category + ': ' : '') + (col.type === 'ampel' ? col.name + ' – ' + ampelState(col.id, stu.id, day.date).label : col.name)"
-                                                                        x-text="col.name"></button>
+
+                                            <template x-if="!$store.diary.isAbsent(stu.id, day.date)">
+                                                <div class="pdn-card__inhalt">
+                                                    {{-- Notizen --}}
+                                                    <section class="pdn-card__abschnitt">
+                                                        <h3 class="pdn-card__titel">
+                                                            <i class="fas fa-sticky-note" aria-hidden="true"></i> Notizen
+                                                            <span class="pdn-card__anzahl" x-show="notizen(stu.id, day.date).length" x-text="notizen(stu.id, day.date).length"></span>
+                                                        </h3>
+                                                        <template x-for="entry in notizen(stu.id, day.date)" :key="'kn-' + entry.id">
+                                                            <div class="pdn-entry" role="button" tabindex="0" :data-farbe="entry.category_color ? '' : null" :style="farbe(entry)"
+                                                                 @click="bearbeiten(entry, day.date)"
+                                                                 @keydown.enter.prevent="bearbeiten(entry, day.date)">
+                                                                <span class="pdn-entry__text">
+                                                                    <span class="pdn-entry__kat" x-show="entry.category" x-text="entry.category"></span>
+                                                                    <span x-text="entry.content"></span>
+                                                                    <span class="pdn-entry__who" x-show="entry.user" x-text="entry.user"></span>
+                                                                </span>
+                                                                <span class="pdn-entry__actions" x-show="!entry.completed_at">
+                                                                    <button type="button" @click.stop="completeEntry(entry.id, stu.id, day.date)" aria-label="Notiz abschließen" title="Abschließen"><i class="fas fa-check" aria-hidden="true"></i></button>
+                                                                    <button type="button" @click.stop="pauseEntry(entry.id, stu.id, day.date)" aria-label="Notiz an diesem Tag pausieren" title="An diesem Tag pausieren"><i class="fas fa-pause" aria-hidden="true"></i></button>
+                                                                </span>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="$store.diary.showPaused">
+                                                            <div class="pdn-card__liste">
+                                                                <template x-for="entry in getPausedEntries(stu.id, day.date)" :key="'kp-' + entry.id">
+                                                                    <div class="pdn-entry pdn-entry--paused">
+                                                                        <span class="pdn-entry__text" x-text="'Pausiert: ' + entry.content"></span>
+                                                                        <span class="pdn-entry__actions">
+                                                                            <button type="button" @click.stop="unpauseEntry(entry.id, stu.id, day.date)" aria-label="An diesem Tag wieder zeigen" title="Wieder zeigen"><i class="fas fa-play" aria-hidden="true"></i></button>
+                                                                        </span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <p class="pdn-card__leer" x-show="!notizen(stu.id, day.date).length && !($store.diary.showPaused && getPausedEntries(stu.id, day.date).length)">Keine Notizen an diesem Tag.</p>
+                                                        <button type="button" class="pdn-card-add" @click="neueNotiz(stu.id, day.date)"
+                                                                :aria-label="'Neue Notiz für ' + stu.name + ', ' + day.label">
+                                                            <i class="fas fa-plus" aria-hidden="true"></i> Notiz
+                                                        </button>
+                                                    </section>
+
+                                                    {{-- Aufgaben --}}
+                                                    <section class="pdn-card__abschnitt" x-show="getOpenTasksForStudent(stu.id).length">
+                                                        <h3 class="pdn-card__titel"><i class="fas fa-tasks" aria-hidden="true"></i> Aufgaben</h3>
+                                                        <template x-for="task in getOpenTasksForStudent(stu.id)" :key="'kt-' + task.id">
+                                                            <div class="pdn-pill pdn-pill--task" :class="task.highlighted && 'pdn-pill--wichtig'">
+                                                                <span role="button" tabindex="0" style="cursor:pointer" title="Aufgabe bearbeiten"
+                                                                      @click="$dispatch('pdn-aufgabe-bearbeiten', task)" @keydown.enter.prevent="$dispatch('pdn-aufgabe-bearbeiten', task)"
+                                                                      x-text="task.title + (task.due_date ? ' · bis ' + new Date(task.due_date).toLocaleDateString('de-DE') : '')"></span>
+                                                                <button type="button" @click="closeOpenTask(task.id)" aria-label="Aufgabe erledigt" title="Aufgabe erledigt">✓</button>
+                                                            </div>
+                                                        </template>
+                                                    </section>
+
+                                                    {{-- Zusatzspalten (Schalter) --}}
+                                                    <section class="pdn-card__abschnitt" x-data="columnCell()"
+                                                             x-show="getGroupedColumnsForStudent(stu).some(g => g.columns.some(c => c.type === 'boolean' || c.type === 'ampel'))">
+                                                        <h3 class="pdn-card__titel"><i class="fas fa-columns" aria-hidden="true"></i> Spalten</h3>
+                                                        <div class="pdn-cols" :class="!$store.diary.show_column_categories && 'pdn-cols--flach'">
+                                                            <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'kg' + stu.id + group.category">
+                                                                <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'"
+                                                                      x-show="group.columns.some(c => c.type === 'boolean' || c.type === 'ampel')">
+                                                                    <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category" x-text="group.category"></span>
+                                                                    <span class="pdn-colgroup__items">
+                                                                        <template x-for="col in group.columns.filter(c => c.type === 'boolean' || c.type === 'ampel')" :key="'kc-' + col.id">
+                                                                            <button type="button" class="pdn-tog"
+                                                                                    :class="col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                    @click="col.type === 'ampel' ? toggleAmpelColumn(col.id, stu.id, day.date) : toggleBoolColumn(col.id, stu.id, day.date)"
+                                                                                    :aria-pressed="col.type === 'boolean' ? getColumnValue(col.id, stu.id, day.date) === '1' : null"
+                                                                                    :title="(group.category ? group.category + ': ' : '') + (col.type === 'ampel' ? col.name + ' – ' + ampelState(col.id, stu.id, day.date).label : col.name)"
+                                                                                    x-text="col.name"></button>
+                                                                        </template>
+                                                                    </span>
+                                                                </span>
                                                             </template>
-                                                        </span>
-                                                    </span>
-                                                </template>
-                                            </div>
-                                            <template x-for="apt in getClassAppointmentsForStudent(stu.id, day.date).concat(getStudentAppointments(stu.id, day.date))" :key="'ka-' + stu.id + apt.id">
-                                                <button type="button" class="pdn-apt" @click="$dispatch('edit-appointment', apt)" x-text="formatAppointmentShortLabel(apt)"></button>
+                                                        </div>
+                                                    </section>
+
+                                                    {{-- Termine --}}
+                                                    <section class="pdn-card__abschnitt"
+                                                             x-show="getClassAppointmentsForStudent(stu.id, day.date).length || getStudentAppointments(stu.id, day.date).length">
+                                                        <h3 class="pdn-card__titel"><i class="fas fa-calendar-alt" aria-hidden="true"></i> Termine</h3>
+                                                        <template x-for="apt in getClassAppointmentsForStudent(stu.id, day.date).concat(getStudentAppointments(stu.id, day.date))" :key="'ka-' + stu.id + apt.id">
+                                                            <button type="button" class="pdn-apt" @click="$dispatch('edit-appointment', apt)"
+                                                                    :title="apt.description || apt.title" x-text="formatAppointmentShortLabel(apt)"></button>
+                                                        </template>
+                                                    </section>
+                                                </div>
                                             </template>
-                                            <button type="button" class="pdn-card-add" @click="neueNotiz(stu.id, day.date)"
-                                                    x-text="'+ Notiz für ' + stu.name.split(' ')[0]"></button>
-                                        </div>
+                                        </article>
                                     </template>
-                                </article>
-                            </template>
-                        </div>
+                                </div>
+                            </section>
+                        </template>
                     </div>
                 </template>
             </div>

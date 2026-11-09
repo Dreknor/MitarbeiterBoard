@@ -66,6 +66,14 @@
 .pdn-btn--pri { background: var(--pdn-accent); color: var(--pdn-on-accent); border-color: var(--pdn-accent); }
 .pdn-btn--pri:hover { background: #1e40af; color: var(--pdn-on-accent); }
 .pdn-btn--ghost { border-color: transparent; background: transparent; }
+/* Anlegen-Knöpfe in den Farben der bisherigen Ansicht: Notiz blau, Aufgabe grün, Termin orange
+   (passend zu den Notiz-/Aufgaben-Hinweisen unter dem Namen und den Terminen in der Woche) */
+.pdn-btn--notiz, .pdn-btn--notiz:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+.pdn-btn--notiz:hover { background: #1d4ed8; border-color: #1d4ed8; }
+.pdn-btn--aufgabe { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+.pdn-btn--aufgabe:hover { background: #d1fae5; color: #065f46; }
+.pdn-btn--termin { background: #fffbeb; border-color: #fcd34d; color: #b45309; }
+.pdn-btn--termin:hover { background: #fef3c7; color: #92400e; }
 .pdn-btn[disabled] { opacity: .5; cursor: not-allowed; }
 .pdn-btn i { font-size: .9em; }
 .pdn-wk { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -121,7 +129,7 @@
 /* iPad quer (1024–1366 px): schmalere Namensspalte, damit fünf Tage ohne Scrollen passen */
 @media (max-width: 1366px) { .pdn-grid .pdn-name { width: 150px; } .pdn-grid { min-width: 760px; } }
 .pdn-grid thead .pdn-name { background: var(--pdn-surface-2); z-index: 3; }
-.pdn-grid .pdn-trenner td { background: var(--pdn-surface-2); font-weight: 800; font-size: .85em; }
+.pdn-grid .pdn-trenner td { background: var(--pdn-surface-2); font-weight: 800; font-size: .85em; border-left: 6px solid var(--klasse, var(--pdn-line)); }
 .pdn-dayhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .pdn-iconbtn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--pdn-line); background: var(--pdn-surface); color: var(--pdn-ink-2); display: inline-grid; place-items: center; flex: none; cursor: pointer; padding: 0; font-size: .85em; }
 .pdn-iconbtn:hover { background: var(--pdn-surface-2); }
@@ -184,16 +192,18 @@
 .pdn-colgroup__items > span:only-child .pdn-tog, .pdn-colgroup__items > .pdn-tog:only-child { border-radius: 6px; }
 .pdn-colgroup__items .pdn-tog:is(.is-ja, .is-mitte, .is-nein, :focus-visible) { z-index: 1; }
 .pdn-colgroup__items .pdn-colinput { height: var(--pdn-seg-h); min-width: 70px; }
-/* Lange Spaltennamen („Arbeitsmittel vergessen“) kürzen statt die Zelle zu sprengen;
-   reicht die Breite nicht, bricht der Block in eine zweite Zeile um */
+/* Lange Spaltennamen („Arbeitsmittel vergessen“) vollständig zeigen: Der Name bricht innerhalb
+   des Schalters um (statt mit „…“ gekürzt zu werden), damit er auch in den schmalen Tagesspalten
+   auf dem iPad lesbar bleibt. Reicht die Breite nicht, bricht der Block in eine weitere Zeile um. */
 .pdn-colgroup { flex-wrap: wrap; max-width: 100%; }
 .pdn-colgroup__items { flex-wrap: wrap; row-gap: 2px; max-width: 100%; }
-.pdn-colgroup__items .pdn-tog { max-width: 11ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdn-colgroup__items .pdn-tog { max-width: 100%; height: auto; min-height: var(--pdn-seg-h); padding-top: 2px; padding-bottom: 2px;
+    line-height: 1.15; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
 .pdn-cell { overflow: hidden; }
 /* Touch (iPad): etwas größere Ziele, ohne Hover-Abhängigkeit */
 @media (pointer: coarse) {
     .pdn-cols { --pdn-seg-h: 30px; }
-    .pdn-colgroup__items .pdn-tog { padding: 0 7px; }
+    .pdn-colgroup__items .pdn-tog { padding-left: 7px; padding-right: 7px; }
 }
 /* Legende über der Tabelle, wenn die Spaltengruppen-Überschriften aus sind */
 .pdn-spaltenlegende { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px; border-bottom: 1px solid var(--pdn-line); font-size: .82em; color: var(--pdn-ink-2); }
@@ -224,7 +234,7 @@
 .pdn--kompakt .pdn-entry__actions button { width: 20px; height: 20px; font-size: .8em; }
 @media (pointer: coarse) { .pdn--kompakt .pdn-entry__actions button { width: 28px; height: 28px; } }
 .pdn--kompakt .pdn-cols { --pdn-seg-h: 22px; gap: 3px 4px; margin-top: 3px; }
-.pdn--kompakt .pdn-colgroup__items .pdn-tog { font-size: .72em; padding: 0 3px; }
+.pdn--kompakt .pdn-colgroup__items .pdn-tog { font-size: .72em; padding-left: 3px; padding-right: 3px; }
 @media (pointer: coarse) { .pdn--kompakt .pdn-cols { --pdn-seg-h: 28px; } }
 
 /* ── Tageskarten ────────────────────────────────────────────── */
@@ -234,22 +244,50 @@
 .pdn-days button[aria-pressed="true"] { background: var(--pdn-accent); color: var(--pdn-on-accent); border-color: var(--pdn-accent); }
 .pdn-days button[aria-pressed="true"] small { color: var(--pdn-on-accent); }
 .pdn-days button.is-ferien { background: var(--pdn-ferien); }
-.pdn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; padding: 14px; }
-.pdn-card { border: 1px solid var(--pdn-line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--pdn-surface); min-width: 0; }
-.pdn-card header { display: flex; align-items: center; gap: 10px; }
-.pdn-card header a { font-size: 1.1em; font-weight: 700; color: var(--pdn-ink); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pdn-card.is-absent header a { text-decoration: line-through; color: var(--pdn-ink-2); }
+/* Kopplung: je Klasse ein Block mit Kopfzeile in der Klassenfarbe (wie die Trennzeilen der Woche) */
+.pdn-kgruppe + .pdn-kgruppe { border-top: 1px solid var(--pdn-line); }
+.pdn-kgruppe__kopf { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 14px 14px 0; padding: 8px 12px;
+    border-radius: 8px; border-left: 6px solid var(--klasse, var(--pdn-accent)); background: var(--pdn-surface-2);
+    font-size: 1.05em; font-weight: 800; color: var(--pdn-ink); }
+.pdn-kgruppe__anzahl { font-size: .8em; font-weight: 400; color: var(--pdn-ink-2); }
+.pdn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 14px; align-items: start; }
+
+/* Karte: Kopf (Stufe, Name, Anwesenheit) und darunter klar getrennte Abschnitte */
+.pdn-card { border: 1px solid var(--pdn-line); border-radius: 10px; display: flex; flex-direction: column; background: var(--pdn-surface); min-width: 0; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+.pdn-card__kopf { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--pdn-surface-2); border-bottom: 1px solid var(--pdn-line); }
+.pdn-card__name { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.pdn-card__name a { font-size: 1.1em; font-weight: 700; color: var(--pdn-ink); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdn-card__name a:hover { color: var(--pdn-accent); text-decoration: underline; }
+.pdn-card.is-absent .pdn-card__kopf { background: var(--pdn-danger-soft); }
+.pdn-card.is-absent .pdn-card__name a { text-decoration: line-through; color: var(--pdn-ink-2); }
+.pdn-card__inhalt { display: flex; flex-direction: column; }
+.pdn-card__abschnitt { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+.pdn-card__abschnitt + .pdn-card__abschnitt { border-top: 1px solid var(--pdn-line); }
+.pdn-card__titel { display: flex; align-items: center; gap: 6px; font-size: .72em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--pdn-ink-2); }
+.pdn-card__titel i { font-size: 1.1em; opacity: .7; }
+.pdn-card__anzahl { font-size: .95em; letter-spacing: 0; background: var(--pdn-accent-soft); color: var(--pdn-accent); border-radius: 999px; padding: 0 7px; }
+.pdn-card__liste { display: flex; flex-direction: column; gap: 6px; }
+.pdn-card__leer { font-size: .88em; color: var(--pdn-ink-2); }
+.pdn-card > .pdn-card__leer { padding: 12px; }
 .pdn-presence { margin-left: auto; font: inherit; font-size: .9em; font-weight: 700; border-radius: 999px; padding: 6px 12px; min-height: 36px; border: 1px solid var(--pdn-ok); color: var(--pdn-ok); background: var(--pdn-ok-soft); cursor: pointer; white-space: nowrap; }
 .pdn-presence.is-absent { border-color: var(--pdn-danger); color: var(--pdn-danger); background: var(--pdn-danger-soft); }
-.pdn-card .pdn-cols { --pdn-seg-h: 40px; gap: 8px 10px; }
+.pdn-card .pdn-cols { --pdn-seg-h: 40px; gap: 8px 10px; margin-top: 0; }
 /* Tageskarten (iPad): große Knöpfe zum Abschließen/Pausieren */
-.pdn-card .pdn-entry { align-items: center; }
+.pdn-card .pdn-entry { align-items: center; margin: 0; padding: 6px 8px; }
+.pdn-card .pdn-entry__kat { display: block; font-size: .72em; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--pdn-ink-2); }
+.pdn--farben .pdn-card .pdn-entry[data-farbe] .pdn-entry__kat { color: color-mix(in srgb, var(--kat) 70%, black); }
+.pdn-card .pdn-entry__who { display: block; margin-top: 2px; }
 .pdn-card .pdn-entry__actions { gap: 4px; }
 .pdn-card .pdn-entry__actions button { width: 40px; height: 40px; }
+.pdn-card .pdn-pill { padding: 6px 8px; }
+.pdn-card .pdn-pill button { min-width: 36px; min-height: 36px; }
 .pdn-card .pdn-colgroup { flex-direction: column; align-items: flex-start; gap: 2px; }
 .pdn-card .pdn-colgroup__label { font-size: .7em; }
-.pdn-card .pdn-colgroup__items .pdn-tog { min-width: 40px; padding: 0 10px; font-size: .95em; }
-.pdn-card-add { min-height: 44px; border-radius: 8px; border: 1px dashed var(--pdn-line); background: var(--pdn-surface-2); color: var(--pdn-ink-2); font: inherit; font-weight: 700; cursor: pointer; }
+.pdn-card .pdn-colgroup__items .pdn-tog { min-width: 40px; padding: 4px 10px; font-size: .95em; }
+.pdn-card .pdn-apt { margin-top: 0; padding: 6px 8px; align-self: flex-start; }
+.pdn-card-add { min-height: 40px; border-radius: 8px; border: 1px dashed var(--pdn-line); background: var(--pdn-surface-2); color: var(--pdn-ink-2); font: inherit; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .pdn-card-add:hover { color: var(--pdn-accent); border-color: var(--pdn-accent); }
 .pdn-leer { padding: 24px; text-align: center; color: var(--pdn-ink-2); }
 

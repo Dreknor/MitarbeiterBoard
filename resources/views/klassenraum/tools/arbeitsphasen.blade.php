@@ -46,7 +46,7 @@
         </div>
         <p class="tmr-tasten">
             Nach dem Start sind nur noch der aktuelle Schritt und die Zeit zu sehen. Antippen oder eine Taste zeigt kurz die Steuerung.<br>
-            Leertaste: Pause/Weiter · N: nächster Schritt · R: Beenden · F: Vollbild
+            Leertaste: Pause/Weiter · ←/→: Schritt zurück/vor · R: Beenden · F: Vollbild
         </p>
     </section>
 
@@ -64,6 +64,7 @@
 </main>
 
 <div class="tmr-fokusleiste" id="tmr-fokusleiste" role="toolbar" aria-label="Steuerung">
+    <button type="button" class="krt-knopf" id="abl-zurueck" title="Vorheriger Schritt (←)"><i class="fas fa-step-backward"></i><span>Zurück</span></button>
     <button type="button" class="tmr-start" id="abl-weiter"><i class="fas fa-pause"></i><span>Pause</span></button>
     <button type="button" class="krt-knopf" id="abl-naechster" title="Nächster Schritt (N)"><i class="fas fa-step-forward"></i><span>Nächster Schritt</span></button>
     <button type="button" class="krt-knopf" id="abl-plus" title="1 Minute mehr"><i class="fas fa-plus"></i><span>1 min</span></button>
