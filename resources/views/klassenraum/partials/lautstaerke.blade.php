@@ -112,6 +112,10 @@
             <input type="range" min="5" max="100" step="5" data-einstellung="musikLautstaerke">
             <small>Die Musik wird beim Messen herausgerechnet, soweit der Browser das kann. Reagiert die Szene schon auf die Musik, die Musik leiser stellen.</small>
         </label>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="weihnachtsmusik">
+            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember spielt ein ruhiges Glockenspiel Weihnachtslieder.</small></span>
+        </label>
     </section>
 
     <section class="krt-panel-abschnitt">
