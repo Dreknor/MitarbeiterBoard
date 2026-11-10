@@ -60,6 +60,17 @@ export const KLANGWELTEN = {
         hall: {dauer: 3, anteil: 0.4},
         textur: 'voegel',
     },
+    // Fis-Moll mit großer None, langsame gläserne Flächen: kalte, klare Polarnacht
+    polarlicht: {
+        grundton: 42,
+        akkorde: [[0, 7, 14, 15], [-4, 3, 10, 14], [-2, 5, 12, 17], [-7, 0, 7, 14]],
+        akkordDauer: [15, 19],
+        flaeche: {typ: 'sine', filter: 1100, lautstaerke: 0.055, anschlag: 6, ausklang: 7, verstimmung: 6},
+        tonleiter: [0, 2, 3, 7, 9],
+        melodie: {oktave: 36, typ: 'sine', abstand: [3, 7], dauer: 4.5, lautstaerke: 0.035, obertoene: [[2, 0.16], [5, 0.05]], anschlag: 0.02},
+        hall: {dauer: 6.5, anteil: 0.75},
+        textur: 'funkeln',
+    },
     // C-Dur, sehr langsam und leise: zum Atmen
     atemuebung: {
         grundton: 48,
