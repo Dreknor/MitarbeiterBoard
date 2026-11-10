@@ -35,7 +35,8 @@ class KlassenraumTools
     /**
      * Felder: titel, kategorie, beschreibung, icon (Font Awesome), farbe (Karte), entry (Vite),
      * mikrofon (nutzt die gemeinsame Lautstärke-Oberfläche), thema ('dunkel'|'hell' für die Vollbildseite),
-     * vorschau (Bild in public/img/klassenraum/ für die Übersicht).
+     * vorschau (Bild in public/img/klassenraum/ für die Übersicht), optional auswahl (eigene Auswahlliste
+     * der Szene im Einstellungsfeld: einstellung, titel, optionen – gespeichert wird der Index).
      *
      * @var array<string, array{titel: string, kategorie: string, beschreibung: string, icon: string, farbe: string, entry: string, mikrofon: bool, thema: string, vorschau: string}>
      */
@@ -94,6 +95,23 @@ class KlassenraumTools
             'mikrofon' => true,
             'thema' => 'dunkel',
             'vorschau' => 'img/klassenraum/vulkan.jpg',
+        ],
+        'polarlicht' => [
+            'titel' => 'Polarlicht',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Nachthimmel über einem stillen See. Je länger es leise ist, desto mehr Polarlichter tanzen am Himmel und spiegeln sich im Wasser. Wird es zu laut, flackern sie und ziehen sich zurück.',
+            'icon' => 'fas fa-mountain',
+            'farbe' => '#047857',
+            'entry' => 'resources/js/klassenraum/polarlicht.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/polarlicht.jpg',
+            // eigene Auswahl im Einstellungsfeld (Wert = Index, siehe FARBWELTEN in szenen/polarlicht.js)
+            'auswahl' => [
+                'einstellung' => 'farben',
+                'titel' => 'Farben der Polarlichter',
+                'optionen' => ['Bunt', 'Grün', 'Violett', 'Eisblau'],
+            ],
         ],
         'timer' => [
             'titel' => 'Timer',
