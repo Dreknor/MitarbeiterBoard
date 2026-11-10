@@ -22,6 +22,44 @@ class KlassenraumTools
      */
     public const KLASSENTIERE = ['Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'];
 
+    /**
+     * Weihnachtsmusik der Lautstärke-Szenen in der Adventszeit: echte Aufnahmen unter
+     * public/audio/klassenraum/weihnachten/ (Lizenz: LIZENZ.txt dort). Alle Stücke von Kevin MacLeod
+     * (incompetech.com), CC BY 4.0 – die Nennung muss in den Einstellungen sichtbar bleiben.
+     * Neues Stück: Datei (Lautheit −20 LUFS, Mono MP3) ablegen und hier eintragen.
+     *
+     * @var array<int, array{datei: string, titel: string}>
+     */
+    public const WEIHNACHTSMUSIK = [
+        ['datei' => 'stille-nacht.mp3', 'titel' => 'Silent Night'],
+        ['datei' => 'oh-holy-night.mp3', 'titel' => 'Oh Holy Night'],
+        ['datei' => 'little-town-of-bethlehem.mp3', 'titel' => 'Oh, Little Town of Bethlehem'],
+        ['datei' => 'deck-the-halls.mp3', 'titel' => 'Deck the Halls A'],
+        ['datei' => 'angels-we-have-heard-on-high.mp3', 'titel' => 'Angels We Have Heard on High'],
+        ['datei' => 'what-child-is-this.mp3', 'titel' => 'What Child is This'],
+        ['datei' => 'it-came-upon-a-midnight-clear.mp3', 'titel' => 'It Came Upon a Midnight Clear'],
+        ['datei' => 'jingle-bells.mp3', 'titel' => 'Jingle Bells'],
+        ['datei' => 'we-wish-you-a-merry-christmas.mp3', 'titel' => 'We Wish you a Merry Christmas'],
+        ['datei' => 'adeste-fideles.mp3', 'titel' => 'Adeste Fideles Waltz'],
+        ['datei' => 'jesu-joy-of-mans-desiring.mp3', 'titel' => "Jesu, Joy of Man's Desiring"],
+        ['datei' => 'dance-of-the-sugar-plum-fairies.mp3', 'titel' => 'Dance of the Sugar Plum Fairies'],
+    ];
+
+    public const WEIHNACHTSMUSIK_ORDNER = 'audio/klassenraum/weihnachten';
+
+    /**
+     * Weihnachtsmusik für das Skript: [{url, titel}].
+     *
+     * @return array<int, array{url: string, titel: string}>
+     */
+    public static function weihnachtsmusik(): array
+    {
+        return array_map(fn (array $stueck) => [
+            'url' => asset(self::WEIHNACHTSMUSIK_ORDNER.'/'.$stueck['datei']),
+            'titel' => $stueck['titel'],
+        ], self::WEIHNACHTSMUSIK);
+    }
+
     /** Kategorien in Anzeigereihenfolge. */
     public const KATEGORIEN = [
         'lautstaerke' => [
