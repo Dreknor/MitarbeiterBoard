@@ -114,7 +114,7 @@
         </label>
         <label class="krt-schalter">
             <input type="checkbox" data-einstellung="weihnachtsmusik">
-            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember spielt ein ruhiges Glockenspiel Weihnachtslieder.</small></span>
+            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember spielt ein ruhiges Klavier Weihnachtslieder.</small></span>
         </label>
     </section>
 

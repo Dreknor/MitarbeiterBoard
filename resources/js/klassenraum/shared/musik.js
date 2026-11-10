@@ -8,9 +8,10 @@
  *
  * Wird es im Raum zu laut, wird die Musik leiser und dumpfer (setzeUnruhe).
  *
- * In der Adventszeit (setzeWeihnachten) spielt statt der Klangwelt ein ruhiges Glockenspiel
- * Weihnachtslieder (shared/weihnachtslieder.js) mit sanften Akkorden und Bass, in zufälliger
- * Reihenfolge mit kleinen Pausen dazwischen; Hall und Dämpfung bei Lärm bleiben gleich.
+ * In der Adventszeit (setzeWeihnachten) spielt statt der Klangwelt ein ruhiges Klavier
+ * Weihnachtslieder (shared/weihnachtslieder.js): Melodie rechts, Begleitung links (gebrochene
+ * Akkorde, Bass–Akkord oder Walzer), in zufälliger Reihenfolge mit kleinen Pausen dazwischen;
+ * Hall und Dämpfung bei Lärm bleiben gleich.
  */
 
 import {klemme, mische} from './hilfen';
@@ -273,7 +274,7 @@ export class Musik {
         }
     }
 
-    // ── Weihnachtslieder ─────────────────────────────────────────────────
+    // ── Weihnachtslieder (Klavier) ───────────────────────────────────────
     #planeLieder(jetzt, bis) {
         // Nach langer Pause (Hintergrund-Tab, Ruhezustand) nicht nachholen, sondern neu ansetzen
         if (this.lied && this.lied.ende < jetzt - 1) this.lied = null;
@@ -289,8 +290,7 @@ export class Musik {
             if (zeit > bis) break;
             l.index++;
             if (zeit < jetzt - 0.2) continue;
-            if (e.art === 'ton') this.#glocke(zeit, e.ton, e.dauer);
-            else this.#begleitung(zeit, e.akkord, e.dauer);
+            this.#klavier(Math.max(jetzt, zeit), e.ton, e.dauer, e.staerke);
         }
         if (l.index >= l.ereignisse.length) {
             this.naechstesLied = l.ende + zwischen(4, 7);
@@ -298,6 +298,7 @@ export class Musik {
         }
     }
 
+    /** Lied in einzelne Klaviertöne zerlegen: Melodie rechts, Begleitung links (je nach Liedart). */
     #neuesLied(start) {
         let nr = Math.floor(Math.random() * WEIHNACHTSLIEDER.length);
         if (nr === this.letztesLied && WEIHNACHTSLIEDER.length > 1) nr = (nr + 1) % WEIHNACHTSLIEDER.length;
@@ -305,16 +306,21 @@ export class Musik {
         const lied = WEIHNACHTSLIEDER[nr];
         const e = lied.einheit;
         const ereignisse = [];
+        // etwas menschliche Ungenauigkeit in Zeit und Anschlag
+        const ton = (zeit, midi, dauer, staerke) => ereignisse.push({
+            zeit: Math.max(0, zeit + zwischen(-0.012, 0.012)), ton: midi, dauer, staerke: klemme(staerke + zwischen(-0.06, 0.06), 0.15, 1),
+        });
         let versatz = 0;
         for (let w = 0; w < (lied.wiederholen || 1); w++) {
             let zeit = versatz;
-            lied.melodie.forEach(([ton, dauer]) => {
-                if (ton !== null) ereignisse.push({art: 'ton', zeit, ton, dauer: dauer * e});
+            lied.melodie.forEach(([midi, dauer], i) => {
+                // Melodie: Phrasenanfänge etwas betonter, lange Töne klingen aus
+                if (midi !== null) ton(zeit, midi, dauer * e * 0.95, 0.72 + (i % 4 === 0 ? 0.08 : 0));
                 zeit += dauer * e;
             });
             zeit = versatz;
-            lied.akkorde.forEach(([akkord, dauer]) => {
-                ereignisse.push({art: 'akkord', zeit, akkord: AKKORDE[akkord], dauer: dauer * e});
+            lied.akkorde.forEach(([name, dauer]) => {
+                this.#begleitmuster(lied, AKKORDE[name], zeit, dauer, ton);
                 zeit += dauer * e;
             });
             versatz = zeit + e;
@@ -323,66 +329,96 @@ export class Musik {
         return {start, ereignisse, index: 0, ende: start + versatz};
     }
 
-    /** Glockenspiel-Ton: sofortiger Anschlag, langes Ausklingen, leicht unharmonische Obertöne. */
-    #glocke(t, midi, dauer) {
-        const frequenz = mzf(midi);
-        const laenge = Math.max(1.4, dauer * 2.2);
-        const huelle = this.ctx.createGain();
-        huelle.gain.setValueAtTime(0.0001, t);
-        huelle.gain.exponentialRampToValueAtTime(0.075, t + 0.006);
-        huelle.gain.exponentialRampToValueAtTime(0.0001, t + laenge);
-        huelle.connect(this.bus);
-        [[1, 1], [2, 0.3], [3.01, 0.1], [4.16, 0.05]].forEach(([faktor, anteil], i) => {
-            const osz = this.ctx.createOscillator();
-            osz.type = 'sine';
-            osz.frequency.value = frequenz * faktor;
-            const g = this.ctx.createGain();
-            g.gain.value = anteil;
-            // höhere Teiltöne klingen schneller ab
-            if (i > 0) {
-                g.gain.setValueAtTime(anteil, t);
-                g.gain.exponentialRampToValueAtTime(anteil * 0.01, t + laenge / (1 + i));
+    /**
+     * Linke Hand: 'arpeggio' (gebrochene Akkorde, mit Pedal gehalten), 'alberti' (Bass, oben, Mitte, oben),
+     * 'stride' (Bass – Akkord)
+     * oder 'walzer' (Bass – Akkord – Akkord). schritt = Länge eines Begleittons in Einheiten.
+     */
+    #begleitmuster(lied, akkord, start, dauer, ton) {
+        const e = lied.einheit;
+        const art = lied.begleitung || 'arpeggio';
+        const schritt = lied.schritt || 1;
+        const ende = start + dauer * e;
+        const [a, b, c] = akkord.toene;
+        if (art === 'arpeggio' || art === 'alberti') {
+            const folge = art === 'alberti' ? [akkord.bass, c, b, c] : [akkord.bass, a, b, c, b, a];
+            for (let i = 0, z = start; z < ende - 0.01; i++, z += schritt * e) {
+                // Pedal: jeder Ton klingt bis zum Akkordwechsel
+                ton(z, folge[i % folge.length], ende - z + 0.15, i === 0 ? 0.5 : 0.36);
             }
-            osz.connect(g).connect(huelle);
-            osz.start(t);
-            osz.stop(t + laenge + 0.05);
-        });
+            return;
+        }
+        const takt = art === 'walzer' ? 3 : 2;
+        for (let i = 0, z = start; z < ende - 0.01; i++, z += schritt * e) {
+            if (i % takt === 0) {
+                ton(z, akkord.bass, schritt * e * 1.6, 0.5);
+            } else {
+                akkord.toene.forEach((midi) => ton(z, midi, schritt * e * 0.8, 0.3));
+            }
+        }
     }
 
-    /** Sanfte Akkordfläche und weicher Basston unter der Melodie. */
-    #begleitung(t, akkord, dauer) {
-        const ende = t + dauer + 0.8;
-        const flaeche = this.ctx.createGain();
-        const stufe = 0.032 / Math.sqrt(akkord.toene.length);
-        flaeche.gain.setValueAtTime(0, t);
-        flaeche.gain.linearRampToValueAtTime(stufe, t + Math.min(0.6, dauer * 0.4));
-        flaeche.gain.setValueAtTime(stufe, t + dauer);
-        flaeche.gain.linearRampToValueAtTime(0, ende);
-        const tiefpass = this.ctx.createBiquadFilter();
-        tiefpass.type = 'lowpass';
-        tiefpass.frequency.value = 1100;
-        tiefpass.connect(flaeche).connect(this.bus);
-        akkord.toene.forEach((midi) => {
-            [-5, 5].forEach((cent) => {
-                const osz = this.ctx.createOscillator();
-                osz.type = 'triangle';
-                osz.frequency.value = mzf(midi);
+    /**
+     * Klavierton: leicht unharmonische Teiltöne (steife Saite), zwei minimal verstimmte Saiten,
+     * schneller Anfangsabfall und langes Nachklingen (tiefe Töne länger), höhere Teiltöne
+     * klingen schneller ab, kurzes Hammergeräusch; beim Loslassen dämpft der Dämpfer.
+     */
+    #klavier(t, midi, dauer, staerke = 0.6) {
+        const ctx = this.ctx;
+        const frequenz = mzf(midi);
+        const nachklang = klemme(4.5 - (midi - 40) * 0.07, 1.2, 4.5);
+        const loslassen = t + Math.max(0.12, dauer);
+        const ende = loslassen + 0.35;
+        const lautstaerke = 0.095 * Math.pow(staerke, 1.4) * klemme(1.25 - (midi - 48) * 0.01, 0.8, 1.25);
+
+        const huelle = ctx.createGain();
+        huelle.gain.setValueAtTime(0.0001, t);
+        huelle.gain.exponentialRampToValueAtTime(lautstaerke, t + 0.004);
+        huelle.gain.exponentialRampToValueAtTime(lautstaerke * 0.45, t + 0.18);
+        huelle.gain.exponentialRampToValueAtTime(Math.max(0.0001, lautstaerke * 0.45 * Math.exp(-(loslassen - t - 0.18) / nachklang)), loslassen);
+        huelle.gain.exponentialRampToValueAtTime(0.0001, ende);
+        // weicher Anschlag = dunkler Klang
+        const ton = ctx.createBiquadFilter();
+        ton.type = 'lowpass';
+        ton.frequency.setValueAtTime(klemme(frequenz * (3 + staerke * 6), 900, 9000), t);
+        ton.frequency.exponentialRampToValueAtTime(klemme(frequenz * 2.2, 500, 5000), t + nachklang * 0.6);
+        ton.connect(huelle).connect(this.bus);
+
+        const steif = 0.00035;
+        [[1, 1], [2, 0.55], [3, 0.3], [4, 0.17], [5, 0.1], [6, 0.06], [7, 0.035]].forEach(([k, anteil]) => {
+            const f = frequenz * k * Math.sqrt(1 + steif * k * k);
+            if (f > 12000) return;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(anteil, t);
+            g.gain.exponentialRampToValueAtTime(anteil * 0.02, t + nachklang / (0.6 + k * 0.5));
+            g.connect(ton);
+            (k === 1 ? [-1.2, 1.2] : [0]).forEach((cent) => {
+                const osz = ctx.createOscillator();
+                osz.type = 'sine';
+                osz.frequency.value = f;
                 osz.detune.value = cent;
-                osz.connect(tiefpass);
+                osz.connect(g);
                 osz.start(t);
                 osz.stop(ende + 0.05);
             });
         });
-        const bass = this.ctx.createOscillator();
-        bass.type = 'sine';
-        bass.frequency.value = mzf(akkord.bass);
-        const bassHuelle = this.ctx.createGain();
-        bassHuelle.gain.setValueAtTime(0.0001, t);
-        bassHuelle.gain.exponentialRampToValueAtTime(0.06, t + 0.04);
-        bassHuelle.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.8, dauer) + 0.3);
-        bass.connect(bassHuelle).connect(this.bus);
-        bass.start(t);
-        bass.stop(t + Math.max(0.8, dauer) + 0.35);
+
+        // Hammer: ein paar Millisekunden gefiltertes Rauschen
+        if (!this.rauschen) {
+            this.rauschen = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.05), ctx.sampleRate);
+            const d = this.rauschen.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 4);
+        }
+        const hammer = ctx.createBufferSource();
+        hammer.buffer = this.rauschen;
+        const band = ctx.createBiquadFilter();
+        band.type = 'bandpass';
+        band.frequency.value = klemme(frequenz * 4, 1200, 5000);
+        band.Q.value = 0.8;
+        const hammerPegel = ctx.createGain();
+        hammerPegel.gain.value = lautstaerke * 0.25 * staerke;
+        hammer.connect(band).connect(hammerPegel).connect(this.bus);
+        hammer.start(t);
     }
 
     #akkord(stufen, t, dauer) {

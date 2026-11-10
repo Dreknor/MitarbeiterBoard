@@ -6,6 +6,7 @@
  *   akkorde: [[Akkordname, Dauer in Einheiten], …]               (siehe AKKORDE)
  *   einheit: Sekunden je Einheit (ruhiges Tempo, passend zu den Szenen)
  *   wiederholen: wie oft das Lied am Stück gespielt wird (Standard 1)
+ *   begleitung: linke Hand am Klavier – 'arpeggio' | 'alberti' | 'stride' | 'walzer', schritt: Länge eines Begleittons
  * Melodie und Akkorde sind gleich lang.
  */
 
@@ -28,6 +29,8 @@ export const WEIHNACHTSLIEDER = [
     {
         name: 'Stille Nacht, heilige Nacht',
         einheit: 0.32, // 6/8, Einheit = Achtel
+        begleitung: 'arpeggio',
+        schritt: 1,
         melodie: [
             [G5, 3], [A5, 1], [G5, 2], [E5, 6],
             [G5, 3], [A5, 1], [G5, 2], [E5, 6],
@@ -50,6 +53,8 @@ export const WEIHNACHTSLIEDER = [
     {
         name: 'Morgen kommt der Weihnachtsmann',
         einheit: 0.62, // 4/4, Einheit = Viertel
+        begleitung: 'alberti',
+        schritt: 0.5,
         melodie: [
             [C5, 1], [C5, 1], [G5, 1], [G5, 1], [A5, 1], [A5, 1], [G5, 2],
             [F5, 1], [F5, 1], [E5, 1], [E5, 1], [D5, 1], [D5, 1], [C5, 2],
@@ -67,6 +72,8 @@ export const WEIHNACHTSLIEDER = [
     {
         name: 'Jingle Bells',
         einheit: 0.42, // 4/4, Einheit = Viertel (ruhig statt flott)
+        begleitung: 'stride',
+        schritt: 1,
         melodie: [
             [E5, 1], [E5, 1], [E5, 2], [E5, 1], [E5, 1], [E5, 2],
             [E5, 1], [G5, 1], [C5, 1.5], [D5, 0.5], [E5, 4],
@@ -86,6 +93,8 @@ export const WEIHNACHTSLIEDER = [
         name: 'We Wish You a Merry Christmas',
         einheit: 0.5, // 3/4, Einheit = Viertel
         wiederholen: 2,
+        begleitung: 'walzer',
+        schritt: 1,
         melodie: [
             [G4, 1],
             [C5, 1], [C5, 0.5], [D5, 0.5], [C5, 0.5], [B4, 0.5],
