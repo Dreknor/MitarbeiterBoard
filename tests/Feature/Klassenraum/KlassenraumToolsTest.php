@@ -72,12 +72,36 @@ class KlassenraumToolsTest extends TestCase
                 ->assertSee('data-einstellung="klassentier"', false)
                 ->assertSeeInOrder(['Klassentier', 'Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'])
                 ->assertSee('data-einstellung="weihnachtskostuem"', false)
-                ->assertSee('Weihnachtsmütze im Advent');
+                ->assertSee('Weihnachtsmütze im Advent')
+                ->assertSee('data-einstellung="weihnachtsmusik"', false)
+                ->assertSee('Weihnachtsmusik im Advent');
         }
 
         $this->get(route('klassenraum.show', 'timer'))
             ->assertOk()
             ->assertDontSee('data-einstellung="klassentier"', false);
+    }
+
+    public function test_weihnachtsmusik_dateien_und_namensnennung(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->assertNotEmpty(KlassenraumTools::WEIHNACHTSMUSIK);
+        foreach (KlassenraumTools::WEIHNACHTSMUSIK as $stueck) {
+            $this->assertFileExists(public_path(KlassenraumTools::WEIHNACHTSMUSIK_ORDNER.'/'.$stueck['datei']));
+        }
+        $this->assertFileExists(public_path(KlassenraumTools::WEIHNACHTSMUSIK_ORDNER.'/LIZENZ.txt'));
+
+        // CC BY 4.0: Namensnennung muss in den Einstellungen sichtbar sein
+        $antwort = $this->get(route('klassenraum.show', 'sternenhimmel'))
+            ->assertOk()
+            ->assertSee('Kevin MacLeod')
+            ->assertSee('incompetech.com')
+            ->assertSee('Licensed under Creative Commons: By Attribution 4.0')
+            ->assertSee('id="krt-weihnachtsmusik"', false);
+        foreach (KlassenraumTools::weihnachtsmusik() as $stueck) {
+            $antwort->assertSee(str_replace('/', '\\/', $stueck['url']), false);
+        }
     }
 
     public function test_polarlicht_bietet_farbauswahl_andere_szenen_nicht(): void

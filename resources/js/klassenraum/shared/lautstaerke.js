@@ -43,6 +43,7 @@ export const STANDARD_EINSTELLUNGEN = {
     musikLautstaerke: 40,
     klassentier: 1, // Index in KLASSENTIERE (shared/maus.js): 0 = kein Tier, 1 = Maus …
     weihnachtskostuem: true, // Weihnachtsmütze, nur in der Adventszeit
+    weihnachtsmusik: true, // Weihnachtslieder statt Klangwelt, nur in der Adventszeit
 };
 
 const ZIEL_UNRUHE = {aus: 0, ruhig: 0, fast: 0.35, laut: 1};
@@ -79,6 +80,12 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const ton = new Ton();
     const musik = new Musik(KLANGWELTEN[schluessel]);
     musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
+    // Weihnachtsmusik (echte Aufnahmen, Liste aus KlassenraumTools::weihnachtsmusik())
+    try {
+        musik.setzeAufnahmen(JSON.parse(document.getElementById('krt-weihnachtsmusik')?.textContent || '[]'));
+    } catch (_) {
+        musik.setzeAufnahmen([]);
+    }
     const wenigBewegung = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const zustand = {
@@ -105,12 +112,13 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const vorschauTier = KLASSENTIERE.indexOf(new URLSearchParams(window.location.search).get('tier'));
     if (vorschauTier >= 0) einstellungen.klassentier = vorschauTier;
 
-    // Vorschau des Weihnachtskostüms außerhalb der Adventszeit: ?weihnachten=1
+    // Vorschau von Weihnachtskostüm und -musik außerhalb der Adventszeit: ?weihnachten=1
     const adventszeit = istAdventszeit() || new URLSearchParams(window.location.search).get('weihnachten') === '1';
 
     const anwenden = () => {
         setzeKlassentier(einstellungen.klassentier);
         setzeWeihnachtskostuem(adventszeit && einstellungen.weihnachtskostuem);
+        musik.setzeWeihnachten(adventszeit && einstellungen.weihnachtsmusik);
         zustand.grenze = einstellungen.grenze;
         el.grenzMarke.style.left = `${einstellungen.grenze}%`;
         document.body.classList.toggle('krt-ohne-uhr', !einstellungen.uhr);
