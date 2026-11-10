@@ -133,6 +133,10 @@
             </select>
             <small>Guckt ab und zu hervor, wenn es eine Weile ruhig ist – das Maskottchen eurer Klasse.</small>
         </label>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="weihnachtskostuem">
+            <span><b>Weihnachtsmütze im Advent</b><small>Vom 1. Advent bis zum 26. Dezember trägt das Klassentier eine Weihnachtsmütze.</small></span>
+        </label>
         @isset($tool['auswahl'])
             <label class="krt-regler">
                 <span><b>{{ $tool['auswahl']['titel'] }}</b></span>

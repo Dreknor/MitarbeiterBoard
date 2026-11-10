@@ -13,7 +13,8 @@
  *
  * Damit sie immer erkennbar ist, sieht die Maus überall gleich aus: graues Fell, große runde
  * rosa Ohren, rosa Nase und ein rotes Halstuch mit weißen Punkten. Je nach Szene tragen alle Tiere
- * zusätzlich etwas (Schlafmütze in der Nacht, Taucheranzug/-helm im Aquarium, Forscherhut beim Vulkan).
+ * zusätzlich etwas (Schlafmütze in der Nacht, Taucheranzug/-helm im Aquarium, Forscherhut beim Vulkan);
+ * in der Adventszeit (istAdventszeit()) statt Mütze/Hut eine Weihnachtsmütze – abschaltbar.
  *
  * Ein Versteck ist {name, ebene, ort(): {x, y, s, von, richtung?, clip?, muetze?, taucher?,
  * forscher?, dunkel?, schlauch?}} – x/y = Fußpunkt der sichtbaren Figur, s = Größeneinheit (Kopfbreite),
@@ -24,7 +25,7 @@
 
 import {ellipse, klemme} from './hilfen';
 import {blende} from './besuche';
-import {zeichneEule, zeichneFaultier, zeichneFuchs, zeichneLemur, zeichneVerkleidung} from './tiere';
+import {zeichneEule, zeichneFaultier, zeichneFuchs, zeichneLemur, zeichneVerkleidung, zeichneWeihnachtsmuetze} from './tiere';
 
 /** Werte der Einstellung „klassentier“ (Index); Reihenfolge wie KlassenraumTools::KLASSENTIERE. */
 export const KLASSENTIERE = ['aus', 'maus', 'fuchs', 'faultier', 'lemur', 'eule'];
@@ -40,6 +41,26 @@ export function setzeKlassentier(wert) {
 
 export function aktuellesKlassentier() {
     return klassentier;
+}
+
+/**
+ * Adventszeit: vom 1. Advent (vierter Sonntag vor Weihnachten) bis zum 26. Dezember.
+ * In dieser Zeit tragen die Klassentiere eine Weihnachtsmütze (abschaltbar).
+ */
+export function istAdventszeit(datum = new Date()) {
+    const jahr = datum.getFullYear();
+    const heiligabend = new Date(jahr, 11, 24);
+    const vierterAdvent = new Date(jahr, 11, 24 - heiligabend.getDay());
+    const ersterAdvent = new Date(jahr, 11, vierterAdvent.getDate() - 21);
+    const tag = new Date(jahr, datum.getMonth(), datum.getDate());
+    return tag >= ersterAdvent && tag <= new Date(jahr, 11, 26);
+}
+
+let weihnachtskostuem = istAdventszeit();
+
+/** Weihnachtsmütze an/aus (Einstellung „weihnachtskostuem“ wirkt nur in der Adventszeit). */
+export function setzeWeihnachtskostuem(aktiv) {
+    weihnachtskostuem = Boolean(aktiv);
 }
 
 const FELL = '#9d968f';
@@ -417,20 +438,23 @@ export class Klassenmaus {
         if (o.dunkel) ctx.filter = 'brightness(0.72) saturate(0.85)';
         ctx.translate(x, y);
         if (o.von === 'seite') ctx.rotate(-(o.richtung ?? 1) * 0.12 * (1 - e * 0.6));
+        // In der Adventszeit ersetzt die Weihnachtsmütze Schlafmütze und Forscherhut
         const optionen = {
             t: this.t,
             blick: a.blick,
             blinzeln: a.blinzeln < 0,
             winken,
-            muetze: o.muetze,
-            forscher: o.forscher,
+            muetze: o.muetze && !weihnachtskostuem,
+            forscher: o.forscher && !weihnachtskostuem,
             taucher: o.taucher,
         };
         if (ZEICHNER[klassentier]) {
             ZEICHNER[klassentier](ctx, o.s, optionen);
+            if (weihnachtskostuem) zeichneWeihnachtsmuetze(ctx, o.s, klassentier, optionen);
             zeichneVerkleidung(ctx, o.s, klassentier, optionen);
         } else {
             zeichneMaus(ctx, o.s, optionen);
+            if (weihnachtskostuem) zeichneWeihnachtsmuetze(ctx, o.s, 'maus', optionen);
         }
         ctx.restore();
 

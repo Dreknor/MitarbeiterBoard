@@ -70,7 +70,9 @@ class KlassenraumToolsTest extends TestCase
             $this->get(route('klassenraum.show', $tool))
                 ->assertOk()
                 ->assertSee('data-einstellung="klassentier"', false)
-                ->assertSeeInOrder(['Klassentier', 'Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule']);
+                ->assertSeeInOrder(['Klassentier', 'Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'])
+                ->assertSee('data-einstellung="weihnachtskostuem"', false)
+                ->assertSee('Weihnachtsmütze im Advent');
         }
 
         $this->get(route('klassenraum.show', 'timer'))

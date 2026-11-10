@@ -697,6 +697,7 @@ export function zeichneEule(ctx, s, {t = 0, blick = [0, 0], blinzeln = false, wi
 // ── Verkleidungen der Szenen ──────────────────────────────────────────
 // Kopf je Tier: oben = Scheitel (ohne Ohren), mitte = Kopfmitte (Einheit s, nach oben negativ)
 const KOPF = {
+    maus: {oben: -1.7, mitte: -1.37},
     fuchs: {oben: -1.7, mitte: -1.3},
     faultier: {oben: -1.66, mitte: -1.27},
     lemur: {oben: -1.64, mitte: -1.3},
@@ -705,7 +706,7 @@ const KOPF = {
 
 /** Schlafmütze, Forscherhut oder Taucherhelm für Fuchs, Faultier, Lemur und Eule (die Maus hat eigene). */
 export function zeichneVerkleidung(ctx, s, tier, {t = 0, muetze = false, forscher = false, taucher = false} = {}) {
-    const kopf = KOPF[tier];
+    const kopf = tier === 'maus' ? null : KOPF[tier];
     if (!kopf || !(muetze || forscher || taucher)) return;
     ctx.save();
     ctx.scale(s, s);
@@ -783,5 +784,79 @@ export function zeichneVerkleidung(ctx, s, tier, {t = 0, muetze = false, forsche
         ctx.fill();
         rand(0.025);
     }
+    ctx.restore();
+}
+
+/**
+ * Weihnachtsmütze (Adventszeit) für alle Tiere inkl. Maus: rot mit weißem Fellrand, Bommel an der
+ * wippenden Spitze und einem Stechpalmenzweig. Ersetzt Schlafmütze und Forscherhut; unter Wasser
+ * sitzt sie im Taucherhelm (vor zeichneVerkleidung() zeichnen).
+ */
+export function zeichneWeihnachtsmuetze(ctx, s, tier, {t = 0} = {}) {
+    const kopf = KOPF[tier] || KOPF.maus;
+    ctx.save();
+    ctx.scale(s, s);
+    ctx.translate(0, kopf.oben + 1.7);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const rand = werkzeug(ctx);
+    const wippen = Math.sin(t * 1.4) * 0.04;
+    const spitze = [0.74 + wippen, -1.72 + Math.abs(wippen) * 0.5];
+
+    // Mütze
+    const muetze = new Path2D();
+    muetze.moveTo(-0.42, -1.54);
+    muetze.quadraticCurveTo(-0.34, -2.08, 0.1, -2.08);
+    muetze.quadraticCurveTo(0.5, -2.06, spitze[0], spitze[1]);
+    muetze.quadraticCurveTo(0.46, -1.86, 0.42, -1.54);
+    muetze.closePath();
+    ctx.fillStyle = '#d62f2f';
+    ctx.fill(muetze);
+    ctx.save();
+    ctx.clip(muetze);
+    ctx.fillStyle = 'rgba(120,10,20,.35)';
+    ellipse(ctx, 0.36, -1.8, 0.3, 0.42, 0.4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ellipse(ctx, -0.18, -1.86, 0.1, 0.2, 0.3);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = RAND;
+    ctx.lineWidth = 0.035;
+    ctx.stroke(muetze);
+
+    // flauschiger Fellrand
+    ctx.fillStyle = '#fbfaf5';
+    ellipse(ctx, 0, -1.54, 0.46, 0.1);
+    ctx.fill();
+    rand(0.03);
+    ctx.fillStyle = 'rgba(210,214,222,.6)';
+    [-0.32, -0.16, 0, 0.16, 0.32].forEach((x, i) => {
+        ellipse(ctx, x, -1.52 + (i % 2) * 0.02, 0.05, 0.03);
+        ctx.fill();
+    });
+
+    // Bommel
+    ctx.fillStyle = '#fbfaf5';
+    ellipse(ctx, spitze[0], spitze[1], 0.1, 0.1);
+    ctx.fill();
+    rand(0.03);
+    ctx.fillStyle = 'rgba(210,214,222,.6)';
+    ellipse(ctx, spitze[0] + 0.03, spitze[1] + 0.03, 0.045, 0.04);
+    ctx.fill();
+
+    // Stechpalmenzweig am Rand
+    ctx.fillStyle = '#2f7d3a';
+    [[-0.3, -1.6, -0.6], [-0.18, -1.64, 0.5]].forEach(([x, y, w]) => {
+        ellipse(ctx, x, y, 0.09, 0.04, w);
+        ctx.fill();
+        rand(0.02);
+    });
+    ctx.fillStyle = '#e0242c';
+    [[-0.25, -1.6], [-0.21, -1.57], [-0.27, -1.56]].forEach(([x, y]) => {
+        ellipse(ctx, x, y, 0.028, 0.028);
+        ctx.fill();
+        rand(0.015);
+    });
     ctx.restore();
 }

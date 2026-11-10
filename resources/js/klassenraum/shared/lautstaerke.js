@@ -27,7 +27,7 @@ import {Mikrofon, MikrofonFehler, MIKROFON_MELDUNGEN} from './mikrofon';
 import {$, initLeerlauf, initPanel, initUhr, initVollbild, istKuerzel, schalteVollbild, Ton} from './oberflaeche';
 import {formatiereDauer, klemme} from './hilfen';
 import {KLANGWELTEN, Musik} from './musik';
-import {KLASSENTIERE, setzeKlassentier} from './maus';
+import {istAdventszeit, KLASSENTIERE, setzeKlassentier, setzeWeihnachtskostuem} from './maus';
 
 export const STANDARD_EINSTELLUNGEN = {
     grenze: 60,
@@ -42,6 +42,7 @@ export const STANDARD_EINSTELLUNGEN = {
     musik: true,
     musikLautstaerke: 40,
     klassentier: 1, // Index in KLASSENTIERE (shared/maus.js): 0 = kein Tier, 1 = Maus …
+    weihnachtskostuem: true, // Weihnachtsmütze, nur in der Adventszeit
 };
 
 const ZIEL_UNRUHE = {aus: 0, ruhig: 0, fast: 0.35, laut: 1};
@@ -104,8 +105,12 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const vorschauTier = KLASSENTIERE.indexOf(new URLSearchParams(window.location.search).get('tier'));
     if (vorschauTier >= 0) einstellungen.klassentier = vorschauTier;
 
+    // Vorschau des Weihnachtskostüms außerhalb der Adventszeit: ?weihnachten=1
+    const adventszeit = istAdventszeit() || new URLSearchParams(window.location.search).get('weihnachten') === '1';
+
     const anwenden = () => {
         setzeKlassentier(einstellungen.klassentier);
+        setzeWeihnachtskostuem(adventszeit && einstellungen.weihnachtskostuem);
         zustand.grenze = einstellungen.grenze;
         el.grenzMarke.style.left = `${einstellungen.grenze}%`;
         document.body.classList.toggle('krt-ohne-uhr', !einstellungen.uhr);
