@@ -9,7 +9,7 @@
  *
  * Seltene Besuche (nur bei Ruhe): Elch, der über die Lichtung am anderen Ufer zieht und am
  * Wasser trinkt; Kanu mit Laterne auf dem See. Beide spiegeln sich im Wasser.
- * Die Klassenmaus (mit Schlafmütze) guckt aus der Hüttentür, hinter der Uferkuppe oder aus dem Schilf.
+ * Das Klassentier (Standard: Maus, mit Schlafmütze) guckt aus der Hüttentür, hinter der Uferkuppe oder aus dem Schilf.
  *
  * Technik: Die Bänder entstehen spaltenweise in einer Zwischenleinwand (AW × AH) und werden
  * weich hochskaliert; die Spiegelung im See ist dieselbe Leinwand, gespiegelt und in dünnen

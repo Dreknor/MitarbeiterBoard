@@ -124,6 +124,19 @@
             <span><b>Tempo</b><em data-anzeige="tempo" data-format="prozent"></em></span>
             <input type="range" min="30" max="150" step="10" data-einstellung="tempo">
         </label>
+        <label class="krt-regler">
+            <span><b>Klassentier</b></span>
+            <select class="krt-auswahl" data-einstellung="klassentier">
+                @foreach(\App\Support\KlassenraumTools::KLASSENTIERE as $index => $tier)
+                    <option value="{{ $index }}">{{ $tier }}</option>
+                @endforeach
+            </select>
+            <small>Guckt ab und zu hervor, wenn es eine Weile ruhig ist – das Maskottchen eurer Klasse.</small>
+        </label>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="weihnachtskostuem">
+            <span><b>Weihnachtsmütze im Advent</b><small>Vom 1. Advent bis zum 26. Dezember trägt das Klassentier eine Weihnachtsmütze.</small></span>
+        </label>
         @isset($tool['auswahl'])
             <label class="krt-regler">
                 <span><b>{{ $tool['auswahl']['titel'] }}</b></span>
