@@ -16,6 +16,12 @@ class KlassenraumTools
 {
     public const PERMISSION = 'use classroom tools';
 
+    /**
+     * Klassentiere der Lautstärke-Szenen (Einstellung „klassentier“, gespeichert wird der Index;
+     * Reihenfolge wie KLASSENTIERE in resources/js/klassenraum/shared/maus.js). Standard: Maus.
+     */
+    public const KLASSENTIERE = ['Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'];
+
     /** Kategorien in Anzeigereihenfolge. */
     public const KATEGORIEN = [
         'lautstaerke' => [
