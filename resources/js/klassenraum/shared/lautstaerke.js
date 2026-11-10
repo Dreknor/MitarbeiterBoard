@@ -345,12 +345,21 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     };
 
     // ── Zeichenfläche ────────────────────────────────────────────────────
+    // Auflösung: höchstens 2× (Retina). Schafft der Rechner die Szene nicht flüssig
+    // (schwache Laptop-Grafik, Vollbild auf großem Bildschirm), wird sie schrittweise
+    // reduziert – sonst stockt die Animation bis zum scheinbaren Hängen.
+    const AUFLOESUNGEN = [2, 1.5, 1, 0.75];
+    let aufloesungStufe = 0;
+    const aufloesung = () => Math.min(AUFLOESUNGEN[aufloesungStufe], window.devicePixelRatio || 1);
+
     const groesse = () => {
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        breite = window.innerWidth;
-        hoehe = window.innerHeight;
-        el.leinwand.width = Math.round(breite * dpr);
-        el.leinwand.height = Math.round(hoehe * dpr);
+        const dpr = aufloesung();
+        // Beim Anschließen/Trennen eines Beamers oder Minimieren meldet der Browser
+        // kurzzeitig 0 × 0 – die Szenen rechnen mit einer echten Fläche.
+        breite = Math.max(1, window.innerWidth || 0);
+        hoehe = Math.max(1, window.innerHeight || 0);
+        el.leinwand.width = Math.max(1, Math.round(breite * dpr));
+        el.leinwand.height = Math.max(1, Math.round(hoehe * dpr));
         el.leinwand.style.width = `${breite}px`;
         el.leinwand.style.height = `${hoehe}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -359,29 +368,70 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     window.addEventListener('resize', groesse);
     groesse();
 
+    // Bildrate beobachten: liegt sie mehrere Sekunden deutlich unter 30 fps, Auflösung senken.
+    let langsameBilder = 0;
+    let gemesseneBilder = 0;
+    let messStart = 0;
+    const beobachteBildrate = (abstandMs, jetzt) => {
+        if (document.visibilityState !== 'visible' || abstandMs > 500) {
+            // Hintergrund-Tab, Ruhezustand o. Ä. – nichts über die Leistung aussagend
+            gemesseneBilder = langsameBilder = 0;
+            messStart = jetzt;
+            return;
+        }
+        gemesseneBilder++;
+        if (abstandMs > 45) langsameBilder++;
+        if (jetzt - messStart < 3000) return;
+        if (gemesseneBilder > 0 && langsameBilder / gemesseneBilder > 0.5 && aufloesungStufe < AUFLOESUNGEN.length - 1) {
+            const vorher = aufloesung();
+            aufloesungStufe++;
+            if (aufloesung() < vorher) groesse();
+        }
+        gemesseneBilder = langsameBilder = 0;
+        messStart = jetzt;
+    };
+
     // Vorschau eines seltenen Besuchs, z. B. /klassenraum/aquarium?besuch=schildkroete
     const vorschauBesuch = new URLSearchParams(window.location.search).get('besuch');
     if (vorschauBesuch) szene.besuch?.(vorschauBesuch);
 
     let letzteZeit = performance.now();
+    let fehlerGemeldet = false;
     const bild = (jetzt) => {
-        const dt = Math.min(0.05, Math.max(0, (jetzt - letzteZeit) / 1000));
-        letzteZeit = jetzt;
-
-        if (!pausiert) {
-            aktualisiereZustand(dt);
-            zustand.zeit += dt;
-            const tempo = (einstellungen.tempo / 100) * (wenigBewegung ? 0.5 : 1);
-            szene.schritt(dt * tempo, zustand, einstellungen);
-            musik.setzeUnruhe(zustand.unruhe);
-        }
-        szene.zeichne(ctx, breite, hoehe, zustand);
-
-        if (jetzt - letzteAnzeige > 66) {
-            aktualisiereAnzeige();
-            letzteAnzeige = jetzt;
-        }
+        // Nächstes Bild zuerst anfordern: Ein Fehler in einer Szene darf die Animation
+        // nicht dauerhaft anhalten (sonst bleibt das Bild stehen, als hinge die Seite).
         requestAnimationFrame(bild);
+
+        const abstand = jetzt - letzteZeit;
+        const dt = Math.min(0.05, Math.max(0, abstand / 1000));
+        letzteZeit = jetzt;
+        beobachteBildrate(abstand, jetzt);
+
+        try {
+            if (!pausiert) {
+                aktualisiereZustand(dt);
+                zustand.zeit += dt;
+                const tempo = (einstellungen.tempo / 100) * (wenigBewegung ? 0.5 : 1);
+                szene.schritt(dt * tempo, zustand, einstellungen);
+                musik.setzeUnruhe(zustand.unruhe);
+            }
+            ctx.save();
+            szene.zeichne(ctx, breite, hoehe, zustand);
+            ctx.restore();
+
+            if (jetzt - letzteAnzeige > 66) {
+                aktualisiereAnzeige();
+                letzteAnzeige = jetzt;
+            }
+        } catch (fehler) {
+            // Zeichenzustand zurücksetzen, damit das nächste Bild sauber beginnt
+            ctx.reset?.();
+            ctx.setTransform(aufloesung(), 0, 0, aufloesung(), 0, 0);
+            if (!fehlerGemeldet) {
+                fehlerGemeldet = true;
+                console.error('Klassenraum-Tool: Fehler beim Zeichnen', fehler);
+            }
+        }
     };
     requestAnimationFrame(bild);
 

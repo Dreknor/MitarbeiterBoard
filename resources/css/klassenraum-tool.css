@@ -203,6 +203,11 @@
 .krt-hell .krt-regler em { color: var(--krt-text); }
 .krt-regler small, .krt-schalter small { display: block; font-size: .8rem; color: var(--krt-leise); font-weight: 400; }
 .krt-regler input[type="range"] { width: 100%; accent-color: var(--krt-akzent); }
+.krt-auswahl {
+    width: 100%; font: inherit; color: inherit; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+    background: var(--krt-feld-hover); border: 1px solid var(--krt-linie);
+}
+.krt-auswahl option { color: #111; }
 .krt-schalter { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
 .krt-schalter input {
     appearance: none; -webkit-appearance: none; flex: none; position: relative; cursor: pointer;

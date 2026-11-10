@@ -37,7 +37,7 @@ class KlassenraumToolsTest extends TestCase
         $antwort = $this->get(route('klassenraum.index'))
             ->assertOk()
             ->assertSee('Klassenraum-Tools')
-            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zoo', 'Vulkan', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
+            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zoo', 'Vulkan', 'Polarlicht', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
 
         foreach (array_keys(KlassenraumTools::TOOLS) as $tool) {
             $antwort->assertSee(route('klassenraum.show', $tool), false);
@@ -48,7 +48,7 @@ class KlassenraumToolsTest extends TestCase
     {
         $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
 
-        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan'] as $tool) {
+        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan', 'polarlicht'] as $tool) {
             $this->get(route('klassenraum.show', $tool))
                 ->assertOk()
                 ->assertSee(KlassenraumTools::TOOLS[$tool]['titel'])
@@ -60,6 +60,20 @@ class KlassenraumToolsTest extends TestCase
                 // eigenständige Vollbildseite ohne App-Navigation
                 ->assertDontSee('tw-sidebar', false);
         }
+    }
+
+    public function test_polarlicht_bietet_farbauswahl_andere_szenen_nicht(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->get(route('klassenraum.show', 'polarlicht'))
+            ->assertOk()
+            ->assertSee('data-einstellung="farben"', false)
+            ->assertSeeInOrder(['Farben der Polarlichter', 'Bunt', 'Grün', 'Violett', 'Eisblau']);
+
+        $this->get(route('klassenraum.show', 'aquarium'))
+            ->assertOk()
+            ->assertDontSee('class="krt-auswahl"', false);
     }
 
     public function test_timer_zeigt_eigene_oberflaeche_ohne_mikrofon(): void

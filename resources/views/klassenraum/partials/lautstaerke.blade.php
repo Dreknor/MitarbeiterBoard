@@ -124,6 +124,16 @@
             <span><b>Tempo</b><em data-anzeige="tempo" data-format="prozent"></em></span>
             <input type="range" min="30" max="150" step="10" data-einstellung="tempo">
         </label>
+        @isset($tool['auswahl'])
+            <label class="krt-regler">
+                <span><b>{{ $tool['auswahl']['titel'] }}</b></span>
+                <select class="krt-auswahl" data-einstellung="{{ $tool['auswahl']['einstellung'] }}">
+                    @foreach($tool['auswahl']['optionen'] as $index => $option)
+                        <option value="{{ $index }}">{{ $option }}</option>
+                    @endforeach
+                </select>
+            </label>
+        @endisset
     </section>
 
     <section class="krt-panel-abschnitt">
