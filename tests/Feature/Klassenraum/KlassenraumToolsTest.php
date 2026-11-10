@@ -62,6 +62,22 @@ class KlassenraumToolsTest extends TestCase
         }
     }
 
+    public function test_lautstaerke_tools_bieten_klassentier_auswahl(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan', 'polarlicht'] as $tool) {
+            $this->get(route('klassenraum.show', $tool))
+                ->assertOk()
+                ->assertSee('data-einstellung="klassentier"', false)
+                ->assertSeeInOrder(['Klassentier', 'Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule']);
+        }
+
+        $this->get(route('klassenraum.show', 'timer'))
+            ->assertOk()
+            ->assertDontSee('data-einstellung="klassentier"', false);
+    }
+
     public function test_polarlicht_bietet_farbauswahl_andere_szenen_nicht(): void
     {
         $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
@@ -73,7 +89,7 @@ class KlassenraumToolsTest extends TestCase
 
         $this->get(route('klassenraum.show', 'aquarium'))
             ->assertOk()
-            ->assertDontSee('class="krt-auswahl"', false);
+            ->assertDontSee('data-einstellung="farben"', false);
     }
 
     public function test_timer_zeigt_eigene_oberflaeche_ohne_mikrofon(): void
