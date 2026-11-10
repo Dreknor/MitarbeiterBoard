@@ -80,6 +80,12 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const ton = new Ton();
     const musik = new Musik(KLANGWELTEN[schluessel]);
     musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
+    // Weihnachtsmusik (echte Aufnahmen, Liste aus KlassenraumTools::weihnachtsmusik())
+    try {
+        musik.setzeAufnahmen(JSON.parse(document.getElementById('krt-weihnachtsmusik')?.textContent || '[]'));
+    } catch (_) {
+        musik.setzeAufnahmen([]);
+    }
     const wenigBewegung = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const zustand = {

@@ -8,14 +8,17 @@
  *
  * Wird es im Raum zu laut, wird die Musik leiser und dumpfer (setzeUnruhe).
  *
- * In der Adventszeit (setzeWeihnachten) spielt statt der Klangwelt ein ruhiges Klavier
- * Weihnachtslieder (shared/weihnachtslieder.js): Melodie rechts, Begleitung links (gebrochene
- * Akkorde, Bass–Akkord oder Walzer), in zufälliger Reihenfolge mit kleinen Pausen dazwischen;
- * Hall und Dämpfung bei Lärm bleiben gleich.
+ * In der Adventszeit (setzeWeihnachten) laufen statt der Klangwelt echte, frei lizenzierte
+ * Weihnachtsaufnahmen (setzeAufnahmen, Liste in KlassenraumTools::WEIHNACHTSMUSIK, Dateien unter
+ * public/audio/klassenraum/weihnachten/) – ohne künstlichen Hall, bei Lärm ebenfalls gedämpft.
+ * Fehlen die Dateien oder lassen sie sich nicht laden, spielt ersatzweise ein erzeugtes Klavier
+ * Weihnachtslieder (shared/weihnachtslieder.js).
  */
 
 import {klemme, mische} from './hilfen';
 import {AKKORDE, WEIHNACHTSLIEDER} from './weihnachtslieder';
+
+const AUFNAHME_PEGEL = 0.35;
 
 const mzf = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 const zwischen = (a, b) => a + Math.random() * (b - a);
@@ -130,6 +133,16 @@ export class Musik {
         this.weihnachten = false;
         this.lied = null;
         this.letztesLied = -1;
+        this.aufnahmen = [];       // echte Aufnahmen für die Adventszeit: [{url, titel, pegel}]
+        this.aufnahme = null;      // gerade laufende Aufnahme {quelle, gain, ende}
+        this.laedt = false;
+        this.aufnahmeFehler = 0;
+        this.letzteAufnahme = -1;
+    }
+
+    /** Liste echter Aufnahmen (Adventszeit); ohne Liste oder bei Ladefehlern spielt das erzeugte Klavier. */
+    setzeAufnahmen(liste) {
+        this.aufnahmen = Array.isArray(liste) ? liste.filter((a) => a && a.url) : [];
     }
 
     /** Weihnachtslieder statt Klangwelt (Adventszeit). Wechsel greift sofort. */
@@ -138,6 +151,7 @@ export class Musik {
         if (an === this.weihnachten) return;
         this.weihnachten = an;
         this.lied = null;
+        if (!an) this.#beendeAufnahme(2);
         if (this.ctx && this.an) {
             const t = this.ctx.currentTime;
             this.naechstesLied = t + 1.5;
@@ -175,6 +189,13 @@ export class Musik {
         begrenzer.threshold.value = -14;
         begrenzer.ratio.value = 6;
 
+        // Aufnahmen (Weihnachtsmusik) ohne künstlichen Hall, aber mit derselben Dämpfung bei Lärm
+        this.aufnahmeFilter = ctx.createBiquadFilter();
+        this.aufnahmeFilter.type = 'lowpass';
+        this.aufnahmeFilter.frequency.value = 16000;
+        this.aufnahmeFilter.Q.value = 0.4;
+        this.aufnahmeFilter.connect(this.master);
+
         this.bus.connect(this.filter);
         this.filter.connect(trocken).connect(this.master);
         this.filter.connect(hall).connect(nass).connect(this.master);
@@ -204,6 +225,7 @@ export class Musik {
     stoppe() {
         if (!this.ctx || !this.an) return;
         this.an = false;
+        this.#beendeAufnahme(0.6);
         this.#anwenden(0.6);
         clearInterval(this.zeitgeber);
         this.zeitgeber = null;
@@ -234,6 +256,7 @@ export class Musik {
         const ziel = this.an ? this.lautstaerke * (1 - 0.7 * this.unruhe) : 0;
         this.master.gain.setTargetAtTime(ziel, t, zeitkonstante);
         this.filter.frequency.setTargetAtTime(mische(7000, 650, this.unruhe), t, 0.8);
+        this.aufnahmeFilter.frequency.setTargetAtTime(mische(16000, 900, this.unruhe), t, 0.8);
     }
 
     // ── Planung (immer ~2 s im Voraus, damit es auch in Hintergrund-Tabs nicht stockt) ──
@@ -243,7 +266,8 @@ export class Musik {
         const bis = jetzt + 2;
 
         if (this.weihnachten) {
-            this.#planeLieder(jetzt, bis);
+            if (this.aufnahmen.length && this.aufnahmeFehler < 3) this.#planeAufnahmen(jetzt);
+            else this.#planeLieder(jetzt, bis);
             return;
         }
 
@@ -272,6 +296,71 @@ export class Musik {
             this.#textur(this.naechsteTextur);
             this.naechsteTextur += zwischen(7, 18);
         }
+    }
+
+    // ── Weihnachtsmusik: echte Aufnahmen ─────────────────────────────────
+    // Eine Aufnahme nach der anderen (zufällig, ohne direkte Wiederholung) mit kurzer Pause dazwischen.
+    // Geladen wird erst kurz vor dem Abspielen und immer nur eine – das schont Speicher und Netz.
+    #planeAufnahmen(jetzt) {
+        if (this.aufnahme) {
+            if (jetzt < this.aufnahme.ende) return;
+            this.aufnahme = null;
+            this.naechstesLied = jetzt + zwischen(2, 4);
+        }
+        if (this.laedt) return;
+        if (this.naechstesLied === undefined || this.naechstesLied < jetzt - 1) this.naechstesLied = jetzt + 0.3;
+        if (this.naechstesLied > jetzt + 1) return;
+
+        let nr = Math.floor(Math.random() * this.aufnahmen.length);
+        if (nr === this.letzteAufnahme && this.aufnahmen.length > 1) nr = (nr + 1) % this.aufnahmen.length;
+        this.letzteAufnahme = nr;
+        const eintrag = this.aufnahmen[nr];
+        this.laedt = true;
+        fetch(eintrag.url)
+            .then((antwort) => {
+                if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
+                return antwort.arrayBuffer();
+            })
+            .then((daten) => this.ctx.decodeAudioData(daten))
+            .then((puffer) => {
+                this.laedt = false;
+                if (!this.an || !this.weihnachten) return;
+                this.aufnahmeFehler = 0;
+                this.#spieleAufnahme(puffer, eintrag);
+            })
+            .catch(() => {
+                this.laedt = false;
+                this.aufnahmeFehler++;
+                this.naechstesLied = this.ctx.currentTime + 1;
+            });
+    }
+
+    #spieleAufnahme(puffer, eintrag) {
+        const t = this.ctx.currentTime + 0.1;
+        const quelle = this.ctx.createBufferSource();
+        quelle.buffer = puffer;
+        const gain = this.ctx.createGain();
+        // Aufnahmen sind auf −20 LUFS angeglichen; so klingen sie etwa so laut wie die erzeugte Musik
+        const pegel = AUFNAHME_PEGEL * (eintrag.pegel ?? 1);
+        // sanft ein- und ausblenden
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(pegel, t + 1.5);
+        gain.gain.setValueAtTime(pegel, t + Math.max(1.6, puffer.duration - 2.5));
+        gain.gain.linearRampToValueAtTime(0.0001, t + puffer.duration);
+        quelle.connect(gain).connect(this.aufnahmeFilter);
+        quelle.start(t);
+        this.aufnahme = {quelle, gain, ende: t + puffer.duration};
+    }
+
+    #beendeAufnahme(ausblenden) {
+        const a = this.aufnahme;
+        if (!a || !this.ctx) return;
+        const t = this.ctx.currentTime;
+        a.gain.gain.cancelScheduledValues(t);
+        a.gain.gain.setValueAtTime(Math.max(0.0001, a.gain.gain.value), t);
+        a.gain.gain.linearRampToValueAtTime(0.0001, t + ausblenden);
+        try { a.quelle.stop(t + ausblenden + 0.05); } catch (_) { /* schon beendet */ }
+        this.aufnahme = null;
     }
 
     // ── Weihnachtslieder (Klavier) ───────────────────────────────────────

@@ -114,8 +114,14 @@
         </label>
         <label class="krt-schalter">
             <input type="checkbox" data-einstellung="weihnachtsmusik">
-            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember spielt ein ruhiges Klavier Weihnachtslieder.</small></span>
+            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember laufen ruhige Weihnachtslieder, meist am Klavier.</small></span>
         </label>
+        <p class="krt-lizenz">
+            Weihnachtsmusik: {{ collect(\App\Support\KlassenraumTools::WEIHNACHTSMUSIK)->pluck('titel')->map(fn ($titel) => '„'.$titel.'“')->join(', ') }}
+            – Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>),
+            Licensed under Creative Commons: By Attribution 4.0
+            (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">creativecommons.org/licenses/by/4.0</a>)
+        </p>
     </section>
 
     <section class="krt-panel-abschnitt">
@@ -174,3 +180,5 @@
         <p>Tastatur: <kbd>M</kbd> Mikrofon · <kbd>T</kbd> Musik · <kbd>F</kbd> Vollbild · <kbd>Leertaste</kbd> Pause</p>
     </div>
 </aside>
+
+<script type="application/json" id="krt-weihnachtsmusik">@json(\App\Support\KlassenraumTools::weihnachtsmusik())</script>

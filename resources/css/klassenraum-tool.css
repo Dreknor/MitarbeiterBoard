@@ -208,6 +208,8 @@
     background: var(--krt-feld-hover); border: 1px solid var(--krt-linie);
 }
 .krt-auswahl option { color: #111; }
+.krt-lizenz { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--krt-leise); }
+.krt-lizenz a { color: inherit; text-decoration: underline; }
 .krt-schalter { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
 .krt-schalter input {
     appearance: none; -webkit-appearance: none; flex: none; position: relative; cursor: pointer;
