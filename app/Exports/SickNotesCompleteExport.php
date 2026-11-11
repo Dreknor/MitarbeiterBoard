@@ -2,32 +2,29 @@
 
 namespace App\Exports;
 
+use App\Services\KrankmeldungService;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
+/**
+ * Krankmeldungen-Export (/sick_notes/export): Liste, Personenübersicht und Statistik –
+ * mit denselben Filtern und Regeln wie die Seite.
+ */
 class SickNotesCompleteExport implements WithMultipleSheets
 {
-    private $absences;
-    private $users;
-    private $shortSickNotesData;
-
-    public function __construct($absences, $users, $shortSickNotesData = null)
-    {
-        $this->absences = $absences;
-        $this->users = $users;
-        $this->shortSickNotesData = $shortSickNotesData;
+    public function __construct(
+        private readonly KrankmeldungService $service,
+        private readonly array $filter,
+        private readonly Collection $meldungen,
+    ) {
     }
 
     public function sheets(): array
     {
-        $sheets = [
-            new SickNotesExport($this->absences),
-            new SickNotesUserSummaryExport($this->users),
+        return [
+            new SickNotesExport($this->service, $this->service->liste($this->meldungen, $this->filter), $this->filter),
+            new SickNotesUserSummaryExport($this->service->personen($this->meldungen, $this->filter)),
+            new SickNotesStatistikExport($this->service, $this->meldungen, $this->filter),
         ];
-
-        if ($this->shortSickNotesData) {
-            $sheets[] = new ShortSickNotesWithoutCertificateExport($this->shortSickNotesData);
-        }
-
-        return $sheets;
     }
 }

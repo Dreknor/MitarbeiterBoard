@@ -90,4 +90,64 @@ class AbwesenheitVorgesetzteTest extends TestCase
         $html = view('absences.dashboardCard-v2')->render();
         $this->assertStringContainsString('type="hidden" name="users_id"', $html);
     }
+
+    /**
+     * Ganzer Weg wie im Dashboard: Karte laden (v1 und v2) → Auswahl enthält Unterstellte → speichern.
+     */
+    public function test_dashboard_karte_vorgesetzte_tragen_fuer_unterstellte_ein(): void
+    {
+        $this->withoutVite();
+        $leitung = $this->mitarbeiter(['view absences']);
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $leitung->id]);
+        $fremd = $this->mitarbeiter();
+
+        $karte = \App\Models\DashboardCard::where('view', 'absences.dashboardCard')->sole();
+        $platz = \App\Models\DashBoardUser::create(['dashboard_card_id' => $karte->id, 'user_id' => $leitung->id, 'row' => 1, 'col' => 1, 'active' => true]);
+
+        foreach ([false, true] as $v2) {
+            if ($v2) {
+                $this->rechte($leitung, 'use dashboard v2');
+            }
+            $this->actingAs($leitung->fresh())->get("/dashboard/card/{$platz->id}")
+                ->assertOk()
+                ->assertSee('name="users_id"', false)
+                ->assertSee('value="'.$ma->id.'"', false)
+                ->assertDontSee('value="'.$fremd->id.'"', false);
+        }
+
+        $this->melden($leitung, $ma);
+        $this->assertSame(1, Absence::where('users_id', $ma->id)->where('creator_id', $leitung->id)->count());
+    }
+
+    public function test_stellvertretung_traegt_fuer_unterstellte_der_leitung_ein(): void
+    {
+        $leitung = $this->mitarbeiter(['view absences']);
+        $vertretung = $this->mitarbeiter(['view absences']);
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $leitung->id]);
+        $vertretung->deputyFor()->attach($leitung->id);
+
+        $this->actingAs($vertretung->fresh());
+        $this->assertStringContainsString('value="'.$ma->id.'"', view('absences.dashboardCard-v2')->render());
+
+        $this->melden($vertretung, $ma);
+        $this->assertSame(1, Absence::where('users_id', $ma->id)->where('creator_id', $vertretung->id)->count());
+    }
+
+    public function test_vorgesetzte_ohne_view_absences_koennen_nicht_eintragen(): void
+    {
+        $leitung = $this->mitarbeiter();
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $leitung->id]);
+
+        $this->actingAs($leitung->fresh())->post('/absences', [
+            'users_id' => $ma->id,
+            'reason' => 'krank',
+            'start' => '2026-10-14',
+            'end' => '2026-10-15',
+        ])->assertForbidden();
+
+        $this->assertSame(0, Absence::count());
+    }
 }

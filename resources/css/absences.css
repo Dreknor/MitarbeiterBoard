@@ -1,5 +1,5 @@
 /*
- * Abwesenheiten (Übersicht /absences) – Tailwind CSS v4
+ * Abwesenheiten (/absences) und Krankmeldungen (/sick_notes) – Tailwind CSS v4
  *
  * Wie tickets.css / zeit.css:
  *   - Preflight aus (Bootstrap 4 läuft daneben), alles unter .abw-wrapper, Komponenten mit Präfix abw-
@@ -12,6 +12,7 @@
 @import "tailwindcss/utilities" source(none) important;
 
 @source "../views/absences/index.blade.php";
+@source "../views/absences/sicknotes.blade.php";
 @source "../views/absences/partials/**/*.blade.php";
 /* Klassennamen, die mit Bootstrap kollidieren, nicht erzeugen */
 @source not inline("container collapse table");
@@ -148,3 +149,26 @@
 .abw-wrapper .abw-list > * + * { @apply border-t border-gray-100; }
 .abw-wrapper .abw-item { @apply flex items-start gap-3 px-4 py-3; }
 .abw-wrapper .abw-item.is-heute { box-shadow: inset 3px 0 0 #ef4444; }
+
+/* ---------------------------------------------------------------
+ * Krankmeldungen: kleine Eingaben, sortierbare Köpfe, Balken-Diagramme
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-input-sm { @apply rounded-lg px-2 py-1 text-sm; min-height: 2.25rem; width: auto; }
+.abw-wrapper .abw-sort { @apply inline-flex items-center gap-1 hover:text-gray-900; }
+.abw-wrapper .abw-sort.is-active { @apply text-blue-700; }
+.abw-wrapper .abw-section-title { @apply text-xs font-semibold uppercase tracking-wide text-gray-500; }
+
+/* Monatsverlauf: gestapelte Säulen */
+.abw-wrapper .abw-saeulen { @apply flex items-end gap-1 sm:gap-2 h-44 pt-6; }
+.abw-wrapper .abw-saeule { @apply relative flex-1 min-w-0 h-full flex flex-col justify-end items-stretch; }
+.abw-wrapper .abw-saeule-stapel { @apply flex flex-col-reverse rounded-t-md overflow-hidden; }
+.abw-wrapper .abw-saeule-wert { @apply absolute left-0 right-0 text-center text-[10px] sm:text-xs font-semibold text-gray-600; }
+.abw-wrapper .abw-saeule-label { @apply mt-1 text-center text-[10px] sm:text-xs text-gray-500 truncate; }
+
+/* Horizontale Balken (Wochentag, Dauer) */
+.abw-wrapper .abw-balken { @apply grid items-center gap-x-3 gap-y-2 text-sm; grid-template-columns: auto 1fr auto; }
+.abw-wrapper .abw-balken-spur { @apply h-3 rounded-full bg-gray-100 overflow-hidden; }
+.abw-wrapper .abw-balken-wert { @apply h-full rounded-full; }
+
+.abw-wrapper .abw-legende { @apply inline-flex items-center gap-1.5 text-xs text-gray-600; }
+.abw-wrapper .abw-legende i { @apply inline-block w-2.5 h-2.5 rounded-sm; }

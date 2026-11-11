@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AbsenceController;
+use App\Http\Controllers\KrankmeldungController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DailyNewsController;
@@ -579,12 +580,14 @@ Route::group([
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
                 });
 
+                // Krankmeldungen: Krankenscheine, Auswertungen, Export (Änderungen nur per POST/DELETE)
                 Route::middleware(['permission:manage sick_notes'])->group(function () {
-                    Route::get('sick_notes', [AbsenceController::class, 'sick_notes_index']);
-                    Route::get('sick_notes/export', [AbsenceController::class, 'sick_notes_export']);
-                    Route::get('sick_notes/export/user/{user}', [AbsenceController::class, 'sick_notes_export_user']);
-                    Route::get('sick_notes/{absence}/set_note_date', [AbsenceController::class, 'sick_notes_update']);
-                    Route::get('sick_notes/{absence}/sick_note_remove', [AbsenceController::class, 'sick_notes_remove']);
+                    Route::get('sick_notes', [KrankmeldungController::class, 'index'])->name('sick_notes.index');
+                    Route::get('sick_notes/export', [KrankmeldungController::class, 'export'])->name('sick_notes.export');
+                    Route::get('sick_notes/export/user/{user}', [KrankmeldungController::class, 'exportPerson'])->name('sick_notes.export.user');
+                    Route::post('sick_notes/{absence}/schein', [KrankmeldungController::class, 'scheinErfassen'])->name('sick_notes.schein');
+                    Route::delete('sick_notes/{absence}/schein', [KrankmeldungController::class, 'scheinEntfernen'])->name('sick_notes.schein.entfernen');
+                    Route::post('sick_notes/{absence}/pflicht', [KrankmeldungController::class, 'pflicht'])->name('sick_notes.pflicht');
                 });
 
                 //Inventar

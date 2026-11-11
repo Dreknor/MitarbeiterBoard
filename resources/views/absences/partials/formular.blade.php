@@ -68,7 +68,7 @@
             <i class="fas fa-info-circle mr-1"></i>
             Schließt die Meldung an eine gleiche an (gleiche Person, gleicher Grund), wird diese verlängert.
             @if($darfKrankenschein)
-                Bei Krankheit über {{ \App\Models\Absence::krankenscheinTage() }} Tage wird der Krankenschein automatisch verlangt.
+                Ab dem {{ \App\Models\Absence::krankenscheinTage() }}. Krankheitstag (Arbeitstage) wird der Krankenschein automatisch verlangt.
             @endif
         </span>
 

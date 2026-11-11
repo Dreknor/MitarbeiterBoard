@@ -35,7 +35,7 @@ class Absence extends Model
 
     }
     /**
-     * Ab dieser Dauer (Kalendertage) ist bei Krankheit ein Krankenschein nötig –
+     * Ab diesem Arbeitstag einer Krankheit ist ein Krankenschein nötig (Regel: ab dem 3. Krankheitstag) –
      * Setting `absence_sick_note_days` (Modul absences), sonst config/absences.php.
      */
     public static function krankenscheinTage(): int
@@ -72,7 +72,7 @@ class Absence extends Model
         // Gründe aus config absences.absence_sick_note ("krank", "Kind krank"); vorher stand hier ein
         // nicht existierender Config-Schlüssel, die Regel griff deshalb nie.
         if (Str::contains((string) $this->reason, (array) config('absences.absence_sick_note'))
-            && $this->start->diffInDays($this->end) > self::krankenscheinTage()) {
+            && $this->days >= self::krankenscheinTage()) {
             $this->sick_note_required = 1;
         }
     }
