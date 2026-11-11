@@ -29,14 +29,14 @@
         </a>
         <form action="{{url('absences')}}" method="post" id="absenceForm" class="form-horizontal d-none">
             @csrf
-            @if(auth()->user()->can('create absences'))
+            @if($meldbarePersonen->isNotEmpty())
                 <div class="form-row">
                     <label>
                         Mitarbeiter
                     </label>
                     <select name="users_id" class="custom-select">
-                        @foreach(\App\Models\User::orderBy('name')->get() as $user)
-                            <option value="{{$user->id}}">{{$user->name}}</option>
+                        @foreach($meldbarePersonen as $user)
+                            <option value="{{$user->id}}" @selected($user->id == auth()->id())>{{$user->name}}</option>
                         @endforeach
                     </select>
                 </div>
@@ -121,11 +121,15 @@
                                 {{$absence->reason}}
                             </td>
                             <td>
-                                @if(auth()->user()->can('delete absences') or $absence->creator_id == auth()->id())
-                                    <a href="{{url('absences/'.$absence->id.'/delete')}}">
-                                        <i class="fas fa-trash text-danger"></i>
-                                    </a>
-
+                                @if($absenceService->loeschbarDurch(auth()->user(), $absence))
+                                    <form action="{{ route('absences.destroy', $absence) }}" method="post" class="d-inline m-0"
+                                          onsubmit="return confirm('Abwesenheit löschen?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-link p-0" title="Löschen">
+                                            <i class="fas fa-trash text-danger"></i>
+                                        </button>
+                                    </form>
                                 @endif
                             </td>
                         </tr>

@@ -2655,7 +2655,9 @@ paths:
     get:
       tags: [Abwesenheiten]
       summary: Aktuelle und kommende Abwesenheiten
-      description: '`options.employees` nur mit `create absences` (Abwesenheit für andere melden).'
+      description: |
+        `options.employees` (inkl. der eigenen Person) und `create_for_others`: mit `create absences` alle Personen,
+        sonst Vorgesetzte und Stellvertretungen ihre unterstellten Personen. `set_sick_note` nur mit `create absences`.
       responses:
         '200':
           description: OK
@@ -2684,7 +2686,8 @@ paths:
       tags: [Abwesenheiten]
       summary: Abwesenheit melden
       description: |
-        Ohne `create absences` immer für sich selbst (`employe_id` und `sick_note_required` werden ignoriert).
+        `employe_id` gilt mit `create absences` für alle, für Vorgesetzte/Stellvertretungen nur für unterstellte
+        Personen; sonst wird immer für sich selbst gemeldet. `sick_note_required` nur mit `create absences`.
         Schließt die Meldung an eine bestehende mit gleichem Grund an, wird diese verlängert.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'

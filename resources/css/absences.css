@@ -1,0 +1,150 @@
+/*
+ * Abwesenheiten (Übersicht /absences) – Tailwind CSS v4
+ *
+ * Wie tickets.css / zeit.css:
+ *   - Preflight aus (Bootstrap 4 läuft daneben), alles unter .abw-wrapper, Komponenten mit Präfix abw-
+ *   - Utilities ungelayert + !important, nur die Abwesenheits-Views werden gescannt (source(none)),
+ *     damit sie Bootstraps ungelayerte Element-Stile schlagen.
+ *   - Elemente mit Display-Utility (flex, grid …) brauchen `x-show.important`.
+ *   - Interaktion über Alpine (global aus sidebar.js), kein eigenes JS nötig.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/absences/index.blade.php";
+@source "../views/absences/partials/**/*.blade.php";
+/* Klassennamen, die mit Bootstrap kollidieren, nicht erzeugen */
+@source not inline("container collapse table");
+
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets
+ * ------------------------------------------------------------- */
+.abw-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1400px;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 640px) { .abw-wrapper { padding: 1rem .75rem 5rem; } }
+.abw-wrapper *, .abw-wrapper *::before, .abw-wrapper *::after { box-sizing: border-box; }
+.abw-wrapper :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.35; color: inherit; }
+.abw-wrapper p { margin: 0; }
+.abw-wrapper a { color: inherit; text-decoration: none; }
+.abw-wrapper a:hover { text-decoration: none; }
+.abw-wrapper ul, .abw-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.abw-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.abw-wrapper label { margin: 0; }
+.abw-wrapper form { margin: 0; }
+.abw-wrapper table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.abw-wrapper th, .abw-wrapper td { vertical-align: middle; }
+
+/* ---------------------------------------------------------------
+ * Seitenkopf, Karten, Kennzahlen
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-page-title { @apply text-xl sm:text-2xl font-bold text-gray-900; }
+.abw-wrapper .abw-page-sub { @apply text-sm text-gray-500 mt-0.5; }
+
+.abw-wrapper .abw-card { @apply bg-white rounded-2xl shadow-sm border border-gray-100; }
+.abw-wrapper .abw-card-head { @apply flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 border-b border-gray-100; }
+.abw-wrapper .abw-card-title { @apply text-base font-bold text-gray-900 flex items-center gap-2; }
+.abw-wrapper .abw-card-title i { @apply text-gray-400; }
+.abw-wrapper .abw-card-body { @apply px-4 py-4 sm:px-5; }
+
+.abw-wrapper .abw-stat {
+    @apply flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm transition-colors;
+}
+.abw-wrapper a.abw-stat:hover { @apply border-blue-200; }
+.abw-wrapper .abw-stat-icon { @apply flex items-center justify-center w-10 h-10 rounded-xl text-base shrink-0; }
+.abw-wrapper .abw-stat-value { @apply text-xl sm:text-2xl font-bold text-gray-900 leading-tight; }
+.abw-wrapper .abw-stat-label { @apply text-xs text-gray-500 leading-tight; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.5rem;
+}
+.abw-wrapper .abw-btn-sm { @apply px-3 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2.25rem; }
+.abw-wrapper .abw-btn-primary   { @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white focus-visible:ring-blue-500; }
+.abw-wrapper .abw-btn-secondary { @apply bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 focus-visible:ring-blue-400; border: 1px solid #e5e7eb; }
+.abw-wrapper .abw-btn-ghost     { @apply bg-transparent hover:bg-gray-100 text-gray-600 shadow-none focus-visible:ring-gray-300; }
+.abw-wrapper .abw-btn-icon {
+    @apply inline-flex items-center justify-center rounded-lg w-9 h-9 p-0 transition-colors cursor-pointer
+           text-gray-400 hover:bg-red-50 hover:text-red-600
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300;
+    border-width: 0;
+}
+.abw-wrapper a.abw-btn-primary, .abw-wrapper a.abw-btn-primary:hover { color: #fff; }
+
+/* ---------------------------------------------------------------
+ * Formulare (16px auf Mobilgeräten verhindert iOS-Zoom)
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-input,
+.abw-wrapper .abw-select {
+    @apply block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900
+           shadow-sm placeholder:text-gray-400 sm:text-sm
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none;
+    min-height: 2.5rem;
+    height: auto;
+}
+.abw-wrapper .abw-select { @apply pr-8; }
+.abw-wrapper .abw-input.is-invalid, .abw-wrapper .abw-select.is-invalid { @apply border-red-400; }
+.abw-wrapper .abw-label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+.abw-wrapper .abw-hint { @apply text-xs text-gray-500 mt-1; }
+.abw-wrapper .abw-error { @apply text-xs font-medium text-red-600 mt-1; }
+
+/* Segment-Auswahl (Links als Buttongruppe) */
+.abw-wrapper .abw-segment { @apply inline-flex gap-1 p-1 rounded-xl bg-gray-100 overflow-x-auto max-w-full; scrollbar-width: none; }
+.abw-wrapper .abw-segment::-webkit-scrollbar { display: none; }
+.abw-wrapper .abw-segment a {
+    @apply inline-flex items-center gap-1.5 shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 transition-colors;
+}
+.abw-wrapper .abw-segment a:hover { @apply text-gray-900; }
+.abw-wrapper .abw-segment a.is-active { @apply bg-white text-blue-700 shadow-sm; }
+
+/* ---------------------------------------------------------------
+ * Badges, Hinweise, Leerzustand
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-badge { @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap; }
+.abw-wrapper .abw-badge-gray   { @apply bg-gray-100 text-gray-700; }
+.abw-wrapper .abw-badge-blue   { @apply bg-blue-100 text-blue-700; }
+.abw-wrapper .abw-badge-green  { @apply bg-emerald-100 text-emerald-700; }
+.abw-wrapper .abw-badge-amber  { @apply bg-amber-100 text-amber-800; }
+.abw-wrapper .abw-badge-red    { @apply bg-red-100 text-red-700; }
+.abw-wrapper .abw-badge-violet { @apply bg-violet-100 text-violet-700; }
+
+.abw-wrapper .abw-alert { @apply flex gap-3 rounded-xl border px-4 py-3 text-sm; }
+.abw-wrapper .abw-alert-danger { @apply bg-red-50 border-red-200 text-red-900; }
+
+.abw-wrapper .abw-empty { @apply flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-gray-400; }
+.abw-wrapper .abw-empty i { @apply text-3xl opacity-40; }
+
+.abw-wrapper .abw-avatar {
+    @apply shrink-0 w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold uppercase;
+}
+
+/* ---------------------------------------------------------------
+ * Tabelle (ab md) / Karten (darunter)
+ * ------------------------------------------------------------- */
+.abw-wrapper .abw-table { @apply w-full text-sm text-left text-gray-700; }
+.abw-wrapper .abw-table thead th {
+    @apply bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-2.5 border-b border-gray-200 whitespace-nowrap;
+}
+.abw-wrapper .abw-table tbody td { @apply px-4 py-3 border-b border-gray-100; }
+.abw-wrapper .abw-table tbody tr:last-child td { border-bottom-width: 0; }
+.abw-wrapper .abw-table tbody tr:hover td { @apply bg-gray-50/70; }
+.abw-wrapper .abw-table tbody tr.is-heute td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
+
+.abw-wrapper .abw-list > * + * { @apply border-t border-gray-100; }
+.abw-wrapper .abw-item { @apply flex items-start gap-3 px-4 py-3; }
+.abw-wrapper .abw-item.is-heute { box-shadow: inset 3px 0 0 #ef4444; }

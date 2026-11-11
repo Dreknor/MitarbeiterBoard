@@ -136,4 +136,43 @@ class AbsenceApiTest extends ApiTestCase
 
         $this->deleteJson(self::API."/absences/{$heuteEnde->id}")->assertUnprocessable();
     }
+
+    public function test_vorgesetzte_melden_fuer_unterstellte_ohne_create_recht(): void
+    {
+        $leitung = $this->mitarbeiter(['view absences']);
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $leitung->id]);
+        $fremd = $this->mitarbeiter();
+        $this->als($leitung);
+
+        $this->getJson(self::API.'/absences')
+            ->assertOk()
+            ->assertJsonPath('options.create_for_others', true)
+            ->assertJsonPath('options.set_sick_note', false)
+            ->assertJsonCount(2, 'options.employees');
+
+        $this->postJson(self::API.'/absences', ['employe_id' => $ma->id, 'reason' => 'krank', 'start' => '2026-10-14', 'end' => '2026-10-14'])
+            ->assertCreated()->assertJsonPath('data.employee.id', $ma->id);
+
+        // Nicht unterstellte Person: wird wie bisher für sich selbst gemeldet
+        $this->postJson(self::API.'/absences', ['employe_id' => $fremd->id, 'reason' => 'Fortbildung', 'start' => '2026-10-14', 'end' => '2026-10-14'])
+            ->assertCreated()->assertJsonPath('data.employee.id', $leitung->id);
+        $this->assertSame(0, Absence::where('users_id', $fremd->id)->count());
+    }
+
+    public function test_stellvertretung_meldet_fuer_unterstellte_der_leitung(): void
+    {
+        $leitung = $this->mitarbeiter(['view absences']);
+        $vertretung = $this->mitarbeiter(['view absences']);
+        $leitung->deputies()->attach($vertretung->id);
+        $ma = $this->mitarbeiter();
+        $ma->update(['superior_id' => $leitung->id]);
+        $this->als($vertretung);
+
+        $ids = collect($this->getJson(self::API.'/absences')->json('options.employees'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing([$vertretung->id, $ma->id], $ids);
+
+        $this->postJson(self::API.'/absences', ['employe_id' => $ma->id, 'reason' => 'krank', 'start' => '2026-10-14', 'end' => '2026-10-14'])
+            ->assertCreated()->assertJsonPath('data.employee.id', $ma->id);
+    }
 }

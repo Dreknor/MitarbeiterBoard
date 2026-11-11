@@ -570,10 +570,11 @@ Route::group([
 
                 //absences
                 Route::middleware(['permission:view absences'])->group(function () {
-                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);
-                    Route::post('absences', [AbsenceController::class, 'store']);
-                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
-                    Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
+                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences'])->name('absences.index');
+                    Route::post('absences', [AbsenceController::class, 'store'])->name('absences.store');
+                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence'])->name('absences.export');
+                    // Löschen nur per DELETE (früher GET-Link ohne CSRF-Schutz)
+                    Route::delete('absences/{absence}', [AbsenceController::class, 'destroy'])->name('absences.destroy');
                     // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
                 });

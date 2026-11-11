@@ -34,55 +34,91 @@ class Absence extends Model
         return  $days+1;
 
     }
+    /**
+     * Ab dieser Dauer (Kalendertage) ist bei Krankheit ein Krankenschein nötig –
+     * Setting `absence_sick_note_days` (Modul absences), sonst config/absences.php.
+     */
+    public static function krankenscheinTage(): int
+    {
+        return (int) (settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days'));
+    }
+
     protected static function boot()
     {
         parent::boot();
-        static::creating(function ($absence) {
+
+        static::creating(function (Absence $absence) {
             // Im Scheduler/Queue gibt es keinen angemeldeten Benutzer – dann den übergebenen Ersteller behalten
             $absence->creator_id = auth()->id() ?? $absence->creator_id;
-
-            if (Str::contains($absence->reason, config('absences.absence_reason_sick'))){
-                if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
-                    $absence->sick_note_required = 1;
-                }
-            }
-
-            if ($absence->showVertretungsplan != null){
-                $vertretungsplanAbsence = new VertretungsplanAbsence([
-                    'user_id' => $absence->users_id,
-                    'start_date' => $absence->start,
-                    'end_date' => $absence->end,
-                    'absence_id' => $absence->id,
-                ]);
-
-                $vertretungsplanAbsence->save();
-            }
+            $absence->krankenscheinPruefen();
         });
 
-        static::updating(function ($absence) {
-            if (Str::contains($absence->reason, config('absences.absence_reason_sick'))){
-                if ($absence->start->diffInDays($absence->end) > config('absences.absence_sick_note_days')){
-                    $absence->sick_note_required = 1;
-                }
-            }
-
-            if ($absence->showVertretungsplan != null){
-                $vertretungsplanAbsence = VertretungsplanAbsence::where('absence_id', $absence->id)->first();
-                if ($vertretungsplanAbsence == null){
-                    $vertretungsplanAbsence = new VertretungsplanAbsence([
-                        'user_id' => $absence->users_id,
-                        'start_date' => $absence->start,
-                        'end_date' => $absence->end,
-                        'absence_id' => $absence->id,
-                    ]);
-                } else {
-                    $vertretungsplanAbsence->start_date = $absence->start;
-                    $vertretungsplanAbsence->end_date = $absence->end;
-                }
-
-                $vertretungsplanAbsence->save();
-            }
+        static::updating(function (Absence $absence) {
+            $absence->krankenscheinPruefen();
         });
+
+        // Erst nach dem Speichern gibt es eine ID – vorher blieb absence_id am Vertretungsplan-Eintrag leer
+        static::saved(function (Absence $absence) {
+            $absence->vertretungsplanAbgleichen();
+        });
+
+        static::deleted(function (Absence $absence) {
+            $absence->vertretungsplanEintrag()?->delete();
+        });
+    }
+
+    private function krankenscheinPruefen(): void
+    {
+        // Gründe aus config absences.absence_sick_note ("krank", "Kind krank"); vorher stand hier ein
+        // nicht existierender Config-Schlüssel, die Regel griff deshalb nie.
+        if (Str::contains((string) $this->reason, (array) config('absences.absence_sick_note'))
+            && $this->start->diffInDays($this->end) > self::krankenscheinTage()) {
+            $this->sick_note_required = 1;
+        }
+    }
+
+    /**
+     * Eintrag am Vertretungsplan; ältere Einträge ohne absence_id werden über Person + Beginn gefunden.
+     */
+    public function vertretungsplanEintrag(): ?VertretungsplanAbsence
+    {
+        return VertretungsplanAbsence::where('absence_id', $this->id)->first()
+            ?? VertretungsplanAbsence::whereNull('absence_id')
+                ->where('user_id', $this->users_id)
+                ->whereDate('start_date', $this->getOriginal('start') ?? $this->start)
+                ->first();
+    }
+
+    private function vertretungsplanAbgleichen(): void
+    {
+        if (!$this->wasRecentlyCreated && !$this->wasChanged(['start', 'end', 'users_id', 'showVertretungsplan'])) {
+            return;
+        }
+
+        $eintrag = $this->wasRecentlyCreated ? null : $this->vertretungsplanEintrag();
+
+        if (!$this->showVertretungsplan) {
+            $eintrag?->delete();
+
+            return;
+        }
+
+        $eintrag ??= new VertretungsplanAbsence();
+        $eintrag->fill([
+            'user_id' => $this->users_id,
+            'start_date' => $this->start,
+            'end_date' => $this->end,
+            'absence_id' => $this->id,
+        ]);
+
+        if (!$eintrag->exists || $eintrag->isDirty()) {
+            $eintrag->save();
+        }
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'creator_id')->withDefault(['name' => 'System']);
     }
 
     public function holiday(){

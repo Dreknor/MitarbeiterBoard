@@ -54,6 +54,9 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Abwesenheiten (Übersicht /absences)
+                'resources/css/absences.css',
+
                 // Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht)
                 'resources/css/benachrichtigungen.css',
 
@@ -114,6 +117,8 @@ export default defineConfig({
                 'app/Http/Controllers/Ticketsystem/*.php',
                 // Online-Updater
                 'resources/views/updater/**/*.blade.php',
+                // Abwesenheiten
+                'resources/views/absences/**/*.blade.php',
                 // Zeitwirtschaft
                 'app/Services/Personal/Zeit/*.php',
                 // Klassenraum-Tools

@@ -3,16 +3,27 @@
 namespace App\Exports;
 
 use App\Models\Absence;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class AbsenceExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting
+/**
+ * Excel-Export der Abwesenheiten. Bekommt die (gefilterte) Liste aus dem AbsenceController,
+ * ohne Übergabe werden alle Abwesenheiten exportiert.
+ */
+class AbsenceExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
 {
-    private Int $rows = 0;
+    private int $rows = 0;
 
+    public function __construct(private readonly ?Collection $absences = null)
+    {
+    }
+
+    /**
+     * @param Absence $row
+     */
     public function map($row): array
     {
         return [
@@ -20,7 +31,11 @@ class AbsenceExport implements FromCollection, WithHeadings, WithMapping, WithCo
             $row->user->name,
             $row->start->format('d.m.Y'),
             $row->end->format('d.m.Y'),
-            $row->reason
+            $row->days,
+            $row->reason,
+            $row->showVertretungsplan ? 'ja' : 'nein',
+            $row->holiday_id !== null ? 'ja' : 'nein',
+            $row->creator->name,
         ];
     }
 
@@ -31,24 +46,17 @@ class AbsenceExport implements FromCollection, WithHeadings, WithMapping, WithCo
             'Mitarbeiter',
             'von',
             'bis',
-            'Grund'
+            'Arbeitstage',
+            'Grund',
+            'Vertretungsplan',
+            'aus Urlaub',
+            'eingetragen von',
         ];
     }
 
-    /**
-     * @return \Illuminate\Support\Collection
-     */
-    public function collection()
+    public function collection(): Collection
     {
-        return Absence::whereHas('user')->get();
-
-    }
-
-    public function columnFormats(): array
-    {
-        return [
-            'C' => NumberFormat::FORMAT_DATE_DDMMYYYY,
-            'D' => NumberFormat::FORMAT_DATE_DDMMYYYY,
-        ];
+        return $this->absences
+            ?? Absence::query()->with(['user', 'creator'])->orderByDesc('start')->get();
     }
 }
