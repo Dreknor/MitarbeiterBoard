@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Traits\PaedDiaryHelperTrait;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\PaedDiaryColumn;
-use App\Models\PaedDiaryColumnValue;
 use App\Models\Schueler;
+use App\Services\PaedDiarySpaltenwertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -161,12 +161,16 @@ class PaedDiaryColumnController extends Controller
         if ($erlaubt !== null && !in_array((string) ($data['value'] ?? ''), $erlaubt, true)) {
             return response()->json(['message' => 'Ungültiger Wert für diese Spalte.', 'errors' => ['value' => ['Ungültiger Wert für diese Spalte.']]], 422);
         }
-        PaedDiaryColumnValue::updateOrCreate([
-            'paed_diary_column_id' => $column->id,
-            'schueler_id'          => $schueler->id,
-            'datum'                => $dateObj->toDateString(),
-        ], ['value' => $data['value']]);
-        return response()->json(['success' => true]);
+        $spaltenwerte = app(PaedDiarySpaltenwertService::class);
+        $spaltenwerte->speichern($column, $schueler->id, $dateObj, $data['value'] ?? null);
+
+        // Gültige Werte der ganzen Woche zurückgeben – bei „bis Wochenende“ ändern sich auch Folgetage.
+        $woche = $spaltenwerte->woche($column, $schueler->id, $dateObj);
+        return response()->json([
+            'success' => true,
+            'werte'   => collect($woche)->mapWithKeys(fn ($t) => [$t['date'] => $t['value']]),
+            'quellen' => collect($woche)->filter(fn ($t) => $t['carried_from'])->mapWithKeys(fn ($t) => [$t['date'] => $t['carried_from']]),
+        ]);
     }
 
     public function updateColumnCategory(PaedDiaryColumn $column, Request $request)
@@ -174,9 +178,10 @@ class PaedDiaryColumnController extends Controller
         $data   = $request->validate(['category' => ['nullable', 'string', 'max:50']]);
         $user   = Auth::user();
         $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
+        // Die Spalte übernimmt dabei die Einstellung „bis Wochenende“ der neuen Gruppe (PaedDiaryColumn::booted)
         $column->category = $data['category'] ?? null;
         $column->save();
-        return response()->json(['success' => true, 'category' => $column->category]);
+        return response()->json(['success' => true, 'category' => $column->category, 'bis_wochenende' => (bool) $column->bis_wochenende]);
     }
 
     public function columnsAll(Request $request)
@@ -191,8 +196,13 @@ class PaedDiaryColumnController extends Controller
             'sort_order'       => $c->sort_order,
             'deactivated_from' => $c->deactivated_from?->toDateString(),
             'category'         => $c->category ?? null,
+            'bis_wochenende'   => (bool) $c->bis_wochenende,
         ]);
-        return response()->json(['columns' => $cols]);
+        return response()->json([
+            'columns' => $cols,
+            // „bis Wochenende“ umschalten betrifft alle Klassen – gleiches Recht wie Spaltengruppen umbenennen
+            'darf_bis_wochenende' => $user->can('manage global paed diary categories'),
+        ]);
     }
 
     public function restoreColumn(PaedDiaryColumn $column, Request $request)

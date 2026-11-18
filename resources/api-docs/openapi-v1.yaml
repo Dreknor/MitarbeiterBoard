@@ -660,7 +660,7 @@ paths:
     put:
       tags: [Tagebuch]
       summary: Wert einer Abhak-Spalte setzen
-      description: "`boolean`: `1` oder leer · `ampel`: `1` ja, `2` in Bearbeitung, `3` nein, leer · `text`: frei (max. 255)"
+      description: "`boolean`: `1` oder leer · `ampel`: `1` ja, `2` in Bearbeitung, `3` nein, leer · `text`: frei (max. 255). Bei Spalten mit `carries_to_week_end` gilt der Wert (auch leer = zurückgenommen) ab diesem Tag bis Freitag bzw. bis zur nächsten Änderung; `week` liefert die danach gültigen Werte Mo–Fr."
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -676,7 +676,29 @@ paths:
                 date: { type: string, format: date }
                 value: { type: string, nullable: true }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      column_id: { type: integer }
+                      schueler_id: { type: integer }
+                      date: { type: string, format: date }
+                      value: { type: string, nullable: true }
+                      week:
+                        type: array
+                        description: Gültige Werte dieser Spalte für den Schüler in der Woche (Mo–Fr).
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            value: { type: string, nullable: true }
+                            carried_from: { type: string, format: date, nullable: true }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
   /paed-diary/tasks/{id}/close:
@@ -3500,8 +3522,12 @@ components:
               name: { type: string }
               type: { type: string, enum: [boolean, ampel, text] }
               category: { type: string, nullable: true }
+              carries_to_week_end:
+                type: boolean
+                description: "Einstellung der Spaltengruppe „gilt bis Freitag“ (nur `boolean`/`ampel`): Ein gesetzter Wert gilt ab seinem Tag bis Freitag derselben Woche weiter – bis zur nächsten Änderung."
         column_values:
           type: array
+          description: "Gültige Werte je Tag. Enthält auch übernommene Werte (`carried_from` gesetzt), die nicht für diesen Tag gespeichert sind."
           items:
             type: object
             properties:
@@ -3509,6 +3535,11 @@ components:
               schueler_id: { type: integer }
               date: { type: string, format: date }
               value: { type: string, nullable: true }
+              carried_from:
+                type: string
+                format: date
+                nullable: true
+                description: Bei übernommenen Werten der Tag, an dem der Wert gesetzt wurde; sonst null.
         tasks:
           type: array
           items:

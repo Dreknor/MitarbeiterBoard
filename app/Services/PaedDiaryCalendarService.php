@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\PaedDiaryAppointment;
 use App\Models\PaedDiaryClassDayPause;
 use App\Models\PaedDiaryColumn;
-use App\Models\PaedDiaryColumnValue;
 use App\Models\PaedDiaryEntry;
 use App\Models\PaedDiaryEntryPause;
 use App\Models\PaedDiarySchuelerAbsence;
@@ -86,9 +85,14 @@ class PaedDiaryCalendarService
         // Spaltenwerte der Woche zuerst schülerbasiert laden (unabhängig von der aktuellen
         // Klasse!), damit auch Werte aus vorherigen Schuljahren/Klassen erhalten bleiben,
         // wenn Lehrer in der Wochenansicht in die Vergangenheit zurückblättern.
-        $columnValues = PaedDiaryColumnValue::whereIn('schueler_id', $schuelerIds)
-            ->whereBetween('datum', [$weekStart->toDateString(), $periodEnd->toDateString()])
-            ->get();
+        // Gültige Werte je Tag: inkl. Werte „bis Wochenende“, die ab ihrem Tag bis Freitag
+        // weitergelten (übernommene Werte tragen `uebernommen_von`).
+        $spaltenwerte = app(PaedDiarySpaltenwertService::class);
+        $columnValues = $spaltenwerte->wirksameWerte(
+            $spaltenwerte->laden($schuelerIds, $weekStart, $periodEnd),
+            $weekStart,
+            $periodEnd
+        );
         $historicalColumnIds = $columnValues->pluck('paed_diary_column_id')->unique();
 
         // Spalten aller Klassen vereinigt: aktuelle Klassenspalten + alle Spalten, für die in

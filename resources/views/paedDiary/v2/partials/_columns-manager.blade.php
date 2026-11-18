@@ -30,7 +30,21 @@
             <div class="mb-2 d-flex flex-wrap align-items-start">
                 <template x-for="[catName, cols] in groupedColumns" :key="catName">
                     <div class="column-category mr-3 mb-2">
-                        <div class="small text-primary font-weight-bold mb-1" x-text="catName"></div>
+                        <div class="small text-primary font-weight-bold mb-1">
+                            <span x-text="catName"></span>
+                            {{-- „Gilt bis Freitag“: für die ganze Spaltengruppe (alle Klassen), nur Ja/Nein- und Ampel-Spalten --}}
+                            <template x-if="catName !== 'Unkategorisiert' && darfBisWochenende">
+                                <label class="ml-2 mb-0 font-weight-normal text-dark" title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag (Ja/Nein- und Ampel-Spalten, alle Klassen)">
+                                    <input type="checkbox" class="mr-1" style="vertical-align:middle"
+                                           :checked="gruppeNameBisWochenende(catName)"
+                                           @change="setGruppeBisWochenende(catName, $event.target.checked)">
+                                    gilt bis Freitag
+                                </label>
+                            </template>
+                            <template x-if="catName !== 'Unkategorisiert' && !darfBisWochenende && gruppeNameBisWochenende(catName)">
+                                <span class="badge badge-info ml-2 font-weight-normal" title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag">gilt bis Freitag</span>
+                            </template>
+                        </div>
                         <div class="column-category-list d-flex flex-wrap">
                             <template x-for="col in cols" :key="col.id">
                                 <div class="column-chip" :class="{ 'deactivated': !!col.deactivated_from }">

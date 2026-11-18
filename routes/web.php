@@ -1076,6 +1076,7 @@ Route::group([
                         Route::put('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'updateGlobalCategory'])->name('paedDiary.categories.updateGlobal');
                         Route::delete('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'deleteGlobalCategory'])->name('paedDiary.categories.deleteGlobal');
                         Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
+                        Route::post('paed-diary/column-groups/bis-wochenende', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'setColumnGroupBisWochenende'])->name('paedDiary.columnGroups.bisWochenende');
                     });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
                     // Persönliche Darstellung (bisherige/neue Ansicht, Layout, Schrift, Tour)

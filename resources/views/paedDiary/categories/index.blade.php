@@ -148,7 +148,7 @@
                 </p>
                 <p class="pdn-leer" x-show="gruppenGeladen && !gruppen.length">Noch keine Spaltengruppen vorhanden.</p>
                 <table class="pdn-table" x-show="gruppen.length">
-                    <thead><tr><th>Name</th><th style="text-align:right">Spalten</th><th></th></tr></thead>
+                    <thead><tr><th>Name</th><th style="text-align:right">Spalten</th><th title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag (Ja/Nein- und Ampel-Spalten)">Gilt bis Freitag</th><th></th></tr></thead>
                     <tbody>
                         <template x-for="g in gruppen" :key="'g' + g.name">
                             <tr>
@@ -164,6 +164,15 @@
                                     </template>
                                 </td>
                                 <td style="text-align:right" x-text="g.count"></td>
+                                <td>
+                                    <template x-if="darfGlobal">
+                                        <label class="pdn-switch" style="justify-content:flex-start">
+                                            <input type="checkbox" :checked="g.bis_wochenende" @change="gruppeBisWochenende(g, $event.target.checked)"
+                                                   :aria-label="'Spaltengruppe ' + g.name + ': Bestätigungen gelten bis Freitag'"><i></i>
+                                        </label>
+                                    </template>
+                                    <template x-if="!darfGlobal"><span x-text="g.bis_wochenende ? 'Ja' : '–'"></span></template>
+                                </td>
                                 <td style="text-align:right">
                                     <template x-if="darfGlobal && gruppeBearbeitet !== g.name">
                                         <button type="button" class="pdn-btn pdn-btn--ghost" @click="gruppeBearbeitet = g.name; neuerGruppenName = g.name"><i class="fas fa-pen" aria-hidden="true"></i> Umbenennen</button>
