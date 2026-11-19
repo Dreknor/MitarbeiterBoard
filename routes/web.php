@@ -1044,6 +1044,8 @@ Route::group([
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
                     Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumnValue'])->name('paedDiary.column.value');
                     Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
+                    Route::get('paed-diary/column/{column}/bearbeiten', [\App\Http\Controllers\PaedDiaryColumnController::class, 'editColumn'])->name('paedDiary.column.edit');
+                    Route::post('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumn'])->name('paedDiary.column.update');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryColumnController::class, 'restoreColumn'])->name('paedDiary.column.restore');
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');

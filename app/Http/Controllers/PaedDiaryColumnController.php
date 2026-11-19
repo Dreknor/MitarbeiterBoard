@@ -6,6 +6,7 @@ use App\Http\Controllers\Traits\PaedDiaryHelperTrait;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\PaedDiaryColumn;
 use App\Models\Schueler;
+use App\Services\PaedDiarySpaltenService;
 use App\Services\PaedDiarySpaltenwertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -73,9 +74,10 @@ class PaedDiaryColumnController extends Controller
     }
 
     /**
-     * Kopiert eine bestehende Spalte in eine oder mehrere weitere Klassen.
-     * Existiert in einer Zielklasse bereits eine aktive Spalte mit gleichem Namen,
-     * wird diese Zielklasse übersprungen (kein Duplikat, keine Fehlermeldung).
+     * Kopiert eine bestehende Spalte in eine oder mehrere weitere Klassen. Die Kopien bleiben mit
+     * der Quelle verknüpft (gleiche spalten_uid). Hat die Zielklasse eine deaktivierte Kopie,
+     * wird diese reaktiviert. Gibt es dort bereits eine aktive Spalte mit gleichem Namen in
+     * derselben Gruppe, wird die Zielklasse übersprungen (kein Duplikat, keine Fehlermeldung).
      */
     public function copyColumn(PaedDiaryColumn $column, Request $request)
     {
@@ -87,16 +89,25 @@ class PaedDiaryColumnController extends Controller
         // Sicherstellen, dass der Nutzer Zugriff auf die Quellklasse der Spalte hat.
         $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
 
+        $spalten       = app(PaedDiarySpaltenService::class);
+        $kopien        = $spalten->kopien($column);
         $targetKlassen = $user->paed_klassen()->whereIn('klassen.id', $data['klasse_ids'])->get();
-        $baseSlug      = \Illuminate\Support\Str::slug($column->name) ?: $column->name;
 
         $created = [];
         $skipped = [];
         foreach ($targetKlassen as $klasse) {
             if ((int) $klasse->id === (int) $column->klasse_id) continue;
 
-            $exists = PaedDiaryColumn::where('klasse_id', $klasse->id)
-                ->where('name', $column->name)
+            $vorhandeneKopie = $spalten->kopieInKlasse($kopien, (int) $klasse->id);
+            if ($vorhandeneKopie && $vorhandeneKopie->deactivated_from) {
+                $vorhandeneKopie->deactivated_from = null;
+                $vorhandeneKopie->save();
+                $created[] = ['id' => $vorhandeneKopie->id, 'klasse_id' => $klasse->id, 'name' => $klasse->name];
+                continue;
+            }
+
+            $exists = $vorhandeneKopie || PaedDiaryColumn::where('klasse_id', $klasse->id)
+                ->gleichBenannt($column->name, $column->category)
                 ->whereNull('deactivated_from')
                 ->exists();
             if ($exists) {
@@ -104,15 +115,64 @@ class PaedDiaryColumnController extends Controller
                 continue;
             }
 
-            $slug    = $this->generateUniqueSlug($baseSlug, $klasse->id);
-            $sort    = (int) PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1;
-            $colData = ['klasse_id' => $klasse->id, 'name' => $column->name, 'slug' => $slug, 'type' => $column->type, 'sort_order' => $sort];
+            $colData = [
+                'klasse_id'   => $klasse->id,
+                'spalten_uid' => $column->spalten_uid,
+                'name'        => $column->name,
+                'slug'        => $spalten->eindeutigerSlug($column->name, (int) $klasse->id),
+                'type'        => $column->type,
+                'sort_order'  => (int) PaedDiaryColumn::where('klasse_id', $klasse->id)->max('sort_order') + 1,
+            ];
             if ($column->category) $colData['category'] = $column->category;
             $col = PaedDiaryColumn::create($colData);
             $created[] = ['id' => $col->id, 'klasse_id' => $klasse->id, 'name' => $klasse->name];
         }
 
         return response()->json(['success' => true, 'created' => $created, 'skipped' => $skipped]);
+    }
+
+    /**
+     * Daten für den Bearbeiten-Dialog einer Spalte (Name, Gruppe, Art, Klassen).
+     */
+    public function editColumn(PaedDiaryColumn $column, PaedDiarySpaltenService $spalten)
+    {
+        $user = Auth::user();
+        abort_unless($spalten->darfBearbeiten($user, $column), 404);
+
+        return response()->json([
+            'spalte'     => $spalten->uebersicht($column, $user),
+            'kategorien' => PaedDiaryColumn::whereNotNull('category')->where('category', '!=', '')
+                ->distinct()->orderBy('category')->pluck('category'),
+        ]);
+    }
+
+    /**
+     * Spalte bearbeiten: Name, Gruppe und Art gelten für alle Kopien, die Klassenauswahl
+     * legt Kopien an, reaktiviert oder deaktiviert sie (PaedDiarySpaltenService).
+     */
+    public function updateColumn(PaedDiaryColumn $column, Request $request, PaedDiarySpaltenService $spalten)
+    {
+        $user = Auth::user();
+        abort_unless($spalten->darfBearbeiten($user, $column), 404);
+
+        $data = $request->validate([
+            'name'         => ['required', 'string', 'max:50'],
+            'category'     => ['nullable', 'string', 'max:50'],
+            'type'         => ['required', 'in:' . implode(',', PaedDiarySpaltenService::TYPEN)],
+            'klasse_ids'   => ['present', 'array'],
+            'klasse_ids.*' => ['integer', 'exists:klassen,id'],
+        ]);
+        if (trim($data['name']) === '') {
+            return response()->json(['message' => 'Bitte einen Namen eingeben.', 'errors' => ['name' => ['Bitte einen Namen eingeben.']]], 422);
+        }
+
+        $ergebnis = $spalten->aktualisieren($column, $user, $data);
+
+        return response()->json([
+            'success'  => true,
+            'ergebnis' => $ergebnis,
+            'spalte'   => $spalten->uebersicht($column->fresh(), $user),
+        ]);
     }
 
     public function destroyColumn(PaedDiaryColumn $column, Request $request)
@@ -173,14 +233,22 @@ class PaedDiaryColumnController extends Controller
         ]);
     }
 
-    public function updateColumnCategory(PaedDiaryColumn $column, Request $request)
+    /**
+     * Nur die Spaltengruppe ändern – gilt wie im Bearbeiten-Dialog für alle Kopien der Spalte.
+     */
+    public function updateColumnCategory(PaedDiaryColumn $column, Request $request, PaedDiarySpaltenService $spalten)
     {
         $data   = $request->validate(['category' => ['nullable', 'string', 'max:50']]);
         $user   = Auth::user();
-        $klasse = $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
-        // Die Spalte übernimmt dabei die Einstellung „bis Wochenende“ der neuen Gruppe (PaedDiaryColumn::booted)
-        $column->category = $data['category'] ?? null;
-        $column->save();
+        $user->paed_klassen()->where('klassen.id', $column->klasse_id)->firstOrFail();
+        // Die Kopien übernehmen dabei die Einstellung „bis Wochenende“ der neuen Gruppe (PaedDiaryColumn::booted)
+        $spalten->aktualisieren($column, $user, [
+            'name'       => $column->name,
+            'category'   => $data['category'] ?? null,
+            'type'       => $column->type,
+            'klasse_ids' => null,
+        ]);
+        $column->refresh();
         return response()->json(['success' => true, 'category' => $column->category, 'bis_wochenende' => (bool) $column->bis_wochenende]);
     }
 
