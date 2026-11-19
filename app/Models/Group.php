@@ -103,7 +103,7 @@ class Group extends Model
      */
     public function posts()
     {
-        return $this->hasMany(Post::class, 'group_id');
+        return $this->belongsToMany(Post::class);
     }
 
     /**

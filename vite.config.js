@@ -54,6 +54,10 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Nachrichten (Gruppen-Seite, Detail, Formular, Lesebestätigungen)
+                'resources/css/posts.css',
+                'resources/js/posts.js',
+
                 // Abwesenheiten (Übersicht /absences)
                 'resources/css/absences.css',
 

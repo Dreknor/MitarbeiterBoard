@@ -1,13 +1,13 @@
 <div class="card">
     <div class="card-header bg-gradient-directional-blue text-white">
         <h5>
-            @can('create posts')
+            @if($darfPosten)
                 <div class="d-inline pull-right">
-                    <a href="{{url('posts/create')}}" class="btn btn-sm btn-bg-gradient-x-blue-green">
+                    <a href="{{ route('posts.create') }}" class="btn btn-sm btn-bg-gradient-x-blue-green">
                         <i class="fa fa-plus"></i>
                     </a>
                 </div>
-            @endcan
+            @endif
             Nachrichten
         </h5>
     </div>
@@ -17,9 +17,7 @@
                 @if($posts->count() > 0)
                     <div class="container-fluid">
                         @foreach($posts as $post)
-                            @if($post->released == 1 or $post->author_id == auth()->id())
-                                @include('posts.post')
-                            @endif
+                            @include('posts.post')
                         @endforeach
                     </div>
                 @else
@@ -27,11 +25,6 @@
                         Keine Nachrichten aktiv
                     </p>
                 @endif
-            </div>
-            <div class="row">
-                <div class="container-fluid">
-                    {{$posts->links()}}
-                </div>
             </div>
 
         </div>

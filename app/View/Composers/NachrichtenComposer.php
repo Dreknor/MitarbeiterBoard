@@ -2,23 +2,28 @@
 
 namespace App\View\Composers;
 
+use App\Services\Posts\PostService;
 use Illuminate\View\View;
 
+/**
+ * Dashboard-Karte „Nachrichten“: Nachrichten mit „auf Dashboard“ aus den eigenen Gruppen,
+ * offene eigene Lesebestätigungen angeheftet (PostService::dashboardNachrichten()).
+ */
 class NachrichtenComposer
 {
-    /**
-     *
-     */
-    public function __construct()
+    public function __construct(private readonly PostService $posts)
     {
-
     }
 
-    /**
-     * Bind data to the view.
-     */
     public function compose(View $view): void
     {
-        $view->with('posts', auth()->user()->posts()->where('archived', 0)->orderByDesc('created_at')->paginate(15));
+        $user = auth()->user();
+
+        $view->with([
+            'posts' => $this->posts->dashboardNachrichten($user),
+            'nachrichtenZaehler' => $this->posts->zaehler($user),
+            'darfPosten' => $this->posts->darfPosten($user),
+            'postGruppen' => $this->posts->zielGruppen($user),
+        ]);
     }
 }

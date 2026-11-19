@@ -62,8 +62,11 @@ class GlobalSearchService
     {
         $like = '%' . $term . '%';
 
-        return $user->posts()
-            ->where(fn ($q) => $q->where('header', 'like', $like)->orWhere('text', 'like', $like))
+        return \App\Models\Post::query()
+            ->sichtbarFuer($user)
+            ->where(fn ($q) => $q->where('header', 'like', $like)
+                ->orWhere('kurzfassung', 'like', $like)
+                ->orWhere('text', 'like', $like))
             ->latest()
             ->limit(self::LIMIT_PER_SECTION)
             ->get()
@@ -71,8 +74,8 @@ class GlobalSearchService
             ->map(fn ($post) => [
                 'id'      => $post->id,
                 'title'   => $post->header,
-                'date'    => optional($post->created_at)->format('d.m.Y'),
-                'url'     => null,
+                'date'    => optional($post->datum())->format('d.m.Y'),
+                'url'     => route('posts.show', $post),
                 'meta'    => null,
                 'snippet' => $this->snippet($post->text, $term),
             ])

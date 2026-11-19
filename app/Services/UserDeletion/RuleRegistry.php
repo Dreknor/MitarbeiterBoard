@@ -118,6 +118,7 @@ class RuleRegistry
 
             // ── Kommunikation, Sitzungen, Inhalte ─────────────────────────────
             Rule::anonymize('Inhalte', 'Beiträge', 'posts', 'author_id'),
+            Rule::delete('Inhalte', 'Lesestatus und Lesebestätigungen von Nachrichten', 'post_lesestatus', 'user_id'),
             Rule::anonymize('Inhalte', 'Themen (Ersteller)', 'themes', 'creator_id'),
             Rule::anonymize('Inhalte', 'Themen (zugewiesen)', 'themes', 'assigned_to'),
             Rule::delete('Inhalte', 'Persönliche Priorisierungen', 'priorities', 'creator_id'),
