@@ -32,6 +32,13 @@ class ImageController extends Controller
             return redirect()->route('tickets.files', [$ticket, $media_id]);
         }
 
+        // Nachrichten-Anhänge nur mit Lesezugriff auf die Nachricht (PostPolicy)
+        if ($media_id->model_type === Post::class) {
+            abort_unless(auth()->check() && $media_id->model && auth()->user()->can('view', $media_id->model), 404);
+
+            return redirect()->route('posts.files', [$media_id->model, $media_id]);
+        }
+
         // Eingeloggte Nutzer dürfen immer; sonst nur wenn öffentlich geteilt.
         // optional() verhindert Fatal Error wenn model null ist.
         if (auth()->check() || optional($media_id->model)->share !== null) {
@@ -68,29 +75,27 @@ class ImageController extends Controller
 
     public function removeImageFromPost(Request $request, Media $media)
     {
-        if (auth()->user()->can('create posts')) {
-            $post = Post::find($request->input('post_id'));
-            $post_media = $post->getMedia('files')->where('id', $media->id)->first();
-            if (is_null($post_media)) {
-                $post_media = $post->getMedia('images')->where('id', $media->id)->first();
-            }
-            if (!is_null($post_media)) {
-                $media->delete();
-                return redirect()->back()->with([
-                    'type' => 'success',
-                    'Meldung' => 'Datei entfernt'
-                ]);
-            }
+        $post = Post::find($request->input('post_id'));
 
+        if (! $post || ! auth()->user()->can('update', $post)) {
+            return redirect()->back()->with([
+                'type' => 'warning',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        if ($media->model_type !== Post::class || (int) $media->model_id !== $post->id) {
             return redirect()->back()->with([
                 'type' => 'warning',
                 'Meldung' => 'Datei nicht gefunden oder gehört nicht zum Post'
             ]);
         }
 
+        $media->delete();
+
         return redirect()->back()->with([
-            'type' => 'warning',
-            'Meldung' => 'Berechtigung fehlt'
+            'type' => 'success',
+            'Meldung' => 'Datei entfernt'
         ]);
     }
 }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Exports\AbsenceExport;
 use App\Http\Requests\CreateAbsenceRequest;
 use App\Models\Absence;
+use App\Models\AbsenceSerie;
 use App\Models\User;
+use App\Services\AbsenceSerieService;
 use App\Services\AbsenceService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\View\View;
@@ -32,13 +34,13 @@ class AbsenceController extends Controller
      * Übersicht aller Abwesenheiten – serverseitig gefiltert und seitenweise
      * (vorher wurden alle Abwesenheiten aller Jahre geladen und im Browser gefiltert).
      */
-    public function index(Request $request, AbsenceService $service): View
+    public function index(Request $request, AbsenceService $service, AbsenceSerieService $serien): View
     {
         $user = $request->user();
         $filter = $this->filter($request);
 
         $absences = $this->gefiltert($filter)
-            ->with(['user', 'creator'])
+            ->with(['user', 'creator', 'serie'])
             ->paginate(25)
             ->withQueryString();
 
@@ -60,6 +62,7 @@ class AbsenceController extends Controller
             'darfKrankenschein' => $user->can('create absences'),
             'zeigeKrankenschein' => $user->can('manage sick_notes'),
             'service' => $service,
+            'serienService' => $serien,
         ]);
     }
 
@@ -67,8 +70,22 @@ class AbsenceController extends Controller
      * @param CreateAbsenceRequest $request
      * @return RedirectResponse
      */
-    public function store(CreateAbsenceRequest $request, AbsenceService $absences){
-        $absence = $absences->melden($request->user(), $request->validated());
+    public function store(CreateAbsenceRequest $request, AbsenceService $absences, AbsenceSerieService $serien){
+        $daten = $request->validated();
+
+        if ($request->boolean('wiederkehrend')) {
+            unset($daten['wiederkehrend'], $daten['sick_note_required'], $daten['before']);
+            ['serie' => $serie, 'angelegt' => $angelegt, 'uebersprungen' => $uebersprungen] = $serien->anlegen($request->user(), $daten);
+
+            return redirect()->back()->with([
+                'type' => 'success',
+                'Meldung' => 'Wiederkehrende Abwesenheit für '.$serie->user->name.' gespeichert: '
+                    .$angelegt.' '.($angelegt === 1 ? 'Termin' : 'Termine').' angelegt'
+                    .($uebersprungen > 0 ? ', '.$uebersprungen.' übersprungen (bereits abwesend)' : '').'.',
+            ]);
+        }
+
+        $absence = $absences->melden($request->user(), $daten);
 
         return redirect()->back()->with([
             'type' => 'success',
@@ -111,11 +128,31 @@ class AbsenceController extends Controller
     }
 
     /**
+     * Alle zukünftigen Termine einer wiederkehrenden Abwesenheit löschen – vergangene bleiben als Nachweis.
+     */
+    public function destroySerie(AbsenceSerie $serie, AbsenceSerieService $serien): RedirectResponse
+    {
+        if (!$serien->darfLoeschen(auth()->user(), $serie)) {
+            return redirect()->back()->with([
+                'type' => 'danger',
+                'Meldung' => 'Berechtigung fehlt'
+            ]);
+        }
+
+        $anzahl = $serien->zukuenftigeLoeschen(auth()->user(), $serie);
+
+        return redirect()->back()->with([
+            'type' => 'info',
+            'Meldung' => $anzahl.' zukünftige '.($anzahl === 1 ? 'Termin' : 'Termine').' der Serie gelöscht'
+        ]);
+    }
+
+    /**
      * Excel-Export – übernimmt die Filter der Übersicht.
      */
     public function export(Request $request){
         $filter = $this->filter($request);
-        $absences = $this->gefiltert($filter)->with(['user', 'creator'])->get();
+        $absences = $this->gefiltert($filter)->with(['user', 'creator', 'serie'])->get();
 
         return Excel::download(new AbsenceExport($absences), 'Abwesenheiten_'.Carbon::now()->format('Y-m-d').'.xlsx');
     }

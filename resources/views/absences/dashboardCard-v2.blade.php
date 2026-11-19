@@ -88,6 +88,8 @@
                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
             </div>
 
+            @include('absences.partials.serie')
+
             <button type="submit"
                     class="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
                 <i class="fas fa-save mr-1"></i> Speichern

@@ -83,6 +83,18 @@
             </div>
             <div class="form-row mt-2">
                 <div class="col-12">
+                    @include('absences.partials.serie', ['serienKlassen' => [
+                        'label' => 'd-block mb-1',
+                        'select' => 'custom-select',
+                        'check' => 'mr-3 mb-0',
+                        'hinweis' => 'small text-muted mb-0',
+                        'fehler' => 'small text-danger mb-0',
+                        'zeile' => '',
+                    ]])
+                </div>
+            </div>
+            <div class="form-row mt-2">
+                <div class="col-12">
                     <button type="submit" class="btn btn-success btn-block">speichern</button>
                 </div>
             </div>

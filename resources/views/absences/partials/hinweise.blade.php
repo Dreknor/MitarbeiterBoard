@@ -1,5 +1,8 @@
 {{-- Kennzeichen einer Abwesenheit (Übersicht) --}}
 <div class="flex flex-wrap gap-1">
+    @if($absence->serie_id !== null && $absence->serie)
+        <span class="abw-badge abw-badge-blue" title="Wiederkehrend: {{ $absence->serie->beschreibung() }}"><i class="fas fa-redo-alt"></i> Serie</span>
+    @endif
     @if($absence->showVertretungsplan)
         <span class="abw-badge abw-badge-violet" title="Wird auf dem Vertretungsplan angezeigt"><i class="fas fa-columns"></i> Vertretungsplan</span>
     @endif

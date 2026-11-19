@@ -575,6 +575,7 @@ Route::group([
                     Route::post('absences', [AbsenceController::class, 'store'])->name('absences.store');
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence'])->name('absences.export');
                     // Löschen nur per DELETE (früher GET-Link ohne CSRF-Schutz)
+                    Route::delete('absences/serie/{serie}', [AbsenceController::class, 'destroySerie'])->name('absences.serie.destroy');
                     Route::delete('absences/{absence}', [AbsenceController::class, 'destroy'])->name('absences.destroy');
                     // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
@@ -650,10 +651,20 @@ Route::group([
                 Route::get('/', [HomeController::class, 'index']);
                 Route::post('cards/disable', [DashboardController::class, 'disableCard']);
 
-                //Posts
-                Route::resource('posts', PostsController::class);
-                Route::get('posts/{post}/release', [PostsController::class, 'release']);
-                Route::get('posts/{post}/archive', [PostsController::class, 'archive'])->middleware('permission:create posts');
+                // Nachrichten (Dashboard + Gruppen, Lesebestätigung) – Zugriff über PostPolicy
+                Route::resource('posts', PostsController::class)->whereNumber('post');
+                Route::prefix('posts/{post}')->whereNumber('post')->name('posts.')->group(function () {
+                    Route::post('release', [PostsController::class, 'release'])->name('release');
+                    Route::post('archive', [PostsController::class, 'archive'])->name('archive');
+                    Route::post('restore', [PostsController::class, 'restore'])->name('restore');
+                    Route::post('confirm', [PostsController::class, 'confirm'])->name('confirm');
+                    Route::post('remind', [PostsController::class, 'remind'])->name('remind');
+                    Route::get('bestaetigungen', [PostsController::class, 'confirmations'])->name('confirmations');
+                    Route::get('bestaetigungen/excel', [PostsController::class, 'confirmationsExcel'])->name('confirmations.excel');
+                    Route::get('bestaetigungen/pdf', [PostsController::class, 'confirmationsPdf'])->name('confirmations.pdf');
+                    Route::get('dateien/{media}', [PostsController::class, 'file'])->whereNumber('media')->name('files');
+                    Route::delete('dateien/{media}', [PostsController::class, 'removeFile'])->whereNumber('media')->name('files.destroy');
+                });
 
 
                 //globale Suche
@@ -784,6 +795,7 @@ Route::group([
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
+                Route::get('{groupname}/nachrichten', [PostsController::class, 'gruppe'])->name('groups.posts');
 
 
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);

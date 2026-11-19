@@ -14,7 +14,7 @@ class Absence extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['users_id', 'holiday_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];
+    protected $fillable = ['users_id', 'holiday_id', 'serie_id', 'creator_id', 'reason', 'start', 'end', 'before', 'showVertretungsplan', 'sick_note_required', 'sick_note_date'];
 
     protected $casts = [
         'start' =>  'date',
@@ -119,6 +119,14 @@ class Absence extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id')->withDefault(['name' => 'System']);
+    }
+
+    /**
+     * Wiederkehrende Abwesenheit, aus der dieser Termin stammt (null = einzelne Abwesenheit).
+     */
+    public function serie()
+    {
+        return $this->belongsTo(AbsenceSerie::class, 'serie_id')->withTrashed();
     }
 
     public function holiday(){
