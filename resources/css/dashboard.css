@@ -12,6 +12,7 @@
 @source "../views/tasks/tasksCard-v2.blade.php";
 @source "../views/procedure/dashboardCard-v2.blade.php";
 @source "../views/absences/dashboardCard-v2.blade.php";
+@source "../views/absences/partials/serie.blade.php";
 @source "../views/personal/holidays/dashboardCard-v2.blade.php";
 @source "../views/personal/time_recording/dashboardCard-v2.blade.php";
 @source "../views/personal/time_recording/dashboardCardOwn-v2.blade.php";

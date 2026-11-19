@@ -36,6 +36,7 @@ class AbsenceExport implements FromCollection, WithHeadings, WithMapping, Should
             $row->showVertretungsplan ? 'ja' : 'nein',
             $row->holiday_id !== null ? 'ja' : 'nein',
             $row->creator->name,
+            $row->serie?->beschreibung() ?? '',
         ];
     }
 
@@ -51,12 +52,13 @@ class AbsenceExport implements FromCollection, WithHeadings, WithMapping, Should
             'Vertretungsplan',
             'aus Urlaub',
             'eingetragen von',
+            'Serie',
         ];
     }
 
     public function collection(): Collection
     {
         return $this->absences
-            ?? Absence::query()->with(['user', 'creator'])->orderByDesc('start')->get();
+            ?? Absence::query()->with(['user', 'creator', 'serie'])->orderByDesc('start')->get();
     }
 }

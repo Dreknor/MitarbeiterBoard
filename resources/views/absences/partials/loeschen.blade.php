@@ -14,3 +14,13 @@
         <i class="fas fa-lock text-xs"></i>
     </span>
 @endif
+@if($absence->serie_id !== null && $absence->serie && isset($serienService) && $serienService->hatLoeschbareTermine(auth()->user(), $absence->serie))
+    <form action="{{ route('absences.serie.destroy', $absence->serie) }}" method="post" class="inline-block"
+          onsubmit="return confirm(@js('Alle zukünftigen Termine der Serie von '.$absence->user->name.' ('.$absence->serie->rhythmusText().') löschen? Vergangene Termine bleiben erhalten.'))">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="abw-btn-icon" title="Alle zukünftigen Termine der Serie löschen" aria-label="Alle zukünftigen Termine der Serie löschen">
+            <i class="fas fa-calendar-times"></i>
+        </button>
+    </form>
+@endif

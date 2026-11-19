@@ -575,6 +575,7 @@ Route::group([
                     Route::post('absences', [AbsenceController::class, 'store'])->name('absences.store');
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence'])->name('absences.export');
                     // Löschen nur per DELETE (früher GET-Link ohne CSRF-Schutz)
+                    Route::delete('absences/serie/{serie}', [AbsenceController::class, 'destroySerie'])->name('absences.serie.destroy');
                     Route::delete('absences/{absence}', [AbsenceController::class, 'destroy'])->name('absences.destroy');
                     // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
