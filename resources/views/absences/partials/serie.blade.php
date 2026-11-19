@@ -100,8 +100,9 @@
             </select>
         </div>
 
-        @foreach(['rhythmus', 'wochentage', 'intervall', 'monat_position', 'monat_wochentag'] as $feld)
-            @error($feld)<p class="{{ $k['fehler'] }}">{{ $message }}</p>@enderror
+        {{-- $errors fehlt, wenn die Dashboard-Karte außerhalb der Web-Middleware gerendert wird --}}
+        @foreach(['rhythmus', 'wochentage', 'wochentage.*', 'intervall', 'monat_position', 'monat_wochentag'] as $feld)
+            @if(isset($errors) && $errors->has($feld))<p class="{{ $k['fehler'] }}">{{ $errors->first($feld) }}</p>@endif
         @endforeach
 
         <p class="{{ $k['hinweis'] }}" style="margin-top: .5rem">
