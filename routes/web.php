@@ -819,6 +819,12 @@ Route::group([
                     Route::post('types', [\App\Http\Controllers\TypController::class, 'store']);
                 });
 
+                // Geburtstage aus Excel übernehmen (vor der Resource-Route registrieren)
+                Route::get('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'index'])->name('users.geburtstage.index');
+                Route::get('users/import/geburtstage/vorlage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorlage'])->name('users.geburtstage.vorlage');
+                Route::post('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorschau'])->name('users.geburtstage.vorschau');
+                Route::get('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'show'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.show');
+                Route::post('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'store'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.store');
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);

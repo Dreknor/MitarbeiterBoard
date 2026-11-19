@@ -68,6 +68,9 @@ export default defineConfig({
                 'resources/css/updater.css',
                 'resources/js/updater.js',
 
+                // Benutzerverwaltung: Geburtstags-Import
+                'resources/css/users-import.css',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
 

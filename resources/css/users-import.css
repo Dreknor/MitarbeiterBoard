@@ -1,0 +1,60 @@
+/*
+ * Benutzerverwaltung: Geburtstags-Import – Tailwind CSS v4
+ *
+ * Architektur: siehe AGENTS.md
+ *   - Preflight deaktiviert (Bootstrap 4 Koexistenz)
+ *   - Alle Stile über .uim-wrapper gescopet, Komponenten mit Präfix uim-
+ *   - Utilities ungelayert + !important (wie tickets.css), damit Bootstrap sie nicht überschreibt
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/users/geburtstage/**/*.blade.php";
+@source not inline("container collapse table");
+
+.uim-wrapper {
+    box-sizing: border-box;
+    color: #111827;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1100px;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 640px) { .uim-wrapper { padding: 1rem .75rem 5rem; } }
+.uim-wrapper *, .uim-wrapper *::before, .uim-wrapper *::after { box-sizing: border-box; }
+.uim-wrapper :is(h1, h2, h3, h4) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.35; color: inherit; }
+.uim-wrapper p { margin: 0; }
+.uim-wrapper a { text-decoration: none; }
+.uim-wrapper ul, .uim-wrapper ol { margin: 0; }
+.uim-wrapper label { margin: 0; }
+.uim-wrapper form { margin: 0; }
+.uim-wrapper details > summary { cursor: pointer; list-style: none; }
+.uim-wrapper details > summary::-webkit-details-marker { display: none; }
+
+.uim-wrapper .uim-card {
+    @apply rounded-2xl border border-gray-200 bg-white shadow-sm;
+}
+
+.uim-wrapper .uim-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2.5 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.5rem;
+}
+.uim-wrapper .uim-btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500; }
+.uim-wrapper .uim-btn-primary:hover { color: #fff; }
+.uim-wrapper .uim-btn-secondary { @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus-visible:ring-gray-400; }
+.uim-wrapper .uim-btn-secondary:hover { color: #374151; }
+
+.uim-wrapper .uim-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.uim-wrapper .uim-table th {
+    @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-2 bg-gray-50;
+}
+.uim-wrapper .uim-table td { @apply px-4 py-2 border-t border-gray-100 align-top; }
+
+.uim-wrapper .uim-file {
+    @apply block w-full text-sm text-gray-700 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4;
+}
