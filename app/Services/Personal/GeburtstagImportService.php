@@ -5,8 +5,10 @@ namespace App\Services\Personal;
 use App\Models\personal\EmployeData;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -59,14 +61,23 @@ class GeburtstagImportService
      *
      * @return list<array{zeile: int, email: string, wert: mixed}>
      *
+     * Hochgeladene Dateien als UploadedFile übergeben: Der Dateityp wird dann aus
+     * dem Originalnamen bestimmt. Temporäre Upload-Pfade haben unter Linux keine
+     * Endung, daran scheitert sonst die Typerkennung von Laravel-Excel.
+     *
      * @throws \InvalidArgumentException
      */
-    public function lesen(string $pfad): array
+    public function lesen(string|UploadedFile $datei): array
     {
         try {
-            $blaetter = Excel::toArray(new \stdClass(), $pfad);
+            $blaetter = Excel::toArray(new \stdClass(), $datei);
         } catch (\Throwable $e) {
-            throw new \InvalidArgumentException('Die Datei konnte nicht gelesen werden. Bitte eine Excel-Datei (.xlsx, .xls) oder CSV hochladen.');
+            Log::warning('Geburtstags-Import: Datei nicht lesbar', [
+                'datei'  => $datei instanceof UploadedFile ? $datei->getClientOriginalName() : $datei,
+                'fehler' => get_class($e) . ': ' . $e->getMessage(),
+            ]);
+
+            throw new \InvalidArgumentException('Die Datei konnte nicht gelesen werden. Bitte eine Excel-Datei (.xlsx, .xls, .ods) hochladen.');
         }
 
         $zeilen = $blaetter[0] ?? [];

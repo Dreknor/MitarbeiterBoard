@@ -150,6 +150,20 @@ class GeburtstagImportTest extends TestCase
     }
 
     /** @test */
+    public function upload_mit_temporaerem_pfad_ohne_endung_wird_gelesen(): void
+    {
+        // Unter Linux liegen Uploads als /tmp/phpXXXX ohne Dateiendung
+        $this->actingAsWithPermission('edit users');
+        $mitEndung = $this->datei([['Geburtstag', 'Name', 'E-Mail'], ['01.01.1974', 'A', 'a@example.org']]);
+        $ohneEndung = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpupload' . bin2hex(random_bytes(4));
+        rename($mitEndung->getPathname(), $ohneEndung);
+
+        $this->post(route('users.geburtstage.vorschau'), [
+            'datei' => new UploadedFile($ohneEndung, 'Auswertung.xlsx', null, null, true),
+        ])->assertSessionHasNoErrors()->assertRedirect();
+    }
+
+    /** @test */
     public function datei_ohne_passende_kopfzeile_wird_abgelehnt(): void
     {
         $this->actingAsWithPermission('edit users');

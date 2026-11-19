@@ -49,7 +49,7 @@ class GeburtstagImportController extends Controller
         }
 
         try {
-            $zeilen = $this->import->lesen($datei->getRealPath());
+            $zeilen = $this->import->lesen($datei);
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['datei' => $e->getMessage()]);
         }
