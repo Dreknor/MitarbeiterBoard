@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AbsenceController;
+use App\Http\Controllers\KrankmeldungController;
 use App\Http\Controllers\Auth\ExpiredPasswordController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DailyNewsController;
@@ -570,20 +571,24 @@ Route::group([
 
                 //absences
                 Route::middleware(['permission:view absences'])->group(function () {
-                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences']);
-                    Route::post('absences', [AbsenceController::class, 'store']);
-                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence']);
-                    Route::get('absences/{absence}/delete', [AbsenceController::class, 'delete']);
+                    Route::get('absences', [AbsenceController::class, 'index'])->middleware(['permission:view old absences'])->name('absences.index');
+                    Route::post('absences', [AbsenceController::class, 'store'])->name('absences.store');
+                    Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence'])->name('absences.export');
+                    // Löschen nur per DELETE (früher GET-Link ohne CSRF-Schutz)
+                    Route::delete('absences/serie/{serie}', [AbsenceController::class, 'destroySerie'])->name('absences.serie.destroy');
+                    Route::delete('absences/{absence}', [AbsenceController::class, 'destroy'])->name('absences.destroy');
                     // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
                 });
 
+                // Krankmeldungen: Krankenscheine, Auswertungen, Export (Änderungen nur per POST/DELETE)
                 Route::middleware(['permission:manage sick_notes'])->group(function () {
-                    Route::get('sick_notes', [AbsenceController::class, 'sick_notes_index']);
-                    Route::get('sick_notes/export', [AbsenceController::class, 'sick_notes_export']);
-                    Route::get('sick_notes/export/user/{user}', [AbsenceController::class, 'sick_notes_export_user']);
-                    Route::get('sick_notes/{absence}/set_note_date', [AbsenceController::class, 'sick_notes_update']);
-                    Route::get('sick_notes/{absence}/sick_note_remove', [AbsenceController::class, 'sick_notes_remove']);
+                    Route::get('sick_notes', [KrankmeldungController::class, 'index'])->name('sick_notes.index');
+                    Route::get('sick_notes/export', [KrankmeldungController::class, 'export'])->name('sick_notes.export');
+                    Route::get('sick_notes/export/user/{user}', [KrankmeldungController::class, 'exportPerson'])->name('sick_notes.export.user');
+                    Route::post('sick_notes/{absence}/schein', [KrankmeldungController::class, 'scheinErfassen'])->name('sick_notes.schein');
+                    Route::delete('sick_notes/{absence}/schein', [KrankmeldungController::class, 'scheinEntfernen'])->name('sick_notes.schein.entfernen');
+                    Route::post('sick_notes/{absence}/pflicht', [KrankmeldungController::class, 'pflicht'])->name('sick_notes.pflicht');
                 });
 
                 //Inventar
@@ -1072,6 +1077,7 @@ Route::group([
                         Route::put('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'updateGlobalCategory'])->name('paedDiary.categories.updateGlobal');
                         Route::delete('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'deleteGlobalCategory'])->name('paedDiary.categories.deleteGlobal');
                         Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
+                        Route::post('paed-diary/column-groups/bis-wochenende', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'setColumnGroupBisWochenende'])->name('paedDiary.columnGroups.bisWochenende');
                     });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
                     // Persönliche Darstellung (bisherige/neue Ansicht, Layout, Schrift, Tour)

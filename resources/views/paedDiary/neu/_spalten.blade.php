@@ -36,7 +36,20 @@
 
                         <template x-for="[gruppe, spalten] in groupedColumns" :key="'sg' + gruppe">
                             <div class="pdn-spaltengruppe">
-                                <div class="pdn-spaltengruppe__kopf" x-text="gruppe === 'Unkategorisiert' ? 'Ohne Gruppe' : gruppe"></div>
+                                <div class="pdn-spaltengruppe__kopf" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    <span x-text="gruppe === 'Unkategorisiert' ? 'Ohne Gruppe' : gruppe"></span>
+                                    {{-- „Gilt bis Freitag“: für die ganze Spaltengruppe (alle Klassen), nur Ja/Nein- und Ampel-Spalten --}}
+                                    <template x-if="gruppe !== 'Unkategorisiert' && darfBisWochenende">
+                                        <label class="pdn-switch" style="font-size:.85em;gap:6px;font-weight:normal"
+                                               title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag (Ja/Nein- und Ampel-Spalten, alle Klassen)">gilt bis Freitag
+                                            <input type="checkbox" :checked="gruppeNameBisWochenende(gruppe)"
+                                                   @change="setGruppeBisWochenende(gruppe, $event.target.checked)"><i></i>
+                                        </label>
+                                    </template>
+                                    <template x-if="gruppe !== 'Unkategorisiert' && !darfBisWochenende && gruppeNameBisWochenende(gruppe)">
+                                        <span class="pdn-tag pdn-tag--bisfr" title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag"><i class="fas fa-calendar-week" aria-hidden="true"></i> gilt bis Freitag</span>
+                                    </template>
+                                </div>
                                 <template x-for="col in spalten" :key="'sp' + col.id">
                                     <div class="pdn-spalte" :class="col.deactivated_from && 'is-aus'">
                                         <div class="pdn-spalte__zeile">

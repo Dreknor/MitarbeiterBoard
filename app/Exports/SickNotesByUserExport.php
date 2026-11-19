@@ -2,72 +2,59 @@
 
 namespace App\Exports;
 
+use App\Models\Absence;
+use App\Services\KrankmeldungService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class SickNotesByUserExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithTitle
+/**
+ * Krankmeldungen einer Person (/sick_notes/export/user/{user}) im gewählten Zeitraum.
+ */
+class SickNotesByUserExport implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize
 {
-    private Int $rows = 0;
-    private Collection $absences;
-    private string $userName;
+    private int $rows = 0;
 
-    public function __construct(Collection $absences, string $userName)
-    {
-        $this->absences = $absences;
-        $this->userName = $userName;
+    public function __construct(
+        private readonly KrankmeldungService $service,
+        private readonly Collection $absences,
+        private readonly string $userName,
+    ) {
     }
 
+    /**
+     * @param Absence $row
+     */
     public function map($row): array
     {
-        $sickNoteDaysThreshold = settings('absence_sick_note_days', 'absences') ?? config('absences.absence_sick_note_days');
-
         return [
             ++$this->rows,
             $row->reason,
             $row->start->format('d.m.Y'),
             $row->end->format('d.m.Y'),
-            $row->days,
-            $row->sick_note_date ? $row->sick_note_date->format('d.m.Y') :
-                (($row->sick_note_required or $row->days >= $sickNoteDaysThreshold) ? 'Benötigt' : '-'),
+            $this->service->kalendertage($row),
+            $this->service->arbeitstage($row),
+            KrankmeldungService::STATUS[$this->service->status($row)],
+            $row->sick_note_date?->format('d.m.Y') ?? '',
         ];
     }
 
     public function headings(): array
     {
-        return [
-            '#',
-            'Grund',
-            'Von',
-            'Bis',
-            'Dauer (Tage)',
-            'Krankenschein'
-        ];
+        return ['#', 'Grund', 'Von', 'Bis', 'Kalendertage', 'Arbeitstage', 'Krankenschein', 'Schein erfasst am'];
     }
 
-    /**
-     * @return Collection
-     */
     public function collection(): Collection
     {
         return $this->absences;
     }
 
-    public function columnFormats(): array
-    {
-        return [
-            'C' => NumberFormat::FORMAT_DATE_DDMMYYYY,
-            'D' => NumberFormat::FORMAT_DATE_DDMMYYYY,
-            'F' => NumberFormat::FORMAT_DATE_DDMMYYYY,
-        ];
-    }
-
     public function title(): string
     {
-        return substr($this->userName, 0, 31); // Excel sheet name limit
+        // Excel: max. 31 Zeichen, keine Sonderzeichen : \ / ? * [ ]
+        return KrankmeldungService::sichererName($this->userName);
     }
 }

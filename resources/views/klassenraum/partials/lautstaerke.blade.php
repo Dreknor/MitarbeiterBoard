@@ -112,6 +112,16 @@
             <input type="range" min="5" max="100" step="5" data-einstellung="musikLautstaerke">
             <small>Die Musik wird beim Messen herausgerechnet, soweit der Browser das kann. Reagiert die Szene schon auf die Musik, die Musik leiser stellen.</small>
         </label>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="weihnachtsmusik">
+            <span><b>Weihnachtsmusik im Advent</b><small>Vom 1. Advent bis zum 26. Dezember laufen ruhige Weihnachtslieder, meist am Klavier.</small></span>
+        </label>
+        <p class="krt-lizenz">
+            Weihnachtsmusik: {{ collect(\App\Support\KlassenraumTools::WEIHNACHTSMUSIK)->pluck('titel')->map(fn ($titel) => '„'.$titel.'“')->join(', ') }}
+            – Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>),
+            Licensed under Creative Commons: By Attribution 4.0
+            (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">creativecommons.org/licenses/by/4.0</a>)
+        </p>
     </section>
 
     <section class="krt-panel-abschnitt">
@@ -124,6 +134,29 @@
             <span><b>Tempo</b><em data-anzeige="tempo" data-format="prozent"></em></span>
             <input type="range" min="30" max="150" step="10" data-einstellung="tempo">
         </label>
+        <label class="krt-regler">
+            <span><b>Klassentier</b></span>
+            <select class="krt-auswahl" data-einstellung="klassentier">
+                @foreach(\App\Support\KlassenraumTools::KLASSENTIERE as $index => $tier)
+                    <option value="{{ $index }}">{{ $tier }}</option>
+                @endforeach
+            </select>
+            <small>Guckt ab und zu hervor, wenn es eine Weile ruhig ist – das Maskottchen eurer Klasse.</small>
+        </label>
+        <label class="krt-schalter">
+            <input type="checkbox" data-einstellung="weihnachtskostuem">
+            <span><b>Weihnachtsmütze im Advent</b><small>Vom 1. Advent bis zum 26. Dezember trägt das Klassentier eine Weihnachtsmütze.</small></span>
+        </label>
+        @isset($tool['auswahl'])
+            <label class="krt-regler">
+                <span><b>{{ $tool['auswahl']['titel'] }}</b></span>
+                <select class="krt-auswahl" data-einstellung="{{ $tool['auswahl']['einstellung'] }}">
+                    @foreach($tool['auswahl']['optionen'] as $index => $option)
+                        <option value="{{ $index }}">{{ $option }}</option>
+                    @endforeach
+                </select>
+            </label>
+        @endisset
     </section>
 
     <section class="krt-panel-abschnitt">
@@ -147,3 +180,5 @@
         <p>Tastatur: <kbd>M</kbd> Mikrofon · <kbd>T</kbd> Musik · <kbd>F</kbd> Vollbild · <kbd>Leertaste</kbd> Pause</p>
     </div>
 </aside>
+
+<script type="application/json" id="krt-weihnachtsmusik">@json(\App\Support\KlassenraumTools::weihnachtsmusik())</script>

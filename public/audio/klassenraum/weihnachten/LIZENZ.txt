@@ -1,0 +1,25 @@
+Weihnachtsmusik der Klassenraum-Tools (Lautstärke-Szenen, Adventszeit)
+=====================================================================
+
+Alle Stücke: Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0
+https://creativecommons.org/licenses/by/4.0/
+
+Für den Einsatz umgewandelt (Lautheit angeglichen, Mono, 80 kbit/s MP3).
+Quelle der Originaldateien: https://incompetech.com/music/royalty-free/
+
+stille-nacht.mp3                       "Silent Night"
+oh-holy-night.mp3                      "Oh Holy Night"
+little-town-of-bethlehem.mp3           "Oh, Little Town of Bethlehem"
+deck-the-halls.mp3                     "Deck the Halls A"
+angels-we-have-heard-on-high.mp3       "Angels We Have Heard on High" (Piano)
+what-child-is-this.mp3                 "What Child is This"
+it-came-upon-a-midnight-clear.mp3      "It Came Upon a Midnight Clear"
+jingle-bells.mp3                       "Jingle Bells" (Version 3)
+we-wish-you-a-merry-christmas.mp3      "We Wish you a Merry Christmas"
+adeste-fideles.mp3                     "Adeste Fideles Waltz"
+jesu-joy-of-mans-desiring.mp3          "Jesu, Joy of Man's Desiring"
+dance-of-the-sugar-plum-fairies.mp3    "Dance of the Sugar Plum Fairies"
+
+Die Nennung wird in den Einstellungen jeder Lautstärke-Szene angezeigt
+(resources/views/klassenraum/partials/lautstaerke.blade.php).

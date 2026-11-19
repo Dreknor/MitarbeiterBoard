@@ -2,11 +2,17 @@
  * Szene „Aquarium“: Fische ziehen ruhig ihre Bahnen. Steigt die Unruhe, verstecken sie
  * sich nacheinander hinter den Felsen, Pflanzen wiegen stärker und das Wasser trübt ein.
  *
- * Seltene Besuche (nur bei Ruhe): Meeresschildkröte, Qualle, Seepferdchen.
+ * Bewohner: Korallenriff (Ast-, Hirn-, Fächer-, Röhren- und Weichkorallen), Seeanemone mit zwei
+ * Clownfischen (verkriechen sich bei Lärm), Krabben (flüchten unter die Felsen), Seesterne,
+ * Seeigel, eine Schnecke (zieht sich ins Haus zurück) und eine Muräne in der Felsspalte.
+ *
+ * Seltene Besuche (nur bei Ruhe): Meeresschildkröte, Qualle, Seepferdchen, Rochen,
+ * Kugelfisch (bläst sich bei Lärm auf).
  */
 
-import {ellipse, glatt, klemme, mischeFarbe, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
+import {ellipse, glatt, klemme, mische, mischeFarbe, mitAlpha, zufall, zufallAus, zufallMitSaat} from '../shared/hilfen';
 import {Besuchsplaner, blende} from '../shared/besuche';
+import {Klassenmaus, mausBesuch} from '../shared/maus';
 
 const ARTEN = [
     {koerper: '#f59e0b', bauch: '#fde68a', flosse: '#ea580c', streifen: null, form: 0.34},
@@ -21,6 +27,20 @@ const ARTEN = [
 ];
 
 const KORALLEN = ['#f97362', '#fb923c', '#f472b6', '#c084fc', '#fbbf24'];
+const RIFF_FARBEN = {
+    ast: KORALLEN,
+    hirn: ['#d9a066', '#c7b35a', '#b98b5e'],
+    faecher: ['#a855f7', '#f97316', '#ec4899'],
+    roehren: ['#facc15', '#fb923c', '#f87171'],
+    weich: ['#f9a8d4', '#c4b5fd', '#fdba74'],
+};
+
+function linieZiehen(ctx, x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+}
 
 export function erzeugeAquarium() {
     let b = 0;
@@ -30,6 +50,14 @@ export function erzeugeAquarium() {
     let pflanzenHinten = [];
     let pflanzenVorne = [];
     let korallen = [];
+    let anemone = null;
+    let clowns = [];
+    let krabben = [];
+    let seesterne = [];
+    let seeigel = [];
+    let schnecke = null;
+    let muraene = null;
+    let anemoneOffen = 1;
     let kiesel = [];
     let strahlen = [];
     const fische = [];
@@ -112,12 +140,36 @@ export function erzeugeAquarium() {
                 }
             });
 
-            korallen = Array.from({length: 5}, (_, i) => ({
-                x: b * (0.08 + i * 0.21) + zz.zwischen(-0.04, 0.04) * b,
-                groesse: Math.min(b, h) * zz.zwischen(0.06, 0.1),
-                farbe: zz.aus(KORALLEN),
-                saat: 100 + i,
+            // Korallenriff: verschiedene Arten über den ganzen Boden verteilt
+            const typen = ['ast', 'hirn', 'faecher', 'roehren', 'weich'];
+            korallen = Array.from({length: 13}, (_, i) => {
+                const typ = typen[(i * 3 + 1) % typen.length];
+                return {
+                    typ,
+                    x: (0.03 + i * 0.076 + zz.zwischen(-0.015, 0.015)) * b,
+                    tiefe: zz.zwischen(0, 0.05),
+                    groesse: Math.min(b, h) * zz.zwischen(0.065, 0.11),
+                    farbe: zz.aus(RIFF_FARBEN[typ]),
+                    saat: 100 + i,
+                    phase: zz.zwischen(0, 6),
+                };
+            });
+            const einheit = Math.min(b, h);
+            anemone = {x: b * 0.37, groesse: einheit * 0.1};
+            clowns = [0, Math.PI].map((phase) => ({
+                art: ARTEN[1], laenge: einheit * 0.045, phase, x: anemone.x, y: sandY, vx: 0, vy: 0, richtung: 1, winkel: phase,
             }));
+            krabben = [0.3, 0.74].map((anteil, i) => ({
+                x: b * anteil, zx: b * anteil, richtung: 1, phase: i * 2, warten: 0, alpha: 1, groesse: einheit * 0.032,
+            }));
+            seesterne = [
+                {x: b * 0.47, y: 0.07, farbe: '#fb923c', groesse: einheit * 0.03, drehung: 0.3},
+                {x: b * 0.79, y: 0.09, farbe: '#a855f7', groesse: einheit * 0.026, drehung: 1.1},
+                {fels: 1, dx: -0.25, farbe: '#ef4444', groesse: einheit * 0.028, drehung: 0.7},
+            ];
+            seeigel = [{fels: 2, dx: -0.3, groesse: einheit * 0.022}, {fels: 0, dx: 0.32, groesse: einheit * 0.018}];
+            schnecke = {x: b * 0.62, richtung: -1, raus: 1, groesse: einheit * 0.026};
+            muraene = {fels: 0, raus: 0, phase: 0, maul: 0};
 
             kiesel = Array.from({length: Math.round(b / 9)}, () => ({
                 x: zz.zwischen(0, b),
@@ -351,15 +403,498 @@ export function erzeugeAquarium() {
         };
     }
 
+    function neuerRochen() {
+        const g = klemme(Math.min(b, h) * 0.16, 70, 190);
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const r = {x: richtung > 0 ? -g * 1.5 : b + g * 1.5, y: zufall(h * 0.45, h * 0.62), phase: 0, alpha: 0};
+        return {
+            ebene: 'mitte',
+            schritt(dt, z) {
+                r.x += richtung * (b / 32) * (z.unruhe > 0.45 ? 3 : 1) * dt;
+                r.y += Math.sin(t * 0.4) * 6 * dt;
+                r.phase += dt * 2.2;
+                r.alpha = blende(r.alpha, 1, dt, 0.5);
+                return richtung > 0 ? r.x < b + g * 2 : r.x > -g * 2;
+            },
+            zeichne(ctx) {
+                const welle = Math.sin(r.phase) * g * 0.08;
+                ctx.globalAlpha = r.alpha;
+                ctx.translate(r.x, r.y);
+                ctx.scale(richtung, 1);
+                // Schwanz
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = Math.max(2, g * 0.025);
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-g * 0.3, 0);
+                ctx.quadraticCurveTo(-g * 0.6, Math.sin(r.phase * 0.7) * g * 0.06, -g * 0.85, Math.sin(r.phase * 0.7 + 1) * g * 0.08);
+                ctx.stroke();
+                // Körper mit wellenden Flügelspitzen (leicht von oben gesehen)
+                const koerper = new Path2D();
+                koerper.moveTo(g * 0.38, 0);
+                koerper.quadraticCurveTo(g * 0.15, -g * 0.12 - welle, -g * 0.05, -g * 0.36 - welle);
+                koerper.quadraticCurveTo(-g * 0.12, -g * 0.1, -g * 0.32, 0);
+                koerper.quadraticCurveTo(-g * 0.12, g * 0.1, -g * 0.05, g * 0.26 + welle * 0.5);
+                koerper.quadraticCurveTo(g * 0.15, g * 0.1 + welle * 0.5, g * 0.38, 0);
+                const v = ctx.createLinearGradient(0, -g * 0.35, 0, g * 0.25);
+                v.addColorStop(0, '#64748b');
+                v.addColorStop(1, '#475569');
+                ctx.fillStyle = v;
+                ctx.fill(koerper);
+                ctx.fillStyle = 'rgba(226,232,240,.35)';
+                [[0.05, -0.12], [-0.08, -0.04], [0.12, 0.03], [-0.02, 0.08]].forEach(([fx, fy]) => {
+                    ellipse(ctx, fx * g, fy * g, g * 0.025, g * 0.025);
+                    ctx.fill();
+                });
+                ctx.fillStyle = '#0f172a';
+                ellipse(ctx, g * 0.24, -g * 0.04, g * 0.018, g * 0.018);
+                ctx.fill();
+            },
+        };
+    }
+
+    function neuerKugelfisch() {
+        const g = klemme(Math.min(b, h) * 0.05, 26, 60);
+        const richtung = Math.random() < 0.5 ? 1 : -1;
+        const k = {x: richtung > 0 ? -g * 2 : b + g * 2, y: zufall(h * 0.25, h * 0.55), phase: 0, aufgeblasen: 0};
+        return {
+            ebene: 'mitte',
+            schritt(dt, z) {
+                k.aufgeblasen = blende(k.aufgeblasen, z.unruhe > 0.35 ? 1 : 0, dt, z.unruhe > 0.35 ? 2.5 : 0.4);
+                k.x += richtung * (b / 55) * (1 - k.aufgeblasen * 0.6) * dt;
+                k.y += Math.sin(t * 0.8 + k.phase) * 8 * dt;
+                k.phase += dt * (3 - k.aufgeblasen * 2);
+                return richtung > 0 ? k.x < b + g * 3 : k.x > -g * 3;
+            },
+            zeichne(ctx) {
+                const a = glatt(k.aufgeblasen);
+                const rx = g * mische(0.55, 0.85, a);
+                const ry = g * mische(0.38, 0.82, a);
+                ctx.translate(k.x, k.y);
+                ctx.scale(richtung, 1);
+                // Schwanzflosse
+                ctx.fillStyle = '#ca8a04';
+                ctx.beginPath();
+                ctx.moveTo(-rx * 0.9, 0);
+                ctx.lineTo(-rx * 1.35, -ry * 0.35 + Math.sin(k.phase * 3) * 3);
+                ctx.lineTo(-rx * 1.35, ry * 0.35 + Math.sin(k.phase * 3) * 3);
+                ctx.fill();
+                // Stacheln (nur aufgeblasen)
+                if (a > 0.05) {
+                    ctx.strokeStyle = `rgba(120,80,20,${a})`;
+                    ctx.lineWidth = 1.5;
+                    for (let i = 0; i < 18; i++) {
+                        const w = (i / 18) * Math.PI * 2;
+                        linieZiehen(ctx, Math.cos(w) * rx, Math.sin(w) * ry, Math.cos(w) * (rx + g * 0.18 * a), Math.sin(w) * (ry + g * 0.18 * a));
+                    }
+                }
+                const v = ctx.createLinearGradient(0, -ry, 0, ry);
+                v.addColorStop(0, '#eab308');
+                v.addColorStop(0.6, '#fde047');
+                v.addColorStop(1, '#fef9c3');
+                ctx.fillStyle = v;
+                ellipse(ctx, 0, 0, rx, ry);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(120,80,20,.35)';
+                [[-0.3, -0.35], [0.05, -0.5], [-0.1, -0.1], [0.3, -0.25]].forEach(([fx, fy]) => {
+                    ellipse(ctx, fx * rx, fy * ry, g * 0.06, g * 0.05);
+                    ctx.fill();
+                });
+                ctx.fillStyle = '#ffffff';
+                ellipse(ctx, rx * 0.55, -ry * 0.2, g * 0.12, g * 0.12);
+                ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ellipse(ctx, rx * 0.6, -ry * 0.2, g * 0.06, g * 0.06);
+                ctx.fill();
+                ctx.strokeStyle = '#78350f';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(rx * 0.9, ry * 0.1, g * 0.06, -0.8, 0.8);
+                ctx.stroke();
+            },
+        };
+    }
+
     const besuche = new Besuchsplaner({
         schildkroete: neueSchildkroete,
         qualle: neueQualle,
         seepferdchen: neuesSeepferdchen,
+        rochen: neuerRochen,
+        kugelfisch: neuerKugelfisch,
     });
+
+    // ── Bewohner am Boden ────────────────────────────────────────────────
+    function schrittBewohner(dt, z) {
+        const unruhig = z.unruhe > 0.45;
+
+        // Anemone schließt sich bei Lärm, Clownfische verkriechen sich
+        anemoneOffen = blende(anemoneOffen, unruhig ? 0.3 : 1, dt, unruhig ? 1.5 : 0.4);
+        const anemoneOben = sandHoehe(anemone.x) + h * 0.03 - anemone.groesse * 0.5;
+        clowns.forEach((c, i) => {
+            c.winkel += dt * (0.9 + i * 0.2);
+            const radius = anemone.groesse * 0.7 * anemoneOffen;
+            const nx = anemone.x + Math.cos(c.winkel) * radius;
+            const ny = anemoneOben - anemone.groesse * 0.35 * anemoneOffen + Math.sin(c.winkel * 1.3) * anemone.groesse * 0.2;
+            c.vx = (nx - c.x) / Math.max(dt, 0.001);
+            c.vy = (ny - c.y) / Math.max(dt, 0.001);
+            c.x = nx;
+            c.y = ny;
+            if (Math.abs(c.vx) > 2) c.richtung += (Math.sign(c.vx) - c.richtung) * Math.min(1, dt * 6);
+            c.phase += dt * 6;
+        });
+
+        // Krabben laufen seitwärts über den Sand und flüchten unter die Felsen
+        krabben.forEach((k) => {
+            let ziel = k.zx;
+            if (unruhig) {
+                const fels = felsen.reduce((naechster, f) => (Math.abs(f.x - k.x) < Math.abs(naechster.x - k.x) ? f : naechster), felsen[0]);
+                ziel = fels.x + Math.sign(k.x - fels.x || 1) * fels.b * 0.3;
+            }
+            const dx = ziel - k.x;
+            const tempo = k.groesse * (unruhig ? 6 : 1.6);
+            if (Math.abs(dx) > tempo * dt) {
+                if (k.warten > 0 && !unruhig) {
+                    k.warten -= dt;
+                } else {
+                    k.x += Math.sign(dx) * tempo * dt;
+                    k.phase += dt * (unruhig ? 18 : 9);
+                }
+            } else if (!unruhig) {
+                k.zx = klemme(k.x + zufall(-0.25, 0.25) * b, b * 0.05, b * 0.95);
+                k.warten = zufall(1, 4);
+            }
+            k.alpha = blende(k.alpha, unruhig && Math.abs(dx) < k.groesse * 2 ? 0 : 1, dt, unruhig ? 2 : 0.6);
+        });
+
+        // Schnecke kriecht langsam, zieht sich bei Lärm ins Haus zurück
+        schnecke.raus = blende(schnecke.raus, unruhig ? 0 : 1, dt, unruhig ? 2 : 0.3);
+        if (schnecke.raus > 0.9) {
+            schnecke.x += schnecke.richtung * schnecke.groesse * 0.25 * dt;
+            if (schnecke.x < b * 0.5 || schnecke.x > b * 0.7) schnecke.richtung *= -1;
+        }
+
+        // Muräne schaut regelmäßig aus der Felsspalte
+        muraene.phase += dt;
+        const zyklus = muraene.phase % 14;
+        const zielRaus = unruhig ? 0 : zyklus < 9 ? 1 : 0.15;
+        muraene.raus = blende(muraene.raus, zielRaus, dt, unruhig ? 2.5 : 0.35);
+        muraene.maul = Math.max(0, Math.sin(muraene.phase * 0.9)) * muraene.raus;
+    }
+
+    function zeichneRiffKoralle(ctx, k) {
+        const basis = sandHoehe(k.x) + k.tiefe * h + 3;
+        const s = k.groesse;
+        const zz = zufallMitSaat(k.saat);
+        if (k.typ === 'ast') {
+            zeichneKoralle(ctx, {...k, x: k.x});
+            return;
+        }
+        if (k.typ === 'hirn') {
+            ctx.fillStyle = k.farbe;
+            ctx.beginPath();
+            ctx.ellipse(k.x, basis, s * 0.55, s * 0.45, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(k.x, basis, s * 0.55, s * 0.45, 0, Math.PI, Math.PI * 2);
+            ctx.clip();
+            ctx.strokeStyle = 'rgba(90,60,30,.35)';
+            ctx.lineWidth = Math.max(1.5, s * 0.03);
+            for (let i = 1; i <= 4; i++) {
+                ctx.beginPath();
+                for (let w = Math.PI; w <= Math.PI * 2 + 0.01; w += 0.12) {
+                    const r = 1 - i * 0.2 + Math.sin(w * 9 + i + zz() * 0.5) * 0.04;
+                    const x = k.x + Math.cos(w) * s * 0.55 * r;
+                    const y = basis + Math.sin(w) * s * 0.45 * r;
+                    w === Math.PI ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        } else if (k.typ === 'faecher') {
+            const sway = Math.sin(t * 0.7 + k.phase) * s * 0.05;
+            ctx.fillStyle = mitAlpha(k.farbe, 0.35);
+            ctx.strokeStyle = k.farbe;
+            ctx.lineWidth = Math.max(1.5, s * 0.025);
+            ctx.beginPath();
+            ctx.moveTo(k.x, basis);
+            for (let i = 0; i <= 10; i++) {
+                const w = Math.PI * 1.1 + (i / 10) * Math.PI * 0.8;
+                ctx.lineTo(k.x + Math.cos(w) * s * 0.7 + sway, basis + Math.sin(w) * s * 0.95);
+            }
+            ctx.closePath();
+            ctx.fill();
+            for (let i = 0; i <= 8; i++) {
+                const w = Math.PI * 1.12 + (i / 8) * Math.PI * 0.76;
+                linieZiehen(ctx, k.x, basis, k.x + Math.cos(w) * s * 0.68 + sway, basis + Math.sin(w) * s * 0.92);
+            }
+            for (let r = 0.35; r < 1; r += 0.22) {
+                ctx.beginPath();
+                ctx.ellipse(k.x + sway * r, basis, s * 0.7 * r, s * 0.95 * r, 0, Math.PI * 1.12, Math.PI * 1.88);
+                ctx.stroke();
+            }
+        } else if (k.typ === 'roehren') {
+            for (let i = 0; i < 5; i++) {
+                const x = k.x + (i - 2) * s * 0.17 + zz.zwischen(-3, 3);
+                const hoch = s * zz.zwischen(0.45, 0.95);
+                const breit = s * 0.13;
+                ctx.fillStyle = k.farbe;
+                ctx.fillRect(x - breit / 2, basis - hoch, breit, hoch);
+                ctx.fillStyle = 'rgba(255,255,255,.35)';
+                ctx.fillRect(x - breit / 2, basis - hoch, breit * 0.3, hoch);
+                ctx.fillStyle = '#7c2d12';
+                ellipse(ctx, x, basis - hoch, breit * 0.5, breit * 0.22);
+                ctx.fill();
+            }
+        } else if (k.typ === 'weich') {
+            ctx.lineCap = 'round';
+            for (let i = 0; i < 6; i++) {
+                const neigung = (i - 2.5) * 0.28;
+                const sway = Math.sin(t * 1.1 + k.phase + i) * s * 0.08;
+                const ex = k.x + Math.sin(neigung) * s * 0.7 + sway;
+                const ey = basis - Math.cos(neigung) * s * 0.8;
+                ctx.strokeStyle = k.farbe;
+                ctx.lineWidth = s * 0.14;
+                ctx.beginPath();
+                ctx.moveTo(k.x, basis);
+                ctx.quadraticCurveTo(k.x + Math.sin(neigung) * s * 0.2, basis - s * 0.4, ex, ey);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,.55)';
+                for (let j = 1; j <= 3; j++) {
+                    const p = j / 4;
+                    ellipse(ctx, mische(k.x, ex, p), mische(basis, ey, p), s * 0.025, s * 0.025);
+                    ctx.fill();
+                }
+            }
+        }
+    }
+
+    function zeichneAnemone(ctx, trueb) {
+        const s = anemone.groesse;
+        const basis = sandHoehe(anemone.x) + h * 0.03;
+        const oben = basis - s * 0.5;
+        ctx.fillStyle = mischeFarbe('#be185d', '#5b4a4a', trueb);
+        ctx.beginPath();
+        ctx.moveTo(anemone.x - s * 0.28, basis);
+        ctx.quadraticCurveTo(anemone.x - s * 0.2, oben + s * 0.1, anemone.x - s * 0.32, oben);
+        ctx.lineTo(anemone.x + s * 0.32, oben);
+        ctx.quadraticCurveTo(anemone.x + s * 0.2, oben + s * 0.1, anemone.x + s * 0.28, basis);
+        ctx.fill();
+        clowns.forEach((c) => zeichneFisch(ctx, c, trueb));
+        ctx.lineCap = 'round';
+        const laenge = s * 0.75 * anemoneOffen;
+        for (let i = 0; i < 22; i++) {
+            const anteil = i / 21;
+            const w = -Math.PI * 0.95 + anteil * Math.PI * 0.9;
+            const sway = Math.sin(t * 1.4 + i * 0.7) * s * 0.08 * anemoneOffen;
+            const sx = anemone.x + (anteil - 0.5) * s * 0.6;
+            const ex = sx + Math.cos(w) * laenge * 0.6 + sway;
+            const ey = oben + Math.sin(w) * laenge;
+            ctx.strokeStyle = mischeFarbe('#f472b6', '#7a6a6a', trueb);
+            ctx.lineWidth = Math.max(2, s * 0.06);
+            ctx.beginPath();
+            ctx.moveTo(sx, oben);
+            ctx.quadraticCurveTo(sx + sway, oben - laenge * 0.5, ex, ey);
+            ctx.stroke();
+            ctx.fillStyle = '#fbcfe8';
+            ellipse(ctx, ex, ey, s * 0.04, s * 0.04);
+            ctx.fill();
+        }
+    }
+
+    function zeichneKrabbe(ctx, k) {
+        if (k.alpha <= 0.01) return;
+        const s = k.groesse;
+        const y = sandHoehe(k.x) + h * 0.045;
+        const schritt = Math.sin(k.phase);
+        ctx.save();
+        ctx.globalAlpha = k.alpha;
+        ctx.translate(k.x, y);
+        ctx.strokeStyle = '#b91c1c';
+        ctx.lineWidth = Math.max(1.5, s * 0.12);
+        ctx.lineCap = 'round';
+        for (const seite of [-1, 1]) {
+            for (let i = 0; i < 3; i++) {
+                const knick = seite * s * (1.1 + i * 0.15);
+                const wackeln = (i % 2 ? schritt : -schritt) * s * 0.15;
+                ctx.beginPath();
+                ctx.moveTo(seite * s * 0.5, -s * 0.2 + i * s * 0.12);
+                ctx.lineTo(knick, -s * 0.55 + i * s * 0.15 + wackeln);
+                ctx.lineTo(knick + seite * s * 0.25, s * 0.05);
+                ctx.stroke();
+            }
+        }
+        // Scheren
+        ctx.fillStyle = '#ef4444';
+        for (const seite of [-1, 1]) {
+            linieZiehen(ctx, seite * s * 0.45, -s * 0.45, seite * s * 0.8, -s * 0.95);
+            ellipse(ctx, seite * s * 0.85, -s * 1.05, s * 0.28, s * 0.2, seite * 0.5);
+            ctx.fill();
+        }
+        // Körper und Stielaugen
+        ctx.fillStyle = '#dc2626';
+        ellipse(ctx, 0, -s * 0.35, s * 0.7, s * 0.45);
+        ctx.fill();
+        ctx.strokeStyle = '#991b1b';
+        ctx.lineWidth = Math.max(1, s * 0.07);
+        for (const seite of [-1, 1]) {
+            linieZiehen(ctx, seite * s * 0.2, -s * 0.7, seite * s * 0.25, -s * 1.0);
+            ctx.fillStyle = '#ffffff';
+            ellipse(ctx, seite * s * 0.25, -s * 1.05, s * 0.11, s * 0.11);
+            ctx.fill();
+            ctx.fillStyle = '#0f172a';
+            ellipse(ctx, seite * s * 0.25, -s * 1.05, s * 0.06, s * 0.06);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function zeichneSeestern(ctx, st) {
+        let x = st.x;
+        let y = st.y !== undefined ? sandHoehe(st.x) + st.y * h : 0;
+        if (st.fels !== undefined) {
+            const fels = felsen[st.fels];
+            x = fels.x + st.dx * fels.b;
+            y = fels.y - fels.h * 0.35;
+        }
+        const s = st.groesse;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(st.drehung + Math.sin(t * 0.1) * 0.03);
+        ctx.fillStyle = st.farbe;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+            const w = (i / 10) * Math.PI * 2 - Math.PI / 2;
+            const r = i % 2 === 0 ? s : s * 0.42;
+            const px = Math.cos(w) * r;
+            const py = Math.sin(w) * r * 0.75;
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.45)';
+        for (let i = 0; i < 5; i++) {
+            const w = (i / 5) * Math.PI * 2 - Math.PI / 2;
+            ellipse(ctx, Math.cos(w) * s * 0.5, Math.sin(w) * s * 0.38, s * 0.08, s * 0.08);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function zeichneSeeigel(ctx, si) {
+        const fels = felsen[si.fels];
+        const x = fels.x + si.dx * fels.b;
+        const y = fels.y - fels.h * 0.45;
+        const s = si.groesse;
+        ctx.strokeStyle = '#3b0764';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 20; i++) {
+            const w = Math.PI + (i / 19) * Math.PI;
+            const lang = s * (1.6 + Math.sin(t * 0.8 + i) * 0.08);
+            linieZiehen(ctx, x, y, x + Math.cos(w) * lang, y + Math.sin(w) * lang);
+        }
+        ctx.fillStyle = '#6b21a8';
+        ellipse(ctx, x, y, s, s * 0.8);
+        ctx.fill();
+    }
+
+    function zeichneSchnecke(ctx) {
+        const s = schnecke.groesse;
+        const y = sandHoehe(schnecke.x) + h * 0.06;
+        ctx.save();
+        ctx.translate(schnecke.x, y);
+        ctx.scale(schnecke.richtung, 1);
+        const raus = glatt(schnecke.raus);
+        if (raus > 0.02) {
+            ctx.fillStyle = '#d6c7a1';
+            ctx.beginPath();
+            ctx.moveTo(-s * 0.8, 0);
+            ctx.lineTo(s * (0.4 + 0.8 * raus), 0);
+            ctx.quadraticCurveTo(s * (0.6 + 0.8 * raus), -s * 0.4 * raus, s * 0.3, -s * 0.35);
+            ctx.lineTo(-s * 0.8, -s * 0.1);
+            ctx.fill();
+            ctx.strokeStyle = '#a8977a';
+            ctx.lineWidth = Math.max(1, s * 0.08);
+            linieZiehen(ctx, s * (0.4 + 0.6 * raus), -s * 0.3 * raus, s * (0.55 + 0.75 * raus), -s * 0.85 * raus);
+            ctx.fillStyle = '#1f2937';
+            ellipse(ctx, s * (0.55 + 0.75 * raus), -s * 0.85 * raus, s * 0.07, s * 0.07);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#b45309';
+        ellipse(ctx, -s * 0.15, -s * 0.55, s * 0.6, s * 0.55);
+        ctx.fill();
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = Math.max(1.5, s * 0.1);
+        ctx.beginPath();
+        for (let w = 0; w < Math.PI * 4; w += 0.2) {
+            const r = s * 0.5 * (1 - w / (Math.PI * 4.5));
+            const px = -s * 0.15 + Math.cos(w) * r;
+            const py = -s * 0.55 + Math.sin(w) * r * 0.9;
+            w === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function zeichneMuraene(ctx, trueb) {
+        const fels = felsen[muraene.fels];
+        const x = fels.x + fels.b * 0.18;
+        const y = fels.y - fels.h * 0.15;
+        const s = fels.h * 0.18;
+        ctx.fillStyle = '#111827';
+        ellipse(ctx, x, y, s * 0.9, s * 0.6);
+        ctx.fill();
+        const raus = glatt(muraene.raus);
+        if (raus < 0.02) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - s * 0.9, y - s * 3, s * 6, s * 4);
+        ctx.clip();
+        ctx.translate(x + raus * s * 1.4 - s * 0.6, y);
+        ctx.rotate(-0.25);
+        ctx.fillStyle = mischeFarbe('#7c9a3a', '#4b5a3a', trueb);
+        ctx.beginPath();
+        ctx.moveTo(-s * 1.2, -s * 0.35);
+        ctx.quadraticCurveTo(s * 0.4, -s * 0.55, s * 0.9, -s * 0.12 - muraene.maul * s * 0.12);
+        ctx.lineTo(s * 0.35, 0);
+        ctx.lineTo(s * 0.9, s * 0.12 + muraene.maul * s * 0.12);
+        ctx.quadraticCurveTo(s * 0.4, s * 0.45, -s * 1.2, s * 0.35);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(30,40,20,.35)';
+        [[-0.6, -0.1], [-0.2, 0.15], [0.1, -0.2]].forEach(([fx, fy]) => {
+            ellipse(ctx, fx * s, fy * s, s * 0.09, s * 0.07);
+            ctx.fill();
+        });
+        ctx.fillStyle = '#fde047';
+        ellipse(ctx, s * 0.45, -s * 0.22, s * 0.09, s * 0.09);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ellipse(ctx, s * 0.47, -s * 0.22, s * 0.045, s * 0.045);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // ── Klassenmaus im Taucheranzug: hinter einem Felsen oder am Luftschlauch von oben ──
+    const mausGroesse = () => Math.min(b, h) * 0.065;
+    const felsOrt = (i, seite) => () => {
+        const fels = felsen[i];
+        const s = mausGroesse();
+        return {
+            x: fels.x + seite * fels.b * 0.14, y: fels.y - fels.h * 0.55, s, von: 'unten', taucher: true,
+            clip: (ctx) => ctx.rect(0, 0, b, sandHoehe(fels.x)),
+        };
+    };
+    const maus = new Klassenmaus([
+        {name: 'fels', ebene: 'fels', ort: felsOrt(1, -1)},
+        {name: 'fels-links', ebene: 'fels', ort: felsOrt(0, 1)},
+        {name: 'oben', ebene: 'mitte', ort: () => ({x: b * 0.36, y: h * 0.5, s: mausGroesse(), von: 'oben', taucher: true, schlauch: true})},
+    ]);
 
     function schritt(dt, z) {
         t += dt;
         besuche.schritt(dt, z);
+        maus.schritt(dt, z);
+        schrittBewohner(dt, z);
 
         fische.forEach((f) => {
             if (!f.flieht && z.unruhe > f.mut) f.flieht = true;
@@ -647,14 +1182,23 @@ export function erzeugeAquarium() {
             ctx.fill();
         });
 
-        korallen.forEach((k) => zeichneKoralle(ctx, k));
+        korallen.forEach((k) => zeichneRiffKoralle(ctx, k));
+        seesterne.filter((st) => st.fels === undefined).forEach((st) => zeichneSeestern(ctx, st));
+        zeichneSchnecke(ctx);
 
         // Fische (hinter Felsen und vorderen Pflanzen)
         fische.forEach((f) => zeichneFisch(ctx, f, trueb));
         besuche.zeichne(ctx, 'mitte', z);
+        maus.zeichne(ctx, 'mitte');
+        maus.zeichne(ctx, 'fels');
 
-        // Felsen und Pflanzen vorne
+        // Felsen mit Bewohnern, Anemone, Krabben und Pflanzen vorne
         felsen.forEach((fels) => zeichneFels(ctx, fels, trueb));
+        zeichneMuraene(ctx, trueb);
+        seeigel.forEach((si) => zeichneSeeigel(ctx, si));
+        seesterne.filter((st) => st.fels !== undefined).forEach((st) => zeichneSeestern(ctx, st));
+        zeichneAnemone(ctx, trueb);
+        krabben.forEach((k) => zeichneKrabbe(ctx, k));
         pflanzenVorne.forEach((p) => zeichnePflanze(ctx, p, sway, 1));
 
         // Blasen
@@ -705,6 +1249,6 @@ export function erzeugeAquarium() {
         schritt,
         zeichne,
         info,
-        besuch: (name) => besuche.starte(name),
+        besuch: (name) => mausBesuch(maus, name) ?? besuche.starte(name),
     };
 }

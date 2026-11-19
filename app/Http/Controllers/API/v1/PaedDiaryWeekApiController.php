@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Klasse;
 use App\Models\PaedDiaryClassGroup;
 use App\Models\PaedDiaryColumn;
-use App\Models\PaedDiaryColumnValue;
 use App\Models\PaedDiaryEntry;
 use App\Models\PaedDiaryEntryPause;
 use App\Models\PaedDiaryTask;
@@ -14,6 +13,7 @@ use App\Models\Schueler;
 use App\Models\User;
 use App\Services\PaedDiaryCalendarService;
 use App\Services\PaedDiaryEntryService;
+use App\Services\PaedDiarySpaltenwertService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -143,12 +143,16 @@ class PaedDiaryWeekApiController extends Controller
                 'name' => $c->name,
                 'type' => in_array($c->type, ['boolean', 'ampel'], true) ? $c->type : 'text',
                 'category' => $c->category,
+                // Werte gelten ab ihrem Tag bis Freitag weiter (Spaltengruppen-Einstellung)
+                'carries_to_week_end' => $c->wirktBisWochenende(),
             ])->values(),
             'column_values' => $week['column_values']->map(fn ($v) => [
                 'column_id' => $v->paed_diary_column_id,
                 'schueler_id' => $v->schueler_id,
                 'date' => $v->datum->toDateString(),
                 'value' => $v->value,
+                // übernommener Wert: Tag, an dem er gesetzt wurde; sonst null
+                'carried_from' => $v->uebernommen_von,
             ])->values(),
             'tasks' => $week['tasks']->map(fn (PaedDiaryTask $t) => [
                 'id' => $t->id,
@@ -344,26 +348,16 @@ class PaedDiaryWeekApiController extends Controller
         }
 
         $date = Carbon::parse($data['date']);
-        $existing = PaedDiaryColumnValue::where('paed_diary_column_id', $column->id)
-            ->where('schueler_id', $schueler->id)
-            ->whereDate('datum', $date->toDateString())
-            ->first();
-        if ($existing) {
-            $existing->update(['value' => $value]);
-        } else {
-            PaedDiaryColumnValue::create([
-                'paed_diary_column_id' => $column->id,
-                'schueler_id' => $schueler->id,
-                'datum' => $date->toDateString(),
-                'value' => $value,
-            ]);
-        }
+        $spaltenwerte = app(PaedDiarySpaltenwertService::class);
+        $spaltenwerte->speichern($column, $schueler->id, $date, $value);
 
         return response()->json(['data' => [
             'column_id' => $column->id,
             'schueler_id' => $schueler->id,
             'date' => $date->toDateString(),
             'value' => $value,
+            // gültige Werte Mo–Fr dieser Woche (bei „bis Wochenende“ ändern sich auch Folgetage)
+            'week' => $spaltenwerte->woche($column, $schueler->id, $date),
         ]]);
     }
 

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\GradingDocumentationSession;
 use App\Models\PaedDiaryCategory;
 use App\Models\PaedDiaryColumn;
-use App\Models\PaedDiaryColumnValue;
 use App\Models\PaedDiaryEntry;
 use App\Models\PaedDiaryGoal;
 use App\Models\PaedDiarySchuelerAbsence;
@@ -133,9 +132,9 @@ class PaedDiarySchuelerService
      */
     public function spalten(Schueler $schueler, Carbon $from, Carbon $to): array
     {
-        $values = PaedDiaryColumnValue::where('schueler_id', $schueler->id)
-            ->whereBetween('datum', [$from->toDateString(), $to->toDateString()])
-            ->get();
+        // Gültige Werte je Tag, inkl. übernommener Werte „bis Wochenende“ (Attribut uebernommen_von)
+        $spaltenwerte = app(PaedDiarySpaltenwertService::class);
+        $values = $spaltenwerte->wirksameWerte($spaltenwerte->laden([$schueler->id], $from, $to), $from, $to);
 
         $columns = PaedDiaryColumn::where('klasse_id', $schueler->klasse_id)
             ->orWhereIn('id', $values->pluck('paed_diary_column_id')->unique())
@@ -146,6 +145,7 @@ class PaedDiarySchuelerService
                 'name' => $c->name,
                 'type' => $c->type,
                 'category' => $c->category,
+                'bis_wochenende' => $c->wirktBisWochenende(),
                 'deactivated_from' => $c->deactivated_from?->toDateString(),
                 // aktiv, wenn nicht oder erst nach dem Zeitraumende deaktiviert
                 'active' => !$c->deactivated_from || $c->deactivated_from->gt($to),

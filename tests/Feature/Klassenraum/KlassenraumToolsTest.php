@@ -37,7 +37,7 @@ class KlassenraumToolsTest extends TestCase
         $antwort = $this->get(route('klassenraum.index'))
             ->assertOk()
             ->assertSee('Klassenraum-Tools')
-            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
+            ->assertSeeInOrder(['Lautstärke', 'Aquarium', 'Sternenhimmel', 'Blumenwiese', 'Zoo', 'Vulkan', 'Polarlicht', 'Zeit', 'Timer', 'Arbeitsphasen', 'Ruhe &amp; Ankommen', 'Atemübung'], false);
 
         foreach (array_keys(KlassenraumTools::TOOLS) as $tool) {
             $antwort->assertSee(route('klassenraum.show', $tool), false);
@@ -48,7 +48,7 @@ class KlassenraumToolsTest extends TestCase
     {
         $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
 
-        foreach (['aquarium', 'sternenhimmel', 'blumenwiese'] as $tool) {
+        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan', 'polarlicht'] as $tool) {
             $this->get(route('klassenraum.show', $tool))
                 ->assertOk()
                 ->assertSee(KlassenraumTools::TOOLS[$tool]['titel'])
@@ -60,6 +60,62 @@ class KlassenraumToolsTest extends TestCase
                 // eigenständige Vollbildseite ohne App-Navigation
                 ->assertDontSee('tw-sidebar', false);
         }
+    }
+
+    public function test_lautstaerke_tools_bieten_klassentier_auswahl(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        foreach (['aquarium', 'sternenhimmel', 'blumenwiese', 'zoo', 'vulkan', 'polarlicht'] as $tool) {
+            $this->get(route('klassenraum.show', $tool))
+                ->assertOk()
+                ->assertSee('data-einstellung="klassentier"', false)
+                ->assertSeeInOrder(['Klassentier', 'Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'])
+                ->assertSee('data-einstellung="weihnachtskostuem"', false)
+                ->assertSee('Weihnachtsmütze im Advent')
+                ->assertSee('data-einstellung="weihnachtsmusik"', false)
+                ->assertSee('Weihnachtsmusik im Advent');
+        }
+
+        $this->get(route('klassenraum.show', 'timer'))
+            ->assertOk()
+            ->assertDontSee('data-einstellung="klassentier"', false);
+    }
+
+    public function test_weihnachtsmusik_dateien_und_namensnennung(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->assertNotEmpty(KlassenraumTools::WEIHNACHTSMUSIK);
+        foreach (KlassenraumTools::WEIHNACHTSMUSIK as $stueck) {
+            $this->assertFileExists(public_path(KlassenraumTools::WEIHNACHTSMUSIK_ORDNER.'/'.$stueck['datei']));
+        }
+        $this->assertFileExists(public_path(KlassenraumTools::WEIHNACHTSMUSIK_ORDNER.'/LIZENZ.txt'));
+
+        // CC BY 4.0: Namensnennung muss in den Einstellungen sichtbar sein
+        $antwort = $this->get(route('klassenraum.show', 'sternenhimmel'))
+            ->assertOk()
+            ->assertSee('Kevin MacLeod')
+            ->assertSee('incompetech.com')
+            ->assertSee('Licensed under Creative Commons: By Attribution 4.0')
+            ->assertSee('id="krt-weihnachtsmusik"', false);
+        foreach (KlassenraumTools::weihnachtsmusik() as $stueck) {
+            $antwort->assertSee(str_replace('/', '\\/', $stueck['url']), false);
+        }
+    }
+
+    public function test_polarlicht_bietet_farbauswahl_andere_szenen_nicht(): void
+    {
+        $this->actingAsWithPermission(KlassenraumTools::PERMISSION);
+
+        $this->get(route('klassenraum.show', 'polarlicht'))
+            ->assertOk()
+            ->assertSee('data-einstellung="farben"', false)
+            ->assertSeeInOrder(['Farben der Polarlichter', 'Bunt', 'Grün', 'Violett', 'Eisblau']);
+
+        $this->get(route('klassenraum.show', 'aquarium'))
+            ->assertOk()
+            ->assertDontSee('data-einstellung="farben"', false);
     }
 
     public function test_timer_zeigt_eigene_oberflaeche_ohne_mikrofon(): void
@@ -97,6 +153,7 @@ class KlassenraumToolsTest extends TestCase
             ->assertSee('id="abl-schritte"', false)
             ->assertSee('data-vorlage="lesen"', false)
             ->assertSee('id="abl-naechster"', false)
+            ->assertSee('id="abl-zurueck"', false)
             ->assertSee('Automatisch weiter')
             ->assertSee('data-darstellung="raupe"', false)
             ->assertSee('class="krt krt-tool-arbeitsphasen krt-hell"', false);

@@ -41,11 +41,9 @@ return [
             'provider' => 'users',
         ],
 
-        'api' => [
-            'driver' => 'token',
-            'provider' => 'users',
-            'hash' => false,
-        ],
+        // Kein Guard mit dem Treiber "token" (Illuminate\Auth\TokenGuard):
+        // CVE-2026-114509 – unter Laravel 10 gibt es dafür keinen Fix mehr.
+        // Die API (v1) authentifiziert über Laravel Sanctum ("auth:sanctum").
     ],
 
     /*

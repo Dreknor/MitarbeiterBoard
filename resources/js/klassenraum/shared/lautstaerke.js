@@ -27,6 +27,7 @@ import {Mikrofon, MikrofonFehler, MIKROFON_MELDUNGEN} from './mikrofon';
 import {$, initLeerlauf, initPanel, initUhr, initVollbild, istKuerzel, schalteVollbild, Ton} from './oberflaeche';
 import {formatiereDauer, klemme} from './hilfen';
 import {KLANGWELTEN, Musik} from './musik';
+import {istAdventszeit, KLASSENTIERE, setzeKlassentier, setzeWeihnachtskostuem} from './maus';
 
 export const STANDARD_EINSTELLUNGEN = {
     grenze: 60,
@@ -40,6 +41,9 @@ export const STANDARD_EINSTELLUNGEN = {
     ausblenden: true,
     musik: true,
     musikLautstaerke: 40,
+    klassentier: 1, // Index in KLASSENTIERE (shared/maus.js): 0 = kein Tier, 1 = Maus …
+    weihnachtskostuem: true, // Weihnachtsmütze, nur in der Adventszeit
+    weihnachtsmusik: true, // Weihnachtslieder statt Klangwelt, nur in der Adventszeit
 };
 
 const ZIEL_UNRUHE = {aus: 0, ruhig: 0, fast: 0.35, laut: 1};
@@ -76,6 +80,12 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     const ton = new Ton();
     const musik = new Musik(KLANGWELTEN[schluessel]);
     musik.setzeLautstaerke(einstellungen.musikLautstaerke / 100);
+    // Weihnachtsmusik (echte Aufnahmen, Liste aus KlassenraumTools::weihnachtsmusik())
+    try {
+        musik.setzeAufnahmen(JSON.parse(document.getElementById('krt-weihnachtsmusik')?.textContent || '[]'));
+    } catch (_) {
+        musik.setzeAufnahmen([]);
+    }
     const wenigBewegung = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const zustand = {
@@ -98,7 +108,17 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     if (el.mengeLabel && szene.mengeLabel) el.mengeLabel.textContent = szene.mengeLabel;
 
     // ── Einstellungen ────────────────────────────────────────────────────
+    // Vorschau eines Klassentiers ohne Speichern, z. B. ?tier=fuchs&besuch=maus
+    const vorschauTier = KLASSENTIERE.indexOf(new URLSearchParams(window.location.search).get('tier'));
+    if (vorschauTier >= 0) einstellungen.klassentier = vorschauTier;
+
+    // Vorschau von Weihnachtskostüm und -musik außerhalb der Adventszeit: ?weihnachten=1
+    const adventszeit = istAdventszeit() || new URLSearchParams(window.location.search).get('weihnachten') === '1';
+
     const anwenden = () => {
+        setzeKlassentier(einstellungen.klassentier);
+        setzeWeihnachtskostuem(adventszeit && einstellungen.weihnachtskostuem);
+        musik.setzeWeihnachten(adventszeit && einstellungen.weihnachtsmusik);
         zustand.grenze = einstellungen.grenze;
         el.grenzMarke.style.left = `${einstellungen.grenze}%`;
         document.body.classList.toggle('krt-ohne-uhr', !einstellungen.uhr);
@@ -345,12 +365,21 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     };
 
     // ── Zeichenfläche ────────────────────────────────────────────────────
+    // Auflösung: höchstens 2× (Retina). Schafft der Rechner die Szene nicht flüssig
+    // (schwache Laptop-Grafik, Vollbild auf großem Bildschirm), wird sie schrittweise
+    // reduziert – sonst stockt die Animation bis zum scheinbaren Hängen.
+    const AUFLOESUNGEN = [2, 1.5, 1, 0.75];
+    let aufloesungStufe = 0;
+    const aufloesung = () => Math.min(AUFLOESUNGEN[aufloesungStufe], window.devicePixelRatio || 1);
+
     const groesse = () => {
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        breite = window.innerWidth;
-        hoehe = window.innerHeight;
-        el.leinwand.width = Math.round(breite * dpr);
-        el.leinwand.height = Math.round(hoehe * dpr);
+        const dpr = aufloesung();
+        // Beim Anschließen/Trennen eines Beamers oder Minimieren meldet der Browser
+        // kurzzeitig 0 × 0 – die Szenen rechnen mit einer echten Fläche.
+        breite = Math.max(1, window.innerWidth || 0);
+        hoehe = Math.max(1, window.innerHeight || 0);
+        el.leinwand.width = Math.max(1, Math.round(breite * dpr));
+        el.leinwand.height = Math.max(1, Math.round(hoehe * dpr));
         el.leinwand.style.width = `${breite}px`;
         el.leinwand.style.height = `${hoehe}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -359,29 +388,70 @@ export function starteLautstaerkeTool({schluessel, szene, standard = {}}) {
     window.addEventListener('resize', groesse);
     groesse();
 
+    // Bildrate beobachten: liegt sie mehrere Sekunden deutlich unter 30 fps, Auflösung senken.
+    let langsameBilder = 0;
+    let gemesseneBilder = 0;
+    let messStart = 0;
+    const beobachteBildrate = (abstandMs, jetzt) => {
+        if (document.visibilityState !== 'visible' || abstandMs > 500) {
+            // Hintergrund-Tab, Ruhezustand o. Ä. – nichts über die Leistung aussagend
+            gemesseneBilder = langsameBilder = 0;
+            messStart = jetzt;
+            return;
+        }
+        gemesseneBilder++;
+        if (abstandMs > 45) langsameBilder++;
+        if (jetzt - messStart < 3000) return;
+        if (gemesseneBilder > 0 && langsameBilder / gemesseneBilder > 0.5 && aufloesungStufe < AUFLOESUNGEN.length - 1) {
+            const vorher = aufloesung();
+            aufloesungStufe++;
+            if (aufloesung() < vorher) groesse();
+        }
+        gemesseneBilder = langsameBilder = 0;
+        messStart = jetzt;
+    };
+
     // Vorschau eines seltenen Besuchs, z. B. /klassenraum/aquarium?besuch=schildkroete
     const vorschauBesuch = new URLSearchParams(window.location.search).get('besuch');
     if (vorschauBesuch) szene.besuch?.(vorschauBesuch);
 
     let letzteZeit = performance.now();
+    let fehlerGemeldet = false;
     const bild = (jetzt) => {
-        const dt = Math.min(0.05, Math.max(0, (jetzt - letzteZeit) / 1000));
-        letzteZeit = jetzt;
-
-        if (!pausiert) {
-            aktualisiereZustand(dt);
-            zustand.zeit += dt;
-            const tempo = (einstellungen.tempo / 100) * (wenigBewegung ? 0.5 : 1);
-            szene.schritt(dt * tempo, zustand, einstellungen);
-            musik.setzeUnruhe(zustand.unruhe);
-        }
-        szene.zeichne(ctx, breite, hoehe, zustand);
-
-        if (jetzt - letzteAnzeige > 66) {
-            aktualisiereAnzeige();
-            letzteAnzeige = jetzt;
-        }
+        // Nächstes Bild zuerst anfordern: Ein Fehler in einer Szene darf die Animation
+        // nicht dauerhaft anhalten (sonst bleibt das Bild stehen, als hinge die Seite).
         requestAnimationFrame(bild);
+
+        const abstand = jetzt - letzteZeit;
+        const dt = Math.min(0.05, Math.max(0, abstand / 1000));
+        letzteZeit = jetzt;
+        beobachteBildrate(abstand, jetzt);
+
+        try {
+            if (!pausiert) {
+                aktualisiereZustand(dt);
+                zustand.zeit += dt;
+                const tempo = (einstellungen.tempo / 100) * (wenigBewegung ? 0.5 : 1);
+                szene.schritt(dt * tempo, zustand, einstellungen);
+                musik.setzeUnruhe(zustand.unruhe);
+            }
+            ctx.save();
+            szene.zeichne(ctx, breite, hoehe, zustand);
+            ctx.restore();
+
+            if (jetzt - letzteAnzeige > 66) {
+                aktualisiereAnzeige();
+                letzteAnzeige = jetzt;
+            }
+        } catch (fehler) {
+            // Zeichenzustand zurücksetzen, damit das nächste Bild sauber beginnt
+            ctx.reset?.();
+            ctx.setTransform(aufloesung(), 0, 0, aufloesung(), 0, 0);
+            if (!fehlerGemeldet) {
+                fehlerGemeldet = true;
+                console.error('Klassenraum-Tool: Fehler beim Zeichnen', fehler);
+            }
+        }
     };
     requestAnimationFrame(bild);
 

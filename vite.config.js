@@ -54,6 +54,9 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Abwesenheiten (Übersicht /absences)
+                'resources/css/absences.css',
+
                 // Benachrichtigungen (Verlauf, Einstellungen, Tagesübersicht)
                 'resources/css/benachrichtigungen.css',
 
@@ -70,6 +73,9 @@ export default defineConfig({
                 'resources/js/klassenraum/aquarium.js',
                 'resources/js/klassenraum/sternenhimmel.js',
                 'resources/js/klassenraum/blumenwiese.js',
+                'resources/js/klassenraum/zoo.js',
+                'resources/js/klassenraum/vulkan.js',
+                'resources/js/klassenraum/polarlicht.js',
                 'resources/js/klassenraum/timer.js',
                 'resources/js/klassenraum/arbeitsphasen.js',
                 'resources/js/klassenraum/atemuebung.js',
@@ -111,6 +117,8 @@ export default defineConfig({
                 'app/Http/Controllers/Ticketsystem/*.php',
                 // Online-Updater
                 'resources/views/updater/**/*.blade.php',
+                // Abwesenheiten
+                'resources/views/absences/**/*.blade.php',
                 // Zeitwirtschaft
                 'app/Services/Personal/Zeit/*.php',
                 // Klassenraum-Tools

@@ -14,7 +14,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * API v1 – Abwesenheiten (Dienstplan-App), wie die Abwesenheiten-Karte im Web.
  *
- * Route-Gruppe mit "view absences". Ohne "create absences" nur für sich selbst; löschen dürfen
+ * Route-Gruppe mit "view absences". Für andere melden: "create absences" (alle) oder Vorgesetzte/
+ * Stellvertretungen für ihre Unterstellten, sonst nur für sich selbst; löschen dürfen
  * "delete absences" und die eintragende Person, solange das Ende nach heute liegt. Abwesenheiten aus
  * genehmigtem Urlaub werden über den Urlaub storniert. Logik: AbsenceService.
  */
@@ -30,7 +31,7 @@ class AbsenceApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         $actor = $request->user();
-        $fuerAndere = $actor->can('create absences');
+        $fuerAndere = $this->absences->darfFuerAndereMelden($actor);
         $standard = (string) (settings('absence_reason_default', 'absences') ?: config('absences.absence_reason_default'));
 
         $abwesenheiten = Absence::query()
@@ -45,9 +46,9 @@ class AbsenceApiController extends Controller
                 'default_reason' => $standard,
                 'reasons' => array_values(array_unique(array_filter([$standard, ...(array) config('absences.absence_sick_note')]))),
                 'create_for_others' => $fuerAndere,
-                'set_sick_note' => $fuerAndere,
+                'set_sick_note' => $actor->can('create absences'),
                 'employees' => $fuerAndere
-                    ? User::query()->orderBy('name')->get(['id', 'name'])->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->values()
+                    ? $this->absences->meldbarePersonen($actor)->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->values()
                     : [],
             ],
         ]);

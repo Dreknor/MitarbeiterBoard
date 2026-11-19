@@ -120,6 +120,28 @@ class PersonalakteRegressionTest extends TestCase
     }
 
     /** @test */
+    public function employee_admins_can_open_contracts_linked_from_the_employee_list(): void
+    {
+        // Mitarbeiterverwaltung ('edit employe') sieht in der Liste alle Personen inkl. „Verträge"-Link –
+        // ohne zusätzliches 'view personal_data:all' lieferte die Vertragsseite bisher 404.
+        $this->withoutVite();
+        $this->actingAsWithPermission('edit employe', 'view contracts');
+        $employe = User::factory()->create();
+        Employment::factory()->create(['employe_id' => $employe->id, 'status' => 'aktiv']);
+
+        $this->get(route('personal.contracts.index', $employe->id))->assertOk();
+    }
+
+    /** @test */
+    public function contracts_of_other_employees_stay_hidden_without_scope(): void
+    {
+        $this->actingAsWithPermission('view contracts');
+        $employe = User::factory()->create();
+
+        $this->get(route('personal.contracts.index', $employe->id))->assertNotFound();
+    }
+
+    /** @test */
     public function tab_parameter_is_not_reflected_into_javascript(): void
     {
         $this->hr();

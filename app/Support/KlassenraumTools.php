@@ -16,6 +16,50 @@ class KlassenraumTools
 {
     public const PERMISSION = 'use classroom tools';
 
+    /**
+     * Klassentiere der Lautstärke-Szenen (Einstellung „klassentier“, gespeichert wird der Index;
+     * Reihenfolge wie KLASSENTIERE in resources/js/klassenraum/shared/maus.js). Standard: Maus.
+     */
+    public const KLASSENTIERE = ['Kein Tier', 'Maus', 'Fuchs', 'Faultier', 'Lemur', 'Eule'];
+
+    /**
+     * Weihnachtsmusik der Lautstärke-Szenen in der Adventszeit: echte Aufnahmen unter
+     * public/audio/klassenraum/weihnachten/ (Lizenz: LIZENZ.txt dort). Alle Stücke von Kevin MacLeod
+     * (incompetech.com), CC BY 4.0 – die Nennung muss in den Einstellungen sichtbar bleiben.
+     * Neues Stück: Datei (Lautheit −20 LUFS, Mono MP3) ablegen und hier eintragen.
+     *
+     * @var array<int, array{datei: string, titel: string}>
+     */
+    public const WEIHNACHTSMUSIK = [
+        ['datei' => 'stille-nacht.mp3', 'titel' => 'Silent Night'],
+        ['datei' => 'oh-holy-night.mp3', 'titel' => 'Oh Holy Night'],
+        ['datei' => 'little-town-of-bethlehem.mp3', 'titel' => 'Oh, Little Town of Bethlehem'],
+        ['datei' => 'deck-the-halls.mp3', 'titel' => 'Deck the Halls A'],
+        ['datei' => 'angels-we-have-heard-on-high.mp3', 'titel' => 'Angels We Have Heard on High'],
+        ['datei' => 'what-child-is-this.mp3', 'titel' => 'What Child is This'],
+        ['datei' => 'it-came-upon-a-midnight-clear.mp3', 'titel' => 'It Came Upon a Midnight Clear'],
+        ['datei' => 'jingle-bells.mp3', 'titel' => 'Jingle Bells'],
+        ['datei' => 'we-wish-you-a-merry-christmas.mp3', 'titel' => 'We Wish you a Merry Christmas'],
+        ['datei' => 'adeste-fideles.mp3', 'titel' => 'Adeste Fideles Waltz'],
+        ['datei' => 'jesu-joy-of-mans-desiring.mp3', 'titel' => "Jesu, Joy of Man's Desiring"],
+        ['datei' => 'dance-of-the-sugar-plum-fairies.mp3', 'titel' => 'Dance of the Sugar Plum Fairies'],
+    ];
+
+    public const WEIHNACHTSMUSIK_ORDNER = 'audio/klassenraum/weihnachten';
+
+    /**
+     * Weihnachtsmusik für das Skript: [{url, titel}].
+     *
+     * @return array<int, array{url: string, titel: string}>
+     */
+    public static function weihnachtsmusik(): array
+    {
+        return array_map(fn (array $stueck) => [
+            'url' => asset(self::WEIHNACHTSMUSIK_ORDNER.'/'.$stueck['datei']),
+            'titel' => $stueck['titel'],
+        ], self::WEIHNACHTSMUSIK);
+    }
+
     /** Kategorien in Anzeigereihenfolge. */
     public const KATEGORIEN = [
         'lautstaerke' => [
@@ -35,7 +79,8 @@ class KlassenraumTools
     /**
      * Felder: titel, kategorie, beschreibung, icon (Font Awesome), farbe (Karte), entry (Vite),
      * mikrofon (nutzt die gemeinsame Lautstärke-Oberfläche), thema ('dunkel'|'hell' für die Vollbildseite),
-     * vorschau (Bild in public/img/klassenraum/ für die Übersicht).
+     * vorschau (Bild in public/img/klassenraum/ für die Übersicht), optional auswahl (eigene Auswahlliste
+     * der Szene im Einstellungsfeld: einstellung, titel, optionen – gespeichert wird der Index).
      *
      * @var array<string, array{titel: string, kategorie: string, beschreibung: string, icon: string, farbe: string, entry: string, mikrofon: bool, thema: string, vorschau: string}>
      */
@@ -72,6 +117,45 @@ class KlassenraumTools
             'mikrofon' => true,
             'thema' => 'dunkel',
             'vorschau' => 'img/klassenraum/blumenwiese.jpg',
+        ],
+        'zoo' => [
+            'titel' => 'Zoo',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Elefanten, Giraffen, Zebras, Affen und Pinguine. Je länger es leise ist, desto mehr Tiere kommen nach und nach heraus, zuletzt die Tierbabys – und manchmal kommt die Tierpflegerin zum Füttern. Bei Lärm verstecken sich alle im Stall.',
+            'icon' => 'fas fa-paw',
+            'farbe' => '#c2410c',
+            'entry' => 'resources/js/klassenraum/zoo.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/zoo.jpg',
+        ],
+        'vulkan' => [
+            'titel' => 'Vulkan',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Ein uralter Vulkan schlummert friedlich inmitten von Dinosauriern und Urwaldpflanzen. Bleibt es leise, grasen die Dinos entspannt. Wird es zu laut, fängt der Vulkan an zu grollen, Rauch steigt auf und er droht auszubrechen.',
+            'icon' => 'fas fa-volcano',
+            'farbe' => '#b91c1c',
+            'entry' => 'resources/js/klassenraum/vulkan.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/vulkan.jpg',
+        ],
+        'polarlicht' => [
+            'titel' => 'Polarlicht',
+            'kategorie' => 'lautstaerke',
+            'beschreibung' => 'Nachthimmel über einem stillen See. Je länger es leise ist, desto mehr Polarlichter tanzen am Himmel und spiegeln sich im Wasser. Wird es zu laut, flackern sie und ziehen sich zurück.',
+            'icon' => 'fas fa-mountain',
+            'farbe' => '#047857',
+            'entry' => 'resources/js/klassenraum/polarlicht.js',
+            'mikrofon' => true,
+            'thema' => 'dunkel',
+            'vorschau' => 'img/klassenraum/polarlicht.jpg',
+            // eigene Auswahl im Einstellungsfeld (Wert = Index, siehe FARBWELTEN in szenen/polarlicht.js)
+            'auswahl' => [
+                'einstellung' => 'farben',
+                'titel' => 'Farben der Polarlichter',
+                'optionen' => ['Bunt', 'Grün', 'Violett', 'Eisblau'],
+            ],
         ],
         'timer' => [
             'titel' => 'Timer',

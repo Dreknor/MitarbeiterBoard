@@ -4,29 +4,37 @@ namespace App\Exports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class SickNotesUserSummaryExport implements FromCollection, WithHeadings, WithMapping, WithTitle
+/**
+ * Personenübersicht aus KrankmeldungService::personen() (Tage = Arbeitstage im Zeitraum).
+ */
+class SickNotesUserSummaryExport implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize
 {
-    private Int $rows = 0;
-    private Collection $users;
+    private int $rows = 0;
 
-    public function __construct(Collection $users)
+    public function __construct(private readonly Collection $personen)
     {
-        $this->users = $users;
     }
 
     public function map($row): array
     {
         return [
             ++$this->rows,
-            $row['user'],
-            $row['with_note'],
-            $row['without_note'],
-            $row['missing_note'],
-            $row['with_note'] + $row['without_note'] + $row['missing_note'],
+            $row['name'],
+            $row['faelle'],
+            $row['tage'],
+            $row['liegt_vor'],
+            $row['nicht_noetig'],
+            $row['fehlt'],
+            $row['ausstehend'],
+            $row['kurz'],
+            $row['laengste'],
+            $row['letzte']->format('d.m.Y'),
+            $row['bem'] !== null ? 'prüfen ('.$row['bem'].' Arbeitstage in 12 Monaten)' : '',
         ];
     }
 
@@ -35,23 +43,26 @@ class SickNotesUserSummaryExport implements FromCollection, WithHeadings, WithMa
         return [
             '#',
             'Mitarbeiter',
+            'Krankmeldungen',
+            'Tage gesamt',
             'Tage mit Schein',
-            'Tage ohne Schein',
-            'Tage fehlt Schein',
-            'Gesamt Tage'
+            'Tage ohne Schein (nicht nötig)',
+            'Tage Schein fehlt',
+            'Tage Schein noch nicht fällig',
+            'Kurzerkrankungen ohne Schein',
+            'Längste (Arbeitstage)',
+            'Letzte Krankmeldung',
+            'BEM-Hinweis',
         ];
     }
 
-    /**
-     * @return Collection
-     */
     public function collection(): Collection
     {
-        return $this->users;
+        return $this->personen;
     }
 
     public function title(): string
     {
-        return 'Mitarbeiter-Übersicht';
+        return 'Personen';
     }
 }

@@ -1,7 +1,8 @@
 /*
  * Klassenraum-Tools – seltene Besuche in den Lautstärke-Szenen (Tiere, Himmelserscheinungen).
  *
- * Ein Besuch kommt nur, wenn es ruhig ist, und nur alle paar Minuten. Wird es laut, ziehen
+ * Ein Besuch kommt nur, wenn es (weitgehend) ruhig ist – der erste nach 12–25 s, danach etwa
+ * alle 30–60 s. Bei leichter Unruhe läuft die Wartezeit halb so schnell. Wird es laut, ziehen
  * sich Besucher zurück (das regelt jeder Besuch selbst über zustand.unruhe).
  *
  * Eine Art ist eine Fabrik () => Besuch; ein Besuch ist ein Objekt mit
@@ -18,7 +19,7 @@ export class Besuchsplaner {
      * @param {{erstes?: number[], abstand?: number[], ruheGrenze?: number, manuell?: string[]}} optionen
      *        Zeiten in Sekunden; „manuell“ = Arten, die nie zufällig kommen, nur über starte()
      */
-    constructor(arten, {erstes = [40, 90], abstand = [70, 160], ruheGrenze = 0.2, manuell = []} = {}) {
+    constructor(arten, {erstes = [12, 25], abstand = [30, 60], ruheGrenze = 0.2, manuell = []} = {}) {
         this.arten = arten;
         this.zufaellige = Object.keys(arten).filter((name) => !manuell.includes(name));
         this.abstand = abstand;
@@ -40,6 +41,7 @@ export class Besuchsplaner {
         this.aktive = this.aktive.filter((besuch) => besuch.schritt(dt, zustand) !== false);
 
         if (zustand.unruhe < this.ruheGrenze) this.warten -= dt;
+        else if (zustand.unruhe < 0.5) this.warten -= dt / 2;
         if (this.warten <= 0 && this.aktive.length === 0) {
             const namen = this.zufaellige.filter((n) => n !== this.zuletzt || this.zufaellige.length === 1);
             this.starte(namen[Math.floor(Math.random() * namen.length)]);
