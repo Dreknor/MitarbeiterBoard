@@ -378,13 +378,81 @@ class VertretungsplanImportTest extends TestCase
         $this->assertEquals(0, Vertretung::count());
         $this->assertEquals(0, RoomBooking::count());
     }
+
+    // ─── Tagesinfos: keine Duplikate, veraltete importierte entfernen ────────
+
+    private function importieren(array $aktionen, string $datum = '16.03.2026')
+    {
+        return $this->putJson('/api/vertretungen/' . $this->validKey . '/vp', $this->buildImportJson($aktionen, $datum))
+            ->assertStatus(200);
+    }
+
+    public function test_tagesinfo_wird_pro_tag_nur_einmal_angelegt(): void
+    {
+        $aktionen = [
+            $this->buildAktion(['Ak_Id' => 1, 'Ak_StundeVon' => 1, 'InfoK' => 'Vorbereitung Lesenacht']),
+            $this->buildAktion(['Ak_Id' => 2, 'Ak_StundeVon' => 2, 'InfoK' => 'Vorbereitung Lesenacht']),
+            $this->buildAktion(['Ak_Id' => 3, 'Ak_StundeVon' => 3, 'InfoK' => '  Vorbereitung   Lesenacht ']),
+        ];
+
+        $this->importieren($aktionen)
+            ->assertJsonPath('summary.dailynews_created', 1)
+            ->assertJsonPath('summary.dailynews_skipped', 2);
+
+        // Erneuter Import legt nichts doppelt an
+        $this->importieren($aktionen)->assertJsonPath('summary.dailynews_created', 0);
+
+        $this->assertSame(1, \App\Models\DailyNews::count());
+        $info = \App\Models\DailyNews::first();
+        $this->assertSame('Vorbereitung Lesenacht', $info->news);
+        $this->assertSame(\App\Models\DailyNews::QUELLE_VP_IMPORT, $info->quelle);
+    }
+
+    public function test_manuelle_tagesinfo_wird_nicht_doppelt_importiert_und_nie_entfernt(): void
+    {
+        \App\Models\DailyNews::create(['date_start' => '2026-03-16', 'date_end' => '2026-03-16', 'news' => 'Wandertag']);
+
+        $this->importieren([$this->buildAktion(['InfoK' => 'Wandertag'])])
+            ->assertJsonPath('summary.dailynews_created', 0);
+
+        // Info fällt im Plan weg → manuelle bleibt
+        $this->importieren([$this->buildAktion()])->assertJsonPath('summary.dailynews_removed', 0);
+
+        $this->assertSame(1, \App\Models\DailyNews::count());
+        $this->assertNull(\App\Models\DailyNews::first()->quelle);
+    }
+
+    public function test_weggefallene_importierte_tagesinfo_wird_entfernt(): void
+    {
+        $this->importieren([
+            $this->buildAktion(['Ak_Id' => 1, 'InfoK' => 'Vorbereitung Lesenacht']),
+            $this->buildAktion(['Ak_Id' => 2, 'Ak_StundeVon' => 2, 'InfoK' => 'Elternabend']),
+        ]);
+        // Anderer Tag ist nicht Teil des nächsten Imports und bleibt
+        $this->importieren([$this->buildAktion(['InfoK' => 'Sportfest'])], '17.03.2026');
+
+        $this->importieren([$this->buildAktion(['Ak_Id' => 2, 'Ak_StundeVon' => 2, 'InfoK' => 'Elternabend'])])
+            ->assertJsonPath('summary.dailynews_removed', 1);
+
+        $this->assertEqualsCanonicalizing(
+            ['Elternabend', 'Sportfest'],
+            \App\Models\DailyNews::pluck('news')->all()
+        );
+    }
+
+    public function test_migration_entfernt_bestehende_duplikate(): void
+    {
+        foreach (range(1, 3) as $i) {
+            \App\Models\DailyNews::create(['date_start' => '2026-11-19', 'date_end' => '2026-11-19', 'news' => 'Vorbereitung Lesenacht']);
+        }
+        \App\Models\DailyNews::create(['date_start' => '2026-11-20', 'date_end' => '2026-11-20', 'news' => 'Vorbereitung Lesenacht']);
+        $erste = \App\Models\DailyNews::min('id');
+
+        $migration = require database_path('migrations/2026_11_19_100000_add_quelle_to_daily_news_and_remove_duplicates.php');
+        $migration->down();
+        $migration->up();
+
+        $this->assertSame(2, \App\Models\DailyNews::count());
+        $this->assertTrue(\App\Models\DailyNews::whereKey($erste)->exists());
+    }
 }
-
-
-
-
-
-
-
-
-
