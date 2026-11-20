@@ -181,33 +181,18 @@ function registerNeu(Alpine) {
     Alpine.data('spaltenSeite', () => kombiniere(columnsManagerMethods(), {
         /** Spalte, deren Deaktivierung gerade bestätigt wird */
         bestaetigen: null,
-        /** Spalte, deren Gruppe gerade geändert wird */
-        gruppeFuer: null,
-        gruppeNeu: '',
         typen: { boolean: 'Ja/Nein', ampel: 'Ampel', text: 'Text', number: 'Zahl' },
 
         schliessen() {
             this.$store.diary.columnsCardOpen = false;
             this.bestaetigen = null;
-            this.gruppeFuer = null;
             this.copyOpenFor = null;
+            this.bearbeitenSchliessen();
         },
 
         async deaktivieren(col) {
             await this.deactivateColumn(col.id, true);
             this.bestaetigen = null;
-        },
-
-        gruppeAendern(col) {
-            this.gruppeFuer = col.id;
-            this.gruppeNeu = col.category || '';
-        },
-
-        async gruppeSpeichern(col) {
-            await this.updateColumnCategory(col.id, this.gruppeNeu.trim());
-            this.gruppeFuer = null;
-            // Gruppen-Überschriften in der Woche aktualisieren
-            this.$store.diary.loadWeek();
         },
     }));
 
@@ -507,6 +492,13 @@ function registerSchuelerAkte(Alpine) {
             return wert || '–';
         },
 
+        /** Hinweis bei übernommenen Werten „bis Wochenende“, z. B. „übernommen von 16.11.2026“ */
+        spaltenHinweis(spalte, datum) {
+            const eintrag = this.daten?.column_values?.[datum]?.[spalte.id];
+            if (!eintrag?.uebernommen_von || !eintrag.value) return '';
+            return 'übernommen von ' + new Date(eintrag.uebernommen_von + 'T00:00:00').toLocaleDateString('de-DE');
+        },
+
         get spaltenTage() {
             return Object.keys(this.daten?.column_values || {}).sort().reverse();
         },
@@ -752,6 +744,21 @@ function registerKategorien(Alpine) {
                 this.loeschen = null;
                 this.melde(`„${k.name}“ wurde gelöscht.`);
             } catch (e) {
+                this.melde(e.message, 'fehler');
+            }
+        },
+
+        /** „Gilt bis Freitag“ für eine Spaltengruppe umschalten (alle Klassen). */
+        async gruppeBisWochenende(g, aktiv) {
+            const vorher = g.bis_wochenende;
+            g.bis_wochenende = aktiv;
+            try {
+                await jsonAnfrage('/paed-diary/column-groups/bis-wochenende', 'POST', { name: g.name, aktiv });
+                this.melde(aktiv
+                    ? `„${g.name}“: Bestätigungen gelten ab jetzt bis Freitag.`
+                    : `„${g.name}“: Bestätigungen gelten wieder nur für den Tag.`);
+            } catch (e) {
+                g.bis_wochenende = vorher;
                 this.melde(e.message, 'fehler');
             }
         },

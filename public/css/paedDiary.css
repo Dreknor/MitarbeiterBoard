@@ -523,3 +523,5 @@
     #diaryTable td .col-cat-group .col-cat-label { font-size: 0.65rem; }
     #diaryTable .appointment-item { font-size: 0.8rem !important; padding: 4px 6px; }
 }
+/* Übernommene Werte „bis Wochenende“ (von einem früheren Tag der Woche) – abgesetzt darstellen */
+#diaryTable td.note-cell .col-inputs .col-uebernommen{opacity:.6;border-style:dashed;}

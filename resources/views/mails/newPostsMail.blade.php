@@ -11,8 +11,14 @@
 <p>
     <ul>
         @foreach($posts as $post)
-            <li>
-                {{$post->header}}
+            <li style="margin-bottom: 8px;">
+                <a href="{{ route('posts.show', $post) }}"><strong>{{ $post->header }}</strong></a>
+                @if($post->groups->isNotEmpty())
+                    <span style="color: #6b7280;">({{ $post->groups->pluck('name')->join(', ') }})</span>
+                @endif
+                @if($post->kurztext !== '')
+                    <br><span style="color: #374151;">{{ $post->kurztext }}</span>
+                @endif
             </li>
         @endforeach
     </ul>

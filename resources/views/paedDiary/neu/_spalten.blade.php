@@ -1,6 +1,6 @@
 {{--
     Neue Ansicht – Spaltenverwaltung als Seitenleiste (Logik: spaltenSeite() → columnsManager()).
-    Zusatzspalten der gewählten Klasse nach Spaltengruppe; anlegen, Gruppe ändern, in andere Klassen
+    Zusatzspalten der gewählten Klasse nach Spaltengruppe; anlegen, bearbeiten (Name, Gruppe, Art, Klassen), in andere Klassen
     kopieren, ab dieser Woche deaktivieren oder wieder aktivieren.
 --}}
 <div x-data="spaltenSeite()"
@@ -36,7 +36,20 @@
 
                         <template x-for="[gruppe, spalten] in groupedColumns" :key="'sg' + gruppe">
                             <div class="pdn-spaltengruppe">
-                                <div class="pdn-spaltengruppe__kopf" x-text="gruppe === 'Unkategorisiert' ? 'Ohne Gruppe' : gruppe"></div>
+                                <div class="pdn-spaltengruppe__kopf" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    <span x-text="gruppe === 'Unkategorisiert' ? 'Ohne Gruppe' : gruppe"></span>
+                                    {{-- „Gilt bis Freitag“: für die ganze Spaltengruppe (alle Klassen), nur Ja/Nein- und Ampel-Spalten --}}
+                                    <template x-if="gruppe !== 'Unkategorisiert' && darfBisWochenende">
+                                        <label class="pdn-switch" style="font-size:.85em;gap:6px;font-weight:normal"
+                                               title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag (Ja/Nein- und Ampel-Spalten, alle Klassen)">gilt bis Freitag
+                                            <input type="checkbox" :checked="gruppeNameBisWochenende(gruppe)"
+                                                   @change="setGruppeBisWochenende(gruppe, $event.target.checked)"><i></i>
+                                        </label>
+                                    </template>
+                                    <template x-if="gruppe !== 'Unkategorisiert' && !darfBisWochenende && gruppeNameBisWochenende(gruppe)">
+                                        <span class="pdn-tag pdn-tag--bisfr" title="Bestätigungen gelten ab dem Tag der Änderung bis Freitag"><i class="fas fa-calendar-week" aria-hidden="true"></i> gilt bis Freitag</span>
+                                    </template>
+                                </div>
                                 <template x-for="col in spalten" :key="'sp' + col.id">
                                     <div class="pdn-spalte" :class="col.deactivated_from && 'is-aus'">
                                         <div class="pdn-spalte__zeile">
@@ -44,7 +57,7 @@
                                             <span class="pdn-tag" x-text="typen[col.type] || col.type"></span>
                                             <span class="pdn-label-sm" x-show="col.deactivated_from" x-text="'deaktiviert ab ' + new Date(col.deactivated_from).toLocaleDateString('de-DE')"></span>
                                             <span class="pdn-spacer"></span>
-                                            <button type="button" class="pdn-btn pdn-btn--ghost" @click="gruppeAendern(col)" title="Spaltengruppe ändern"><i class="fas fa-folder-open" aria-hidden="true"></i><span class="sr-only">Gruppe ändern</span></button>
+                                            <button type="button" class="pdn-btn pdn-btn--ghost" @click="bearbeitenUmschalten(col.id)" title="Bearbeiten (Name, Gruppe, Art, Klassen)"><i class="fas fa-pen" aria-hidden="true"></i><span class="sr-only">Bearbeiten</span></button>
                                             <button type="button" class="pdn-btn pdn-btn--ghost" @click="toggleCopyPanel(col.id)" title="In andere Klassen kopieren"><i class="fas fa-copy" aria-hidden="true"></i><span class="sr-only">Kopieren</span></button>
                                             <template x-if="!col.deactivated_from">
                                                 <button type="button" class="pdn-btn pdn-btn--ghost" @click="bestaetigen = col.id" title="Ab dieser Woche deaktivieren"><i class="fas fa-eye-slash" aria-hidden="true"></i><span class="sr-only">Deaktivieren</span></button>
@@ -63,19 +76,53 @@
                                             </div>
                                         </div>
 
-                                        {{-- Gruppe ändern --}}
-                                        <form class="pdn-spalte__extra" x-show="gruppeFuer === col.id" x-cloak @submit.prevent="gruppeSpeichern(col)">
-                                            <label class="pdn-field">Spaltengruppe
-                                                <input type="text" x-model="gruppeNeu" maxlength="50" :list="'pdnGruppen' + col.id" placeholder="leer = ohne Gruppe">
-                                                <datalist :id="'pdnGruppen' + col.id">
-                                                    <template x-for="g in existingColumnCategories" :key="'dl' + col.id + g"><option :value="g"></option></template>
-                                                </datalist>
-                                            </label>
-                                            <div style="display:flex;gap:6px">
-                                                <button type="submit" class="pdn-btn pdn-btn--pri">Speichern</button>
-                                                <button type="button" class="pdn-btn pdn-btn--ghost" @click="gruppeFuer = null">Abbrechen</button>
-                                            </div>
-                                        </form>
+                                        {{-- Bearbeiten: Name, Gruppe, Art (für alle Kopien) und Klassen --}}
+                                        <div class="pdn-spalte__extra" x-show="bearbeitenFuer === col.id" x-cloak>
+                                            <span class="pdn-label-sm" x-show="!bearbeitung && !bearbeitungFehler">Wird geladen …</span>
+                                            <p class="pdn-label-sm" style="color:var(--pdn-danger)" x-show="!bearbeitung && bearbeitungFehler" x-text="bearbeitungFehler"></p>
+                                            <template x-if="bearbeitung && bearbeitung.id === col.id">
+                                                <form @submit.prevent="bearbeitungSpeichern()" style="display:flex;flex-direction:column;gap:8px">
+                                                    <label class="pdn-field">Name
+                                                        <input type="text" x-model="bearbeitungForm.name" maxlength="50" required :disabled="bearbeitung.eigenschaften_gesperrt">
+                                                    </label>
+                                                    <label class="pdn-field">Spaltengruppe
+                                                        <input type="text" x-model="bearbeitungForm.category" maxlength="50" :list="'pdnBearbGruppen' + col.id" placeholder="leer = ohne Gruppe" :disabled="bearbeitung.eigenschaften_gesperrt">
+                                                        <datalist :id="'pdnBearbGruppen' + col.id">
+                                                            <template x-for="g in bearbeitungKategorien" :key="'bg' + col.id + g"><option :value="g"></option></template>
+                                                        </datalist>
+                                                    </label>
+                                                    <div class="pdn-field">Art
+                                                        <div class="pdn-seg" role="group" aria-label="Art der Spalte">
+                                                            <template x-for="[wert, label] in [['boolean', 'Ja/Nein'], ['ampel', 'Ampel'], ['text', 'Text']]" :key="'bt' + col.id + wert">
+                                                                <button type="button" @click="bearbeitungForm.type = wert" :aria-pressed="bearbeitungForm.type === wert"
+                                                                        :disabled="bearbeitung.eigenschaften_gesperrt || !bearbeitung.typ_aenderbar" x-text="label"></button>
+                                                            </template>
+                                                        </div>
+                                                        <span class="pdn-label-sm" x-show="!bearbeitung.typ_aenderbar">Die Art ist fest, weil schon Werte eingetragen sind.</span>
+                                                    </div>
+                                                    <p class="pdn-label-sm" x-show="bearbeitung.eigenschaften_gesperrt"
+                                                       x-text="'Name, Gruppe und Art betreffen ' + bearbeitung.weitere_klassen + ' weitere Klasse(n), die du nicht bearbeiten darfst.'"></p>
+                                                    <fieldset class="pdn-field" style="border:0;padding:0;margin:0">
+                                                        <legend style="font-size:1em;margin:0 0 4px;color:inherit">Angezeigt in Klasse(n)</legend>
+                                                        <div style="display:flex;flex-direction:column;gap:2px">
+                                                            <template x-for="k in bearbeitung.klassen" :key="'bk' + col.id + k.id">
+                                                                <label style="display:flex;gap:6px;align-items:center">
+                                                                    <input type="checkbox" :checked="bearbeitungForm.klasse_ids.includes(k.id)" @change="bearbeitungKlasseUmschalten(k.id)">
+                                                                    <span x-text="k.name"></span>
+                                                                    <span class="pdn-label-sm" x-show="bearbeitungKlasseHinweis(k)" x-text="bearbeitungKlasseHinweis(k)"></span>
+                                                                </label>
+                                                            </template>
+                                                        </div>
+                                                        <span class="pdn-label-sm" x-show="bearbeitung.weitere_klassen > 0" x-text="'+ ' + bearbeitung.weitere_klassen + ' weitere Klasse(n)'"></span>
+                                                    </fieldset>
+                                                    <p class="pdn-label-sm" style="color:var(--pdn-danger)" x-show="bearbeitungFehler" x-text="bearbeitungFehler"></p>
+                                                    <div style="display:flex;gap:6px">
+                                                        <button type="submit" class="pdn-btn pdn-btn--pri" :disabled="bearbeitungSpeichert || !bearbeitungForm.name.trim()">Speichern</button>
+                                                        <button type="button" class="pdn-btn pdn-btn--ghost" @click="bearbeitenSchliessen()">Abbrechen</button>
+                                                    </div>
+                                                </form>
+                                            </template>
+                                        </div>
 
                                         {{-- In andere Klassen kopieren --}}
                                         <div class="pdn-spalte__extra" x-show="copyOpenFor === col.id" x-cloak>

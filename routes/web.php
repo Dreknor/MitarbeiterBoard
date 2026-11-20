@@ -575,6 +575,7 @@ Route::group([
                     Route::post('absences', [AbsenceController::class, 'store'])->name('absences.store');
                     Route::get('absences/export', [AbsenceController::class, 'export'])->middleware(['permission:export absence'])->name('absences.export');
                     // Löschen nur per DELETE (früher GET-Link ohne CSRF-Schutz)
+                    Route::delete('absences/serie/{serie}', [AbsenceController::class, 'destroySerie'])->name('absences.serie.destroy');
                     Route::delete('absences/{absence}', [AbsenceController::class, 'destroy'])->name('absences.destroy');
                     // Früheres Abwesenheits-Abo → Benachrichtigungs-Einstellungen (alte Links/Lesezeichen)
                     Route::get('absences/abo/{type}', fn () => redirect()->route('benachrichtigungen.einstellungen'));
@@ -650,10 +651,20 @@ Route::group([
                 Route::get('/', [HomeController::class, 'index']);
                 Route::post('cards/disable', [DashboardController::class, 'disableCard']);
 
-                //Posts
-                Route::resource('posts', PostsController::class);
-                Route::get('posts/{post}/release', [PostsController::class, 'release']);
-                Route::get('posts/{post}/archive', [PostsController::class, 'archive'])->middleware('permission:create posts');
+                // Nachrichten (Dashboard + Gruppen, Lesebestätigung) – Zugriff über PostPolicy
+                Route::resource('posts', PostsController::class)->whereNumber('post');
+                Route::prefix('posts/{post}')->whereNumber('post')->name('posts.')->group(function () {
+                    Route::post('release', [PostsController::class, 'release'])->name('release');
+                    Route::post('archive', [PostsController::class, 'archive'])->name('archive');
+                    Route::post('restore', [PostsController::class, 'restore'])->name('restore');
+                    Route::post('confirm', [PostsController::class, 'confirm'])->name('confirm');
+                    Route::post('remind', [PostsController::class, 'remind'])->name('remind');
+                    Route::get('bestaetigungen', [PostsController::class, 'confirmations'])->name('confirmations');
+                    Route::get('bestaetigungen/excel', [PostsController::class, 'confirmationsExcel'])->name('confirmations.excel');
+                    Route::get('bestaetigungen/pdf', [PostsController::class, 'confirmationsPdf'])->name('confirmations.pdf');
+                    Route::get('dateien/{media}', [PostsController::class, 'file'])->whereNumber('media')->name('files');
+                    Route::delete('dateien/{media}', [PostsController::class, 'removeFile'])->whereNumber('media')->name('files.destroy');
+                });
 
 
                 //globale Suche
@@ -784,6 +795,7 @@ Route::group([
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
+                Route::get('{groupname}/nachrichten', [PostsController::class, 'gruppe'])->name('groups.posts');
 
 
                 Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
@@ -807,6 +819,12 @@ Route::group([
                     Route::post('types', [\App\Http\Controllers\TypController::class, 'store']);
                 });
 
+                // Geburtstage aus Excel übernehmen (vor der Resource-Route registrieren)
+                Route::get('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'index'])->name('users.geburtstage.index');
+                Route::get('users/import/geburtstage/vorlage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorlage'])->name('users.geburtstage.vorlage');
+                Route::post('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorschau'])->name('users.geburtstage.vorschau');
+                Route::get('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'show'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.show');
+                Route::post('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'store'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.store');
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
@@ -1044,6 +1062,8 @@ Route::group([
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
                     Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumnValue'])->name('paedDiary.column.value');
                     Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
+                    Route::get('paed-diary/column/{column}/bearbeiten', [\App\Http\Controllers\PaedDiaryColumnController::class, 'editColumn'])->name('paedDiary.column.edit');
+                    Route::post('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumn'])->name('paedDiary.column.update');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryColumnController::class, 'restoreColumn'])->name('paedDiary.column.restore');
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');
@@ -1076,6 +1096,7 @@ Route::group([
                         Route::put('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'updateGlobalCategory'])->name('paedDiary.categories.updateGlobal');
                         Route::delete('paed-diary/categories/global/{category}', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'deleteGlobalCategory'])->name('paedDiary.categories.deleteGlobal');
                         Route::post('paed-diary/column-groups/rename', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'renameColumnGroup'])->name('paedDiary.columnGroups.rename');
+                        Route::post('paed-diary/column-groups/bis-wochenende', [\App\Http\Controllers\PaedDiaryCategoryController::class, 'setColumnGroupBisWochenende'])->name('paedDiary.columnGroups.bisWochenende');
                     });
                     Route::post('paed-diary/settings/show-categories', [\App\Http\Controllers\PaedDiaryController::class, 'updateShowCategoriesSetting'])->name('paedDiary.settings.showCategories');
                     // Persönliche Darstellung (bisherige/neue Ansicht, Layout, Schrift, Tour)

@@ -70,6 +70,8 @@ export function registerDiaryStore(Alpine) {
         entries: [],
         columns: [],
         column_values: {},
+        /** Übernommene Werte „bis Wochenende“: column_value_quellen[colId][stuId][datum] = Tag der Änderung */
+        column_value_quellen: {},
         tasks: [],
         pauses: [],
         absences: [],
@@ -205,6 +207,7 @@ export function registerDiaryStore(Alpine) {
                 this.entries = data.entries || [];
                 this.columns = data.columns || [];
                 this.column_values = data.column_values || {};
+                this.column_value_quellen = Array.isArray(data.column_value_quellen) ? {} : (data.column_value_quellen || {});
                 this.tasks = data.tasks || [];
                 this.pauses = data.pauses || [];
                 this.absences = data.absences || [];

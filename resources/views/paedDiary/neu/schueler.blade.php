@@ -287,7 +287,7 @@
                                 <template x-for="tag in spaltenTage" :key="'st-' + tag">
                                     <tr>
                                         <td x-text="datum(tag)"></td>
-                                        <template x-for="s in daten.columns" :key="'sv-' + tag + s.id"><td x-text="spaltenWert(s, tag)"></td></template>
+                                        <template x-for="s in daten.columns" :key="'sv-' + tag + s.id"><td x-text="spaltenWert(s, tag)" :title="spaltenHinweis(s, tag)" :style="spaltenHinweis(s, tag) ? 'opacity:.6' : ''"></td></template>
                                     </tr>
                                 </template>
                             </tbody>

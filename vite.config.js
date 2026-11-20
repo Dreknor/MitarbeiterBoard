@@ -54,6 +54,10 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Nachrichten (Gruppen-Seite, Detail, Formular, Lesebestätigungen)
+                'resources/css/posts.css',
+                'resources/js/posts.js',
+
                 // Abwesenheiten (Übersicht /absences)
                 'resources/css/absences.css',
 
@@ -63,6 +67,9 @@ export default defineConfig({
                 // Online-Updater
                 'resources/css/updater.css',
                 'resources/js/updater.js',
+
+                // Benutzerverwaltung: Geburtstags-Import
+                'resources/css/users-import.css',
 
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',

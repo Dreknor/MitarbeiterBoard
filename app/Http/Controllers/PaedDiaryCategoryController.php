@@ -261,11 +261,34 @@ class PaedDiaryCategoryController extends Controller
         $groups = PaedDiaryColumn::whereNotNull('category')
             ->where('category', '!=', '')
             ->groupBy('category')
-            ->selectRaw('category as name, COUNT(*) as count')
+            ->selectRaw('category as name, COUNT(*) as count, MAX(bis_wochenende) as bis_wochenende')
             ->orderBy('category')
-            ->get();
+            ->get()
+            ->map(fn ($g) => ['name' => $g->name, 'count' => (int) $g->count, 'bis_wochenende' => (bool) $g->bis_wochenende]);
 
         return response()->json(['groups' => $groups]);
+    }
+
+    /**
+     * POST /paed-diary/column-groups/bis-wochenende
+     * Schaltet „bis Wochenende“ für alle Spalten einer Spaltengruppe (klassenübergreifend).
+     * Bereits gespeicherte Werte bleiben unverändert – die Einstellung wirkt auf neue Änderungen.
+     */
+    public function setColumnGroupBisWochenende(Request $request)
+    {
+        $data = $request->validate([
+            'name'   => ['required', 'string', 'max:100'],
+            'aktiv'  => ['required', 'boolean'],
+        ]);
+
+        $count = PaedDiaryColumn::where('category', trim($data['name']))
+            ->update(['bis_wochenende' => (bool) $data['aktiv']]);
+
+        if ($count === 0) {
+            return response()->json(['message' => 'Spaltengruppe nicht gefunden.'], 404);
+        }
+
+        return response()->json(['success' => true, 'updated' => $count, 'bis_wochenende' => (bool) $data['aktiv']]);
     }
 
     /**
@@ -279,8 +302,16 @@ class PaedDiaryCategoryController extends Controller
             'new_name' => ['required', 'string', 'max:100'],
         ]);
 
-        $count = PaedDiaryColumn::where('category', trim($data['old_name']))
-            ->update(['category' => trim($data['new_name'])]);
+        $alt = trim($data['old_name']);
+        $neu = trim($data['new_name']);
+        $aenderung = ['category' => $neu];
+        // Zusammenlegen mit einer bestehenden Gruppe: deren Einstellung „bis Wochenende“ gilt
+        // (Spalten übernehmen immer die Einstellung ihrer Gruppe).
+        if ($alt !== $neu && PaedDiaryColumn::where('category', $neu)->exists()) {
+            $aenderung['bis_wochenende'] = PaedDiaryColumn::gruppeBisWochenende($neu);
+        }
+
+        $count = PaedDiaryColumn::where('category', $alt)->update($aenderung);
 
         return response()->json(['success' => true, 'updated' => $count]);
     }

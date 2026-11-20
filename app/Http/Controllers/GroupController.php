@@ -128,6 +128,9 @@ class GroupController extends Controller
         if ($user->count() == 1) {
             $group->users()->attach($user);
 
+            // Offene Lesebestätigungen der Gruppe sofort zuweisen (sonst beim stündlichen Abgleich)
+            app(\App\Services\Posts\PostService::class)->abgleichenFuerGruppe($group);
+
             Log::info(
                 'Gruppen: Benutzer '.$user[0]->name. ' zur Gruppe '.$group->name. ' hinzugefügt',
                 [

@@ -40,6 +40,10 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
         $schedule->call('App\Http\Controllers\PostsController@dailyMail')->dailyAt('20:00');
+        // Nachrichten: neue Gruppenmitglieder → Lesebestätigung zuweisen, Erinnerungen, Ablauf
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgleichen())->hourly()->name('nachrichten-abgleich');
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->erinnerungenVersenden())->dailyAt('07:10')->name('nachrichten-erinnerungen');
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgelaufeneArchivieren())->dailyAt('01:30')->name('nachrichten-ablauf');
         $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
 
         //Recurring procedures

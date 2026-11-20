@@ -47,6 +47,17 @@
         @error('reason')<p class="abw-error">{{ $message }}</p>@enderror
     </div>
 
+    <div class="sm:col-span-2 lg:col-span-4" data-tour="abw-wiederkehrend">
+        @include('absences.partials.serie', ['serienKlassen' => [
+            'label' => 'abw-label',
+            'select' => 'abw-select',
+            'check' => 'inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer mr-4',
+            'hinweis' => 'text-xs text-gray-500',
+            'fehler' => 'abw-error',
+            'zeile' => 'grid gap-4 sm:grid-cols-3',
+        ]])
+    </div>
+
     <div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-x-6 gap-y-3">
         <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="hidden" name="showVertretungsplan" value="0">
@@ -66,7 +77,7 @@
 
         <span class="text-xs text-gray-500">
             <i class="fas fa-info-circle mr-1"></i>
-            Schließt die Meldung an eine gleiche an (gleiche Person, gleicher Grund), wird diese verlängert.
+            Schließt die Meldung an eine gleiche an (gleiche Person, gleicher Grund), wird diese verlängert (nicht bei wiederkehrenden).
             @if($darfKrankenschein)
                 Ab dem {{ \App\Models\Absence::krankenscheinTage() }}. Krankheitstag (Arbeitstage) wird der Krankenschein automatisch verlangt.
             @endif

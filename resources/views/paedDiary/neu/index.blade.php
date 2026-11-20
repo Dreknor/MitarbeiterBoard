@@ -374,22 +374,21 @@
                                                             <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'g' + stu.id + day.date + group.category">
                                                                 <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'">
                                                                     <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category"
-                                                                          :title="group.category"
-                                                                          x-text="kuerzel(group.category)"></span>
+                                                                          :title="group.category + (gruppeBisWochenende(group) ? ' – Bestätigungen gelten bis Freitag' : '')"><span x-text="kuerzel(group.category)"></span><i class="fas fa-calendar-week pdn-bisfr" x-show="gruppeBisWochenende(group)" aria-label="gilt bis Freitag"></i></span>
                                                                     <span class="pdn-colgroup__items">
                                                                         <template x-for="col in group.columns" :key="col.id">
                                                                             <span>
                                                                                 <template x-if="col.type === 'boolean'">
-                                                                                    <button type="button" class="pdn-tog" :class="boolKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                    <button type="button" class="pdn-tog" :class="[boolKlasse(getColumnValue(col.id, stu.id, day.date)), istUebernommen(col.id, stu.id, day.date) ? 'is-uebernommen' : '']"
                                                                                             @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
                                                                                             :aria-pressed="getColumnValue(col.id, stu.id, day.date) === '1'"
-                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name"
+                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name + (istUebernommen(col.id, stu.id, day.date) ? ' – ' + uebernahmeHinweis(col.id, stu.id, day.date) : '')"
                                                                                             x-text="col.name"></button>
                                                                                 </template>
                                                                                 <template x-if="col.type === 'ampel'">
-                                                                                    <button type="button" class="pdn-tog" :class="ampelKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                    <button type="button" class="pdn-tog" :class="[ampelKlasse(getColumnValue(col.id, stu.id, day.date)), istUebernommen(col.id, stu.id, day.date) ? 'is-uebernommen' : '']"
                                                                                             @click.stop="toggleAmpelColumn(col.id, stu.id, day.date)"
-                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name + ' – ' + ampelState(col.id, stu.id, day.date).label"
+                                                                                            :title="(group.category ? group.category + ': ' : '') + col.name + ' – ' + ampelState(col.id, stu.id, day.date).label + (istUebernommen(col.id, stu.id, day.date) ? ' – ' + uebernahmeHinweis(col.id, stu.id, day.date) : '')"
                                                                                             x-text="col.name"></button>
                                                                                 </template>
                                                                                 <template x-if="col.type !== 'boolean' && col.type !== 'ampel'">
@@ -545,14 +544,14 @@
                                                             <template x-for="group in getGroupedColumnsForStudent(stu)" :key="'kg' + stu.id + group.category">
                                                                 <span class="pdn-colgroup" role="group" :aria-label="group.category || 'Spalten'"
                                                                       x-show="group.columns.some(c => c.type === 'boolean' || c.type === 'ampel')">
-                                                                    <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category" x-text="group.category"></span>
+                                                                    <span class="pdn-colgroup__label" x-show="$store.diary.show_column_categories && group.category"><span x-text="group.category"></span><i class="fas fa-calendar-week pdn-bisfr" x-show="gruppeBisWochenende(group)" title="Bestätigungen gelten bis Freitag" aria-label="gilt bis Freitag"></i></span>
                                                                     <span class="pdn-colgroup__items">
                                                                         <template x-for="col in group.columns.filter(c => c.type === 'boolean' || c.type === 'ampel')" :key="'kc-' + col.id">
                                                                             <button type="button" class="pdn-tog"
-                                                                                    :class="col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date))"
+                                                                                    :class="[col.type === 'ampel' ? ampelKlasse(getColumnValue(col.id, stu.id, day.date)) : boolKlasse(getColumnValue(col.id, stu.id, day.date)), istUebernommen(col.id, stu.id, day.date) ? 'is-uebernommen' : '']"
                                                                                     @click="col.type === 'ampel' ? toggleAmpelColumn(col.id, stu.id, day.date) : toggleBoolColumn(col.id, stu.id, day.date)"
                                                                                     :aria-pressed="col.type === 'boolean' ? getColumnValue(col.id, stu.id, day.date) === '1' : null"
-                                                                                    :title="(group.category ? group.category + ': ' : '') + (col.type === 'ampel' ? col.name + ' – ' + ampelState(col.id, stu.id, day.date).label : col.name)"
+                                                                                    :title="(group.category ? group.category + ': ' : '') + (col.type === 'ampel' ? col.name + ' – ' + ampelState(col.id, stu.id, day.date).label : col.name) + (istUebernommen(col.id, stu.id, day.date) ? ' – ' + uebernahmeHinweis(col.id, stu.id, day.date) : '')"
                                                                                     x-text="col.name"></button>
                                                                         </template>
                                                                     </span>

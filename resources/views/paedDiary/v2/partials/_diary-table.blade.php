@@ -293,8 +293,11 @@
                                         <div :class="$store.diary.show_column_categories ? 'col-cat-group' : 'col-cat-group--flat'">
                                             {{-- Kategorie-Überschrift --}}
                                             <div class="col-cat-label"
-                                                 x-show="$store.diary.show_column_categories"
-                                                 x-text="group.category || 'Unkategorisiert'"></div>
+                                                 x-show="$store.diary.show_column_categories">
+                                                <span x-text="group.category || 'Unkategorisiert'"></span>
+                                                <i class="fas fa-calendar-week ml-1" x-show="gruppeBisWochenende(group)"
+                                                   title="Bestätigungen gelten bis Freitag" aria-label="gilt bis Freitag"></i>
+                                            </div>
                                             {{-- Spalten nebeneinander --}}
                                             <div class="col-cat-items">
                                                 <template x-for="col in group.columns" :key="col.id">
@@ -303,9 +306,9 @@
                                                         <template x-if="col.type === 'boolean'">
                                                             <button type="button"
                                                                     class="btn btn-xs bool-btn"
-                                                                    :class="getColumnValue(col.id, stu.id, day.date) === '1' ? 'btn-success' : 'btn-outline-secondary'"
+                                                                    :class="[getColumnValue(col.id, stu.id, day.date) === '1' ? 'btn-success' : 'btn-outline-secondary', istUebernommen(col.id, stu.id, day.date) ? 'col-uebernommen' : '']"
                                                                     @click.stop="toggleBoolColumn(col.id, stu.id, day.date)"
-                                                                    :title="col.name"
+                                                                    :title="col.name + (istUebernommen(col.id, stu.id, day.date) ? ' – ' + uebernahmeHinweis(col.id, stu.id, day.date) : '')"
                                                                     x-text="col.name">
                                                             </button>
                                                         </template>
@@ -313,9 +316,9 @@
                                                         <template x-if="col.type === 'ampel'">
                                                             <button type="button"
                                                                     class="btn btn-xs ampel-btn"
-                                                                    :class="ampelState(col.id, stu.id, day.date).cssClass"
+                                                                    :class="[ampelState(col.id, stu.id, day.date).cssClass, istUebernommen(col.id, stu.id, day.date) ? 'col-uebernommen' : '']"
                                                                     @click.stop="toggleAmpelColumn(col.id, stu.id, day.date)"
-                                                                    :title="col.name + ': ' + ampelState(col.id, stu.id, day.date).label"
+                                                                    :title="col.name + ': ' + ampelState(col.id, stu.id, day.date).label + (istUebernommen(col.id, stu.id, day.date) ? ' – ' + uebernahmeHinweis(col.id, stu.id, day.date) : '')"
                                                                     x-text="col.name">
                                                             </button>
                                                         </template>

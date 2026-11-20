@@ -62,21 +62,41 @@ const cellMethods = {
     },
 
     /**
+     * Tag (Y-m-d), von dem ein Wert übernommen wurde („bis Wochenende“), sonst null.
+     */
+    getColumnQuelle(colId, stuId, date) {
+        return this.$store.diary.column_value_quellen?.[colId]?.[stuId]?.[date] || null;
+    },
+
+    /** Ist der angezeigte Wert von einem früheren Tag der Woche übernommen? */
+    istUebernommen(colId, stuId, date) {
+        return !!this.getColumnQuelle(colId, stuId, date) && this.getColumnValue(colId, stuId, date) !== '';
+    },
+
+    /** Hinweistext für übernommene Werte, z. B. „übernommen von Mo, 16.11.“ (sonst leer). */
+    uebernahmeHinweis(colId, stuId, date) {
+        if (!this.istUebernommen(colId, stuId, date)) return '';
+        const quelle = this.getColumnQuelle(colId, stuId, date);
+        const d = new Date(quelle + 'T00:00:00');
+        if (isNaN(d.getTime())) return '';
+        const tag = d.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '');
+        const datum = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+        return `übernommen von ${tag}, ${datum}`;
+    },
+
+    /** Hat eine Spaltengruppe die Einstellung „bis Wochenende“? */
+    gruppeBisWochenende(group) {
+        return (group?.columns || []).some(c => c.bis_wochenende);
+    },
+
+    /**
      * Boolean-Button toggeln (optimistisches Update + Speichern).
      */
     async toggleBoolColumn(colId, stuId, date) {
         const current = this.getColumnValue(colId, stuId, date);
         const newVal = current === '1' ? '' : '1';
 
-        // Optimistisches Update im Store
-        this._setColumnValueLocal(colId, stuId, date, newVal);
-
-        try {
-            await this.saveColumnValue(colId, stuId, date, newVal);
-        } catch (_) {
-            // Revert bei Fehler
-            this._setColumnValueLocal(colId, stuId, date, current);
-        }
+        await this._umschaltenUndSpeichern(colId, stuId, date, current, newVal);
     },
 
     /**
@@ -89,15 +109,53 @@ const cellMethods = {
         const idx = order.indexOf(current);
         const newVal = order[(idx + 1) % order.length];
 
-        // Optimistisches Update im Store
-        this._setColumnValueLocal(colId, stuId, date, newVal);
+        await this._umschaltenUndSpeichern(colId, stuId, date, current, newVal);
+    },
+
+    /**
+     * Optimistisch setzen, speichern und danach die vom Server berechnete Woche übernehmen
+     * (bei „bis Wochenende“ ändern sich auch die Folgetage). Bei Fehler zurücksetzen.
+     */
+    async _umschaltenUndSpeichern(colId, stuId, date, vorher, neu) {
+        const quelleVorher = this.getColumnQuelle(colId, stuId, date);
+        this._setColumnValueLocal(colId, stuId, date, neu);
 
         try {
-            await this.saveColumnValue(colId, stuId, date, newVal);
+            const antwort = await this.saveColumnValue(colId, stuId, date, neu);
+            this._wocheUebernehmen(colId, stuId, antwort);
         } catch (_) {
-            // Revert bei Fehler
-            this._setColumnValueLocal(colId, stuId, date, current);
+            this._setColumnValueLocal(colId, stuId, date, vorher, quelleVorher);
         }
+    },
+
+    /**
+     * Gültige Werte der Woche aus der Server-Antwort ({werte: {datum: wert}, quellen: {datum: von}})
+     * in den Store schreiben.
+     */
+    _wocheUebernehmen(colId, stuId, antwort) {
+        if (!antwort || !antwort.werte || Array.isArray(antwort.werte)) return;
+        const store = this.$store.diary;
+        const cv = store.column_values;
+        const cq = store.column_value_quellen || {};
+        cv[colId] = cv[colId] || {};
+        cv[colId][stuId] = cv[colId][stuId] || {};
+        cq[colId] = cq[colId] || {};
+        cq[colId][stuId] = cq[colId][stuId] || {};
+        const quellen = Array.isArray(antwort.quellen) ? {} : (antwort.quellen || {});
+        Object.entries(antwort.werte).forEach(([datum, wert]) => {
+            if (wert === null || wert === '') {
+                delete cv[colId][stuId][datum];
+            } else {
+                cv[colId][stuId][datum] = wert;
+            }
+            if (quellen[datum]) {
+                cq[colId][stuId][datum] = quellen[datum];
+            } else {
+                delete cq[colId][stuId][datum];
+            }
+        });
+        store.column_values = { ...cv };
+        store.column_value_quellen = { ...cq };
     },
 
     /**
@@ -126,7 +184,7 @@ const cellMethods = {
     /**
      * Lokalen Cache-Wert setzen.
      */
-    _setColumnValueLocal(colId, stuId, date, value) {
+    _setColumnValueLocal(colId, stuId, date, value, quelle = null) {
         const cv = this.$store.diary.column_values;
         if (!cv[colId]) cv[colId] = {};
         if (!cv[colId][stuId]) cv[colId][stuId] = {};
@@ -135,8 +193,18 @@ const cellMethods = {
         } else {
             cv[colId][stuId][date] = value;
         }
+        // Ein am Tag selbst gesetzter Wert ist nicht (mehr) übernommen
+        const cq = this.$store.diary.column_value_quellen || {};
+        if (quelle) {
+            cq[colId] = cq[colId] || {};
+            cq[colId][stuId] = cq[colId][stuId] || {};
+            cq[colId][stuId][date] = quelle;
+        } else if (cq[colId]?.[stuId]?.[date]) {
+            delete cq[colId][stuId][date];
+        }
         // Alpine-Reaktivität triggern durch Neuzuweisung
         this.$store.diary.column_values = { ...cv };
+        this.$store.diary.column_value_quellen = { ...cq };
     },
 
     /**
@@ -181,6 +249,8 @@ export function columnsManagerMethods() {
     return {
         /** Alle Spalten (inkl. deaktivierte), geladen via columnsAll */
         allColumns: [],
+        /** Darf „bis Wochenende“ für Spaltengruppen umschalten (Recht wie Spaltengruppen umbenennen) */
+        darfBisWochenende: false,
         /** Deaktivierte anzeigen */
         showDeactivated: false,
         /** Feedback-Text in der Verwaltungscard */
@@ -199,6 +269,15 @@ export function columnsManagerMethods() {
         copyOpenFor: null,
         /** Ausgewählte Ziel-Klassen für den Kopiervorgang */
         copyTargetIds: [],
+        /** Spalte, deren Bearbeiten-Dialog offen ist (id) */
+        bearbeitenFuer: null,
+        /** Daten des Bearbeiten-Dialogs (vom Server, siehe PaedDiarySpaltenService::uebersicht) */
+        bearbeitung: null,
+        /** Formularwerte des Bearbeiten-Dialogs */
+        bearbeitungForm: { name: '', category: '', type: 'boolean', klasse_ids: [] },
+        bearbeitungKategorien: [],
+        bearbeitungFehler: '',
+        bearbeitungSpeichert: false,
 
         /**
          * Initialisierung: Wenn die Spalten-Card geöffnet wird,
@@ -253,6 +332,7 @@ export function columnsManagerMethods() {
                 if (!resp.ok) throw new Error('Laden fehlgeschlagen');
                 const data = await resp.json();
                 this.allColumns = data.columns || [];
+                this.darfBisWochenende = !!data.darf_bis_wochenende;
             } catch (_) {
                 this.setFeedback('Fehler beim Laden der Spalten', 'danger');
             }
@@ -327,6 +407,7 @@ export function columnsManagerMethods() {
 
         /** Öffnet/schließt das Kopier-Panel für eine Spalte. */
         toggleCopyPanel(colId) {
+            this.bearbeitenFuer = null;
             this.copyOpenFor = this.copyOpenFor === colId ? null : colId;
             this.copyTargetIds = [];
         },
@@ -380,6 +461,104 @@ export function columnsManagerMethods() {
             }
         },
 
+        // ── Spalte bearbeiten (Name, Gruppe, Art, Klassen) ─────────
+
+        /** Öffnet/schließt den Bearbeiten-Dialog einer Spalte und lädt dessen Daten. */
+        async bearbeitenUmschalten(colId) {
+            if (this.bearbeitenFuer === colId) {
+                this.bearbeitenSchliessen();
+                return;
+            }
+            this.copyOpenFor = null;
+            this.bearbeitenFuer = colId;
+            this.bearbeitung = null;
+            this.bearbeitungFehler = '';
+            try {
+                const resp = await fetch(`/paed-diary/column/${colId}/bearbeiten`, { headers: { 'Accept': 'application/json' } });
+                if (!resp.ok) throw new Error('Laden fehlgeschlagen');
+                const j = await resp.json();
+                if (this.bearbeitenFuer !== colId) return;
+                this.bearbeitung = j.spalte;
+                this.bearbeitungKategorien = j.kategorien || [];
+                this.bearbeitungForm = {
+                    name: j.spalte.name || '',
+                    category: j.spalte.category || '',
+                    type: j.spalte.type,
+                    klasse_ids: j.spalte.klassen.filter(k => k.status === 'aktiv').map(k => k.id),
+                };
+            } catch (_) {
+                this.bearbeitungFehler = 'Die Spalte konnte nicht geladen werden.';
+            }
+        },
+
+        bearbeitenSchliessen() {
+            this.bearbeitenFuer = null;
+            this.bearbeitung = null;
+            this.bearbeitungFehler = '';
+        },
+
+        bearbeitungKlasseUmschalten(klasseId) {
+            const id = parseInt(klasseId);
+            const ids = this.bearbeitungForm.klasse_ids;
+            const idx = ids.indexOf(id);
+            if (idx === -1) ids.push(id); else ids.splice(idx, 1);
+        },
+
+        /** Hinweis neben einer Klasse im Bearbeiten-Dialog. */
+        bearbeitungKlasseHinweis(k) {
+            const gewaehlt = this.bearbeitungForm.klasse_ids.includes(k.id);
+            if (k.status === 'aktiv' && !gewaehlt) return 'wird ab heute deaktiviert';
+            if (k.status === 'deaktiviert') {
+                const seit = k.deaktiviert_seit ? new Date(k.deaktiviert_seit + 'T00:00:00').toLocaleDateString('de-DE') : '';
+                return gewaehlt ? 'wird wieder aktiviert' : `deaktiviert seit ${seit}`;
+            }
+            if (k.status === 'keine' && gewaehlt) return 'wird angelegt';
+            return '';
+        },
+
+        async bearbeitungSpeichern() {
+            if (!this.bearbeitung || this.bearbeitungSpeichert) return;
+            const colId = this.bearbeitung.id;
+            this.bearbeitungSpeichert = true;
+            this.bearbeitungFehler = '';
+            try {
+                const resp = await fetch(`/paed-diary/column/${colId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.bearbeitungForm.name.trim(),
+                        category: this.bearbeitungForm.category.trim(),
+                        type: this.bearbeitungForm.type,
+                        klasse_ids: this.bearbeitungForm.klasse_ids,
+                    })
+                });
+                const j = await resp.json().catch(() => ({}));
+                if (!resp.ok || !j.success) {
+                    const fehler = j.errors ? Object.values(j.errors).flat() : [];
+                    this.bearbeitungFehler = fehler[0] || j.message || 'Speichern fehlgeschlagen.';
+                    return;
+                }
+                const e = j.ergebnis || {};
+                const teile = [];
+                if (e.neu) teile.push(`${e.neu} Klasse(n) neu`);
+                if (e.uebernommen) teile.push(`${e.uebernommen} vorhandene Spalte(n) übernommen`);
+                if (e.reaktiviert) teile.push(`${e.reaktiviert} reaktiviert`);
+                if (e.deaktiviert) teile.push(`${e.deaktiviert} ab heute deaktiviert`);
+                this.setFeedback('Spalte gespeichert' + (teile.length ? ` (${teile.join(', ')})` : ''), 'success');
+                this.bearbeitenSchliessen();
+                this.$store.diary.loadWeek();
+                this.loadAllColumns();
+            } catch (_) {
+                this.bearbeitungFehler = 'Speichern fehlgeschlagen.';
+            } finally {
+                this.bearbeitungSpeichert = false;
+            }
+        },
+
         async deactivateColumn(colId, bestaetigt = false) {
             const store = this.$store.diary;
             const col = this.allColumns.find(c => c.id === colId);
@@ -420,6 +599,39 @@ export function columnsManagerMethods() {
                 }
             } catch (_) {
                 this.setFeedback('Fehler beim Reaktivieren', 'danger');
+            }
+        },
+
+        /** Hat die Spaltengruppe (Name aus groupedColumns) die Einstellung „bis Wochenende“? */
+        gruppeNameBisWochenende(name) {
+            if (!name || name === 'Unkategorisiert') return false;
+            return (this.allColumns || []).some(c => c.category === name && c.bis_wochenende);
+        },
+
+        /**
+         * „Gilt bis Freitag“ für eine ganze Spaltengruppe ein-/ausschalten (alle Klassen).
+         */
+        async setGruppeBisWochenende(name, aktiv) {
+            if (!name || name === 'Unkategorisiert') return;
+            try {
+                const resp = await fetch('/paed-diary/column-groups/bis-wochenende', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ name, aktiv })
+                });
+                const j = await resp.json().catch(() => ({}));
+                if (!resp.ok || !j.success) throw new Error(j.message || 'Fehler');
+                this.setFeedback(aktiv
+                    ? `„${name}“: Bestätigungen gelten ab jetzt bis Freitag`
+                    : `„${name}“: Bestätigungen gelten wieder nur für den Tag`, 'success');
+                this.$store.diary.loadWeek();
+                this.loadAllColumns();
+            } catch (_) {
+                this.setFeedback('Einstellung konnte nicht gespeichert werden', 'danger');
             }
         },
 

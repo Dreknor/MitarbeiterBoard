@@ -208,9 +208,15 @@ class PaedDiaryController extends Controller
             'category_color' => $e->category?->color
         ])->values();
         // Spaltenwerte wurden bereits schülerbasiert geladen (inkl. Historie) - hier nur gruppieren.
+        // column_value_quellen: bei übernommenen Werten („bis Wochenende“) der Tag, an dem gesetzt wurde.
         $valuesGrouped = [];
+        $valueSources = [];
         foreach ($week['column_values'] as $v) {
-            $valuesGrouped[$v->paed_diary_column_id][$v->schueler_id][$v->datum->toDateString()] = $v->value;
+            $tag = $v->datum->toDateString();
+            $valuesGrouped[$v->paed_diary_column_id][$v->schueler_id][$tag] = $v->value;
+            if ($v->uebernommen_von) {
+                $valueSources[$v->paed_diary_column_id][$v->schueler_id][$tag] = $v->uebernommen_von;
+            }
         }
         $tasks = $week['tasks']->map(fn($t) => [
             'id' => $t->id, 'schueler_id' => $t->schueler_id, 'title' => $t->title,
@@ -262,9 +268,11 @@ class PaedDiaryController extends Controller
             'open_entries' => $openEntries,
             'columns' => $columns->map(fn($c) => [
                 'id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'type' => $c->type, 'klasse_id' => $c->klasse_id, 'deactivated_from' => $c->deactivated_from?->toDateString(),
-                'category' => $c->category ?? null
+                'category' => $c->category ?? null,
+                'bis_wochenende' => $c->wirktBisWochenende(),
             ]),
             'column_values' => $valuesGrouped,
+            'column_value_quellen' => $valueSources,
             'tasks' => $tasks,
             'pauses' => $pauses,
             'categories' => $categories,

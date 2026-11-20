@@ -1726,6 +1726,12 @@
                      cell.innerHTML = '<span class="text-muted">-</span>';
                  }
 
+                 // Übernommener Wert „bis Wochenende“ (an einem früheren Tag der Woche gesetzt)
+                 if (value && value.uebernommen_von && value.value) {
+                     cell.style.opacity = '.6';
+                     cell.title = 'übernommen von ' + formatDisplayDate(value.uebernommen_von);
+                 }
+
                  row.appendChild(cell);
              });
 

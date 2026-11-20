@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\v1\AbsenceApiController;
+use App\Http\Controllers\API\v1\PostApiController;
 use App\Http\Controllers\API\v1\AuthApiController;
 use App\Http\Controllers\API\v1\ClassApiController;
 use App\Http\Controllers\API\v1\ClassOverviewApiController;
@@ -283,6 +284,18 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             Route::post('{holiday}/cancel', [HolidayApiController::class, 'requestCancellation'])->whereNumber('holiday')->name('cancel');
             Route::post('{holiday}/cancel-decision', [HolidayApiController::class, 'decideCancellation'])->whereNumber('holiday')->name('cancel-decision');
             Route::delete('{holiday}', [HolidayApiController::class, 'destroy'])->whereNumber('holiday')->name('destroy');
+        });
+
+    // Nachrichten (beide Apps): lesen, gelesen markieren, bestätigen – Zugriff über Gruppen (PostPolicy).
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent'])
+        ->prefix('posts')->name('posts.')->group(function () {
+            Route::get('/', [PostApiController::class, 'index'])->name('index');
+            Route::get('counts', [PostApiController::class, 'counts'])->name('counts');
+            Route::get('{post}', [PostApiController::class, 'show'])->whereNumber('post')->name('show');
+            Route::post('{post}/read', [PostApiController::class, 'read'])->whereNumber('post')->name('read');
+            Route::post('{post}/confirm', [PostApiController::class, 'confirm'])->whereNumber('post')->name('confirm');
+            Route::get('{post}/attachments/{media}', [PostApiController::class, 'attachment'])
+                ->whereNumber('post')->whereNumber('media')->name('attachments');
         });
 
     // Abwesenheiten (wie die Abwesenheiten-Karte im Web): "view absences", für andere "create absences".

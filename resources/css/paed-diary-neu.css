@@ -508,3 +508,8 @@
     .pdn-eg-drawer.is-voll .pdn-eg-punkt--protokoll { grid-template-columns: 1fr; }
     .pdn-eg-drawer.is-voll .pdn-drawer__body { padding: 14px 12px; }
 }
+
+/* Übernommene Werte „bis Wochenende“ (von einem früheren Tag der Woche) – abgesetzt darstellen */
+.pdn .pdn-tog.is-uebernommen { opacity: .6; border-style: dashed; }
+.pdn .pdn-bisfr { margin-left: 3px; font-size: .85em; opacity: .75; }
+.pdn .pdn-tag--bisfr { white-space: nowrap; }

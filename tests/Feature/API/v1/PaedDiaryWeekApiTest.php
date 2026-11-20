@@ -364,6 +364,37 @@ class PaedDiaryWeekApiTest extends ApiTestCase
     }
 
     /** @test */
+    public function spaltenwert_bis_wochenende_gilt_bis_freitag_und_wird_in_woche_und_antwort_geliefert(): void
+    {
+        [$klasse, $schueler] = $this->classWithStudent();
+        $this->actingAsTeacher(['view paed diary'], [$klasse]);
+        $column = PaedDiaryColumn::factory()->create([
+            'klasse_id' => $klasse->id, 'type' => 'boolean', 'category' => 'Wochenplan', 'bis_wochenende' => true,
+        ]);
+
+        $put = $this->putJson(self::API . '/paed-diary/column-values', [
+            'column_id' => $column->id, 'schueler_id' => $schueler->id, 'date' => '2026-09-23', 'value' => '1',
+        ])->assertOk();
+
+        $this->assertSame([
+            ['date' => '2026-09-21', 'value' => null, 'carried_from' => null],
+            ['date' => '2026-09-22', 'value' => null, 'carried_from' => null],
+            ['date' => '2026-09-23', 'value' => '1', 'carried_from' => null],
+            ['date' => '2026-09-24', 'value' => '1', 'carried_from' => '2026-09-23'],
+            ['date' => '2026-09-25', 'value' => '1', 'carried_from' => '2026-09-23'],
+        ], $put->json('data.week'));
+
+        $week = $this->getJson(self::API . '/paed-diary/week?class_id=' . $klasse->id . '&week_start=' . self::WEEK)->assertOk();
+        $week->assertJsonPath('data.columns.0.carries_to_week_end', true);
+        $values = collect($week->json('data.column_values'))->keyBy('date');
+        $this->assertSame(['2026-09-23', '2026-09-24', '2026-09-25'], $values->keys()->all());
+        $this->assertNull($values['2026-09-23']['carried_from']);
+        $this->assertSame('2026-09-23', $values['2026-09-25']['carried_from']);
+        $this->assertSame('1', $values['2026-09-25']['value']);
+        $this->assertSame(1, PaedDiaryColumnValue::count());
+    }
+
+    /** @test */
     public function spaltenwert_fremder_klasse_ist_verboten(): void
     {
         [$eigen] = $this->classWithStudent();
