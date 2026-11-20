@@ -61,15 +61,28 @@ function schreiben(schluessel, wert) {
 }
 
 /**
+ * Gilt die Frage für den Schüler? s.fragen enthält die Fragen-IDs seiner Graduierungsstufe
+ * (ohne Angabe gelten alle Fragen).
+ */
+function gilt(s, f) {
+    return !!s && !!f && (!Array.isArray(s.fragen) || s.fragen.includes(f.id));
+}
+
+/**
  * Reihenfolge der Schritte (Schüler × Fragen): schülerweise oder fragenweise.
+ * Fragen, die nicht zur Stufe eines Schülers gehören, werden übersprungen.
  * @returns {{s: number, f: number}[]} Indizes
  */
-function schritte(anzahlSchueler, anzahlFragen, fragenweise) {
+function schritte(schueler, fragen, fragenweise) {
     const liste = [];
     if (fragenweise) {
-        for (let f = 0; f < anzahlFragen; f++) for (let s = 0; s < anzahlSchueler; s++) liste.push({ s, f });
+        for (let f = 0; f < fragen.length; f++) for (let s = 0; s < schueler.length; s++) {
+            if (gilt(schueler[s], fragen[f])) liste.push({ s, f });
+        }
     } else {
-        for (let s = 0; s < anzahlSchueler; s++) for (let f = 0; f < anzahlFragen; f++) liste.push({ s, f });
+        for (let s = 0; s < schueler.length; s++) for (let f = 0; f < fragen.length; f++) {
+            if (gilt(schueler[s], fragen[f])) liste.push({ s, f });
+        }
     }
     return liste;
 }
@@ -194,21 +207,25 @@ export function registerGraduierung(Alpine) {
         schluessel(s, f) { return s.id + '_' + f.id; },
         istFinalisiert(s) { return this.abgeschlossen || this.finalisiert.includes(Number(s.id)); },
         antwort(s, f) { return s && f ? this.antworten[this.schluessel(s, f)] : undefined; },
-        anzahlBeantwortet(s) { return this.fragen.filter(f => this.antwort(s, f) !== undefined).length; },
-        istVollstaendig(s) { return this.istFinalisiert(s) || this.anzahlBeantwortet(s) === this.fragen.length; },
+        eigeneFragen(s) { return this.fragen.filter(f => gilt(s, f)); },
+        anzahlBeantwortet(s) { return this.eigeneFragen(s).filter(f => this.antwort(s, f) !== undefined).length; },
+        istVollstaendig(s) { return this.istFinalisiert(s) || this.anzahlBeantwortet(s) === this.eigeneFragen(s).length; },
 
         get offeneSchritte() {
-            return schritte(this.schueler.length, this.fragen.length, this.fragenweise)
+            return schritte(this.schueler, this.fragen, this.fragenweise)
                 .filter(x => !this.istFinalisiert(this.schueler[x.s]) && this.antwort(this.schueler[x.s], this.fragen[x.f]) === undefined);
         },
         get allesBeantwortet() { return this.fragen.length > 0 && this.offeneSchritte.length === 0; },
-        get gesamt() { return this.schueler.length * this.fragen.length; },
-        get beantwortet() { return Object.keys(this.antworten).length; },
+        get gesamt() { return schritte(this.schueler, this.fragen, false).length; },
+        get beantwortet() {
+            return schritte(this.schueler, this.fragen, false)
+                .filter(x => this.antwort(this.schueler[x.s], this.fragen[x.f]) !== undefined).length;
+        },
 
         ersterOffener() { return this.offeneSchritte[0] || null; },
 
         naechsterOffener() {
-            const alle = schritte(this.schueler.length, this.fragen.length, this.fragenweise);
+            const alle = schritte(this.schueler, this.fragen, this.fragenweise);
             const pos = alle.findIndex(x => x.s === this.sIndex && x.f === this.fIndex);
             const offen = x => !this.istFinalisiert(this.schueler[x.s]) && this.antwort(this.schueler[x.s], this.fragen[x.f]) === undefined;
             return alle.slice(pos + 1).find(offen) || alle.slice(0, Math.max(pos, 0)).find(offen) || null;
@@ -248,8 +265,9 @@ export function registerGraduierung(Alpine) {
             this.hinweis = '';
             if (!this.fragenweise) {
                 const s = this.schueler[index];
-                const offen = this.fragen.findIndex(f => this.antwort(s, f) === undefined);
-                this.fIndex = offen === -1 ? 0 : offen;
+                const offen = this.fragen.findIndex(f => gilt(s, f) && this.antwort(s, f) === undefined);
+                const erste = this.fragen.findIndex(f => gilt(s, f));
+                this.fIndex = offen !== -1 ? offen : Math.max(erste, 0);
             }
             this.$nextTick(() => this.$refs.karte?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         },
@@ -380,20 +398,25 @@ export function registerGraduierung(Alpine) {
         get aktuell() { return this.schueler[this.sIndex] || null; },
         get aktuelleFrage() { return this.fragen[this.fIndex] || null; },
         get sichtbareFragen() {
-            return this.fragenweise && this.aktuelleFrage ? [this.aktuelleFrage] : this.fragen;
+            if (this.fragenweise) return this.aktuelleFrage && gilt(this.aktuell, this.aktuelleFrage) ? [this.aktuelleFrage] : [];
+            return this.eigeneFragen(this.aktuell);
         },
 
         istGesperrt(s) { return this.abgeschlossen || !!s?.abgeschlossen; },
-        anzahlBewertet(s) { return this.fragen.filter(f => s.lehrkraft[f.id]).length; },
-        istVollstaendig(s) { return this.fragen.length > 0 && this.anzahlBewertet(s) === this.fragen.length; },
-        frageFertig(f) { return this.schueler.every(s => s.abgeschlossen || s.lehrkraft[f.id]); },
-        bewertetZuFrage(f) { return this.schueler.filter(s => s.lehrkraft[f.id]).length; },
+        eigeneFragen(s) { return this.fragen.filter(f => gilt(s, f)); },
+        gilt(s, f) { return gilt(s, f); },
+        anzahlBewertet(s) { return this.eigeneFragen(s).filter(f => s.lehrkraft[f.id]).length; },
+        // Ohne Fragen für die Stufe gilt die Person als fertig
+        istVollstaendig(s) { return this.anzahlBewertet(s) === this.eigeneFragen(s).length; },
+        frageFertig(f) { return this.schueler.every(s => s.abgeschlossen || !gilt(s, f) || s.lehrkraft[f.id]); },
+        bewertetZuFrage(f) { return this.schueler.filter(s => gilt(s, f) && s.lehrkraft[f.id]).length; },
+        betroffenZuFrage(f) { return this.schueler.filter(s => gilt(s, f)).length; },
 
         get vollstaendig() { return this.schueler.filter(s => s.abgeschlossen || this.istVollstaendig(s)).length; },
         get unvollstaendig() { return this.schueler.filter(s => !s.abgeschlossen && !this.istVollstaendig(s)).map(s => s.name); },
         get irgendeineBewertung() { return this.schueler.some(s => this.fragen.some(f => s.lehrkraft[f.id])); },
         get offeneSchritte() {
-            return schritte(this.schueler.length, this.fragen.length, this.fragenweise)
+            return schritte(this.schueler, this.fragen, this.fragenweise)
                 .filter(x => !this.istGesperrt(this.schueler[x.s]) && !this.schueler[x.s].lehrkraft[this.fragen[x.f].id]);
         },
 
@@ -417,8 +440,9 @@ export function registerGraduierung(Alpine) {
             this.hinweis = '';
             if (!this.fragenweise) {
                 const s = this.schueler[index];
-                const offen = this.fragen.findIndex(f => !s.lehrkraft[f.id]);
-                this.fIndex = offen === -1 ? 0 : offen;
+                const offen = this.fragen.findIndex(f => gilt(s, f) && !s.lehrkraft[f.id]);
+                const erste = this.fragen.findIndex(f => gilt(s, f));
+                this.fIndex = offen !== -1 ? offen : Math.max(erste, 0);
             }
             this.$nextTick(() => this.$refs.kopf?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
         },
@@ -430,7 +454,7 @@ export function registerGraduierung(Alpine) {
 
         /** Nächster offener Schritt nach dem aktuellen (mit Umlauf). */
         naechsterOffener() {
-            const alle = schritte(this.schueler.length, this.fragen.length, this.fragenweise);
+            const alle = schritte(this.schueler, this.fragen, this.fragenweise);
             const pos = alle.findIndex(x => x.s === this.sIndex && x.f === this.fIndex);
             const offen = x => !this.istGesperrt(this.schueler[x.s]) && !this.schueler[x.s].lehrkraft[this.fragen[x.f].id];
             return alle.slice(pos + 1).find(offen) || alle.slice(0, Math.max(pos, 0)).find(offen) || null;
@@ -498,7 +522,7 @@ export function registerGraduierung(Alpine) {
                 return;
             }
             // Schülerweise: zur nächsten offenen Frage dieser Person scrollen
-            const naechste = this.fragen.find(x => !s.lehrkraft[x.id]);
+            const naechste = this.fragen.find(x => gilt(s, x) && !s.lehrkraft[x.id]);
             if (naechste) {
                 this.$nextTick(() => document.getElementById('pdnFrage-' + naechste.id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
             }

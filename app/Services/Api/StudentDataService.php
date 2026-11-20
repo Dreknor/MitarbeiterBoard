@@ -88,7 +88,7 @@ class StudentDataService
      */
     public function completedGradingSessions(Schueler $schueler, ?Carbon $from = null, ?Carbon $to = null): Collection
     {
-        return GradingDocumentationSession::query()
+        $sessions = GradingDocumentationSession::query()
             ->where(function ($q) use ($schueler) {
                 $q->where(fn ($q2) => $q2->where('type', 'individual')->where('schueler_id', $schueler->id))
                     ->orWhere(fn ($q2) => $q2->where('type', 'group')->where(fn ($q3) => $q3
@@ -102,6 +102,7 @@ class StudentDataService
             ->with([
                 'gradingSystem:id,name',
                 'gradingSystem.questions' => fn ($q) => $q->orderBy('sort_order'),
+                'gradingSystem.questions.stages:id',
                 'user:id,name',
                 'studentAnswers' => fn ($q) => $q->where('schueler_id', $schueler->id),
                 'teacherAssessments' => fn ($q) => $q->where('schueler_id', $schueler->id),
@@ -109,6 +110,9 @@ class StudentDataService
             ])
             ->orderByDesc('completed_at')
             ->get();
+
+        // Nur die Fragen dieses Schülers (seine Stufe bzw. tatsächlich Beantwortetes)
+        return app(\App\Services\GradingSessionService::class)->fragenAufSchuelerBeschraenken($sessions, (int) $schueler->id);
     }
 
     /**

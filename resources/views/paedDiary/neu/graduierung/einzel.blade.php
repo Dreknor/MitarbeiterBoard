@@ -49,7 +49,7 @@
 
         <div class="pdn-gd-body">
             @if($questions->isEmpty())
-                <div class="pdn-leer pdn-gd-leer">Das Graduierungssystem hat keine aktiven Fragen.</div>
+                <div class="pdn-leer pdn-gd-leer">Für die Graduierungsstufe von {{ $schueler->vorname }} gibt es keine aktiven Fragen.</div>
             @else
                 <template x-for="(f, i) in fragen" :key="'f' + f.id">
                     <section class="pdn-gd-karte" :class="{ 'is-bewertet': antworten[f.id] }" :aria-labelledby="'pdnFrage' + f.id">

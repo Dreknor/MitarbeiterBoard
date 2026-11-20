@@ -1064,6 +1064,10 @@ paths:
         Schüler ab (Stufenvergabe für diesen Schüler); die Session ist abgeschlossen, sobald alle Teilnehmer
         abgeschlossen sind (`meta.session_completed`). Weitere Bewertungen eines abgeschlossenen Schülers → 409.
         Im Web schließt „Session abschließen“ weiterhin die gesamte Session für alle Schüler ab.
+
+        **Fragen je Stufe:** Nur Fragen aus `meta.students[].question_ids` des Schülers sind erlaubt, andere → 422
+        (`errors.answers`). Mit der ersten Antwort (bzw. beim Abschluss) wird die Stufe des Schülers für die
+        Session festgeschrieben; eine spätere Stufenänderung ändert seine Fragen in dieser Session nicht mehr.
       parameters:
         - { name: session_id, in: path, required: true, schema: { type: integer } }
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -3582,7 +3586,7 @@ components:
           type: object
           properties:
             answered: { type: integer, description: Schüler-Frage-Paare mit Pädagogenbewertung }
-            total: { type: integer, description: Teilnehmer × aktive Fragen }
+            total: { type: integer, description: "Summe der Fragen je Teilnehmer (nur Fragen seiner Graduierungsstufe)" }
             students_total: { type: integer }
             students_finalized: { type: integer }
     SessionStudent:
@@ -3591,6 +3595,11 @@ components:
         id: { type: integer }
         firstname: { type: string }
         lastname_initial: { type: string, nullable: true, example: M. }
+        grading_stage_id: { type: integer, nullable: true, description: "Graduierungsstufe in dieser Session (beim ersten Beantworten/Bewerten festgeschrieben, vorher die aktuelle Stufe); null = ohne Stufe" }
+        question_ids:
+          type: array
+          items: { type: integer }
+          description: "Fragen, die für diesen Schüler gelten (Fragen seiner Stufe + Fragen für alle Stufen, sortiert). Antworten/Bewertungen zu anderen Fragen werden mit 422 abgelehnt."
         finalized: { type: boolean }
         finalized_at: { type: string, format: date-time, nullable: true }
     JoinCode:
@@ -3606,9 +3615,13 @@ components:
       properties:
         session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string }, current_question_id: { type: integer, nullable: true } } }
         student: { type: object, properties: { firstname: { type: string } } }
-        questions: { type: array, items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } } }
+        questions:
+          type: array
+          description: "Nur Fragen der Graduierungsstufe des Schülers (by_question: nur bereits freigegebene). Freigegebene Fragen anderer Stufen werden übersprungen."
+          items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } }
         self_ratings: { type: array, items: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer } } } }
         waiting: { type: boolean, description: "by_question: alle freigegebenen Fragen beantwortet, warten auf die nächste Freigabe" }
+        no_questions: { type: boolean, description: "Für die Stufe des Schülers gibt es keine Fragen – er ist fertig (Anzeige „Für dich gibt es heute keine Fragen“)" }
     CurrentUser:
       type: object
       properties:
@@ -3808,7 +3821,18 @@ components:
         is_completed: { type: boolean }
         questions:
           type: array
-          items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } }
+          description: >-
+            Aktive Fragen, die mindestens einen Teilnehmer betreffen (bei individuellen Sessions nur die
+            Fragen der Stufe des Schülers). Welche Frage für wen gilt: meta.students[].question_ids.
+            In abgeschlossenen Sessions (Verlauf) nur die Fragen des jeweiligen Schülers.
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              question: { type: string }
+              sort_order: { type: integer }
+              stage_ids: { type: array, items: { type: integer }, description: "Stufen, für die die Frage gilt; leer = alle Stufen" }
+              student_count: { type: integer, description: "Nur in Session-Antworten: Anzahl Teilnehmer, für die die Frage gilt" }
         answers:
           type: array
           items:

@@ -404,6 +404,20 @@
                                         <small class="text-muted"><i class="fas fa-arrows-alt"></i> Drag & Drop zum Sortieren</small>
                                     </div>
 
+                                    @if($system->questions->isNotEmpty() && $system->stages->isNotEmpty())
+                                        {{-- Filter: nur Fragen einer Stufe (inkl. Fragen für alle Stufen) --}}
+                                        <div class="form-inline mb-2">
+                                            <label class="small font-weight-bold mr-2" for="question-filter-{{ $system->id }}">Fragen der Stufe</label>
+                                            <select class="form-control form-control-sm js-question-stage-filter" id="question-filter-{{ $system->id }}"
+                                                    data-list="questions-list-{{ $system->id }}">
+                                                <option value="">alle anzeigen</option>
+                                                @foreach($system->stages as $stage)
+                                                    <option value="{{ $stage->id }}">{{ $stage->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @endif
+
                                     @if($system->questions->isEmpty())
                                         <div class="alert alert-info">
                                             <i class="fas fa-info-circle"></i> Noch keine Fragen vorhanden. Erstelle die erste Frage rechts.
@@ -411,7 +425,8 @@
                                     @else
                                         <div class="list-group mb-2" id="questions-list-{{ $system->id }}">
                                             @foreach($system->questions->sortBy('sort_order') as $question)
-                                                <div class="list-group-item" data-question-id="{{ $question->id }}" style="cursor: move;">
+                                                <div class="list-group-item" data-question-id="{{ $question->id }}"
+                                                     data-stage-ids="{{ $question->stages->pluck('id')->implode(',') }}" style="cursor: move;">
                                                     <div class="row align-items-center">
                                                         <div class="col-auto">
                                                             <i class="fas fa-grip-vertical text-muted"></i>
@@ -428,6 +443,12 @@
                                                             </div>
                                                             <div class="small text-muted">
                                                                 <i class="fas fa-sort-amount-down"></i> Order: {{ $question->sort_order }}
+                                                                · <i class="fas fa-layer-group"></i>
+                                                                @if($question->stages->isEmpty())
+                                                                    alle Stufen
+                                                                @else
+                                                                    {{ $system->stages->whereIn('id', $question->stages->pluck('id'))->pluck('name')->implode(', ') }}
+                                                                @endif
                                                             </div>
                                                         </div>
                                                         <div class="col-12 col-md-auto mt-2 mt-md-0">
@@ -454,6 +475,11 @@
                                                                         <input type="number" name="sort_order" class="form-control form-control-sm"
                                                                                value="{{ $question->sort_order }}">
                                                                     </div>
+                                                                    @include('admin.grading.partials.question_stages', [
+                                                                        'stages' => $system->stages,
+                                                                        'selected' => $question->stages->pluck('id')->all(),
+                                                                        'idPrefix' => 'q' . $question->id,
+                                                                    ])
                                                                     <div class="col-12 mb-2">
                                                                         <div class="custom-control custom-checkbox">
                                                                             <input type="hidden" name="active" value="0">
@@ -517,6 +543,13 @@
                                                     <label class="small font-weight-bold">Reihenfolge</label>
                                                     <input type="number" name="sort_order" class="form-control" value="0">
                                                 </div>
+                                                <div class="row">
+                                                    @include('admin.grading.partials.question_stages', [
+                                                        'stages' => $system->stages,
+                                                        'selected' => [],
+                                                        'idPrefix' => 'neu' . $system->id,
+                                                    ])
+                                                </div>
                                                 <button type="submit" class="btn btn-primary btn-block">
                                                     <i class="fas fa-plus"></i> Frage anlegen
                                                 </button>
@@ -534,7 +567,8 @@
                                                 <small>
                                                     Fragen werden in der pädagogischen Dokumentation verwendet, um strukturierte
                                                     Einschätzungen von Schülern und Lehrern zu erfassen. Die Reihenfolge bestimmt
-                                                    die Darstellung in der Dokumentation.
+                                                    die Darstellung in der Dokumentation. Schüler und Pädagogen sehen nur die Fragen
+                                                    der Graduierungsstufe des Schülers; eine Frage ohne gewählte Stufe gilt für alle Stufen.
                                                 </small>
                                             </div>
                                         </div>
@@ -597,6 +631,19 @@
                         alert('Fehler beim Speichern der Reihenfolge');
                     });
                 }
+            });
+        });
+
+        // Fragenliste nach Stufe filtern (Fragen ohne Zuordnung gelten für alle Stufen)
+        document.querySelectorAll('.js-question-stage-filter').forEach(function(select){
+            select.addEventListener('change', function(){
+                const list = document.getElementById(select.dataset.list);
+                if (!list) return;
+                list.querySelectorAll('[data-question-id]').forEach(function(item){
+                    const ids = (item.dataset.stageIds || '').split(',').filter(Boolean);
+                    const sichtbar = !select.value || ids.length === 0 || ids.includes(select.value);
+                    item.style.display = sichtbar ? '' : 'none';
+                });
             });
         });
 

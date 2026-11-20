@@ -788,8 +788,11 @@ function registerBewertungsMatrix(Alpine) {
         meldung: '',
         abschlussFragen: false,
 
+        // Gilt die Frage für die Graduierungsstufe des Schülers? (s.fragen = Fragen-IDs seiner Stufe)
+        gilt(s, f) { return !Array.isArray(s.fragen) || s.fragen.includes(f.id); },
+
         istVollstaendig(s) {
-            return this.fragen.every(f => s.lehrkraft[f.id]);
+            return this.fragen.every(f => !this.gilt(s, f) || s.lehrkraft[f.id]);
         },
 
         get vollstaendig() {

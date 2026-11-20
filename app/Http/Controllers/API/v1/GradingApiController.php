@@ -243,6 +243,12 @@ class GradingApiController extends Controller
             if ($invalid->isNotEmpty()) {
                 return $this->unprocessable('answers', 'Folgende Fragen gehören nicht zum Graduierungssystem der Session: ' . $invalid->implode(', '));
             }
+
+            // … und zur Graduierungsstufe des Schülers
+            $fremd = $questionIds->diff($this->sessions->fragenFuerSchueler($session, $schuelerId));
+            if ($fremd->isNotEmpty()) {
+                return $this->unprocessable('answers', 'Folgende Fragen gelten nicht für die Graduierungsstufe des Schülers: ' . $fremd->unique()->implode(', '));
+            }
         }
 
         // Stufenvergabe prüfen
@@ -261,6 +267,10 @@ class GradingApiController extends Controller
 
         $sessionCompleted = DB::transaction(function () use ($answers, $session, $schueler, $request, $user, $finalize, $changeStage, $newStage) {
             $now = now();
+
+            if ($answers->isNotEmpty()) {
+                $this->sessions->stufeFestschreiben($session, (int) $schueler->id);
+            }
 
             foreach ($answers as $answer) {
                 $key = [
@@ -343,9 +353,14 @@ class GradingApiController extends Controller
             ->whereNotNull('finalized_at')
             ->pluck('finalized_at', 'schueler_id');
         $finalized = $this->sessions->finalizedIds($session);
+        $teilnehmer = $this->sessions->participants($session);
+        $stufen = $this->sessions->stufen($session, $teilnehmer->pluck('id'));
+        $fragen = $this->sessions->fragenJeSchueler($session, $teilnehmer->pluck('id'));
 
-        return $this->sessions->participants($session)->map(fn (Schueler $s) => [
+        return $teilnehmer->map(fn (Schueler $s) => [
             'id' => $s->id,
+            'grading_stage_id' => $stufen[$s->id]['stage_id'] ?? null,
+            'question_ids' => $fragen->get($s->id, collect())->values()->all(),
             'firstname' => $s->vorname,
             'lastname_initial' => $s->nachname !== null && $s->nachname !== '' ? mb_substr($s->nachname, 0, 1) . '.' : null,
             'finalized' => $finalized->contains((int) $s->id),
@@ -355,16 +370,36 @@ class GradingApiController extends Controller
         ])->values()->all();
     }
 
+    /**
+     * Lädt die Session für die Antwort. questions enthält nur aktive Fragen, die mindestens einen
+     * Teilnehmer betreffen (je Frage stage_ids und student_count); welche Fragen für welchen
+     * Schüler gelten, steht in meta.students[].question_ids.
+     */
     private function loadSession(GradingDocumentationSession $session): GradingDocumentationSession
     {
-        return $session->load([
+        $session->load([
             'user:id,name',
             'gradingSystem:id,name',
-            'gradingSystem.questions' => fn ($q) => $q->where('active', true)->orderBy('sort_order'),
+            'gradingSystem.questions' => fn ($q) => $q->where('active', true)->orderBy('sort_order')->orderBy('id'),
+            'gradingSystem.questions.stages:id',
             'studentAnswers',
             'teacherAssessments',
             'coachingNotes',
         ]);
+
+        if ($session->gradingSystem) {
+            $fragenJeSchueler = $this->sessions->fragenJeSchueler($session);
+            $anzahl = $fragenJeSchueler->flatten()->countBy();
+
+            $system = clone $session->gradingSystem;
+            $system->setRelation('questions', $session->gradingSystem->questions
+                ->filter(fn ($q) => $anzahl->has($q->id))
+                ->each(fn ($q) => $q->setAttribute('student_count', (int) $anzahl[$q->id]))
+                ->values());
+            $session->setRelation('gradingSystem', $system);
+        }
+
+        return $session;
     }
 
     private function unprocessable(string $field, string $message): JsonResponse
