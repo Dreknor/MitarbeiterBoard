@@ -265,6 +265,20 @@ class GradingStufenFragenTest extends TestCase
     }
 
     /** @test */
+    public function verwaltungsseite_liefert_systeme_stufen_und_fragen(): void
+    {
+        $this->actingAsWithPermission('view paed diary', 'manage grading systems');
+        $this->withoutVite();
+
+        $this->get(route('admin.grading.index'))
+            ->assertOk()
+            ->assertSee('graduierungVerwaltung(', false)
+            ->assertSee('Stufe Eins')
+            ->assertSee('Frage nur Stufe zwei')
+            ->assertDontSee('custom-control');
+    }
+
+    /** @test */
     public function stufe_loeschen_deaktiviert_fragen_nur_dieser_stufe(): void
     {
         $this->actingAsWithPermission('view paed diary', 'manage grading systems');

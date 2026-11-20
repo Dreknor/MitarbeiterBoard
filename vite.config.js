@@ -20,6 +20,8 @@ export default defineConfig({
                 'resources/js/paed-diary-neu.js',
                 // Elterngespräche in der bisherigen Schülerakte (nutzt das CSS der neuen Ansicht)
                 'resources/js/paed-diary-elterngespraeche.js',
+                // Verwaltung der Graduierungssysteme (Design der neuen Ansicht, CSS wird importiert)
+                'resources/js/graduierung-verwaltung.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',
