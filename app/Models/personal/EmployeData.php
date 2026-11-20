@@ -43,7 +43,6 @@ class EmployeData extends Model implements Auditable
 
     protected $casts = [
         'schwerbehindert'   => "boolean",
-        'gebutstag' => 'datetime:Y-m-d',
         'caldav_events' => 'boolean',
         'caldav_working_time' => 'boolean',
         'geburtstag' => 'date',

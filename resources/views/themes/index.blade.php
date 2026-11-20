@@ -7,6 +7,10 @@
 @section('content')
 <div class="theme-wrapper">
 
+    {{-- Neue/unbestätigte Nachrichten der Gruppe --}}
+    @include('posts.partials.gruppen_hinweis', ['group' => $group])
+
+
     {{-- Kopf --}}
     <div class="thm-card thm-card-visible mb-6">
         <div class="p-5">

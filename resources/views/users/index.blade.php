@@ -17,6 +17,7 @@
                 <a href="{{url('users/create')}}" class="btn">Benutzer erstellen</a>
                 <a href="{{url('importuser')}}" class="btn">Benutzer importieren (Eltern-Board)</a>
                 <a href="{{url('import/users')}}" class="btn">Benutzer importieren (Datei)</a>
+                <a href="{{route('users.geburtstage.index')}}" class="btn">Geburtstage importieren</a>
                 @canany(['manage user deletion', 'view archived personal'])
                     <a href="{{url('user-deletion')}}" class="btn">Ausgeschiedene Mitarbeiter</a>
                 @endcanany

@@ -82,7 +82,7 @@
                         <i class="fas fa-exclamation-circle" x-show="schuelerStatus(s) === 'fehler'" aria-label="nicht gespeichert"></i>
                         <i class="fas fa-lock" x-show="s.abgeschlossen" aria-label="abgeschlossen"></i>
                         <i class="fas fa-check-circle" x-show="!s.abgeschlossen && istVollstaendig(s)" aria-label="vollständig"></i>
-                        <small x-show="!s.abgeschlossen && !istVollstaendig(s)" x-text="anzahlBewertet(s) + '/' + fragen.length"></small>
+                        <small x-show="!s.abgeschlossen && !istVollstaendig(s)" x-text="anzahlBewertet(s) + '/' + eigeneFragen(s).length"></small>
                     </button>
                 </template>
             </nav>
@@ -94,7 +94,7 @@
                         <select @change="zuSchueler(Number($event.target.value))">
                             <template x-for="(s, i) in schueler" :key="'o' + s.id">
                                 <option :value="i" :selected="i === sIndex"
-                                        x-text="s.name + (s.abgeschlossen ? ' (abgeschlossen)' : (istVollstaendig(s) ? ' ✓' : ' – ' + anzahlBewertet(s) + '/' + fragen.length))"></option>
+                                        x-text="s.name + (s.abgeschlossen ? ' (abgeschlossen)' : (istVollstaendig(s) ? ' ✓' : ' – ' + anzahlBewertet(s) + '/' + eigeneFragen(s).length))"></option>
                             </template>
                         </select>
                     </label>
@@ -102,9 +102,10 @@
 
                 <div class="pdn-gd-kopf" x-ref="kopf">
                     <h2 x-text="aktuell?.name"></h2>
+                    <span class="pdn-tag" x-show="aktuell" x-text="aktuell?.stufe || 'ohne Stufe'" title="Graduierungsstufe in dieser Session"></span>
                     <span class="pdn-tag" x-show="aktuell?.abgeschlossen"><i class="fas fa-lock" aria-hidden="true"></i> abgeschlossen</span>
                     <span class="pdn-badge" x-show="aktuell && !aktuell.abgeschlossen"
-                          x-text="aktuell && istVollstaendig(aktuell) ? 'Vollständig' : (aktuell ? anzahlBewertet(aktuell) + ' von ' + fragen.length + ' bewertet' : '')"></span>
+                          x-text="aktuell && istVollstaendig(aktuell) ? 'Vollständig' : (aktuell ? anzahlBewertet(aktuell) + ' von ' + eigeneFragen(aktuell).length + ' bewertet' : '')"></span>
                     <span class="pdn-spacer"></span>
                     <template x-if="aktuell && schuelerStatus(aktuell) === 'fehler'">
                         <span class="pdn-gd-fehler">Nicht gespeichert · <button type="button" class="pdn-gd-link" @click="erneut(aktuell)">Erneut versuchen</button></span>
@@ -119,12 +120,21 @@
                         <div class="pdn-gd-fnav" role="group" aria-label="Frage wählen">
                             <template x-for="(f, i) in fragen" :key="'q' + f.id">
                                 <button type="button" :class="{ 'is-fertig': frageFertig(f) }" :aria-pressed="i === fIndex"
-                                        :title="f.text" :aria-label="'Frage ' + (i + 1) + ': ' + f.text" @click="zuFrage(i)" x-text="i + 1"></button>
+                                        :style="betroffenZuFrage(f) ? '' : 'opacity:.45'"
+                                        :title="f.text + (betroffenZuFrage(f) ? '' : ' (betrifft niemanden)')" :aria-label="'Frage ' + (i + 1) + ': ' + f.text" @click="zuFrage(i)" x-text="i + 1"></button>
                             </template>
                         </div>
-                        <span class="pdn-label-sm" x-text="'Frage ' + (fIndex + 1) + ' von ' + fragen.length + ' · ' + (aktuelleFrage ? bewertetZuFrage(aktuelleFrage) : 0) + ' von ' + schueler.length + ' Schülern bewertet'"></span>
+                        <span class="pdn-label-sm" x-text="'Frage ' + (fIndex + 1) + ' von ' + fragen.length + ' · ' + (aktuelleFrage ? bewertetZuFrage(aktuelleFrage) : 0) + ' von ' + (aktuelleFrage ? betroffenZuFrage(aktuelleFrage) : 0) + ' Schülern bewertet'"></span>
                     </div>
                 </template>
+
+                {{-- Keine Fragen für die Stufe bzw. aktuelle Frage gilt nicht für diese Person --}}
+                <p class="pdn-leer" x-show="aktuell && !eigeneFragen(aktuell).length" x-cloak>
+                    Für die Stufe dieser Person gibt es keine Fragen.
+                </p>
+                <p class="pdn-label-sm" x-show="fragenweise && aktuell && eigeneFragen(aktuell).length && !sichtbareFragen.length" x-cloak>
+                    Diese Frage gilt nicht für die Stufe dieser Person.
+                </p>
 
                 {{-- Fragen als Karten --}}
                 <template x-for="f in sichtbareFragen" :key="'k' + aktuell?.id + '-' + f.id">

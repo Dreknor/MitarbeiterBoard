@@ -20,7 +20,7 @@ class GradingAdminController extends Controller
 {
     public function index()
     {
-        $systems = GradingSystem::with(['stages', 'questions'])->orderBy('name')->get();
+        $systems = GradingSystem::with(['stages', 'questions.stages:id'])->orderBy('name')->get();
         return view('admin.grading.index', ['systems' => $systems]);
     }
 
@@ -145,13 +145,28 @@ class GradingAdminController extends Controller
             ]);
         }
 
+        // Fragen, die nur dieser Stufe zugeordnet sind, würden ohne Zuordnung für alle Stufen gelten –
+        // deshalb vor dem Löschen deaktivieren.
+        $nurDieseStufe = $stage->questions()->withCount('stages')->get()->filter(fn ($q) => (int) $q->stages_count === 1);
+
         if ($stage->image) {
             $oldPublic = public_path($stage->image);
             if (file_exists($oldPublic)) { @unlink($oldPublic); }
             else { try { Storage::disk('public')->delete($stage->image); } catch (\Throwable $_) { /* ignore */ } }
         }
-        $stage->delete();
-        return redirect()->route('admin.grading.index')->with('success','Stufe gelöscht');
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($stage, $nurDieseStufe) {
+            \App\Models\GradingQuestion::whereKey($nurDieseStufe->pluck('id'))->update(['active' => false]);
+            $stage->delete();
+        });
+
+        $meldung = 'Stufe gelöscht';
+        if ($nurDieseStufe->isNotEmpty()) {
+            $meldung .= '. Deaktiviert wurden ' . $nurDieseStufe->count() . ' Frage(n), die nur dieser Stufe zugeordnet waren: '
+                . $nurDieseStufe->map(fn ($q) => '„' . \Illuminate\Support\Str::limit($q->question, 60) . '“')->implode(', ');
+        }
+
+        return redirect()->route('admin.grading.index')->with('success', $meldung);
     }
 
     /**
@@ -189,6 +204,7 @@ class GradingAdminController extends Controller
         $data = $request->validate([
             'question' => ['required', 'string', 'max:1000'],
             'sort_order' => ['nullable', 'integer'],
+            ...$this->stufenRegeln($system->id),
         ]);
 
         $question = $system->questions()->create([
@@ -196,6 +212,7 @@ class GradingAdminController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
             'active' => true,
         ]);
+        $question->stages()->sync($data['stage_ids'] ?? []);
 
         return redirect()->route('admin.grading.index')->with('success', 'Frage angelegt');
     }
@@ -209,6 +226,7 @@ class GradingAdminController extends Controller
             'question' => ['required', 'string', 'max:1000'],
             'sort_order' => ['nullable', 'integer'],
             'active' => ['boolean'],
+            ...$this->stufenRegeln((int) $question->grading_system_id),
         ]);
 
         $question->update([
@@ -216,6 +234,8 @@ class GradingAdminController extends Controller
             'sort_order' => $data['sort_order'] ?? $question->sort_order,
             'active' => $request->boolean('active'),
         ]);
+        // Keine Stufe gewählt = Frage gilt für alle Stufen
+        $question->stages()->sync($data['stage_ids'] ?? []);
 
         return redirect()->route('admin.grading.index')->with('success', 'Frage aktualisiert');
     }
@@ -265,6 +285,17 @@ class GradingAdminController extends Controller
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Validierung der Stufenzuordnung einer Frage: nur Stufen desselben Graduierungssystems.
+     */
+    private function stufenRegeln(int $systemId): array
+    {
+        return [
+            'stage_ids' => ['nullable', 'array'],
+            'stage_ids.*' => ['integer', \Illuminate\Validation\Rule::exists('grading_stages', 'id')->where('grading_system_id', $systemId)],
+        ];
     }
 
     /**

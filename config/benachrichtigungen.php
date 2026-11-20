@@ -123,7 +123,7 @@ return [
         ],
         'nachrichten' => [
             'label'        => 'Nachrichten',
-            'beschreibung' => 'Neue Nachrichten im Board (abendliche Sammelmail)',
+            'beschreibung' => 'Neue Nachrichten in Ihren Gruppen (Glocke/Push sofort, Mail als abendliche Sammelmail). Nachrichten mit Lesebestätigung und Erinnerungen kommen immer sofort.',
             'icon'         => 'fa-newspaper',
             'push'         => false,
             'mail'         => 'sofort',

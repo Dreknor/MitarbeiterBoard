@@ -244,11 +244,19 @@
                     <p>Es können keine Antworten mehr abgegeben werden. Vielen Dank!</p>
                     <p class="mt-4 text-muted">Du kannst dieses Fenster jetzt schließen.</p>
                 </div>
+            @elseif($keineFragen)
+                {{-- Für die Graduierungsstufe des Schülers gibt es keine Fragen: gilt als fertig --}}
+                <div class="completion-message">
+                    <i class="fas fa-check-circle info" aria-hidden="true"></i>
+                    <h2>Für dich gibt es heute keine Fragen</h2>
+                    <p>Du bist schon fertig. Vielen Dank!</p>
+                    <p class="mt-4 text-muted">Du kannst dieses Fenster jetzt schließen.</p>
+                </div>
             @elseif($wartetAufFreigabe)
                 <div class="completion-message">
                     <i class="fas fa-hourglass-half info" aria-hidden="true"></i>
                     <h2>Gleich geht's los</h2>
-                    <p>Deine Lehrkraft hat noch keine Frage freigegeben.</p>
+                    <p>Warte auf die nächste Frage deiner Lehrkraft.</p>
                     <button type="button" class="btn btn-primary btn-lg mt-3 nav-btn" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt" aria-hidden="true"></i> Neu laden
                     </button>

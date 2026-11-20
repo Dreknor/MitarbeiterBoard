@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\GradingDocumentationSession;
 use App\Models\GradingQuestion;
+use App\Models\GradingSessionStage;
 use App\Models\GradingSessionStudent;
+use App\Models\GradingStudentAnswer;
 use App\Models\GradingTeacherAssessment;
 use App\Models\Klasse;
 use App\Models\Schueler;
@@ -205,6 +207,9 @@ class GradingSessionService
     {
         $now = now();
 
+        // Stufe festschreiben, bevor sie z. B. beim Abschluss geändert wird
+        $this->stufeFestschreiben($session, (int) $schueler->id);
+
         if ($session->isIndividualSession()) {
             $session->update(['completed_at' => $now]);
             $this->zugaengeEntfernen($session);
@@ -239,6 +244,8 @@ class GradingSessionService
     {
         DB::transaction(function () use ($session, $user) {
             $now = now();
+
+            $this->stufenFestschreiben($session, $this->participants($session)->pluck('id')->all());
 
             $session->participants()->whereNull('finalized_at')->update([
                 'finalized_at' => $now,
@@ -276,6 +283,10 @@ class GradingSessionService
             return [422, 'Die Frage gehört nicht zum Graduierungssystem dieser Session.'];
         }
 
+        if ($questionId !== null && !$this->fragenFuerSchueler($session, $schuelerId)->contains($questionId)) {
+            return [422, 'Die Frage gilt nicht für die Graduierungsstufe dieses Schülers.'];
+        }
+
         return null;
     }
 
@@ -307,27 +318,11 @@ class GradingSessionService
 
     /**
      * Fortschritt: answered = Schüler-Frage-Paare mit Pädagogenbewertung (rating_value),
-     * total = Teilnehmer × aktive Fragen des Graduierungssystems.
+     * total = Summe der Fragen je Teilnehmer (nur Fragen seiner Graduierungsstufe).
      */
     public function progress(GradingDocumentationSession $session): array
     {
-        $studentIds = $this->participants($session)->pluck('id');
-        $questionIds = GradingQuestion::where('grading_system_id', $session->grading_system_id)
-            ->where('active', true)
-            ->pluck('id');
-
-        $answered = $studentIds->isEmpty() || $questionIds->isEmpty() ? 0 : GradingTeacherAssessment::where('session_id', $session->id)
-            ->whereIn('schueler_id', $studentIds)
-            ->whereIn('question_id', $questionIds)
-            ->whereNotNull('teacher_rating')
-            ->count();
-
-        return [
-            'answered' => $answered,
-            'total' => $studentIds->count() * $questionIds->count(),
-            'students_total' => $studentIds->count(),
-            'students_finalized' => $this->finalizedIds($session)->intersect($studentIds->map(fn ($id) => (int) $id))->count(),
-        ];
+        return $this->progressFuer([$session])[$session->id];
     }
 
     /**
@@ -364,18 +359,12 @@ class GradingSessionService
             ->unique();
         $vorhanden = $einzelIds->isEmpty() ? collect() : Schueler::whereIn('id', $einzelIds)->pluck('id')->map(fn ($id) => (int) $id)->flip();
 
-        $fragen = GradingQuestion::whereIn('grading_system_id', $sessions->pluck('grading_system_id')->unique())
-            ->where('active', true)
-            ->get(['id', 'grading_system_id'])
-            ->groupBy('grading_system_id')
-            ->map(fn ($rows) => $rows->pluck('id')->map(fn ($id) => (int) $id));
-
         $bewertungen = GradingTeacherAssessment::whereIn('session_id', $sessionIds)
             ->whereNotNull('teacher_rating')
             ->get(['session_id', 'schueler_id', 'question_id'])
             ->groupBy('session_id');
 
-        $ergebnis = [];
+        $schuelerJeSession = [];
         foreach ($sessions as $session) {
             $liste = $teilnehmer->get($session->id, collect());
 
@@ -387,12 +376,22 @@ class GradingSessionService
                 $studentIds = $klassenSchueler->get($session->klasse_id, collect());
             }
 
-            $questionIds = $fragen->get($session->grading_system_id, collect());
-            $schuelerSet = $studentIds->flip();
-            $fragenSet = $questionIds->flip();
+            $schuelerJeSession[$session->id] = $studentIds->values();
+        }
 
-            $answered = $studentIds->isEmpty() || $questionIds->isEmpty() ? 0 : $bewertungen->get($session->id, collect())
-                ->filter(fn ($a) => $schuelerSet->has((int) $a->schueler_id) && $fragenSet->has((int) $a->question_id))
+        // Fragen je Schüler (nach Graduierungsstufe) aller Sessions mit fester Anzahl Abfragen
+        $fragenJeSession = $this->fragenJeSchuelerFuer($sessions, $schuelerJeSession);
+
+        $ergebnis = [];
+        foreach ($sessions as $session) {
+            $liste = $teilnehmer->get($session->id, collect());
+            $studentIds = $schuelerJeSession[$session->id];
+            $schuelerSet = $studentIds->flip();
+            $fragenJeSchueler = $fragenJeSession[$session->id] ?? collect();
+
+            $answered = $bewertungen->get($session->id, collect())
+                ->filter(fn ($a) => $schuelerSet->has((int) $a->schueler_id)
+                    && ($fragenJeSchueler->get((int) $a->schueler_id) ?? collect())->contains((int) $a->question_id))
                 ->count();
 
             $finalized = $session->isCompleted()
@@ -402,7 +401,7 @@ class GradingSessionService
 
             $ergebnis[$session->id] = [
                 'answered' => $answered,
-                'total' => $studentIds->count() * $questionIds->count(),
+                'total' => $studentIds->sum(fn ($id) => ($fragenJeSchueler->get($id) ?? collect())->count()),
                 'students_total' => $studentIds->count(),
                 'students_finalized' => $finalized,
             ];
@@ -413,8 +412,9 @@ class GradingSessionService
 
     /**
      * Aktive Fragen der Session; im Modus "by_question" nur bis einschließlich der freigegebenen Frage.
+     * Mit Schüler: nur die Fragen seiner Graduierungsstufe (Fragen anderer Stufen werden übersprungen).
      */
-    public function releasedQuestions(GradingDocumentationSession $session): Collection
+    public function releasedQuestions(GradingDocumentationSession $session, ?int $schuelerId = null): Collection
     {
         $questions = GradingQuestion::where('grading_system_id', $session->grading_system_id)
             ->where('active', true)
@@ -422,13 +422,219 @@ class GradingSessionService
             ->orderBy('id')
             ->get();
 
-        if (!$session->usesQuestionOrder()) {
+        if ($session->usesQuestionOrder()) {
+            $index = $questions->search(fn ($q) => (int) $q->id === (int) $session->current_question_id);
+            $questions = $index === false ? collect() : $questions->take($index + 1)->values();
+        }
+
+        if ($schuelerId === null) {
             return $questions;
         }
 
-        $index = $questions->search(fn ($q) => (int) $q->id === (int) $session->current_question_id);
+        $erlaubt = $this->fragenFuerSchueler($session, $schuelerId);
 
-        return $index === false ? collect() : $questions->take($index + 1)->values();
+        return $questions->filter(fn ($q) => $erlaubt->contains((int) $q->id))->values();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fragen je Graduierungsstufe
+    |--------------------------------------------------------------------------
+    | Eine Frage gilt für die ihr zugeordneten Stufen, ohne Zuordnung für alle Stufen.
+    | Maßgeblich ist die in der Session festgeschriebene Stufe (grading_session_stages), sonst die
+    | aktuelle Stufe des Schülers. Festgeschrieben wird beim ersten Beantworten/Bewerten und beim
+    | Abschluss – bis dahin folgt die Session einer korrigierten Stufe.
+    | Bereits beantwortete/bewertete Fragen bleiben immer sichtbar. Abgeschlossene Sessions ohne
+    | festgeschriebene Stufe stammen aus der Zeit vor der Stufenbindung (jeder Abschluss schreibt die
+    | Stufe fest) – damals galten alle Fragen, daher dort keine Filterung nach Stufe.
+    */
+
+    /**
+     * Stufe je Schüler in der Session: ['stage_id' => ?int, 'fest' => bool].
+     *
+     * @param  iterable<int>  $schuelerIds
+     */
+    public function stufen(GradingDocumentationSession $session, iterable $schuelerIds): Collection
+    {
+        $ids = collect($schuelerIds)->map(fn ($id) => (int) $id)->unique()->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $fest = GradingSessionStage::where('session_id', $session->id)->whereIn('schueler_id', $ids)
+            ->pluck('grading_stage_id', 'schueler_id');
+        $aktuell = Schueler::whereIn('id', $ids)->pluck('grading_stage_id', 'id');
+
+        return $ids->mapWithKeys(fn ($id) => [$id => [
+            'stage_id' => $fest->has($id)
+                ? ($fest[$id] !== null ? (int) $fest[$id] : null)
+                : (isset($aktuell[$id]) ? (int) $aktuell[$id] : null),
+            'fest' => $fest->has($id),
+        ]]);
+    }
+
+    /**
+     * Fragen-IDs je Schüler (sortiert wie im Graduierungssystem).
+     *
+     * @param  iterable<int>|null  $schuelerIds  null = alle Teilnehmer
+     * @return Collection<int, Collection<int, int>>
+     */
+    public function fragenJeSchueler(GradingDocumentationSession $session, ?iterable $schuelerIds = null): Collection
+    {
+        $ids = collect($schuelerIds ?? $this->participants($session)->pluck('id'))->map(fn ($id) => (int) $id)->unique()->values();
+
+        return $this->fragenJeSchuelerFuer(collect([$session]), [$session->id => $ids])[$session->id] ?? collect();
+    }
+
+    /** Fragen-IDs eines Schülers in der Session */
+    public function fragenFuerSchueler(GradingDocumentationSession $session, int $schuelerId): Collection
+    {
+        return $this->fragenJeSchueler($session, [$schuelerId])->get($schuelerId, collect());
+    }
+
+    /**
+     * Aktive Fragen, die mindestens einen der Schüler betreffen (sortiert), z. B. für Ansichten
+     * einer Gruppensession.
+     */
+    public function sessionFragen(GradingDocumentationSession $session, Collection $fragenJeSchueler): Collection
+    {
+        $ids = $fragenJeSchueler->flatten()->map(fn ($id) => (int) $id)->unique()->flip();
+
+        return GradingQuestion::where('grading_system_id', $session->grading_system_id)
+            ->where('active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn ($q) => $ids->has((int) $q->id))
+            ->values();
+    }
+
+    /**
+     * Beschränkt die (geladenen) Fragen des Graduierungssystems je Session auf die Fragen des
+     * Schülers – für Verlauf, Schülerakte, Dossier und Export. Jede Session erhält dafür eine eigene
+     * Kopie von gradingSystem (beim Eager Loading teilen sich Sessions sonst dieselbe Instanz).
+     *
+     * @param  Collection<GradingDocumentationSession>  $sessions
+     */
+    public function fragenAufSchuelerBeschraenken(Collection $sessions, int $schuelerId): Collection
+    {
+        $fragenJeSession = $this->fragenJeSchuelerFuer(
+            $sessions,
+            $sessions->mapWithKeys(fn ($s) => [$s->id => collect([$schuelerId])])->all()
+        );
+
+        foreach ($sessions as $session) {
+            $system = $session->gradingSystem;
+            if (!$system || !$system->relationLoaded('questions')) {
+                continue;
+            }
+
+            $ids = ($fragenJeSession[$session->id] ?? collect())->get($schuelerId, collect())->flip();
+            $kopie = clone $system;
+            $kopie->setRelation('questions', $system->questions->filter(fn ($q) => $ids->has((int) $q->id))->values());
+            $session->setRelation('gradingSystem', $kopie);
+        }
+
+        return $sessions;
+    }
+
+    /**
+     * Schreibt die aktuelle Stufe des Schülers für die Session fest, falls noch nicht geschehen.
+     */
+    public function stufeFestschreiben(GradingDocumentationSession $session, int $schuelerId): void
+    {
+        $this->stufenFestschreiben($session, [$schuelerId]);
+    }
+
+    /** @param  int[]  $schuelerIds */
+    public function stufenFestschreiben(GradingDocumentationSession $session, array $schuelerIds): void
+    {
+        $ids = collect($schuelerIds)->map(fn ($id) => (int) $id)->unique();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $vorhanden = GradingSessionStage::where('session_id', $session->id)->whereIn('schueler_id', $ids)->pluck('schueler_id')
+            ->map(fn ($id) => (int) $id);
+        $fehlend = $ids->diff($vorhanden);
+        if ($fehlend->isEmpty()) {
+            return;
+        }
+
+        $aktuell = Schueler::whereIn('id', $fehlend)->pluck('grading_stage_id', 'id');
+        foreach ($aktuell as $schuelerId => $stageId) {
+            GradingSessionStage::firstOrCreate(
+                ['session_id' => $session->id, 'schueler_id' => (int) $schuelerId],
+                ['grading_stage_id' => $stageId]
+            );
+        }
+    }
+
+    /**
+     * Kern: Fragen-IDs je Session und Schüler mit fester Anzahl Abfragen.
+     *
+     * @param  Collection<GradingDocumentationSession>  $sessions
+     * @param  array<int, Collection<int, int>>  $schuelerJeSession
+     * @return array<int, Collection<int, Collection<int, int>>>
+     */
+    private function fragenJeSchuelerFuer(Collection $sessions, array $schuelerJeSession): array
+    {
+        $alleSchueler = collect($schuelerJeSession)->flatten()->map(fn ($id) => (int) $id)->unique()->values();
+        if ($sessions->isEmpty() || $alleSchueler->isEmpty()) {
+            return $sessions->mapWithKeys(fn ($s) => [$s->id => collect()])->all();
+        }
+
+        $sessionIds = $sessions->pluck('id');
+
+        // Alle Fragen der Systeme (auch inaktive – für bereits beantwortete) in Systemreihenfolge
+        $fragen = GradingQuestion::whereIn('grading_system_id', $sessions->pluck('grading_system_id')->unique())
+            ->with('stages:id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('grading_system_id');
+
+        $fest = GradingSessionStage::whereIn('session_id', $sessionIds)->whereIn('schueler_id', $alleSchueler)
+            ->get(['session_id', 'schueler_id', 'grading_stage_id'])
+            ->keyBy(fn ($r) => $r->session_id . '-' . $r->schueler_id);
+        $aktuell = Schueler::whereIn('id', $alleSchueler)->pluck('grading_stage_id', 'id');
+
+        $beantwortet = GradingStudentAnswer::whereIn('session_id', $sessionIds)->whereIn('schueler_id', $alleSchueler)
+            ->whereNotNull('self_rating')
+            ->get(['session_id', 'schueler_id', 'question_id'])
+            ->concat(GradingTeacherAssessment::whereIn('session_id', $sessionIds)->whereIn('schueler_id', $alleSchueler)
+                ->where(fn ($q) => $q->whereNotNull('teacher_rating')->orWhereNotNull('comment'))
+                ->get(['session_id', 'schueler_id', 'question_id']))
+            ->groupBy(fn ($r) => $r->session_id . '-' . $r->schueler_id)
+            ->map(fn ($rows) => $rows->pluck('question_id')->map(fn ($id) => (int) $id)->unique()->flip());
+
+        $ergebnis = [];
+        foreach ($sessions as $session) {
+            $systemFragen = $fragen->get($session->grading_system_id, collect());
+            $ergebnis[$session->id] = collect($schuelerJeSession[$session->id] ?? [])
+                ->mapWithKeys(function ($schuelerId) use ($session, $systemFragen, $fest, $aktuell, $beantwortet) {
+                    $schuelerId = (int) $schuelerId;
+                    $key = $session->id . '-' . $schuelerId;
+                    $erledigt = $beantwortet->get($key, collect());
+                    $zeile = $fest->get($key);
+
+                    // Abgeschlossen ohne festgeschriebene Stufe (Altbestand): alle Fragen galten
+                    $altbestand = $session->isCompleted() && !$zeile;
+                    $stageId = $zeile
+                        ? ($zeile->grading_stage_id !== null ? (int) $zeile->grading_stage_id : null)
+                        : (isset($aktuell[$schuelerId]) ? (int) $aktuell[$schuelerId] : null);
+
+                    $ids = $systemFragen
+                        ->filter(fn ($q) => $erledigt->has((int) $q->id)
+                            || ($q->active && ($altbestand || $q->giltFuerStufe($stageId))))
+                        ->map(fn ($q) => (int) $q->id)
+                        ->values();
+
+                    return [$schuelerId => $ids];
+                });
+        }
+
+        return $ergebnis;
     }
 
     private function addParticipants(GradingDocumentationSession $session, array $schuelerIds): void

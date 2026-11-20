@@ -174,6 +174,7 @@
                         </a>
 
                         {{-- Pro Gruppe ein eigenes Untermenü --}}
+                        @php $ungeleseneNachrichten = app(\App\Services\Posts\PostService::class)->ungeleseneJeGruppe(auth()->user()); @endphp
                         @foreach(auth()->user()->groups() as $group)
                             @php
                                 $groupActive = request()->segment(1) == $group->name;
@@ -198,6 +199,14 @@
                                        class="sidebar-link @if($groupActive && request()->segment(2) == 'themes' && request()->segment(3) != 'recurring') active @endif">
                                         <i class="far fa-comments"></i>
                                         <span>Themen</span>
+                                    </a>
+                                    <a href="{{ url($group->name.'/nachrichten') }}"
+                                       class="sidebar-link @if($groupActive && request()->segment(2) == 'nachrichten') active @endif">
+                                        <i class="far fa-newspaper"></i>
+                                        <span>Nachrichten</span>
+                                        @if(($ungeleseneNachrichten[$group->id] ?? 0) > 0)
+                                            <span class="sidebar-badge" title="ungelesen">{{ $ungeleseneNachrichten[$group->id] }}</span>
+                                        @endif
                                     </a>
                                     <a href="{{ url($group->name.'/archive') }}"
                                        class="sidebar-link @if($groupActive && request()->segment(2) == 'archive') active @endif">

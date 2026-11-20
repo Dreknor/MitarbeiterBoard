@@ -57,6 +57,12 @@ class GradingDocumentationSession extends Model
             : self::ANSWER_ORDER_BY_STUDENT;
     }
 
+    /** Festgeschriebene Stufen der Schüler (bestimmen ihre Fragen) */
+    public function sessionStages()
+    {
+        return $this->hasMany(GradingSessionStage::class, 'session_id');
+    }
+
     public function klasse()
     {
         return $this->belongsTo(Klasse::class);

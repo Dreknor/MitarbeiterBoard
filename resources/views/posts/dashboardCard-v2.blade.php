@@ -46,11 +46,17 @@
      }">
 
     {{-- Action-Bar mit Neue-Nachricht-Button --}}
-    @can('create posts')
+    @if($darfPosten)
         <div class="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 <i class="fas fa-newspaper mr-1 opacity-60"></i>
-                {{ $posts->count() > 0 ? $posts->count() . ' ' . ($posts->count() === 1 ? 'Nachricht' : 'Nachrichten') : 'Keine Nachrichten' }}
+                @if($nachrichtenZaehler['unbestaetigt'] > 0)
+                    <span class="text-amber-700">{{ $nachrichtenZaehler['unbestaetigt'] }} zu bestätigen</span>
+                @elseif($nachrichtenZaehler['ungelesen'] > 0)
+                    {{ $nachrichtenZaehler['ungelesen'] }} ungelesen
+                @else
+                    {{ $posts->count() > 0 ? $posts->count() . ' ' . ($posts->count() === 1 ? 'Nachricht' : 'Nachrichten') : 'Keine Nachrichten' }}
+                @endif
             </span>
             <button @click="showCreate = !showCreate"
                     class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700">
@@ -73,7 +79,7 @@
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Empfänger-Gruppen *</label>
                 <div class="max-h-32 overflow-y-auto border border-gray-200 rounded-lg px-2 py-1 bg-white">
-                    @foreach(auth()->user()->groups_rel as $group)
+                    @foreach($postGruppen as $group)
                         <label class="flex items-center gap-2 py-0.5 text-sm text-gray-700 cursor-pointer">
                             <input type="checkbox" x-model="form.groups" value="{{ $group->id }}"
                                    class="rounded border-gray-300 text-blue-600">
@@ -104,87 +110,112 @@
                 </button>
             </div>
             <p class="text-xs text-gray-400">
-                Für Datei-Anhänge &amp; Rich-Text:
-                <a href="{{ url('posts/create') }}" class="text-blue-600 hover:underline">Ausführliches Formular</a>
+                Für ausführliche Texte, Anhänge, Lesebestätigung oder Ablaufdatum:
+                <a href="{{ route('posts.create') }}" class="text-blue-600 hover:underline">ausführliche Nachricht</a>
             </p>
         </div>
-    @endcan
+    @endif
 
     @if($posts->count() > 0)
         <div class="divide-y divide-gray-100">
             @foreach($posts as $index => $post)
-                @if($post->released == 1 || $post->author_id == auth()->id())
-                    <div x-show="showAll || {{ $index < 3 ? 'true' : 'false' }}">
-                        <div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50">
-                            <div class="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                                {{ strtoupper(substr($post->author->name ?? 'U', 0, 1)) }}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="text-sm font-medium text-gray-800">{{ $post->header }}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">
-                                    {{ $post->author->name ?? '' }}
-                                    &middot;
-                                    {{ $post->created_at->diffForHumans() }}
-                                    @if(!$post->released)
-                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                                            Entwurf
-                                        </span>
-                                    @endif
-                                </div>
-                                @if($post->text)
-                                    <div class="text-xs text-gray-600 mt-1 line-clamp-2">
-                                        {{ \Illuminate\Support\Str::limit(strip_tags($post->text), 140) }}
-                                    </div>
-                                @endif
-                                @if($post->author_id == auth()->id())
-                                    <div class="flex items-center gap-3 mt-1 flex-wrap">
-                                        @if(!$post->released)
-                                            <a href="{{ url('posts/'.$post->id.'/release') }}"
-                                               class="text-xs text-green-600 hover:text-green-800 font-medium no-underline">
-                                                <i class="fas fa-check"></i> Jetzt veröffentlichen
-                                            </a>
-                                        @endif
-                                        @can('create posts')
-                                            <a href="{{ url('posts/'.$post->id.'/archive') }}"
-                                               class="text-xs text-gray-400 hover:text-gray-600 font-medium no-underline"
-                                               title="Nachricht archivieren"
-                                               onclick="return confirm('Nachricht archivieren?')">
-                                                <i class="fas fa-archive"></i> Archivieren
-                                            </a>
-                                        @endcan
-                                    </div>
-                                @endif
-                            </div>
-                            @if($post->created_at->gt(now()->subDays(1)))
-                                <span class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                    Neu
-                                </span>
-                            @endif
+                @php
+                    $eigene = $post->author_id === auth()->id();
+                    $istNeu = $post->released && ! $eigene && $post->mein_status?->gelesen_at === null
+                        && $post->datum()?->gt(now()->subDays(\App\Models\Post::NEU_TAGE));
+                @endphp
+                <div x-show="showAll || {{ ($index < 3 || $post->muss_bestaetigen) ? 'true' : 'false' }}">
+                    <div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 {{ $post->muss_bestaetigen ? 'bg-amber-50 border-l-4 border-amber-400' : '' }}">
+                        <div class="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+                            {{ mb_strtoupper(mb_substr($post->author->name ?? 'U', 0, 1)) }}
                         </div>
+                        <div class="flex-1 min-w-0">
+                            <a href="{{ route('posts.show', $post) }}" class="text-sm font-medium text-gray-800 hover:text-blue-700 no-underline">{{ $post->header }}</a>
+                            <div class="text-xs text-gray-500 mt-0.5">
+                                {{ $post->author->name ?? '' }}
+                                &middot;
+                                {{ $post->datum()?->diffForHumans() }}
+                                @if($post->groups->isNotEmpty())
+                                    &middot; {{ $post->groups->pluck('name')->join(', ') }}
+                                @endif
+                                @if(!$post->released)
+                                    <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                        Entwurf
+                                    </span>
+                                @endif
+                            </div>
+                            @if($post->kurztext !== '')
+                                <div class="text-xs text-gray-600 mt-1 line-clamp-3">
+                                    {{ $post->kurztext }}
+                                </div>
+                            @endif
+                            <div class="flex items-center gap-3 mt-1 flex-wrap">
+                                @if($post->muss_bestaetigen)
+                                    <a href="{{ route('posts.show', $post) }}"
+                                       class="text-xs text-amber-700 hover:text-amber-900 font-semibold no-underline">
+                                        <i class="fas fa-signature"></i> Lesen und bestätigen
+                                        @if($frist = $post->mein_status?->frist ?? $post->bestaetigung_frist)
+                                            (bis {{ $frist->format('d.m.') }})
+                                        @endif
+                                    </a>
+                                @elseif($post->hatMehrText())
+                                    <a href="{{ route('posts.show', $post) }}" class="text-xs text-blue-600 hover:text-blue-800 font-medium no-underline">
+                                        weiterlesen <i class="fas fa-arrow-right"></i>
+                                    </a>
+                                @endif
+                                @can('release', $post)
+                                    <form method="post" action="{{ route('posts.release', $post) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-xs text-green-600 hover:text-green-800 font-medium">
+                                            <i class="fas fa-check"></i> Jetzt veröffentlichen
+                                        </button>
+                                    </form>
+                                @endcan
+                                @can('archive', $post)
+                                    <form method="post" action="{{ route('posts.archive', $post) }}" class="inline"
+                                          onsubmit="return confirm('Nachricht archivieren?')">
+                                        @csrf
+                                        <button type="submit" class="text-xs text-gray-400 hover:text-gray-600 font-medium" title="Nachricht archivieren">
+                                            <i class="fas fa-archive"></i> Archivieren
+                                        </button>
+                                    </form>
+                                @endcan
+                            </div>
+                        </div>
+                        @if($post->muss_bestaetigen)
+                            <span class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                Bestätigen
+                            </span>
+                        @elseif($istNeu)
+                            <span class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                Neu
+                            </span>
+                        @endif
                     </div>
-                @endif
+                </div>
             @endforeach
         </div>
 
-        @if($posts->count() > 3)
+        @php $versteckt = $posts->slice(3)->where('muss_bestaetigen', false)->count(); @endphp
+        @if($versteckt > 0)
             <div class="px-4 py-2 border-t border-gray-100 text-center">
                 <button @click="showAll = !showAll"
                         class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                    <span x-text="showAll ? 'Weniger anzeigen ↑' : '{{ $posts->count() - 3 }} weitere anzeigen ↓'"></span>
+                    <span x-text="showAll ? 'Weniger anzeigen ↑' : '{{ $versteckt }} weitere anzeigen ↓'"></span>
                 </button>
             </div>
         @endif
     @else
-        <div @cannot('create posts') data-card-empty="true" @endcannot
+        <div @unless($darfPosten) data-card-empty="true" @endunless
              class="px-4 py-8 text-center text-gray-400 text-sm">
             <i class="fas fa-newspaper text-2xl mb-2 block opacity-40"></i>
             <p>Keine Nachrichten vorhanden</p>
-            @can('create posts')
+            @if($darfPosten)
                 <button @click="showCreate = true"
                         class="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700">
                     <i class="fas fa-plus"></i> Erste Nachricht verfassen
                 </button>
-            @endcan
+            @endif
         </div>
     @endif
 </div>

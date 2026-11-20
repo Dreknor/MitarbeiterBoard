@@ -21,6 +21,12 @@ class GradingStage extends Model
         return $this->belongsTo(GradingSystem::class, 'grading_system_id');
     }
 
+    public function questions()
+    {
+        return $this->belongsToMany(GradingQuestion::class, 'grading_question_stage', 'grading_stage_id', 'grading_question_id')
+            ->withTimestamps();
+    }
+
     /** Je Request ermittelte URLs alter Bildpfade (vermeidet wiederholte file_exists-Aufrufe) */
     private static array $legacyUrls = [];
 

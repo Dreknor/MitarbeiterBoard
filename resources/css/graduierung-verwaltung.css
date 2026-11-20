@@ -1,0 +1,88 @@
+/*
+ * Verwaltung der Graduierungssysteme (admin/grading).
+ * Ergänzt paed-diary-neu.css (Präfix pdn-, gescopet unter .pdn) um pdn-gv-*.
+ */
+
+/* sidebar.css nimmt Buttons in #tw-main den Rahmen (Spezifität 1,1,1) – hier gezielt zurück */
+#tw-main .pdn :is(.pdn-gv-system, .pdn-gv-gefahr--voll) { border-width: 1px; }
+
+/* ── Aufteilung: Systemliste | Inhalt ─────────────────────── */
+.pdn-gv-screen { container-type: inline-size; }
+.pdn-gv { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 420px; }
+.pdn-gv-systeme { border-right: 1px solid var(--pdn-line); background: var(--pdn-bg); padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+.pdn-gv-systeme > .pdn-k { padding: 0 6px 4px; }
+.pdn-gv-system { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; width: 100%;
+    border: 1px solid transparent; border-radius: 8px; background: transparent; padding: 8px 10px; font: inherit; color: var(--pdn-ink); cursor: pointer; }
+.pdn-gv-system:hover { background: var(--pdn-surface-2); }
+.pdn-gv-system[aria-current="true"] { background: var(--pdn-surface); border-color: var(--pdn-line); box-shadow: inset 3px 0 0 var(--pdn-accent); }
+.pdn-gv-system__name { font-weight: 800; overflow-wrap: anywhere; }
+.pdn .pdn-gv-systemwahl { display: none; }
+
+.pdn-gv-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pdn-gv-kopf h2 { font-size: 1.35em; font-weight: 800; letter-spacing: -.01em; display: inline; margin-right: 8px; }
+.pdn-gv-panel { display: flex; flex-direction: column; gap: 10px; }
+.pdn-gv-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pdn-gv-filter { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.pdn-gv-filter .pdn-sel { max-width: 220px; }
+.pdn-gv-rahmen { border: 1px dashed var(--pdn-line); border-radius: 10px; }
+
+/* ── Listen (Stufen, Fragen) ──────────────────────────────── */
+.pdn-gv-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--pdn-line); border-radius: 10px; overflow: hidden; }
+.pdn-gv-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--pdn-surface); }
+.pdn-gv-zeile + .pdn-gv-zeile { border-top: 1px solid var(--pdn-line); }
+.pdn-gv-zeile.sortable-ghost { background: var(--pdn-accent-soft); }
+.pdn-gv-zeile.sortable-chosen { box-shadow: 0 6px 18px rgba(15,23,42,.12); }
+.pdn-gv-zeile.is-inaktiv .pdn-gv-fragetext { color: var(--pdn-ink-2); text-decoration: line-through; text-decoration-color: var(--pdn-line); }
+.pdn-gv-griff { color: var(--pdn-ink-2); opacity: .55; cursor: grab; padding: 4px 2px; flex: none; touch-action: none; }
+.pdn-gv-griff:hover { opacity: 1; }
+.pdn-gv-liste.is-gefiltert .pdn-gv-griff { visibility: hidden; }
+.pdn-gv-zeile__inhalt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pdn-gv-zeile__titel { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.pdn-gv-zeile__titel b { font-size: 1.05em; }
+.pdn-gv-fragetext { font-weight: 600; overflow-wrap: anywhere; }
+.pdn-gv-zeile__aktionen { display: flex; gap: 6px; flex: none; }
+.pdn-gv-nr { width: 26px; height: 26px; border-radius: 6px; background: var(--pdn-surface-2); color: var(--pdn-ink-2); display: inline-grid; place-items: center; font-weight: 800; font-size: .85em; flex: none; }
+
+.pdn .pdn-gv-stufenbild { width: 38px; height: 38px; font-size: 1em; }
+.pdn .pdn-gv-stufenbild i { font-size: 1.1em; color: var(--pdn-accent); }
+.pdn .pdn-gv-stufenbild--gross { width: 64px; height: 64px; font-size: 1.4em; border: 1px solid var(--pdn-line); }
+.pdn-gv-bildwahl { display: flex; gap: 12px; align-items: center; }
+.pdn-gv-bildwahl input[type=file] { font: inherit; font-size: .95em; color: var(--pdn-ink); max-width: 100%; }
+
+.pdn-gv-stufenchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pdn-gv-chip { font-size: .8em; font-weight: 700; border-radius: 999px; padding: 1px 8px; background: var(--pdn-accent-soft); color: var(--pdn-accent); }
+.pdn-gv-chip--alle { background: var(--pdn-surface-2); color: var(--pdn-ink-2); }
+.pdn-gv-tag--ok { background: var(--pdn-ok-soft); color: var(--pdn-ok); }
+.pdn-gv-tag--warn { background: var(--pdn-warn-soft); color: var(--pdn-warn); }
+
+/* ── Gefährliche Aktionen ─────────────────────────────────── */
+.pdn .pdn-gv-gefahr { color: var(--pdn-danger); }
+.pdn .pdn-gv-gefahr:hover { background: var(--pdn-danger-soft); color: var(--pdn-danger); }
+.pdn .pdn-gv-gefahr--voll { border: 1px solid var(--pdn-danger); border-radius: 6px; padding: 5px 10px; min-height: 34px; background: var(--pdn-danger); color: #fff;
+    font: inherit; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.pdn .pdn-gv-gefahr--voll:hover { background: #9f1239; }
+
+/* ── Dialoge, Seitenleisten ───────────────────────────────── */
+.pdn-gv-dialogtitel { font-size: 1.1em; font-weight: 800; }
+.pdn-gv-dialogknoepfe { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.pdn-dialog .pdn-field input[type=text] { width: 100%; }
+.pdn-drawer .pdn-switch { padding: 4px 0; color: var(--pdn-ink); }
+.pdn-drawer .pdn-field textarea { min-height: 90px; }
+
+/* ── Leerer Zustand ───────────────────────────────────────── */
+.pdn-gv-leer { padding: 48px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; color: var(--pdn-ink-2); }
+.pdn-gv-leer > i { font-size: 2.4em; opacity: .5; }
+.pdn-gv-leer h2 { font-size: 1.2em; font-weight: 800; color: var(--pdn-ink); }
+
+/* ── Schmale Seite (nach Breite der Seite, nicht des Fensters – die Seitenleiste nimmt Platz) ── */
+@container (max-width: 820px) {
+    .pdn-gv { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+    .pdn-gv-systeme { border-right: 0; border-bottom: 1px solid var(--pdn-line); }
+    .pdn .pdn-gv-system, .pdn-gv-systeme > .pdn-k { display: none; }
+    .pdn .pdn-gv-systemwahl { display: flex; }
+}
+@container (max-width: 560px) {
+    .pdn-gv-text { display: none; }
+    .pdn-gv-zeile { align-items: flex-start; }
+    .pdn-gv-zeile__aktionen { flex-direction: column; }
+}

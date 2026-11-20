@@ -181,33 +181,18 @@ function registerNeu(Alpine) {
     Alpine.data('spaltenSeite', () => kombiniere(columnsManagerMethods(), {
         /** Spalte, deren Deaktivierung gerade bestätigt wird */
         bestaetigen: null,
-        /** Spalte, deren Gruppe gerade geändert wird */
-        gruppeFuer: null,
-        gruppeNeu: '',
         typen: { boolean: 'Ja/Nein', ampel: 'Ampel', text: 'Text', number: 'Zahl' },
 
         schliessen() {
             this.$store.diary.columnsCardOpen = false;
             this.bestaetigen = null;
-            this.gruppeFuer = null;
             this.copyOpenFor = null;
+            this.bearbeitenSchliessen();
         },
 
         async deaktivieren(col) {
             await this.deactivateColumn(col.id, true);
             this.bestaetigen = null;
-        },
-
-        gruppeAendern(col) {
-            this.gruppeFuer = col.id;
-            this.gruppeNeu = col.category || '';
-        },
-
-        async gruppeSpeichern(col) {
-            await this.updateColumnCategory(col.id, this.gruppeNeu.trim());
-            this.gruppeFuer = null;
-            // Gruppen-Überschriften in der Woche aktualisieren
-            this.$store.diary.loadWeek();
         },
     }));
 
@@ -810,8 +795,11 @@ function registerBewertungsMatrix(Alpine) {
         meldung: '',
         abschlussFragen: false,
 
+        // Gilt die Frage für die Graduierungsstufe des Schülers? (s.fragen = Fragen-IDs seiner Stufe)
+        gilt(s, f) { return !Array.isArray(s.fragen) || s.fragen.includes(f.id); },
+
         istVollstaendig(s) {
-            return this.fragen.every(f => s.lehrkraft[f.id]);
+            return this.fragen.every(f => !this.gilt(s, f) || s.lehrkraft[f.id]);
         },
 
         get vollstaendig() {

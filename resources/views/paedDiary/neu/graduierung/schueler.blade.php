@@ -47,7 +47,7 @@
                         @endif
 
                         @if($fragen->isEmpty())
-                            <p class="pdn-gd-hinweis">Das Graduierungssystem enthält keine Fragen mehr.</p>
+                            <p class="pdn-gd-hinweis">In dieser Reflexion gab es für diesen Schüler keine Fragen.</p>
                         @else
                             <table class="pdn-table pdn-gd-tabelle">
                                 <thead>
