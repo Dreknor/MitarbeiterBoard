@@ -14,6 +14,7 @@ use App\Models\personal\RosterNews;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Services\Personal\Zeit\RosterService;
+use App\Services\Personal\Zeit\RosterVersandService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ class RosterApiController extends Controller
     /** Längster abrufbarer Zeitraum (Tage) für "Mein Dienstplan" und Planlisten. */
     private const MAX_DAYS = 92;
 
-    public function __construct(private readonly RosterService $rosters)
+    public function __construct(private readonly RosterService $rosters, private readonly RosterVersandService $versand)
     {
     }
 
@@ -254,6 +255,38 @@ class RosterApiController extends Controller
         $this->authorize('manage', $roster);
 
         return response()->json(['data' => ['notified' => $this->rosters->aenderungenMitteilen($roster)]]);
+    }
+
+    /**
+     * POST /api/v1/roster/rosters/{roster}/send-mail – Plan als PDF per E-Mail an alle Mitarbeitenden der Abteilung.
+     */
+    public function sendMail(Request $request, Roster $roster): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        if ($roster->is_template) {
+            return response()->json(['message' => 'Vorlagen können nicht versendet werden.'], 422);
+        }
+
+        $anzahl = $this->versand->perMail($roster, $request->user());
+
+        return response()->json(['data' => ['recipients' => $anzahl], 'message' => 'Dienstplan an '.$anzahl.' Person(en) versendet.']);
+    }
+
+    /**
+     * POST /api/v1/roster/rosters/{roster}/send-talk – Plan als PDF in den Dienstplan-Chat von Nextcloud Talk.
+     */
+    public function sendTalk(Roster $roster): JsonResponse
+    {
+        $this->authorize('manage', $roster);
+        if ($roster->is_template) {
+            return response()->json(['message' => 'Vorlagen können nicht versendet werden.'], 422);
+        }
+
+        [$erfolg, $meldung] = $this->versand->anTalk($roster);
+
+        return $erfolg
+            ? response()->json(['data' => ['sent' => true], 'message' => $meldung])
+            : response()->json(['message' => $meldung], 422);
     }
 
     /**
@@ -515,6 +548,7 @@ class RosterApiController extends Controller
                 'checks' => $raster['checks'],
                 'open_changes' => $roster->aenderungen()->whereNull('notified_at')->count(),
                 'can_revert' => $this->rosters->kannZuruecksetzen($roster),
+                'can_send_talk' => !$roster->is_template && $this->versand->talkVerfuegbar(),
                 'previous_id' => $this->nachbar($roster, '<'),
                 'next_id' => $this->nachbar($roster, '>'),
                 'event_names' => $this->terminNamen($roster),

@@ -12,6 +12,7 @@ use App\Models\personal\RosterChange;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
+use App\Services\Personal\Zeit\RosterVersandService;
 use App\Notifications\Personal\ZeitwirtschaftNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -270,6 +271,29 @@ class RosterApiTest extends ApiTestCase
 
         $vorlage = $this->plan(['type' => 'template', 'start_date' => '2026-01-05']);
         $this->postJson(self::API.'/roster/rosters/'.$vorlage->id.'/publish')->assertUnprocessable();
+    }
+
+    public function test_plan_per_mail_und_talk_versenden(): void
+    {
+        $roster = $this->plan();
+        $this->mock(RosterVersandService::class, function ($mock) {
+            $mock->shouldReceive('perMail')->once()->andReturn(3);
+            $mock->shouldReceive('talkVerfuegbar')->andReturn(true);
+            $mock->shouldReceive('anTalk')->once()->andReturn([false, 'Kein Nextcloud Talk Chat-Token konfiguriert.']);
+        });
+        $this->alsPlaner();
+
+        $this->getJson(self::API.'/roster/rosters/'.$roster->id)->assertOk()->assertJsonPath('data.can_send_talk', true);
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/send-mail')->assertOk()->assertJsonPath('data.recipients', 3);
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/send-talk')
+            ->assertUnprocessable()->assertJsonPath('message', 'Kein Nextcloud Talk Chat-Token konfiguriert.');
+
+        $vorlage = $this->plan(['type' => 'template', 'start_date' => '2026-01-05']);
+        $this->postJson(self::API.'/roster/rosters/'.$vorlage->id.'/send-mail')->assertUnprocessable();
+
+        $this->alsMitarbeiter();
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/send-mail')->assertForbidden();
+        $this->postJson(self::API.'/roster/rosters/'.$roster->id.'/send-talk')->assertForbidden();
     }
 
     public function test_planansicht_liefert_nachbarn_vorschlaege_hinweise_und_aenderungen(): void

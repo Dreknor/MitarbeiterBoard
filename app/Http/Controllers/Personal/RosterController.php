@@ -4,22 +4,17 @@ namespace App\Http\Controllers\Personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\personal\createRosterRequest;
-use App\Mail\SendRosterMail;
 use App\Models\Group;
 use App\Models\personal\Roster;
 use App\Models\personal\RosterEvents;
 use App\Models\personal\WorkingTime;
 use App\Models\User;
 use App\Services\AutoRosterPlanner;
-use App\Services\NextcloudTalkService;
 use App\Services\Personal\Zeit\RosterService;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+use App\Services\Personal\Zeit\RosterVersandService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -27,7 +22,7 @@ use Illuminate\Support\Str;
  */
 class RosterController extends Controller
 {
-    public function __construct(private readonly RosterService $rosters)
+    public function __construct(private readonly RosterService $rosters, private readonly RosterVersandService $versand)
     {
     }
 
@@ -217,14 +212,14 @@ class RosterController extends Controller
     {
         $this->authorize('view', $roster);
 
-        return $this->createPDF($roster)->stream($roster->start_date->format('Y_m_d').'_dienstplan_Stand_'.now()->format('Y_m_d_H_i').'.pdf');
+        return $this->versand->pdf($roster)->stream($roster->start_date->format('Y_m_d').'_dienstplan_Stand_'.now()->format('Y_m_d_H_i').'.pdf');
     }
 
     public function exportPdfEmploye(Request $request, Roster $roster, User $employe)
     {
         abort_unless($request->user()->can('manage', $roster) || ($request->user()->id === $employe->id && $request->user()->can('view', $roster)), 403);
 
-        return $this->createPDFEmploye($roster, $employe)->stream(
+        return $this->versand->pdfPerson($roster, $employe)->stream(
             $roster->start_date->format('Y_m_d').'_dienstplan_'.Str::slug($employe->name).'.pdf'
         );
     }
@@ -233,21 +228,7 @@ class RosterController extends Controller
     {
         $this->authorize('manage', $roster);
 
-        $gesamt = $this->createPDF($roster)->output();
-        $absender = $request->user()->name;
-        $anzahl = 0;
-
-        foreach ($this->rosters->mitarbeitende($roster) as $employe) {
-            if (!$employe->email) {
-                continue;
-            }
-            $dateien = [
-                'dienstplan_'.$roster->start_date->format('Y_m_d').'.pdf' => $gesamt,
-                'dienstplan_'.Str::slug($employe->name).'.pdf' => $this->createPDFEmploye($roster, $employe)->output(),
-            ];
-            Mail::to($employe->email)->queue(new SendRosterMail($employe->vorname, $employe->nachname, $roster->start_date->format('d.m.Y'), $absender, $dateien));
-            $anzahl++;
-        }
+        $anzahl = $this->versand->perMail($roster, $request->user());
 
         return redirectBack('success', 'Dienstplan an '.$anzahl.' Person(en) versendet.');
     }
@@ -256,63 +237,9 @@ class RosterController extends Controller
     {
         $this->authorize('manage', $roster);
 
-        $nextcloud = new NextcloudTalkService();
-        if (!$nextcloud->isEnabled()) {
-            return redirectBack('warning', 'Nextcloud Talk ist nicht aktiviert oder nicht konfiguriert.');
-        }
+        [$erfolg, $meldung] = $this->versand->anTalk($roster);
 
-        $chatToken = config('nextcloud.roster_chat_token');
-        if (empty($chatToken)) {
-            return redirectBack('warning', 'Kein Nextcloud Talk Chat-Token konfiguriert.');
-        }
-
-        $stand = now()->format('Y_m_d_H_i_s');
-        $pfad = storage_path('app/tmp/dienstplan_'.$roster->id.'_'.Str::random(12).'.pdf');
-        File::ensureDirectoryExists(dirname($pfad));
-
-        try {
-            $this->createPDF($roster)->save($pfad, true);
-            $nachricht = sprintf("📅 **Dienstplan %s**\n\nWoche vom %s bis %s\n", $roster->department->name, $roster->start_date->format('d.m.Y'), $roster->weekEnd()->format('d.m.Y'));
-            $erfolg = $nextcloud->uploadAndShare($chatToken, $pfad, '/Dienstpläne/'.$roster->start_date->format('Y_m_d').'_dienstplan_Stand_'.$stand.'.pdf', $nachricht);
-        } finally {
-            File::delete($pfad);
-        }
-
-        return $erfolg
-            ? redirectBack('success', 'Dienstplan wurde an Nextcloud Talk gesendet.')
-            : redirectBack('danger', 'Fehler beim Senden an Nextcloud Talk. Bitte Logs prüfen.');
-    }
-
-    public function createPDF(Roster $roster)
-    {
-        return PDF::loadView('personal.rosters.pdf.pdf', [
-            'roster' => $roster,
-            'employes' => $this->rosters->mitarbeitende($roster),
-            'working_times' => $roster->working_times,
-            'events' => $roster->events,
-            'department' => $roster->department,
-        ])->setOptions([
-            'encoding' => 'utf-8',
-            'margin-top' => '8',
-            'page-size' => 'A3',
-            'orientation' => 'Landscape',
-        ]);
-    }
-
-    public function createPDFEmploye(Roster $roster, User $employe)
-    {
-        return PDF::loadView('personal.rosters.pdf.pdfEmploye', [
-            'roster' => $roster,
-            'working_times' => $roster->working_times()->where('employe_id', $employe->id)->get(),
-            'events' => $roster->events()->where('employe_id', $employe->id)->get(),
-            'employe' => $employe,
-        ])->setOptions([
-            'encoding' => 'utf-8',
-            'margin-top' => '10',
-            'margin-bottom' => '10',
-            'page-size' => 'A4',
-            'orientation' => 'Landscape',
-        ]);
+        return redirectBack($erfolg ? 'success' : 'danger', $meldung);
     }
 
     // ---- Mein Dienstplan ----

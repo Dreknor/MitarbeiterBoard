@@ -88,9 +88,11 @@
                 @endif
             @endunless
 
-            <div class="relative" x-data="{ menu: false }" @click.outside="menu = false">
-                <button type="button" class="zw-btn zw-btn-secondary" @click="menu = !menu" :aria-expanded="menu.toString()"><i class="fas fa-ellipsis-h"></i> Mehr</button>
-                <div x-show="menu" x-cloak x-transition class="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+            {{-- Menü öffnet nach links oder rechts, je nachdem wo Platz ist (auf dem Handy steht der Knopf links) --}}
+            <div class="relative" x-data="{ menu: false, links: false }" @click.outside="menu = false">
+                <button type="button" class="zw-btn zw-btn-secondary" x-ref="mehr"
+                        @click="links = $refs.mehr.getBoundingClientRect().right < 272; menu = !menu" :aria-expanded="menu.toString()"><i class="fas fa-ellipsis-h"></i> Mehr</button>
+                <div x-show="menu" x-cloak x-transition :style="links ? { left: '0px', right: 'auto' } : { right: '0px', left: 'auto' }" style="max-width: calc(100vw - 2rem)" class="absolute z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                     @unless($roster->is_template)
                         <a href="{{ route('roster.export.pdf', $roster->id) }}" target="_blank" class="block px-4 py-2 text-sm hover:bg-gray-50"><i class="fas fa-file-pdf w-5 text-gray-400"></i> PDF anzeigen</a>
                         <form action="{{ route('roster.export.mail', $roster->id) }}" method="post" data-confirm="Plan per E-Mail an alle Mitarbeitenden der Abteilung senden?">

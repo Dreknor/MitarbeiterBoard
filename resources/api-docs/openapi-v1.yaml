@@ -1771,7 +1771,7 @@ paths:
       tags: [Dienstplan]
       summary: Plan mit Mitarbeitenden, Arbeitszeiten und Terminen
       description: |
-        Planende sehen jeden Plan ihrer Abteilungen inkl. `conflicts`, `hours`, `checks`, `open_changes`, `can_revert`, `previous_id`/`next_id`, `event_names`, `notes` und `changes`.
+        Planende sehen jeden Plan ihrer Abteilungen inkl. `conflicts`, `hours`, `checks`, `open_changes`, `can_revert`, `can_send_talk`, `previous_id`/`next_id`, `event_names`, `notes` und `changes`.
         Mitarbeitende sehen nur veröffentlichte Pläne ihrer Abteilung bzw. Pläne, in denen sie eingeplant sind –
         ohne Planungsdaten; Abwesenheitsgründe anderer Personen erscheinen als „abwesend“.
       responses:
@@ -1876,6 +1876,52 @@ paths:
                     properties:
                       notified: { type: integer }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /roster/rosters/{roster_id}/send-mail:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Plan als PDF per E-Mail an alle Mitarbeitenden der Abteilung senden (Gesamtplan + persönlicher Plan)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Anzahl der Empfänger
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recipients: { type: integer }
+                  message: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Vorlage }
+  /roster/rosters/{roster_id}/send-talk:
+    parameters:
+      - $ref: '#/components/parameters/RosterId'
+    post:
+      tags: [Dienstplan]
+      summary: Plan als PDF in den Dienstplan-Chat von Nextcloud Talk stellen (nur wenn `can_send_talk`)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sent: { type: boolean }
+                  message: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Talk nicht eingerichtet, Vorlage oder Fehler beim Senden (`message`) }
   /roster/rosters/{roster_id}/revert:
     parameters:
       - $ref: '#/components/parameters/RosterId'
@@ -3460,6 +3506,7 @@ components:
               additionalProperties: { type: object, additionalProperties: { type: boolean } }
             open_changes: { type: integer, description: Nur für Planende }
             can_revert: { type: boolean, description: Nur für Planende }
+            can_send_talk: { type: boolean, description: Nur für Planende – Versand an Nextcloud Talk eingerichtet }
             previous_id: { type: integer, nullable: true, description: 'Nur für Planende: vorheriger Plan gleichen Typs der Abteilung' }
             next_id: { type: integer, nullable: true, description: 'Nur für Planende: nächster Plan gleichen Typs der Abteilung' }
             event_names: { type: array, items: { type: string }, description: 'Nur für Planende: häufige Terminbezeichnungen der Abteilung (6 Monate)' }
