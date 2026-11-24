@@ -53,15 +53,33 @@ function registerNeu(Alpine) {
         darstellung: { layout: 'klassisch', schrift: 'standard', kategorie_farben: true, pausierte: false, ...darstellung },
         darstellungOffen: false,
         filterOffen: false,
+        nachObenSichtbar: false,
 
         initNeu() {
             const store = this.$store.diary;
+            // Schwebender „Nach oben“-Button erst nach etwas Scrollen
+            const pruefeScroll = () => { this.nachObenSichtbar = window.scrollY > 400; };
+            window.addEventListener('scroll', pruefeScroll, { passive: true });
+            pruefeScroll();
             store.showPaused = !!this.darstellung.pausierte;
             // Auf dem Handy ist die breite Tabelle unpraktisch: dort Tageskarten statt „Klassisch“
             // zeigen (nur für diese Sitzung, die gespeicherte Wahl bleibt unverändert)
             if (window.innerWidth < 768 && this.darstellung.layout === 'klassisch') {
                 this.darstellung.layout = 'karten';
             }
+        },
+
+        /** Kopplung: zur Trennzeile bzw. zum Block einer Klasse springen */
+        zuKlasse(key) {
+            const ziel = document.getElementById('pdn-sprung-' + key);
+            if (!ziel) return;
+            const ruhig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            ziel.scrollIntoView({ behavior: ruhig ? 'auto' : 'smooth', block: 'start' });
+        },
+
+        nachOben() {
+            const ruhig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: ruhig ? 'auto' : 'smooth' });
         },
 
         get wrapperKlassen() {
