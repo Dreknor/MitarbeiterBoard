@@ -245,6 +245,8 @@
         {{-- Seitenspalte --}}
         <aside class="space-y-6">
 
+            @include('meetings.partials.ergebnisboards', ['ergebnisboards' => $ergebnisboards, 'neuParameter' => ['meeting' => $meeting->id]])
+
             {{-- Teilnehmende --}}
             <section class="mtg-card">
                 <div class="mtg-card-head">

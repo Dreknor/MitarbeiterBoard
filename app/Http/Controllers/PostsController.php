@@ -72,8 +72,17 @@ class PostsController extends Controller
 
         $vorauswahl = array_filter([(int) $request->query('gruppe')]);
 
+        // Ergebnisboard teilen: Entwurf mit Titel, Kurzfassung und Link vorbelegen (nur mit Leserecht)
+        $entwurf = ['auf_dashboard' => true];
+        if ($request->filled('ergebnisboard')) {
+            $board = \App\Models\Ergebnisboard::find($request->integer('ergebnisboard'));
+            if ($board && $user->can('view', $board)) {
+                $entwurf = array_merge($entwurf, app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->nachrichtEntwurf($board));
+            }
+        }
+
         return view('posts.form', [
-            'post' => new Post(['auf_dashboard' => true]),
+            'post' => new Post($entwurf),
             'gruppen' => $this->posts->zielGruppen($user),
             'ausgewaehlt' => $vorauswahl,
             'darfBestaetigung' => $this->posts->darfBestaetigungAnfordern($user),

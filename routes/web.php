@@ -1001,6 +1001,48 @@ Route::group([
                 });
 
                 /*
+                 * Ergebnisboards (Matrix, SWOT, Fahrplan, Kanban …) – Zugriff je Board über ErgebnisboardPolicy
+                 */
+                Route::prefix('ergebnisboards')->name('ergebnisboards.')->middleware('permission:view result boards')->group(function () {
+                    $c = \App\Http\Controllers\Ergebnisboards\ErgebnisboardController::class;
+                    Route::get('/', [$c, 'index'])->name('index');
+                    Route::get('neu', [$c, 'create'])->name('create');
+                    Route::post('/', [$c, 'store'])->name('store');
+
+                    // Vorlagen-Editor (manage result boards, Prüfung im Controller)
+                    $v = \App\Http\Controllers\Ergebnisboards\ErgebnisVorlageController::class;
+                    Route::get('vorlagen', [$v, 'index'])->name('vorlagen.index');
+                    Route::get('vorlagen/neu', [$v, 'create'])->name('vorlagen.create');
+                    Route::post('vorlagen', [$v, 'store'])->name('vorlagen.store');
+                    Route::get('vorlagen/{vorlage}', [$v, 'edit'])->whereNumber('vorlage')->name('vorlagen.edit');
+                    Route::put('vorlagen/{vorlage}', [$v, 'update'])->whereNumber('vorlage')->name('vorlagen.update');
+                    Route::delete('vorlagen/{vorlage}', [$v, 'destroy'])->whereNumber('vorlage')->name('vorlagen.destroy');
+                    Route::post('{board}/als-vorlage', [$v, 'ausBoard'])->whereNumber('board')->name('als-vorlage');
+
+                    Route::prefix('{board}')->whereNumber('board')->scopeBindings()->group(function () use ($c) {
+                        Route::get('/', [$c, 'show'])->name('show');
+                        Route::get('daten', [$c, 'daten'])->name('daten');
+                        Route::put('/', [$c, 'update'])->name('update');
+                        Route::delete('/', [$c, 'destroy'])->name('destroy');
+                        Route::put('bereiche', [$c, 'bereiche'])->name('bereiche');
+                        Route::post('zugriffe', [$c, 'zugriffe'])->name('zugriffe');
+                        Route::post('duplizieren', [$c, 'duplicate'])->name('duplicate');
+                        Route::post('archivieren', [$c, 'archive'])->name('archive');
+                        Route::get('pdf', [$c, 'pdf'])->name('pdf');
+                        Route::post('sortierung', [$c, 'sortierung'])->name('sortierung');
+
+                        Route::post('karten', [$c, 'karteStore'])->name('karten.store');
+                        Route::put('karten/{karte}', [$c, 'karteUpdate'])->whereNumber('karte')->name('karten.update');
+                        Route::delete('karten/{karte}', [$c, 'karteDestroy'])->whereNumber('karte')->name('karten.destroy');
+                        Route::post('karten/{karte}/aufgabe', [$c, 'aufgabeStore'])->whereNumber('karte')->name('karten.aufgabe');
+                        Route::post('karten/{karte}/aufgabe/erledigen', [$c, 'aufgabeErledigen'])->whereNumber('karte')->name('karten.aufgabe.erledigen');
+                        Route::post('karten/{karte}/dateien', [$c, 'dateiStore'])->whereNumber('karte')->name('karten.dateien.store');
+                        Route::get('karten/{karte}/dateien/{media}', [$c, 'dateiShow'])->whereNumber(['karte', 'media'])->name('karten.dateien.show');
+                        Route::delete('karten/{karte}/dateien/{media}', [$c, 'dateiDestroy'])->whereNumber(['karte', 'media'])->name('karten.dateien.destroy');
+                    });
+                });
+
+                /*
                  * Online-Updater (Permission "make updates" im Controller)
                  */
                 Route::prefix('updater')->name('updater.')->group(function () {

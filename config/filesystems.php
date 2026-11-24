@@ -56,6 +56,14 @@ return [
             'visibility' => 'private',
         ],
 
+        // Private Ablage für Anhänge an Ergebnisboard-Karten (Auslieferung nur über
+        // ErgebnisboardController::datei mit Berechtigungsprüfung)
+        'ergebnisboards' => [
+            'driver' => 'local',
+            'root' => storage_path('app/ergebnisboards'),
+            'visibility' => 'private',
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

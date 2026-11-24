@@ -73,6 +73,10 @@ export default defineConfig({
                 // Benutzerverwaltung: Geburtstags-Import
                 'resources/css/users-import.css',
 
+                // Ergebnisboards (Liste, Anlegen, Board-Seite)
+                'resources/css/ergebnisboards.css',
+                'resources/js/ergebnisboards.js',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
 
@@ -132,6 +136,8 @@ export default defineConfig({
                 'app/Services/Personal/Zeit/*.php',
                 // Klassenraum-Tools
                 'resources/views/klassenraum/**/*.blade.php',
+                // Ergebnisboards
+                'resources/views/ergebnisboards/**/*.blade.php',
             ],
         }),
     ],

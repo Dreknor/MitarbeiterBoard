@@ -141,6 +141,15 @@
                     </a>
                 @endcan
 
+                {{-- Ergebnisboards (Ergebnissicherung als Matrix, Kanban, SWOT …) --}}
+                @can('view result boards')
+                    <a href="{{ route('ergebnisboards.index') }}"
+                       class="sidebar-link @if(request()->segment(1) == 'ergebnisboards') active @endif">
+                        <i class="fas fa-th-large"></i>
+                        <span>Ergebnisboards</span>
+                    </a>
+                @endcan
+
                 <div class="sidebar-section-label">Organisation</div>
 
                 {{-- ── BERATUNGEN (dynamisch nach Gruppen) ────────────── --}}

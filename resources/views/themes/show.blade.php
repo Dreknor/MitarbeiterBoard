@@ -301,6 +301,8 @@
                     @include('tasks.partials.theme_tasks', ['tasks' => $themeTasks, 'ui' => 'thm'])
                 </div>
 
+                @include('themes.element.ergebnisboards', ['ergebnisboards' => $ergebnisboards ?? collect()])
+
                 @can('view priorities')
                     <div>
                         <h3 class="thm-section-title mb-2">Prioritäten</h3>

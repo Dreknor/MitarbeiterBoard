@@ -44,6 +44,8 @@ class Kernel extends ConsoleKernel
         $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgleichen())->hourly()->name('nachrichten-abgleich');
         $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->erinnerungenVersenden())->dailyAt('07:10')->name('nachrichten-erinnerungen');
         $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgelaufeneArchivieren())->dailyAt('01:30')->name('nachrichten-ablauf');
+        // Ergebnisboards: Erinnerung an heute/morgen fällige Karten
+        $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->erinnerungenVersenden())->dailyAt('07:20')->name('ergebnisboards-erinnerungen');
         $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
 
         //Recurring procedures

@@ -21,6 +21,7 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\Meeting::class => \App\Policies\MeetingPolicy::class,
         \App\Models\Ticket::class => \App\Policies\TicketPolicy::class,
         \App\Models\Post::class => \App\Policies\PostPolicy::class,
+        \App\Models\Ergebnisboard::class => \App\Policies\ErgebnisboardPolicy::class,
 
         // API v1 (Pädagogen-App)
         \App\Models\Schueler::class       => \App\Policies\StudentPolicy::class,

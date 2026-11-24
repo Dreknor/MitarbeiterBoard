@@ -38,6 +38,10 @@ class GlobalSearchService
             $sections[] = ['key' => 'posts', 'title' => 'Nachrichten', 'icon' => 'far fa-newspaper', 'items' => $posts];
         }
 
+        if ($boards = $this->ergebnisboards($user, $term)) {
+            $sections[] = ['key' => 'ergebnisboards', 'title' => 'Ergebnisboards', 'icon' => 'fas fa-th-large', 'items' => $boards];
+        }
+
         if ($meetings = $this->meetings($user, $term)) {
             $sections[] = ['key' => 'meetings', 'title' => 'Meetings', 'icon' => 'far fa-calendar-alt', 'items' => $meetings];
         }
@@ -80,6 +84,38 @@ class GlobalSearchService
                 'snippet' => $this->snippet($post->text, $term),
             ])
             ->values()
+            ->all();
+    }
+
+    /**
+     * Ergebnisboards (Titel, Untertitel, Kartentitel/-zusatz), nur mit Leserecht und `view result boards`.
+     */
+    private function ergebnisboards(User $user, string $term): array
+    {
+        if (! $user->can(\App\Support\ErgebnisboardVorlagen::PERMISSION_VIEW)) {
+            return [];
+        }
+        $like = '%' . $term . '%';
+
+        return \App\Models\Ergebnisboard::query()
+            ->sichtbarFuer($user)
+            ->where(fn ($q) => $q->where('titel', 'like', $like)
+                ->orWhere('untertitel', 'like', $like)
+                ->orWhereHas('karten', fn ($k) => $k->where('titel', 'like', $like)->orWhere('zusatz', 'like', $like)))
+            ->with(['karten' => fn ($k) => $k->where(fn ($w) => $w->where('titel', 'like', $like)->orWhere('zusatz', 'like', $like))])
+            ->latest('updated_at')
+            ->limit(self::LIMIT_PER_SECTION)
+            ->get()
+            ->map(fn (\App\Models\Ergebnisboard $b) => [
+                'id'      => $b->id,
+                'title'   => $b->titel,
+                'date'    => $b->updated_at?->format('d.m.Y'),
+                'url'     => route('ergebnisboards.show', $b),
+                'meta'    => $b->vorlageTitel() . ($b->istArchiviert() ? ' · archiviert' : ''),
+                'snippet' => $b->karten->isNotEmpty()
+                    ? $this->snippet($b->karten->pluck('titel')->implode(' · '), $term)
+                    : $this->snippet((string) $b->untertitel, $term),
+            ])
             ->all();
     }
 
