@@ -14,6 +14,7 @@ class GeburtstageComposer
 
         $geburtstage = EmployeData::whereNotNull('geburtstag')
             ->whereHas('user', fn($q) => $q->whereNull('deleted_at'))
+            ->with('user:id,name')
             ->get()
             ->filter(function ($emp) use ($today, $endDate) {
                 $birthday = $emp->geburtstag->copy()->year($today->year);
