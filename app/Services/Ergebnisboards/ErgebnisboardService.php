@@ -728,7 +728,9 @@ class ErgebnisboardService
     private function checklisteNormalisieren(mixed $liste): ?array
     {
         $punkte = [];
-        foreach (array_slice((array) $liste, 0, 50) as $p) {
+        $liste = (array) $liste;
+        ksort($liste); // validated() liefert verschachtelte Listen nicht in Eingabereihenfolge
+        foreach (array_slice($liste, 0, 50) as $p) {
             $text = Str::limit(trim((string) ($p['text'] ?? '')), 255, '');
             if ($text === '') {
                 continue;
