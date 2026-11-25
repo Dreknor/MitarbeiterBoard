@@ -169,13 +169,20 @@ class ErgebnisboardAnhaengeTest extends TestCase
         Storage::disk('ergebnisboards')->assertMissing($pfad);
     }
 
-    public function test_karte_loeschen_entfernt_anhaenge(): void
+    public function test_karte_loeschen_behaelt_anhaenge_bis_zum_endgueltigen_loeschen(): void
     {
         $media = $this->anhang();
         $pfad = $media->getPathRelativeToRoot();
         Storage::disk('ergebnisboards')->assertExists($pfad);
 
         $this->actingAs($this->autor)->deleteJson(route('ergebnisboards.karten.destroy', [$this->board, $this->karte]))->assertOk();
+
+        // soft-gelöscht: Anhang bleibt für das Wiederherstellen erhalten
+        $this->assertSame(1, Media::count());
+        Storage::disk('ergebnisboards')->assertExists($pfad);
+
+        \App\Models\ErgebnisKarte::withTrashed()->whereKey($this->karte->id)->update(['deleted_at' => now()->subDays(91)]);
+        app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->geloeschteKartenBereinigen();
 
         $this->assertSame(0, Media::count());
         Storage::disk('ergebnisboards')->assertMissing($pfad);

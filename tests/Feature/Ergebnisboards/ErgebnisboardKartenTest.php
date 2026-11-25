@@ -91,7 +91,8 @@ class ErgebnisboardKartenTest extends TestCase
         $this->actingAs($this->autor)->deleteJson(route('ergebnisboards.karten.destroy', [$this->board, $karte]))
             ->assertOk()->assertJsonCount(0, 'data.karten');
 
-        $this->assertModelMissing($karte);
+        // soft-gelöscht: im Verlauf wiederherstellbar, endgültig nach 90 Tagen
+        $this->assertSoftDeleted($karte);
     }
 
     public function test_karte_eines_anderen_boards_ergibt_404(): void
