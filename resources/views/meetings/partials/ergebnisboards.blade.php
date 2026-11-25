@@ -5,7 +5,7 @@
 @if(auth()->user()->can('view result boards') && ($ergebnisboards->isNotEmpty() || auth()->user()->can('create', \App\Models\Ergebnisboard::class)))
     <section class="mtg-card">
         <div class="mtg-card-head">
-            <h2 class="mtg-card-title"><i class="fas fa-th-large"></i> Ergebnisboards</h2>
+            <h2 class="mtg-card-title"><i class="fas fa-th-large"></i> Boards</h2>
             @can('create', \App\Models\Ergebnisboard::class)
                 <a href="{{ route('ergebnisboards.create', $neuParameter ?? []) }}" class="mtg-btn mtg-btn-ghost mtg-btn-sm" title="Neues Board für diese Sitzung">
                     <i class="fas fa-plus"></i>

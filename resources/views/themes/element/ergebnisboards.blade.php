@@ -5,7 +5,7 @@
 @if(auth()->user()->can('view result boards') && ($ergebnisboards->isNotEmpty() || auth()->user()->can('create', \App\Models\Ergebnisboard::class)))
     <div>
         <div class="flex items-center justify-between gap-2 mb-2">
-            <h3 class="thm-section-title">Ergebnisboards</h3>
+            <h3 class="thm-section-title">Boards</h3>
             @can('create', \App\Models\Ergebnisboard::class)
                 <a href="{{ route('ergebnisboards.create', ['theme' => $theme->id]) }}" class="thm-btn thm-btn-secondary thm-btn-sm" title="Neues Board zu diesem Thema">
                     <i class="fas fa-plus"></i>

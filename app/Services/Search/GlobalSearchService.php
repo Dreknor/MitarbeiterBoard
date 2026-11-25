@@ -39,7 +39,7 @@ class GlobalSearchService
         }
 
         if ($boards = $this->ergebnisboards($user, $term)) {
-            $sections[] = ['key' => 'ergebnisboards', 'title' => 'Ergebnisboards', 'icon' => 'fas fa-th-large', 'items' => $boards];
+            $sections[] = ['key' => 'ergebnisboards', 'title' => 'Boards', 'icon' => 'fas fa-th-large', 'items' => $boards];
         }
 
         if ($meetings = $this->meetings($user, $term)) {

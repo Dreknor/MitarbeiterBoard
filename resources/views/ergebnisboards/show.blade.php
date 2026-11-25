@@ -40,7 +40,7 @@
     {{-- Werkzeugleiste (nicht im Export) --}}
     <div class="erg-toolbar">
         <a href="{{ route('ergebnisboards.index') }}" class="erg-back">
-            <i class="fas fa-arrow-left"></i> Ergebnisboards
+            <i class="fas fa-arrow-left"></i> Boards
         </a>
 
         <div class="erg-toolbar-gruppe">
@@ -154,7 +154,7 @@
 </div>
 
 <x-tour id="ergebnisboards" :version="1" :steps="[
-    ['title' => 'Ergebnisboard', 'text' => 'Ein Ergebnisboard hält Ergebnisse aus Sitzungen, pädagogischen Tagen oder Projekten fest – als Felder mit Karten. Klicken Sie eine Karte an, um Details, Zuständige, Fälligkeit und Anhänge zu sehen.'],
+    ['title' => 'Board', 'text' => 'Ein Board hält Ergebnisse aus Sitzungen, pädagogischen Tagen oder Projekten fest – als Felder mit Karten. Klicken Sie eine Karte an, um Details, Zuständige, Fälligkeit und Anhänge zu sehen.'],
     $daten['darf_schreiben'] ? ['target' => 'erg-bearbeiten', 'title' => 'Bearbeiten', 'text' => 'Schalten Sie den Bearbeitungsmodus ein: Dann lassen sich Titel, Untertitel und „Stand / Gremium“ direkt im Board ändern und in jedem Feld neue Karten anlegen.'] : null,
     ['selector' => '.erg-karte', 'title' => 'Karten', 'text' => 'Karten zeigen Etikett, Fälligkeit (rot = überfällig), Zuständige und Anhänge. Der Stern markiert einen Arbeitsschwerpunkt. Bei verknüpftem Thema kann aus einer Karte eine Aufgabe werden.'],
     $daten['darf_schreiben'] ? ['selector' => '.erg-raster', 'title' => 'Drag & Drop', 'text' => 'Im Bearbeitungsmodus ziehen Sie Karten innerhalb eines Feldes oder in ein anderes Feld. Landet eine Karte mit Aufgabe in „Erledigt“, kann die Aufgabe direkt abgeschlossen werden.'] : null,

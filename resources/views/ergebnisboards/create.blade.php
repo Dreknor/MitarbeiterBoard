@@ -21,8 +21,8 @@
 
 @section('content')
 <div class="erg-wrapper erg-schmal">
-    <a href="{{ route('ergebnisboards.index') }}" class="erg-back mb-3"><i class="fas fa-arrow-left"></i> Ergebnisboards</a>
-    <h1 class="erg-page-title">Neues Ergebnisboard</h1>
+    <a href="{{ route('ergebnisboards.index') }}" class="erg-back mb-3"><i class="fas fa-arrow-left"></i> Boards</a>
+    <h1 class="erg-page-title">Neues Board</h1>
     <p class="erg-page-sub mb-5">Vorlage wählen, Titel vergeben – Karten legen Sie danach direkt im Board an.</p>
 
     @if($errors->any())

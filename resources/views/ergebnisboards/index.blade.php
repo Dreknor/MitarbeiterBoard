@@ -8,7 +8,7 @@
 <div class="erg-wrapper erg-schmal">
     <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div>
-            <h1 class="erg-page-title">Ergebnisboards</h1>
+            <h1 class="erg-page-title">Boards</h1>
             <p class="erg-page-sub">Ergebnisse aus Sitzungen, pädagogischen Tagen und Projekten festhalten, priorisieren und weiterverfolgen.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -53,7 +53,7 @@
                 @elseif($archiv)
                     <span>Im Archiv liegen keine Boards.</span>
                 @else
-                    <span>Noch keine Ergebnisboards.</span>
+                    <span>Noch keine Boards.</span>
                     @if($darfAnlegen)
                         <a href="{{ route('ergebnisboards.create') }}" class="erg-btn erg-btn-primary mt-2"><i class="fas fa-plus"></i> Erstes Board anlegen</a>
                     @endif

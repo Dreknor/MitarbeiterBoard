@@ -6,7 +6,7 @@
 
 @section('content')
 <div class="erg-wrapper erg-schmal">
-    <a href="{{ route('ergebnisboards.index') }}" class="erg-back mb-3"><i class="fas fa-arrow-left"></i> Ergebnisboards</a>
+    <a href="{{ route('ergebnisboards.index') }}" class="erg-back mb-3"><i class="fas fa-arrow-left"></i> Boards</a>
     <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div>
             <h1 class="erg-page-title">Vorlagen</h1>
