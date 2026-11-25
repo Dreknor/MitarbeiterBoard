@@ -146,7 +146,7 @@
                     <a href="{{ route('ergebnisboards.index') }}"
                        class="sidebar-link @if(request()->segment(1) == 'ergebnisboards') active @endif">
                         <i class="fas fa-th-large"></i>
-                        <span>Ergebnisboards</span>
+                        <span>Boards</span>
                     </a>
                 @endcan
 
