@@ -17,7 +17,7 @@ class ErgebnisKarteZugewiesen extends Benachrichtigung
 
     public function kategorie(): string
     {
-        return 'aufgaben';
+        return 'boards';
     }
 
     public function titel(object $notifiable): string

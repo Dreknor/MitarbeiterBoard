@@ -65,6 +65,14 @@ return [
             'mail'         => 'sofort',
             'permission'   => ['view tickets'],
         ],
+        'boards' => [
+            'label'        => 'Boards',
+            'beschreibung' => 'Kommentare und @-Erwähnungen auf Boards, Zuständigkeiten und fällige Karten',
+            'icon'         => 'fa-th-large',
+            'push'         => true,
+            'mail'         => 'sofort',
+            'permission'   => ['view result boards'],
+        ],
         'prozesse' => [
             'label'        => 'Prozesse',
             'beschreibung' => 'Ihnen zugewiesene Prozessschritte und Kommentare',

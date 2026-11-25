@@ -1030,6 +1030,15 @@ Route::group([
                         Route::post('archivieren', [$c, 'archive'])->name('archive');
                         Route::get('pdf', [$c, 'pdf'])->name('pdf');
                         Route::post('sortierung', [$c, 'sortierung'])->name('sortierung');
+                        Route::get('verlauf', [$c, 'verlauf'])->name('verlauf');
+                        Route::post('karten/{geloeschteKarte}/wiederherstellen', [$c, 'karteWiederherstellen'])->whereNumber('geloeschteKarte')->name('karten.wiederherstellen');
+
+                        // Kommentare (Board und Karten) – ändern die Board-Version nicht
+                        $k = \App\Http\Controllers\Ergebnisboards\ErgebnisKommentarController::class;
+                        Route::get('kommentare', [$k, 'index'])->name('kommentare.index');
+                        Route::post('kommentare', [$k, 'store'])->name('kommentare.store');
+                        Route::put('kommentare/{kommentar}', [$k, 'update'])->whereNumber('kommentar')->name('kommentare.update');
+                        Route::delete('kommentare/{kommentar}', [$k, 'destroy'])->whereNumber('kommentar')->name('kommentare.destroy');
 
                         Route::post('karten', [$c, 'karteStore'])->name('karten.store');
                         Route::put('karten/{karte}', [$c, 'karteUpdate'])->whereNumber('karte')->name('karten.update');

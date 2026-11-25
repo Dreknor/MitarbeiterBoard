@@ -345,6 +345,48 @@
 @keyframes erg-drehen { to { transform: rotate(360deg); } }
 
 /* ---------------------------------------------------------------
+ * Kommentare, Verlauf, Reiter, Seitenleiste
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-zaehler {
+    @apply inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold leading-none;
+    min-width: 1.15rem; height: 1.15rem; padding: 0 .3rem;
+}
+.erg-wrapper .erg-reiter { @apply flex gap-1 px-4 pt-2 border-b border-slate-200 bg-white overflow-x-auto shrink-0; }
+.erg-wrapper .erg-reiter button {
+    @apply inline-flex items-center gap-1.5 shrink-0 px-3 py-2 text-sm font-semibold text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-800;
+}
+.erg-wrapper .erg-reiter button.is-active { @apply text-emerald-700 border-emerald-600; }
+
+.erg-wrapper .erg-kommentare { @apply flex flex-col gap-3 overflow-y-auto; max-height: 50vh; }
+.erg-wrapper .erg-seitenleiste .erg-kommentare { max-height: none; }
+.erg-wrapper .erg-kommentar { @apply flex gap-2.5 rounded-xl p-2.5 bg-slate-50 border border-slate-100; }
+.erg-wrapper .erg-kommentar.is-eigener { @apply bg-emerald-50/60 border-emerald-100; }
+.erg-wrapper .erg-kommentar-text { @apply text-sm text-slate-700 mt-0.5; white-space: pre-line; overflow-wrap: anywhere; }
+.erg-wrapper .erg-kommentar-text.is-geloescht { @apply italic text-slate-400; }
+.erg-wrapper .erg-kommentar-text a { @apply text-blue-700 underline; }
+.erg-wrapper .erg-erwaehnung { @apply font-semibold text-emerald-800 bg-emerald-100 rounded px-0.5; }
+.erg-wrapper .erg-vorschlaege {
+    @apply absolute left-0 right-0 z-10 flex flex-col rounded-xl border border-slate-200 bg-white shadow-lg p-1 max-h-60 overflow-y-auto;
+    top: calc(100% - 2.75rem);
+}
+.erg-wrapper .erg-vorschlaege button { @apply flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-left text-slate-700 hover:bg-slate-50; }
+.erg-wrapper .erg-vorschlaege button.is-markiert { @apply bg-emerald-50 text-emerald-900; }
+
+.erg-wrapper .erg-verlauf { @apply flex flex-col list-none m-0 p-0; }
+.erg-wrapper .erg-verlauf-eintrag { @apply flex gap-3 py-2.5 border-b border-slate-100; }
+.erg-wrapper .erg-verlauf-eintrag:last-child { border-bottom: 0; }
+.erg-wrapper .erg-verlauf-eintrag.is-geloescht .erg-verlauf-icon { @apply bg-red-50 text-red-600; }
+.erg-wrapper .erg-verlauf-icon { @apply flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-xs shrink-0; }
+.erg-wrapper .erg-verlauf-link { @apply text-left text-slate-700 hover:text-emerald-700 hover:underline; background: none; border: 0; padding: 0; font: inherit; }
+.erg-wrapper .erg-verlauf-zeilen { @apply list-none m-0 mt-1 p-0 pl-2 border-l-2 border-slate-200 text-xs text-slate-500 flex flex-col gap-0.5; }
+
+.erg-wrapper .erg-backdrop.is-seitlich { justify-content: flex-end; align-items: stretch; padding: 0; }
+.erg-wrapper .erg-seitenleiste {
+    width: 100%; max-width: 30rem; height: 100%; background: #fff; display: flex; flex-direction: column;
+    box-shadow: -20px 0 40px -12px rgb(0 0 0 / .3);
+}
+
+/* ---------------------------------------------------------------
  * Druck: nur das Board, A4 quer
  * ------------------------------------------------------------- */
 @media print {

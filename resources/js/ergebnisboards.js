@@ -44,10 +44,33 @@ function speicherSchreiben(schluessel, wert) {
     try { window.localStorage.setItem(schluessel, wert); } catch (e) { /* egal */ }
 }
 
+function zeitDe(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const heute = new Date();
+    const gestern = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() - 1);
+    const uhr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === heute.toDateString()) return `heute, ${uhr}`;
+    if (d.toDateString() === gestern.toDateString()) return `gestern, ${uhr}`;
+    return `${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ${uhr}`;
+}
+
+/** Zustand eines Kommentarbereichs (Karte oder Board). */
+function leereKommentare() {
+    return { liste: [], geladen: false, laedt: false, text: '', fehler: '', bearbeiteId: null, bearbeiteText: '' };
+}
+
+/** Zustand eines Verlaufs (Karte oder Board). */
+function leererVerlauf() {
+    return { eintraege: [], geladen: false, laedt: false, mehr: false, filter: 'alle', darfWiederherstellen: false };
+}
+
 function leereKarte(bereich) {
     return {
         id: null, bereich, titel: '', zusatz: '', etikett: '', fokus: false, breit: false,
         faellig_am: '', zustaendige: [], zustaendigeNamen: [], anhaenge: [], aufgabe: null, ueberfaellig: false,
+        kommentare: 0,
     };
 }
 
@@ -76,10 +99,11 @@ function registerComponents(Alpine) {
         nurMeine: false,
         laedt: false,
         toasts: [],
-        dialog: null,          // karte | felder | zugriff | einstellungen | export
+        dialog: null,          // karte | felder | zugriff | einstellungen | export | seitenleiste
         letzterFokus: null,
 
         // Karten-Dialog
+        kartenReiter: 'details',   // details | kommentare | verlauf
         form: leereKarte(null),
         formFehler: '',
         personSuche: '',
@@ -104,6 +128,13 @@ function registerComponents(Alpine) {
         exportBlob: null,
         exportBreite: 0,
 
+        // Kommentare & Verlauf (je Karte im Dialog und fürs Board in der Seitenleiste)
+        seitenReiter: 'kommentare',    // kommentare | verlauf
+        kom: { karte: leereKommentare(), board: leereKommentare() },
+        verl: { karte: leererVerlauf(), board: leererVerlauf() },
+        // @-Erwähnung: offene Vorschlagsliste
+        erw: { offen: false, ziel: null, feld: null, start: 0, suche: '', markiert: 0 },
+
         sortables: [],
 
         init() {
@@ -114,6 +145,24 @@ function registerComponents(Alpine) {
                 this.sortablesAktualisieren();
             });
             this.$watch('nurMeine', () => this.sortablesAktualisieren());
+            this.$nextTick(() => this.ankerOeffnen());
+            window.addEventListener('hashchange', () => this.ankerOeffnen());
+        },
+
+        /** Links aus Benachrichtigungen: #karte-12, #karte-12-kommentare, #kommentare, #verlauf. */
+        ankerOeffnen() {
+            const hash = window.location.hash || '';
+            const m = hash.match(/^#karte-(\d+)(?:-(kommentare|verlauf))?$/);
+            if (m) {
+                const k = this.board.karten.find((x) => x.id === Number(m[1]));
+                if (k) {
+                    this.karteOeffnen(k, m[2] || 'details');
+                } else {
+                    this.toast('Diese Karte gibt es nicht mehr.', 'warnung');
+                }
+            } else if (hash === '#kommentare' || hash === '#verlauf') {
+                this.seitenleisteOeffnen(hash.slice(1));
+            }
         },
 
         // ---------------- abgeleitete Daten ----------------
@@ -189,6 +238,7 @@ function registerComponents(Alpine) {
             return [text.slice(0, i + 1), text.slice(i + 1)];
         },
         datum: datumDe,
+        zeit: zeitDe,
         groesse,
 
         // ---------------- Anfragen ----------------
@@ -261,6 +311,7 @@ function registerComponents(Alpine) {
                 } else {
                     this.form.anhaenge = k.anhaenge;
                     this.form.aufgabe = k.aufgabe;
+                    this.form.kommentare = k.kommentare || 0;
                 }
             }
             this.$nextTick(() => this.sortablesAktualisieren());
@@ -289,6 +340,10 @@ function registerComponents(Alpine) {
             });
         },
         dialogSchliessen() {
+            this.erwaehnungSchliessen();
+            if (window.location.hash && /^#(karte-\d+|kommentare|verlauf)/.test(window.location.hash)) {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
             this.dialog = null;
             this.formFehler = '';
             this.felderFehler = '';
@@ -376,7 +431,7 @@ function registerComponents(Alpine) {
 
         // ---------------- Karten ----------------
 
-        karteOeffnen(k) {
+        karteOeffnen(k, reiter = 'details') {
             this.form = {
                 id: k.id,
                 bereich: k.bereich,
@@ -391,14 +446,29 @@ function registerComponents(Alpine) {
                 anhaenge: k.anhaenge || [],
                 aufgabe: k.aufgabe,
                 ueberfaellig: k.ueberfaellig,
+                kommentare: k.kommentare || 0,
             };
             this.formFehler = '';
             this.personSuche = '';
             this.aufgabeDatum = '';
+            this.kom.karte = leereKommentare();
+            this.verl.karte = leererVerlauf();
             this.dialogOeffnen('karte');
+            this.reiterWaehlen(reiter);
+        },
+        /** Reiter im Karten-Dialog; Kommentare/Verlauf werden beim ersten Öffnen geladen. */
+        reiterWaehlen(reiter) {
+            this.kartenReiter = this.form.id ? reiter : 'details';
+            this.erwaehnungSchliessen();
+            if (this.kartenReiter === 'kommentare' && !this.kom.karte.geladen) this.kommentareLaden('karte');
+            if (this.kartenReiter === 'verlauf' && !this.verl.karte.geladen) this.verlaufLaden('karte');
+            if (this.kartenReiter === 'kommentare') {
+                this.$nextTick(() => this.$root.querySelector('[data-dialog="karte"] [data-kommentar-eingabe]')?.focus());
+            }
         },
         neueKarte(bereich) {
             if (!this.schreibbar) return;
+            this.kartenReiter = 'details';
             this.form = leereKarte(bereich);
             this.formFehler = '';
             this.personSuche = '';
@@ -513,6 +583,186 @@ function registerComponents(Alpine) {
             } catch (e) {
                 if (e.art === 'validierung') this.toast(e.message, 'fehler');
             }
+        },
+
+        // ---------------- Kommentare ----------------
+
+        /** ziel = karte (offene Karte im Dialog) | board */
+        kommentarUrl(ziel) {
+            const basis = this.urls.kommentare;
+            return ziel === 'karte' && this.form.id ? `${basis}?karte=${this.form.id}` : basis;
+        },
+        kommentareUebernehmen(ziel, json) {
+            this.kom[ziel].liste = json.kommentare || [];
+            this.kom[ziel].geladen = true;
+            if (ziel === 'karte') {
+                const k = this.board.karten.find((x) => x.id === json.karte);
+                if (k) k.kommentare = json.anzahl;
+                this.form.kommentare = json.anzahl;
+            } else {
+                this.board.kommentare_board = json.anzahl;
+            }
+            this.$nextTick(() => {
+                const liste = this.$root.querySelector(`[data-kommentare="${ziel}"]`);
+                if (liste) liste.scrollTop = liste.scrollHeight;
+            });
+        },
+        async kommentareLaden(ziel) {
+            this.kom[ziel].laedt = true;
+            try {
+                this.kommentareUebernehmen(ziel, await this.anfrage('GET', this.kommentarUrl(ziel)));
+            } catch (e) { /* Hinweis kam bereits */ } finally {
+                this.kom[ziel].laedt = false;
+            }
+        },
+        async kommentarSenden(ziel) {
+            const z = this.kom[ziel];
+            z.fehler = '';
+            if (!z.text.trim()) return;
+            const daten = { text: z.text };
+            if (ziel === 'karte') daten.karte = this.form.id;
+            try {
+                this.kommentareUebernehmen(ziel, await this.anfrage('POST', this.urls.kommentare, daten));
+                z.text = '';
+                this.erwaehnungSchliessen();
+            } catch (e) {
+                if (e.art === 'validierung') z.fehler = e.message;
+            }
+        },
+        kommentarBearbeiten(ziel, k) {
+            this.kom[ziel].bearbeiteId = k.id;
+            this.kom[ziel].bearbeiteText = k.text;
+            this.$nextTick(() => this.$root.querySelector(`[data-kommentar-bearbeiten="${k.id}"]`)?.focus());
+        },
+        async kommentarSpeichern(ziel) {
+            const z = this.kom[ziel];
+            z.fehler = '';
+            try {
+                const json = await this.anfrage('PUT', this.url('kommentarUpdate', { KOMMENTAR: z.bearbeiteId }), { text: z.bearbeiteText });
+                this.kommentareUebernehmen(ziel, json);
+                z.bearbeiteId = null;
+                this.erwaehnungSchliessen();
+            } catch (e) {
+                if (e.art === 'validierung') z.fehler = e.message;
+            }
+        },
+        async kommentarLoeschen(ziel, k) {
+            if (!window.confirm('Kommentar löschen?')) return;
+            try {
+                this.kommentareUebernehmen(ziel, await this.anfrage('DELETE', this.url('kommentarDestroy', { KOMMENTAR: k.id })));
+            } catch (e) {
+                if (e.art === 'validierung') this.kom[ziel].fehler = e.message;
+            }
+        },
+        kommentarTaste(e, ziel, feld) {
+            if (this.erw.offen && this.erw.ziel === ziel && this.erw.feld === feld) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const n = this.erwaehnungVorschlaege.length;
+                    if (n) this.erw.markiert = (this.erw.markiert + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+                    return;
+                }
+                if ((e.key === 'Enter' || e.key === 'Tab') && this.erwaehnungVorschlaege.length) {
+                    e.preventDefault();
+                    this.erwaehnungWaehlen(this.erwaehnungVorschlaege[this.erw.markiert], e.target);
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.erwaehnungSchliessen();
+                    return;
+                }
+            }
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (feld === 'text') this.kommentarSenden(ziel);
+                else this.kommentarSpeichern(ziel);
+            }
+        },
+
+        // ---------------- @-Erwähnungen ----------------
+
+        /** Beim Tippen: „@…“ direkt vor dem Cursor → Vorschläge (Personen mit Leserecht). */
+        erwaehnungPruefen(e, ziel, feld) {
+            const el = e.target;
+            const vorher = el.value.slice(0, el.selectionStart);
+            const m = vorher.match(/(?:^|\s)@([^\s@]{0,30}(?: [^\s@]{0,30})?)$/u);
+            if (!m) {
+                this.erwaehnungSchliessen();
+                return;
+            }
+            this.erw = { offen: true, ziel, feld, start: el.selectionStart - m[1].length - 1, suche: m[1], markiert: 0 };
+        },
+        get erwaehnungVorschlaege() {
+            if (!this.erw.offen) return [];
+            const q = norm(this.erw.suche).trim();
+            return this.personen
+                .filter((p) => Number(p.id) !== this.userId && (q === '' || norm(p.name).includes(q)))
+                .slice(0, 8);
+        },
+        erwaehnungWaehlen(p, el = null) {
+            if (!p) return;
+            const z = this.kom[this.erw.ziel];
+            const feld = this.erw.feld;
+            const alt = z[feld] || '';
+            const ende = el ? el.selectionStart : this.erw.start + 1 + this.erw.suche.length;
+            const einfuegen = `@${p.name} `;
+            z[feld] = alt.slice(0, this.erw.start) + einfuegen + alt.slice(ende);
+            const pos = this.erw.start + einfuegen.length;
+            this.erwaehnungSchliessen();
+            this.$nextTick(() => {
+                if (el) { el.focus(); el.setSelectionRange(pos, pos); }
+            });
+        },
+        erwaehnungSchliessen() {
+            this.erw = { offen: false, ziel: null, feld: null, start: 0, suche: '', markiert: 0 };
+        },
+
+        // ---------------- Verlauf ----------------
+
+        async verlaufLaden(ziel, weiter = false) {
+            const v = this.verl[ziel];
+            const params = new URLSearchParams();
+            if (ziel === 'karte') params.set('karte', this.form.id);
+            else params.set('filter', v.filter);
+            if (weiter && v.eintraege.length) params.set('vor', v.eintraege[v.eintraege.length - 1].id);
+            v.laedt = true;
+            try {
+                const json = await this.anfrage('GET', `${this.urls.verlauf}?${params}`);
+                v.eintraege = weiter ? v.eintraege.concat(json.eintraege) : json.eintraege;
+                v.mehr = !!json.mehr;
+                v.darfWiederherstellen = !!json.darf_wiederherstellen;
+                v.geladen = true;
+            } catch (e) { /* Hinweis kam bereits */ } finally {
+                v.laedt = false;
+            }
+        },
+        async karteWiederherstellen(ziel, eintrag) {
+            if (!window.confirm(`Karte „${(eintrag.text.match(/„([^“]*)“/) || [])[1] || ''}“ wiederherstellen?`)) return;
+            try {
+                await this.anfrage('POST', this.url('wiederherstellen', { KARTE: eintrag.karte_id }), {});
+                this.verlaufLaden(ziel);
+            } catch (e) {
+                if (e.art === 'validierung') this.toast(e.message, 'fehler');
+            }
+        },
+        /** Verlaufseintrag anklicken: Karte öffnen, wenn es sie (noch) gibt. */
+        verlaufKarte(eintrag) {
+            return eintrag.karte_id ? this.board.karten.find((k) => k.id === eintrag.karte_id) || null : null;
+        },
+
+        // ---------------- Seitenleiste (Board-Kommentare & Verlauf) ----------------
+
+        seitenleisteOeffnen(reiter = 'kommentare') {
+            this.dialogOeffnen('seitenleiste');
+            this.seitenReiterWaehlen(reiter);
+        },
+        seitenReiterWaehlen(reiter) {
+            this.seitenReiter = reiter;
+            this.erwaehnungSchliessen();
+            if (reiter === 'kommentare') this.kommentareLaden('board');
+            if (reiter === 'verlauf') this.verlaufLaden('board');
         },
 
         // ---------------- Drag & Drop ----------------

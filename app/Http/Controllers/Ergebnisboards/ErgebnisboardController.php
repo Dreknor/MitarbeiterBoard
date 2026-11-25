@@ -13,6 +13,7 @@ use App\Models\Theme;
 use App\Models\User;
 use App\Services\Ergebnisboards\ErgebnisboardAufgabenService;
 use App\Services\Ergebnisboards\ErgebnisboardService;
+use App\Services\Ergebnisboards\ErgebnisboardVerlaufService;
 use App\Support\ErgebnisboardVorlagen;
 use App\Support\PdfLayout;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -268,6 +269,33 @@ class ErgebnisboardController extends Controller
         $version = $request->filled('version') ? $request->integer('version') : null;
 
         return $this->mitKonflikt($board, $request->user(), fn () => $this->service->karteLoeschen($board, $karte, $version));
+    }
+
+    /** POST – gelöschte Karte zurückholen (Schreibrecht). */
+    public function karteWiederherstellen(Request $request, Ergebnisboard $board, ErgebnisKarte $geloeschteKarte): JsonResponse
+    {
+        $this->authorize('update', $board);
+        $this->service->karteWiederherstellen($board, $geloeschteKarte);
+
+        return $this->antwort($board->fresh(), $request->user(), 'Karte wiederhergestellt.');
+    }
+
+    /** GET – Änderungsverlauf (neueste zuerst, 50 je Seite; `vor` = letzte geladene ID). */
+    public function verlauf(Request $request, Ergebnisboard $board, ErgebnisboardVerlaufService $verlauf): JsonResponse
+    {
+        $this->authorize('view', $board);
+        $daten = $request->validate([
+            'filter' => ['nullable', 'in:alle,board,karten'],
+            'karte' => ['nullable', 'integer'],
+            'vor' => ['nullable', 'integer'],
+        ]);
+
+        return response()->json($verlauf->liste(
+            $board,
+            $daten['filter'] ?? 'alle',
+            isset($daten['karte']) ? (int) $daten['karte'] : null,
+            isset($daten['vor']) ? (int) $daten['vor'] : null,
+        ) + ['darf_wiederherstellen' => $request->user()->can('update', $board)]);
     }
 
     public function sortierung(Request $request, Ergebnisboard $board): JsonResponse

@@ -19,7 +19,7 @@
             <span class="erg-etikett" x-show.important="k.etikett" x-text="k.etikett"></span>
             <div class="erg-karte-titel" x-text="k.titel"></div>
             <div class="erg-karte-zusatz" x-show.important="k.zusatz" x-text="k.zusatz"></div>
-            <div class="erg-karte-meta" x-show.important="k.faellig_am || k.zustaendige.length || k.anhaenge.length || k.aufgabe">
+            <div class="erg-karte-meta" x-show.important="k.faellig_am || k.zustaendige.length || k.anhaenge.length || k.aufgabe || k.kommentare">
                 <span class="erg-faellig inline-flex items-center gap-1" x-show.important="k.faellig_am"
                       :class="{ 'is-ueberfaellig': k.ueberfaellig }" :title="k.ueberfaellig ? 'Überfällig' : 'Fällig am'">
                     <i class="far fa-calendar-alt"></i><span x-text="datum(k.faellig_am)"></span>
@@ -27,6 +27,10 @@
                 <span class="inline-flex items-center gap-1" x-show.important="k.anhaenge.length"
                       :title="k.anhaenge.length + (k.anhaenge.length === 1 ? ' Anhang' : ' Anhänge')">
                     <i class="fas fa-paperclip"></i><span x-text="k.anhaenge.length"></span>
+                </span>
+                <span class="inline-flex items-center gap-1 erg-no-export" x-show.important="k.kommentare"
+                      :title="k.kommentare + (k.kommentare === 1 ? ' Kommentar' : ' Kommentare')">
+                    <i class="far fa-comment"></i><span x-text="k.kommentare"></span>
                 </span>
                 <template x-if="k.aufgabe">
                     <span class="erg-aufgabe-status" :class="{ 'is-erledigt': k.aufgabe.erledigt }"

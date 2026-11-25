@@ -38,6 +38,12 @@ class ErgebnisboardPolicy
         return ! $board->istArchiviert() && $this->service->darf($board, $user, 'schreiben');
     }
 
+    /** Kommentieren: schon mit Leserecht, nicht bei archivierten Boards. */
+    public function comment(User $user, Ergebnisboard $board): bool
+    {
+        return ! $board->istArchiviert() && $this->service->darf($board, $user, 'lesen');
+    }
+
     /** Zugriffe ändern, archivieren, löschen. */
     public function manage(User $user, Ergebnisboard $board): bool
     {

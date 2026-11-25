@@ -25,6 +25,11 @@
             'aufgabeErledigen' => route('ergebnisboards.karten.aufgabe.erledigen', $platzhalter),
             'dateienStore' => route('ergebnisboards.karten.dateien.store', $platzhalter),
             'dateienDestroy' => route('ergebnisboards.karten.dateien.destroy', $platzhalter + ['media' => '__MEDIA__']),
+            'verlauf' => route('ergebnisboards.verlauf', $board),
+            'wiederherstellen' => route('ergebnisboards.karten.wiederherstellen', ['board' => $board->id, 'geloeschteKarte' => '__KARTE__']),
+            'kommentare' => route('ergebnisboards.kommentare.index', $board),
+            'kommentarUpdate' => route('ergebnisboards.kommentare.update', ['board' => $board->id, 'kommentar' => '__KOMMENTAR__']),
+            'kommentarDestroy' => route('ergebnisboards.kommentare.destroy', ['board' => $board->id, 'kommentar' => '__KOMMENTAR__']),
         ],
     ];
     $darfVerwalten = $daten['darf_verwalten'];
@@ -74,6 +79,12 @@
             <button type="button" class="erg-btn erg-btn-secondary erg-btn-sm" x-show.important="schreibbar"
                     @click="felderOeffnen()" data-tour="erg-felder">
                 <i class="fas fa-th-list"></i> Felder
+            </button>
+
+            <button type="button" class="erg-btn erg-btn-secondary erg-btn-sm" @click="seitenleisteOeffnen('kommentare')"
+                    data-tour="erg-kommentare" title="Kommentare zum Board und Änderungsverlauf">
+                <i class="far fa-comments"></i> <span class="hidden md:inline">Kommentare &amp; Verlauf</span>
+                <span class="erg-zaehler" x-show.important="board.kommentare_board" x-text="board.kommentare_board"></span>
             </button>
 
             @if($darfVerwalten && $optionen)
@@ -138,6 +149,7 @@
         @include('ergebnisboards.partials.dialog_einstellungen')
     @endif
     @include('ergebnisboards.partials.dialog_export')
+    @include('ergebnisboards.partials.seitenleiste')
 
     {{-- Toasts --}}
     <div class="erg-toasts" aria-live="polite">
@@ -153,13 +165,14 @@
     </div>
 </div>
 
-<x-tour id="ergebnisboards" :version="1" :steps="[
+<x-tour id="ergebnisboards" :version="2" :steps="[
     ['title' => 'Board', 'text' => 'Ein Board hält Ergebnisse aus Sitzungen, pädagogischen Tagen oder Projekten fest – als Felder mit Karten. Klicken Sie eine Karte an, um Details, Zuständige, Fälligkeit und Anhänge zu sehen.'],
     $daten['darf_schreiben'] ? ['target' => 'erg-bearbeiten', 'title' => 'Bearbeiten', 'text' => 'Schalten Sie den Bearbeitungsmodus ein: Dann lassen sich Titel, Untertitel und „Stand / Gremium“ direkt im Board ändern und in jedem Feld neue Karten anlegen.'] : null,
     ['selector' => '.erg-karte', 'title' => 'Karten', 'text' => 'Karten zeigen Etikett, Fälligkeit (rot = überfällig), Zuständige und Anhänge. Der Stern markiert einen Arbeitsschwerpunkt. Bei verknüpftem Thema kann aus einer Karte eine Aufgabe werden.'],
     $daten['darf_schreiben'] ? ['selector' => '.erg-raster', 'title' => 'Drag & Drop', 'text' => 'Im Bearbeitungsmodus ziehen Sie Karten innerhalb eines Feldes oder in ein anderes Feld. Landet eine Karte mit Aufgabe in „Erledigt“, kann die Aufgabe direkt abgeschlossen werden.'] : null,
     $daten['darf_schreiben'] ? ['target' => 'erg-felder', 'title' => 'Felder', 'text' => 'Felder umbenennen, einfärben, Unterbereiche ergänzen – bei Kanban und freien Spalten auch Spalten hinzufügen, entfernen und umsortieren.'] : null,
     $darfVerwalten ? ['target' => 'erg-zugriff', 'title' => 'Zugriff', 'text' => 'Legen Sie fest, welche Personen, Gruppen oder Rollen das Board lesen oder bearbeiten dürfen.'] : null,
+    ['target' => 'erg-kommentare', 'title' => 'Kommentare & Verlauf', 'text' => 'Hier kommentieren Sie das Board als Ganzes und sehen alle Änderungen. Kommentare zu einer einzelnen Karte und deren Verlauf finden Sie im Karten-Dialog. Mit @Name erwähnen Sie Kolleg:innen – sie werden benachrichtigt.'],
     ['target' => 'erg-export', 'title' => 'Export', 'text' => 'Als PNG-Grafik (z. B. für Präsentationen oder Nachrichten) oder als PDF im A4-Querformat herunterladen.'],
 ]" />
 @endsection

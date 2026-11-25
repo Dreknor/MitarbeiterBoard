@@ -40,6 +40,7 @@ class RuleRegistry
         'model_has_permissions.model_id',
         'audits.user_id',
         'pers_access_logs.resource_id',
+        'ergebnis_board_zugriffe.berechtigter_id',
     ];
 
     /**
@@ -185,6 +186,12 @@ class RuleRegistry
             Rule::anonymize('Pädagogik', 'Elterngespräche (abgeschlossen von)', 'paed_diary_elterngespraeche', 'abgeschlossen_von'),
             Rule::anonymize('Pädagogik', 'Elterngespräche (geändert von)', 'paed_diary_elterngespraeche', 'aktualisiert_von'),
             Rule::delete('Pädagogik', 'Teilnahmen an Elterngesprächen', 'paed_diary_elterngespraech_user', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Boards (Ersteller)', 'ergebnis_boards', 'created_by'),
+            Rule::anonymize('Pädagogik', 'Board-Vorlagen (Ersteller)', 'ergebnis_vorlagen', 'created_by'),
+            Rule::delete('Pädagogik', 'Zuständigkeiten auf Board-Karten', 'ergebnis_karte_user', 'user_id'),
+            Rule::delete('Pädagogik', 'Zugriffe auf Boards', 'ergebnis_board_zugriffe', 'berechtigter_id', 2, $morph('berechtigter_type')),
+            Rule::anonymize('Pädagogik', 'Kommentare auf Boards', 'ergebnis_kommentare', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Änderungsverlauf von Boards', 'ergebnis_board_verlauf', 'user_id'),
 
             // ── Personal: Bearbeiter-Verweise (die Person hat für andere gehandelt) ──
             Rule::anonymize('Personal (Bearbeiter)', 'Vertragsänderungen (geändert von)', 'contract_audits', 'changed_by'),

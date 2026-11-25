@@ -11,7 +11,31 @@
             <button type="button" class="erg-icon-btn" @click="dialogSchliessen()" aria-label="Dialog schließen"><i class="fas fa-times"></i></button>
         </div>
 
-        <div class="erg-dialog-body">
+        {{-- Reiter (nur bei gespeicherten Karten) --}}
+        <div class="erg-reiter" role="tablist" x-show.important="form.id">
+            <button type="button" role="tab" :aria-selected="(kartenReiter === 'details').toString()"
+                    :class="{ 'is-active': kartenReiter === 'details' }" @click="reiterWaehlen('details')">
+                <i class="far fa-sticky-note"></i> Details
+            </button>
+            <button type="button" role="tab" :aria-selected="(kartenReiter === 'kommentare').toString()"
+                    :class="{ 'is-active': kartenReiter === 'kommentare' }" @click="reiterWaehlen('kommentare')">
+                <i class="far fa-comment"></i> Kommentare
+                <span class="erg-zaehler" x-show.important="form.kommentare" x-text="form.kommentare"></span>
+            </button>
+            <button type="button" role="tab" :aria-selected="(kartenReiter === 'verlauf').toString()"
+                    :class="{ 'is-active': kartenReiter === 'verlauf' }" @click="reiterWaehlen('verlauf')">
+                <i class="fas fa-history"></i> Verlauf
+            </button>
+        </div>
+
+        <div class="erg-dialog-body" x-show.important="form.id && kartenReiter === 'kommentare'">
+            @include('ergebnisboards.partials.kommentare', ['ziel' => 'karte'])
+        </div>
+        <div class="erg-dialog-body" x-show.important="form.id && kartenReiter === 'verlauf'">
+            @include('ergebnisboards.partials.verlauf', ['ziel' => 'karte'])
+        </div>
+
+        <div class="erg-dialog-body" x-show.important="kartenReiter === 'details'">
             <div class="erg-alert erg-alert-red" x-show.important="formFehler" role="alert">
                 <i class="fas fa-exclamation-circle mt-0.5"></i><span x-text="formFehler"></span>
             </div>
@@ -169,7 +193,7 @@
             </div>
         </div>
 
-        <div class="erg-dialog-fuss">
+        <div class="erg-dialog-fuss" x-show.important="kartenReiter === 'details'">
             <div>
                 <template x-if="schreibbar && form.id">
                     <button type="button" class="erg-btn erg-btn-danger erg-btn-sm" @click="karteLoeschen()" :disabled="laedt">

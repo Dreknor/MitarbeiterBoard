@@ -53,8 +53,24 @@ class Ergebnisboard extends Model
         if ($childType === 'karte') {
             return ErgebnisKarte::query()->where('board_id', $this->id)->where($field ?? 'id', $value)->firstOrFail();
         }
+        if ($childType === 'geloeschteKarte') {
+            return ErgebnisKarte::onlyTrashed()->where('board_id', $this->id)->where($field ?? 'id', $value)->firstOrFail();
+        }
+        if ($childType === 'kommentar') {
+            return ErgebnisKommentar::query()->where('board_id', $this->id)->where($field ?? 'id', $value)->firstOrFail();
+        }
 
         return parent::resolveChildRouteBinding($childType, $value, $field);
+    }
+
+    public function kommentare(): HasMany
+    {
+        return $this->hasMany(ErgebnisKommentar::class, 'board_id');
+    }
+
+    public function verlauf(): HasMany
+    {
+        return $this->hasMany(ErgebnisVerlauf::class, 'board_id');
     }
 
     public function zugriffe(): HasMany

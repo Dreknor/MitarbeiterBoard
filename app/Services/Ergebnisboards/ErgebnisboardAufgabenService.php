@@ -23,8 +23,11 @@ use Illuminate\Validation\ValidationException;
  */
 class ErgebnisboardAufgabenService
 {
-    public function __construct(private ThemeTaskService $tasks, private ErgebnisboardService $boards)
-    {
+    public function __construct(
+        private ThemeTaskService $tasks,
+        private ErgebnisboardService $boards,
+        private ErgebnisboardVerlaufService $verlauf,
+    ) {
     }
 
     public function alsAufgabe(Ergebnisboard $board, ErgebnisKarte $karte, User $user, ?string $datum = null): Task
@@ -67,6 +70,7 @@ class ErgebnisboardAufgabenService
         }
         $karte->save();
         $this->boards->versionErhoehen($board);
+        $this->verlauf->karte($board, $karte, 'aufgabe_angelegt', [], $user);
         $this->synchronisieren($task);
 
         return $task;
@@ -80,6 +84,9 @@ class ErgebnisboardAufgabenService
             throw ValidationException::withMessages(['aufgabe' => 'Zu dieser Karte gibt es keine Aufgabe.']);
         }
         $ok = $this->tasks->complete($task, $user);
+        if ($ok && $karte->board) {
+            $this->verlauf->karte($karte->board, $karte, 'aufgabe_erledigt', [], $user);
+        }
         $this->synchronisieren($task->fresh());
 
         return $ok;
@@ -110,6 +117,11 @@ class ErgebnisboardAufgabenService
                 }
                 // nicht aus „erledigt“ heraus zurückschieben, wenn das Board kein auto_status hat
                 DB::transaction(function () use ($karte, $board, $ziel) {
+                    $this->verlauf->karte($board, $karte, 'karte_verschoben', [
+                        'von' => $this->boards->bereichTitel($board, $karte->bereich),
+                        'nach' => $this->boards->bereichTitel($board, $ziel['schluessel']),
+                        'automatisch' => true,
+                    ]);
                     $karte->bereich = $ziel['schluessel'];
                     $karte->sort = (int) $board->karten()->where('bereich', $ziel['schluessel'])->max('sort') + 1;
                     $karte->save();

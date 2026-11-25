@@ -29,6 +29,10 @@ class ErgebnisboardService
 {
     public const MAX_DATEI_KB = 20480;
 
+    public function __construct(private ErgebnisboardVerlaufService $verlauf)
+    {
+    }
+
     /** Typ-Kürzel im Zugriffsformular → Model-Klasse. */
     public const TYPEN = ['user' => User::class, 'group' => Group::class, 'role' => Role::class];
 
@@ -157,6 +161,7 @@ class ErgebnisboardService
             ]);
 
             $this->zugriffeSchreiben($board, $daten['zugriffe'] ?? []);
+            $this->verlauf->eintragen($board, 'board_angelegt', ['titel' => $board->titel], null, $user);
 
             return $board;
         });
@@ -168,6 +173,7 @@ class ErgebnisboardService
     public function aktualisieren(Ergebnisboard $board, array $daten, ?int $version = null): Ergebnisboard
     {
         return $this->mitVersion($board, $version, function (Ergebnisboard $board) use ($daten) {
+            $vorher = $this->kopfStand($board);
             $felder = array_intersect_key($daten, array_flip([
                 'titel', 'untertitel', 'kopfzeile', 'fusszeile', 'farbschema', 'meeting_id', 'meeting_lesen', 'theme_id',
             ]));
@@ -185,7 +191,68 @@ class ErgebnisboardService
                 $felder['legende'] = $legende;
             }
             $board->fill($felder);
+
+            $nachher = $this->kopfStand($board);
+            $aenderungen = $this->verlauf->unterschiede($vorher, $nachher);
+            foreach (['achsen', 'legende'] as $f) {
+                if (isset($aenderungen[$f])) {
+                    $aenderungen[$f] = $this->texteDiff($vorher[$f], $nachher[$f]);
+                }
+            }
+            if ($aenderungen) {
+                $this->verlauf->eintragen($board, 'board_geaendert', ['aenderungen' => $aenderungen]);
+            }
         });
+    }
+
+    /** Vergleichbarer Stand von Kopf und Verknüpfungen (Sitzung/Thema als Titel). */
+    private function kopfStand(Ergebnisboard $board): array
+    {
+        $meeting = $board->meeting_id ? Meeting::find($board->meeting_id) : null;
+        $theme = $board->theme_id ? \App\Models\Theme::find($board->theme_id) : null;
+
+        return [
+            'titel' => $board->titel,
+            'untertitel' => $board->untertitel,
+            'kopfzeile' => $board->kopfzeile,
+            'fusszeile' => $board->fusszeile,
+            'farbschema' => ErgebnisboardVorlagen::FARBSCHEMATA[$board->farbschema] ?? $board->farbschema,
+            'meeting' => $meeting ? $this->meetingTitel($meeting) : null,
+            'theme' => $theme?->theme,
+            'meeting_lesen' => (bool) $board->meeting_lesen,
+            'achsen' => $this->texteFlach((array) $board->achsen),
+            'legende' => $this->texteFlach((array) $board->legende),
+        ];
+    }
+
+    /** @return array<string, string> Pfad => Text */
+    private function texteFlach(array $werte, string $praefix = ''): array
+    {
+        $flach = [];
+        foreach ($werte as $k => $v) {
+            if (is_array($v)) {
+                $flach += $this->texteFlach($v, $praefix.$k.'.');
+            } elseif (is_string($v) && $k !== 'farbe') {
+                $flach[$praefix.$k] = $v;
+            }
+        }
+
+        return $flach;
+    }
+
+    /** Nur die geänderten Einzeltexte (Achsen/Legende) als [alt, neu]. */
+    private function texteDiff(array $alt, array $neu): array
+    {
+        $a = [];
+        $n = [];
+        foreach ($neu as $pfad => $text) {
+            if (($alt[$pfad] ?? '') !== $text) {
+                $a[] = $alt[$pfad] ?? '';
+                $n[] = $text;
+            }
+        }
+
+        return [implode(' · ', $a), implode(' · ', $n)];
     }
 
     /** Übernimmt nur Texte bekannter Schlüssel (Struktur der Achsen bleibt). */
@@ -212,6 +279,7 @@ class ErgebnisboardService
     public function bereicheSpeichern(Ergebnisboard $board, array $bereiche, ?int $version = null): Ergebnisboard
     {
         return $this->mitVersion($board, $version, function (Ergebnisboard $board) use ($bereiche) {
+            $vorher = $board->bereiche;
             $alt = collect($board->bereiche)->keyBy('schluessel');
             $neu = [];
             $gesehen = [];
@@ -289,6 +357,11 @@ class ErgebnisboardService
             }
 
             $board->bereiche = $neu;
+
+            $diff = $this->verlauf->felderDiff($vorher, $neu);
+            if ($diff) {
+                $this->verlauf->eintragen($board, 'felder_geaendert', $diff);
+            }
         });
     }
 
@@ -306,15 +379,19 @@ class ErgebnisboardService
 
     public function archivieren(Ergebnisboard $board, bool $archivieren = true): void
     {
+        if ($board->istArchiviert() === $archivieren) {
+            return;
+        }
         $board->archiviert_at = $archivieren ? now() : null;
         $board->version++;
         $board->save();
+        $this->verlauf->eintragen($board, $archivieren ? 'board_archiviert' : 'board_wiederhergestellt');
     }
 
     public function loeschen(Ergebnisboard $board): void
     {
         DB::transaction(function () use ($board) {
-            $board->karten()->get()->each(fn (ErgebnisKarte $k) => $k->clearMediaCollection(ErgebnisKarte::ANHAENGE));
+            $board->karten()->withTrashed()->get()->each(fn (ErgebnisKarte $k) => $k->clearMediaCollection(ErgebnisKarte::ANHAENGE));
             $board->delete();
         });
     }
@@ -351,6 +428,8 @@ class ErgebnisboardService
                 );
             }
 
+            $this->verlauf->eintragen($kopie, 'board_dupliziert', ['quelle' => $board->titel, 'quelle_id' => $board->id], null, $user);
+
             return $kopie;
         });
     }
@@ -365,8 +444,33 @@ class ErgebnisboardService
     public function zugriffeSpeichern(Ergebnisboard $board, array $eintraege): Ergebnisboard
     {
         return $this->mitVersion($board, null, function (Ergebnisboard $board) use ($eintraege) {
+            $vorher = $this->zugriffeBeschrieben($board->zugriffe()->get());
             $this->zugriffeSchreiben($board, $eintraege, true);
+            $nachher = $this->zugriffeBeschrieben($board->zugriffe()->get());
+
+            $geaendert = array_filter(array_keys(array_intersect_key($nachher, $vorher)), fn ($k) => $nachher[$k] !== $vorher[$k]);
+            $diff = array_filter([
+                'hinzugefuegt' => array_values(array_diff_key($nachher, $vorher)),
+                'entfernt' => array_values(array_diff_key($vorher, $nachher)),
+                'angepasst' => array_values(array_map(fn ($k) => $nachher[$k].' (vorher '.$vorher[$k].')', $geaendert)),
+            ]);
+            if ($diff) {
+                $this->verlauf->eintragen($board, 'zugriffe_geaendert', $diff);
+            }
         });
+    }
+
+    /** @return array<string, string> Typ#ID => „Person Anna Muster: schreiben“ */
+    private function zugriffeBeschrieben(Collection $zugriffe): array
+    {
+        $art = [User::class => 'Person', Group::class => 'Gruppe', Role::class => 'Rolle'];
+        $liste = [];
+        foreach ($zugriffe as $z) {
+            $name = $z->berechtigter_type::query()->whereKey($z->berechtigter_id)->value('name') ?? '#'.$z->berechtigter_id;
+            $liste[$z->berechtigter_type.'#'.$z->berechtigter_id] = ($art[$z->berechtigter_type] ?? 'Eintrag').' '.$name.': '.$z->recht;
+        }
+
+        return $liste;
     }
 
     private function zugriffeSchreiben(Ergebnisboard $board, array $eintraege, bool $ersetzen = false): void
@@ -414,7 +518,7 @@ class ErgebnisboardService
     {
         $ergebnis = null;
         $neuZugewiesen = [];
-        $this->mitVersion($board, $version, function (Ergebnisboard $board) use ($karte, $daten, &$ergebnis, &$neuZugewiesen) {
+        $this->mitVersion($board, $version, function (Ergebnisboard $board) use ($karte, $daten, &$ergebnis, &$neuZugewiesen, $durch) {
             $bereich = $daten['bereich'] ?? $karte?->bereich;
             if (! $bereich || ! $board->bereich($bereich)) {
                 throw ValidationException::withMessages(['bereich' => 'Dieses Feld gibt es auf dem Board nicht.']);
@@ -422,6 +526,7 @@ class ErgebnisboardService
 
             $karte ??= new ErgebnisKarte(['board_id' => $board->id]);
             $neu = ! $karte->exists;
+            $vorher = $neu ? null : $this->karteStand($karte);
             if ($neu || $karte->bereich !== $bereich) {
                 $karte->sort = (int) $board->karten()->where('bereich', $bereich)->max('sort') + 1;
             }
@@ -440,7 +545,37 @@ class ErgebnisboardService
                 if ($fremd->isNotEmpty()) {
                     throw ValidationException::withMessages(['zustaendige' => 'Zuständig können nur Personen mit Zugriff auf das Board sein.']);
                 }
-                $neuZugewiesen = $karte->zustaendige()->sync($ids->all())['attached'] ?? [];
+                $sync = $karte->zustaendige()->sync($ids->all());
+                $neuZugewiesen = $sync['attached'] ?? [];
+                if (! $neu && (! empty($sync['attached']) || ! empty($sync['detached']))) {
+                    $namen = fn (array $ids) => User::query()->whereIn('id', $ids)->orderBy('name')->pluck('name')->all();
+                    $this->verlauf->karte($board, $karte, 'zustaendige_geaendert', array_filter([
+                        'hinzugefuegt' => $namen($sync['attached'] ?? []),
+                        'entfernt' => $namen($sync['detached'] ?? []),
+                    ]), $durch);
+                }
+            }
+
+            if ($neu) {
+                $this->verlauf->karte($board, $karte, 'karte_angelegt', array_filter([
+                    'feld' => $this->bereichTitel($board, $karte->bereich),
+                    'hinzugefuegt' => $karte->zustaendige()->pluck('name')->all(),
+                ]), $durch);
+            } else {
+                $nachher = $this->karteStand($karte);
+                $aenderungen = $this->verlauf->unterschiede(
+                    array_diff_key($vorher, ['bereich' => 1]),
+                    array_diff_key($nachher, ['bereich' => 1])
+                );
+                if ($aenderungen) {
+                    $this->verlauf->karte($board, $karte, 'karte_geaendert', ['aenderungen' => $aenderungen], $durch);
+                }
+                if ($vorher['bereich'] !== $nachher['bereich']) {
+                    $this->verlauf->karte($board, $karte, 'karte_verschoben', [
+                        'von' => $this->bereichTitel($board, $vorher['bereich']),
+                        'nach' => $this->bereichTitel($board, $nachher['bereich']),
+                    ], $durch);
+                }
             }
 
             $ergebnis = $karte;
@@ -491,10 +626,81 @@ class ErgebnisboardService
 
     public function karteLoeschen(Ergebnisboard $board, ErgebnisKarte $karte, ?int $version = null): Ergebnisboard
     {
-        return $this->mitVersion($board, $version, function () use ($karte) {
-            $karte->clearMediaCollection(ErgebnisKarte::ANHAENGE);
+        return $this->mitVersion($board, $version, function (Ergebnisboard $board) use ($karte) {
             $karte->delete();
+            $this->verlauf->karte($board, $karte, 'karte_geloescht', ['feld' => $this->bereichTitel($board, $karte->bereich)]);
         });
+    }
+
+    /**
+     * Gelöschte Karte zurückholen – ans Ende ihres Feldes; gibt es das Feld nicht mehr,
+     * ins erste Hauptfeld.
+     */
+    public function karteWiederherstellen(Ergebnisboard $board, ErgebnisKarte $karte): Ergebnisboard
+    {
+        return $this->mitVersion($board, null, function (Ergebnisboard $board) use ($karte) {
+            $ersatz = ! $board->bereich($karte->bereich);
+            if ($ersatz) {
+                $karte->bereich = collect($board->bereiche)->first(fn ($b) => ($b['eltern'] ?? null) === null)['schluessel'];
+            }
+            $karte->sort = (int) $board->karten()->where('bereich', $karte->bereich)->max('sort') + 1;
+            $karte->erinnert_am = null;
+            $karte->restore();
+
+            $this->verlauf->karte($board, $karte, 'karte_wiederhergestellt', array_filter([
+                'feld' => $this->bereichTitel($board, $karte->bereich),
+                'ersatzfeld' => $ersatz,
+            ]));
+        });
+    }
+
+    /**
+     * Täglich (Scheduler): seit mehr als AUFBEWAHRUNG_TAGE gelöschte Karten endgültig entfernen
+     * (Anhänge, Kommentare, Zuständige). Der Verlaufseintrag „gelöscht“ bleibt stehen.
+     */
+    public function geloeschteKartenBereinigen(): int
+    {
+        $anzahl = 0;
+        ErgebnisKarte::onlyTrashed()
+            ->where('deleted_at', '<', now()->subDays(ErgebnisKarte::AUFBEWAHRUNG_TAGE))
+            ->orderBy('id')
+            ->each(function (ErgebnisKarte $karte) use (&$anzahl) {
+                DB::transaction(function () use ($karte) {
+                    $karte->clearMediaCollection(ErgebnisKarte::ANHAENGE);
+                    $karte->kommentare()->withTrashed()->forceDelete();
+                    $karte->zustaendige()->detach();
+                    $karte->forceDelete();
+                });
+                $anzahl++;
+            });
+
+        return $anzahl;
+    }
+
+    /** Vergleichbarer Stand einer Karte für den Verlauf. */
+    private function karteStand(ErgebnisKarte $karte): array
+    {
+        return [
+            'titel' => $karte->titel,
+            'zusatz' => $karte->zusatz,
+            'etikett' => $karte->etikett,
+            'fokus' => (bool) $karte->fokus,
+            'breit' => (bool) $karte->breit,
+            'faellig_am' => $karte->faellig_am?->toDateString(),
+            'bereich' => $karte->bereich,
+        ];
+    }
+
+    /** Feldtitel inkl. Hauptfeld („Cream of the Crop › Ganztag leben“). */
+    public function bereichTitel(Ergebnisboard $board, ?string $schluessel): string
+    {
+        $b = $schluessel ? $board->bereich($schluessel) : null;
+        if (! $b) {
+            return $schluessel ?? '?';
+        }
+        $eltern = ($b['eltern'] ?? null) ? $board->bereich($b['eltern']) : null;
+
+        return $eltern ? $eltern['titel'].' › '.$b['titel'] : $b['titel'];
     }
 
     /**
@@ -513,6 +719,12 @@ class ErgebnisboardService
                     $karte = $karten->get((int) $id);
                     if (! $karte) {
                         continue;
+                    }
+                    if ($karte->bereich !== (string) $bereich) {
+                        $this->verlauf->karte($board, $karte, 'karte_verschoben', [
+                            'von' => $this->bereichTitel($board, $karte->bereich),
+                            'nach' => $this->bereichTitel($board, (string) $bereich),
+                        ]);
                     }
                     $karte->bereich = (string) $bereich;
                     $karte->sort = $pos + 1;
@@ -533,14 +745,20 @@ class ErgebnisboardService
             ->usingName($datei->getClientOriginalName())
             ->toMediaCollection(ErgebnisKarte::ANHAENGE);
         $this->versionErhoehen($board);
+        $this->verlauf->karte($board, $karte, 'anhang_hinzugefuegt', ['datei' => $media->name ?: $media->file_name]);
 
         return $media;
     }
 
     public function anhangLoeschen(Ergebnisboard $board, Media $media): void
     {
+        $karte = ErgebnisKarte::withTrashed()->find($media->model_id);
+        $name = $media->name ?: $media->file_name;
         $media->delete();
         $this->versionErhoehen($board);
+        if ($karte) {
+            $this->verlauf->karte($board, $karte, 'anhang_entfernt', ['datei' => $name]);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -551,6 +769,7 @@ class ErgebnisboardService
     public function toArray(Ergebnisboard $board, ?User $user): array
     {
         $board->loadMissing(['karten.zustaendige', 'karten.media', 'karten.task.taskUsers', 'zugriffe', 'meeting', 'theme', 'ersteller']);
+        $board->karten->loadCount('kommentare');
         $recht = $this->rechtFuer($board, $user);
 
         return [
@@ -578,6 +797,8 @@ class ErgebnisboardService
             'recht' => $recht,
             'darf_schreiben' => $recht !== null && Ergebnisboard::RECHTE[$recht] >= 2 && ! $board->istArchiviert(),
             'darf_verwalten' => $recht === 'verwalten',
+            'darf_kommentieren' => $recht !== null && ! $board->istArchiviert(),
+            'kommentare_board' => $board->kommentare()->whereNull('karte_id')->count(),
             'karten' => $board->karten->map(fn (ErgebnisKarte $k) => $this->karteArray($board, $k))->values()->all(),
         ];
     }
@@ -609,6 +830,7 @@ class ErgebnisboardService
                 'url' => route('ergebnisboards.karten.dateien.show', [$board->id, $k->id, $m->id]),
             ])->values()->all(),
             'aufgabe' => $this->aufgabeArray($k),
+            'kommentare' => (int) ($k->kommentare_count ?? $k->kommentare()->count()),
         ];
     }
 
