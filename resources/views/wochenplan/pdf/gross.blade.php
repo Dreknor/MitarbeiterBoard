@@ -203,6 +203,7 @@
                                 @if($aufgabe->dauer && !$zeigeDauer)
                                     <span style="color:#666;font-size:{{ $smallSize }};">({{ $aufgabe->dauer }})</span>
                                 @endif
+                                @include('wochenplan.pdf._link', ['aufgabe' => $aufgabe])
                             </div>
                         @empty
                             &nbsp;

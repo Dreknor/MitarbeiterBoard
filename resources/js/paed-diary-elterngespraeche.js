@@ -5,6 +5,8 @@
  */
 
 import '../css/paed-diary-neu.css';
+// Wochenpläne in der Schülerakte (wpt-Klassen)
+import '../css/wochenplan-tagebuch.css';
 import { registerElterngespraeche } from './paed-diary-v2/elterngespraeche.js';
 
 if (window.Alpine) {

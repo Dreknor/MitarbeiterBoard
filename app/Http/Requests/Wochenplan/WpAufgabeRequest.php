@@ -1,13 +1,32 @@
 <?php
+
 namespace App\Http\Requests\Wochenplan;
+
 use Illuminate\Foundation\Http\FormRequest;
-class WpAufgabeRequest extends FormRequest {
-    public function authorize(): bool { return auth()->user()->canAny(["create wochenplan", "create Wochenplan"]); }
-    public function rules(): array {
+
+class WpAufgabeRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('create wochenplan');
+    }
+
+    public function rules(): array
+    {
+        $aendern = $this->isMethod('put') || $this->isMethod('patch');
+
         return [
-            "aufgabe"    => ["required", "string"],
-            "dauer"      => ["nullable", "string", "max:50"],
-            "sort_order" => ["sometimes", "integer", "min:0"],
+            'aufgabe' => [$aendern ? 'sometimes' : 'required', 'string', 'max:2000'],
+            'dauer' => ['nullable', 'string', 'max:50'],
+            'niveau' => ['nullable', 'integer', 'in:1,2,3'],
+            'link' => ['nullable', 'url:http,https', 'max:500'],
+            // Text vor der Bearbeitung – Konfliktprüfung, wenn jemand anderes die Aufgabe geändert hat
+            'basis' => ['nullable', 'string'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['link.url' => 'Bitte einen gültigen Link (http/https) angeben.'];
     }
 }

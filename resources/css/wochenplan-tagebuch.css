@@ -1,0 +1,65 @@
+/*
+ * Wochenplan im Pädagogischen Tagebuch (beide Darstellungen).
+ * Bewusst ohne Tailwind und ohne Bootstrap-Klassen: eigene Klassen mit Präfix wpt-,
+ * damit die Stile der Tagebuch-Seiten unberührt bleiben.
+ * Rahmen von Buttons mit !important: das Layout setzt per `#tw-main button:not([class*=border])` sonst 0.
+ */
+.wpt-zaehler {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;
+    border: 1px solid #e5e7eb !important; border-radius: 999px; padding: 1px 7px;
+    font-size: 10.5px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+    background: #f9fafb; color: #4b5563; cursor: pointer;
+}
+.wpt-namezelle { display: flex; flex-direction: column; min-width: 0; }
+.wpt-namezelle > a { overflow: hidden; text-overflow: ellipsis; }
+.wpt-zaehler.is-unter-name { display: flex; width: max-content; max-width: 100%; margin-top: 3px; }
+.wpt-zaehler:hover { border-color: #93c5fd !important; color: #1d4ed8; }
+.wpt-zaehler.is-fertig { background: #ecfdf5; border-color: #a7f3d0 !important; color: #047857; }
+.wpt-zaehler.is-offen  { background: #fffbeb; border-color: #fde68a !important; color: #92400e; }
+
+.wpt-overlay { position: fixed; inset: 0; z-index: 1055; background: rgba(15, 23, 42, .35); }
+.wpt-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 1060; width: min(440px, 100%);
+    display: flex; flex-direction: column; background: #fff; color: #111827;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, .18); font-size: 14px; line-height: 1.45;
+}
+.wpt-panel * { box-sizing: border-box; }
+.wpt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #f1f5f9; }
+.wpt-titel { margin: 0; font-size: 17px; font-weight: 700; }
+.wpt-sub { margin: 2px 0 0; font-size: 12px; color: #6b7280; }
+.wpt-x { border: 0; background: none; font-size: 20px; line-height: 1; color: #9ca3af; cursor: pointer; padding: 4px; }
+.wpt-x:hover { color: #111827; }
+.wpt-body { flex: 1; overflow-y: auto; padding: 12px 18px 24px; }
+.wpt-plan { margin-bottom: 16px; }
+.wpt-plan-name { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+.wpt-plan-name a { color: #2563eb; font-weight: 600; text-decoration: none; }
+.wpt-fach { margin: 10px 0 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+.wpt-aufgabe { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid #f3f4f6; }
+.wpt-status {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; border: 1px solid #d1d5db !important;
+    background: #fff; color: #d1d5db; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.wpt-status.is-teilweise { background: #fef3c7; border-color: #fcd34d !important; color: #b45309; }
+.wpt-status.is-erledigt  { background: #10b981; border-color: #059669 !important; color: #fff; }
+.wpt-status.is-teilweise::before {
+    content: ""; display: block; width: 14px; height: 14px; border-radius: 9999px;
+    border: 2px solid currentColor; background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+.wpt-text { flex: 1; min-width: 0; }
+.wpt-aufgabe-text { white-space: pre-line; }
+.wpt-meta { display: block; margin-top: 2px; font-size: 11px; color: #6b7280; }
+.wpt-notiz-btn { border: 0; background: none; padding: 0; min-height: 0; font-size: 11px; line-height: 1.4; color: #4f46e5; cursor: pointer; }
+.wpt-notiz { width: 100%; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 6px; font: inherit; font-size: 12px; }
+.wpt-leer { color: #6b7280; font-size: 13px; padding: 12px 0; }
+.wpt-fehler { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-size: 13px; }
+
+/* Schülerakte */
+.wpt-akte { padding: 4px 0; }
+.wpt-akte-liste { list-style: none; margin: 0; padding: 0; }
+.wpt-akte-zeile { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-top: 1px solid #f1f5f9; }
+.wpt-akte-zeile:first-child { border-top: 0; }
+.wpt-akte-text { flex: 1; min-width: 0; }
+.wpt-akte-name { display: block; font-weight: 600; color: #111827; text-decoration: none; }
+.wpt-akte-name:hover { color: #1d4ed8; text-decoration: none; }
+.wpt-akte-pdf { font-size: 12px; font-weight: 600; color: #dc2626; text-decoration: none; }
+.wpt-akte .wpt-zaehler { cursor: default; }

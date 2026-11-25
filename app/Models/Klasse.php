@@ -26,10 +26,6 @@ class Klasse extends Model
         return $query->where('show_vertretungen', true);
     }
 
-    public function wochenplaene(){
-        return $this->hasManyThrough(Wochenplan::class, wps_klassen::class);
-    }
-
     // Schüler Relation
     public function schueler()
     {

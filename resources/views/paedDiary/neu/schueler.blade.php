@@ -144,6 +144,9 @@
                     <button type="button" role="tab" :aria-selected="tab === 'aufgaben'" @click="tab = 'aufgaben'">Aufgaben <em x-text="(daten?.tasks || []).length"></em></button>
                     <button type="button" role="tab" data-tour="elterngespraeche" :aria-selected="tab === 'gespraeche'" @click="tab = 'gespraeche'">Elterngespräche <em x-text="$store.elterngespraeche.liste.length"></em></button>
                     <button type="button" role="tab" :aria-selected="tab === 'beobachtungen'" @click="tab = 'beobachtungen'">Beobachtungen</button>
+                    @if(isset($wochenplaene) && $wochenplaene !== null)
+                        <button type="button" role="tab" :aria-selected="tab === 'wochenplaene'" @click="tab = 'wochenplaene'">Wochenpläne <em>{{ count($wochenplaene) }}</em></button>
+                    @endif
                     <button type="button" role="tab" :aria-selected="tab === 'graduierung'" @click="tab = 'graduierung'">Graduierung <em>{{ $gradingSessions->count() }}</em></button>
                     @if($canViewDiagnostics)
                         <button type="button" role="tab" :aria-selected="tab === 'diagnose'" @click="tab = 'diagnose'">Diagnose <em>{{ $diagnosticSessions->count() }}</em></button>
@@ -271,6 +274,11 @@
                 </section>
 
                 {{-- ── Beobachtungen (Zusatzspalten) ── --}}
+                @if(isset($wochenplaene) && $wochenplaene !== null)
+                    <section x-show="tab === 'wochenplaene'" x-cloak aria-label="Wochenpläne" class="pdn-scroll">
+                        @include('paedDiary.partials.wochenplaene-schueler', ['wochenplaene' => $wochenplaene])
+                    </section>
+                @endif
                 <section x-show="tab === 'beobachtungen' && !laden" x-cloak aria-label="Beobachtungen" class="pdn-scroll">
                     <template x-if="daten && (!(daten.columns || []).length || !spaltenTage.length)">
                         <p class="pdn-leer">Keine Beobachtungen im Zeitraum.</p>

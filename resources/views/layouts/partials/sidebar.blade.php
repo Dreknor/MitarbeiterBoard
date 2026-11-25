@@ -84,6 +84,11 @@
                                     <i class="fas fa-copy"></i>
                                     <span>Vorlagen</span>
                                 </a>
+                                <a href="{{ route('wp.bibliothek.index') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'bibliothek') active @endif">
+                                    <i class="fas fa-book"></i>
+                                    <span>Aufgaben-Bibliothek</span>
+                                </a>
                             @endcan
                             @can('manage wochenplan-faecher')
                                 <a href="{{ route('wp.faecher.index') }}"
@@ -97,6 +102,13 @@
                                    class="sidebar-link @if($wpActive && request()->segment(2) == 'formatvorlagen') active @endif">
                                     <i class="fas fa-palette"></i>
                                     <span>Formatvorlagen</span>
+                                </a>
+                            @endcan
+                            @can('edit settings')
+                                <a href="{{ route('wp.einstellungen') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'einstellungen') active @endif">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Einstellungen</span>
                                 </a>
                             @endcan
                         </div>
@@ -237,15 +249,6 @@
                                         <i class="fas fa-save"></i>
                                         <span>Themenspeicher</span>
                                     </a>
-                                    @can('create Wochenplan')
-                                        @if($group->hasWochenplan == 1)
-                                            <a href="{{ url($group->name.'/wochenplan') }}"
-                                               class="sidebar-link @if($groupActive && request()->segment(2) == 'wochenplan') active @endif">
-                                                <i class="fas fa-tasks"></i>
-                                                <span>Wochenplan</span>
-                                            </a>
-                                        @endif
-                                    @endcan
                                     @can('manage recurring themes')
                                         <a href="{{ url($group->name.'/themes/recurring') }}"
                                            class="sidebar-link @if($groupActive && request()->segment(3) == 'recurring' && request()->segment(2) == 'themes') active @endif">

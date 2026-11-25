@@ -16,7 +16,6 @@ class GroupFactory extends Factory
             'name'          => $this->faker->words(2, true),
             'creator_id'    => User::factory(),
             'needsRoster'   => false,
-            'hasWochenplan' => false,
             'hasAllocations'=> false,
             'protected'     => false,
             'stack_themes'  => false,
@@ -37,10 +36,5 @@ class GroupFactory extends Factory
         return $this->state(fn () => ['needsRoster' => false, 'use_meetings' => true]);
     }
 
-    /** Gruppe mit Wochenplan-Funktion */
-    public function withWochenplan(): static
-    {
-        return $this->state(fn () => ['hasWochenplan' => true]);
-    }
 }
 

@@ -18,7 +18,7 @@ class WpFormatvorlageRequest extends FormRequest
             'beschreibung'           => ['nullable', 'string'],
             'schriftgroesse'         => ['required', 'in:normal,gross,sehr_gross'],
             'schriftart'             => ['nullable', 'string', 'max:100'],
-            'blade_template'         => ['required', 'string', 'max:255'],
+            'blade_template'         => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(\App\Models\Wochenplan\WpFormatvorlage::TEMPLATES))],
             'is_default'             => ['sometimes', 'boolean'],
             // layout_config Einzelfelder
             'margin_top'             => ['nullable', 'integer', 'min:0', 'max:50'],

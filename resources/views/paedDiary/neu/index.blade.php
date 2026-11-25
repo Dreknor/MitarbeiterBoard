@@ -293,7 +293,14 @@
                                                         </div>
                                                     </template>
                                                 </span>
-                                                <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name" title="Schülerakte öffnen"></a>
+                                                <div class="wpt-namezelle">
+                                                    <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name" title="Schülerakte öffnen"></a>
+                                                    <template x-if="$store.wochenplan && $store.wochenplan.fuer(stu.id)">
+                                                        <button type="button" class="wpt-zaehler is-unter-name" :class="$store.wochenplan.klasse($store.wochenplan.fuer(stu.id))"
+                                                                :title="'Wochenplan von ' + stu.name + ' öffnen'" @click.stop="$store.wochenplan.oeffnen(stu)"
+                                                                x-text="'WP ' + $store.wochenplan.text($store.wochenplan.fuer(stu.id))"></button>
+                                                    </template>
+                                                </div>
                                                 <template x-if="(stu.absence_alerts || []).length">
                                                     <span class="pdn-warnbadge" :title="stu.absence_alerts.map(a => a.label + ': ' + a.summary).join('\n')"
                                                           x-text="'⚠ ' + stu.absence_alerts.length"></span>
@@ -684,6 +691,7 @@ Ein Klick auf den Namen öffnet die Schülerakte.'],
 
 Hier wechselst du auch zurück zur bisherigen Ansicht.'],
 ]" />
+    @include('paedDiary.partials.wochenplan')
 @endsection
 
 @push('js')

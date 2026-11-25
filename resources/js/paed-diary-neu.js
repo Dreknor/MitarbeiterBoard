@@ -23,6 +23,7 @@ import { registerTaskPanel, taskPanelMethods } from './paed-diary-v2/task-panel.
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
 import { registerGroupManager } from './paed-diary-v2/group-manager.js';
+import { registerWochenplanStore } from './paed-diary-v2/wochenplan.js';
 import { registerElterngespraeche } from './paed-diary-v2/elterngespraeche.js';
 import { csrfToken } from './paed-diary-v2/utils.js';
 import { registerGraduierung } from './paed-diary-neu/graduierung.js';
@@ -896,6 +897,7 @@ function registerAll(Alpine) {
     registerKategorien(Alpine);
     registerBewertungsMatrix(Alpine);
     registerDiaryStore(Alpine);
+    registerWochenplanStore(Alpine);
     registerDiaryTable(Alpine);
     registerNoteEditor(Alpine);
     registerColumnsManager(Alpine);

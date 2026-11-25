@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="wp-container p-4 max-w-4xl mx-auto">
+<div class="wp-wrapper">
 
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -17,13 +17,6 @@
             + Neue Formatvorlage
         </a>
     </div>
-
-    @if(session('Meldung'))
-        <div class="mb-4 px-4 py-3 rounded-lg text-sm
-            {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200' }}">
-            {{ session('Meldung') }}
-        </div>
-    @endif
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         @forelse($formatvorlagen as $fv)
