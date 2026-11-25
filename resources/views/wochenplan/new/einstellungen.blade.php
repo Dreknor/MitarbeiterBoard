@@ -59,9 +59,11 @@
             <div class="wp-card-body space-y-4">
                 @unless($konfiguriert)
                     <div class="wp-note wp-note-warning">
-                        Für die Nextcloud fehlen Zugangsdaten. In der <code>.env</code> eintragen:
-                        <code>NEXTCLOUD_WOCHENPLAN_URL</code>, <code>NEXTCLOUD_WOCHENPLAN_USERNAME</code>, <code>NEXTCLOUD_WOCHENPLAN_PASSWORD</code>
-                        (Standard: die Werte von <code>NEXTCLOUD_*</code>).
+                        <p>
+                            Für die Nextcloud fehlen Zugangsdaten. In der <code>.env</code> eintragen:
+                            <code>NEXTCLOUD_WOCHENPLAN_URL</code>, <code>NEXTCLOUD_WOCHENPLAN_USERNAME</code>, <code>NEXTCLOUD_WOCHENPLAN_PASSWORD</code>
+                            (Standard: die Werte von <code>NEXTCLOUD_*</code>).
+                        </p>
                     </div>
                 @endunless
 
