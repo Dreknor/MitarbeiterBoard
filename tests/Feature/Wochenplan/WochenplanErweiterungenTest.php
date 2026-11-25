@@ -165,4 +165,20 @@ class WochenplanErweiterungenTest extends TestCase
         $this->artisan('wochenplan:neu-ablegen')->assertSuccessful();
         \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\Wochenplan\WpPlanAblegen::class);
     }
+
+    public function test_pruefbefehl_meldet_fehlende_klassenzuordnung(): void
+    {
+        $ohne = $this->paedagoge([]);
+        $this->artisan('wochenplan:pruefen')->expectsOutputToContain('ohne Klasse')->assertFailed();
+
+        $ohne->paed_klassen()->attach(Klasse::factory()->create()->id);
+        $this->artisan('wochenplan:pruefen')
+            ->expectsOutputToContain('Alle Personen mit Wochenplan-Recht sind mindestens einer Klasse zugeordnet')
+            ->assertSuccessful();
+
+        // Verbindungstest ohne aktive Ablage schlägt fehl
+        $this->artisan('wochenplan:pruefen', ['--verbindung' => true])->assertFailed();
+        $this->nextcloudFake(true);
+        $this->artisan('wochenplan:pruefen', ['--verbindung' => true])->assertSuccessful();
+    }
 }

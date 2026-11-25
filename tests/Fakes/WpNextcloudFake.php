@@ -61,6 +61,9 @@ class WpNextcloudFake implements WpNextcloudSpeicher
     public function existiert(string $pfad): bool
     {
         $pfad = trim($pfad, '/');
+        if ($pfad === '') {
+            return ! $this->fehlschlagen; // Basisordner
+        }
         foreach (array_keys($this->dateien) as $vorhanden) {
             if ($vorhanden === $pfad || str_starts_with($vorhanden, $pfad.'/')) {
                 return true;
