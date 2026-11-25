@@ -51,6 +51,31 @@
                     <div>
                         <label class="erg-label" for="erg-k-zusatz">Zusatz</label>
                         <textarea id="erg-k-zusatz" class="erg-textarea" rows="2" x-model="form.zusatz" maxlength="2000"></textarea>
+                        <p class="erg-hint">Kurztext, der auf der Karte steht.</p>
+                    </div>
+                    <div>
+                        <label class="erg-label" for="erg-k-beschreibung">Beschreibung</label>
+                        <textarea id="erg-k-beschreibung" class="erg-textarea" rows="5" x-model="form.beschreibung"></textarea>
+                        <p class="erg-hint">Ausführlich, z. B. was genau beschlossen wurde – erscheint nur in der geöffneten Karte.</p>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <span class="erg-label mb-0">Checkliste</span>
+                            <span class="text-xs text-slate-400" x-text="checklisteFortschritt ? checklisteFortschritt + ' erledigt' : ''"></span>
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <template x-for="(p, i) in form.checkliste" :key="i">
+                                <div class="erg-checkpunkt">
+                                    <input type="checkbox" class="accent-emerald-600" x-model="p.erledigt" :aria-label="'Erledigt: ' + (p.text || 'Punkt')">
+                                    <input type="text" class="erg-input erg-input-sm" x-model="p.text" maxlength="255" data-checkpunkt
+                                           placeholder="Teilschritt …" @keydown.enter.prevent="punktNeu()">
+                                    <button type="button" class="erg-icon-btn" @click="punktEntfernen(i)" aria-label="Punkt entfernen"><i class="fas fa-times"></i></button>
+                                </div>
+                            </template>
+                        </div>
+                        <button type="button" class="erg-btn erg-btn-ghost erg-btn-sm mt-1" @click="punktNeu()" :disabled="form.checkliste.length >= 50">
+                            <i class="fas fa-plus"></i> Punkt hinzufügen
+                        </button>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
@@ -115,6 +140,21 @@
                         </span>
                     </div>
                     <p class="text-slate-700 whitespace-pre-line" x-show.important="form.zusatz" x-text="form.zusatz"></p>
+                    <div class="erg-beschreibung" x-show.important="form.beschreibung" x-html="form.beschreibung"></div>
+                    <div x-show.important="form.checkliste.length">
+                        <div class="erg-abschnitt-titel mb-1">
+                            <i class="fas fa-tasks"></i> Checkliste <span class="font-normal normal-case" x-text="'(' + checklisteFortschritt + ')'"></span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <template x-for="p in form.checkliste" :key="p.id">
+                                <label class="erg-check" :class="{ 'line-through text-slate-400': p.erledigt, 'cursor-default': !board.darf_schreiben }">
+                                    <input type="checkbox" class="accent-emerald-600" :checked="p.erledigt"
+                                           :disabled="!board.darf_schreiben || laedt" @change.prevent="punktUmschalten(p)">
+                                    <span x-text="p.text"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
                     <div x-show.important="form.zustaendigeNamen.length">
                         <div class="erg-abschnitt-titel mb-1"><i class="fas fa-users"></i> Zuständig</div>
                         <div class="flex flex-wrap gap-1">

@@ -30,10 +30,11 @@ class ErgebnisKarte extends Model implements HasMedia
     public const AUFBEWAHRUNG_TAGE = 90;
 
     protected $fillable = [
-        'board_id', 'bereich', 'titel', 'zusatz', 'etikett', 'fokus', 'breit', 'sort', 'faellig_am', 'task_id', 'erinnert_am',
+        'board_id', 'bereich', 'titel', 'zusatz', 'beschreibung', 'checkliste', 'etikett', 'fokus', 'breit', 'sort', 'faellig_am', 'task_id', 'erinnert_am',
     ];
 
     protected $casts = [
+        'checkliste' => 'array',
         'fokus' => 'boolean',
         'breit' => 'boolean',
         'sort' => 'integer',
@@ -59,6 +60,11 @@ class ErgebnisKarte extends Model implements HasMedia
     public function kommentare(): HasMany
     {
         return $this->hasMany(ErgebnisKommentar::class, 'karte_id');
+    }
+
+    public function stimmen(): HasMany
+    {
+        return $this->hasMany(ErgebnisStimme::class, 'karte_id');
     }
 
     public function task(): BelongsTo

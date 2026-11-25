@@ -40,6 +40,10 @@ class ErgebnisboardVerlaufService
         'fokus' => 'Arbeitsschwerpunkt',
         'breit' => 'Breite Darstellung',
         'faellig_am' => 'Fälligkeit',
+        'beschreibung' => 'Beschreibung',
+        'checkliste' => 'Checkliste',
+        'punkte' => 'Punkte je Person',
+        'verdeckt' => 'Verdeckt abstimmen',
     ];
 
     public const RECHTE = ['lesen' => 'lesen', 'schreiben' => 'schreiben', 'verwalten' => 'verwalten'];
@@ -139,6 +143,11 @@ class ErgebnisboardVerlaufService
             'anhang_entfernt' => 'hat „'.($d['datei'] ?? 'eine Datei').'“ von der Karte '.$k.' entfernt',
             'aufgabe_angelegt' => 'hat aus der Karte '.$k.' eine Aufgabe gemacht',
             'aufgabe_erledigt' => 'hat die Aufgabe zur Karte '.$k.' erledigt',
+            'abstimmung_gestartet' => 'hat eine Abstimmung gestartet ('.($d['punkte'] ?? '?').' Punkte je Person'.(! empty($d['verdeckt']) ? ', verdeckt' : '').')',
+            'abstimmung_beendet' => 'hat die Abstimmung beendet',
+            'abstimmung_ausgeschaltet' => 'hat die Abstimmung ausgeblendet',
+            'abstimmung_geaendert' => 'hat die Abstimmung angepasst',
+            'abstimmung_zurueckgesetzt' => 'hat alle Punkte der Abstimmung zurückgesetzt ('.($d['anzahl'] ?? 0).' Punkte)',
             default => $aktion,
         };
     }
@@ -217,6 +226,7 @@ class ErgebnisboardVerlaufService
             'karte_geloescht' => 'far fa-trash-alt',
             'anhang_hinzugefuegt', 'anhang_entfernt' => 'fas fa-paperclip',
             'aufgabe_angelegt', 'aufgabe_erledigt' => 'fas fa-tasks',
+            'abstimmung_gestartet', 'abstimmung_beendet', 'abstimmung_ausgeschaltet', 'abstimmung_geaendert', 'abstimmung_zurueckgesetzt' => 'fas fa-vote-yea',
             default => 'fas fa-history',
         };
     }

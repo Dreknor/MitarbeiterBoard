@@ -25,9 +25,11 @@ class Ergebnisboard extends Model
 
     public const RECHTE = ['lesen' => 1, 'schreiben' => 2, 'verwalten' => 3];
 
+    public const ABSTIMMUNG_STATUS = ['aus', 'laeuft', 'beendet'];
+
     protected $fillable = [
         'titel', 'untertitel', 'kopfzeile', 'fusszeile', 'vorlage', 'farbschema', 'spalten', 'bereiche',
-        'achsen', 'legende', 'bereiche_frei', 'auto_status', 'meeting_id', 'meeting_lesen', 'theme_id',
+        'achsen', 'legende', 'abstimmung', 'bereiche_frei', 'auto_status', 'meeting_id', 'meeting_lesen', 'theme_id',
         'version', 'created_by', 'archiviert_at',
     ];
 
@@ -35,6 +37,7 @@ class Ergebnisboard extends Model
         'bereiche' => 'array',
         'achsen' => 'array',
         'legende' => 'array',
+        'abstimmung' => 'array',
         'bereiche_frei' => 'boolean',
         'auto_status' => 'boolean',
         'meeting_lesen' => 'boolean',
@@ -91,6 +94,23 @@ class Ergebnisboard extends Model
     public function theme(): BelongsTo
     {
         return $this->belongsTo(Theme::class);
+    }
+
+    public function stimmen(): HasMany
+    {
+        return $this->hasMany(ErgebnisStimme::class, 'board_id');
+    }
+
+    /** Abstimmung mit Standardwerten: status aus|laeuft|beendet, punkte je Person, verdeckt. */
+    public function abstimmungsStand(): array
+    {
+        $a = $this->abstimmung ?? [];
+
+        return [
+            'status' => in_array($a['status'] ?? null, self::ABSTIMMUNG_STATUS, true) ? $a['status'] : 'aus',
+            'punkte' => max(1, min(10, (int) ($a['punkte'] ?? 3))),
+            'verdeckt' => (bool) ($a['verdeckt'] ?? false),
+        ];
     }
 
     public function istArchiviert(): bool

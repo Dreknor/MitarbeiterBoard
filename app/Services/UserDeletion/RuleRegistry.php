@@ -191,6 +191,7 @@ class RuleRegistry
             Rule::delete('Pädagogik', 'Zuständigkeiten auf Board-Karten', 'ergebnis_karte_user', 'user_id'),
             Rule::delete('Pädagogik', 'Zugriffe auf Boards', 'ergebnis_board_zugriffe', 'berechtigter_id', 2, $morph('berechtigter_type')),
             Rule::anonymize('Pädagogik', 'Kommentare auf Boards', 'ergebnis_kommentare', 'user_id'),
+            Rule::delete('Pädagogik', 'Punkte in Board-Abstimmungen', 'ergebnis_karten_stimmen', 'user_id'),
             Rule::anonymize('Pädagogik', 'Änderungsverlauf von Boards', 'ergebnis_board_verlauf', 'user_id'),
 
             // ── Personal: Bearbeiter-Verweise (die Person hat für andere gehandelt) ──

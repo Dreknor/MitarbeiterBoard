@@ -1031,6 +1031,9 @@ Route::group([
                         Route::get('pdf', [$c, 'pdf'])->name('pdf');
                         Route::post('sortierung', [$c, 'sortierung'])->name('sortierung');
                         Route::get('verlauf', [$c, 'verlauf'])->name('verlauf');
+                        Route::put('abstimmung', [$c, 'abstimmung'])->name('abstimmung');
+                        Route::post('abstimmung/zuruecksetzen', [$c, 'abstimmungZuruecksetzen'])->name('abstimmung.zuruecksetzen');
+                        Route::post('karten/{karte}/stimme', [$c, 'stimme'])->whereNumber('karte')->name('karten.stimme');
                         Route::post('karten/{geloeschteKarte}/wiederherstellen', [$c, 'karteWiederherstellen'])->whereNumber('geloeschteKarte')->name('karten.wiederherstellen');
 
                         // Kommentare (Board und Karten) – ändern die Board-Version nicht

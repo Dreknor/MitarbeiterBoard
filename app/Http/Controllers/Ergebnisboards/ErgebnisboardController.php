@@ -11,6 +11,7 @@ use App\Models\ErgebnisKarte;
 use App\Models\Meeting;
 use App\Models\Theme;
 use App\Models\User;
+use App\Services\Ergebnisboards\ErgebnisboardAbstimmungService;
 use App\Services\Ergebnisboards\ErgebnisboardAufgabenService;
 use App\Services\Ergebnisboards\ErgebnisboardService;
 use App\Services\Ergebnisboards\ErgebnisboardVerlaufService;
@@ -269,6 +270,42 @@ class ErgebnisboardController extends Controller
         $version = $request->filled('version') ? $request->integer('version') : null;
 
         return $this->mitKonflikt($board, $request->user(), fn () => $this->service->karteLoeschen($board, $karte, $version));
+    }
+
+    // ------------------------------------------------------------------
+    // Abstimmung („Punkte kleben“)
+    // ------------------------------------------------------------------
+
+    /** PUT – Abstimmung starten/beenden/ausblenden, Punkte je Person, verdeckt (Schreibrecht). */
+    public function abstimmung(Request $request, Ergebnisboard $board, ErgebnisboardAbstimmungService $abstimmung): JsonResponse
+    {
+        $this->authorize('update', $board);
+        $daten = $request->validate([
+            'status' => ['sometimes', 'in:'.implode(',', Ergebnisboard::ABSTIMMUNG_STATUS)],
+            'punkte' => ['sometimes', 'integer', 'min:1', 'max:10'],
+            'verdeckt' => ['sometimes', 'boolean'],
+        ], [], ['punkte' => 'Punkte je Person']);
+        $abstimmung->einstellen($board, $daten);
+
+        return $this->antwort($board->fresh(), $request->user());
+    }
+
+    public function abstimmungZuruecksetzen(Request $request, Ergebnisboard $board, ErgebnisboardAbstimmungService $abstimmung): JsonResponse
+    {
+        $this->authorize('update', $board);
+        $abstimmung->zuruecksetzen($board);
+
+        return $this->antwort($board->fresh(), $request->user(), 'Alle Punkte wurden zurückgesetzt.');
+    }
+
+    /** POST – eigenen Punkt setzen (+1) oder zurücknehmen (−1); ändert die Board-Version nicht. */
+    public function stimme(Request $request, Ergebnisboard $board, ErgebnisKarte $karte, ErgebnisboardAbstimmungService $abstimmung): JsonResponse
+    {
+        $this->authorize('view', $board);
+        $daten = $request->validate(['richtung' => ['required', 'integer', 'in:1,-1']]);
+        $abstimmung->stimmen($board, $karte, $request->user(), (int) $daten['richtung']);
+
+        return response()->json(['abstimmung' => $abstimmung->stand($board->fresh(), $request->user())]);
     }
 
     /** POST – gelöschte Karte zurückholen (Schreibrecht). */

@@ -23,6 +23,11 @@ class ErgebnisKarteRequest extends FormRequest
             'bereich' => [$pflicht, 'string', 'max:64'],
             'titel' => [$pflicht, 'string', 'max:255'],
             'zusatz' => ['nullable', 'string', 'max:2000'],
+            'beschreibung' => ['nullable', 'string', 'max:50000'],
+            'checkliste' => ['sometimes', 'nullable', 'array', 'max:50'],
+            'checkliste.*.id' => ['nullable', 'string', 'max:20'],
+            'checkliste.*.text' => ['nullable', 'string', 'max:255'],
+            'checkliste.*.erledigt' => ['sometimes', 'boolean'],
             'etikett' => ['nullable', 'string', 'max:60'],
             'fokus' => ['sometimes', 'boolean'],
             'breit' => ['sometimes', 'boolean'],
@@ -35,7 +40,10 @@ class ErgebnisKarteRequest extends FormRequest
 
     public function attributes(): array
     {
-        return ['titel' => 'Titel', 'bereich' => 'Feld', 'faellig_am' => 'Fälligkeit', 'zusatz' => 'Zusatz'];
+        return [
+            'titel' => 'Titel', 'bereich' => 'Feld', 'faellig_am' => 'Fälligkeit', 'zusatz' => 'Zusatz',
+            'beschreibung' => 'Beschreibung', 'checkliste' => 'Checkliste', 'checkliste.*.text' => 'Checklistenpunkt',
+        ];
     }
 
     public function daten(): array

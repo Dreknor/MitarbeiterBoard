@@ -387,6 +387,34 @@
 }
 
 /* ---------------------------------------------------------------
+ * Beschreibung, Checkliste, Abstimmung, Filter
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-beschreibung { @apply text-sm text-slate-700 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2; }
+.erg-wrapper .erg-beschreibung :is(p, ul, ol) { margin: 0 0 .5rem; }
+.erg-wrapper .erg-beschreibung :is(p, ul, ol):last-child { margin-bottom: 0; }
+.erg-wrapper .erg-beschreibung :is(ul, ol) { padding-left: 1.25rem; }
+.erg-wrapper .erg-beschreibung ul { list-style: disc; }
+.erg-wrapper .erg-beschreibung ol { list-style: decimal; }
+.erg-wrapper .erg-beschreibung a { @apply text-blue-700 underline; }
+.erg-wrapper .erg-checkpunkt { @apply flex items-center gap-2; }
+.erg-wrapper .erg-checkliste-stand.is-fertig { @apply text-emerald-700 font-semibold; }
+
+.erg-wrapper .erg-stimmen { @apply flex items-center gap-2 mt-2 pt-1.5 border-t border-dashed border-slate-200 text-xs text-slate-600; }
+.erg-wrapper .erg-punkte { @apply inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 px-2 py-0.5 font-bold; }
+.erg-wrapper .erg-punkte i { font-size: .55rem; }
+.erg-wrapper .erg-meine-punkte { @apply text-[11px] text-slate-500; }
+.erg-wrapper .erg-stimme-btn {
+    @apply inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-300 bg-white text-slate-700 font-bold text-base leading-none
+           hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300;
+}
+.erg-wrapper .erg-stimme-btn.is-plus { @apply border-rose-300 text-rose-700 hover:bg-rose-50; }
+.erg-wrapper .erg-alert-abstimmung { @apply bg-rose-50 border-rose-200 text-rose-900 items-center flex-wrap; }
+
+.erg-wrapper .erg-filterleiste { @apply flex flex-wrap items-center gap-2 mb-3 rounded-xl border border-slate-200 bg-white p-2 shadow-sm; }
+.erg-wrapper .erg-filterleiste .erg-select { width: auto; max-width: 14rem; }
+.erg-wrapper .erg-filter-suche { @apply flex items-center gap-2 flex-1; min-width: 12rem; }
+
+/* ---------------------------------------------------------------
  * Druck: nur das Board, A4 quer
  * ------------------------------------------------------------- */
 @media print {

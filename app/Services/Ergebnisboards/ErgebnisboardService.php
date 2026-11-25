@@ -405,6 +405,7 @@ class ErgebnisboardService
             $kopie->created_by = $user->id;
             $kopie->version = 1;
             $kopie->archiviert_at = null;
+            $kopie->abstimmung = null;
             $kopie->save();
 
             foreach ($board->karten as $karte) {
@@ -532,6 +533,12 @@ class ErgebnisboardService
             }
 
             $karte->fill(array_intersect_key($daten, array_flip(['titel', 'zusatz', 'etikett', 'fokus', 'breit', 'faellig_am'])));
+            if (array_key_exists('beschreibung', $daten)) {
+                $karte->beschreibung = $this->beschreibungBereinigen($daten['beschreibung']);
+            }
+            if (array_key_exists('checkliste', $daten)) {
+                $karte->checkliste = $this->checklisteNormalisieren($daten['checkliste']);
+            }
             $karte->bereich = $bereich;
             if ($karte->isDirty('faellig_am')) {
                 $karte->erinnert_am = null;
@@ -687,8 +694,55 @@ class ErgebnisboardService
             'fokus' => (bool) $karte->fokus,
             'breit' => (bool) $karte->breit,
             'faellig_am' => $karte->faellig_am?->toDateString(),
+            'beschreibung' => $karte->beschreibung ? Str::limit($this->klartext($karte->beschreibung), 200) : null,
+            'checkliste' => $karte->checkliste
+                ? $this->checklisteFortschritt($karte->checkliste).' erledigt ('.implode(', ', array_column($karte->checkliste, 'text')).')'
+                : null,
             'bereich' => $karte->bereich,
         ];
+    }
+
+    /** Rich-Text der Beschreibung bereinigen (HTMLPurifier); leerer Inhalt → null. */
+    private function beschreibungBereinigen(?string $html): ?string
+    {
+        $sauber = trim(\App\Support\HtmlSanitizer::clean($html));
+        if ($sauber === '' || ($this->klartext($sauber) === '' && ! str_contains($sauber, '<img') && ! str_contains($sauber, '<table'))) {
+            return null;
+        }
+
+        return $sauber;
+    }
+
+    public function klartext(?string $html): string
+    {
+        $text = html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</li>'], ["\n", "\n", "\n", "\n", "\n"], (string) $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace('/[ \t\x{00A0}]+/u', ' ', preg_replace("/\n{3,}/", "\n\n", $text)));
+    }
+
+    /**
+     * Checkliste: höchstens 50 Punkte, leere entfernt, jede mit stabiler ID.
+     *
+     * @return array<int, array{id: string, text: string, erledigt: bool}>|null
+     */
+    private function checklisteNormalisieren(mixed $liste): ?array
+    {
+        $punkte = [];
+        foreach (array_slice((array) $liste, 0, 50) as $p) {
+            $text = Str::limit(trim((string) ($p['text'] ?? '')), 255, '');
+            if ($text === '') {
+                continue;
+            }
+            $id = preg_match('/^[A-Za-z0-9]{1,20}$/', (string) ($p['id'] ?? '')) ? (string) $p['id'] : Str::random(8);
+            $punkte[] = ['id' => $id, 'text' => $text, 'erledigt' => (bool) ($p['erledigt'] ?? false)];
+        }
+
+        return $punkte ?: null;
+    }
+
+    private function checklisteFortschritt(array $liste): string
+    {
+        return count(array_filter($liste, fn ($p) => ! empty($p['erledigt']))).'/'.count($liste);
     }
 
     /** Feldtitel inkl. Hauptfeld („Cream of the Crop › Ganztag leben“). */
@@ -799,6 +853,7 @@ class ErgebnisboardService
             'darf_verwalten' => $recht === 'verwalten',
             'darf_kommentieren' => $recht !== null && ! $board->istArchiviert(),
             'kommentare_board' => $board->kommentare()->whereNull('karte_id')->count(),
+            'abstimmung' => app(ErgebnisboardAbstimmungService::class)->stand($board, $user),
             'karten' => $board->karten->map(fn (ErgebnisKarte $k) => $this->karteArray($board, $k))->values()->all(),
         ];
     }
@@ -831,6 +886,9 @@ class ErgebnisboardService
             ])->values()->all(),
             'aufgabe' => $this->aufgabeArray($k),
             'kommentare' => (int) ($k->kommentare_count ?? $k->kommentare()->count()),
+            'beschreibung' => $k->beschreibung,
+            'beschreibung_text' => $k->beschreibung ? Str::limit($this->klartext($k->beschreibung), 500) : null,
+            'checkliste' => $k->checkliste ?? [],
         ];
     }
 

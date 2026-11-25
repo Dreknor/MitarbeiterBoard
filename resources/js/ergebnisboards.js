@@ -70,9 +70,15 @@ function leereKarte(bereich) {
     return {
         id: null, bereich, titel: '', zusatz: '', etikett: '', fokus: false, breit: false,
         faellig_am: '', zustaendige: [], zustaendigeNamen: [], anhaenge: [], aufgabe: null, ueberfaellig: false,
-        kommentare: 0,
+        kommentare: 0, beschreibung: '', checkliste: [],
     };
 }
+
+function leererFilter() {
+    return { text: '', person: '', etikett: '', faellig: '' };
+}
+
+const EDITOR_ID = 'erg-k-beschreibung';
 
 class AnfrageFehler extends Error {
     constructor(meldung, art, fehler = {}) {
@@ -132,6 +138,13 @@ function registerComponents(Alpine) {
         seitenReiter: 'kommentare',    // kommentare | verlauf
         kom: { karte: leereKommentare(), board: leereKommentare() },
         verl: { karte: leererVerlauf(), board: leererVerlauf() },
+        // Filter & Suche (nur Ansicht, nichts wird gespeichert)
+        filter: leererFilter(),
+        filterOffen: false,
+        // Abstimmung
+        nachPunkten: false,
+        abstimmungForm: { punkte: 3, verdeckt: false },
+        abstimmungFehler: '',
         // @-Erwähnung: offene Vorschlagsliste
         erw: { offen: false, ziel: null, feld: null, start: 0, suche: '', markiert: 0 },
 
@@ -145,6 +158,12 @@ function registerComponents(Alpine) {
                 this.sortablesAktualisieren();
             });
             this.$watch('nurMeine', () => this.sortablesAktualisieren());
+            this.$watch('filterAktiv', () => this.sortablesAktualisieren());
+            this.$watch('nachPunkten', () => this.sortablesAktualisieren());
+            // Editor der Beschreibung neu aufbauen, wenn der Bearbeitungsmodus im offenen Dialog wechselt
+            this.$watch('schreibbar', () => {
+                if (this.dialog === 'karte') this.editorStarten();
+            });
             this.$nextTick(() => this.ankerOeffnen());
             window.addEventListener('hashchange', () => this.ankerOeffnen());
         },
@@ -193,7 +212,98 @@ function registerComponents(Alpine) {
             return this.board.darf_schreiben && this.bearbeiten;
         },
         get ziehbar() {
-            return this.schreibbar && !this.nurMeine;
+            return this.schreibbar && !this.nurMeine && !this.filterAktiv && !this.nachPunkten;
+        },
+
+        // ---------------- Filter & Suche ----------------
+
+        get filterAktiv() {
+            const f = this.filter;
+            return !!(f.text.trim() || f.person || f.etikett || f.faellig);
+        },
+        get etiketten() {
+            return [...new Set(this.board.karten.map((k) => (k.etikett || '').trim()).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'de'));
+        },
+        get sichtbareAnzahl() {
+            return this.board.karten.filter((k) => this.sichtbar(k)).length;
+        },
+        sichtbar(k) {
+            return (!this.nurMeine || this.istMeine(k)) && this.passtFilter(k);
+        },
+        passtFilter(k) {
+            const f = this.filter;
+            const q = norm(f.text.trim());
+            if (q) {
+                const heu = norm([k.titel, k.zusatz, k.etikett, k.beschreibung_text,
+                    ...(k.checkliste || []).map((p) => p.text), ...(k.zustaendige || []).map((z) => z.name)].join(' '));
+                if (!q.split(/\s+/).every((wort) => heu.includes(wort))) return false;
+            }
+            if (f.person === 'keine' && (k.zustaendige || []).length) return false;
+            if (f.person && f.person !== 'keine' && !(k.zustaendige || []).some((z) => String(z.id) === String(f.person))) return false;
+            if (f.etikett && (k.etikett || '').trim() !== f.etikett) return false;
+            if (f.faellig) {
+                const heute = new Date().toISOString().slice(0, 10);
+                const inSieben = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+                if (f.faellig === 'ueberfaellig' && !k.ueberfaellig) return false;
+                if (f.faellig === 'woche' && !(k.faellig_am && k.faellig_am >= heute && k.faellig_am <= inSieben)) return false;
+                if (f.faellig === 'mit' && !k.faellig_am) return false;
+                if (f.faellig === 'ohne' && k.faellig_am) return false;
+            }
+            return true;
+        },
+        filterZuruecksetzen() {
+            this.filter = leererFilter();
+        },
+
+        // ---------------- Abstimmung ----------------
+
+        get abstimmung() {
+            return this.board.abstimmung || { status: 'aus', punkte: 3, verdeckt: false, karten: {}, meine: {}, rest: 0, teilnehmende: 0, sichtbar: true };
+        },
+        get abstimmungLaeuft() {
+            return this.abstimmung.status === 'laeuft' && !this.board.archiviert;
+        },
+        get abstimmungSichtbar() {
+            return this.abstimmung.status !== 'aus';
+        },
+        punkteFuer(k) {
+            return Number(this.abstimmung.karten?.[k.id] || 0);
+        },
+        meinePunkte(k) {
+            return Number(this.abstimmung.meine?.[k.id] || 0);
+        },
+        async stimme(k, richtung) {
+            if (!this.abstimmungLaeuft) return;
+            try {
+                const json = await this.anfrage('POST', this.url('stimme', { KARTE: k.id }), { richtung });
+                if (json.abstimmung) this.board.abstimmung = json.abstimmung;
+            } catch (e) {
+                if (e.art === 'validierung') this.toast(e.message, 'warnung', 5000);
+            }
+        },
+        abstimmungOeffnen() {
+            this.abstimmungForm = { punkte: this.abstimmung.punkte, verdeckt: !!this.abstimmung.verdeckt };
+            this.abstimmungFehler = '';
+            this.dialogOeffnen('abstimmung');
+        },
+        async abstimmungSetzen(daten) {
+            this.abstimmungFehler = '';
+            try {
+                await this.anfrage('PUT', this.urls.abstimmung, daten);
+                if (daten.status === 'beendet') this.nachPunkten = true;
+                if (daten.status === 'aus') this.nachPunkten = false;
+            } catch (e) {
+                if (e.art === 'validierung') this.abstimmungFehler = e.message;
+            }
+        },
+        async abstimmungZuruecksetzen() {
+            if (!window.confirm('Alle vergebenen Punkte löschen? Das kann nicht rückgängig gemacht werden.')) return;
+            try {
+                await this.anfrage('POST', this.urls.abstimmungZuruecksetzen, {});
+            } catch (e) {
+                if (e.art === 'validierung') this.abstimmungFehler = e.message;
+            }
         },
         get legendeImSeitenfeld() {
             return !!(this.board.legende && this.seitenfeld);
@@ -218,9 +328,10 @@ function registerComponents(Alpine) {
             return eltern ? `${eltern.titel} › ${b.titel}` : b.titel;
         },
         karten(schluessel) {
+            const punkte = this.nachPunkten && this.abstimmung.sichtbar && this.abstimmungSichtbar;
             return this.board.karten
-                .filter((k) => k.bereich === schluessel && (!this.nurMeine || this.istMeine(k)))
-                .sort((a, b) => (a.sort - b.sort) || (a.id - b.id));
+                .filter((k) => k.bereich === schluessel && this.sichtbar(k))
+                .sort((a, b) => (punkte ? this.punkteFuer(b) - this.punkteFuer(a) : 0) || (a.sort - b.sort) || (a.id - b.id));
         },
         anzahl(schluessel) {
             return this.board.karten.filter((k) => k.bereich === schluessel).length;
@@ -341,6 +452,7 @@ function registerComponents(Alpine) {
         },
         dialogSchliessen() {
             this.erwaehnungSchliessen();
+            if (this.dialog === 'karte') this.editorEntfernen();
             if (window.location.hash && /^#(karte-\d+|kommentare|verlauf)/.test(window.location.hash)) {
                 history.replaceState(null, '', window.location.pathname + window.location.search);
             }
@@ -447,6 +559,8 @@ function registerComponents(Alpine) {
                 aufgabe: k.aufgabe,
                 ueberfaellig: k.ueberfaellig,
                 kommentare: k.kommentare || 0,
+                beschreibung: k.beschreibung || '',
+                checkliste: kopie(k.checkliste || []),
             };
             this.formFehler = '';
             this.personSuche = '';
@@ -455,6 +569,74 @@ function registerComponents(Alpine) {
             this.verl.karte = leererVerlauf();
             this.dialogOeffnen('karte');
             this.reiterWaehlen(reiter);
+            this.editorStarten();
+        },
+
+        // ---------------- Beschreibung (TinyMCE) & Checkliste ----------------
+
+        /** TinyMCE im Bearbeitungsmodus auf das Beschreibungsfeld setzen (Skript nur bei Schreibrecht geladen). */
+        editorStarten() {
+            this.editorEntfernen();
+            if (!this.schreibbar || !window.tinymce) return;
+            this.$nextTick(() => {
+                const el = document.getElementById(EDITOR_ID);
+                if (!el || this.dialog !== 'karte') return;
+                window.tinymce.init({
+                    target: el,
+                    language: 'de',
+                    height: 220,
+                    menubar: false,
+                    branding: false,
+                    statusbar: false,
+                    toolbar_mode: 'sliding',
+                    plugins: ['autolink lists link paste'],
+                    toolbar: 'bold italic underline | bullist numlist | link | removeformat',
+                    paste_data_images: false,
+                    // Dialoge von TinyMCE (Link) über dem Board-Dialog anzeigen
+                    init_instance_callback: (ed) => ed.on('change keyup', () => { this.form.beschreibung = ed.getContent(); }),
+                    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; }',
+                });
+            });
+        },
+        editorEntfernen() {
+            const ed = window.tinymce?.get(EDITOR_ID);
+            if (ed) {
+                this.form.beschreibung = ed.getContent();
+                ed.remove();
+            }
+        },
+        get checklisteFortschritt() {
+            const l = this.form.checkliste || [];
+            return l.length ? `${l.filter((p) => p.erledigt).length}/${l.length}` : '';
+        },
+        fortschritt(k) {
+            const l = k.checkliste || [];
+            return l.length ? `${l.filter((p) => p.erledigt).length}/${l.length}` : '';
+        },
+        punktNeu() {
+            this.form.checkliste.push({ id: '', text: '', erledigt: false });
+            this.$nextTick(() => {
+                const felder = this.$root.querySelectorAll('[data-dialog="karte"] [data-checkpunkt]');
+                felder[felder.length - 1]?.focus();
+            });
+        },
+        punktEntfernen(i) {
+            this.form.checkliste.splice(i, 1);
+        },
+        /** Lesemodus: Haken direkt speichern (nur mit Schreibrecht). */
+        async punktUmschalten(p) {
+            if (!this.board.darf_schreiben || !this.form.id) return;
+            p.erledigt = !p.erledigt;
+            try {
+                await this.anfrage('PUT', this.url('kartenUpdate', { KARTE: this.form.id }), {
+                    checkliste: this.form.checkliste, version: this.board.version,
+                });
+                const k = this.board.karten.find((x) => x.id === this.form.id);
+                if (k) this.form.checkliste = kopie(k.checkliste || []);
+            } catch (e) {
+                p.erledigt = !p.erledigt;
+                if (e.art === 'validierung') this.formFehler = e.message;
+            }
         },
         /** Reiter im Karten-Dialog; Kommentare/Verlauf werden beim ersten Öffnen geladen. */
         reiterWaehlen(reiter) {
@@ -473,6 +655,7 @@ function registerComponents(Alpine) {
             this.formFehler = '';
             this.personSuche = '';
             this.dialogOeffnen('karte');
+            this.editorStarten();
         },
         get formRaster2() {
             return (this.bereich(this.form.bereich)?.raster || 1) === 2;
@@ -508,6 +691,8 @@ function registerComponents(Alpine) {
                 breit: this.formRaster2 ? this.form.breit : false,
                 faellig_am: this.form.faellig_am || null,
                 zustaendige: this.form.zustaendige,
+                beschreibung: window.tinymce?.get(EDITOR_ID)?.getContent() ?? this.form.beschreibung ?? null,
+                checkliste: (this.form.checkliste || []).filter((p) => (p.text || '').trim()),
                 version: this.board.version,
             };
             try {
