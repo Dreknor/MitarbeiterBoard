@@ -48,6 +48,9 @@ class Kernel extends ConsoleKernel
         $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->erinnerungenVersenden())->dailyAt('07:20')->name('ergebnisboards-erinnerungen');
         // Boards: seit 90 Tagen gelöschte Karten endgültig entfernen
         $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->geloeschteKartenBereinigen())->dailyAt('03:40')->name('ergebnisboards-papierkorb');
+
+        // Wiki: entfernte/nie verwendete Anhänge nach 90 Tagen löschen, wenn keine Fassung sie mehr verlinkt
+        $schedule->call(fn () => app(\App\Services\Wiki\WikiAnhangService::class)->bereinigen())->dailyAt('03:35')->name('wiki-anhaenge-bereinigen');
         $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
         // Monitoring: Heartbeat-Zeitlimit und Webserver prüfen, Störungen melden
         $schedule->call(fn () => app(\App\Services\Monitoring\MonitoringService::class)->pruefen())->everyFiveMinutes()->name('monitoring-pruefen')->withoutOverlapping(10);

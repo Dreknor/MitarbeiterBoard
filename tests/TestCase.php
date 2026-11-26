@@ -24,6 +24,8 @@ abstract class TestCase extends BaseTestCase
         // die den Test-Prozess zum Hängen bringen könnten.
         // Tests die HTTP benötigen, müssen Http::fake() explizit aufrufen.
         Http::preventStrayRequests();
+
+        \App\Services\Wiki\WikiZugriff::zuruecksetzen();
     }
 
     /**

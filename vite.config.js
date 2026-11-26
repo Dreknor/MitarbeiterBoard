@@ -77,6 +77,10 @@ export default defineConfig({
                 'resources/css/ergebnisboards.css',
                 'resources/js/ergebnisboards.js',
 
+                // Wiki (Startseite, Seite, Editor, Verlauf, Verwaltung)
+                'resources/css/wiki.css',
+                'resources/js/wiki.js',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
 
@@ -138,6 +142,8 @@ export default defineConfig({
                 'resources/views/klassenraum/**/*.blade.php',
                 // Ergebnisboards
                 'resources/views/ergebnisboards/**/*.blade.php',
+                // Wiki
+                'resources/views/wiki/**/*.blade.php',
             ],
         }),
     ],

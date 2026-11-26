@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Globale Suche über Nachrichten, Gruppen-Themen, Meetings sowie Themen und
+ * Globale Suche über Nachrichten, Wiki-Seiten, Gruppen-Themen, Meetings sowie Themen und
  * Protokolle aus Meetings, an denen der Nutzer teilnimmt – auch wenn er nicht
  * Mitglied der Gruppe ist, zu der ein Thema gehört (freie Meetings).
  */
@@ -36,6 +36,10 @@ class GlobalSearchService
 
         if ($posts = $this->posts($user, $term)) {
             $sections[] = ['key' => 'posts', 'title' => 'Nachrichten', 'icon' => 'far fa-newspaper', 'items' => $posts];
+        }
+
+        if ($wiki = $this->wiki($user, $term)) {
+            $sections[] = ['key' => 'wiki', 'title' => 'Wiki', 'icon' => 'fa fa-book', 'items' => $wiki];
         }
 
         if ($boards = $this->ergebnisboards($user, $term)) {
@@ -84,6 +88,27 @@ class GlobalSearchService
                 'snippet' => $this->snippet($post->text, $term),
             ])
             ->values()
+            ->all();
+    }
+
+    /**
+     * Wiki-Seiten (Titel, Tags, Inhalt) – nur mit `view wiki` und nur sichtbare (nicht eingeschränkte) Seiten.
+     */
+    private function wiki(User $user, string $term): array
+    {
+        if (! $user->can('view wiki')) {
+            return [];
+        }
+
+        return collect(app(\App\Services\Wiki\WikiSuche::class)->suchen($user, $term, self::LIMIT_PER_SECTION))
+            ->map(fn (array $t) => [
+                'id'      => $t['id'],
+                'title'   => $t['titel'],
+                'date'    => $t['geaendert'],
+                'url'     => $t['url'],
+                'meta'    => $t['pfad'] !== '' ? $t['pfad'] : null,
+                'snippet' => html_entity_decode(strip_tags($t['snippet']), ENT_QUOTES | ENT_HTML5, 'UTF-8') ?: null,
+            ])
             ->all();
     }
 

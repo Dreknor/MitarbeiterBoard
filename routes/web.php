@@ -54,7 +54,10 @@ use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanAbsenceController;
 use App\Http\Controllers\VertretungsplanController;
 use App\Http\Controllers\VertretungsplanWeekController;
-use App\Http\Controllers\WikiController;
+use App\Http\Controllers\Wiki\WikiAnhangController;
+use App\Http\Controllers\Wiki\WikiBearbeitungController;
+use App\Http\Controllers\Wiki\WikiController;
+use App\Http\Controllers\Wiki\WikiVerwaltungController;
 use App\Http\Controllers\Wochenplan\WpPlanController;
 use App\Http\Controllers\Wochenplan\WpInhaltController;
 use App\Http\Controllers\Wochenplan\WpDateiController;
@@ -188,12 +191,48 @@ Route::group([
                  * Routes for Wiki
                  */
                 Route::middleware(['permission:view wiki'])->group(function () {
-                    Route::post('wiki', [WikiController::class, 'store']);
-                    Route::post('wiki/add', [WikiController::class, 'new']);
-                    Route::get('wiki/all', [WikiController::class, 'all_sites']);
-                    Route::post('wiki/search', [WikiController::class, 'search']);
-                    Route::get('wiki/create/{slug}', [WikiController::class, 'create']);
-                    Route::get('wiki/{slug?}/{version?}', [WikiController::class, 'index'])->name('wiki');
+                    // Lesen
+                    Route::get('wiki', [WikiController::class, 'index'])->name('wiki');
+                    Route::get('wiki/suche', [WikiController::class, 'suche'])->name('wiki.suche');
+                    Route::get('wiki/alle', [WikiController::class, 'alle'])->name('wiki.alle');
+                    Route::get('wiki/aenderungen', [WikiController::class, 'aenderungen'])->name('wiki.aenderungen');
+                    Route::get('wiki/tags', [WikiVerwaltungController::class, 'tags'])->name('wiki.tags');
+                    Route::get('wiki/tags/vorschlaege', [WikiBearbeitungController::class, 'tagVorschlaege'])->name('wiki.tags.vorschlaege');
+                    Route::get('wiki/tag/{tag:slug}', [WikiVerwaltungController::class, 'tag'])->name('wiki.tag');
+                    Route::get('wiki/anhang/{media}', [WikiAnhangController::class, 'show'])->name('wiki.anhang');
+                    Route::post('wiki/seiten/{seite}/favorit', [WikiController::class, 'favorit'])->name('wiki.favorit');
+
+                    // Anlegen und Bearbeiten (Rechte über WikiSeitePolicy)
+                    Route::get('wiki/neu', [WikiBearbeitungController::class, 'create'])->name('wiki.create');
+                    Route::post('wiki/seiten', [WikiBearbeitungController::class, 'store'])->name('wiki.store');
+                    Route::put('wiki/seiten/{seite}', [WikiBearbeitungController::class, 'update'])->name('wiki.update');
+                    Route::post('wiki/seiten/{seite}/bearbeitung', [WikiBearbeitungController::class, 'bearbeitung'])->name('wiki.bearbeitung');
+                    Route::post('wiki/seiten/{seite}/revisionen/{revision}/wiederherstellen', [WikiBearbeitungController::class, 'wiederherstellen'])->name('wiki.wiederherstellen');
+                    Route::post('wiki/seiten/{seite}/anhaenge', [WikiAnhangController::class, 'store'])->name('wiki.anhaenge.store');
+                    Route::delete('wiki/seiten/{seite}/anhaenge/{media}', [WikiAnhangController::class, 'destroy'])->name('wiki.anhaenge.destroy');
+
+                    // Verwaltung (`manage wiki`)
+                    Route::get('wiki/seiten/{seite}/einstellungen', [WikiVerwaltungController::class, 'einstellungen'])->name('wiki.einstellungen');
+                    Route::post('wiki/seiten/{seite}/schutz', [WikiVerwaltungController::class, 'schutz'])->name('wiki.schutz');
+                    Route::post('wiki/seiten/{seite}/einschraenkung', [WikiVerwaltungController::class, 'einschraenkung'])->name('wiki.einschraenkung');
+                    Route::delete('wiki/seiten/{seite}', [WikiVerwaltungController::class, 'loeschen'])->name('wiki.loeschen');
+                    Route::get('wiki/papierkorb', [WikiVerwaltungController::class, 'papierkorb'])->name('wiki.papierkorb');
+                    Route::post('wiki/papierkorb/{id}', [WikiVerwaltungController::class, 'ausPapierkorb'])->whereNumber('id')->name('wiki.papierkorb.wiederherstellen');
+                    Route::get('wiki/struktur', [WikiVerwaltungController::class, 'struktur'])->name('wiki.struktur');
+                    Route::post('wiki/struktur', [WikiVerwaltungController::class, 'strukturSpeichern'])->name('wiki.struktur.speichern');
+                    Route::post('wiki/struktur/alphabetisch', [WikiVerwaltungController::class, 'alphabetisch'])->name('wiki.struktur.alphabetisch');
+                    Route::put('wiki/tags/{tag}', [WikiVerwaltungController::class, 'tagUmbenennen'])->name('wiki.tags.umbenennen');
+                    Route::post('wiki/tags/{tag}/zusammenfuehren', [WikiVerwaltungController::class, 'tagZusammenfuehren'])->name('wiki.tags.zusammenfuehren');
+                    Route::delete('wiki/tags/{tag}', [WikiVerwaltungController::class, 'tagLoeschen'])->name('wiki.tags.loeschen');
+
+                    // Seiten über ihren Slug (zuletzt, damit die festen Pfade oben Vorrang haben)
+                    Route::get('wiki/create/{slug}', fn (string $slug) => redirect()->route('wiki.create', ['titel' => str_replace('-', ' ', $slug)]));
+                    Route::get('wiki/{slug}/bearbeiten', [WikiBearbeitungController::class, 'edit'])->name('wiki.edit');
+                    Route::get('wiki/{slug}/verlauf', [WikiController::class, 'verlauf'])->name('wiki.verlauf');
+                    Route::get('wiki/{slug}/verlauf/{revision}', [WikiController::class, 'revision'])->name('wiki.revision');
+                    Route::get('wiki/{slug}/vergleich', [WikiController::class, 'vergleich'])->name('wiki.vergleich');
+                    Route::get('wiki/{slug}/pdf', [WikiController::class, 'pdf'])->name('wiki.pdf');
+                    Route::get('wiki/{slug}/{alteVersion?}', [WikiController::class, 'show'])->where('alteVersion', '[0-9]+')->name('wiki.show');
 
                 });
 
@@ -818,7 +857,6 @@ Route::group([
                 Route::get('{groupname}/nachrichten', [PostsController::class, 'gruppe'])->name('groups.posts');
 
 
-                Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 
                 //Roles and permissions

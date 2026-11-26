@@ -5,7 +5,7 @@ namespace Tests\Feature\Dashboard\Cards;
 use App\Models\DashboardCard;
 use App\Models\DashBoardUser;
 use App\Models\User;
-use App\Models\WikiSite;
+use App\Services\Wiki\WikiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,11 +17,7 @@ class WikiCardV2Test extends TestCase
     {
         $user = $this->actingAsWithPermission('use dashboard v2');
 
-        WikiSite::create([
-            'title'     => 'Test-Wiki-Seite',
-            'text'      => 'Inhalt',
-            'author_id' => $user->id,
-        ]);
+        app(WikiService::class)->anlegen($user, ['titel' => 'Test-Wiki-Seite', 'inhalt' => '<p>Inhalt</p>']);
 
         $dc = DashboardCard::create([
             'title'         => 'Wiki',
