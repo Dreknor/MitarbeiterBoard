@@ -25,7 +25,7 @@ class WpFach extends Model
             'emoji' => '<span class="wp-fach-symbol wp-fach-symbol--emoji" style="' . $colorStyle . '">'
                        . e($this->symbol_wert) . '</span>',
             'svg'   => '<span class="wp-fach-symbol wp-fach-symbol--svg">'
-                       . $this->symbol_wert . '</span>',
+                       . \App\Support\SvgSanitizer::clean($this->symbol_wert) . '</span>',
             'bild'  => '<img class="wp-fach-symbol wp-fach-symbol--bild" '
                        . 'src="' . e(\Illuminate\Support\Facades\Storage::url($this->symbol_wert)) . '" alt="" aria-hidden="true" '
                        . 'style="width:1.5em;height:1.5em;object-fit:contain;vertical-align:middle;display:inline-block;">',
@@ -55,7 +55,7 @@ class WpFach extends Model
                        . e($this->symbol_wert) . '</span>';
             case 'svg':
                 // Inline-SVG in DomPDF-Tabellen nicht unterstützt → als base64 img einbetten
-                $svgContent = $this->symbol_wert;
+                $svgContent = \App\Support\SvgSanitizer::clean($this->symbol_wert);
                 if ($svgContent) {
                     $dataUri = 'data:image/svg+xml;base64,' . base64_encode($svgContent);
                     return '<img src="' . $dataUri . '" width="20" height="20" alt="" '

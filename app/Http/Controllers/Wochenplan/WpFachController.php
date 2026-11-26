@@ -31,7 +31,9 @@ class WpFachController extends Controller
                 $symbolTyp = 'keine';
             }
         } else {
-            $symbolWert = $request->input('symbol_wert');
+            $symbolWert = $symbolTyp === 'svg'
+                ? (\App\Support\SvgSanitizer::clean($request->input('symbol_wert')) ?: null)
+                : $request->input('symbol_wert');
         }
 
         WpFach::create([
@@ -71,7 +73,9 @@ class WpFachController extends Controller
             if ($wpFach->symbol_typ === 'bild' && $wpFach->symbol_wert) {
                 Storage::disk('public')->delete($wpFach->symbol_wert);
             }
-            $symbolWert = $request->input('symbol_wert');
+            $symbolWert = $symbolTyp === 'svg'
+                ? (\App\Support\SvgSanitizer::clean($request->input('symbol_wert')) ?: null)
+                : $request->input('symbol_wert');
         }
 
         $wpFach->update([

@@ -4,11 +4,10 @@
 
 @push('css')
     @vite('resources/css/wochenplan.css')
-    <style>[x-cloak] { display: none !important; }</style>
 @endpush
 
 @section('content')
-<div class="wp-container p-4 max-w-3xl mx-auto">
+<div class="wp-wrapper" style="max-width: 860px">
 
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -17,13 +16,6 @@
             <p class="text-xs text-gray-500 mt-0.5">Standard-Fächer werden bei neuen Plänen automatisch vorausgewählt.</p>
         </div>
     </div>
-
-    @if(session('Meldung'))
-        <div class="mb-4 px-4 py-3 rounded-lg text-sm
-            {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200' }}">
-            {{ session('Meldung') }}
-        </div>
-    @endif
 
     @if($errors->any())
         <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200">
@@ -71,14 +63,14 @@
                 </div>
 
                 {{-- Emoji / SVG Eingabe --}}
-                <div x-show="symbolTyp === 'emoji' || symbolTyp === 'svg'" x-cloak>
+                <div x-show.important="symbolTyp === 'emoji' || symbolTyp === 'svg'" x-cloak>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Symbol-Wert</label>
                     <input type="text" name="symbol_wert" placeholder="z.B. 📖 oder &lt;svg&gt;..."
                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 </div>
 
                 {{-- Bild-Upload --}}
-                <div x-show="symbolTyp === 'bild'" x-cloak>
+                <div x-show.important="symbolTyp === 'bild'" x-cloak>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bild hochladen</label>
                     <input type="file" name="symbol_bild" accept="image/jpeg,image/png"
                            class="w-full text-sm text-gray-600 border border-gray-300 rounded-md px-2 py-1.5 bg-white
@@ -89,7 +81,7 @@
                 </div>
 
                 {{-- Farbe für Emoji --}}
-                <div x-show="symbolTyp === 'emoji'" x-cloak>
+                <div x-show.important="symbolTyp === 'emoji'" x-cloak>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Farbe (optional)</label>
                     <input type="color" name="symbol_farbe" value="#3b82f6"
                            class="h-10 w-full px-1 py-1 border border-gray-300 rounded-md cursor-pointer">
@@ -136,9 +128,9 @@
                         class="hover:bg-gray-50 transition-colors">
 
                         {{-- ── Anzeige-Modus ── --}}
-                        <td class="px-4 py-3 text-gray-500" x-show="!editing">{{ $fach->sort_order }}</td>
-                        <td class="px-4 py-3 font-medium text-gray-900" x-show="!editing">{{ $fach->name }}</td>
-                        <td class="px-4 py-3 text-center" x-show="!editing">
+                        <td class="px-4 py-3 text-gray-500" x-show.important="!editing">{{ $fach->sort_order }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-900" x-show.important="!editing">{{ $fach->name }}</td>
+                        <td class="px-4 py-3 text-center" x-show.important="!editing">
                             @if($fach->symbol_typ === 'bild' && $fach->symbol_wert)
                                 <img src="{{ Storage::url($fach->symbol_wert) }}" alt="{{ $fach->name }}"
                                      class="w-8 h-8 object-contain mx-auto rounded">
@@ -151,7 +143,7 @@
                                 <span class="text-gray-300 text-xs">–</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-center" x-show="!editing">
+                        <td class="px-4 py-3 text-center" x-show.important="!editing">
                             @if($fach->is_default)
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700">
                                     ★ Standard
@@ -160,11 +152,11 @@
                                 <span class="text-gray-300 text-xs">–</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-center text-gray-500" x-show="!editing">
+                        <td class="px-4 py-3 text-center text-gray-500" x-show.important="!editing">
                             {{ $fach->plan_faecher_count }}
                             {{ $fach->plan_faecher_count === 1 ? 'Plan' : 'Pläne' }}
                         </td>
-                        <td class="px-4 py-3 text-right" x-show="!editing">
+                        <td class="px-4 py-3 text-right" x-show.important="!editing">
                             <div class="flex items-center justify-end gap-1">
                                 <button @click="editing = true"
                                         class="p-1 text-gray-400 hover:text-primary-600 rounded" title="Bearbeiten">
@@ -199,7 +191,7 @@
                         </td>
 
                         {{-- ── Edit-Modus (volle Breite) ── --}}
-                        <td colspan="6" class="px-4 py-3 bg-blue-50" x-show="editing" x-cloak>
+                        <td colspan="6" class="px-4 py-3 bg-blue-50" x-show.important="editing" x-cloak>
                             <form method="POST" action="{{ route('wp.faecher.update', $fach) }}"
                                   enctype="multipart/form-data"
                                   class="flex flex-wrap items-end gap-3">
@@ -242,7 +234,7 @@
                                 </div>
 
                                 {{-- Emoji / SVG Wert --}}
-                                <div x-show="symbolTyp === 'emoji' || symbolTyp === 'svg'" x-cloak>
+                                <div x-show.important="symbolTyp === 'emoji' || symbolTyp === 'svg'" x-cloak>
                                     <label class="block text-xs text-gray-500 mb-1">Wert</label>
                                     <input type="text" name="symbol_wert"
                                            value="{{ $fach->symbol_wert }}"
@@ -251,7 +243,7 @@
                                 </div>
 
                                 {{-- Farbe für Emoji --}}
-                                <div x-show="symbolTyp === 'emoji'" x-cloak>
+                                <div x-show.important="symbolTyp === 'emoji'" x-cloak>
                                     <label class="block text-xs text-gray-500 mb-1">Farbe</label>
                                     <input type="color" name="symbol_farbe"
                                            value="{{ $fach->symbol_farbe ?? '#3b82f6' }}"
@@ -259,11 +251,11 @@
                                 </div>
 
                                 {{-- Bild-Upload --}}
-                                <div x-show="symbolTyp === 'bild'" x-cloak>
+                                <div x-show.important="symbolTyp === 'bild'" x-cloak>
                                     <label class="block text-xs text-gray-500 mb-1">Bild</label>
                                     <div class="flex items-center gap-2">
                                         {{-- Vorschau des vorhandenen Bildes --}}
-                                        <img :src="bildUrl" alt="" x-show="bildUrl !== ''"
+                                        <img :src="bildUrl" alt="" x-show.important="bildUrl !== ''"
                                              class="w-8 h-8 object-contain rounded border border-gray-200">
                                         <input type="file" name="symbol_bild" accept="image/jpeg,image/png"
                                                class="text-xs text-gray-600 border border-gray-300 rounded px-2 py-1.5 bg-white

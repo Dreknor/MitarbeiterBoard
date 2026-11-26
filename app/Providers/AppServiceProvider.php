@@ -34,6 +34,12 @@ class AppServiceProvider extends ServiceProvider
         // API v1: Die Tabelle personal_access_tokens wird über eine projektinterne Migration angelegt.
         \Laravel\Sanctum\Sanctum::ignoreMigrations();
 
+        // Wochenplan: Nextcloud-Ablage (in Tests durch Tests\Fakes\WpNextcloudFake ersetzt)
+        $this->app->bind(
+            \App\Services\Wochenplan\Nextcloud\WpNextcloudSpeicher::class,
+            \App\Services\Wochenplan\Nextcloud\WpNextcloudWebdav::class
+        );
+
         // Zeitwirtschaft: Vertrags-/Kontodaten pro Request zwischenspeichern
         $this->app->scoped(\App\Services\Personal\Zeit\ArbeitszeitService::class);
         $this->app->scoped(\App\Services\Personal\Zeit\UrlaubskontoService::class);

@@ -626,6 +626,12 @@ class PaedDiaryController extends Controller
 
         return view($darstellung['ansicht'] === 'neu' ? 'paedDiary.neu.schueler' : 'paedDiary.schueler', [
             'elterngespraecheKonfig' => $elterngespraecheKonfig,
+            // Wochenpläne des Kindes (nur mit Tagebuch-Anbindung und Zugriff auf die Klasse)
+            'wochenplaene' => \App\Services\Wochenplan\WpStatusService::tagebuchAktiv()
+                && $user->can('viewAny', \App\Models\Wochenplan\WpPlan::class)
+                && \App\Policies\WpPlanPolicy::darfSchueler($user, $schueler)
+                    ? app(\App\Services\Wochenplan\WpStatusService::class)->planeFuerSchuelerakte($schueler)
+                    : null,
             'darstellung' => $darstellung,
             'schueler' => $schueler,
             'klasse' => $klasse,

@@ -159,6 +159,11 @@ class Kernel extends ConsoleKernel
         // Löschkonzept: fehlgeschlagene Jobs enthalten serialisierte Modelle, nach 30 Tagen entfernen
         $schedule->command('queue:prune-failed', ['--hours' => 24 * 30])->dailyAt('03:50');
 
+        // Wochenplan: Sind die in der Nextcloud abgelegten Arbeitsblätter noch vorhanden?
+        $schedule->call(function () {
+            app(\App\Services\Wochenplan\WpAblageService::class)->dateienPruefen();
+        })->dailyAt('02:40')->name('wochenplan-dateien-pruefen')->withoutOverlapping();
+
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')
             ->dailyAt('03:00')

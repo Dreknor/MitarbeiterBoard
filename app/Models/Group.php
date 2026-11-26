@@ -21,12 +21,11 @@ class Group extends Model
     use HasRelationships;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url', 'roster_day_start', 'roster_day_end'];
-    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'hasWochenplan', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
+    protected $fillable = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url', 'roster_day_start', 'roster_day_end'];
+    protected $visible = ['name', 'creator_id', 'enddate', 'homegroup', 'InvationDays', 'protected', 'needsRoster', 'hasAllocations', 'viewType', 'information_template', 'meeting_weekday', 'stack_themes', 'use_meetings', 'meeting_url'];
 
     protected $casts = [
         'protected' => 'boolean',
-        'hasWochenplan' => 'boolean',
         'needsRoster' => 'boolean',
         'hasAllocations' => 'boolean',
         'enddate'  => 'date',
@@ -115,14 +114,6 @@ class Group extends Model
     }
 
 
-
-    /**
-     * Get all of the tasks.
-     */
-    public function wochenplaene()
-    {
-        return $this->hasMany(Wochenplan::class, 'group_id');
-    }
 
     /**
      * Get all of the Listen.

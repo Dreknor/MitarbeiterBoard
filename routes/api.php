@@ -124,6 +124,14 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         Route::post('paed-diary/tasks/{task}/close', [PaedDiaryWeekApiController::class, 'closeTask'])
             ->whereNumber('task')->name('paed-diary.tasks.close');
 
+        // Wochenplan: Aufgaben und Status je Kind (nur mit Tagebuch-Anbindung)
+        Route::get('students/{schueler}/weekly-plan', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'show'])
+            ->whereNumber('schueler')->name('weekly-plan.show');
+        Route::post('weekly-plan/tasks/{aufgabe}/status', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'store'])
+            ->whereNumber('aufgabe')->name('weekly-plan.status.store');
+        Route::delete('weekly-plan/tasks/{aufgabe}/status', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'destroy'])
+            ->whereNumber('aufgabe')->name('weekly-plan.status.destroy');
+
         // Planung: Aufgaben, Termine, Wiedervorlage, Schüler eines Eintrags
         Route::post('paed-diary/tasks', [PaedDiaryPlanningApiController::class, 'storeTask'])->name('paed-diary.tasks.store');
         Route::put('paed-diary/tasks/{task}', [PaedDiaryPlanningApiController::class, 'updateTask'])

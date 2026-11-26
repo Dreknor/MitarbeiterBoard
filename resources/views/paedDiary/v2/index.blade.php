@@ -77,6 +77,8 @@
         {{-- Aufgaben-Panel --}}
         @include('paedDiary.v2.partials._tasks-panel')
     </div>
+
+    @include('paedDiary.partials.wochenplan')
 </div>
 @endsection
 

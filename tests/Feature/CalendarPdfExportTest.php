@@ -23,7 +23,8 @@ class CalendarPdfExportTest extends TestCase
     {
         $user = $this->actingAsWithPermission('view calendar');
         $url  = route('calendar.export.pdf', ['date' => now()->format('Y-m-d')]);
-        $this->assertEquals('/calendar/export/pdf', parse_url($url, PHP_URL_PATH),
+        // Bewusst /export-pdf: /export/pdf würde von {groupname}/export/{date?} abgefangen (siehe routes/web.php)
+        $this->assertEquals('/calendar/export-pdf', parse_url($url, PHP_URL_PATH),
             'Route URL ist: ' . $url);
 
         $response = $this->get($url);

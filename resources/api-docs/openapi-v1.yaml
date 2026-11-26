@@ -58,6 +58,8 @@ tags:
   - name: Klassen
   - name: Schüler-View
   - name: Tagebuch
+  - name: Wochenplan
+    description: Wochenplan-Aufgaben und Status je Kind (nur mit Tagebuch-Anbindung, Klassenregel wie im Web)
   - name: Graduierung
   - name: Diagnose
   - name: Dossier
@@ -717,6 +719,93 @@ paths:
       responses:
         '200': { description: OK }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /students/{student_id}/weekly-plan:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Wochenplan]
+      summary: Wochenplan-Aufgaben eines Kindes mit Status
+      description: |
+        Aufgaben des Kinderplans der Woche, sonst des Klassenplans der Klasse des Kindes (tägliche Übungen zählen nicht).
+        Nur mit eingeschalteter Tagebuch-Anbindung (sonst 404), Leserecht am Wochenplan und Zugriff auf die Klasse.
+      parameters:
+        - { name: date, in: query, required: false, schema: { type: string, format: date }, description: Beliebiger Tag der Woche (Standard heute) }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      student: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+                      week: { type: object, properties: { start: { type: string, format: date }, end: { type: string, format: date } } }
+                      summary: { type: object, properties: { done: { type: integer }, partial: { type: integer }, total: { type: integer } } }
+                      plans:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            type: { type: string, description: Klassenplan oder Kinderplan }
+                            period: { type: string }
+                            subjects:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer }
+                                  name: { type: string }
+                                  tasks: { type: array, items: { $ref: '#/components/schemas/WeeklyPlanTask' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /weekly-plan/tasks/{task_id}/status:
+    parameters:
+      - { name: task_id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Wochenplan]
+      summary: Status einer Aufgabe für ein Kind setzen
+      description: Kein Verlauf – gespeichert wird nur der aktuelle Stand. Ist die Aufgabe mit einer Tagebuch-Aufgabe verknüpft, schließt „done“ diese (und öffnet sie beim Zurücknehmen wieder).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, status]
+              properties:
+                student_id: { type: integer }
+                status: { type: string, enum: [open, partial, done] }
+                note: { type: string, nullable: true, maxLength: 255 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/WeeklyPlanTask' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Wochenplan]
+      summary: Status zurücksetzen (offen, ohne Notiz)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: student_id, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/WeeklyPlanTask' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /paed-diary/tasks:
     post:
       tags: [Tagebuch]
@@ -3034,6 +3123,19 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    WeeklyPlanTask:
+      type: object
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        duration: { type: string, nullable: true }
+        level: { type: integer, nullable: true, description: '1 Basis, 2 Standard, 3 Erweitert' }
+        link: { type: string, nullable: true }
+        from_diary: { type: boolean, description: Mit einer Tagebuch-Aufgabe verknüpft }
+        status: { type: string, enum: [open, partial, done] }
+        note: { type: string, nullable: true }
+        updated_by: { type: string, nullable: true }
+        updated_at: { type: string, nullable: true, description: 'd.m.Y H:i' }
     ParentMeetingTopic:
       type: object
       properties:

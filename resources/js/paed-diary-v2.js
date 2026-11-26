@@ -14,12 +14,14 @@ import { registerTaskPanel } from './paed-diary-v2/task-panel.js';
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
 import { registerGroupManager } from './paed-diary-v2/group-manager.js';
+import { registerWochenplanStore } from './paed-diary-v2/wochenplan.js';
 
 /**
  * Registriert alle Components auf einer Alpine-Instanz.
  */
 function registerAll(Alpine) {
     registerDiaryStore(Alpine);
+    registerWochenplanStore(Alpine);
     registerDiaryTable(Alpine);
     registerNoteEditor(Alpine);
     registerColumnsManager(Alpine);

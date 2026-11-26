@@ -85,6 +85,8 @@ class EventServiceProvider extends ServiceProvider
         // Ergebnisboards: Karten folgen dem Status ihrer Aufgabe
         Task::observe(\App\Observers\ErgebnisKarteAufgabeObserver::class);
         \App\Models\GroupTaskUser::observe(\App\Observers\ErgebnisKarteAufgabeObserver::class);
+        // Wochenplan: erledigte/geöffnete Tagebuch-Aufgaben → Status der verknüpften Wochenplan-Aufgaben
+        \App\Models\PaedDiaryTask::observe(\App\Observers\PaedDiaryTaskWochenplanObserver::class);
 
         Holiday::observe(HolidayObserver::class);
         \App\Models\Absence::observe(\App\Observers\AbsenceTimeObserver::class);

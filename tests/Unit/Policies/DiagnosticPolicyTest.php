@@ -123,11 +123,14 @@ class DiagnosticPolicyTest extends TestCase
     {
         $user = $this->makeUserWithDiagView();
 
-        $schuelerOhneKlasse = Schueler::factory()->create(['klasse_id' => null]);
+        // schueler.klasse_id ist in der Datenbank Pflicht – ein Kind ohne Klasse kann es nur
+        // als nicht gespeichertes Modell geben (z. B. unvollständig geladene Daten).
+        $schuelerOhneKlasse = Schueler::factory()->make(['klasse_id' => null]);
         $session = DiagnosticSession::factory()->create([
-            'schueler_id'        => $schuelerOhneKlasse->id,
+            'schueler_id'        => $this->schueler->id,
             'diagnostic_area_id' => $this->area->id,
         ]);
+        $session->setRelation('schueler', $schuelerOhneKlasse);
 
         $this->assertFalse($this->policy->view($user, $session));
     }
@@ -149,7 +152,7 @@ class DiagnosticPolicyTest extends TestCase
     public function test_create_verweigert_wenn_schueler_keine_klasse(): void
     {
         $user = $this->makeUserWithDiagView();
-        $schuelerOhneKlasse = Schueler::factory()->create(['klasse_id' => null]);
+        $schuelerOhneKlasse = Schueler::factory()->make(['klasse_id' => null]);
         $this->assertFalse($this->policy->create($user, $schuelerOhneKlasse));
     }
 

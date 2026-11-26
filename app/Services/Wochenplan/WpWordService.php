@@ -44,25 +44,41 @@ class WpWordService
         $schriftart    = $formatvorlage->schriftart ?? 'Arial';
         $schriftgroesse = $this->fontSizeMap[$formatvorlage->schriftgroesse ?? 'normal'] ?? 11;
 
-        // Seitenränder (cm)
-        $margins = $config['seitenraender'] ?? ['oben' => 2, 'rechts' => 2, 'unten' => 2, 'links' => 2];
+        // Seitenränder: in der Formatvorlage in mm gespeichert (Editor und Standardvorlagen)
+        $raender = $config['seitenraender'] ?? [];
+        $margins = [];
+        foreach (['oben' => 20, 'rechts' => 15, 'unten' => 20, 'links' => 15] as $seite => $standardMm) {
+            $margins[$seite] = $this->zahl($raender[$seite] ?? null, $standardMm) / 10;
+        }
 
-        // Spaltenbreiten (cm)
-        $spalten   = $config['spalten'] ?? [];
+        // Nutzbare Breite (cm) für Prozentangaben
+        $quer = ($config['papier']['ausrichtung'] ?? 'portrait') === 'landscape';
+        $nutzbar = max(5.0, ($quer ? 29.7 : 21.0) - $margins['links'] - $margins['rechts']);
 
-        // Spaltenbreiten in cm
-        $colFach         = $spalten['fach_breite'] ?? 3.5;
+        // Spaltenbreiten: „15%“ (Editor/Standardvorlagen) oder cm; Schlüssel „fach“ bzw. „fach_breite“
+        $spalten = $config['spalten'] ?? [];
+        $breite = function (string $schluessel, ?float $standard) use ($spalten, $nutzbar): ?float {
+            $wert = $spalten[$schluessel.'_breite'] ?? $spalten[$schluessel] ?? null;
+            if ($wert === null || $wert === '') {
+                return $standard;
+            }
+            if (is_string($wert) && str_ends_with(trim($wert), '%')) {
+                return round($nutzbar * $this->zahl(rtrim(trim($wert), '%'), 0) / 100, 2);
+            }
+
+            return $this->zahl($wert, $standard ?? 0);
+        };
+
+        $colFach         = $breite('fach', 3.5);
         $hasDauer        = !empty($spalten['zeige_dauer']) || !empty($spalten['dauer_breite']);
-        $colDauer        = $spalten['dauer_breite'] ?? 0;
+        $colDauer        = $hasDauer ? ($breite('dauer', 2.0) ?: 2.0) : 0;
         $colCheck        = ($spalten['zeige_check_spalte'] ?? true) ? 1.2 : 0;
         $hasKontrolliert = $spalten['zeige_kontrolliert_spalte'] ?? false;
         $colKontrolliert = $hasKontrolliert ? 2.5 : 0;
         $hasUnterschrift = $spalten['zeige_unterschrift_spalte'] ?? true;
-        $colUnterschrift = $hasUnterschrift ? ($spalten['unterschrift_breite'] ?? 3.5) : 0;
+        $colUnterschrift = $hasUnterschrift ? $breite('unterschrift', 3.5) : 0;
         // Aufgaben-Breite: Rest der verfügbaren Breite
-        $colAufgaben = $spalten['aufgaben_breite'] ?? (
-            $hasDauer ? 8.0 : (10.5 - $colUnterschrift - ($hasKontrolliert ? 2.5 : 0))
-        );
+        $colAufgaben = max(3.0, $nutzbar - $colFach - $colDauer - $colCheck - $colKontrolliert - $colUnterschrift);
 
         // ─── PhpWord Instanz ──────────────────────────────────────────────────
         $phpWord = new PhpWord();
@@ -455,6 +471,9 @@ class WpWordService
             foreach ($aufgaben as $aufgabe) {
                 $text = strip_tags($aufgabe->aufgabe ?? '');
                 $aufgabenZelle->addText($text, $aufgabeFontStyle, $aufgabeParaStyle);
+                if (!empty($aufgabe->link)) {
+                    $aufgabenZelle->addLink($aufgabe->link, $aufgabe->link, array_merge((array) $aufgabeFontStyle, ['color' => '1D4ED8', 'underline' => 'single', 'size' => 8]), $aufgabeParaStyle);
+                }
             }
 
             // Dauer-Zelle
@@ -520,7 +539,11 @@ class WpWordService
 
         // ─── Datei speichern ──────────────────────────────────────────────────
         $filename = $this->filename($plan);
-        $path     = storage_path($filename);
+        $tempDir  = storage_path('app/temp');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $path     = $tempDir . '/' . uniqid('wp_word_') . '.docx';
 
         $writer = IOFactory::createWriter($phpWord, 'Word2007');
         $writer->save($path);
@@ -554,5 +577,14 @@ class WpWordService
 
         return $name . '.docx';
     }
-}
 
+    /** Zahl aus Konfiguration („15“, 15, „1,5“) – sonst Standardwert. */
+    private function zahl(mixed $wert, float|int $standard): float
+    {
+        if (is_string($wert)) {
+            $wert = str_replace(',', '.', trim($wert));
+        }
+
+        return is_numeric($wert) ? (float) $wert : (float) $standard;
+    }
+}

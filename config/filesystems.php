@@ -50,6 +50,15 @@ return [
 
         // Private Ablage für Ticket-Anhänge (nicht über /storage erreichbar,
         // Auslieferung nur über TicketController::file mit Berechtigungsprüfung)
+        // Zwischenspeicher für Wochenplan-Arbeitsblätter (bis zum Upload in die
+        // Nextcloud bzw. dauerhaft, wenn die Nextcloud-Ablage aus ist). Auslieferung
+        // nur über die Route wp.dateien.show.
+        'wochenplan' => [
+            'driver' => 'local',
+            'root' => storage_path('app/wochenplan'),
+            'visibility' => 'private',
+        ],
+
         'tickets' => [
             'driver' => 'local',
             'root' => storage_path('app/tickets'),

@@ -28,7 +28,7 @@ class WpPdfService
         $config        = $formatvorlage->layout_config ?? [];
 
         // Blade-Template aus Formatvorlage, Fallback auf Standard
-        $template = $formatvorlage->blade_template ?? 'wochenplan.pdf.standard';
+        $template = $formatvorlage->sicheresTemplate();
 
         // Seitenformat und Ränder aus Config
         $papierGroesse    = strtolower($config['papier']['groesse']    ?? 'A4');
@@ -102,7 +102,6 @@ class WpPdfService
         file_put_contents($tempPdfPath, $this->generate($plan)->output());
 
         // 2. Arbeitsblätter anhängen
-        $plan->load('media');
         $finalPdfPath = $mergeService->mergeWithAttachments($tempPdfPath, $plan);
 
         // 3. Streamen
@@ -136,7 +135,6 @@ class WpPdfService
         $tempPdfPath = $tempDir . '/' . uniqid('wp_') . '.pdf';
         file_put_contents($tempPdfPath, $this->generate($plan)->output());
 
-        $plan->load('media');
         $finalPdfPath = $mergeService->mergeWithAttachments($tempPdfPath, $plan);
 
         $filename = $this->filename($plan);

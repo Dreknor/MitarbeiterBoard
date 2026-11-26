@@ -3,70 +3,69 @@
 namespace App\Http\Controllers\Wochenplan;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Wochenplan\WpPlanRequest;
+use App\Models\Wochenplan\WpFormatvorlage;
 use App\Models\Wochenplan\WpPlan;
+use App\Services\Wochenplan\WochenplanService;
 use Illuminate\Http\Request;
 
+/** Vorlagen: für alle mit `create wochenplan` nutzbar, ändern/löschen nur Ersteller:in und Sonderrecht. */
 class WpVorlageController extends Controller
 {
-    public function index()
+    public function __construct(private WochenplanService $service)
     {
-        $vorlagen = WpPlan::vorlagen()
-            ->with(['planFaecher.fach', 'planFaecher.aufgaben', 'creator'])
-            ->orderBy('name')
-            ->get();
-        return view('wochenplan.new.vorlagen.index', compact('vorlagen'));
+    }
+
+    public function index(Request $request)
+    {
+        $this->authorize('create', WpPlan::class);
+
+        return view('wochenplan.new.vorlagen.index', [
+            'vorlagen' => WpPlan::vorlagen()->with(['planFaecher.fach', 'planFaecher.aufgaben', 'creator'])->orderBy('name')->get(),
+            'klassen' => $this->service->klassenFuer($request->user()),
+            'formatvorlagen' => WpFormatvorlage::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function alsVorlageSpeichern(Request $request, WpPlan $wpPlan)
     {
-        $request->validate(['vorlage_name' => 'required|string|max:255']);
+        $this->authorize('view', $wpPlan);
+        $this->authorize('create', WpPlan::class);
+        $daten = $request->validate(['vorlage_name' => 'required|string|max:255']);
 
-        $wpPlan->duplizieren([
-            'is_vorlage'  => true,
-            'vorlage_name'=> $request->vorlage_name,
-            'name'        => $request->vorlage_name,
-            'klasse_id'   => null,
-            'schueler_id' => null,
-        ]);
+        $this->service->alsVorlageSpeichern($wpPlan, $daten['vorlage_name'], $request->user());
 
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Als Vorlage gespeichert.']);
+        return $this->antwort($request, 'Als Vorlage gespeichert.');
     }
 
-    public function vonVorlageErstellen(Request $request, WpPlan $wpPlan)
+    public function vonVorlageErstellen(WpPlanRequest $request, WpPlan $wpPlan)
     {
-        $request->validate([
-            'name'                => 'required|string|max:255',
-            'klasse_id'           => 'nullable|exists:klassen,id',
-            'gueltig_von'         => 'required|date',
-            'gueltig_bis'         => 'required|date|after_or_equal:gueltig_von',
-            'selbsteinschaetzung' => 'nullable|integer|in:0,1,2',
-            'formatvorlage_id'    => 'nullable|exists:wp_formatvorlagen,id',
-        ]);
+        $this->authorize('useTemplate', $wpPlan);
 
-        $neuerPlan = $wpPlan->duplizieren([
-            'name'                => $request->input('name'),
-            'klasse_id'           => $request->input('klasse_id'),
-            'gueltig_von'         => $request->input('gueltig_von'),
-            'gueltig_bis'         => $request->input('gueltig_bis'),
-            'selbsteinschaetzung' => $request->input('selbsteinschaetzung', 0),
-            'formatvorlage_id'    => $request->input('formatvorlage_id'),
-            'vorlage_id'          => $wpPlan->id,
-            'is_vorlage'          => false,
-            'vorlage_name'        => null,
-            'schueler_id'         => null,
-            'created_by'          => auth()->id(),
-        ]);
+        $plan = $this->service->erstellen(array_merge(
+            $request->safe()->except(['version', 'is_vorlage', 'vorlage_name']),
+            ['vorlage_id' => $wpPlan->id]
+        ), $request->user());
 
-        return redirect()->route('wp.edit', $neuerPlan)
-            ->with(['type' => 'success', 'Meldung' => 'Plan aus Vorlage erstellt.']);
+        return redirect()->route('wp.edit', $plan)->with(['type' => 'success', 'Meldung' => 'Plan aus Vorlage erstellt.']);
     }
 
     public function destroy(WpPlan $wpPlan)
     {
-        $wpPlan->delete();
+        abort_unless($wpPlan->isVorlage(), 404);
+        $this->authorize('delete', $wpPlan);
 
-        return redirect()->route('wp.vorlagen.index')
-            ->with(['type' => 'success', 'Meldung' => 'Vorlage gelöscht.']);
+        $this->service->loeschen($wpPlan);
+
+        return redirect()->route('wp.vorlagen.index')->with(['type' => 'success', 'Meldung' => 'Vorlage gelöscht.']);
+    }
+
+    private function antwort(Request $request, string $meldung)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['meldung' => $meldung]);
+        }
+
+        return redirect()->back()->with(['type' => 'success', 'Meldung' => $meldung]);
     }
 }
