@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\BenachrichtigungEinstellungRequest;
-use App\Models\WikiSite;
+use App\Models\WikiSeite;
 use App\Services\Benachrichtigungen\BenachrichtigungsService;
 use App\Services\Benachrichtigungen\TagesvorschauService;
 use App\Services\OxCalendarService;
@@ -192,8 +192,8 @@ class BenachrichtigungController extends Controller
 
     private function wikiUrl(): ?string
     {
-        $seite = WikiSite::where('title', config('benachrichtigungen.wiki_titel'))->first();
+        $seite = WikiSeite::where('slug', config('benachrichtigungen.wiki_slug'))->first();
 
-        return $seite ? url('wiki/'.$seite->slug) : null;
+        return $seite && auth()->user()?->can('view', $seite) ? $seite->url() : null;
     }
 }

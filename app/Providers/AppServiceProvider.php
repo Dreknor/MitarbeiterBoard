@@ -55,6 +55,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrap();
 
+        // Sichtbarkeits-Merker des Wikis gilt nur für eine Anfrage bzw. einen Job
+        $this->app->terminating(fn () => \App\Services\Wiki\WikiZugriff::zuruecksetzen());
+        \Illuminate\Support\Facades\Queue::before(fn () => \App\Services\Wiki\WikiZugriff::zuruecksetzen());
+
         User::observe(UserObserver::class);
         Vertretung::observe(VertretungObserver::class);
         VertretungsplanAbsence::observe(VertretungsplanAbsenceObserver::class);

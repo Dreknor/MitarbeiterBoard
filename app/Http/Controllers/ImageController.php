@@ -7,8 +7,8 @@ use App\Models\Post;
 use App\Models\Theme;
 use App\Models\Ticket;
 use App\Models\TicketComment;
+use App\Models\WikiSeite;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -39,6 +39,18 @@ class ImageController extends Controller
             return redirect()->route('posts.files', [$media_id->model, $media_id]);
         }
 
+        // Wiki-Anhänge nur über die Wiki-Route mit Lesezugriff auf die Seite (WikiSeitePolicy)
+        if ($media_id->model_type === WikiSeite::class) {
+            abort_unless(auth()->check() && $media_id->model && auth()->user()->can('view', $media_id->model), 404);
+
+            return redirect()->route('wiki.anhang', $media_id);
+        }
+
+        // Anhänge des alten Wikis (vor der Umstellung) nur mit `view wiki`
+        if ($media_id->model_type === 'App\Models\WikiSite') {
+            abort_unless(auth()->check() && auth()->user()->can('view wiki'), 404);
+        }
+
         // Eingeloggte Nutzer dürfen immer; sonst nur wenn öffentlich geteilt.
         // optional() verhindert Fatal Error wenn model null ist.
         if (auth()->check() || optional($media_id->model)->share !== null) {
@@ -56,21 +68,6 @@ class ImageController extends Controller
         }
 
         abort(404);
-    }
-
-    public function removeImage($groupname, Media $media)
-    {
-        Log::debug('Dateien: Datei entfernen', [
-            'media' => $media,
-            'user' => auth()->user()
-        ]);
-
-        $media->delete();
-
-        return redirect()->back()->with([
-            'type' => 'success',
-            'Meldung' => 'Datei entfernt'
-        ]);
     }
 
     public function removeImageFromPost(Request $request, Media $media)

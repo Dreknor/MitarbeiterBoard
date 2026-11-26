@@ -187,7 +187,7 @@ return [
     ],
 
     /*
-    | Titel der Wiki-Seite mit der Erklärung für Mitarbeitende.
+    | Slug der Wiki-Seite (Systemseite) mit der Erklärung für Mitarbeitende.
     */
-    'wiki_titel' => 'Benachrichtigungen',
+    'wiki_slug' => 'benachrichtigungen',
 ];
