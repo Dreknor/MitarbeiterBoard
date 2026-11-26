@@ -262,7 +262,7 @@ class WikiController extends Controller
             ->whereIn('id', array_keys($sichtbar))
             ->where('slug', '!=', WikiSeite::START_SLUG)
             ->with('geaendert:id,name')
-            ->orderByDesc('bearbeitet_at')
+            ->orderByDesc('bearbeitet_at')->orderByDesc('id')
             ->limit($anzahl)
             ->get(['id', 'titel', 'slug', 'bearbeitet_at', 'geaendert_von']);
     }

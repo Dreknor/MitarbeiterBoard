@@ -27,7 +27,7 @@ class WikiCardComposer
             'sites' => WikiSeite::query()
                 ->whereIn('id', $sichtbar)
                 ->where('slug', '!=', WikiSeite::START_SLUG)
-                ->orderByDesc('bearbeitet_at')
+                ->orderByDesc('bearbeitet_at')->orderByDesc('id')
                 ->limit(6)
                 ->get(['id', 'titel', 'slug', 'bearbeitet_at']),
             'favoriten' => WikiSeite::query()
