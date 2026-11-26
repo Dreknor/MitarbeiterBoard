@@ -295,7 +295,8 @@ class WikiSeitenTest extends TestCase
         $kollege = $this->createUserWithPermission('view wiki', 'edit wiki');
 
         $this->actingAs($kollege)->postJson(route('wiki.bearbeitung', $seite))->assertOk()->assertJsonPath('andere', []);
-        $this->actingAs($user)->get(route('wiki.edit', $seite->slug))->assertOk()->assertSee($kollege->name);
+        // Der Name steht JSON-kodiert in der Alpine-Konfiguration – Umlaute/Apostrophe sähen dort anders aus als im HTML.
+        $this->actingAs($user)->get(route('wiki.edit', $seite->slug))->assertOk()->assertViewHas('andere', [$kollege->name]);
     }
 
     public function test_alte_urls_des_bisherigen_wikis(): void

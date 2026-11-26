@@ -29,7 +29,7 @@ return new class extends Migration
         $role = Spatie\Permission\Models\Role::findByName('Admin');
         $role->givePermissionTo($permission);
 
-        exec('php artisan cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
     }
 
@@ -45,6 +45,6 @@ return new class extends Migration
         $permission = Spatie\Permission\Models\Permission::findByName('view time recording');
         $permission->delete();
 
-        exec('php artisan cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
     }
 };
