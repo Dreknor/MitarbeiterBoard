@@ -36,6 +36,15 @@ class MonitoringDienst extends Model
         'status', 'status_seit', 'letzte_pruefung', 'meldung', 'latenz_ms', 'fehlversuche', 'gemeldet',
     ];
 
+    /** Standardwerte auch im Modell, damit frisch angelegte Dienste sie ohne Neuladen kennen */
+    protected $attributes = [
+        'status' => self::STATUS_UNBEKANNT,
+        'aktiv' => true,
+        'gemeldet' => false,
+        'fehlversuche' => 0,
+        'sortierung' => 0,
+    ];
+
     protected $casts = [
         'aktiv' => 'boolean',
         'gemeldet' => 'boolean',

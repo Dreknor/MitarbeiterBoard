@@ -26,6 +26,7 @@ class MonitoringTest extends TestCase
 
         $this->monitoring = app(MonitoringService::class);
         $this->token = $this->monitoring->tokenErzeugen();
+        $this->withoutVite();
     }
 
     private function heartbeat(array $dienste, ?string $token = null)
