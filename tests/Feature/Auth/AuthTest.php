@@ -63,7 +63,8 @@ class AuthTest extends TestCase
     {
         $user = $this->createUserWithPassword('richtiges-pw');
 
-        $response = $this->post('/login', [
+        // Fehlgeschlagener Login leitet zur vorherigen Seite zurück – das ist das Login-Formular
+        $response = $this->from('/login')->post('/login', [
             'email'    => $user->email,
             'password' => 'falsches-pw',
         ]);
@@ -74,7 +75,7 @@ class AuthTest extends TestCase
 
     public function test_login_mit_unbekannter_email_wird_abgewiesen(): void
     {
-        $response = $this->post('/login', [
+        $response = $this->from('/login')->post('/login', [
             'email'    => 'existiert-nicht@example.com',
             'password' => 'irgendwas',
         ]);
@@ -175,6 +176,7 @@ class AuthTest extends TestCase
         // withoutMiddleware überspringt dies - hier testen wir, dass
         // der Login-Endpunkt generell existiert und antwortet
         $response = $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+            ->from('/login')
             ->post('/login', [
                 'email'    => 'test@test.de',
                 'password' => 'passwort',

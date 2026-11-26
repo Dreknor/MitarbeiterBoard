@@ -23,6 +23,9 @@ use Sabre\VObject\Reader;
 
 class CalendarController extends Controller
 {
+    /** Höchstzahl abonnierter externer iCal-Feeds pro Person. */
+    public const MAX_ICAL_FEEDS = 10;
+
     /**
      * Kalender-Hauptansicht.
      */
@@ -46,9 +49,7 @@ class CalendarController extends Controller
         // Persönliche iCal-Feeds des Users
         $icalFeeds = $user->icalFeeds()->where('aktiv', true)->get();
 
-        $feedToken = \App\Models\Setting::where('module', 'Kalender')
-            ->where('setting', 'feed_token_' . $user->id)
-            ->value('value');
+        $feedToken = $user->calendar_token;
 
         return view('calendar.index', [
             'kalender'            => $kalender,
@@ -61,7 +62,7 @@ class CalendarController extends Controller
             'canImport'           => $canCreate && $user->canAny(['import calendar events', 'manage calendar']),
             'raeume'              => $raum->darfRaeumeSehen($user) ? $raum->raumListe() : collect(),
             'canBookRooms'        => $raum->darfRaeumeBuchen($user),
-            'userColors'          => [],
+            'userColors'          => $this->farbenVon($user),
         ]);
     }
 
@@ -434,15 +435,9 @@ class CalendarController extends Controller
      */
     public function feed(string $token)
     {
-        $setting = \App\Models\Setting::where('module', 'Kalender')
-            ->where('setting', 'like', 'feed_token_%')
-            ->where('value', $token)
-            ->first();
-
-        abort_if(!$setting, 404, 'Ungültiger Feed-Token.');
-
-        $userId = (int) str_replace('feed_token_', '', $setting->setting);
-        $user   = \App\Models\User::findOrFail($userId);
+        // Token liegt am Benutzer (users.calendar_token); ohne Kalender-Recht kein Feed
+        $user = $token !== '' ? User::where('calendar_token', $token)->first() : null;
+        abort_if(!$user || !$user->can('view calendar'), 404, 'Ungültiger Feed-Token.');
 
         $kalender = $this->sichtbareKalender($user);
 
@@ -468,7 +463,7 @@ class CalendarController extends Controller
         $lines[] = "END:VCALENDAR";
 
         return response(implode("\r\n", $lines), 200, [
-            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Type' => 'text/calendar; charset=utf-8',
             'Content-Disposition' => 'inline; filename="kalender.ics"',
         ]);
     }
@@ -489,6 +484,9 @@ class CalendarController extends Controller
             return response()->json([]);
         }
 
+        // Anzahl der Treffer: Standard 20, höchstens 50
+        $limit = min(50, max(1, (int) $request->query('limit', 20)));
+
         $sichtbareIds = $this->sichtbareKalender($user)->pluck('id');
 
         $treffer = OxTermin::whereIn('ox_calendar_id', $sichtbareIds)
@@ -499,19 +497,24 @@ class CalendarController extends Controller
             })
             ->with('kalender')
             ->orderBy('beginn', 'desc')
-            ->limit(40)
+            ->limit($limit * 2)
             ->get()
             ->unique(fn (OxTermin $t) => $t->verbund_uid ?: 'id_' . $t->id)
-            ->take(20)
+            ->take($limit)
             ->values();
 
+        $zone = config('app.timezone', 'Europe/Berlin');
+
         return response()->json($treffer->map(fn ($t) => [
-            'id'        => $t->id,
-            'titel'     => $t->titel,
-            'ort'       => $t->ort,
-            'beginn'    => $t->beginn->timezone('Europe/Berlin')->format('d.m.Y H:i'),
-            'beginn_raw' => $t->beginn->toIso8601String(),
-            'kalender'  => ['id' => $t->ox_calendar_id, 'name' => $t->kalender?->name, 'farbe' => $t->kalender?->farbe],
+            'id'         => $t->id,
+            'titel'      => $t->titel,
+            'ort'        => $t->ort,
+            'beginn'     => $t->beginn->copy()->timezone($zone)->format($t->ganztaegig ? 'd.m.Y' : 'd.m.Y H:i'),
+            'ende'       => $t->ende?->copy()->timezone($zone)->format($t->ganztaegig ? 'd.m.Y' : 'd.m.Y H:i'),
+            'beginn_iso' => $t->beginn->toIso8601String(),
+            'beginn_raw' => $t->beginn->toIso8601String(), // vom Frontend genutzt (gotoDate)
+            'ganztaegig' => (bool) $t->ganztaegig,
+            'kalender'   => ['id' => $t->ox_calendar_id, 'name' => $t->kalender?->name, 'farbe' => $t->kalender?->farbe],
         ]));
     }
 
@@ -524,13 +527,8 @@ class CalendarController extends Controller
      */
     public function generateFeedToken(Request $request)
     {
-        $user  = auth()->user();
-        $token = bin2hex(random_bytes(32));
-
-        \App\Models\Setting::updateOrCreate(
-            ['module' => 'Kalender', 'setting' => 'feed_token_' . $user->id],
-            ['value'  => $token]
-        );
+        // Neuer Token macht den bisherigen Abo-Link ungültig
+        auth()->user()->forceFill(['calendar_token' => bin2hex(random_bytes(32))])->save();
 
         return redirectBack('success', 'Feed-Token wurde generiert.');
     }
@@ -542,14 +540,34 @@ class CalendarController extends Controller
     {
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
-            'url'   => 'required|url|max:2000',
-            'farbe' => 'nullable|string|max:7',
+            'url'   => 'required|url:http,https|max:2000',
+            'farbe' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ], [
+            'farbe.regex' => 'Bitte eine Farbe als Hex-Wert (#rrggbb) wählen.',
         ]);
 
-        auth()->user()->icalFeeds()->create([
+        $user = auth()->user();
+        if ($user->icalFeeds()->count() >= self::MAX_ICAL_FEEDS) {
+            return redirectBack('warning', 'Es können höchstens ' . self::MAX_ICAL_FEEDS . ' Feeds abonniert werden.');
+        }
+
+        // Feed muss erreichbar sein und gültiges iCal liefern
+        try {
+            $antwort = Http::timeout(15)
+                ->withHeaders(['Accept' => 'text/calendar, application/octet-stream, */*'])
+                ->get($validated['url']);
+            if (!$antwort->successful()) {
+                return redirectBack('danger', 'Der Feed ist nicht erreichbar (HTTP ' . $antwort->status() . ').');
+            }
+            Reader::read($antwort->body());
+        } catch (\Throwable $e) {
+            return redirectBack('danger', 'Der Feed konnte nicht gelesen werden. Bitte die Adresse prüfen.');
+        }
+
+        $user->icalFeeds()->create([
             'name'  => $validated['name'],
             'url'   => $validated['url'],
-            'farbe' => $validated['farbe'] ?? '#6366f1',
+            'farbe' => strtolower($validated['farbe']),
             'aktiv' => true,
         ]);
 
@@ -565,8 +583,8 @@ class CalendarController extends Controller
 
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
-            'url'   => 'required|url|max:2000',
-            'farbe' => 'nullable|string|max:7',
+            'url'   => 'required|url:http,https|max:2000',
+            'farbe' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'aktiv' => 'boolean',
         ]);
 
@@ -590,40 +608,51 @@ class CalendarController extends Controller
     // Benutzer-spezifische Kalenderfarben
     // =========================================================================
 
+    /** Persönliche Kalenderfarben: { kalender_id: "#rrggbb" } (Tabelle user_calendar_colors). */
     public function getColors(): JsonResponse
     {
-        $userId = auth()->id();
-        $colors = \App\Models\Setting::where('module', 'Kalender')
-            ->where('setting', 'like', "user_color_{$userId}_%")
-            ->pluck('value', 'setting')
-            ->mapWithKeys(fn ($v, $k) => [str_replace("user_color_{$userId}_", '', $k) => $v]);
-
-        return response()->json($colors);
+        return response()->json($this->farbenVon(auth()->user()), 200, [], JSON_FORCE_OBJECT);
     }
 
+    /**
+     * Speichert alle persönlichen Kalenderfarben auf einmal (sync): nicht mehr gesendete
+     * Farben werden entfernt, unbekannte Kalender-IDs ignoriert.
+     */
     public function saveColors(Request $request): JsonResponse
     {
-        $userId = auth()->id();
-        $colors = $request->validate(['colors' => 'required|array'])['colors'];
+        $daten = $request->validate([
+            'farben'   => 'present|array|max:200',
+            'farben.*' => ['string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ], [
+            'farben.*.regex' => 'Farben bitte als Hex-Wert (#rrggbb) angeben.',
+        ]);
 
-        foreach ($colors as $calId => $color) {
-            \App\Models\Setting::updateOrCreate(
-                ['module' => 'Kalender', 'setting' => "user_color_{$userId}_{$calId}"],
-                ['value'  => $color]
-            );
+        $gueltig = OxCalendar::whereIn('id', array_map('intval', array_keys($daten['farben'])))->pluck('id')->all();
+        $sync = [];
+        foreach ($daten['farben'] as $kalenderId => $farbe) {
+            if (in_array((int) $kalenderId, $gueltig, true)) {
+                $sync[(int) $kalenderId] = ['farbe' => strtolower($farbe)];
+            }
         }
 
-        return response()->json(['ok' => true]);
+        auth()->user()->calendarColors()->sync($sync);
+
+        return response()->json(['success' => true, 'count' => count($sync)]);
     }
 
     public function resetColor(OxCalendar $oxCalendar): JsonResponse
     {
-        $userId = auth()->id();
-        \App\Models\Setting::where('module', 'Kalender')
-            ->where('setting', "user_color_{$userId}_{$oxCalendar->id}")
-            ->delete();
+        auth()->user()->calendarColors()->detach($oxCalendar->id);
 
-        return response()->json(['ok' => true]);
+        return response()->json(['success' => true]);
+    }
+
+    /** @return array<int, string> */
+    private function farbenVon(User $user): array
+    {
+        return $user->calendarColors()->get()
+            ->mapWithKeys(fn (OxCalendar $kalender) => [$kalender->id => $kalender->pivot->farbe])
+            ->all();
     }
 
     // =========================================================================
@@ -984,6 +1013,8 @@ class CalendarController extends Controller
                         'allDay' => $allDay,
                         'color'  => $feed->farbe ?? '#6366f1',
                         'extendedProps' => [
+                            'source'       => 'ical_feed',
+                            'feedId'       => $feed->id,
                             'calendarId'   => 'ical_' . $feed->id,
                             'calendarName' => $feed->name,
                             'ort'          => isset($vevent->LOCATION) ? (string) $vevent->LOCATION : '',

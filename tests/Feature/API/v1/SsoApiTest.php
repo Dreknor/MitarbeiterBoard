@@ -189,7 +189,8 @@ class SsoApiTest extends ApiTestCase
         $this->mockKeycloak();
 
         $this->get('/auth/redirect')->assertRedirect('https://sso.schule.test/auth');
-        $this->get('/auth/callback')->assertRedirect(url('/'));
+        // Keycloak kehrt immer mit code/state zurück (ohne code startet der Callback den Login neu)
+        $this->get('/auth/callback?code=keycloak-code&state=web')->assertRedirect(url('/'));
 
         $this->assertAuthenticatedAs($this->user);
     }
@@ -201,7 +202,7 @@ class SsoApiTest extends ApiTestCase
 
         $this->start();                   // App-Login begonnen, aber nicht abgeschlossen
         $this->get('/auth/redirect');     // danach normaler Web-Login im selben Browser
-        $this->get('/auth/callback')->assertRedirect(url('/'));
+        $this->get('/auth/callback?code=keycloak-code&state=web')->assertRedirect(url('/'));
 
         $this->assertAuthenticatedAs($this->user);
     }
