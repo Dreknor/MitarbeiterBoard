@@ -69,5 +69,8 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.trainings._upcoming_trainings_card', \App\View\Composers\UpcomingTrainingsComposer::class);
         // Phase 2 – Pädagogisches Tagebuch Dashboard-Card
         View::composer('dashboard.cards.paed_diary', \App\View\Composers\PaedDiaryComposer::class);
+        // Monitoring (Systemstatus): Statusleiste im Dashboard + Reiter in den Einstellungen
+        View::composer('monitoring.statusleiste', \App\View\Composers\MonitoringStatusComposer::class);
+        View::composer('monitoring.einstellungen', \App\View\Composers\MonitoringEinstellungenComposer::class);
     }
 }

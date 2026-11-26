@@ -15,7 +15,9 @@
                 </div>
                 <div class="card-body">
                     <div class="container-fluid">
-                        @if(!is_null($modul))
+                        @if($modul === 'Monitoring')
+                            @include('monitoring.einstellungen')
+                        @elseif(!is_null($modul))
                             <form method="post" action="{{url('settings')}}" class="form-horizontal" enctype='multipart/form-data'>
                             @csrf
                             @foreach($module[$modul] as $setting)

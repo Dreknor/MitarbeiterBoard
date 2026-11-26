@@ -49,6 +49,8 @@ class Kernel extends ConsoleKernel
         // Boards: seit 90 Tagen gelöschte Karten endgültig entfernen
         $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->geloeschteKartenBereinigen())->dailyAt('03:40')->name('ergebnisboards-papierkorb');
         $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
+        // Monitoring: Heartbeat-Zeitlimit und Webserver prüfen, Störungen melden
+        $schedule->call(fn () => app(\App\Services\Monitoring\MonitoringService::class)->pruefen())->everyFiveMinutes()->name('monitoring-pruefen')->withoutOverlapping(10);
 
         //Recurring procedures
         $schedule->call('App\Http\Controllers\RecurringProcedureController@checkStart')->dailyAt('01:00');

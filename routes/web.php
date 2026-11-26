@@ -1008,7 +1008,19 @@ Route::group([
 
 
                     Route::resource('settings', SettingController::class)->only(['index', 'store']);
+
+                    // Monitoring (Systemstatus) – Oberfläche im Reiter settings/Monitoring
+                    Route::prefix('monitoring')->name('monitoring.')->group(function () {
+                        Route::post('einstellungen', [\App\Http\Controllers\MonitoringController::class, 'update'])->name('einstellungen.update');
+                        Route::post('token', [\App\Http\Controllers\MonitoringController::class, 'token'])->name('token');
+                        Route::post('pruefen', [\App\Http\Controllers\MonitoringController::class, 'pruefen'])->name('pruefen');
+                        Route::post('dienste', [\App\Http\Controllers\MonitoringController::class, 'dienstAnlegen'])->name('dienste.anlegen');
+                        Route::delete('dienste/{dienst}', [\App\Http\Controllers\MonitoringController::class, 'dienstLoeschen'])->name('dienste.loeschen');
+                    });
                 });
+
+                // Monitoring: Statusleiste neu laden (Sichtbarkeit nach Rollen prüft der Controller)
+                Route::get('monitoring/statusleiste', [\App\Http\Controllers\MonitoringController::class, 'statusleiste'])->name('monitoring.statusleiste');
 
                 /*
                  * Klassenraum-Tools (Lautstärke-Szenen, Timer) – Vollbildseiten für Beamer/Tafel

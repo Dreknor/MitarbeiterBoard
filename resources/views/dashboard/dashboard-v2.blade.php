@@ -62,6 +62,11 @@
         </div>
     </div>
 
+    {{-- ─── Systemstatus (Monitoring, nur für berechtigte Rollen) ────────── --}}
+    <div class="px-4">
+        @include('monitoring.statusleiste')
+    </div>
+
     {{-- ─── Dashboard-Grid ─────────────────────────────────────────────── --}}
     {{-- @resize-card / @toggle-card werden von cardWrapper via $dispatch nach oben gebubbled --}}
     <div x-ref="grid" class="dashboard-grid px-4 pb-6"

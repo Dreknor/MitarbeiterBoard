@@ -37,6 +37,11 @@ use Illuminate\Support\Facades\Route;
 Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import'])
     ->middleware('throttle:10,1');
 
+// Monitoring: Heartbeat (z. B. Home Assistant), Authorization: Bearer <Token aus Einstellungen → Monitoring>
+Route::post('monitoring/heartbeat', [\App\Http\Controllers\API\MonitoringHeartbeatController::class, 'store'])
+    ->middleware(['json', 'throttle:30,1'])
+    ->name('api.monitoring.heartbeat');
+
 /*
 |--------------------------------------------------------------------------
 | API v1 – Pädagogen-App (Schüler-View, Tagebuch, Graduierung, Diagnose)
