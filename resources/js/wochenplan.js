@@ -350,6 +350,25 @@ function registerWochenplanComponents(Alpine) {
         async erneutVersuchen() {
             await this.senden('POST', `${this.basis}/ablage/erneut`);
         },
+        // Angepasste Arbeitsblätter: Abzeichen je Klassenplan-Datei und „Angepasste Fassung erzeugen“
+        abInfo(d) {
+            const info = this.plan.arbeitsblaetter?.dateien?.[d.id];
+            if (!info) return null;
+            const text = {
+                erkennung: ['wird erkannt …', 'wp-badge-blue'],
+                zu_pruefen: ['zur Prüfung', 'wp-badge-amber'],
+                entwurf: ['zur Prüfung', 'wp-badge-amber'],
+                fehler: ['Fehler', 'wp-badge-red'],
+            }[info.status];
+            if (text) return { ...info, text: '👓 ' + text[0], klasse: text[1] };
+            return { ...info, text: '👓 angepasst für ' + info.fassungen + (info.fassungen === 1 ? ' Kind' : ' Kinder'), klasse: 'wp-badge-violet' };
+        },
+        async dateiAnpassen(d) {
+            const daten = await this.senden('POST', d.anpassen_url);
+            if (daten?.url && window.confirm((daten.meldung || '') + '\n\nJetzt zur Prüfung öffnen?')) {
+                window.location.href = daten.url;
+            }
+        },
         dateiStatus(d) {
             return {
                 lokal: ['Nur im MitarbeiterBoard', 'wp-badge-gray'],

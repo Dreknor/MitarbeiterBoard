@@ -23,6 +23,9 @@
                     <i class="fas fa-plus"></i> Neues Blatt
                 </a>
             @endcan
+            @if(Route::has('wiki.show'))
+                <a href="{{ route('wiki.show', 'angepasste-arbeitsblaetter') }}" class="ab-icon-btn" title="Handbuch"><i class="fas fa-book-open"></i></a>
+            @endif
             <button type="button" class="ab-icon-btn" data-tour-start="angepasste-arbeitsblaetter" title="Rundgang starten"><i class="fas fa-question-circle"></i></button>
         </div>
     </div>

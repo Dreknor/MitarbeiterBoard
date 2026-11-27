@@ -197,6 +197,18 @@ function canvasDrehen(c) {
     return n;
 }
 
+/** Vorschau-Seite (A4/A3 in mm) auf die Breite des iframes verkleinern. */
+function einpassen(rahmen) {
+    try {
+        const doc = rahmen.contentDocument;
+        const seite = doc?.querySelector('.ab-seite');
+        if (!seite) return;
+        doc.body.style.zoom = '';
+        const faktor = Math.min(1, (rahmen.clientWidth - 24) / seite.offsetWidth);
+        doc.body.style.zoom = String(Math.max(0.3, faktor));
+    } catch (e) { /* ohne Zugriff unverändert */ }
+}
+
 const alsBlob = (canvas, typ = 'image/jpeg', qualitaet = 0.88) => new Promise((ok) => canvas.toBlob(ok, typ, qualitaet));
 
 function registerComponents(Alpine) {
@@ -829,7 +841,7 @@ function registerComponents(Alpine) {
                     });
                     const scroll = rahmen.contentWindow?.scrollY || 0;
                     rahmen.srcdoc = antwort.text;
-                    rahmen.onload = () => rahmen.contentWindow?.scrollTo(0, scroll);
+                    rahmen.onload = () => { einpassen(rahmen); rahmen.contentWindow?.scrollTo(0, scroll); };
                 } catch (err) {
                     this.meldungFehler = 'Vorschau: ' + err.message;
                 }
@@ -957,7 +969,9 @@ function registerComponents(Alpine) {
                     if (!this.offen || !this.$refs.beispiel) return;
                     try {
                         const antwort = await anfrage(this.urls.vorschau, { methode: 'POST', text: true, daten: { werte: this.offen.werte } });
-                        this.$refs.beispiel.srcdoc = antwort.text;
+                        const rahmen = this.$refs.beispiel;
+                        rahmen.onload = () => einpassen(rahmen);
+                        rahmen.srcdoc = antwort.text;
                     } catch (err) {
                         this.fehler = err.message;
                     }

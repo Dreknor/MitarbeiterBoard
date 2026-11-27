@@ -50,7 +50,7 @@ class SehprofilTest extends TestCase
     public function test_rechte(): void
     {
         $klasse = Klasse::factory()->create();
-        $kind = Schueler::factory()->create(['klasse_id' => $klasse->id]);
+        $kind = Schueler::factory()->create(['klasse_id' => $klasse->id, 'vorname' => 'Mira']);
 
         $this->actingAs($this->lehrkraft(['create adapted worksheets']));
         $this->get(route('arbeitsblaetter.profile'))->assertOk();

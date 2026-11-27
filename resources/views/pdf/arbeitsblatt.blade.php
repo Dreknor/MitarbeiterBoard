@@ -97,7 +97,11 @@
     @if($fusszeile)<div class="ab-fuss">{{ $fusszeile }}</div>@endif
 @endif
 <div class="ab-seite">
-    @if($titel !== '')
+    @php
+        $erste = $struktur['bausteine'][0] ?? null;
+        $titelDoppelt = $erste && $erste['typ'] === 'ueberschrift' && mb_strtolower(trim($erste['text'])) === mb_strtolower(trim($titel));
+    @endphp
+    @if($titel !== '' && ! $titelDoppelt)
         <h1>{{ $titel }}</h1>
     @endif
 

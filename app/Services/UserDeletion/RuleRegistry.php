@@ -41,6 +41,7 @@ class RuleRegistry
         'audits.user_id',
         'pers_access_logs.resource_id',
         'ergebnis_board_zugriffe.berechtigter_id',
+        'ab_ki_verbrauch.user_id',
     ];
 
     /**
@@ -205,6 +206,11 @@ class RuleRegistry
             Rule::anonymize('Pädagogik', 'Kommentare auf Boards', 'ergebnis_kommentare', 'user_id'),
             Rule::delete('Pädagogik', 'Punkte in Board-Abstimmungen', 'ergebnis_karten_stimmen', 'user_id'),
             Rule::anonymize('Pädagogik', 'Änderungsverlauf von Boards', 'ergebnis_board_verlauf', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Angepasste Arbeitsblätter (erstellt von)', 'ab_blaetter', 'erstellt_von'),
+            Rule::anonymize('Pädagogik', 'Angepasste Arbeitsblätter (geprüft von)', 'ab_blaetter', 'geprueft_von'),
+            Rule::anonymize('Pädagogik', 'Angepasste Fassungen (erzeugt von)', 'ab_fassungen', 'erzeugt_von'),
+            Rule::anonymize('Pädagogik', 'Sehprofile (zuletzt geändert von)', 'ab_sehprofile', 'geaendert_von'),
+            Rule::nullify('Pädagogik', 'KI-Verbrauch der Arbeitsblätter', 'ab_ki_verbrauch', 'user_id'),
 
             // ── Personal: Bearbeiter-Verweise (die Person hat für andere gehandelt) ──
             Rule::anonymize('Personal (Bearbeiter)', 'Vertragsänderungen (geändert von)', 'contract_audits', 'changed_by'),

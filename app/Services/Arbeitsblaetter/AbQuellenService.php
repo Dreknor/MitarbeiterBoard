@@ -305,7 +305,7 @@ class AbQuellenService
                 }
                 $text = $this->elementText($element);
                 if ($text !== '') {
-                    $bausteine[] = ['typ' => 'text', 'text' => $text];
+                    $bausteine[] = $this->istUeberschrift($element) ? ['typ' => 'ueberschrift', 'text' => $text] : ['typ' => 'text', 'text' => $text];
                 }
             } elseif ($element instanceof Text || $element instanceof ListItem) {
                 $text = $this->elementText($element);
@@ -316,6 +316,15 @@ class AbQuellenService
                 $this->docxElemente($element, $bausteine, $abbildungen);
             }
         }
+    }
+
+    /** Absatzformat „Überschrift …“/„Heading …“/„Titel“ → Überschrift. */
+    private function istUeberschrift(mixed $element): bool
+    {
+        $stil = method_exists($element, 'getParagraphStyle') ? $element->getParagraphStyle() : null;
+        $name = is_string($stil) ? $stil : (is_object($stil) && method_exists($stil, 'getStyleName') ? (string) $stil->getStyleName() : '');
+
+        return (bool) preg_match('/^(heading|title|titel|.*berschrift)/i', $name);
     }
 
     private function docxBild(Image $bild, array &$bausteine, array &$abbildungen): void

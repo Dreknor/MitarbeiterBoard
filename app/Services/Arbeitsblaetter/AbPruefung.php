@@ -124,7 +124,7 @@ class AbPruefung
 
     private function profilkinder(): array
     {
-        $ohneKlasse = Schueler::whereIn('id', Sehprofil::where('aktiv', true)->select('schueler_id'))->whereNull('klasse_id')->get();
+        $ohneKlasse = Schueler::whereIn('id', Sehprofil::where('aktiv', true)->select('schueler_id'))->whereDoesntHave('klasse')->get();
 
         return ['titel' => 'Kinder mit Sehprofil', 'ok' => $ohneKlasse->isEmpty(), 'todo' => $ohneKlasse->isNotEmpty(),
             'text' => $ohneKlasse->isEmpty()

@@ -424,7 +424,18 @@
                                     <span x-show.important="d.vom_klassenplan" class="wp-badge wp-badge-blue">vom Klassenplan</span>
                                     <span x-show.important="plan.ablage?.aktiv || d.status !== 'lokal'" class="wp-badge" :class="dateiStatus(d)[1]" x-text="dateiStatus(d)[0]" :title="d.fehler || ''"></span>
                                     <template x-if="d.nextcloud"><a :href="d.nextcloud" target="_blank" rel="noopener" class="text-xs text-blue-600">Nextcloud ↗</a></template>
+                                    {{-- Angepasste Arbeitsblätter (Sehprofile) --}}
+                                    <template x-if="d.angepasst">
+                                        <span class="wp-badge wp-badge-violet" title="Angepasste Fassung nach dem Sehprofil dieses Kindes">Angepasste Fassung</span>
+                                    </template>
+                                    <template x-if="d.angepasst && d.original_url"><a :href="d.original_url" target="_blank" class="text-xs text-blue-600">Original ansehen</a></template>
+                                    <template x-if="abInfo(d)">
+                                        <a :href="abInfo(d).url" class="wp-badge" :class="abInfo(d).klasse" x-text="abInfo(d).text" :title="'Angepasste Arbeitsblätter: ' + abInfo(d).status_text"></a>
+                                    </template>
                                 </div>
+                                <template x-if="darf && plan.arbeitsblaetter?.aktiv && !d.vom_klassenplan && !d.angepasst && !abInfo(d) && d.anpassen_url">
+                                    <button type="button" class="text-xs text-violet-700 hover:underline mt-0.5" @click="dateiAnpassen(d)" title="Für Kinder mit Sehprofil in großer Schrift neu setzen">👓 Angepasste Fassung erzeugen</button>
+                                </template>
                             </div>
                             <template x-if="darf && !d.vom_klassenplan">
                                 <button type="button" class="wp-btn-icon is-danger" title="Entfernen" @click="dateiEntfernen(d)">🗑</button>
