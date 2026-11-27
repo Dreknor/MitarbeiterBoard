@@ -77,7 +77,7 @@
                     <p class="text-sm text-gray-500 mt-0.5">
                         {{ $doc->documentType?->name }}
                         @if($doc->issue_date) · Ausgestellt: {{ $doc->issue_date->format('d.m.Y') }} @endif
-                        @if($doc->expiry_date) · Ablauf: <span class="{{ $doc->expiry_date->isPast() ? 'text-red-600 font-medium' : ($doc->expiry_date->diffInDays(now()) < 30 ? 'text-yellow-600 font-medium' : '') }}">{{ $doc->expiry_date->format('d.m.Y') }}</span> @endif
+                        @if($doc->expiry_date) · Ablauf: <span class="{{ $doc->expiry_date->isPast() ? 'text-red-600 font-medium' : (((int) $doc->expiry_date->diffInDays(now(), true)) < 30 ? 'text-yellow-600 font-medium' : '') }}">{{ $doc->expiry_date->format('d.m.Y') }}</span> @endif
                     </p>
                 </div>
                 <div class="flex items-center gap-3 ml-4">

@@ -1,7 +1,7 @@
 <table class="table border" style="break-inside: auto">
     <thead>
     <tr>
-        <td colspan="{{$month->diffInDays($month->copy()->endOfMonth())+1}}">
+        <td colspan="{{((int) $month->diffInDays($month->copy()->endOfMonth(), true))+1}}">
             {{$month->monthName}} {{$month->year}}
         </td>
     </tr>

@@ -22,7 +22,7 @@
         </div>
         <div class="flex gap-3 items-center flex-wrap">
             @if($isRange)
-                @php $spanMonths = $periodStart->diffInMonths($periodEnd) + 1; @endphp
+                @php $spanMonths = ((int) $periodStart->diffInMonths($periodEnd, true)) + 1; @endphp
                 <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $periodStart->copy()->subMonths($spanMonths)->format('Y-m')]) }}?bis={{ $periodEnd->copy()->subMonths($spanMonths)->format('Y-m') }}"
                    class="btn-personal-secondary text-sm">&larr;</a>
                 <a href="{{ route('personal.timesheet-validation.index', ['employe' => $employe->id, 'date' => $periodStart->copy()->addMonths($spanMonths)->format('Y-m')]) }}?bis={{ $periodEnd->copy()->addMonths($spanMonths)->format('Y-m') }}"

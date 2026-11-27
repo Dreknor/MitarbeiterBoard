@@ -48,7 +48,7 @@ class RosterEvents extends Model
 
     public function getDurationAttribute()
     {
-        return $this->start->diffInMinutes($this->end);
+        return ((int) $this->start->diffInMinutes($this->end, true));
     }
 
 

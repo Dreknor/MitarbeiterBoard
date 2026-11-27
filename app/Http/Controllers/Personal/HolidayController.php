@@ -94,7 +94,7 @@ class HolidayController extends Controller
         $start = Carbon::parse($data['start_date']);
         $ende = Carbon::parse($data['end_date']);
 
-        if ($start->diffInDays($ende) > 400) {
+        if (((int) $start->diffInDays($ende, true)) > 400) {
             return response()->json(['message' => 'Zeitraum zu lang.'], 422);
         }
 

@@ -99,7 +99,7 @@
                                                     @if($events->searchRosterEvent($employe, $time)->first()->end->lessThanOrEqualTo(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $day->format('Y-m-d').' '.$pdfEnde)))
                                                     style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->duration / 15) * 3 }}mm; "
                                                     @else
-                                                    style="height: {{ ($events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' '.$pdfEnde)) / 15) * 3 }}mm;"
+                                                    style="height: {{ (((int) $events->searchRosterEvent($employe, $time)->first()->start->diffInMinutes(\Carbon\Carbon::createFromFormat('Y-m-d H:i', $time->format('Y-m-d'). ' '.$pdfEnde), true)) / 15) * 3 }}mm;"
                                                     @endif
                                                 >
                                                     <div class="innerText">

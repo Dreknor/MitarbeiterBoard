@@ -678,7 +678,7 @@ class GradingDocumentationController extends Controller
         // Prüfen ob Session wiedergeöffnet werden kann
         if (!$session->canBeReopened()) {
             $maxDays = settings('session_reopen_days', 'config.grading_documentation');
-            $daysSinceCompleted = $session->completed_at ? $session->completed_at->diffInDays(now()) : 0;
+            $daysSinceCompleted = $session->completed_at ? ((int) $session->completed_at->diffInDays(now(), true)) : 0;
 
             return response()->json([
                 'message' => "Die Session kann nicht wiedergeöffnet werden. Sie wurde vor {$daysSinceCompleted} Tagen abgeschlossen. Maximale Frist: {$maxDays} Tage."

@@ -105,7 +105,7 @@ class RosterService
     private function kopiereInhalte(Roster $quelle, Roster $ziel, Collection $mitarbeitende): void
     {
         $versatz = fn (Carbon $datum) => $ziel->start_date->copy()->startOfDay()
-            ->addDays($quelle->start_date->copy()->startOfDay()->diffInDays($datum->copy()->startOfDay()));
+            ->addDays(((int) $quelle->start_date->copy()->startOfDay()->diffInDays($datum->copy()->startOfDay(), true)));
         $ids = $mitarbeitende->pluck('id');
 
         foreach ($quelle->events()->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', RosterEvents::SOURCE_ABWESENHEIT))->get() as $event) {
@@ -603,7 +603,7 @@ class RosterService
                     if ($zeit->needs_break($termine)) {
                         $konflikte[$employe->id][$datum][] = 'Pause fehlt (über 6 Stunden)';
                     }
-                    if ($zeit->start->diffInMinutes($zeit->end) > 10 * 60) {
+                    if (((int) $zeit->start->diffInMinutes($zeit->end, true)) > 10 * 60) {
                         $konflikte[$employe->id][$datum][] = 'Mehr als 10 Stunden geplant';
                     }
                 } elseif ($geplant->isNotEmpty()) {

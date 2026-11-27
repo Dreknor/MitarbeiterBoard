@@ -22,7 +22,7 @@
                                 <i class="fas fa-clock mr-1"></i>Bis {{ $liste->ende->format('d.m.Y') }}
                                 @if($liste->ende->isPast())
                                     <span class="ml-1 text-red-600 font-medium">abgelaufen</span>
-                                @elseif($liste->ende->diffInDays(now()) <= 3)
+                                @elseif(((int) $liste->ende->diffInDays(now(), true)) <= 3)
                                     <span class="ml-1 text-amber-600 font-medium">bald</span>
                                 @endif
                             </div>

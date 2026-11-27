@@ -674,7 +674,7 @@ class PaedDiaryController extends Controller
 
         $dateFrom = Carbon::parse($request->date_from)->startOfDay();
         $dateTo = Carbon::parse($request->date_to)->endOfDay();
-        if ($dateFrom->diffInDays($dateTo) > \App\Services\PaedDiarySchuelerService::MAX_TAGE) {
+        if (((int) $dateFrom->diffInDays($dateTo, true)) > \App\Services\PaedDiarySchuelerService::MAX_TAGE) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'date_to' => 'Bitte einen Zeitraum von höchstens zwei Jahren wählen.',
             ]);

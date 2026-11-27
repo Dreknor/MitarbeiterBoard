@@ -8,7 +8,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Intervention\Image\ImageManager;
+use Spatie\Image\Enums\Fit;
+use Spatie\Image\Enums\ImageDriver;
+use Spatie\Image\Image;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
@@ -187,19 +189,17 @@ class WikiAnhangService
             if (! $groesse || max($groesse[0], $groesse[1]) <= self::MAX_KANTE) {
                 return;
             }
-            $bild = (new ImageManager(['driver' => 'gd']))->make($pfad);
-            if (function_exists('exif_read_data') && $mime === 'image/jpeg') {
-                $bild->orientate();
-            }
-            $bild->resize(self::MAX_KANTE, self::MAX_KANTE, function ($c) {
-                $c->aspectRatio();
-                $c->upsize();
-            });
-            $bild->save($pfad, 85, match ($mime) {
-                'image/png' => 'png',
-                'image/webp' => 'webp',
-                default => 'jpg',
-            });
+            // spatie/image dreht JPEGs beim Laden automatisch nach EXIF-Ausrichtung.
+            Image::useImageDriver(ImageDriver::Gd)
+                ->loadFile($pfad)
+                ->fit(Fit::Max, self::MAX_KANTE, self::MAX_KANTE)
+                ->quality(85)
+                ->format(match ($mime) {
+                    'image/png' => 'png',
+                    'image/webp' => 'webp',
+                    default => 'jpg',
+                })
+                ->save($pfad);
         } catch (Throwable $e) {
             Log::info('Wiki: Bild konnte nicht verkleinert werden', ['fehler' => $e->getMessage()]);
         }

@@ -600,7 +600,7 @@ class RosterApiController extends Controller
         $von = $request->filled('from') ? Carbon::parse($request->input('from'))->startOfDay() : $standardVon->startOfDay();
         $bis = $request->filled('to') ? Carbon::parse($request->input('to'))->startOfDay() : $standardBis->startOfDay();
 
-        if ($bis->lt($von) || $von->diffInDays($bis) >= self::MAX_DAYS) {
+        if ($bis->lt($von) || ((int) $von->diffInDays($bis, true)) >= self::MAX_DAYS) {
             abort(response()->json([
                 'message' => 'Die übermittelten Daten sind ungültig.',
                 'errors' => ['to' => ['Der Zeitraum darf höchstens '.self::MAX_DAYS.' Tage umfassen.']],

@@ -40,7 +40,7 @@ class TimeRecordingService
             ->first();
 
         if ($offen !== null) {
-            $minuten = $offen->start->copy()->setDateFrom($now)->diffInMinutes($now);
+            $minuten = ((int) $offen->start->copy()->setDateFrom($now)->diffInMinutes($now, true));
             $offen->update([
                 'end' => $now->format('H:i:s'),
                 'pause' => $offen->pause ?: self::gesetzlichePause($minuten),

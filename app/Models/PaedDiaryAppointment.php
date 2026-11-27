@@ -108,11 +108,11 @@ class PaedDiaryAppointment extends Model
         // Jedes Vorkommen wird vom Serienbeginn aus berechnet (Monate ohne Überlauf: 31.01. → 28.02. → 31.03.).
         $n = 0;
         if ($base->lt($startDate)) {
-            $tage = (int) $base->diffInDays($startDate->copy()->startOfDay());
+            $tage = (int) $base->diffInDays($startDate->copy()->startOfDay(), true);
             $n = match ($this->recurring_type) {
                 'daily' => intdiv($tage, $interval),
                 'weekly' => intdiv(intdiv($tage, 7), $interval),
-                'monthly' => intdiv((int) $base->diffInMonths($startDate), $interval),
+                'monthly' => intdiv((int) $base->diffInMonths($startDate, true), $interval),
                 default => 0,
             };
             $n = max(0, $n - 1);
@@ -191,7 +191,7 @@ class PaedDiaryAppointment extends Model
         if ($date->lt($this->start_date)) return false;
         if ($this->recurring_end_date && $date->gt($this->recurring_end_date)) return false;
 
-        $diff = (int) $this->start_date->copy()->startOfDay()->diffInDays($date->copy()->startOfDay());
+        $diff = (int) $this->start_date->copy()->startOfDay()->diffInDays($date->copy()->startOfDay(), true);
 
         return match ($this->recurring_type) {
             'daily'   => $diff % $this->recurring_interval === 0,

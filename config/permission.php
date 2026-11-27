@@ -81,8 +81,41 @@ return [
          * that case, name this `model_uuid`.
          */
 
+        'role_pivot_key' => null, // default 'role_id'
+        'permission_pivot_key' => null, // default 'permission_id'
+
         'model_morph_key' => 'model_id',
+
+        /*
+         * Nur relevant, wenn Teams aktiviert sind (hier nicht der Fall).
+         */
+        'team_foreign_key' => 'team_id',
     ],
+
+    /*
+     * Registriert die Permission-Prüfung am Gate, damit $user->can('…') und
+     * @can('…') über Spatie laufen (seit v6 abschaltbar – muss true bleiben).
+     */
+    'register_permission_check_method' => true,
+
+    /*
+     * Laravel Octane wird nicht verwendet.
+     */
+    'register_octane_reset_listener' => false,
+
+    /*
+     * Events bei Rollen-/Rechtevergabe (seit v6, standardmäßig aus).
+     */
+    'events_enabled' => false,
+
+    /*
+     * Teams-Funktion von Spatie (nicht verwendet).
+     */
+    'teams' => false,
+
+    'team_resolver' => \Spatie\Permission\DefaultTeamResolver::class,
+
+    'use_passport_client_credentials' => false,
 
     /*
      * When set to true, the required permission names are added to the exception

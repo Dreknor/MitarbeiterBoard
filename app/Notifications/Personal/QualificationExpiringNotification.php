@@ -29,7 +29,7 @@ class QualificationExpiringNotification extends Benachrichtigung
 
     public function zeilen(object $notifiable): array
     {
-        $daysLeft = now()->diffInDays($this->qualification->expiry_date, false);
+        $daysLeft = ((int) now()->diffInDays($this->qualification->expiry_date, false));
 
         return [
             "Die Qualifikation „{$this->qualification->qualificationType->name}“ von {$this->qualification->employe->name} läuft in {$daysLeft} Tagen ab.",

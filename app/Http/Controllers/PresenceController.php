@@ -161,7 +161,7 @@ class PresenceController extends Controller
             ]);
         }
 
-        if ($presence->created_at->diffInDays(now()) > 1) {
+        if (((int) $presence->created_at->diffInDays(now(), true)) > 1) {
             return redirect()->back()->with([
                 'type'    => 'warning',
                 'Meldung' => 'Gast kann nur am selben Tag gelöscht werden',

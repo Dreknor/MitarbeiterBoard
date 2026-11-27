@@ -267,7 +267,7 @@ class UpdaterService
         // Prozess ist ohne Abschluss verschwunden (Absturz, kill, Timeout)
         if (in_array($status['state'], [self::STATE_QUEUED, self::STATE_RUNNING], true) && ! $this->isRunning()) {
             $since = isset($status['updated_at']) ? Carbon::parse($status['updated_at']) : null;
-            if (! $since || $since->diffInSeconds(now()) > self::START_GRACE_SECONDS) {
+            if (! $since || ((int) $since->diffInSeconds(now(), true)) > self::START_GRACE_SECONDS) {
                 $status['state'] = self::STATE_FAILED;
                 $status['message'] = 'Der Update-Prozess wurde unerwartet beendet. Bitte das Log prüfen.';
             }

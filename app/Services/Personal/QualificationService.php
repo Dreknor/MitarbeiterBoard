@@ -89,7 +89,7 @@ class QualificationService
             return QualificationStatus::Gueltig;
         }
 
-        $daysLeft = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
+        $daysLeft = ((int) now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false));
 
         if ($daysLeft < 0) return QualificationStatus::Abgelaufen;
 

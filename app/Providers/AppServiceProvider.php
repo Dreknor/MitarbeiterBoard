@@ -31,8 +31,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        // API v1: Die Tabelle personal_access_tokens wird über eine projektinterne Migration angelegt.
-        \Laravel\Sanctum\Sanctum::ignoreMigrations();
+        // API v1: Die Tabelle personal_access_tokens wird über eine projektinterne Migration angelegt
+        // (Sanctum 4 lädt keine eigenen Migrationen mehr).
 
         // Wochenplan: Nextcloud-Ablage (in Tests durch Tests\Fakes\WpNextcloudFake ersetzt)
         $this->app->bind(
@@ -65,7 +65,6 @@ class AppServiceProvider extends ServiceProvider
         DailyNews::observe(VertretungNewsObserver::class);
         VertretungsplanWeek::observe(VertretungWeekObserver::class);
 
-        Carbon::setUTF8(true);
         Carbon::setLocale(config('app.locale'));
         setlocale(LC_TIME, config('app.locale'));
 

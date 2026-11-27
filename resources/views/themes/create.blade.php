@@ -27,7 +27,7 @@
                     </div>
                     <div>
                         <label for="date" class="thm-label">Datum der Besprechung <span class="thm-required">*</span></label>
-                        @if(\Carbon\Carbon::now()->next($group->weekday_name())->diffInDays(\Carbon\Carbon::now()) >= $group->InvationDays)
+                        @if(((int) \Carbon\Carbon::now()->next($group->weekday_name())->diffInDays(\Carbon\Carbon::now(), true)) >= $group->InvationDays)
                             <input type="date" class="thm-input" id="date" name="date" required value="{{ old('date', \Carbon\Carbon::now()->next($group->weekday_name())->format('Y-m-d')) }}" min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
                         @else
                             <input type="date" class="thm-input" id="date" name="date" required value="{{ old('date', \Carbon\Carbon::now()->next($group->weekday_name())->addWeek()->format('Y-m-d')) }}" min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">

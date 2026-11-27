@@ -158,7 +158,7 @@ class GradingDocumentationSession extends Model
         }
 
         $maxDays = settings('session_reopen_days', 'config.grading_documentation');
-        $daysSinceCompleted = $this->completed_at->diffInDays(now());
+        $daysSinceCompleted = ((int) $this->completed_at->diffInDays(now(), true));
 
         return $daysSinceCompleted <= $maxDays;
     }

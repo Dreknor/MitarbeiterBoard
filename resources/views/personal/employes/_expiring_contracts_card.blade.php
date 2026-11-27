@@ -15,7 +15,7 @@
                     <span class="font-medium">{{ $emp->employe?->name ?? '—' }}</span>
                     <span class="text-gray-400 ml-1">({{ $emp->department?->name ?? '—' }})</span>
                 </div>
-                <span class="{{ $emp->end->diffInDays(now()) <= 30 ? 'text-red-600 font-semibold' : 'text-yellow-600' }}">
+                <span class="{{ ((int) $emp->end->diffInDays(now(), true)) <= 30 ? 'text-red-600 font-semibold' : 'text-yellow-600' }}">
                     {{ $emp->end->format('d.m.Y') }}
                 </span>
             </li>

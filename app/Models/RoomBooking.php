@@ -68,7 +68,7 @@ class RoomBooking extends Model
     }
 
     public function getDurationAttribute(){
-        return Carbon::parse($this->start)->diffInMinutes(Carbon::parse($this->end));
+        return ((int) Carbon::parse($this->start)->diffInMinutes(Carbon::parse($this->end), true));
     }
 
     public function getDateAttribute($value){

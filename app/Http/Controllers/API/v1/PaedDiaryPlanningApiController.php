@@ -187,7 +187,7 @@ class PaedDiaryPlanningApiController extends Controller
         if ($resumeOn && $resumeOn->lte($from)) {
             return $this->unprocessable('resume_on', 'Das Datum muss nach dem Beginn der Wiedervorlage liegen.');
         }
-        if ($resumeOn && $from->diffInDays($resumeOn) > self::RESUBMISSION_MAX_DAYS) {
+        if ($resumeOn && ((int) $from->diffInDays($resumeOn, true)) > self::RESUBMISSION_MAX_DAYS) {
             return $this->unprocessable('resume_on', 'Eine Wiedervorlage ist höchstens ' . self::RESUBMISSION_MAX_DAYS . ' Tage möglich.');
         }
 

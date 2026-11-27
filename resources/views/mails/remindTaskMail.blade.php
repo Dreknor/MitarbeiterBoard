@@ -195,7 +195,7 @@
                             $status = 'today';
                             $statusText = 'Heute fällig';
                         } else {
-                            $daysUntil = $today->diffInDays($taskDate);
+                            $daysUntil = ((int) $today->diffInDays($taskDate, true));
                             if ($daysUntil <= 3) {
                                 $statusText = 'In ' . $daysUntil . ' ' . ($daysUntil === 1 ? 'Tag' : 'Tagen');
                             } else {

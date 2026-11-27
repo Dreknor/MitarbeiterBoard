@@ -89,6 +89,6 @@ class TimesheetDays extends Model implements Auditable
             return 0.0;
         }
 
-        return max(0, $this->start->diffInSeconds($this->end) - ((int) $this->pause * 60));
+        return max(0, ((int) $this->start->diffInSeconds($this->end, true)) - ((int) $this->pause * 60));
     }
 }

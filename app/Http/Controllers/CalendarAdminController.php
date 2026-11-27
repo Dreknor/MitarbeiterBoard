@@ -225,12 +225,12 @@ class CalendarAdminController extends Controller
             ->first();
         $checks['letzter_sync']       = $letzterSync?->created_at?->toIso8601String();
         $checks['sync_alter_minuten'] = $letzterSync
-            ? (int) now()->diffInMinutes($letzterSync->created_at)
+            ? (int) now()->diffInMinutes($letzterSync->created_at, true)
             : null;
 
         // Sync älter als 1 Stunde → Warnung
         $checks['sync_veraltet'] = !$letzterSync
-            || now()->diffInMinutes($letzterSync->created_at) > 60;
+            || ((int) now()->diffInMinutes($letzterSync->created_at, true)) > 60;
 
         // 4. Fehlerrate letzte 24h
         $fehler24h = OxSyncLog::where('aktion', 'error')

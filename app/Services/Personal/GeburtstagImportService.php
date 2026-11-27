@@ -201,7 +201,7 @@ class GeburtstagImportService
         if ($datum->gt($heute)) {
             return ['datum' => null, 'fehler' => 'Datum ' . $datum->format('d.m.Y') . ' liegt in der Zukunft'];
         }
-        $alter = $datum->diffInYears($heute);
+        $alter = ((int) $datum->diffInYears($heute, true));
         if ($alter < self::MIN_ALTER || $alter > self::MAX_ALTER) {
             return ['datum' => null, 'fehler' => 'Unplausibles Alter (' . (int) $alter . ' Jahre) bei ' . $datum->format('d.m.Y')];
         }
