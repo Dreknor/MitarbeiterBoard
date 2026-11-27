@@ -182,6 +182,31 @@ class OxCalendarService
      */
     protected function hatKalenderSchreibrecht(User $user, OxCalendar $calendar): bool
     {
+        // OX lässt das Dienstkonto hier nicht schreiben → jeder Versuch endet mit HTTP 403
+        if ($calendar->oxGesperrt()) {
+            return false;
+        }
+
+        return $this->appSchreibrecht($user, $calendar);
+    }
+
+    /**
+     * Darf die Person nach den Regeln des MitarbeiterBoards anlegen, scheitert aber an
+     * fehlenden Schreibrechten des Dienstkontos in OX? Solche Kalender werden in den
+     * Formularen gesperrt angezeigt und erklärt (OxCalendar::OX_SPERRE_HINWEIS).
+     */
+    public function gesperrtDurchOx(User $user, OxCalendar $calendar): bool
+    {
+        return $calendar->oxGesperrt()
+            && $user->can('create calendar events')
+            && $this->appSchreibrecht($user, $calendar);
+    }
+
+    /**
+     * Schreibrecht nach den Regeln des MitarbeiterBoards (Flag + Gruppen), ohne OX-Rechte.
+     */
+    protected function appSchreibrecht(User $user, OxCalendar $calendar): bool
+    {
         $schreibendeGruppen = $calendar->groups->filter(fn ($g) => (bool) $g->pivot->schreibbar);
 
         if ($user->can('manage calendar')) {
@@ -199,6 +224,132 @@ class OxCalendarService
         return $user->groups_rel()
             ->whereIn('groups.id', $schreibendeGruppen->pluck('id'))
             ->exists();
+    }
+
+    // ========================================================================
+    // OX-Rechte des Dienstkontos
+    // ========================================================================
+
+    /**
+     * Prüft per PROPFIND (current-user-privilege-set), ob das Dienstkonto im Kalender
+     * Termine anlegen darf, und speichert das Ergebnis in ox_schreibrecht.
+     *
+     * Anlegen braucht in CalDAV "bind" (oder "write"/"all", die bind enthalten).
+     * Bei Fehlern oder unklarer Antwort bleibt der bisherige Stand erhalten – eine
+     * gestörte Verbindung soll keine Kalender sperren.
+     *
+     * @return bool|null true/false = geprüft, null = nicht ermittelbar
+     */
+    public function oxRechtePruefen(OxCalendar $calendar): ?bool
+    {
+        try {
+            $response = $this->httpClient()
+                ->withOptions(['http_errors' => false])
+                ->send('PROPFIND', $this->buildCalendarUrl($calendar), [
+                    'headers' => [
+                        'Depth'        => '0',
+                        'Content-Type' => 'application/xml; charset=utf-8',
+                    ],
+                    'body' => '<?xml version="1.0" encoding="utf-8"?>
+                        <d:propfind xmlns:d="DAV:">
+                            <d:prop><d:current-user-privilege-set/></d:prop>
+                        </d:propfind>',
+                ]);
+        } catch (\Throwable $e) {
+            Log::info('Kalender-Rechteprüfung nicht möglich', ['kalender' => $calendar->name, 'error' => $e->getMessage()]);
+            return null;
+        }
+
+        if ($response->status() !== 207) {
+            return null;
+        }
+
+        $privilegien = $this->privilegienAusXml($response->body());
+        if ($privilegien === null) {
+            return null;
+        }
+
+        $schreibrecht = (bool) array_intersect($privilegien, ['all', 'write', 'bind']);
+
+        if ($calendar->ox_schreibrecht !== $schreibrecht) {
+            Log::info('Kalender: OX-Schreibrecht geändert', [
+                'kalender'     => $calendar->name,
+                'schreibrecht' => $schreibrecht,
+                'privilegien'  => $privilegien,
+            ]);
+        }
+
+        $calendar->forceFill([
+            'ox_schreibrecht'       => $schreibrecht,
+            'ox_rechte_geprueft_at' => now(),
+        ])->save();
+
+        return $schreibrecht;
+    }
+
+    /**
+     * Rechte aller sichtbaren Kalender prüfen (läuft nach jedem syncAll()).
+     */
+    public function oxRechteAllePruefen(): void
+    {
+        OxCalendar::where('sichtbar', true)->get()
+            ->each(fn (OxCalendar $calendar) => $this->oxRechtePruefen($calendar));
+    }
+
+    /**
+     * Namen der Privilegien aus einer PROPFIND-Antwort, null wenn die Antwort
+     * kein current-user-privilege-set enthält.
+     *
+     * @return array<int, string>|null
+     */
+    protected function privilegienAusXml(string $xml): ?array
+    {
+        $dom  = new \DOMDocument();
+        $prev = libxml_use_internal_errors(true);
+        $ok   = $xml !== '' && $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($prev);
+
+        if (!$ok) {
+            return null;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('d', 'DAV:');
+
+        $set = $xpath->query('//d:propstat[contains(d:status, "200")]//d:current-user-privilege-set');
+        if (!$set || $set->length === 0) {
+            return null;
+        }
+
+        $namen = [];
+        foreach ($xpath->query('d:privilege/*', $set->item(0)) as $knoten) {
+            $namen[] = $knoten->localName;
+        }
+
+        return $namen;
+    }
+
+    /**
+     * Verständliche Fehlermeldung für einen fehlgeschlagenen Schreibzugriff.
+     * HTTP 403 beim Anlegen heißt: OX lässt das Dienstkonto in diesem Kalender
+     * nicht schreiben → Kalender sofort als gesperrt markieren.
+     */
+    protected function schreibFehler(OxCalendar $calendar, \Illuminate\Http\Client\Response $response, string $methode, bool $anlegen): \RuntimeException
+    {
+        if ($response->status() === 403) {
+            if ($anlegen) {
+                $calendar->forceFill(['ox_schreibrecht' => false, 'ox_rechte_geprueft_at' => now()])->save();
+
+                return new \RuntimeException(OxCalendar::OX_SPERRE_HINWEIS . ' (OX: HTTP 403)');
+            }
+
+            return new \RuntimeException(
+                'OX verweigert die Änderung (HTTP 403) – das MitarbeiterBoard darf diesen Termin in OX nicht bearbeiten.'
+            );
+        }
+
+        return new \RuntimeException('CalDAV ' . $methode . ' fehlgeschlagen: HTTP ' . $response->status());
     }
 
     // ========================================================================
@@ -915,6 +1066,10 @@ class OxCalendarService
             $results[$calendar->name] = $this->syncCalendar($calendar);
         }
 
+        // Schreibrechte des Dienstkontos aktualisieren – entsperrt Kalender automatisch,
+        // sobald in OX Schreibrechte vergeben wurden.
+        $this->oxRechteAllePruefen();
+
         // Prüfe auf aufeinanderfolgende Fehler und benachrichtige Admins
         $this->checkConsecutiveErrors();
 
@@ -1312,9 +1467,7 @@ class OxCalendarService
         $response = $this->putEvent($eventUrl, $icalData);
 
         if (!$response->successful()) {
-            throw new \RuntimeException(
-                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
-            );
+            throw $this->schreibFehler($calendar, $response, 'PUT', true);
         }
 
         // ETag aus Response extrahieren
@@ -1397,9 +1550,7 @@ class OxCalendarService
         }
 
         if (!$response->successful()) {
-            throw new \RuntimeException(
-                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
-            );
+            throw $this->schreibFehler($termin->kalender, $response, 'PUT', false);
         }
 
         // Lokalen Cache aktualisieren
@@ -1459,9 +1610,7 @@ class OxCalendarService
         $response = $this->putEvent($eventUrl, $icalData);
 
         if (!$response->successful()) {
-            throw new \RuntimeException(
-                'CalDAV PUT fehlgeschlagen: HTTP ' . $response->status()
-            );
+            throw $this->schreibFehler($calendar, $response, 'PUT', true);
         }
 
         // Lokalen Eintrag mit CalDAV-Metadaten + neuen Daten aktualisieren
@@ -1518,9 +1667,7 @@ class OxCalendarService
             $response = $this->deleteEvent($eventUrl);
 
             if (!$response->successful() && $response->status() !== 404) {
-                throw new \RuntimeException(
-                    'CalDAV DELETE fehlgeschlagen: HTTP ' . $response->status()
-                );
+                throw $this->schreibFehler($termin->kalender, $response, 'DELETE', false);
             }
         } else {
             Log::info('Termin ohne ox_href gelöscht (nur lokal)', [

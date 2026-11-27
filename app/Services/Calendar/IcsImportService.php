@@ -253,11 +253,20 @@ class IcsImportService
         Collection $kalender
     ): array {
         $auswahl  = array_flip(array_map('intval', $auswahl));
-        $ergebnis = ['importiert' => 0, 'fehlgeschlagen' => []];
+        $ergebnis = ['importiert' => 0, 'fehlgeschlagen' => [], 'gesperrt' => []];
+
+        // Kalender, in die OX das Dienstkonto nicht schreiben lässt: nach dem ersten
+        // HTTP 403 nicht mehr für jeden Termin erneut versuchen, sondern einmal melden.
+        $gesperrt = [];
 
         foreach ($eintraege as $e) {
             if (!isset($auswahl[$e['index']])) {
                 continue;
+            }
+
+            $ziel = $kalender->reject(fn ($k) => isset($gesperrt[$k->id]))->values();
+            if ($ziel->isEmpty()) {
+                break;
             }
 
             $daten = [
@@ -271,16 +280,27 @@ class IcsImportService
                 'exdates'      => $e['exdates'],
             ];
 
-            $res = $this->verbund->anlegen($user, $kalender, $daten);
+            $res = $this->verbund->anlegen($user, $ziel, $daten);
 
             if ($res['termine']->isNotEmpty()) {
                 $ergebnis['importiert']++;
             }
 
+            foreach ($ziel as $kal) {
+                if ($kal->oxGesperrt()) {
+                    $gesperrt[$kal->id] = $kal->name;
+                }
+            }
+
             foreach ($res['fehler'] as $kal => $msg) {
+                if (in_array($kal, $gesperrt, true)) {
+                    continue;
+                }
                 $ergebnis['fehlgeschlagen'][$e['titel'] . ' (' . $kal . ')'] = $msg;
             }
         }
+
+        $ergebnis['gesperrt'] = array_values($gesperrt);
 
         return $ergebnis;
     }

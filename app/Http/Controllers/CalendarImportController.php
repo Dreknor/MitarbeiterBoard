@@ -72,6 +72,7 @@ class CalendarImportController extends Controller
             'dateiname'   => $vorschau['dateiname'],
             'eintraege'   => $eintraege,
             'kalender'    => $kalender,
+            'gesperrt'    => $this->gesperrteKalender(),
             'maxAuswahl'  => IcsImportService::MAX_AUSWAHL,
         ]);
     }
@@ -107,6 +108,11 @@ class CalendarImportController extends Controller
 
         $kalender = OxCalendar::whereIn('id', $validated['kalender_ids'])->with('groups')->get();
         foreach ($kalender as $kal) {
+            if ($this->ox->gesperrtDurchOx($user, $kal)) {
+                throw ValidationException::withMessages([
+                    'kalender_ids' => '„' . $kal->name . '“: ' . OxCalendar::OX_SPERRE_HINWEIS,
+                ]);
+            }
             if (!$this->ox->canWriteCalendar($user, $kal)) {
                 abort(403, 'Keine Schreibberechtigung für den Kalender "' . $kal->name . '".');
             }
@@ -124,10 +130,13 @@ class CalendarImportController extends Controller
             $kalender
         );
 
+        $sperrText = $this->sperrText($ergebnis['gesperrt']);
+
         if ($ergebnis['importiert'] === 0) {
             return redirect()->back()->withInput()->with([
                 'type'    => 'danger',
-                'Meldung' => 'Es konnte kein Termin importiert werden: ' . TerminVerbundService::fehlerText($ergebnis['fehlgeschlagen']),
+                'Meldung' => 'Es konnte kein Termin importiert werden. '
+                    . trim($sperrText . ' ' . TerminVerbundService::fehlerText($ergebnis['fehlgeschlagen'])),
             ]);
         }
 
@@ -136,14 +145,46 @@ class CalendarImportController extends Controller
         $text = $ergebnis['importiert'] . ' Termin(e) aus "' . $vorschau['dateiname'] . '" importiert'
             . ' (' . $kalender->pluck('name')->implode(', ') . ').';
 
-        if (!empty($ergebnis['fehlgeschlagen'])) {
+        if (!empty($ergebnis['fehlgeschlagen']) || $sperrText !== '') {
+            $nicht = TerminVerbundService::fehlerText($ergebnis['fehlgeschlagen']);
+
             return redirect()->route('calendar.index')->with([
                 'type'    => 'warning',
-                'Meldung' => $text . ' Nicht übernommen: ' . TerminVerbundService::fehlerText($ergebnis['fehlgeschlagen']),
+                'Meldung' => trim($text . ' ' . $sperrText . ($nicht !== '' ? ' Nicht übernommen: ' . $nicht : '')),
             ]);
         }
 
         return redirect()->route('calendar.index')->with(['type' => 'success', 'Meldung' => $text]);
+    }
+
+    /**
+     * Ein Satz pro Kalender, den OX während des Imports gesperrt hat.
+     *
+     * @param  array<int, string>  $namen
+     */
+    protected function sperrText(array $namen): string
+    {
+        if ($namen === []) {
+            return '';
+        }
+
+        $liste = collect($namen)->map(fn ($n) => '„' . $n . '“')->implode(', ');
+
+        return 'In ' . $liste . ' wurde nichts eingetragen: ' . OxCalendar::OX_SPERRE_HINWEIS;
+    }
+
+    /**
+     * Kalender, in die die Person schreiben dürfte, die OX aber nur lesen lässt.
+     *
+     * @return Collection<int, OxCalendar>
+     */
+    protected function gesperrteKalender(): Collection
+    {
+        $user = auth()->user();
+
+        return $this->ox->sichtbareKalender($user)
+            ->filter(fn (OxCalendar $cal) => $this->ox->gesperrtDurchOx($user, $cal))
+            ->values();
     }
 
     /**

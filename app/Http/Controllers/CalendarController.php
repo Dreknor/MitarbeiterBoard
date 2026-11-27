@@ -45,6 +45,8 @@ class CalendarController extends Controller
         // Schreibbare Kalender für den aktuellen User
         $schreibbareKalender = $kalender->filter(fn ($cal) => $service->canWriteCalendar($user, $cal))->values();
         $canCreate = $user->can('create calendar events') && $schreibbareKalender->isNotEmpty();
+        // Dürfte die Person schreiben, aber OX lässt das MitarbeiterBoard nur lesen → gesperrt anzeigen
+        $gesperrteKalender = $kalender->filter(fn ($cal) => $service->gesperrtDurchOx($user, $cal))->values();
 
         // Persönliche iCal-Feeds des Users
         $icalFeeds = $user->icalFeeds()->where('aktiv', true)->get();
@@ -56,6 +58,7 @@ class CalendarController extends Controller
             'icalFeeds'           => $icalFeeds,
             'feedToken'           => $feedToken,
             'schreibbareKalender' => $schreibbareKalender,
+            'gesperrteKalender'   => $gesperrteKalender,
             'defaultView'         => $defaultView,
             'canCreate'           => $canCreate,
             'canEdit'             => $kalender->contains(fn ($cal) => $service->canEditTermin($user, $cal)),
