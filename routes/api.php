@@ -316,6 +316,8 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
         ->prefix('absences')->name('absences.')->group(function () {
             Route::get('/', [AbsenceApiController::class, 'index'])->name('index');
             Route::post('/', [AbsenceApiController::class, 'store'])->name('store');
+            Route::post('series', [AbsenceApiController::class, 'storeSeries'])->name('series.store');
+            Route::delete('series/{serie}', [AbsenceApiController::class, 'destroySeries'])->whereNumber('serie')->name('series.destroy');
             Route::delete('{absence}', [AbsenceApiController::class, 'destroy'])->whereNumber('absence')->name('destroy');
         });
 });

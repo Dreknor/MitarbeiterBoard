@@ -19,22 +19,42 @@
     $alteWochentage = array_map('intval', (array) old('wochentage', []));
 @endphp
 
+{{--
+    Der Schalter ist immer sichtbar. Der Standard-Grund ist oft „krank“: beim Einschalten wird ein Krank-Grund
+    geleert und neu abgefragt; wird später ein Krank-Grund eingetippt, schaltet sich die Serie wieder aus.
+--}}
 <div class="{{ $k['wrapper'] }}"
      x-data="{
         wiederkehrend: @js(old('wiederkehrend') == '1'),
         rhythmus: @js(old('rhythmus', 'woechentlich')),
         wochentage: @js($alteWochentage),
         monatWochentag: @js((int) old('monat_wochentag', 1)),
-        krank: false,
+        hinweis: false,
         krankGruende: @js($krankGruende),
-        pruefeGrund() {
-            const grund = this.$el.closest('form')?.querySelector('[name=reason]')?.value ?? '';
-            this.krank = this.krankGruende.some(g => g !== '' && grund.includes(g));
-            if (this.krank) this.wiederkehrend = false;
+        feld(name) {
+            return this.$el.closest('form')?.querySelector('[name=' + name + ']');
+        },
+        istKrank() {
+            const grund = this.feld('reason')?.value ?? '';
+            return this.krankGruende.some(g => g !== '' && grund.includes(g));
+        },
+        grundGeaendert() {
+            if (this.wiederkehrend && this.istKrank()) {
+                this.wiederkehrend = false;
+                this.hinweis = true;
+            } else if (!this.istKrank()) {
+                this.hinweis = false;
+            }
         },
         einschalten() {
             if (!this.wiederkehrend) return;
-            const start = this.$el.closest('form')?.querySelector('[name=start]')?.value;
+            const grund = this.feld('reason');
+            if (grund && this.istKrank()) {
+                grund.value = '';
+                this.hinweis = true;
+                this.$nextTick(() => grund.focus());
+            }
+            const start = this.feld('start')?.value;
             if (!start) return;
             const tag = ((new Date(start + 'T12:00:00').getDay() + 6) % 7) + 1;
             if (tag <= 5) {
@@ -43,16 +63,18 @@
             }
         },
      }"
-     x-init="pruefeGrund(); $el.closest('form')?.querySelector('[name=reason]')?.addEventListener('input', () => pruefeGrund())">
+     x-init="feld('reason')?.addEventListener('input', () => grundGeaendert())">
 
     <input type="hidden" name="wiederkehrend" value="0">
-    <label class="{{ $k['check'] }}" x-show.important="!krank">
+    <label class="{{ $k['check'] }}">
         <input type="checkbox" name="wiederkehrend" value="1" x-model="wiederkehrend" @change="einschalten()">
         <i class="fas fa-redo-alt"></i> Wiederkehrend
     </label>
-    <p class="{{ $k['hinweis'] }}" x-show="krank" x-cloak>Krankheit kann nicht wiederkehrend eingetragen werden.</p>
+    <p class="{{ $k['hinweis'] }}" x-show="hinweis" x-cloak>
+        Krankheit kann nicht wiederkehrend eingetragen werden – bitte einen anderen Grund angeben.
+    </p>
 
-    <div x-show="wiederkehrend && !krank" x-cloak style="margin-top: .5rem">
+    <div x-show="wiederkehrend" x-cloak style="margin-top: .5rem">
         <div class="{{ $k['zeile'] }}">
             <div>
                 <label class="{{ $k['label'] }}">Rhythmus</label>

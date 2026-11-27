@@ -2801,6 +2801,17 @@ paths:
                           properties:
                             id: { type: integer }
                             name: { type: string }
+                      series:
+                        type: object
+                        description: Werte für wiederkehrende Abwesenheiten (`POST /absences/series`)
+                        properties:
+                          frequencies: { type: array, items: { type: string, enum: [woechentlich, monatlich] } }
+                          weekdays: { type: array, items: { type: integer }, description: 'ISO 1 (Mo) – 5 (Fr)' }
+                          intervals: { type: array, items: { type: integer }, example: [1, 2, 3, 4] }
+                          month_positions: { type: array, items: { type: integer }, description: '1–4, -1 = letzter' }
+                          excluded_reasons: { type: array, items: { type: string }, description: Gründe, die nicht wiederkehrend sein dürfen (Krankheit) }
+                          earliest_start: { type: string, format: date }
+                          max_duration: { type: string, example: P1Y, description: Ende höchstens so lange nach dem Beginn }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Abwesenheiten]
@@ -2836,6 +2847,81 @@ paths:
                   data: { $ref: '#/components/schemas/Absence' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /absences/series:
+    post:
+      tags: [Abwesenheiten]
+      summary: Wiederkehrende Abwesenheit anlegen
+      description: |
+        Legt für jeden Termin der Regel eine eintägige Abwesenheit an (mit `series`). Rechte für `employe_id`
+        wie bei `POST /absences`. Beginn frühestens heute, Ende höchstens ein Jahr nach dem Beginn, keine
+        Krank-Gründe (`options.series.excluded_reasons`). Wochenenden, Feiertage und Tage, an denen die Person
+        schon abwesend ist (jeder Grund, auch Urlaub), werden übersprungen (`skipped`); Serientermine werden nie
+        mit anderen Abwesenheiten zusammengeführt. Es gibt eine Benachrichtigung pro Serie.
+        - `woechentlich`: `weekdays` (ISO 1–5) und `interval` (alle N Wochen, ab der Woche des Beginns)
+        - `monatlich`: `month_position` (1–4, -1 = letzter) und `month_weekday` (ISO 1–5)
+        422, wenn kein Termin übrig bleibt.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, start, end, frequency]
+              properties:
+                employe_id: { type: integer }
+                reason: { type: string, maxLength: 64 }
+                start: { type: string, format: date }
+                end: { type: string, format: date }
+                show_substitution_plan: { type: boolean, default: true }
+                frequency: { type: string, enum: [woechentlich, monatlich] }
+                weekdays: { type: array, items: { type: integer, minimum: 1, maximum: 5 }, description: Pflicht bei woechentlich }
+                interval: { type: integer, minimum: 1, maximum: 4, default: 1 }
+                month_position: { type: integer, enum: [1, 2, 3, 4, -1], description: Pflicht bei monatlich }
+                month_weekday: { type: integer, minimum: 1, maximum: 5, description: Pflicht bei monatlich }
+            example:
+              reason: Fortbildung
+              start: '2026-12-01'
+              end: '2027-06-30'
+              frequency: woechentlich
+              weekdays: [2]
+              interval: 2
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AbsenceSeries' }
+                  created: { type: integer, description: Angelegte Termine }
+                  skipped: { type: integer, description: Übersprungen, weil die Person schon abwesend ist }
+                  absences: { type: array, items: { $ref: '#/components/schemas/Absence' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /absences/series/{series_id}:
+    delete:
+      tags: [Abwesenheiten]
+      summary: Zukünftige Termine einer Serie löschen
+      description: |
+        Löscht alle Termine nach heute; vergangene Termine und die Regel bleiben erhalten.
+        `delete absences` oder die Person, die die Serie angelegt hat.
+      parameters:
+        - { name: series_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Gelöscht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Serie nicht gefunden }
   /absences/{absence_id}:
     delete:
       tags: [Abwesenheiten]
@@ -3352,6 +3438,23 @@ components:
         from_holiday: { type: boolean, description: Aus genehmigtem Urlaub (nur über den Urlaub änderbar) }
         is_own: { type: boolean }
         can_delete: { type: boolean }
+        series:
+          allOf: [{ $ref: '#/components/schemas/AbsenceSeries' }]
+          nullable: true
+          description: Wiederkehrende Abwesenheit, zu der dieser Termin gehört
+    AbsenceSeries:
+      type: object
+      properties:
+        id: { type: integer }
+        frequency: { type: string, enum: [woechentlich, monatlich] }
+        weekdays: { type: array, nullable: true, items: { type: integer } }
+        interval: { type: integer, nullable: true }
+        month_position: { type: integer, nullable: true, description: '1–4, -1 = letzter' }
+        month_weekday: { type: integer, nullable: true }
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+        description: { type: string, example: jeden Dienstag vom 01.12.2026 bis 30.06.2027 }
+        can_delete_future: { type: boolean, description: 'Zukünftige Termine über DELETE /absences/series/{id} löschbar' }
     ClockStatus:
       type: object
       properties:
