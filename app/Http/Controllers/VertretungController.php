@@ -216,7 +216,7 @@ class VertretungController extends Controller
         // Write some text
 
         $cols = 5;
-        $section->addText('Vertretungsplan für '.$date->formatLocalized("%A %d %B %Y"), $header);
+        $section->addText('Vertretungsplan für '.$date->isoFormat("dddd DD MMMM YYYY"), $header);
 
 
         $cellStyleHead = [

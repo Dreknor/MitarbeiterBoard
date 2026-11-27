@@ -165,7 +165,7 @@ class PaedDiarySchuelerAbsence extends Model
         $best = [];
         $left = 0;
         foreach ($dates as $right => $date) {
-            while ($dates[$left]->diffInDays($date) >= $windowDays) {
+            while (((int) $dates[$left]->diffInDays($date, true)) >= $windowDays) {
                 $left++;
             }
             if ($right - $left + 1 > count($best)) {
@@ -187,7 +187,7 @@ class PaedDiarySchuelerAbsence extends Model
         $previousDate = null;
 
         foreach ($dates as $date) {
-            if ($previousDate && $date->diffInDays($previousDate) > 1) {
+            if ($previousDate && ((int) $date->diffInDays($previousDate, true)) > 1) {
                 if (!empty($currentCluster)) {
                     $clusters[] = $currentCluster;
                 }

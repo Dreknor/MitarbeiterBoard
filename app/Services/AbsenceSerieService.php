@@ -137,7 +137,7 @@ class AbsenceSerieService
             $ersteWoche = $start->copy()->startOfWeek(Carbon::MONDAY);
 
             foreach (CarbonPeriod::create($start, $ende) as $tag) {
-                $woche = (int) floor($ersteWoche->diffInDays($tag->copy()->startOfWeek(Carbon::MONDAY)) / 7);
+                $woche = (int) floor(((int) $ersteWoche->diffInDays($tag->copy()->startOfWeek(Carbon::MONDAY), true)) / 7);
                 if (in_array($tag->dayOfWeekIso, $wochentage, true) && $woche % $serie->intervall === 0) {
                     $tage->push($tag->copy()->startOfDay());
                 }

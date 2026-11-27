@@ -41,7 +41,7 @@ class ContractValidationService
                 return 0;
             }
             // Enddatum ist inklusive: 01.01.–31.12. = 12 Monate
-            return $e->start->diffInMonths($e->end->copy()->addDay());
+            return ((int) $e->start->diffInMonths($e->end->copy()->addDay(), true));
         });
 
         $verlaengerungen = max(0, $kette->count() - 1);

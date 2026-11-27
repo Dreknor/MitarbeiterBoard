@@ -645,8 +645,8 @@ class HortPlanungService
                 $istLang = false;
                 if ($abs->start && $abs->end) {
                     try {
-                        $istLang = \Carbon\Carbon::parse($abs->start)
-                            ->diffInDays(\Carbon\Carbon::parse($abs->end)) > 30;
+                        $istLang = (int) \Carbon\Carbon::parse($abs->start)
+                            ->diffInDays(\Carbon\Carbon::parse($abs->end), true) > 30;
                     } catch (\Throwable) {
                         // Bei Fehler konservativ: nicht als Langzeit zählen
                     }
@@ -692,7 +692,7 @@ class HortPlanungService
                 continue;
             }
 
-            $vorlage = $bestehend->sortBy(fn($m) => abs($m->monat->diffInMonths($datum, false)))->first();
+            $vorlage = $bestehend->sortBy(fn($m) => abs(((int) $m->monat->diffInMonths($datum, false))))->first();
 
             $monat = HortPlanungMonat::create([
                 'hort_planung_id' => $planung->id,

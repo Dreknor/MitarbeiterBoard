@@ -104,7 +104,7 @@ class PaedDiarySchuelerService
 
             if (isset($offen[$key])) {
                 $i = $offen[$key];
-                $diff = Carbon::parse($grouped[$i]['date_to'])->diffInDays(Carbon::parse($entry['date']));
+                $diff = ((int) Carbon::parse($grouped[$i]['date_to'])->diffInDays(Carbon::parse($entry['date']), true));
                 if ($diff === 1) {
                     $grouped[$i]['date_to'] = $entry['date'];
                     $grouped[$i]['entry_ids'][] = $entry['id'];

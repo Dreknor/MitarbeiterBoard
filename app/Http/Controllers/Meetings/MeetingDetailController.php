@@ -59,7 +59,7 @@ class MeetingDetailController extends Controller
             'meeting'          => $meeting,
             'agenda'           => $meeting->themes->sortByDesc('priority')->values(),
             'protokolliertIds' => $protokolliertIds,
-            'meetingDuration'  => $meetingStart->diffInMinutes($meetingEnd),
+            'meetingDuration'  => ((int) $meetingStart->diffInMinutes($meetingEnd, true)),
             'themesDuration'   => (int) $meeting->themes->sum('duration'),
             'participants'     => $participants,
             'inviteRecipients' => $user->can('manage', $meeting) ? $this->meetings->invitationRecipients($meeting) : collect(),

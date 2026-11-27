@@ -173,7 +173,7 @@ class Room extends Model
             return $this->bookings->sortBy('start');
         });
 
-        $week = Cache::remember('vp_week', Carbon::now()->endOfWeek()->diffInSeconds(), function (){
+        $week = Cache::remember('vp_week', ((int) Carbon::now()->endOfWeek()->diffInSeconds(null, true)), function (){
             return VertretungsplanWeek::where('week', Carbon::now()->startOfWeek())->first();
         });
 

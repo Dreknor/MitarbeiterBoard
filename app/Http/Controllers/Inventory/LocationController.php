@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
-use Barryvdh\DomPDF\Facade as PDF;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 
 class LocationController extends Controller
@@ -166,7 +166,7 @@ class LocationController extends Controller
     public function print(Request $request){
         $locations = Location::whereIn('id',$request->selected)->get();
 
-        $pdf = PDF::setOptions(['isRemoteEnabled' => true])->loadView('inventory.pdf.locationListe', [
+        $pdf = PDF::setOptions(['isRemoteEnabled' => true], true)->loadView('inventory.pdf.locationListe', [
             'locations'=>$locations
         ]);
         $pdf->setPaper('A4', 'landscape');

@@ -40,10 +40,7 @@ return new class extends Migration {
 
     private function indexExists(string $table, string $index): bool
     {
-        $connection = Schema::getConnection();
-        $schemaManager = $connection->getDoctrineSchemaManager();
-        $indexes = $schemaManager->listTableIndexes($connection->getTablePrefix().$table);
-        return array_key_exists($index, $indexes);
+        return Schema::hasIndex($table, $index);
     }
 };
 

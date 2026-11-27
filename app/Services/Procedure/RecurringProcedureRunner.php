@@ -45,7 +45,7 @@ class RecurringProcedureRunner
                     $next->addDay();
                 }
                 if ($rp->last_triggered_at) {
-                    $weeksSince = $rp->last_triggered_at->copy()->startOfDay()->diffInWeeks($next);
+                    $weeksSince = ((int) $rp->last_triggered_at->copy()->startOfDay()->diffInWeeks($next, true));
                     if ($weeksSince < $interval) {
                         $next->addWeeks($interval - $weeksSince);
                     }
@@ -144,7 +144,7 @@ class RecurringProcedureRunner
     private function isMissedRun(RecurringProcedure $rp, Carbon $next, Carbon $today): bool
     {
         // Toleranz: ein verpasster Tag (z.B. Scheduler-Ausfall) wird nachgeholt.
-        if ($next->lt($today) && $next->diffInDays($today) <= 1) {
+        if ($next->lt($today) && ((int) $next->diffInDays($today, true)) <= 1) {
             return !$rp->last_triggered_at || $rp->last_triggered_at->lt($next);
         }
         return false;

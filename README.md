@@ -38,7 +38,8 @@ Das System ist modular aufgebaut und umfasst unter anderem folgende Bereiche:
 
 ## Systemvoraussetzungen
 
- * **PHP**: >= 8.1
+ * **Framework**: Laravel 12
+ * **PHP**: >= 8.2 (getestet mit 8.4)
  * **Datenbank**: MySQL / MariaDB
  * **Webserver**: Apache oder Nginx
  * **Node.js & NPM**: Für das Bauen der Frontend-Assets (Vite / TailwindCSS)

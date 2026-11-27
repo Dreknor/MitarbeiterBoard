@@ -5,6 +5,7 @@ namespace Tests\Feature\Absences;
 use App\Models\Absence;
 use App\Models\User;
 use App\Models\VertretungsplanAbsence;
+use App\Models\personal\Holiday;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Tests\Feature\Personal\Zeit\ZeitTestHelpers;
@@ -122,7 +123,8 @@ class AbwesenheitenUebersichtTest extends TestCase
         $fremde = $this->abwesenheit($andere);
         $fremde->forceFill(['creator_id' => $andere->id])->save();
         $urlaub = $this->abwesenheit($ich);
-        $urlaub->forceFill(['holiday_id' => 999])->saveQuietly();
+        $antrag = Holiday::withoutEvents(fn () => Holiday::factory()->for($ich, 'employe')->create());
+        $urlaub->forceFill(['holiday_id' => $antrag->id])->saveQuietly();
         $this->actingAs($ich);
 
         $this->delete("/absences/{$fremde->id}")->assertRedirect();

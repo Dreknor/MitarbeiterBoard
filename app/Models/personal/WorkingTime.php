@@ -89,7 +89,7 @@ class WorkingTime extends Model
     public function getDurationAttribute()
     {
         if ($this->attributes['start'] != "" and $this->attributes['end'] != "") {
-            return $this->start->diffInMinutes($this->end);
+            return ((int) $this->start->diffInMinutes($this->end, true));
         }
 
         return null;
@@ -98,7 +98,7 @@ class WorkingTime extends Model
 
     public function needs_break(?Collection $events = null)
     {
-        if (!is_null($this->attributes['start']) and !is_null($this->attributes['end']) and $this->start->diffInHours($this->end) > 6) {
+        if (!is_null($this->attributes['start']) and !is_null($this->attributes['end']) and ((int) $this->start->diffInHours($this->end, true)) > 6) {
             if (!is_null($events)) {
                 $events = $events->whereInstanceOf(RosterEvents::class);
                 $break = $events->filter(function ($event) {

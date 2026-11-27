@@ -183,7 +183,7 @@ class CalendarController extends Controller
                     // da die Zeitdifferenz 0:00 ergeben würde (Mitternacht bis Mitternacht).
                     $diff = $termin->beginn->diff($termin->ende);
                     if ($termin->ganztaegig) {
-                        $totalDays = (int) $termin->beginn->diffInDays($termin->ende);
+                        $totalDays = (int) $termin->beginn->diffInDays($termin->ende, true);
                         $event['duration'] = ['days' => max(1, $totalDays)];
                     } else {
                         $totalMinutes = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;

@@ -85,7 +85,7 @@ class KrankmeldungService
 
     public function kalendertage(Absence $absence): int
     {
-        return (int) $absence->start->diffInDays($absence->end) + 1;
+        return (int) $absence->start->diffInDays($absence->end, true) + 1;
     }
 
     public function scheinNoetig(Absence $absence): bool

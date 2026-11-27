@@ -2,11 +2,12 @@
 
 ## Overview
 
-Laravel 10 school intranet ("MitarbeiterBoard") for the Evangelisches Schulzentrum Radebeul. German-language domain (models, views, config). PHP 8.1+, MySQL/MariaDB, Vite + TailwindCSS v4, Alpine.js, Livewire 4, Bootstrap 4 (legacy).
+Laravel 12 school intranet ("MitarbeiterBoard") for the Evangelisches Schulzentrum Radebeul. German-language domain (models, views, config). PHP 8.2+, MySQL/MariaDB, Vite + TailwindCSS v4, Alpine.js, Livewire 4, Bootstrap 4 (legacy).
 
 ## Architecture
 
 - **Monolith** – single Laravel app, server-rendered Blade views, no SPA. Alpine.js handles interactive UI (diagnostics, wochenplan, sidebar).
+- **Laravel 12 with the Laravel 10 app skeleton** – `app/Http/Kernel.php`, `app/Console/Kernel.php`, `app/Exceptions/Handler.php`, `config/app.php` providers/aliases and `RouteServiceProvider` are kept on purpose (still supported); no `bootstrap/app.php` fluent config. Carbon 3: `diffIn*()` returns a signed float – write `(int) $a->diffInDays($b, true)` where the old absolute integer is meant. `composer.json` uses `minimum-stability: stable` (no dev versions in the lock). Key majors: Sanctum 4, spatie/laravel-permission 6 (config must keep `register_permission_check_method => true`), Media Library 11, laravel-dompdf 3 (`setOptions()` replaces all options unless the second argument is `true`), PHPUnit 11.
 - **Dual CSS** – Legacy pages use Bootstrap 4 (`public/css/`). Newer modules (diagnostics, paedDiary, wochenplan, rooms, sidebar) use Tailwind v4 via Vite. Tailwind preflight is **disabled** (`corePlugins.preflight: false`) to avoid Bootstrap conflicts. Tailwind is scoped via wrapper classes (e.g. `.diagnostic-wrapper`).
 - **Vite entrypoints** are per-module, not a single bundle – see `vite.config.js`. Views load assets with `@vite()` and `@push('css')`/`@push('js')`.
 - **Authorization** uses `spatie/laravel-permission` (RBAC). Permissions are checked via route middleware (`permission:view wiki`) and in controllers. Policies exist for `DiagnosticSession`, `DiagnosticArea`, `WpPlan` (`WpPlanPolicy`), `GradingDocumentationSession`, `Meeting`, `Post` (`PostPolicy`), `WikiSeite` (`WikiSeitePolicy`), Procedures, Personal and (API v1) `Schueler` (`StudentPolicy`) and `PaedDiaryEntry` (`PaedDiaryPolicy`).

@@ -29,7 +29,7 @@ class Absence extends Model
 
         $days = $this->start->diffInDaysFiltered(function (Carbon $date) {
             return $date->isWeekday() && !is_holiday($date);
-        }, $this->end);
+        }, $this->end, true);
 
         return  $days+1;
 

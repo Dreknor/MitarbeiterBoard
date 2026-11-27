@@ -150,7 +150,7 @@ class TimesheetService
                 continue;
             }
             if ($eintrag->start !== null && $eintrag->end !== null) {
-                $summe += max(0, $eintrag->start->diffInSeconds($eintrag->end) - ((int) $eintrag->pause * 60));
+                $summe += max(0, ((int) $eintrag->start->diffInSeconds($eintrag->end, true)) - ((int) $eintrag->pause * 60));
             }
         }
 
@@ -339,7 +339,7 @@ class TimesheetService
         foreach ($eintraege as $eintrag) {
             $sekunden = 0.0;
             if ($eintrag->start !== null && $eintrag->end !== null) {
-                $sekunden = $eintrag->start->diffInSeconds($eintrag->end);
+                $sekunden = ((int) $eintrag->start->diffInSeconds($eintrag->end, true));
             }
             if ($eintrag->percent_of_workingtime != null) {
                 $sekunden = $tagesSoll / 100 * (float) $eintrag->percent_of_workingtime;
@@ -1058,7 +1058,7 @@ class TimesheetService
 
     private function minutenZwischen(string $start, string $ende): int
     {
-        return (int) Carbon::createFromFormat('H:i', substr($start, 0, 5))->diffInMinutes(Carbon::createFromFormat('H:i', substr($ende, 0, 5)));
+        return (int) Carbon::createFromFormat('H:i', substr($start, 0, 5))->diffInMinutes(Carbon::createFromFormat('H:i', substr($ende, 0, 5)), true);
     }
 
     private function benachrichtigen(Collection $empfaenger, ZeitwirtschaftNotification $notification): void

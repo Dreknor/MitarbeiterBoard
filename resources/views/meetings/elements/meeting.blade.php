@@ -4,7 +4,7 @@
     $bandClass    = $isCancelled ? 'mtg-band-cancelled' : ($isToday ? 'mtg-band-today' : 'mtg-band-upcoming');
     $meetingStart = \Carbon\Carbon::parse($meeting->start_time);
     $meetingEnd   = \Carbon\Carbon::parse($meeting->end_time);
-    $meetingDur   = $meetingStart->diffInMinutes($meetingEnd);
+    $meetingDur   = ((int) $meetingStart->diffInMinutes($meetingEnd, true));
     $themesDur    = $meeting->themes->sum('duration');
 @endphp
 

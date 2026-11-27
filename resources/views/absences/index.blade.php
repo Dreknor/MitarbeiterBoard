@@ -24,7 +24,7 @@
             return ['beendet', 'abw-badge-gray'];
         }
         if ($a->start->gt($heute)) {
-            $tage = (int) $heute->diffInDays($a->start);
+            $tage = (int) $heute->diffInDays($a->start, true);
 
             return [$tage === 1 ? 'ab morgen' : 'in '.$tage.' Tagen', 'abw-badge-blue'];
         }

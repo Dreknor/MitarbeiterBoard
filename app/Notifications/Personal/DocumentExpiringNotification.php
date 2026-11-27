@@ -29,7 +29,7 @@ class DocumentExpiringNotification extends Benachrichtigung
 
     public function zeilen(object $notifiable): array
     {
-        $daysLeft = now()->diffInDays($this->document->expiry_date, false);
+        $daysLeft = ((int) now()->diffInDays($this->document->expiry_date, false));
 
         return [
             "Das Dokument „{$this->document->title}“ von {$this->document->employe->name} läuft in {$daysLeft} Tagen ab.",

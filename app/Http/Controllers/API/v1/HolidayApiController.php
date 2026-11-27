@@ -86,7 +86,7 @@ class HolidayApiController extends Controller
 
         $start = Carbon::parse($data['start_date']);
         $ende = Carbon::parse($data['end_date']);
-        if ($start->diffInDays($ende) > 400) {
+        if (((int) $start->diffInDays($ende, true)) > 400) {
             throw ValidationException::withMessages(['end_date' => 'Zeitraum zu lang.']);
         }
 
