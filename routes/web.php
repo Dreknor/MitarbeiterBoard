@@ -1155,6 +1155,7 @@ Route::group([
                         Route::put('einstellungen', [$e, 'update'])->name('einstellungen.update');
                         Route::post('einstellungen/vorschau', [$e, 'vorschau'])->name('einstellungen.vorschau');
                         Route::post('einstellungen/pruefen', [$e, 'pruefen'])->name('einstellungen.pruefen');
+                        Route::post('einstellungen/schriften', [$e, 'schriften'])->name('einstellungen.schriften');
 
                         Route::prefix('{blatt}')->whereNumber('blatt')->group(function () use ($b, $a) {
                             Route::get('/', [$b, 'edit'])->name('edit');

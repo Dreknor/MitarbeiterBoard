@@ -64,6 +64,11 @@ return [
         'konvertierung' => (bool) env('AB_NEXTCLOUD_KONVERTIERUNG', true),
     ],
 
+    // Ordner mit lizenzierten Microsoft-Schriften (arial.ttf, arialbd.ttf, verdana.ttf, verdanab.ttf,
+    // z. B. aus C:\Windows\Fonts). Fehlen sie, wird Arial durch Liberation Sans (maßgleich) und
+    // Verdana durch DejaVu Sans ersetzt. Der Ordner wird nicht eingecheckt.
+    'schriften_pfad' => env('AB_SCHRIFTEN_PFAD', storage_path('fonts/arbeitsblaetter')),
+
     // Grenzen je Blatt
     'max_seiten' => (int) env('AB_MAX_SEITEN', 10),
     'max_upload_kb' => 20480,

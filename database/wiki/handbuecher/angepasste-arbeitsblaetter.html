@@ -14,13 +14,14 @@
 <table>
 <thead><tr><th>Bereich</th><th>Einstellungen</th></tr></thead>
 <tbody>
-<tr><td>Schrift</td><td>Atkinson Hyperlegible (besonders gut unterscheidbare Buchstaben), DejaVu Sans oder Liberation Sans; Größe 14–48 pt; fett</td></tr>
+<tr><td>Schrift</td><td>Atkinson Hyperlegible (besonders gut unterscheidbare Buchstaben), Verdana, Arial, DejaVu Sans oder Liberation Sans; Größe 14–48 pt; fett</td></tr>
 <tr><td>Abstände</td><td>Zeilenabstand, Buchstabenabstand</td></tr>
 <tr><td>Farbe</td><td>Schwarz auf Weiß, Weiß auf Schwarz, Schwarz auf Gelb oder Creme; Abbildungen kontrastreich</td></tr>
 <tr><td>Schreiben</td><td>Linienstärke, Abstand der Schreiblinien, Mindestbreite von Lücken, Größe der Ankreuzfelder</td></tr>
 <tr><td>Seite</td><td>Abbildungen vergrößern, A4 oder A3, Seitenrand, „Aufgabe nie auf zwei Seiten teilen“</td></tr>
 </tbody>
 </table>
+<p>Verdana und Arial sind Schriften von Microsoft. Hat die Schule die Schriftdateien auf dem Server hinterlegt, werden sie genau so gesetzt. Sonst steht in der Auswahl „(Ersatz: …)“: Statt Arial wird die gleich breite Liberation Sans verwendet, statt Verdana die sehr ähnliche DejaVu Sans. Word-Dateien nutzen immer die echte Schrift.</p>
 <div class="wiki-hinweis wiki-hinweis-warnung"><p>Tragen Sie keine Diagnosen oder Sehwerte ein. Das Profil enthält nur Darstellungswünsche. Profile pflegen dürfen nur Personen mit dem Recht „Sehprofile pflegen“.</p></div>
 
 <h2>Blatt erfassen</h2>
@@ -72,4 +73,11 @@
 <p>Verlagsblätter dürfen für Menschen mit Seh- oder Lesebehinderung barrierefrei angepasst werden (§ 45b UrhG). Die Bibliothek ist nur schulintern sichtbar; angepasste Fassungen sind nur für die betroffenen Kinder bestimmt und werden nicht veröffentlicht.</p>
 
 <h2>Einstellungen (Schulleitung/Verwaltung)</h2>
-<p>Unter <strong>Einstellungen</strong> (Recht „Einstellungen bearbeiten“): Ordner- und Dateinamen in der Nextcloud (Platzhalter <code>{schuljahr} {klasse} {vorname} {nachname} {titel} {datum}</code>), Automatik im Wochenplan, zusätzliche Word-Datei, KI-Kontingent sowie der Status der Verbindungen (KI, Nextcloud, Word-Umwandlung). Auf dem Server prüft <code>php artisan arbeitsblaetter:pruefen --verbindung</code> die Einrichtung.</p>
+<p>Unter <strong>Einstellungen</strong> (Recht „Einstellungen bearbeiten“): Ordner- und Dateinamen in der Nextcloud (Platzhalter <code>{schuljahr} {klasse} {vorname} {nachname} {titel} {datum}</code>), Automatik im Wochenplan, zusätzliche Word-Datei, KI-Kontingent sowie der Status der Verbindungen (KI, Nextcloud, Word-Umwandlung). Auf dem Server prüft <code>php artisan arbeitsblaetter:pruefen --verbindung</code> die Einrichtung. </p>
+<h3>Schriften Arial und Verdana</h3>
+<p>Arial und Verdana gehören Microsoft und werden deshalb nicht mitgeliefert. So kommen sie auf den Server:</p>
+<ul>
+<li><strong>Automatisch:</strong> In den Einstellungen „Arial und Verdana von Microsoft laden“ ankreuzen (damit werden die Lizenzbedingungen der Microsoft „Core Fonts for the Web“ akzeptiert) und speichern. Danach „Jetzt laden“ – oder beim nächsten Online-Update geschieht es von selbst.</li>
+<li><strong>Auf dem Server:</strong> <code>php artisan arbeitsblaetter:schriften --laden</code> (fragt nach den Lizenzbedingungen) oder <code>php artisan arbeitsblaetter:schriften --von=/pfad/zu/den/schriften</code>, um vorhandene Dateien (z. B. aus <code>C:\Windows\Fonts</code>) zu übernehmen.</li>
+</ul>
+<p>Solange die Originale fehlen, werden Ersatzschriften verwendet (siehe oben). Ein Update scheitert nie an den Schriften.</p>

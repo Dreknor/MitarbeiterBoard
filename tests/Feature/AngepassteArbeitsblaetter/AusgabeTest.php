@@ -32,12 +32,70 @@ class AusgabeTest extends TestCase
 
         $html = app(AbSatzService::class)->html($blatt, $werte, 'pdf');
         $this->assertStringContainsString('font-size: 28pt', $html);
-        $this->assertStringContainsString("font-family: 'ab-atkinson'", $html);
+        $this->assertMatchesRegularExpression("/font-family: 'ab-atkinson-[0-9a-f]{8}'/", $html);
         $this->assertStringContainsString('AtkinsonHyperlegible-Bold.ttf', $html);
 
         $pdf = app(AbSatzService::class)->pdf($blatt, $werte);
         $this->assertStringStartsWith('%PDF', $pdf);
         $this->assertStringContainsString('AtkinsonHyperlegible', $pdf, 'Schrift ist eingebettet');
+    }
+
+    public function test_arial_und_verdana_mit_ersatzschrift(): void
+    {
+        config(['arbeitsblaetter.schriften_pfad' => sys_get_temp_dir().'/ab-keine-schriften-'.uniqid()]);
+        $blatt = $this->blatt();
+        $satz = app(AbSatzService::class);
+
+        $this->assertTrue(AbSatzService::nutztErsatz('verdana'));
+        $this->assertSame('Verdana (Ersatz: DejaVu Sans)', AbSatzService::schriftLabel('verdana'));
+        $this->assertSame('Arial (Ersatz: Liberation Sans)', AbSatzService::schriftLabel('arial'));
+
+        $html = $satz->html($blatt, AbProfil::normalisieren(['schrift' => 'arial']), 'pdf');
+        $this->assertMatchesRegularExpression("/font-family: 'ab-arial-[0-9a-f]{8}', 'Arial'/", $html);
+        $this->assertStringContainsString('LiberationSans-Regular.ttf', $html);
+        $this->assertStringContainsString('LiberationSans', $satz->pdf($blatt, AbProfil::normalisieren(['schrift' => 'arial'])));
+        $this->assertStringContainsString('DejaVuSans', $satz->pdf($blatt, AbProfil::normalisieren(['schrift' => 'verdana'])));
+        $this->assertSame('Verdana 20 pt · A4', AbProfil::kurz(['schrift' => 'verdana']));
+
+        // Word nutzt den echten Schriftnamen
+        $docx = $satz->docx($blatt, AbProfil::normalisieren(['schrift' => 'verdana']));
+        $zip = tempnam(sys_get_temp_dir(), 'docx');
+        file_put_contents($zip, $docx);
+        $archiv = new \ZipArchive();
+        $archiv->open($zip);
+        $this->assertStringContainsString('Verdana', $archiv->getFromName('word/styles.xml'));
+        $archiv->close();
+        unlink($zip);
+
+        // Ersatzschrift ist kein Fehler im Prüfbefehl
+        $this->artisan('arbeitsblaetter:pruefen')->expectsOutputToContain('Ersatzschrift für Arial → Liberation Sans')->assertSuccessful();
+    }
+
+    public function test_lizenzierte_schriften_der_schule_werden_genutzt(): void
+    {
+        $ordner = sys_get_temp_dir().'/ab-schriften-'.uniqid();
+        mkdir($ordner);
+        // Stellvertretend: Atkinson-Dateien unter den Windows-Dateinamen ablegen
+        copy(resource_path('fonts/arbeitsblaetter/AtkinsonHyperlegible-Regular.ttf'), $ordner.'/VERDANA.TTF');
+        copy(resource_path('fonts/arbeitsblaetter/AtkinsonHyperlegible-Bold.ttf'), $ordner.'/verdanab.ttf');
+        config(['arbeitsblaetter.schriften_pfad' => $ordner]);
+
+        config(['arbeitsblaetter.schriften_pfad' => $ordner.'-leer']);
+        app(AbSatzService::class)->pdf($this->blatt(), AbProfil::normalisieren(['schrift' => 'verdana', 'fett' => true])); // Ersatz merkt sich DomPDF
+        config(['arbeitsblaetter.schriften_pfad' => $ordner]);
+        $this->assertFalse(AbSatzService::nutztErsatz('verdana'));
+        $this->assertSame('Verdana', AbSatzService::schriftLabel('verdana'));
+        $this->assertSame($ordner.'/VERDANA.TTF', AbSatzService::schriftPfad('verdana'));
+        $this->assertStringContainsString('verdanab.ttf', app(AbSatzService::class)->html($this->blatt(), AbProfil::normalisieren(['schrift' => 'verdana']), 'pdf'));
+        // Ordner außerhalb des Projekts: DomPDF darf die Datei trotzdem lesen (chroot) und bettet sie ein –
+        // auch wenn vorher (z. B. in einem früheren Test oder vor dem Laden) die Ersatzschrift genutzt wurde
+        $this->assertMatchesRegularExpression('/BaseFont\s*\/[A-Z]+\+AtkinsonHyperlegible-Bold/', app(AbSatzService::class)->pdf($this->blatt(), AbProfil::normalisieren(['schrift' => 'verdana', 'fett' => true])));
+
+        $this->actingAs($this->lehrkraft());
+        $this->get(route('arbeitsblaetter.schrift', ['verdana', 'normal']))->assertOk();
+
+        array_map('unlink', glob($ordner.'/*'));
+        rmdir($ordner);
     }
 
     public function test_a3_format(): void

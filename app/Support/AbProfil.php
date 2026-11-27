@@ -18,6 +18,8 @@ class AbProfil
         'atkinson' => 'Atkinson Hyperlegible',
         'dejavu' => 'DejaVu Sans',
         'liberation' => 'Liberation Sans',
+        'arial' => 'Arial',
+        'verdana' => 'Verdana',
     ];
 
     public const FARBSCHEMATA = [
@@ -35,7 +37,7 @@ class AbProfil
      * @var array<string, array{typ: string, standard: mixed, min?: float, max?: float, schritt?: float, werte?: array, label: string, gruppe: string, einheit?: string}>
      */
     public const FELDER = [
-        'schrift' => ['typ' => 'auswahl', 'standard' => 'atkinson', 'werte' => ['atkinson', 'dejavu', 'liberation'], 'label' => 'Schrift', 'gruppe' => 'Schrift'],
+        'schrift' => ['typ' => 'auswahl', 'standard' => 'atkinson', 'werte' => ['atkinson', 'verdana', 'arial', 'dejavu', 'liberation'], 'label' => 'Schrift', 'gruppe' => 'Schrift'],
         'groesse' => ['typ' => 'zahl', 'standard' => 20, 'min' => 14, 'max' => 48, 'schritt' => 1, 'label' => 'Schriftgröße', 'gruppe' => 'Schrift', 'einheit' => 'pt'],
         'fett' => ['typ' => 'schalter', 'standard' => false, 'label' => 'Fett', 'gruppe' => 'Schrift'],
 

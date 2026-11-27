@@ -6,6 +6,7 @@ use App\Models\Arbeitsblaetter\Sehprofil;
 use App\Models\Schueler;
 use App\Services\Arbeitsblaetter\Ki\AbErkenner;
 use App\Services\Arbeitsblaetter\Ki\AbErkennerFabrik;
+use App\Support\AbProfil;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -99,9 +100,16 @@ class AbPruefung
     private function schriften(): array
     {
         $fehlt = AbSatzService::fehlendeSchriften();
+        $ersatz = collect(AbSatzService::eigeneSchriften())
+            ->filter(fn ($s) => AbSatzService::nutztErsatz($s))
+            ->map(fn ($s) => AbProfil::SCHRIFTEN[$s].' → '.AbProfil::SCHRIFTEN[AbSatzService::ERSATZ[$s]])
+            ->values();
+        $text = $fehlt ? 'Es fehlen: '.implode(', ', $fehlt) : 'Atkinson Hyperlegible, DejaVu Sans, Liberation Sans vorhanden.';
+        if ($ersatz->isNotEmpty()) {
+            $text .= ' Ersatzschrift für '.$ersatz->implode(', ').' – für die Originale arial.ttf/arialbd.ttf bzw. verdana.ttf/verdanab.ttf nach '.config('arbeitsblaetter.schriften_pfad').' kopieren (Lizenz der Schule).';
+        }
 
-        return ['titel' => 'Schriften', 'ok' => ! $fehlt, 'todo' => (bool) $fehlt,
-            'text' => $fehlt ? 'Es fehlen: '.implode(', ', $fehlt) : 'Atkinson Hyperlegible, DejaVu Sans, Liberation Sans vorhanden.'];
+        return ['titel' => 'Schriften', 'ok' => ! $fehlt, 'todo' => (bool) $fehlt, 'text' => $text];
     }
 
     private function gd(): array

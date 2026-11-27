@@ -61,7 +61,8 @@ class SehprofilTest extends TestCase
         $this->get(route('arbeitsblaetter.profile'))->assertForbidden();
 
         $this->actingAs($this->lehrkraft(['manage visual profiles']));
-        $this->get(route('arbeitsblaetter.profile', ['klasse' => $klasse->id]))->assertOk()->assertSee($kind->vorname);
+        $this->get(route('arbeitsblaetter.profile', ['klasse' => $klasse->id]))->assertOk()->assertSee($kind->vorname)
+            ->assertSee('Verdana')->assertSee('Arial');
         $this->post(route('arbeitsblaetter.profile.vorschau'), ['werte' => ['groesse' => 30]])->assertOk()->assertSee('font-size: 30pt', false);
     }
 

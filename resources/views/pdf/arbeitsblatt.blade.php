@@ -31,7 +31,7 @@
 
         html, body { margin: 0; padding: 0; }
         body {
-            font-family: '{{ $l['schrift_familie'] }}', 'DejaVu Sans', sans-serif;
+            font-family: '{{ $l['schrift_familie'] }}', {!! in_array($l['schrift'], ['arial', 'verdana'], true) ? "'".$l['schrift_name']."', " : '' !!}'DejaVu Sans', sans-serif;
             font-size: {{ $l['groesse'] }}pt;
             font-weight: {{ $fett }};
             line-height: {{ $l['zeilenabstand'] }};

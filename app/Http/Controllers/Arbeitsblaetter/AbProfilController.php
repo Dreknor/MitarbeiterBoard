@@ -54,7 +54,7 @@ class AbProfilController extends Controller
             'darfPflegen' => $user->can('manage', Sehprofil::class),
             'felder' => AbProfil::FELDER,
             'standard' => AbProfil::standard(),
-            'schriften' => AbProfil::SCHRIFTEN,
+            'schriften' => collect(AbProfil::SCHRIFTEN)->mapWithKeys(fn ($name, $schluessel) => [$schluessel => \App\Services\Arbeitsblaetter\AbSatzService::schriftLabel($schluessel)])->all(),
             'farbschemata' => collect(AbProfil::FARBSCHEMATA)->map(fn ($f) => $f['label'])->all(),
         ]);
     }

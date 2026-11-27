@@ -58,6 +58,15 @@
                 </section>
 
                 <section>
+                    <h2 class="ab-card-title mb-3"><i class="fas fa-font"></i> Schriften Arial und Verdana</h2>
+                    <p class="text-sm text-slate-600 mb-2">Arial und Verdana gehören Microsoft und werden nicht mitgeliefert. Ohne sie werden die gleich breite Liberation Sans (statt Arial) bzw. die ähnliche DejaVu Sans (statt Verdana) verwendet.</p>
+                    <input type="hidden" name="ab_ms_schriften_laden" value="0">
+                    <label class="ab-check"><input type="checkbox" name="ab_ms_schriften_laden" value="1" @checked(old('ab_ms_schriften_laden', $werte['ab_ms_schriften_laden']))>
+                        <span><strong>Arial und Verdana von Microsoft laden</strong><br><span class="text-slate-500">Ich akzeptiere die <a href="{{ \App\Services\Arbeitsblaetter\AbSchriftenService::LIZENZ_URL }}" target="_blank" rel="noopener" class="underline">Lizenzbedingungen der Microsoft „Core Fonts for the Web“</a>. Der Online-Updater lädt die Originalpakete dann selbst; sonst über „Jetzt laden“.</span></span></label>
+                    <p class="ab-hint">Alternativ die Dateien <code>arial.ttf</code>, <code>arialbd.ttf</code>, <code>verdana.ttf</code>, <code>verdanab.ttf</code> nach <code>{{ $schriftenOrdner }}</code> kopieren oder <code>php artisan arbeitsblaetter:schriften</code> ausführen.</p>
+                </section>
+
+                <section>
                     <h2 class="ab-card-title mb-3"><i class="fas fa-robot"></i> KI-Kontingent pro Monat</h2>
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
@@ -106,6 +115,23 @@
                         </div>
                     </template>
                     <p class="ab-hint mt-2">Auf dem Server: <code>php artisan arbeitsblaetter:pruefen --verbindung</code></p>
+                </div>
+            </div>
+            <div class="ab-card">
+                <div class="ab-card-body">
+                    <h2 class="ab-card-title mb-2"><i class="fas fa-font"></i> Schriften</h2>
+                    @foreach($schriften as $name => $original)
+                        <div class="ab-status-zeile">
+                            <i class="fas mt-0.5 {{ $original ? 'fa-check-circle text-emerald-600' : 'fa-info-circle text-slate-400' }}"></i>
+                            <div><div class="font-semibold">{{ $name }}</div><div class="text-xs text-slate-600">{{ $original ? 'Original vorhanden' : 'Ersatzschrift aktiv' }}</div></div>
+                        </div>
+                    @endforeach
+                    @if(in_array(false, $schriften, true))
+                        <form method="post" action="{{ route('arbeitsblaetter.einstellungen.schriften') }}" class="mt-3">
+                            @csrf
+                            <button type="submit" class="ab-btn ab-btn-secondary ab-btn-sm" @disabled(! $werte['ab_ms_schriften_laden']) title="{{ $werte['ab_ms_schriften_laden'] ? '' : 'Zuerst die Lizenzbedingungen akzeptieren und speichern' }}"><i class="fas fa-download"></i> Jetzt laden</button>
+                        </form>
+                    @endif
                 </div>
             </div>
             <div class="ab-card">

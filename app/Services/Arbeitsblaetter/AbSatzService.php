@@ -23,11 +23,33 @@ class AbSatzService
         'atkinson' => ['AtkinsonHyperlegible-Regular.ttf', 'AtkinsonHyperlegible-Bold.ttf'],
         'liberation' => ['LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf'],
         'dejavu' => ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'],
+        // Microsoft-Schriften: dürfen nicht mitgeliefert werden – die Schule legt ihre lizenzierten
+        // Dateien in `config('arbeitsblaetter.schriften_pfad')` ab, sonst greift die Ersatzschrift.
+        'arial' => ['arial.ttf', 'arialbd.ttf'],
+        'verdana' => ['verdana.ttf', 'verdanab.ttf'],
     ];
 
-    /** Pfad einer Schriftdatei (eigene Schriften in resources/fonts, DejaVu von DomPDF). */
+    /** Ersatz, wenn die Microsoft-Schrift fehlt: Liberation Sans ist maßgleich zu Arial, DejaVu Sans ähnelt Verdana. */
+    public const ERSATZ = [
+        'arial' => 'liberation',
+        'verdana' => 'dejavu',
+    ];
+
+    /** Schriften, die die Schule selbst bereitstellen kann. */
+    public static function eigeneSchriften(): array
+    {
+        return array_keys(self::ERSATZ);
+    }
+
+    /**
+     * Pfad einer Schriftdatei (eigene Schriften in resources/fonts, DejaVu von DomPDF, Arial/Verdana aus dem
+     * Schriftordner der Schule). Fehlt Arial/Verdana, wird die Ersatzschrift geliefert.
+     */
     public static function schriftPfad(string $schrift, int $schnitt = 0): ?string
     {
+        if (isset(self::ERSATZ[$schrift])) {
+            return self::originalPfad($schrift, $schnitt) ?? self::schriftPfad(self::ERSATZ[$schrift], $schnitt);
+        }
         $datei = self::SCHRIFT_DATEIEN[$schrift][$schnitt] ?? null;
         if (! $datei) {
             return null;
@@ -39,11 +61,57 @@ class AbSatzService
         return is_file($pfad) ? $pfad : null;
     }
 
-    /** Sind alle Schriften vorhanden? Liefert die fehlenden Dateien. */
+    /** Datei der Microsoft-Schrift im Schriftordner der Schule (Groß-/Kleinschreibung egal) oder null. */
+    public static function originalPfad(string $schrift, int $schnitt = 0): ?string
+    {
+        $datei = self::SCHRIFT_DATEIEN[$schrift][$schnitt] ?? null;
+        $ordner = rtrim((string) config('arbeitsblaetter.schriften_pfad'), '/');
+        if (! $datei || $ordner === '' || ! is_dir($ordner)) {
+            return null;
+        }
+        foreach ([$datei, strtoupper($datei), ucfirst($datei), strtolower(pathinfo($datei, PATHINFO_FILENAME)).'.TTF'] as $name) {
+            if (is_file($ordner.'/'.$name)) {
+                return $ordner.'/'.$name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Interner Familienname für @font-face. DomPDF merkt sich Familie → Datei dauerhaft (storage/fonts);
+     * der Name enthält deshalb die genutzte Datei, damit z. B. nach dem Laden der echten Verdana nicht
+     * weiter die zuvor genutzte Ersatzschrift erscheint.
+     */
+    public static function familie(string $schrift): string
+    {
+        $pfad = (string) self::schriftPfad($schrift, 0).'|'.(string) self::schriftPfad($schrift, 1);
+
+        return 'ab-'.$schrift.'-'.substr(md5($pfad), 0, 8);
+    }
+
+    /** Wird für die Schrift die Ersatzschrift verwendet? */
+    public static function nutztErsatz(string $schrift): bool
+    {
+        return isset(self::ERSATZ[$schrift]) && (! self::originalPfad($schrift, 0) || ! self::originalPfad($schrift, 1));
+    }
+
+    /** Bezeichnung für die Auswahl, z. B. „Verdana (Ersatz: DejaVu Sans)“. */
+    public static function schriftLabel(string $schrift): string
+    {
+        $name = AbProfil::SCHRIFTEN[$schrift] ?? $schrift;
+
+        return self::nutztErsatz($schrift) ? $name.' (Ersatz: '.AbProfil::SCHRIFTEN[self::ERSATZ[$schrift]].')' : $name;
+    }
+
+    /** Sind alle mitgelieferten Schriften vorhanden? Liefert die fehlenden Dateien (Arial/Verdana zählen nicht). */
     public static function fehlendeSchriften(): array
     {
         $fehlt = [];
         foreach (self::SCHRIFT_DATEIEN as $schrift => $dateien) {
+            if (isset(self::ERSATZ[$schrift])) {
+                continue;
+            }
             foreach ($dateien as $i => $datei) {
                 if (! self::schriftPfad($schrift, $i)) {
                     $fehlt[] = $datei;
@@ -59,6 +127,7 @@ class AbSatzService
     {
         $struktur = AbStruktur::normalisieren($struktur ?? $blatt->strukturGueltig());
         $layout = AbProfil::layout($profilWerte);
+        $layout['schrift_familie'] = self::familie($layout['schrift']);
 
         return view('pdf.arbeitsblatt', [
             'titel' => $titel ?? (string) $blatt->titel,
@@ -79,7 +148,9 @@ class AbSatzService
 
         $pdf = Pdf::loadHTML($this->html($blatt, $profilWerte, 'pdf', $struktur, $fusszeile));
         $pdf->setPaper($layout['format'], 'portrait');
-        $pdf->setOption(['isRemoteEnabled' => false, 'isFontSubsettingEnabled' => true, 'defaultFont' => 'DejaVu Sans'], true);
+        // Schriftordner der Schule (Arial/Verdana) darf außerhalb des Projekts liegen → in den chroot aufnehmen
+        $chroot = array_values(array_filter([realpath(base_path()), realpath((string) config('arbeitsblaetter.schriften_pfad')) ?: null]));
+        $pdf->setOption(['isRemoteEnabled' => false, 'isFontSubsettingEnabled' => true, 'defaultFont' => 'DejaVu Sans', 'chroot' => $chroot], true);
 
         return $pdf->output();
     }
@@ -91,6 +162,7 @@ class AbSatzService
         $l = AbProfil::layout($profilWerte);
 
         $word = new PhpWord();
+        // Word nutzt immer den echten Namen (Arial/Verdana sind auf Schulrechnern vorhanden)
         $word->setDefaultFontName($l['schrift_name']);
         $word->setDefaultFontSize((int) round($l['groesse']));
         $word->setDefaultParagraphStyle([
@@ -148,7 +220,7 @@ class AbSatzService
                     ? $pfad
                     : route('arbeitsblaetter.schrift', ['schrift' => $name, 'schnitt' => $schnitt ? 'fett' : 'normal']);
             }
-            $ergebnis['ab-'.$name] = $dateien;
+            $ergebnis[self::familie($name)] = $dateien;
         }
 
         return $ergebnis;
