@@ -81,6 +81,10 @@ export default defineConfig({
                 'resources/css/wiki.css',
                 'resources/js/wiki.js',
 
+                // Angepasste Arbeitsblätter (Bibliothek, Erfassung, Prüf-Editor, Ausgabe, Profile, Einstellungen)
+                'resources/css/arbeitsblaetter.css',
+                'resources/js/arbeitsblaetter.js',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
 
@@ -144,6 +148,8 @@ export default defineConfig({
                 'resources/views/ergebnisboards/**/*.blade.php',
                 // Wiki
                 'resources/views/wiki/**/*.blade.php',
+                // Angepasste Arbeitsblätter
+                'resources/views/arbeitsblaetter/**/*.blade.php',
             ],
         }),
     ],

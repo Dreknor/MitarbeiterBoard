@@ -73,6 +73,14 @@ return [
             'mail'         => 'sofort',
             'permission'   => ['view result boards'],
         ],
+        'arbeitsblaetter' => [
+            'label'        => 'Angepasste Arbeitsblätter',
+            'beschreibung' => 'Erkannte Arbeitsblätter zur Prüfung und Fehler bei der Erkennung',
+            'icon'         => 'fa-low-vision',
+            'push'         => true,
+            'mail'         => 'sofort',
+            'permission'   => ['create adapted worksheets'],
+        ],
         'prozesse' => [
             'label'        => 'Prozesse',
             'beschreibung' => 'Ihnen zugewiesene Prozessschritte und Kommentare',

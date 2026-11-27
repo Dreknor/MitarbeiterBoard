@@ -225,15 +225,23 @@ class WpPlan extends Model
         return $this->klasse_id ? (int) $this->klasse_id : null;
     }
 
-    /** Arbeitsblätter für Anzeige und Export: die des Klassenplans (bei Kinderplänen) und die eigenen. */
+    /**
+     * Arbeitsblätter für Anzeige und Export: die des Klassenplans (bei Kinderplänen) und die eigenen.
+     * Klassenplan-Dateien, für die der Kinderplan eine angepasste Fassung hat
+     * (`ersetzt_wp_datei_id`), werden ausgeblendet – die Fassung steht an ihrer Stelle.
+     */
     public function alleDateien()
     {
         $eigene = $this->relationLoaded('dateien') ? $this->dateien : $this->dateien()->get();
 
         if ($this->parent_plan_id && $this->parentPlan) {
+            $ersetzt = $eigene->pluck('ersetzt_wp_datei_id')->filter()->map(fn ($id) => (int) $id)->all();
+
             return $this->parentPlan->dateien()->get()
+                ->reject(fn (WpDatei $d) => in_array((int) $d->id, $ersetzt, true))
                 ->each(fn (WpDatei $d) => $d->setAttribute('vom_klassenplan', true))
-                ->concat($eigene);
+                ->concat($eigene)
+                ->values();
         }
 
         return $eigene;

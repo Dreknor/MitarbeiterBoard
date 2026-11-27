@@ -2,6 +2,7 @@
 
 namespace App\Services\Wochenplan;
 
+use App\Events\Wochenplan\WpKinderplanAngelegt;
 use App\Exceptions\VersionKonfliktException;
 use App\Jobs\Wochenplan\WpPlanAblageEntfernen;
 use App\Models\Klasse;
@@ -302,7 +303,7 @@ class WochenplanService
      */
     public function kinderplanErstellen(WpPlan $klassenplan, Schueler $schueler, ?int $formatvorlageId = null, ?int $niveau = null, ?User $user = null): WpPlan
     {
-        return DB::transaction(function () use ($klassenplan, $schueler, $formatvorlageId, $niveau, $user) {
+        $kind = DB::transaction(function () use ($klassenplan, $schueler, $formatvorlageId, $niveau, $user) {
             $zuordnung = [];
             $kind = $this->duplizieren($klassenplan, [
                 'klasse_id' => null,
@@ -323,6 +324,11 @@ class WochenplanService
 
             return $kind;
         });
+
+        // Angepasste Arbeitsblätter: fehlende Fassungen für Profilkinder nachziehen
+        WpKinderplanAngelegt::dispatch($kind);
+
+        return $kind;
     }
 
     public function passtZuNiveau(WpAufgabe $aufgabe, ?int $niveau): bool
@@ -705,9 +711,23 @@ class WochenplanService
 
     // ─── Arbeitsblätter ───────────────────────────────────────────────────────
 
+    /**
+     * Entfernt ein Arbeitsblatt. Angepasste Fassungen, die es in Kinderplänen ersetzen
+     * (`ersetzt_wp_datei_id`), werden auf demselben Weg entfernt (→ `_gelöscht/`).
+     */
     public function dateiEntfernen(WpDatei $datei): void
     {
         $plan = $datei->plan;
+
+        WpDatei::with('plan')->where('ersetzt_wp_datei_id', $datei->id)->get()
+            ->each(function (WpDatei $fassung) {
+                $kinderplan = $fassung->plan;
+                $this->ablage->dateiEntfernen($fassung);
+                if ($kinderplan) {
+                    $this->geaendert($kinderplan);
+                }
+            });
+
         $this->ablage->dateiEntfernen($datei);
         $this->geaendert($plan);
     }
@@ -768,6 +788,7 @@ class WochenplanService
             ])->values(),
             'uebungen' => $plan->taeglicheUebungen->map(fn ($u) => ['id' => $u->id, 'aufgabe' => $u->aufgabe])->values(),
             'dateien' => $plan->alleDateien()->map(fn (WpDatei $d) => $this->dateiArray($d))->values(),
+            'arbeitsblaetter' => $this->arbeitsblaetterInfo($plan, $user, $darfBearbeiten),
             'kinderplaene' => $plan->kinderPlaene->sortBy(fn ($k) => $k->schueler?->nachname)->map(fn (WpPlan $k) => [
                 'id' => $k->id,
                 'name' => trim(($k->schueler?->vorname ?? '').' '.($k->schueler?->nachname ?? '')),
@@ -805,9 +826,24 @@ class WochenplanService
         ];
     }
 
+    /** Angepasste Arbeitsblätter im Editor: Abzeichen je Datei und ob der Knopf „anpassen“ erscheint. */
+    private function arbeitsblaetterInfo(WpPlan $plan, User $user, bool $darfBearbeiten): array
+    {
+        $darf = $darfBearbeiten && $plan->isKlassenplan() && $user->can('create', \App\Models\Arbeitsblaetter\AngepasstesBlatt::class);
+
+        return [
+            'aktiv' => $darf,
+            'dateien' => $plan->isKlassenplan() ? app(\App\Services\Arbeitsblaetter\AbWochenplanService::class)->dateiInfos($plan) : (object) [],
+        ];
+    }
+
     public function dateiArray(WpDatei $d): array
     {
         return [
+            'angepasst' => (bool) $d->ab_fassung_id,
+            'original_id' => $d->ersetzt_wp_datei_id,
+            'original_url' => $d->ersetzt_wp_datei_id ? route('wp.dateien.show', $d->ersetzt_wp_datei_id) : null,
+            'anpassen_url' => $d->plan && $d->plan->isKlassenplan() ? route('wp.dateien.anpassen', [$d->wp_plan_id, $d->id]) : null,
             'id' => $d->id,
             'name' => $d->name,
             'mime_type' => $d->mime_type,

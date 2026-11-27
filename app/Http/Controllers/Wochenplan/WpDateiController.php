@@ -82,6 +82,27 @@ class WpDateiController extends Controller
         return response()->json(['plan' => $this->service->toArray($wpPlan->fresh(), $request->user())]);
     }
 
+    /**
+     * „Angepasste Fassung erzeugen“: übernimmt das Arbeitsblatt in die Angepassten Arbeitsblätter
+     * (Erkennung startet) und liefert den Link zum Prüf-Editor.
+     */
+    public function anpassen(Request $request, WpPlan $wpPlan, WpDatei $wpDatei): JsonResponse
+    {
+        $this->authorize('update', $wpPlan);
+        $this->authorize('create', \App\Models\Arbeitsblaetter\AngepasstesBlatt::class);
+        abort_unless((int) $wpDatei->wp_plan_id === (int) $wpPlan->id && $wpPlan->isKlassenplan(), 404);
+        abort_unless(\App\Services\Arbeitsblaetter\AbWochenplanService::unterstuetzt($wpDatei), 422, 'Dieses Dateiformat kann nicht angepasst werden.');
+
+        $blatt = app(\App\Services\Arbeitsblaetter\AbWochenplanService::class)->manuellStarten($wpDatei, $request->user());
+        abort_unless($blatt, 422, 'Das Arbeitsblatt konnte nicht übernommen werden (Datei nicht verfügbar oder nicht lesbar).');
+
+        return response()->json([
+            'plan' => $this->service->toArray($wpPlan->fresh(), $request->user()),
+            'url' => route('arbeitsblaetter.edit', $blatt),
+            'meldung' => 'Das Arbeitsblatt wurde übernommen. Nach der Prüfung und Freigabe entstehen die angepassten Fassungen.',
+        ]);
+    }
+
     public function erneut(Request $request, WpPlan $wpPlan): JsonResponse
     {
         $this->authorize('update', $wpPlan);

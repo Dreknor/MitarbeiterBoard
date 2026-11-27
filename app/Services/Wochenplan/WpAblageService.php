@@ -2,6 +2,7 @@
 
 namespace App\Services\Wochenplan;
 
+use App\Events\Wochenplan\WpDateiAngelegt;
 use App\Jobs\Wochenplan\WpDateiHochladen;
 use App\Jobs\Wochenplan\WpPlanAblegen;
 use App\Models\Wochenplan\WpDatei;
@@ -368,16 +369,20 @@ class WpAblageService
 
     // ─── Arbeitsblätter ───────────────────────────────────────────────────────
 
+    /** Upload einer Person; löst {@see WpDateiAngelegt} aus (Angepasste Arbeitsblätter). */
     public function dateiSpeichern(WpPlan $plan, UploadedFile $datei, ?int $userId): WpDatei
     {
         $name = $datei->getClientOriginalName();
         $dateiname = $this->bereinigen($name) ?: 'datei';
         $lokal = $datei->storeAs((string) $plan->id, Str::uuid().'_'.$dateiname, 'wochenplan');
 
-        return $this->dateiAnlegen($plan, $name, $dateiname, $lokal, $datei->getMimeType(), (int) $datei->getSize(), $userId);
+        $wpDatei = $this->dateiAnlegen($plan, $name, $dateiname, $lokal, $datei->getMimeType(), (int) $datei->getSize(), $userId);
+        WpDateiAngelegt::dispatch($wpDatei);
+
+        return $wpDatei;
     }
 
-    /** Legt eine Datei aus vorhandenem Inhalt an (Umzug, Kopie). */
+    /** Legt eine Datei aus vorhandenem Inhalt an (Umzug, Kopie, angepasste Fassung) – ohne Ereignis. */
     public function dateiAusInhalt(WpPlan $plan, string $name, string $inhalt, ?string $mime, ?int $userId): WpDatei
     {
         $dateiname = $this->bereinigen($name) ?: 'datei';
@@ -390,7 +395,7 @@ class WpAblageService
     /** Verknüpft eine bereits in der Nextcloud vorhandene Datei (ohne Upload). */
     public function nextcloudDateiVerknuepfen(WpPlan $plan, array $eintrag, ?int $userId): WpDatei
     {
-        return WpDatei::create([
+        $datei = WpDatei::create([
             'wp_plan_id' => $plan->id,
             'name' => $eintrag['name'],
             'dateiname' => $eintrag['name'],
@@ -402,6 +407,9 @@ class WpAblageService
             'hochgeladen_von' => $userId,
             'geprueft_at' => now(),
         ]);
+        WpDateiAngelegt::dispatch($datei);
+
+        return $datei;
     }
 
     private function dateiAnlegen(WpPlan $plan, string $name, string $dateiname, string $lokal, ?string $mime, int $groesse, ?int $userId): WpDatei

@@ -6,7 +6,11 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/** WebDAV-Umsetzung über das Dienst-Konto aus `config('nextcloud.wochenplan')`. */
+/**
+ * WebDAV-Umsetzung über das Dienst-Konto aus `config('nextcloud.wochenplan')`.
+ * Unterklassen (z. B. {@see \App\Services\Arbeitsblaetter\AbNextcloudWebdav}) ändern
+ * nur Zugangsdaten ({@see konfigSchluessel()}), Basisordner und An/Aus.
+ */
 class WpNextcloudWebdav implements WpNextcloudSpeicher
 {
     public function aktiv(): bool
@@ -14,6 +18,22 @@ class WpNextcloudWebdav implements WpNextcloudSpeicher
         return (bool) settings('wochenplan_nextcloud_aktiv')
             && config('nextcloud.wochenplan.url')
             && config('nextcloud.wochenplan.username');
+    }
+
+    /** Config-Schlüssel mit url/username/password/timeout. */
+    protected function konfigSchluessel(): string
+    {
+        return 'nextcloud.wochenplan';
+    }
+
+    protected function basisordner(): string
+    {
+        return (string) (settings('wochenplan_nextcloud_basisordner') ?: '/Wochenpläne');
+    }
+
+    protected function konfig(string $feld): mixed
+    {
+        return config($this->konfigSchluessel().'.'.$feld);
     }
 
     public function ordnerAnlegen(string $pfad): bool
@@ -166,7 +186,7 @@ class WpNextcloudWebdav implements WpNextcloudSpeicher
 
     public function webLink(string $pfad, bool $istOrdner = false): ?string
     {
-        $basisUrl = rtrim((string) config('nextcloud.wochenplan.url'), '/');
+        $basisUrl = rtrim((string) $this->konfig('url'), '/');
         if ($basisUrl === '') {
             return null;
         }
@@ -180,33 +200,33 @@ class WpNextcloudWebdav implements WpNextcloudSpeicher
         return $basisUrl.'/index.php/apps/files/?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
     }
 
-    private function http(): PendingRequest
+    protected function http(): PendingRequest
     {
         return Http::withBasicAuth(
-            (string) config('nextcloud.wochenplan.username'),
-            (string) config('nextcloud.wochenplan.password'),
-        )->timeout((int) config('nextcloud.wochenplan.timeout', 60));
+            (string) $this->konfig('username'),
+            (string) $this->konfig('password'),
+        )->timeout((int) ($this->konfig('timeout') ?: 60));
     }
 
     /** Vollständiger Pfad inkl. Basisordner. */
-    private function voll(string $pfad): string
+    protected function voll(string $pfad): string
     {
-        $basis = trim((string) (settings('wochenplan_nextcloud_basisordner') ?: '/Wochenpläne'), '/');
+        $basis = trim($this->basisordner(), '/');
 
         return trim($basis.'/'.trim($pfad, '/'), '/');
     }
 
-    private function url(string $pfad, bool $mitBasis = true): string
+    protected function url(string $pfad, bool $mitBasis = true): string
     {
         $voll = $mitBasis ? $this->voll($pfad) : trim($pfad, '/');
         $kodiert = implode('/', array_map('rawurlencode', array_filter(explode('/', $voll), fn ($t) => $t !== '')));
 
-        return rtrim((string) config('nextcloud.wochenplan.url'), '/')
-            .'/remote.php/dav/files/'.rawurlencode((string) config('nextcloud.wochenplan.username'))
+        return rtrim((string) $this->konfig('url'), '/')
+            .'/remote.php/dav/files/'.rawurlencode((string) $this->konfig('username'))
             .'/'.$kodiert;
     }
 
-    private function elternOrdner(string $pfad): string
+    protected function elternOrdner(string $pfad): string
     {
         $pfad = trim($pfad, '/');
         $pos = strrpos($pfad, '/');
@@ -214,8 +234,8 @@ class WpNextcloudWebdav implements WpNextcloudSpeicher
         return $pos === false ? '' : substr($pfad, 0, $pos);
     }
 
-    private function log(string $aktion, string $pfad, string $fehler): void
+    protected function log(string $aktion, string $pfad, string $fehler): void
     {
-        Log::warning('Nextcloud Wochenplan: '.$aktion.' fehlgeschlagen', ['pfad' => $pfad, 'fehler' => $fehler]);
+        Log::warning('Nextcloud '.$this->konfigSchluessel().': '.$aktion.' fehlgeschlagen', ['pfad' => $pfad, 'fehler' => $fehler]);
     }
 }

@@ -24,6 +24,8 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\Ergebnisboard::class => \App\Policies\ErgebnisboardPolicy::class,
         \App\Models\Wochenplan\WpPlan::class => \App\Policies\WpPlanPolicy::class,
         \App\Models\WikiSeite::class => \App\Policies\WikiSeitePolicy::class,
+        \App\Models\Arbeitsblaetter\AngepasstesBlatt::class => \App\Policies\AngepasstesBlattPolicy::class,
+        \App\Models\Arbeitsblaetter\Sehprofil::class => \App\Policies\SehprofilPolicy::class,
 
         // API v1 (Pädagogen-App)
         \App\Models\Schueler::class       => \App\Policies\StudentPolicy::class,

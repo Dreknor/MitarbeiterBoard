@@ -169,6 +169,14 @@ class Kernel extends ConsoleKernel
             app(\App\Services\Wochenplan\WpAblageService::class)->dateienPruefen();
         })->dailyAt('02:40')->name('wochenplan-dateien-pruefen')->withoutOverlapping();
 
+        // Angepasste Arbeitsblätter: Blätter ohne Freigabe nach 90 Tagen melden (nicht löschen),
+        // ungenutzte Abbildungen entfernen
+        $schedule->call(function () {
+            $service = app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class);
+            $service->offeneEntwuerfeMelden();
+            $service->verwaisteAbbildungenBereinigen();
+        })->dailyAt('03:25')->name('arbeitsblaetter-aufraeumen')->withoutOverlapping();
+
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')
             ->dailyAt('03:00')

@@ -24,6 +24,7 @@ class WpDatei extends Model
     protected $fillable = [
         'wp_plan_id', 'name', 'dateiname', 'mime_type', 'groesse',
         'nextcloud_pfad', 'lokaler_pfad', 'status', 'fehler', 'hochgeladen_von', 'geprueft_at',
+        'ab_fassung_id', 'ersetzt_wp_datei_id',
     ];
 
     protected $casts = [

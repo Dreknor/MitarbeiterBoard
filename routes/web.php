@@ -557,6 +557,8 @@ Route::group([
                         // Arbeitsblätter (Nextcloud)
                         Route::post('/{wpPlan}/dateien', [WpDateiController::class, 'store'])->name('dateien.store');
                         Route::delete('/{wpPlan}/dateien/{wpDatei}', [WpDateiController::class, 'destroy'])->name('dateien.destroy');
+                        // Angepasste Arbeitsblätter: Fassung für Kinder mit Sehprofil erzeugen
+                        Route::post('/{wpPlan}/dateien/{wpDatei}/anpassen', [WpDateiController::class, 'anpassen'])->name('dateien.anpassen');
                         Route::post('/{wpPlan}/ablage/erneut', [WpDateiController::class, 'erneut'])->name('ablage.erneut');
                         Route::get('/{wpPlan}/nextcloud', [WpDateiController::class, 'nextcloudListe'])->name('nextcloud.liste');
                         Route::post('/{wpPlan}/nextcloud', [WpDateiController::class, 'nextcloudVerknuepfen'])->name('nextcloud.verknuepfen');
@@ -1123,6 +1125,55 @@ Route::group([
                         Route::delete('karten/{karte}/dateien/{media}', [$c, 'dateiDestroy'])->whereNumber(['karte', 'media'])->name('karten.dateien.destroy');
                     });
                 });
+
+                /*
+                 * Angepasste Arbeitsblätter (Sehbehinderung) – Bibliothek, Erfassung, Prüf-Editor, Ausgabe,
+                 * Sehprofile und Einstellungen. Zugriff je Blatt über AngepasstesBlattPolicy/SehprofilPolicy.
+                 */
+                Route::prefix('arbeitsblaetter')->name('arbeitsblaetter.')
+                    ->middleware('permission:create adapted worksheets|manage visual profiles|edit settings')
+                    ->group(function () {
+                        $b = \App\Http\Controllers\Arbeitsblaetter\AbBlattController::class;
+                        $a = \App\Http\Controllers\Arbeitsblaetter\AbAusgabeController::class;
+                        $p = \App\Http\Controllers\Arbeitsblaetter\AbProfilController::class;
+                        $e = \App\Http\Controllers\Arbeitsblaetter\AbEinstellungenController::class;
+
+                        Route::get('/', [$b, 'index'])->name('index');
+                        Route::get('neu', [$b, 'create'])->name('create');
+                        Route::post('/', [$b, 'store'])->name('store');
+                        Route::get('schrift/{schrift}/{schnitt}', [$b, 'schrift'])->where(['schrift' => '[a-z]+', 'schnitt' => 'normal|fett'])->name('schrift');
+
+                        Route::get('profile', [$p, 'index'])->name('profile');
+                        Route::post('profile/vorschau', [$p, 'vorschau'])->name('profile.vorschau');
+                        Route::put('profile/kinder/{schueler}', [$p, 'speichern'])->whereNumber('schueler')->name('profile.speichern');
+                        Route::delete('profile/kinder/{schueler}', [$p, 'entfernen'])->whereNumber('schueler')->name('profile.entfernen');
+                        Route::post('profile/vorlagen', [$p, 'vorlageSpeichern'])->name('profile.vorlagen.store');
+                        Route::put('profile/vorlagen/{vorlage}', [$p, 'vorlageSpeichern'])->whereNumber('vorlage')->name('profile.vorlagen.update');
+                        Route::delete('profile/vorlagen/{vorlage}', [$p, 'vorlageLoeschen'])->whereNumber('vorlage')->name('profile.vorlagen.destroy');
+
+                        Route::get('einstellungen', [$e, 'index'])->name('einstellungen');
+                        Route::put('einstellungen', [$e, 'update'])->name('einstellungen.update');
+                        Route::post('einstellungen/vorschau', [$e, 'vorschau'])->name('einstellungen.vorschau');
+                        Route::post('einstellungen/pruefen', [$e, 'pruefen'])->name('einstellungen.pruefen');
+
+                        Route::prefix('{blatt}')->whereNumber('blatt')->group(function () use ($b, $a) {
+                            Route::get('/', [$b, 'edit'])->name('edit');
+                            Route::get('daten', [$b, 'daten'])->name('daten');
+                            Route::put('/', [$b, 'update'])->name('update');
+                            Route::delete('/', [$b, 'destroy'])->name('destroy');
+                            Route::post('vorschau', [$b, 'vorschau'])->name('vorschau');
+                            Route::post('freigeben', [$b, 'freigeben'])->name('freigeben');
+                            Route::post('erkennen', [$b, 'erkennen'])->name('erkennen');
+                            Route::post('duplizieren', [$b, 'duplizieren'])->name('duplizieren');
+                            Route::get('originale/{media}', [$b, 'original'])->whereNumber('media')->name('originale.show');
+                            Route::get('abbildungen/{media}', [$b, 'abbildung'])->whereNumber('media')->name('abbildungen.show');
+                            Route::post('abbildungen', [$b, 'abbildungStore'])->name('abbildungen.store');
+
+                            Route::get('ausgabe', [$a, 'show'])->name('ausgabe');
+                            Route::post('ausgabe', [$a, 'erzeugen'])->name('ausgabe.erzeugen');
+                            Route::get('fassungen/{fassung}/{art}', [$a, 'datei'])->whereNumber('fassung')->where('art', 'pdf|docx')->name('fassungen.datei');
+                        });
+                    });
 
                 /*
                  * Online-Updater (Permission "make updates" im Controller)
