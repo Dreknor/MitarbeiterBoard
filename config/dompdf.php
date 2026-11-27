@@ -93,7 +93,9 @@ return array(
         'allowed_protocols' => [
             "file://" => ["rules" => []],
             "http://" => ["rules" => []],
-            "https://" => ["rules" => []]
+            "https://" => ["rules" => []],
+            // data-URIs (Logo aus PdfLayout, eingebettete Wiki-Bilder) – ohne diesen Eintrag lässt DomPDF sie stillschweigend weg
+            "data://" => ["rules" => []],
         ],
 
          /**
