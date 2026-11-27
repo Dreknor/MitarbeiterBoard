@@ -92,6 +92,21 @@ final class ErkennerVorgaben
     public static function umwandeln(array $roh): array
     {
         $baustein = function (array $b) use (&$baustein) {
+            // Text als String oder im Feld `text` statt als Segmentliste (kommt bei Kästen vor)
+            if (in_array($b['typ'] ?? '', ['kasten', 'rechenfeld', 'text', 'aufgabe'], true)) {
+                if (is_string($b['inhalt'] ?? null)) {
+                    $b['inhalt'] = [['typ' => 'text', 'text' => $b['inhalt']]];
+                }
+                $leer = trim(implode('', array_map(fn ($s) => is_array($s) ? (string) ($s['text'] ?? '').(($s['typ'] ?? '') === 'luecke' ? '_' : '') : '', (array) ($b['inhalt'] ?? [])))) === '';
+                if ($leer && trim((string) ($b['text'] ?? '')) !== '' && ($b['typ'] ?? '') !== 'aufgabe') {
+                    $b['inhalt'] = [['typ' => 'text', 'text' => (string) $b['text']]];
+                    $leer = false;
+                }
+                // Kasten, dessen Text die KI nicht abgeschrieben hat: lieber als Abbildung übernehmen als leer lassen
+                if ($leer && ($b['typ'] ?? '') === 'kasten' && isset($b['box'])) {
+                    $b = ['typ' => 'bild', 'beschreibung' => trim('Schild/Kasten '.($b['titel'] ?? '')).' – Text bitte prüfen', 'seite' => $b['seite'] ?? 1, 'box' => $b['box']];
+                }
+            }
             if (($b['typ'] ?? '') === 'bild' && isset($b['box'])) {
                 $b['quelle'] = ['seite' => (int) ($b['seite'] ?? 1), 'box' => $b['box']];
             }
@@ -125,7 +140,7 @@ final class ErkennerVorgaben
             'typ' => ['type' => 'string', 'enum' => array_keys(AbStruktur::TYPEN)],
             'text' => ['type' => 'string', 'description' => 'Text für ueberschrift und anweisung'],
             'nummer' => ['type' => 'string', 'description' => 'Aufgabennummer wie im Original, z. B. „1“ oder „b)“'],
-            'inhalt' => ['type' => 'array', 'items' => $segment, 'description' => 'Für text und aufgabe: Text und Lücken in Lesereihenfolge'],
+            'inhalt' => ['type' => 'array', 'items' => $segment, 'description' => 'Für text, aufgabe, kasten und rechenfeld: Text und Lücken in Lesereihenfolge'],
             'frage' => ['type' => 'string'],
             'optionen' => ['type' => 'array', 'items' => ['type' => 'string']],
             'mehrfach' => ['type' => 'boolean'],
@@ -134,10 +149,10 @@ final class ErkennerVorgaben
             'anzahl' => ['type' => 'integer', 'description' => 'Anzahl der Schreiblinien'],
             'beschreibung' => ['type' => 'string', 'description' => 'Kurze Beschreibung der Abbildung'],
             'seite' => ['type' => 'integer', 'description' => 'Seite der Abbildung (ab 1)'],
-            'box' => ['type' => 'array', 'items' => ['type' => 'number'], 'description' => 'Relative Box [x1, y1, x2, y2] der Abbildung auf der Seite, Werte 0 bis 1'],
+            'box' => ['type' => 'array', 'items' => ['type' => 'number'], 'description' => 'Relative Box [x1, y1, x2, y2] einer Abbildung oder eines Kastens auf der Seite, Werte 0 bis 1'],
             'titel' => ['type' => 'string', 'description' => 'Überschrift eines kasten (z. B. „Eintritt“)'],
             'reihen' => ['type' => 'integer', 'description' => 'Anzahl Kästchenreihen eines rechenfeld'],
-            'angekreuzt' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Indizes (ab 0) der Optionen, die im Original schon angekreuzt sind (Beispiel)'],
+            'angekreuzt' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Nur bei ankreuzen: Indizes (ab 0) der Optionen, die im Original schon sichtbar angekreuzt sind (vorgedrucktes Beispiel); sonst weglassen'],
         ];
         $kind = ['type' => 'object', 'additionalProperties' => false, 'required' => ['typ'], 'properties' => $felder];
         $baustein = ['type' => 'object', 'additionalProperties' => false, 'required' => ['typ'], 'properties' => array_merge($felder, [
@@ -165,8 +180,8 @@ Bausteine:
 - anweisung: allgemeine Arbeitsanweisung, die zu keiner nummerierten Aufgabe gehört (text).
 - aufgabe: nummerierte Aufgabe. nummer wie im Original (z. B. „1“ aus einem Nummernkästchen), inhalt = der Aufgabentext daneben (Anweisung und Einleitung gehören in inhalt, nicht in einen eigenen anweisung-Baustein). Teilaufgaben a), b), c) sind Bausteine vom Typ aufgabe in kinder; alles, was zu einer Teilaufgabe gehört (ankreuzen, rechenfeld, Antwortzeile …), folgt direkt danach ebenfalls in kinder.
 - text: sonstiger Text, auch Antwortsätze wie „Antwort: Der Eintritt kostet ___.“ (inhalt mit Lücken).
-- kasten: gerahmter Text, Schild, Info-Kasten, Merkkasten, Sprechblase, Preisliste (titel = fett gedruckte Überschrift im Kasten, inhalt = Text, Zeilen mit \n trennen). Text in solchen Kästen NIE als bild erfassen.
-- ankreuzen: Kästchen zum Ankreuzen. optionen = die Beschriftungen der Kästchen (z. B. „Kann ich beantworten:“, „Kann ich nicht beantworten:“). frage nur, wenn über den Kästchen eine eigene Frage steht – sonst leer lassen, die Beschriftungen nie zusätzlich als frage. mehrfach = true bei eckigen Kästchen, wenn mehrere angekreuzt werden dürfen. angekreuzt = Indizes der Kästchen, die im Original schon angekreuzt sind (vorgegebenes Beispiel).
+- kasten: gerahmter Text, Schild, Info-Kasten, Merkkasten, Sprechblase, Preisliste, Öffnungszeiten (titel = fett gedruckte Überschrift im Kasten; inhalt = der GESAMTE übrige Text des Kastens wörtlich als Segmentliste, z. B. [{"typ": "text", "text": "Erwachsene: 12 €\nKinder: 6 €"}], Zeilen mit \n trennen; box = Lage des Kastens wie bei bild). Ein kasten ohne inhalt ist falsch – gerade Preise, Uhrzeiten und Zahlen auf Schildern braucht das Kind zum Lösen. Text in solchen Kästen NIE als bild erfassen.
+- ankreuzen: Kästchen zum Ankreuzen. optionen = die Beschriftungen der Kästchen (z. B. „Kann ich beantworten:“, „Kann ich nicht beantworten:“). frage nur, wenn über den Kästchen eine eigene Frage steht – sonst leer lassen, die Beschriftungen nie zusätzlich als frage. mehrfach = true bei eckigen Kästchen, wenn mehrere angekreuzt werden dürfen. angekreuzt = Indizes der Kästchen, in denen im Original deutlich ein Kreuz gedruckt ist (vorgegebenes Beispiel) – im Zweifel leer lassen.
 - tabelle: Tabelle (zeilen = Zellen als Text, leere Zellen als ""; kopfzeile = true, wenn die erste Zeile Überschriften enthält).
 - rechenfeld: kariertes Feld/Rechenkästchen zum Rechnen (reihen = Anzahl der Kästchenreihen). Vorgedruckte Hilfen im Feld (z. B. „2 · ___ = ___ €“) als inhalt mit Lücken.
 - schreiblinien: freie Linien zum Schreiben ohne Text davor (anzahl).

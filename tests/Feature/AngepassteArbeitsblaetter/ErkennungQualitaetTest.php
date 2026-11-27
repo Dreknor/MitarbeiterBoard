@@ -129,4 +129,21 @@ class ErkennungQualitaetTest extends TestCase
         AbKiProtokoll::query()->update(['created_at' => now()->subDays(31)]);
         $this->assertSame(2, KiProtokoll::bereinigen());
     }
+
+    public function test_leerer_kasten_wird_aus_text_oder_als_abbildung_uebernommen(): void
+    {
+        $struktur = ErkennerVorgaben::struktur(['seiten' => 1, 'bausteine' => [
+            ['typ' => 'kasten', 'titel' => 'Fütterung', 'inhalt' => "Tiger: 14 Uhr"],
+            ['typ' => 'kasten', 'titel' => 'Eintritt', 'inhalt' => [], 'seite' => 1, 'box' => [0.1, 0.2, 0.5, 0.4]],
+            ['typ' => 'kasten', 'titel' => '', 'inhalt' => []],
+        ]]);
+
+        $b = $struktur['bausteine'];
+        $this->assertCount(2, $b);
+        $this->assertSame('kasten', $b[0]['typ']);
+        $this->assertStringContainsString('Tiger: 14 Uhr', AbStruktur::segmentText($b[0]['inhalt']));
+        $this->assertSame('bild', $b[1]['typ']);
+        $this->assertSame([0.1, 0.2, 0.5, 0.4], $b[1]['quelle']['box']);
+        $this->assertStringContainsString('Eintritt', $b[1]['beschreibung']);
+    }
 }
