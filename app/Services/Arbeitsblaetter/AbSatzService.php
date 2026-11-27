@@ -150,7 +150,9 @@ class AbSatzService
         $pdf->setPaper($layout['format'], 'portrait');
         // Schriftordner der Schule (Arial/Verdana) darf außerhalb des Projekts liegen → in den chroot aufnehmen
         $chroot = array_values(array_filter([realpath(base_path()), realpath((string) config('arbeitsblaetter.schriften_pfad')) ?: null]));
-        $pdf->setOption(['isRemoteEnabled' => false, 'isFontSubsettingEnabled' => true, 'defaultFont' => 'DejaVu Sans', 'chroot' => $chroot], true);
+        // Abbildungen kommen als Data-URI – config/dompdf.php erlaubt data:// nicht, daher hier ausdrücklich
+        $protokolle = ['data://' => ['rules' => []], 'file://' => ['rules' => []]];
+        $pdf->setOption(['isRemoteEnabled' => false, 'isFontSubsettingEnabled' => true, 'defaultFont' => 'DejaVu Sans', 'chroot' => $chroot, 'allowedProtocols' => $protokolle], true);
 
         return $pdf->output();
     }
@@ -323,8 +325,9 @@ class AbSatzService
                 if (($b['frage'] ?? '') !== '') {
                     $ziel->addText($b['frage'], $schrift, array_merge($einzug, ['keepNext' => true]));
                 }
-                foreach ($b['optionen'] ?? [] as $option) {
-                    $ziel->addText((! empty($b['mehrfach']) ? '☐' : '○').'  '.$option, $schrift, $einzug);
+                foreach ($b['optionen'] ?? [] as $oi => $option) {
+                    $an = in_array($oi, $b['angekreuzt'] ?? [], true);
+                    $ziel->addText((! empty($b['mehrfach']) ? ($an ? '☒' : '☐') : ($an ? '⊗' : '○')).'  '.$option, $schrift, $einzug);
                 }
                 break;
 
@@ -334,6 +337,32 @@ class AbSatzService
                     $tabelle->addRow(Converter::pointToTwip($l['zeilenhoehe_pt'] * 1.2), ['cantSplit' => true]);
                     foreach ($zeile as $zelle) {
                         $tabelle->addCell()->addText($zelle, array_merge($schrift, ['bold' => $schrift['bold'] || ($i === 0 && ! empty($b['kopfzeile']))]));
+                    }
+                }
+                break;
+
+            case 'kasten':
+                $kasten = $ziel->addTable(['borderSize' => max(4, $linie), 'borderColor' => $farbe, 'cellMargin' => 120, 'width' => 100 * 50, 'unit' => 'pct']);
+                $kasten->addRow(null, ['cantSplit' => true]);
+                $zelle = $kasten->addCell();
+                if (($b['titel'] ?? '') !== '') {
+                    $zelle->addText($b['titel'], array_merge($schrift, ['bold' => true]));
+                }
+                foreach (explode("\n", AbStruktur::segmentText($b['inhalt'] ?? [])) as $zeile) {
+                    $zelle->addText($zeile, $schrift);
+                }
+                break;
+
+            case 'rechenfeld':
+                if (! empty($b['inhalt'])) {
+                    $ziel->addText(AbStruktur::segmentText($b['inhalt']), $schrift, $einzug);
+                }
+                $raster = $ziel->addTable(['borderSize' => 4, 'borderColor' => $farbe, 'cellMargin' => 0]);
+                $kante = Converter::pointToTwip($l['raster_pt']);
+                for ($r = 0; $r < (int) $b['reihen']; $r++) {
+                    $raster->addRow($kante, ['exactHeight' => true, 'cantSplit' => true]);
+                    for ($c = 0; $c < $l['raster_spalten']; $c++) {
+                        $raster->addCell($kante);
                     }
                 }
                 break;

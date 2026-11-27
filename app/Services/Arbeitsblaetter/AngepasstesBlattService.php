@@ -44,15 +44,17 @@ class AngepasstesBlattService
     public function ausUploads(array $daten, array $dateien, string $quelle, User $user, bool $erkennen = true): AngepasstesBlatt
     {
         $eingang = $this->quellen->ausUploads($dateien);
-        $titel = trim((string) ($daten['titel'] ?? '')) ?: $this->titelAusDatei($dateien[0]?->getClientOriginalName() ?? '');
+        $eigen = trim((string) ($daten['titel'] ?? ''));
+        $titel = $eigen ?: $this->titelAusDatei($dateien[0]?->getClientOriginalName() ?? '');
 
-        return $this->anlegen(array_merge($daten, ['titel' => $titel, 'quelle' => $quelle]), $eingang, $user, $erkennen);
+        return $this->anlegen(array_merge($daten, ['titel' => $titel, 'titel_automatisch' => $eigen === '', 'quelle' => $quelle]), $eingang, $user, $erkennen);
     }
 
     /** Neues Blatt aus vorhandenem Inhalt (z. B. Arbeitsblatt eines Wochenplans). */
     public function ausInhalt(array $daten, string $inhalt, string $dateiname, ?User $user, bool $erkennen = true): AngepasstesBlatt
     {
         $eingang = $this->quellen->ausInhalt($inhalt, $dateiname);
+        $daten['titel_automatisch'] = $daten['titel_automatisch'] ?? true;
         $daten['titel'] = trim((string) ($daten['titel'] ?? '')) ?: $this->titelAusDatei($dateiname);
 
         return $this->anlegen($daten, $eingang, $user, $erkennen);
@@ -77,6 +79,7 @@ class AngepasstesBlattService
         $blatt = DB::transaction(function () use ($daten, $eingang, $user) {
             $blatt = AngepasstesBlatt::create([
                 'titel' => mb_substr((string) $daten['titel'], 0, 200),
+                'titel_automatisch' => (bool) ($daten['titel_automatisch'] ?? false),
                 'wp_fach_id' => $daten['wp_fach_id'] ?? null,
                 'klassenstufe' => $daten['klassenstufe'] ?? null,
                 'quelle' => $daten['quelle'] ?? 'upload',
@@ -170,7 +173,14 @@ class AngepasstesBlattService
             $struktur = AbStruktur::normalisieren($struktur);
         }
 
-        AngepasstesBlatt::whereKey($blatt->id)->update([
+        // Titel aus dem Dateinamen → erkannte Überschrift
+        $titel = [];
+        $erste = $struktur['bausteine'][0] ?? null;
+        if ($blatt->fresh()->titel_automatisch && $erste && $erste['typ'] === 'ueberschrift' && trim($erste['text']) !== '') {
+            $titel = ['titel' => mb_substr(trim($erste['text']), 0, 200), 'titel_automatisch' => false];
+        }
+
+        AngepasstesBlatt::whereKey($blatt->id)->update($titel + [
             'struktur' => json_encode($struktur),
             'status' => AngepasstesBlatt::ZU_PRUEFEN,
             'ki_anbieter' => $erkennung->anbieter,
@@ -354,6 +364,9 @@ class AngepasstesBlattService
                 $aenderungen['struktur'] = $neu;
             }
             $titelGeaendert = isset($aenderungen['titel']) && $aenderungen['titel'] !== $blatt->titel;
+            if ($titelGeaendert) {
+                $aenderungen['titel_automatisch'] = false;
+            }
 
             if ($blatt->status === AngepasstesBlatt::ENTWURF && $strukturGeaendert) {
                 $aenderungen['status'] = AngepasstesBlatt::ZU_PRUEFEN;

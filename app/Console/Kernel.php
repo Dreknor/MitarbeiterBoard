@@ -179,6 +179,7 @@ class Kernel extends ConsoleKernel
             $service = app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class);
             $service->offeneEntwuerfeMelden();
             $service->verwaisteAbbildungenBereinigen();
+            \App\Services\Arbeitsblaetter\Ki\KiProtokoll::bereinigen();
         })->dailyAt('03:25')->name('arbeitsblaetter-aufraeumen')->withoutOverlapping();
 
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)

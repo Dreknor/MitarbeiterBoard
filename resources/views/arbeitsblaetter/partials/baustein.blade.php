@@ -49,6 +49,12 @@
         <textarea class="ab-textarea" rows="3" :value="({{ $v }}.optionen || []).join('\n')" @input="{{ $v }}.optionen = $event.target.value.split('\n'); geaendert()"
                   placeholder="Eine Antwort pro Zeile" :disabled="!blatt.darf_bearbeiten" aria-label="Antworten"></textarea>
         <label class="ab-check"><input type="checkbox" x-model="{{ $v }}.mehrfach" @change="geaendert()" :disabled="!blatt.darf_bearbeiten"> Mehrere Antworten möglich (eckige Kästchen)</label>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600" x-show="({{ $v }}.optionen || []).filter(o => o.trim() !== '').length">
+            <span>Im Original schon angekreuzt:</span>
+            <template x-for="(option, oi) in {{ $v }}.optionen" :key="oi">
+                <label class="ab-check" x-show="option.trim() !== ''"><input type="checkbox" :checked="({{ $v }}.angekreuzt || []).includes(oi)" @change="kreuzUmschalten({{ $v }}, oi)" :disabled="!blatt.darf_bearbeiten"> <span x-text="option"></span></label>
+            </template>
+        </div>
     </div>
 </template>
 
@@ -73,6 +79,25 @@
             <button type="button" class="ab-btn ab-btn-ghost ab-btn-sm" @click.stop="tabelle({{ $v }}, 'spalte', -1)"><i class="fas fa-minus"></i> Spalte</button>
             <label class="ab-check ml-2"><input type="checkbox" x-model="{{ $v }}.kopfzeile" @change="geaendert()"> Kopfzeile</label>
         </div>
+    </div>
+</template>
+
+{{-- Kasten (Schild, Info-Kasten) --}}
+<template x-if="{{ $v }}.typ === 'kasten'">
+    <div class="grid gap-2">
+        <input type="text" class="ab-input font-semibold" x-model="{{ $v }}.titel" @input="geaendert()" placeholder="Überschrift im Kasten (optional)" maxlength="300" :disabled="!blatt.darf_bearbeiten" aria-label="Überschrift im Kasten">
+        <textarea class="ab-textarea" rows="3" :value="segText({{ $v }})" @input="segSetzen({{ $v }}, $event.target.value); hoehe($event.target)"
+                  x-init="$nextTick(() => hoehe($el))" placeholder="Text im Kasten – Zeilen mit Enter trennen" :disabled="!blatt.darf_bearbeiten" aria-label="Text im Kasten"></textarea>
+    </div>
+</template>
+
+{{-- Rechenfeld (Kästchen) --}}
+<template x-if="{{ $v }}.typ === 'rechenfeld'">
+    <div class="grid gap-2">
+        <label class="flex items-center gap-2 text-sm">Kästchenreihen
+            <input type="number" min="1" max="20" class="ab-input ab-input-sm w-20" x-model.number="{{ $v }}.reihen" @input="geaendert()" :disabled="!blatt.darf_bearbeiten">
+        </label>
+        <input type="text" class="ab-input" :value="segText({{ $v }})" @input="segSetzen({{ $v }}, $event.target.value)" placeholder="Vorgabe im Feld (optional), z. B. 2 · ___ = ___ €" :disabled="!blatt.darf_bearbeiten" aria-label="Vorgabe im Rechenfeld">
     </div>
 </template>
 

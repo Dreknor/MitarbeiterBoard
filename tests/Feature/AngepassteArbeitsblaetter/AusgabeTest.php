@@ -98,6 +98,22 @@ class AusgabeTest extends TestCase
         rmdir($ordner);
     }
 
+    public function test_pdf_hat_seitenrand_und_abbildung(): void
+    {
+        $blatt = $this->blatt([], []);
+        $media = app(AngepasstesBlattService::class)->abbildungAusInhalt($blatt, $this->bildInhalt(200, 120, 'png'), 'image/png');
+        $blatt->update(['struktur' => ['bausteine' => [
+            ['typ' => 'text', 'text' => 'Links beginnt der Text'],
+            ['typ' => 'bild', 'media_id' => $media->id, 'beschreibung' => 'Zoo'],
+        ]]]);
+
+        $pdf = app(AbSatzService::class)->pdf($blatt->fresh(), AbProfil::normalisieren(['rand' => 20]));
+
+        $this->assertStringContainsString('/Subtype /Image', $pdf, 'Abbildung ist eingebettet');
+        // Seitenrand: kein Text am linken Rand (html-margin darf den @page-Rand nicht überschreiben)
+        $this->assertDoesNotMatchRegularExpression('/html,\s*body\s*\{\s*margin:\s*0/', app(AbSatzService::class)->html($blatt, AbProfil::standard(), 'pdf'));
+    }
+
     public function test_a3_format(): void
     {
         $blatt = $this->blatt();

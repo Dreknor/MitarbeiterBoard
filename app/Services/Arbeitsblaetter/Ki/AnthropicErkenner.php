@@ -65,6 +65,8 @@ class AnthropicErkenner implements AbErkenner
             'fallbacks' => 'default',
         ];
 
+        $start = microtime(true);
+        $url = (string) config('arbeitsblaetter.ki.url');
         try {
             $antwort = Http::withHeaders([
                 'x-api-key' => (string) config('arbeitsblaetter.ki.schluessel'),
@@ -72,8 +74,10 @@ class AnthropicErkenner implements AbErkenner
                 'anthropic-beta' => self::FALLBACK_BETA,
                 'content-type' => 'application/json',
             ])->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
-                ->post((string) config('arbeitsblaetter.ki.url'), $anfrage);
+                ->post($url, $anfrage);
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, null, $start);
         } catch (ConnectionException $e) {
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, null, $e, $start);
             throw new AbErkennungFehler('Die KI ist nicht erreichbar: '.$e->getMessage(), true);
         }
 

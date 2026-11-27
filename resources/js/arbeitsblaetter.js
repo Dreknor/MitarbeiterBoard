@@ -404,6 +404,7 @@ function registerComponents(Alpine) {
         const ICONS = {
             ueberschrift: 'fa-heading', anweisung: 'fa-bullhorn', text: 'fa-align-left', aufgabe: 'fa-list-ol',
             ankreuzen: 'fa-check-square', tabelle: 'fa-table', schreiblinien: 'fa-grip-lines', bild: 'fa-image',
+            kasten: 'fa-square', rechenfeld: 'fa-th',
         };
 
         const segmenteZuText = (segmente) => (segmente || []).map((s) => (s.typ === 'luecke' ? '_'.repeat(Math.max(3, s.laenge || 4)) : (s.text || ''))).join('');
@@ -416,7 +417,9 @@ function registerComponents(Alpine) {
                 case 'anweisung': return { id, typ, text };
                 case 'text': return { id, typ, inhalt: textZuSegmente(text) };
                 case 'aufgabe': return { id, typ, nummer: '', inhalt: textZuSegmente(text), kinder: [] };
-                case 'ankreuzen': return { id, typ, frage: text, optionen: ['', ''], mehrfach: false };
+                case 'ankreuzen': return { id, typ, frage: text, optionen: ['', ''], mehrfach: false, angekreuzt: [] };
+                case 'kasten': return { id, typ, titel: '', inhalt: textZuSegmente(text) };
+                case 'rechenfeld': return { id, typ, reihen: 2, inhalt: [] };
                 case 'tabelle': return { id, typ, zeilen: [[text, ''], ['', '']], kopfzeile: false };
                 case 'schreiblinien': return { id, typ, anzahl: 3 };
                 case 'bild': return { id, typ, media_id: null, beschreibung: text, quelle: null };
@@ -432,6 +435,8 @@ function registerComponents(Alpine) {
                 case 'aufgabe': return segmenteZuText(b.inhalt);
                 case 'ankreuzen': return b.frage || '';
                 case 'tabelle': return (b.zeilen?.[0] || []).join(' ');
+                case 'kasten': return [b.titel, segmenteZuText(b.inhalt)].filter(Boolean).join('\n');
+                case 'rechenfeld': return segmenteZuText(b.inhalt);
                 case 'bild': return b.beschreibung || '';
                 default: return '';
             }
@@ -720,6 +725,12 @@ function registerComponents(Alpine) {
 
             segText(b) { return segmenteZuText(b.inhalt); },
 
+            kreuzUmschalten(b, index) {
+                const liste = b.angekreuzt || [];
+                b.angekreuzt = liste.includes(index) ? liste.filter((i) => i !== index) : [...liste, index];
+                this.geaendert();
+            },
+
             segSetzen(b, text) {
                 b.inhalt = textZuSegmente(text);
                 this.geaendert();
@@ -869,6 +880,17 @@ function registerComponents(Alpine) {
                     this.uebernehmen(antwort.blatt, true);
                     this.meldung = antwort.meldung;
                     this.pollen();
+                } catch (err) {
+                    this.meldungFehler = err.message;
+                }
+            },
+
+            protokoll: null,
+
+            async protokollOeffnen() {
+                try {
+                    const antwort = await anfrage(this.blatt.urls.protokoll);
+                    this.protokoll = antwort.eintraege;
                 } catch (err) {
                     this.meldungFehler = err.message;
                 }

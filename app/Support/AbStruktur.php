@@ -15,6 +15,8 @@ namespace App\Support;
  *   {"id":"b4","typ":"ankreuzen","frage":"…","optionen":["ja","nein"]},
  *   {"id":"b5","typ":"tabelle","zeilen":[["a","b"],["",""]],"kopfzeile":true},
  *   {"id":"b6","typ":"schreiblinien","anzahl":3},
+ *   {"id":"b9","typ":"kasten","titel":"Eintritt","inhalt":[{"typ":"text","text":"Kinder: 8 €\nErwachsene: 16 €"}]},
+ *   {"id":"b10","typ":"rechenfeld","reihen":2,"inhalt":[…Vorgabe, z. B. „2 · ___ = ___ €“…]},
  *   {"id":"b7","typ":"bild","media_id":12,"beschreibung":"Kreis, ¾ gefärbt",
  *    "quelle":{"seite":1,"box":[0.1,0.4,0.5,0.7]}},
  *   {"id":"b8","typ":"text","inhalt":[…]}
@@ -36,6 +38,8 @@ class AbStruktur
         'aufgabe' => 'Aufgabe',
         'ankreuzen' => 'Ankreuzen',
         'tabelle' => 'Tabelle',
+        'kasten' => 'Kasten',
+        'rechenfeld' => 'Rechenfeld',
         'schreiblinien' => 'Schreiblinien',
         'bild' => 'Abbildung',
     ];
@@ -171,6 +175,8 @@ class AbStruktur
                 'text', 'aufgabe' => trim(($b['nummer'] ?? '').' '.self::segmentText($b['inhalt'] ?? [])),
                 'ankreuzen' => trim(($b['frage'] ?? '').' '.implode(' / ', $b['optionen'] ?? [])),
                 'tabelle' => implode(' ', array_map(fn ($z) => implode(' | ', $z), $b['zeilen'] ?? [])),
+                'kasten' => trim(($b['titel'] ?? '').' '.self::segmentText($b['inhalt'] ?? [])),
+                'rechenfeld' => self::segmentText($b['inhalt'] ?? []),
                 'bild' => $b['beschreibung'] ?? '',
                 default => '',
             };
@@ -217,6 +223,16 @@ class AbStruktur
                     (array) ($roh['optionen'] ?? [])
                 ), fn ($o) => $o !== ''), 0, self::MAX_OPTIONEN)),
                 'mehrfach' => (bool) ($roh['mehrfach'] ?? false),
+                // im Original bereits angekreuzt (Beispiel): Indizes der Optionen
+                'angekreuzt' => array_values(array_unique(array_filter(array_map('intval', array_filter((array) ($roh['angekreuzt'] ?? []), 'is_numeric')), fn ($i) => $i >= 0 && $i < self::MAX_OPTIONEN))),
+            ],
+            'kasten' => [
+                'titel' => self::text($roh['titel'] ?? '', self::MAX_KURZTEXT),
+                'inhalt' => self::inhalt($roh),
+            ],
+            'rechenfeld' => [
+                'reihen' => max(1, min(20, (int) ($roh['reihen'] ?? 2))),
+                'inhalt' => self::inhalt($roh),
             ],
             'tabelle' => self::tabelle($roh),
             'schreiblinien' => [

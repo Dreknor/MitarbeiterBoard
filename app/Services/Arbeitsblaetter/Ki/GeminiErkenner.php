@@ -114,11 +114,14 @@ class GeminiErkenner implements AbErkenner
     {
         $url = rtrim((string) config('arbeitsblaetter.ki.gemini.url'), '/').'/models/'.rawurlencode($modell).':generateContent';
 
+        $start = microtime(true);
         try {
             $antwort = Http::withHeaders(['x-goog-api-key' => $this->schluessel()])
                 ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
                 ->post($url, $anfrage);
+            KiProtokoll::aufzeichnen($this->anbieter(), $modell, $url, $anfrage, $antwort, null, $start);
         } catch (ConnectionException $e) {
+            KiProtokoll::aufzeichnen($this->anbieter(), $modell, $url, $anfrage, null, $e, $start);
             throw new AbErkennungFehler('Gemini ist nicht erreichbar: '.$e->getMessage(), true);
         }
 

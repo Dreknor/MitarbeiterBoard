@@ -171,6 +171,9 @@ class AbProfil
             'ankreuz_pt' => round($w['ankreuz_groesse'] * $mmZuPt, 2),
             'luecke_pt' => round($w['luecke_min'] * $mmZuPt, 2),
             'ueberschrift_pt' => round($w['groesse'] * 1.35, 1),
+            // Rechenkästchen wachsen mit der Schrift (mind. 5 mm); Spalten füllen die Satzbreite
+            'raster_pt' => $raster = max(round(5 * $mmZuPt, 1), round($w['groesse'] * 1.3, 1)),
+            'raster_spalten' => max(4, (int) floor(((($w['format'] === 'A3' ? 297 : 210) - 2 * $w['rand']) * $mmZuPt - $w['groesse'] * 1.6) / $raster)),
         ]);
     }
 }

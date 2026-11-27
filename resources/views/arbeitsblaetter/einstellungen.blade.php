@@ -135,6 +135,24 @@
                 </div>
             </div>
             <div class="ab-card">
+                <div class="ab-card-body">
+                    <h2 class="ab-card-title mb-2"><i class="fas fa-bug"></i> Letzte KI-Aufrufe</h2>
+                    @forelse($protokoll as $eintrag)
+                        <div class="ab-status-zeile">
+                            <i class="fas mt-0.5 {{ $eintrag->http_status === 200 ? 'fa-check-circle text-emerald-600' : 'fa-times-circle text-red-600' }}"></i>
+                            <div class="min-w-0">
+                                <div class="font-semibold">{{ $eintrag->created_at?->format('d.m. H:i') }} · {{ $eintrag->modell }} · {{ $eintrag->http_status ? 'HTTP '.$eintrag->http_status : 'keine Antwort' }} · {{ number_format($eintrag->dauer_ms / 1000, 1, ',', '.') }} s</div>
+                                @if($eintrag->fehler)<div class="text-xs text-red-700">{{ \Illuminate\Support\Str::limit($eintrag->fehler, 160) }}</div>@endif
+                                @if($eintrag->blatt)<a href="{{ route('arbeitsblaetter.edit', $eintrag->blatt_id) }}" class="text-xs underline">{{ $eintrag->blatt->titel }}</a>@endif
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-slate-500">Noch keine Aufrufe.</p>
+                    @endforelse
+                    <p class="ab-hint mt-2">Details (Anfrage und Antwort) im Editor des Blatts unter „KI-Protokoll“.</p>
+                </div>
+            </div>
+            <div class="ab-card">
                 <div class="ab-card-body text-sm">
                     <h2 class="ab-card-title mb-2"><i class="fas fa-layer-group"></i> Bibliothek</h2>
                     <p>{{ $statistik['blaetter'] }} Blätter, davon {{ $statistik['zur_pruefung'] }} zur Prüfung und {{ $statistik['fehler'] }} mit Fehler.</p>

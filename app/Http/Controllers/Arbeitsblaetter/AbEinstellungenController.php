@@ -55,6 +55,7 @@ class AbEinstellungenController extends Controller
             'schriften' => collect(\App\Services\Arbeitsblaetter\AbSatzService::eigeneSchriften())
                 ->mapWithKeys(fn ($s) => [\App\Support\AbProfil::SCHRIFTEN[$s] => ! \App\Services\Arbeitsblaetter\AbSatzService::nutztErsatz($s)])->all(),
             'schriftenOrdner' => app(\App\Services\Arbeitsblaetter\AbSchriftenService::class)->zielOrdner(),
+            'protokoll' => \App\Models\Arbeitsblaetter\AbKiProtokoll::with('blatt:id,titel')->latest('id')->limit(15)->get(),
             'statistik' => [
                 'blaetter' => AngepasstesBlatt::count(),
                 'zur_pruefung' => AngepasstesBlatt::where('status', AngepasstesBlatt::ZU_PRUEFEN)->count(),

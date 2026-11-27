@@ -40,6 +40,16 @@ class AbBlattErkennen implements ShouldQueue
             return;
         }
 
+        \App\Services\Arbeitsblaetter\Ki\KiProtokoll::fuer($blatt->id);
+        try {
+            $this->erkennen($blatt, $service, $erkenner);
+        } finally {
+            \App\Services\Arbeitsblaetter\Ki\KiProtokoll::fuer(null);
+        }
+    }
+
+    private function erkennen(AngepasstesBlatt $blatt, AngepasstesBlattService $service, AbErkenner $erkenner): void
+    {
         $pausen = (array) config('arbeitsblaetter.ki.wiederholung_sekunden', [5, 15]);
         $versuch = 0;
         while (true) {

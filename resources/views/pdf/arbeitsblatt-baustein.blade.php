@@ -1,5 +1,17 @@
 {{-- Ein Baustein des angepassten Arbeitsblatts (siehe pdf/arbeitsblatt.blade.php, App\Support\AbStruktur) --}}
 @php
+    // Ankreuzkästchen als SVG (DomPDF zentriert Text in Kästchen nicht zuverlässig); Maße/Farben aus dem Profil
+    $kaestchen = function (bool $rund, bool $an) use ($l) {
+        $g = 100;
+        $w = max(4, round(max(1, $l['linienstaerke']) / $l['ankreuz_pt'] * $g, 1));
+        $f = $l['farbe_linie'];
+        $form = $rund
+            ? '<circle cx="50" cy="50" r="'.(50 - $w / 2).'" fill="none" stroke="'.$f.'" stroke-width="'.$w.'"/>'
+            : '<rect x="'.($w / 2).'" y="'.($w / 2).'" width="'.($g - $w).'" height="'.($g - $w).'" fill="none" stroke="'.$f.'" stroke-width="'.$w.'"/>';
+        $kreuz = $an ? '<path d="M27 27 L73 73 M73 27 L27 73" stroke="'.$f.'" stroke-width="'.($w * 1.6).'" stroke-linecap="round"/>' : '';
+
+        return 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">'.$form.$kreuz.'</svg>');
+    };
     $inhalt = function (array $segmente) use ($lueckeBreite) {
         $html = '';
         foreach ($segmente as $s) {
@@ -26,23 +38,52 @@
         @break
 
     @case('aufgabe')
-        <div class="ab-baustein ab-aufgabe">
-            <div>@if(($b['nummer'] ?? '') !== '')<span class="ab-nummer">{{ $b['nummer'] }}</span>@endif{!! $inhalt($b['inhalt'] ?? []) !!}</div>
-            @if(!empty($b['kinder']))
-                <div class="ab-kinder">
-                    @foreach($b['kinder'] as $kind)
-                        @include('pdf.arbeitsblatt-baustein', ['b' => $kind])
-                    @endforeach
-                </div>
-            @endif
-        </div>
+        @php
+            $kopf = (($b['nummer'] ?? '') !== '' || !empty($b['inhalt']));
+            // Teilaufgaben bilden Gruppen: jede Teilaufgabe mit den folgenden Bausteinen (Ankreuzen, Antwort …).
+            // Jede Gruppe bleibt zusammen – nicht die ganze Aufgabe, die sonst als Block auf die nächste Seite rutscht.
+            // Bausteine vor der ersten Teilaufgabe (z. B. Schilder) bilden je eine eigene Gruppe, damit
+            // keine übergroße Gruppe entsteht, die DomPDF nicht mehr sauber umbrechen kann.
+            $gruppen = [];
+            $inTeilaufgabe = false;
+            foreach ($b['kinder'] ?? [] as $kind) {
+                if (! $gruppen || $kind['typ'] === 'aufgabe' || ! $inTeilaufgabe) {
+                    $gruppen[] = [];
+                }
+                $inTeilaufgabe = $inTeilaufgabe || $kind['typ'] === 'aufgabe';
+                $gruppen[count($gruppen) - 1][] = $kind;
+            }
+        @endphp
+        @if(! $gruppen)
+            <div class="ab-baustein ab-aufgabe ab-zusammen">
+                <div class="{{ ($b['nummer'] ?? '') !== '' ? 'ab-haengend' : '' }}">@if(($b['nummer'] ?? '') !== '')<span class="ab-nummer">{{ $b['nummer'] }}</span>@endif{!! $inhalt($b['inhalt'] ?? []) !!}</div>
+            </div>
+        @else
+            <div class="ab-baustein">
+                @foreach($gruppen as $gi => $gruppe)
+                    <div class="ab-zusammen">
+                        @if($gi === 0 && $kopf)
+                            <div class="{{ ($b['nummer'] ?? '') !== '' ? 'ab-haengend' : '' }}">@if(($b['nummer'] ?? '') !== '')<span class="ab-nummer">{{ $b['nummer'] }}</span>@endif{!! $inhalt($b['inhalt'] ?? []) !!}</div>
+                        @endif
+                        <div class="ab-kinder">
+                            @foreach($gruppe as $kind)
+                                @include('pdf.arbeitsblatt-baustein', ['b' => $kind, 'tief' => 1])
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
         @break
 
     @case('ankreuzen')
         <div class="ab-baustein">
             @if(($b['frage'] ?? '') !== '')<p style="margin: 0">{!! nl2br(e($b['frage']), false) !!}</p>@endif
-            @foreach($b['optionen'] ?? [] as $option)
-                <div class="ab-option"><span class="ab-kaestchen{{ !empty($b['mehrfach']) ? '' : ' rund' }}"></span>{{ $option }}</div>
+            @foreach($b['optionen'] ?? [] as $oi => $option)
+                <table class="ab-option"><tr>
+                    <td class="ab-kaestchen-zelle"><img class="ab-kaestchen" src="{{ $kaestchen(empty($b['mehrfach']), in_array($oi, $b['angekreuzt'] ?? [], true)) }}" alt="{{ in_array($oi, $b['angekreuzt'] ?? [], true) ? 'angekreuzt' : 'Kästchen' }}"></td>
+                    <td class="ab-option-text">{{ $option }}</td>
+                </tr></table>
             @endforeach
         </div>
         @break
@@ -57,6 +98,26 @@
                 </tr>
             @endforeach
         </table>
+        @break
+
+    @case('kasten')
+        {{-- nur auf oberster Ebene „nicht trennen“: verschachtelt verliert DomPDF sonst Rahmen/Tabellen --}}
+        <div class="ab-baustein ab-kasten {{ empty($tief) ? 'ab-zusammen' : '' }}">
+            @if(($b['titel'] ?? '') !== '')<div class="ab-kasten-titel">{{ $b['titel'] }}</div>@endif
+            <div>{!! $inhalt($b['inhalt'] ?? []) !!}</div>
+        </div>
+        @break
+
+    @case('rechenfeld')
+        <div class="ab-baustein {{ empty($tief) ? 'ab-zusammen' : '' }}">
+            @if(!empty($b['inhalt']))<div style="margin-bottom: 4pt">{!! $inhalt($b['inhalt']) !!}</div>@endif
+            @php $spalten = empty($tief) ? $l['raster_spalten'] : max(4, $l['raster_spalten'] - 2); @endphp
+            <table class="ab-raster" style="width: {{ round($spalten * $l['raster_pt'], 1) }}pt">
+                @for($r = 0; $r < (int) ($b['reihen'] ?? 2); $r++)
+                    <tr>@for($c = 0; $c < $spalten; $c++)<td></td>@endfor</tr>
+                @endfor
+            </table>
+        </div>
         @break
 
     @case('schreiblinien')

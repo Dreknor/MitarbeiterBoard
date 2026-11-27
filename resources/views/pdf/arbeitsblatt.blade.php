@@ -29,7 +29,8 @@
 
         @page { size: {{ $l['format'] }} portrait; margin: {{ $mm($l['rand']) }}; }
 
-        html, body { margin: 0; padding: 0; }
+        /* Kein margin auf html: DomPDF nimmt ihn sonst statt des @page-Rands */
+        body { margin: 0; padding: 0; }
         body {
             font-family: '{{ $l['schrift_familie'] }}', {!! in_array($l['schrift'], ['arial', 'verdana'], true) ? "'".$l['schrift_name']."', " : '' !!}'DejaVu Sans', sans-serif;
             font-size: {{ $l['groesse'] }}pt;
@@ -55,20 +56,24 @@
         .ab-baustein { margin: 0 0 {{ round($l['groesse'] * 0.75) }}pt; }
         .ab-anweisung { font-weight: bold; }
         .ab-anweisung .ab-symbol { display: inline-block; margin-right: 4pt; }
-        .ab-aufgabe { {{ $avoid ? 'page-break-inside: avoid;' : '' }} }
-        .ab-nummer { font-weight: bold; display: inline-block; min-width: {{ round($l['groesse'] * 1.6) }}pt; }
+        .ab-zusammen { {{ $avoid ? 'page-break-inside: avoid;' : '' }} }
+        .ab-nummer { font-weight: bold; display: inline-block; width: {{ round($l['groesse'] * 1.6) }}pt; }
+        /* hängender Einzug: Folgezeilen beginnen unter dem Text, nicht unter der Nummer */
+        .ab-haengend { padding-left: {{ round($l['groesse'] * 1.6) }}pt; text-indent: -{{ round($l['groesse'] * 1.6) }}pt; }
         .ab-kinder { margin: {{ round($l['groesse'] * 0.4) }}pt 0 0 {{ round($l['groesse'] * 1.6) }}pt; }
         .ab-luecke {
             display: inline-block; vertical-align: baseline;
             border-bottom: {{ $l['linienstaerke'] }}pt solid {{ $l['farbe_linie'] }};
             height: {{ round($l['groesse'] * 1.05, 1) }}pt; margin: 0 2pt;
         }
-        .ab-option { margin: {{ round($l['groesse'] * 0.35) }}pt 0; {{ $avoid ? 'page-break-inside: avoid;' : '' }} }
-        .ab-kaestchen {
-            display: inline-block; width: {{ $l['ankreuz_pt'] }}pt; height: {{ $l['ankreuz_pt'] }}pt;
-            border: {{ max(1, $l['linienstaerke']) }}pt solid {{ $l['farbe_linie'] }}; margin-right: 8pt; vertical-align: middle;
-        }
-        .ab-kaestchen.rund { border-radius: 50%; }
+        table.ab-option { width: 100%; border-collapse: separate; border-spacing: 0; margin: {{ round($l['groesse'] * 0.35) }}pt 0; {{ $avoid ? 'page-break-inside: avoid;' : '' }} }
+        td.ab-kaestchen-zelle { width: {{ $l['ankreuz_pt'] + 2 * max(1, $l['linienstaerke']) }}pt; padding: 0; vertical-align: middle; }
+        img.ab-kaestchen { width: {{ $l['ankreuz_pt'] }}pt; height: {{ $l['ankreuz_pt'] }}pt; display: block; }
+        td.ab-option-text { width: 100%; padding-left: 8pt; vertical-align: middle; }
+        .ab-kasten { border: {{ max(1, $l['linienstaerke']) }}pt solid {{ $l['farbe_linie'] }}; padding: {{ round($l['groesse'] * 0.5) }}pt {{ round($l['groesse'] * 0.7) }}pt; }
+        .ab-kasten-titel { font-weight: bold; margin-bottom: {{ round($l['groesse'] * 0.25) }}pt; }
+        table.ab-raster { border-collapse: collapse; }
+        table.ab-raster td { width: {{ $l['raster_pt'] }}pt; height: {{ $l['raster_pt'] }}pt; padding: 0; border: {{ max(0.5, round($l['linienstaerke'] * 0.5, 2)) }}pt solid {{ $l['farbe_linie'] }}; }
         .ab-linie { height: {{ $l['linienabstand_pt'] }}pt; border-bottom: {{ $l['linienstaerke'] }}pt solid {{ $l['farbe_linie'] }}; }
         .ab-schreiblinien { {{ $avoid ? 'page-break-inside: avoid;' : '' }} }
         table.ab-tabelle { border-collapse: collapse; width: 100%; {{ $avoid ? 'page-break-inside: avoid;' : '' }} }

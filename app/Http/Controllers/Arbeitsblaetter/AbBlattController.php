@@ -204,6 +204,43 @@ class AbBlattController extends Controller
         return response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request), 'meldung' => 'Die Erkennung wurde gestartet.']);
     }
 
+    /** KI-Protokoll des Blatts (Fehlersuche): Anfragen ohne Bilddaten, rohe Antworten, erkannter Inhalt. */
+    public function kiProtokoll(Request $request, AngepasstesBlatt $blatt): JsonResponse
+    {
+        $this->authorize('update', $blatt);
+
+        return response()->json(['eintraege' => \App\Models\Arbeitsblaetter\AbKiProtokoll::where('blatt_id', $blatt->id)
+            ->latest('id')->limit(20)->get()
+            ->map(fn ($e) => self::protokollArray($e))->values()]);
+    }
+
+    public static function protokollArray(\App\Models\Arbeitsblaetter\AbKiProtokoll $e): array
+    {
+        $antwort = json_decode((string) $e->antwort, true);
+        $text = is_array($antwort) ? (
+            collect(data_get($antwort, 'candidates.0.content.parts', []))->reject(fn ($t) => ! empty($t['thought']))->pluck('text')->implode('')
+            ?: collect(data_get($antwort, 'content', []))->where('type', 'text')->pluck('text')->implode('')
+            ?: (string) (is_string(data_get($antwort, 'choices.0.message.content')) ? data_get($antwort, 'choices.0.message.content') : '')
+        ) : '';
+        $inhalt = $text !== '' ? \App\Services\Arbeitsblaetter\Ki\ErkennerVorgaben::jsonLesen($text) : null;
+        $huebsch = fn ($wert) => json_encode($wert, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+
+        return [
+            'id' => $e->id,
+            'zeit' => $e->created_at?->format('d.m.Y H:i:s'),
+            'anbieter' => $e->anbieter,
+            'modell' => $e->modell,
+            'http_status' => $e->http_status,
+            'dauer' => number_format($e->dauer_ms / 1000, 1, ',', '.').' s',
+            'fehler' => $e->fehler,
+            'anfrage' => (string) $e->anfrage,
+            'antwort' => is_array($antwort) ? $huebsch($antwort) : (string) $e->antwort,
+            'inhalt' => $inhalt !== null ? $huebsch($inhalt) : ($text !== '' ? $text : null),
+            'nutzung' => is_array($antwort) ? (data_get($antwort, 'usageMetadata') ?? data_get($antwort, 'usage')) : null,
+            'blatt_id' => $e->blatt_id,
+        ];
+    }
+
     public function erkennenAbbrechen(Request $request, AngepasstesBlatt $blatt): JsonResponse
     {
         $this->authorize('update', $blatt);
@@ -281,7 +318,7 @@ class AbBlattController extends Controller
     {
         /** @var Media|null $media */
         $media = $blatt->getMedia($sammlung)->firstWhere('id', $mediaId);
-        abort_unless($media, 404);
+        abort_unless($media && is_file($media->getPath()), 404);
 
         $mime = (string) ($media->getCustomProperty('mime') ?: $media->mime_type ?: 'application/octet-stream');
         $name = str_replace('"', '', $media->file_name);
@@ -372,6 +409,7 @@ class AbBlattController extends Controller
                 'freigeben' => route('arbeitsblaetter.freigeben', $blatt),
                 'erkennen' => route('arbeitsblaetter.erkennen', $blatt),
                 'abbrechen' => route('arbeitsblaetter.erkennen.abbrechen', $blatt),
+                'protokoll' => route('arbeitsblaetter.ki-protokoll', $blatt),
                 'abbildung' => route('arbeitsblaetter.abbildungen.store', $blatt),
                 'ausgabe' => route('arbeitsblaetter.ausgabe', $blatt),
             ],

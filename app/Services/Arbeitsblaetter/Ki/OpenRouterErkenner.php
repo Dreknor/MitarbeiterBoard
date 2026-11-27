@@ -101,12 +101,16 @@ class OpenRouterErkenner implements AbErkenner
             $anfrage['plugins'] = [['id' => 'file-parser', 'pdf' => ['engine' => $engine]]];
         }
 
+        $start = microtime(true);
+        $url = $this->basis().'/chat/completions';
         try {
             $antwort = Http::withToken($this->schluessel())
                 ->withHeaders(['X-Title' => 'MitarbeiterBoard'])
                 ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
-                ->post($this->basis().'/chat/completions', $anfrage);
+                ->post($url, $anfrage);
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, null, $start);
         } catch (ConnectionException $e) {
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, null, $e, $start);
             throw new AbErkennungFehler('OpenRouter ist nicht erreichbar: '.$e->getMessage(), true);
         }
 

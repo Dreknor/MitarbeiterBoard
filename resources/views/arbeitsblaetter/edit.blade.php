@@ -44,6 +44,7 @@
                     <button type="submit" class="ab-btn ab-btn-danger" title="Löschen"><i class="fas fa-trash"></i></button>
                 </form>
             @endcan
+            <button type="button" class="ab-btn ab-btn-ghost" x-show="blatt.darf_bearbeiten && blatt.originale.length" @click="protokollOeffnen()" title="Anfragen an die KI und ihre Antworten (Fehlersuche)"><i class="fas fa-bug"></i><span class="hidden sm:inline">KI-Protokoll</span></button>
             <button type="button" class="ab-icon-btn" data-tour-start="angepasste-arbeitsblaetter-editor" title="Rundgang"><i class="fas fa-question-circle"></i></button>
         </div>
     </div>
@@ -168,6 +169,45 @@
             </button>
         </div>
     </div>
+
+    {{-- KI-Protokoll (Fehlersuche) --}}
+    <template x-if="protokoll">
+        <div class="ab-dialog-hintergrund" @keydown.escape.window="protokoll = null" @click.self="protokoll = null">
+            <div class="ab-dialog" style="max-width: 72rem" role="dialog" aria-modal="true" aria-labelledby="ab-protokoll-titel">
+                <div class="ab-card-body">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <h2 id="ab-protokoll-titel" class="ab-card-title"><i class="fas fa-bug"></i> KI-Protokoll</h2>
+                        <button type="button" class="ab-icon-btn" @click="protokoll = null" title="Schließen"><i class="fas fa-times"></i></button>
+                    </div>
+                    <p class="ab-hint mt-0 mb-3">Die letzten Anfragen an die KI für dieses Blatt (30 Tage aufbewahrt). Bilddaten sind durch Platzhalter ersetzt; es werden keine Namen oder Profile gesendet.</p>
+                    <p class="text-sm text-slate-500" x-show="!protokoll.length">Noch keine Aufrufe protokolliert.</p>
+                    <template x-for="e in protokoll" :key="e.id">
+                        <details class="mb-2 rounded-xl border border-slate-200">
+                            <summary class="cursor-pointer px-3 py-2 text-sm flex flex-wrap items-center gap-2">
+                                <span class="ab-status" :class="e.http_status === 200 ? 'ab-status-freigegeben' : 'ab-status-fehler'" x-text="e.http_status ? 'HTTP ' + e.http_status : 'keine Antwort'"></span>
+                                <span class="font-semibold" x-text="e.zeit"></span>
+                                <span class="text-slate-500" x-text="e.anbieter + ' · ' + e.modell + ' · ' + e.dauer"></span>
+                                <span class="text-red-700" x-show="e.fehler" x-text="e.fehler"></span>
+                            </summary>
+                            <div class="px-3 pb-3 grid gap-3">
+                                <template x-if="e.inhalt">
+                                    <div><h3 class="ab-gruppe-titel mt-1">Erkannter Inhalt (vor der Aufbereitung)</h3>
+                                        <pre class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 overflow-auto max-h-96 whitespace-pre-wrap" x-text="e.inhalt"></pre></div>
+                                </template>
+                                <template x-if="e.nutzung">
+                                    <div><h3 class="ab-gruppe-titel mt-1">Token</h3><pre class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 overflow-auto" x-text="JSON.stringify(e.nutzung, null, 2)"></pre></div>
+                                </template>
+                                <div><h3 class="ab-gruppe-titel mt-1">Anfrage</h3>
+                                    <pre class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 overflow-auto max-h-96 whitespace-pre-wrap" x-text="e.anfrage"></pre></div>
+                                <div><h3 class="ab-gruppe-titel mt-1">Rohe Antwort</h3>
+                                    <pre class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 overflow-auto max-h-96 whitespace-pre-wrap" x-text="e.antwort || '–'"></pre></div>
+                            </div>
+                        </details>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
 
     {{-- Versionskonflikt --}}
     <template x-if="konflikt">
