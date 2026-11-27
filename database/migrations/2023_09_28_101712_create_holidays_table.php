@@ -61,7 +61,7 @@ return new class extends Migration
               'guard_name' => 'web',
         ]);
 
-        exec('php artisan cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
     }
 

@@ -129,12 +129,12 @@
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Start <span class="text-red-400">*</span></label>
                                 <input type="time" name="start" class="w-full rounded-xl border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required
-                                       min="{{ config('rooms.start_booking') }}" max="{{ config('rooms.end_booking') }}" step="300" value="{{ old('start') }}">
+                                       min="{{ config('rooms.start_booking') }}" max="{{ config('rooms.end_booking') }}" step="300" value="{{ old('start', request('von')) }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Ende <span class="text-red-400">*</span></label>
                                 <input type="time" name="end" class="w-full rounded-xl border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required
-                                       min="{{ config('rooms.start_booking') }}" max="{{ config('rooms.end_booking') }}" step="300" value="{{ old('end') }}">
+                                       min="{{ config('rooms.start_booking') }}" max="{{ config('rooms.end_booking') }}" step="300" value="{{ old('end', request('bis')) }}">
                             </div>
                             <div class="col-span-2 sm:col-span-2 lg:col-span-1">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Bezeichnung <span class="text-red-400">*</span></label>
@@ -516,7 +516,8 @@
     document.addEventListener('DOMContentLoaded', renderWeekTable);
 
     // Buchungsformular automatisch öffnen wenn is_recurring=0 in old() oder Kollision mit wiederkehrendem Termin
-    @if(old('is_recurring') === '0' || session('collision_is_recurring'))
+    // … oder wenn aus der Suche „Freien Raum finden“ mit Zeitraum (?von=&bis=) gekommen
+    @if(old('is_recurring') === '0' || session('collision_is_recurring') || (request()->filled('von') && request()->filled('bis')))
     document.addEventListener('DOMContentLoaded', function () {
         const panel = document.getElementById('bookingPanel');
         const btn   = document.getElementById('toggleBookingBtn');

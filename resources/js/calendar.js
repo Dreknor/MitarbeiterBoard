@@ -131,8 +131,11 @@ Alpine.data('calendarApp', () => ({
     searchLoading: false,
     searchResults: [],
 
-    // Benutzerdefinierte Kalenderfarben (localStorage)
+    // Persönliche Kalenderfarben: Datenbank (user_calendar_colors) ist die Quelle,
+    // localStorage nur Zwischenspeicher (Hybrid, TODO 29)
     customColors: {},
+    colorsUrl: null,
+    _colorsTimer: null,
 
     canCreate: false,
     canBookRooms: false,
@@ -153,7 +156,17 @@ Alpine.data('calendarApp', () => ({
         const roomIds = this.allRooms.map((r) => r.id);
         this.activeRooms = storageGet('calendar_active_rooms', []).filter((id) => roomIds.includes(id)).slice(0, MAX_ROOMS);
 
-        this.customColors = storageGet('calendar_custom_colors', {});
+        this.colorsUrl = el.dataset.colorsUrl || null;
+        const serverColors = readJson(el, 'userColors', {});
+        const localColors = storageGet('calendar_custom_colors', {});
+        if (Object.keys(serverColors).length) {
+            this.customColors = serverColors;
+            storageSet('calendar_custom_colors', serverColors);
+        } else {
+            this.customColors = localColors;
+            // Bisher nur im Browser gespeicherte Farben einmalig übernehmen
+            if (Object.keys(localColors).length) this.saveColors();
+        }
 
         const mq = window.matchMedia(MOBILE_QUERY);
         this.isMobile = mq.matches;
@@ -344,6 +357,7 @@ Alpine.data('calendarApp', () => ({
     setCustomColor(calId, color) {
         this.customColors = { ...this.customColors, [String(calId)]: color };
         storageSet('calendar_custom_colors', this.customColors);
+        this.saveColors();
         this.refetch();
     },
 
@@ -352,7 +366,22 @@ Alpine.data('calendarApp', () => ({
         delete colors[String(calId)];
         this.customColors = colors;
         storageSet('calendar_custom_colors', this.customColors);
+        this.saveColors();
         this.refetch();
+    },
+
+    /** Speichert alle Farben gebündelt in der Datenbank (Farbwähler feuert oft). */
+    saveColors() {
+        if (!this.colorsUrl) return;
+        clearTimeout(this._colorsTimer);
+        this._colorsTimer = setTimeout(() => {
+            fetch(this.colorsUrl, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+                body: JSON.stringify({ farben: this.customColors }),
+            }).catch(() => { /* Farben bleiben im Browser erhalten */ });
+        }, 500);
     },
 
     // ─── Termin-Suche ──────────────────────────────────────────────────

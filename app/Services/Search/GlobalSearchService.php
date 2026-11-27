@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Globale Suche über Nachrichten, Gruppen-Themen, Meetings sowie Themen und
+ * Globale Suche über Nachrichten, Wiki-Seiten, Gruppen-Themen, Meetings sowie Themen und
  * Protokolle aus Meetings, an denen der Nutzer teilnimmt – auch wenn er nicht
  * Mitglied der Gruppe ist, zu der ein Thema gehört (freie Meetings).
  */
@@ -36,6 +36,14 @@ class GlobalSearchService
 
         if ($posts = $this->posts($user, $term)) {
             $sections[] = ['key' => 'posts', 'title' => 'Nachrichten', 'icon' => 'far fa-newspaper', 'items' => $posts];
+        }
+
+        if ($wiki = $this->wiki($user, $term)) {
+            $sections[] = ['key' => 'wiki', 'title' => 'Wiki', 'icon' => 'fa fa-book', 'items' => $wiki];
+        }
+
+        if ($boards = $this->ergebnisboards($user, $term)) {
+            $sections[] = ['key' => 'ergebnisboards', 'title' => 'Boards', 'icon' => 'fas fa-th-large', 'items' => $boards];
         }
 
         if ($meetings = $this->meetings($user, $term)) {
@@ -62,8 +70,11 @@ class GlobalSearchService
     {
         $like = '%' . $term . '%';
 
-        return $user->posts()
-            ->where(fn ($q) => $q->where('header', 'like', $like)->orWhere('text', 'like', $like))
+        return \App\Models\Post::query()
+            ->sichtbarFuer($user)
+            ->where(fn ($q) => $q->where('header', 'like', $like)
+                ->orWhere('kurzfassung', 'like', $like)
+                ->orWhere('text', 'like', $like))
             ->latest()
             ->limit(self::LIMIT_PER_SECTION)
             ->get()
@@ -71,12 +82,65 @@ class GlobalSearchService
             ->map(fn ($post) => [
                 'id'      => $post->id,
                 'title'   => $post->header,
-                'date'    => optional($post->created_at)->format('d.m.Y'),
-                'url'     => null,
+                'date'    => optional($post->datum())->format('d.m.Y'),
+                'url'     => route('posts.show', $post),
                 'meta'    => null,
                 'snippet' => $this->snippet($post->text, $term),
             ])
             ->values()
+            ->all();
+    }
+
+    /**
+     * Wiki-Seiten (Titel, Tags, Inhalt) – nur mit `view wiki` und nur sichtbare (nicht eingeschränkte) Seiten.
+     */
+    private function wiki(User $user, string $term): array
+    {
+        if (! $user->can('view wiki')) {
+            return [];
+        }
+
+        return collect(app(\App\Services\Wiki\WikiSuche::class)->suchen($user, $term, self::LIMIT_PER_SECTION))
+            ->map(fn (array $t) => [
+                'id'      => $t['id'],
+                'title'   => $t['titel'],
+                'date'    => $t['geaendert'],
+                'url'     => $t['url'],
+                'meta'    => $t['pfad'] !== '' ? $t['pfad'] : null,
+                'snippet' => html_entity_decode(strip_tags($t['snippet']), ENT_QUOTES | ENT_HTML5, 'UTF-8') ?: null,
+            ])
+            ->all();
+    }
+
+    /**
+     * Ergebnisboards (Titel, Untertitel, Kartentitel/-zusatz), nur mit Leserecht und `view result boards`.
+     */
+    private function ergebnisboards(User $user, string $term): array
+    {
+        if (! $user->can(\App\Support\ErgebnisboardVorlagen::PERMISSION_VIEW)) {
+            return [];
+        }
+        $like = '%' . $term . '%';
+
+        return \App\Models\Ergebnisboard::query()
+            ->sichtbarFuer($user)
+            ->where(fn ($q) => $q->where('titel', 'like', $like)
+                ->orWhere('untertitel', 'like', $like)
+                ->orWhereHas('karten', fn ($k) => $k->where('titel', 'like', $like)->orWhere('zusatz', 'like', $like)))
+            ->with(['karten' => fn ($k) => $k->where(fn ($w) => $w->where('titel', 'like', $like)->orWhere('zusatz', 'like', $like))])
+            ->latest('updated_at')
+            ->limit(self::LIMIT_PER_SECTION)
+            ->get()
+            ->map(fn (\App\Models\Ergebnisboard $b) => [
+                'id'      => $b->id,
+                'title'   => $b->titel,
+                'date'    => $b->updated_at?->format('d.m.Y'),
+                'url'     => route('ergebnisboards.show', $b),
+                'meta'    => $b->vorlageTitel() . ($b->istArchiviert() ? ' · archiviert' : ''),
+                'snippet' => $b->karten->isNotEmpty()
+                    ? $this->snippet($b->karten->pluck('titel')->implode(' · '), $term)
+                    : $this->snippet((string) $b->untertitel, $term),
+            ])
             ->all();
     }
 

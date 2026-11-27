@@ -296,7 +296,7 @@
         console.log('Initializing...');
         if (questions.length === 0) {
             console.warn('Keine Fragen gefunden!');
-            alert('Keine Fragen für dieses Bewertungssystem gefunden!');
+            alert('Für die Graduierungsstufe dieses Schülers gibt es keine aktiven Fragen.');
             return;
         }
 

@@ -120,14 +120,15 @@ class GradingDocumentationController extends Controller
             'studentAnswers'
         ]);
 
-        // Teilnehmer der Session (Teilmenge aus der App oder ganze Klasse)
-        $schueler = $this->sessions()->participants($session);
+        // Teilnehmer der Session (Teilmenge aus der App oder ganze Klasse) mit den Fragen ihrer Stufe
+        [$schueler, $fragenJeSchueler, $questions] = $this->stufenDaten($session);
 
         if ($this->neueAnsicht()) {
             return view('paedDiary.neu.graduierung.gruppe', [
                 'session' => $session,
                 'schueler' => $schueler,
-                'questions' => $session->gradingSystem->questions,
+                'questions' => $questions,
+                'fragenJeSchueler' => $fragenJeSchueler,
                 'finalisiert' => $this->sessions()->finalizedIds($session)->values(),
             ]);
         }
@@ -135,7 +136,8 @@ class GradingDocumentationController extends Controller
         return view('paedDiary.documentation.group-session', [
             'session' => $session,
             'schueler' => $schueler,
-            'questions' => $session->gradingSystem->questions,
+            'questions' => $questions,
+            'fragenJeSchueler' => $fragenJeSchueler,
         ]);
     }
 
@@ -156,6 +158,7 @@ class GradingDocumentationController extends Controller
         if ($fehler = $this->sessions()->schreibFehler($session, (int) $request->schueler_id, (int) $request->question_id)) {
             return response()->json(['message' => $fehler[1]], $fehler[0]);
         }
+        $this->sessions()->stufeFestschreiben($session, (int) $request->schueler_id);
 
         $answer = GradingStudentAnswer::updateOrCreate(
             [
@@ -190,8 +193,8 @@ class GradingDocumentationController extends Controller
 
         $session->load(['klasse', 'schueler']);
 
-        // Teilnehmer (individuell: der Schüler, Gruppe: Teilnehmerliste oder ganze Klasse)
-        $schueler = $this->sessions()->participants($session);
+        // Teilnehmer (individuell: der Schüler, Gruppe: Teilnehmerliste oder ganze Klasse) mit den Fragen ihrer Stufe
+        [$schueler, $fragenJeSchueler, $questions] = $this->stufenDaten($session);
 
         // Neue Ansicht: wahlweise Matrix (Schüler × Fragen) statt „Schüler für Schüler“
         $darstellung = Auth::user()->paedDiaryDarstellung();
@@ -201,10 +204,12 @@ class GradingDocumentationController extends Controller
             return view('paedDiary.neu.bewertung-matrix', [
                 'session' => $session,
                 'schueler' => $schueler,
-                'questions' => $session->gradingSystem->questions,
+                'questions' => $questions,
                 'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
                 'matrix' => $schueler->map(fn ($s) => [
                     'id' => $s->id,
+                    'stufe' => $s->stufe_name,
+                    'fragen' => $fragenJeSchueler->get($s->id, collect())->values(),
                     'name' => trim($s->vorname . ' ' . $s->nachname),
                     'abgeschlossen' => in_array((int) $s->id, $finalisiert, true),
                     'selbst' => $session->studentAnswers->where('schueler_id', $s->id)->pluck('self_rating', 'question_id'),
@@ -221,10 +226,12 @@ class GradingDocumentationController extends Controller
             return view('paedDiary.neu.graduierung.bewertung', [
                 'session' => $session,
                 'schueler' => $schueler,
-                'questions' => $session->gradingSystem->questions,
+                'questions' => $questions,
                 'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
                 'daten' => $schueler->map(fn ($s) => [
                     'id' => $s->id,
+                    'stufe' => $s->stufe_name,
+                    'fragen' => $fragenJeSchueler->get($s->id, collect())->values(),
                     'name' => trim($s->vorname . ' ' . $s->nachname),
                     'abgeschlossen' => in_array((int) $s->id, $finalisiert, true),
                     'selbst' => $session->studentAnswers->where('schueler_id', $s->id)->pluck('self_rating', 'question_id'),
@@ -239,7 +246,8 @@ class GradingDocumentationController extends Controller
             'darstellung' => $darstellung,
             'session' => $session,
             'schueler' => $schueler,
-            'questions' => $session->gradingSystem->questions,
+            'questions' => $questions,
+            'fragenJeSchueler' => $fragenJeSchueler,
             'reopenDays' => (int) settings('session_reopen_days', 'config.grading_documentation'),
         ]);
     }
@@ -262,6 +270,7 @@ class GradingDocumentationController extends Controller
         if ($fehler = $this->sessions()->schreibFehler($session, (int) $request->schueler_id, (int) $request->question_id)) {
             return response()->json(['message' => $fehler[1]], $fehler[0]);
         }
+        $this->sessions()->stufeFestschreiben($session, (int) $request->schueler_id);
 
         $assessment = GradingTeacherAssessment::updateOrCreate(
             [
@@ -399,18 +408,21 @@ class GradingDocumentationController extends Controller
             'teacherAssessments'
         ]);
 
+        // Nur die Fragen der Graduierungsstufe des Schülers
+        [, , $questions] = $this->stufenDaten($session);
+
         if ($this->neueAnsicht()) {
             return view('paedDiary.neu.graduierung.einzel', [
                 'session' => $session,
                 'schueler' => $session->schueler,
-                'questions' => $session->gradingSystem->questions,
+                'questions' => $questions,
             ]);
         }
 
         return view('paedDiary.documentation.individual-session', [
             'session' => $session,
             'schueler' => $session->schueler,
-            'questions' => $session->gradingSystem->questions,
+            'questions' => $questions,
         ]);
     }
 
@@ -454,9 +466,12 @@ class GradingDocumentationController extends Controller
             ->orderBy('completed_at', 'desc')
             ->get();
 
+        // Fragen je System einmal laden; je Session nur die Fragen dieses Schülers (seine Stufe
+        // bzw. tatsächlich Beantwortetes)
+        $sessions->load(['gradingSystem.questions' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+        $this->sessions()->fragenAufSchuelerBeschraenken($sessions, (int) $schueler->id);
+
         if ($this->neueAnsicht()) {
-            // Fragen je System einmal laden (statt einer Abfrage je Session in der View)
-            $sessions->load(['gradingSystem.questions' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
 
             return view('paedDiary.neu.graduierung.schueler', [
                 'schueler' => $schueler,
@@ -588,8 +603,9 @@ class GradingDocumentationController extends Controller
         // Abgeschlossene Session bzw. abgeschlossener Schüler: Hinweis statt Fragen
         $abgeschlossen = $session->isCompleted() || $this->sessions()->isFinalized($session, (int) $schueler->id);
 
-        // Im Modus "by_question" nur die bereits freigegebenen Fragen (wie in der Schüler-App)
-        $questions = $abgeschlossen ? collect() : $this->sessions()->releasedQuestions($session);
+        // Nur Fragen der Stufe des Schülers; im Modus "by_question" nur die bereits freigegebenen (wie in der Schüler-App)
+        $questions = $abgeschlossen ? collect() : $this->sessions()->releasedQuestions($session, (int) $schueler->id);
+        $keineFragen = !$abgeschlossen && $this->sessions()->fragenFuerSchueler($session, (int) $schueler->id)->isEmpty();
 
         return view('paedDiary.documentation.public-student-session', [
             'token' => $token,
@@ -599,7 +615,8 @@ class GradingDocumentationController extends Controller
             'questions' => $questions->map(fn ($q) => ['id' => $q->id, 'question' => $q->question])->values(),
             'answers' => $session->studentAnswers->pluck('self_rating', 'question_id'),
             'abgeschlossen' => $abgeschlossen,
-            'wartetAufFreigabe' => !$abgeschlossen && $session->usesQuestionOrder() && $questions->isEmpty(),
+            'keineFragen' => $keineFragen,
+            'wartetAufFreigabe' => !$abgeschlossen && !$keineFragen && $session->usesQuestionOrder() && $questions->isEmpty(),
             'nachFrage' => $session->usesQuestionOrder(),
         ]);
     }
@@ -633,6 +650,7 @@ class GradingDocumentationController extends Controller
         if ($fehler = $this->sessions()->schreibFehler($session, (int) $tokenData->schueler_id, (int) $request->question_id)) {
             return response()->json(['message' => $fehler[1]], $fehler[0]);
         }
+        $this->sessions()->stufeFestschreiben($session, (int) $tokenData->schueler_id);
 
         // Antwort speichern
         $answer = GradingStudentAnswer::updateOrCreate(
@@ -707,6 +725,28 @@ class GradingDocumentationController extends Controller
             'answer_order_mode' => $session->answer_order_mode,
             'answer_order_mode_label' => $session->answer_order_mode_label,
         ]);
+    }
+
+    /**
+     * Teilnehmer (mit stufe_name), Fragen-IDs je Schüler (nach Graduierungsstufe) und die aktiven
+     * Fragen, die mindestens einen Teilnehmer betreffen.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection, 2: \Illuminate\Support\Collection}
+     */
+    private function stufenDaten(GradingDocumentationSession $session): array
+    {
+        $schueler = $this->sessions()->participants($session);
+        $fragenJeSchueler = $this->sessions()->fragenJeSchueler($session, $schueler->pluck('id'));
+        $stufen = $this->sessions()->stufen($session, $schueler->pluck('id'));
+        $namen = \App\Models\GradingStage::whereIn('id', $stufen->pluck('stage_id')->filter()->unique())->pluck('name', 'id');
+
+        $schueler->each(function ($s) use ($stufen, $namen) {
+            $stageId = $stufen[$s->id]['stage_id'] ?? null;
+            $s->setAttribute('stufe_id', $stageId);
+            $s->setAttribute('stufe_name', $stageId !== null ? ($namen[$stageId] ?? null) : null);
+        });
+
+        return [$schueler, $fragenJeSchueler, $this->sessions()->sessionFragen($session, $fragenJeSchueler)];
     }
 
     /** Nutzt die angemeldete Person die neue Ansicht des Pädagogischen Tagebuchs? */

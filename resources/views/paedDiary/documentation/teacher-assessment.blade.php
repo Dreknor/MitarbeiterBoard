@@ -145,6 +145,16 @@
     }
     const schueler = @json($schueler);
     const questions = @json($questions);
+    // Fragen-IDs je Schüler (nur Fragen seiner Graduierungsstufe)
+    const fragenJeSchueler = @json($fragenJeSchueler);
+
+    function giltFrage(schuelerId, questionId) {
+        return (fragenJeSchueler[schuelerId] || []).includes(questionId);
+    }
+
+    function fragenVon(schuelerId) {
+        return questions.filter(question => giltFrage(schuelerId, question.id));
+    }
     const sessionType = @json($session->type);
     const initialAnswerOrderMode = @json($session->answer_order_mode);
     const studentAnswers = @json($session->studentAnswers->groupBy('schueler_id')->map(function($answers) {
@@ -252,7 +262,7 @@
     }
 
     function isSchuelerComplete(schuelerId) {
-        return questions.every(question => {
+        return fragenVon(schuelerId).every(question => {
             return teacherAssessments[schuelerId] &&
                    teacherAssessments[schuelerId][question.id] &&
                    teacherAssessments[schuelerId][question.id].teacher_rating;
@@ -282,9 +292,11 @@
             return 0;
         }
 
-        const firstUnansweredQuestion = questions.findIndex(question => !getTeacherRating(currentSchueler.id, question.id));
+        const firstUnansweredQuestion = questions.findIndex(question =>
+            giltFrage(currentSchueler.id, question.id) && !getTeacherRating(currentSchueler.id, question.id));
+        const ersteFrage = questions.findIndex(question => giltFrage(currentSchueler.id, question.id));
 
-        return firstUnansweredQuestion === -1 ? 0 : firstUnansweredQuestion;
+        return firstUnansweredQuestion !== -1 ? firstUnansweredQuestion : Math.max(ersteFrage, 0);
     }
 
     function getTraversalSteps() {
@@ -293,6 +305,7 @@
         if (isQuestionOrderMode()) {
             questions.forEach((question, questionIndex) => {
                 schueler.forEach((currentSchueler, schuelerIndex) => {
+                    if (!giltFrage(currentSchueler.id, question.id)) return;
                     steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
                 });
             });
@@ -302,6 +315,7 @@
 
         schueler.forEach((currentSchueler, schuelerIndex) => {
             questions.forEach((question, questionIndex) => {
+                if (!giltFrage(currentSchueler.id, question.id)) return;
                 steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
             });
         });
@@ -347,11 +361,16 @@
     }
 
     function getAnsweredQuestionCountForStudent(schuelerId) {
-        return questions.filter(question => !!getTeacherRating(schuelerId, question.id)).length;
+        return fragenVon(schuelerId).filter(question => !!getTeacherRating(schuelerId, question.id)).length;
     }
 
     function getQuestionCompletionCount(questionId) {
-        return schueler.filter(currentSchueler => !!getTeacherRating(currentSchueler.id, questionId)).length;
+        return schueler.filter(currentSchueler => giltFrage(currentSchueler.id, questionId) && !!getTeacherRating(currentSchueler.id, questionId)).length;
+    }
+
+    /** Anzahl Schüler, für deren Stufe die Frage gilt */
+    function getQuestionStudentCount(questionId) {
+        return schueler.filter(currentSchueler => giltFrage(currentSchueler.id, questionId)).length;
     }
 
     function goToQuestion(questionIndex) {
@@ -575,7 +594,7 @@
         elements.questionCycleBanner.innerHTML = `
             <div class="question-cycle-meta">Frage ${currentQuestionIndex + 1} von ${questions.length}</div>
             <div class="question-cycle-text">${escapeHtml(currentQuestion.question)}</div>
-            <div class="question-cycle-progress">${completedForQuestion} von ${schueler.length} Schülern bewertet</div>
+            <div class="question-cycle-progress">${completedForQuestion} von ${getQuestionStudentCount(currentQuestion.id)} Schülern bewertet</div>
         `;
     }
 
@@ -603,8 +622,12 @@
                 button.classList.add('active');
             }
 
-            if (getQuestionCompletionCount(question.id) === schueler.length) {
+            if (getQuestionCompletionCount(question.id) === getQuestionStudentCount(question.id)) {
                 button.classList.add('completed');
+            }
+            if (getQuestionStudentCount(question.id) === 0) {
+                button.style.opacity = '0.45';
+                button.title += ' (betrifft niemanden)';
             }
 
             button.addEventListener('click', () => goToQuestion(index));
@@ -945,7 +968,7 @@
         const currentQuestion = getCurrentQuestion();
         const headerMeta = isQuestionOrderMode()
             ? `Aktuelle Frage ${currentQuestionIndex + 1} von ${questions.length}`
-            : `${answeredCount} von ${questions.length} Fragen bewertet`;
+            : `${answeredCount} von ${fragenVon(currentSchueler.id).length} Fragen bewertet`;
 
         const studentHeader = document.createElement('div');
         studentHeader.className = 'student-header mb-3';
@@ -955,7 +978,7 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="student-details">
-                    <h5 class="mb-0">${escapeHtml(currentSchueler.vorname)} ${escapeHtml(currentSchueler.nachname)}</h5>
+                    <h5 class="mb-0">${escapeHtml(currentSchueler.vorname)} ${escapeHtml(currentSchueler.nachname)} <small class="text-muted">· ${escapeHtml(currentSchueler.stufe_name || 'ohne Stufe')}</small></h5>
                     <small class="text-muted">${escapeHtml(headerMeta)}</small>
                 </div>
                 ${isSchuelerComplete(currentSchueler.id) ? '<span class="badge badge-success"><i class="fas fa-check"></i> Vollständig</span>' : '<span class="badge badge-warning"><i class="fas fa-clock"></i> In Bearbeitung</span>'}
@@ -981,7 +1004,17 @@
             coachingNoteInput.onblur = (event) => saveCoachingNote(currentSchueler.id, event.target.value);
         }
 
-        const visibleQuestions = isQuestionOrderMode() && currentQuestion ? [currentQuestion] : questions;
+        const visibleQuestions = (isQuestionOrderMode() && currentQuestion ? [currentQuestion] : questions)
+            .filter(question => giltFrage(currentSchueler.id, question.id));
+
+        if (visibleQuestions.length === 0) {
+            const leer = document.createElement('div');
+            leer.className = 'alert alert-info';
+            leer.textContent = fragenVon(currentSchueler.id).length
+                ? 'Diese Frage gilt nicht für die Stufe dieses Schülers.'
+                : 'Für die Stufe dieses Schülers gibt es keine Fragen.';
+            elements.tabContent.appendChild(leer);
+        }
 
         visibleQuestions.forEach((question) => {
             const qIndex = questions.findIndex(currentItem => currentItem.id === question.id);

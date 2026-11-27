@@ -40,6 +40,7 @@ class RuleRegistry
         'model_has_permissions.model_id',
         'audits.user_id',
         'pers_access_logs.resource_id',
+        'ergebnis_board_zugriffe.berechtigter_id',
     ];
 
     /**
@@ -118,6 +119,7 @@ class RuleRegistry
 
             // ── Kommunikation, Sitzungen, Inhalte ─────────────────────────────
             Rule::anonymize('Inhalte', 'Beiträge', 'posts', 'author_id'),
+            Rule::delete('Inhalte', 'Lesestatus und Lesebestätigungen von Nachrichten', 'post_lesestatus', 'user_id'),
             Rule::anonymize('Inhalte', 'Themen (Ersteller)', 'themes', 'creator_id'),
             Rule::anonymize('Inhalte', 'Themen (zugewiesen)', 'themes', 'assigned_to'),
             Rule::delete('Inhalte', 'Persönliche Priorisierungen', 'priorities', 'creator_id'),
@@ -129,7 +131,12 @@ class RuleRegistry
             Rule::anonymize('Inhalte', 'Anwesenheiten in Gremien', 'presences', 'user_id'),
             Rule::anonymize('Inhalte', 'Anwesenheiten (erfasst von)', 'presences', 'created_by'),
             Rule::delete('Inhalte', 'Freigabelinks', 'shares', 'creators_id'),
-            Rule::anonymize('Inhalte', 'Wiki-Seiten', 'wiki_sites', 'author_id'),
+            Rule::anonymize('Inhalte', 'Wiki-Seiten (altes Wiki)', 'wiki_sites', 'author_id'),
+            Rule::nullify('Inhalte', 'Wiki-Seiten (angelegt)', 'wiki_seiten', 'erstellt_von'),
+            Rule::nullify('Inhalte', 'Wiki-Seiten (zuletzt geändert)', 'wiki_seiten', 'geaendert_von'),
+            Rule::nullify('Inhalte', 'Wiki-Seiten (gelöscht von)', 'wiki_seiten', 'geloescht_von'),
+            Rule::nullify('Inhalte', 'Wiki-Fassungen', 'wiki_revisionen', 'user_id'),
+            Rule::delete('Inhalte', 'Wiki-Favoriten', 'wiki_favoriten', 'user_id'),
             Rule::anonymize('Inhalte', 'Umfragen', 'surveys', 'created_by'),
             Rule::anonymize('Inhalte', 'Umfrage-Teilnahmen', 'survey_user_answers', 'user_id'),
             Rule::anonymize('Inhalte', 'Umfrage-Antworten', 'survey_answers', 'user_id'),
@@ -176,6 +183,9 @@ class RuleRegistry
             Rule::anonymize('Pädagogik', 'Bewertungshistorie', 'schueler_grading_histories', 'changed_by'),
             Rule::anonymize('Pädagogik', 'Wochenpläne', 'wp_plaene', 'created_by'),
             Rule::anonymize('Pädagogik', 'Wochenplan-Formatvorlagen', 'wp_formatvorlagen', 'created_by'),
+            Rule::anonymize('Pädagogik', 'Wochenplan-Status je Kind (gesetzt von)', 'wp_aufgabe_status', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Wochenplan-Arbeitsblätter (hochgeladen von)', 'wp_dateien', 'hochgeladen_von'),
+            Rule::anonymize('Pädagogik', 'Wochenplan-Aufgabenbibliothek', 'wp_bausteine', 'created_by'),
             Rule::anonymize('Pädagogik', 'Förderziele (angelegt von)', 'diagnostic_development_goals', 'created_by'),
             Rule::anonymize('Pädagogik', 'Förderziele (geändert von)', 'diagnostic_development_goals', 'updated_by'),
             Rule::anonymize('Pädagogik', 'Beitrittscodes für Bewertungen', 'grading_join_codes', 'created_by'),
@@ -184,6 +194,13 @@ class RuleRegistry
             Rule::anonymize('Pädagogik', 'Elterngespräche (abgeschlossen von)', 'paed_diary_elterngespraeche', 'abgeschlossen_von'),
             Rule::anonymize('Pädagogik', 'Elterngespräche (geändert von)', 'paed_diary_elterngespraeche', 'aktualisiert_von'),
             Rule::delete('Pädagogik', 'Teilnahmen an Elterngesprächen', 'paed_diary_elterngespraech_user', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Boards (Ersteller)', 'ergebnis_boards', 'created_by'),
+            Rule::anonymize('Pädagogik', 'Board-Vorlagen (Ersteller)', 'ergebnis_vorlagen', 'created_by'),
+            Rule::delete('Pädagogik', 'Zuständigkeiten auf Board-Karten', 'ergebnis_karte_user', 'user_id'),
+            Rule::delete('Pädagogik', 'Zugriffe auf Boards', 'ergebnis_board_zugriffe', 'berechtigter_id', 2, $morph('berechtigter_type')),
+            Rule::anonymize('Pädagogik', 'Kommentare auf Boards', 'ergebnis_kommentare', 'user_id'),
+            Rule::delete('Pädagogik', 'Punkte in Board-Abstimmungen', 'ergebnis_karten_stimmen', 'user_id'),
+            Rule::anonymize('Pädagogik', 'Änderungsverlauf von Boards', 'ergebnis_board_verlauf', 'user_id'),
 
             // ── Personal: Bearbeiter-Verweise (die Person hat für andere gehandelt) ──
             Rule::anonymize('Personal (Bearbeiter)', 'Vertragsänderungen (geändert von)', 'contract_audits', 'changed_by'),

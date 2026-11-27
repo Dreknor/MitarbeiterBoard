@@ -41,6 +41,7 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('calendar.dashboardCard', \App\View\Composers\CalendarComposer::class);
         View::composer('calendar.dashboardCard-v2', \App\View\Composers\CalendarComposer::class);
         View::composer('wiki.dashboardCard-v2', \App\View\Composers\WikiCardComposer::class);
+        View::composer('wiki.layout', \App\View\Composers\WikiLayoutComposer::class);
         View::composer('personal.hort_planung.dashboardCard', \App\View\Composers\HortPlanungComposer::class);
         View::composer('personal.employes._expiring_contracts_card', \App\View\Composers\ExpiringContractsComposer::class);
         // Phase 1 – Dashboard v2 neue Cards
@@ -69,5 +70,8 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('personal.trainings._upcoming_trainings_card', \App\View\Composers\UpcomingTrainingsComposer::class);
         // Phase 2 – Pädagogisches Tagebuch Dashboard-Card
         View::composer('dashboard.cards.paed_diary', \App\View\Composers\PaedDiaryComposer::class);
+        // Monitoring (Systemstatus): Statusleiste im Dashboard + Reiter in den Einstellungen
+        View::composer('monitoring.statusleiste', \App\View\Composers\MonitoringStatusComposer::class);
+        View::composer('monitoring.einstellungen', \App\View\Composers\MonitoringEinstellungenComposer::class);
     }
 }

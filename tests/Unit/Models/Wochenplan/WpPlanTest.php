@@ -214,7 +214,7 @@ class WpPlanTest extends TestCase
             'schueler_id' => $schueler->id,
         ]);
 
-        $this->assertEquals('Individuell', $plan->typ);
+        $this->assertEquals('Kinderplan', $plan->typ);
     }
 
     // ─── Casts ───────────────────────────────────────────────────────────────

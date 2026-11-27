@@ -72,6 +72,22 @@
         </div>
     @endif
 
+    {{-- ─── Kalender ohne OX-Schreibrecht ──────────────────────────────── --}}
+    @php($oxGesperrt = $kalender->filter(fn ($k) => $k->sichtbar && $k->oxGesperrt()))
+    @if($oxGesperrt->isNotEmpty())
+        <div class="mb-4 px-4 py-3 rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-sm">
+            <strong><i class="fas fa-lock mr-1"></i>OX lässt das MitarbeiterBoard in {{ $oxGesperrt->count() === 1 ? 'einem Kalender' : $oxGesperrt->count() . ' Kalendern' }} nur lesen:</strong>
+            {{ $oxGesperrt->pluck('name')->implode(', ') }}.
+            <p class="mt-1 mb-0">
+                Das Dienstkonto <span class="font-mono">{{ config('ox-calendar.username') }}</span> hat dort in OX keine Schreibrechte,
+                deshalb würde jedes Anlegen mit HTTP 403 scheitern. Diese Kalender sind in Termin-Formular und ICS-Import gesperrt und
+                werden dort mit Erklärung angezeigt. <strong>Abhilfe:</strong> in OX in den Ordnerrechten des Kalenders dem Dienstkonto
+                mindestens „Objekte erstellen“ und „eigene bearbeiten/löschen“ geben. Beim nächsten Sync (oder „Jetzt synchronisieren“)
+                wird der Kalender automatisch freigeschaltet.
+            </p>
+        </div>
+    @endif
+
     {{-- ─── Kalender-Tabelle ──────────────────────────────────────────── --}}
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -126,6 +142,14 @@
                                     <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600">✓</span>
                                 @else
                                     <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-400">–</span>
+                                @endif
+                                @if($cal->oxGesperrt())
+                                    <div class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] bg-amber-50 border border-amber-300 text-amber-800 whitespace-nowrap cursor-help"
+                                         title="OX meldet für das Dienstkonto {{ config('ox-calendar.username') }} in diesem Kalender nur Leserechte. Termine anlegen schlägt mit HTTP 403 fehl; in den Formularen ist der Kalender deshalb gesperrt. In OX dem Dienstkonto Schreibrechte (Objekte erstellen/bearbeiten) geben – beim nächsten Sync wird der Kalender automatisch freigeschaltet. Geprüft: {{ $cal->ox_rechte_geprueft_at?->format('d.m.Y H:i') }}">
+                                        <i class="fas fa-lock"></i> OX: nur lesen
+                                    </div>
+                                @elseif($cal->ox_schreibrecht === null)
+                                    <div class="mt-1 text-[11px] text-gray-400 whitespace-nowrap" title="Die OX-Rechte werden beim nächsten Sync geprüft.">OX: ungeprüft</div>
                                 @endif
                             </td>
                             <td class="px-4 py-3">

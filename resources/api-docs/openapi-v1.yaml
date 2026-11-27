@@ -58,6 +58,8 @@ tags:
   - name: Klassen
   - name: Schüler-View
   - name: Tagebuch
+  - name: Wochenplan
+    description: Wochenplan-Aufgaben und Status je Kind (nur mit Tagebuch-Anbindung, Klassenregel wie im Web)
   - name: Graduierung
   - name: Diagnose
   - name: Dossier
@@ -73,6 +75,11 @@ tags:
     description: Urlaubskonto, Anträge und Entscheidungen (`has holidays` bzw. `approve holidays`)
   - name: Abwesenheiten
     description: Aktuelle Abwesenheiten melden und einsehen (`view absences`)
+  - name: Nachrichten
+    description: |
+      Nachrichten der eigenen Gruppen lesen, als gelesen markieren und Lesebestätigungen abgeben (beide Apps,
+      kein Fachrecht – sichtbar ist, was in den eigenen Gruppen veröffentlicht ist). Erstellen, Bearbeiten und
+      Bestätigungslisten nur im Web; Verfassende sehen in `confirmation.stats` nur die Zahlen.
 
 paths:
   /instance:
@@ -712,6 +719,93 @@ paths:
       responses:
         '200': { description: OK }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /students/{student_id}/weekly-plan:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Wochenplan]
+      summary: Wochenplan-Aufgaben eines Kindes mit Status
+      description: |
+        Aufgaben des Kinderplans der Woche, sonst des Klassenplans der Klasse des Kindes (tägliche Übungen zählen nicht).
+        Nur mit eingeschalteter Tagebuch-Anbindung (sonst 404), Leserecht am Wochenplan und Zugriff auf die Klasse.
+      parameters:
+        - { name: date, in: query, required: false, schema: { type: string, format: date }, description: Beliebiger Tag der Woche (Standard heute) }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      student: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+                      week: { type: object, properties: { start: { type: string, format: date }, end: { type: string, format: date } } }
+                      summary: { type: object, properties: { done: { type: integer }, partial: { type: integer }, total: { type: integer } } }
+                      plans:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            type: { type: string, description: Klassenplan oder Kinderplan }
+                            period: { type: string }
+                            subjects:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer }
+                                  name: { type: string }
+                                  tasks: { type: array, items: { $ref: '#/components/schemas/WeeklyPlanTask' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /weekly-plan/tasks/{task_id}/status:
+    parameters:
+      - { name: task_id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Wochenplan]
+      summary: Status einer Aufgabe für ein Kind setzen
+      description: Kein Verlauf – gespeichert wird nur der aktuelle Stand. Ist die Aufgabe mit einer Tagebuch-Aufgabe verknüpft, schließt „done“ diese (und öffnet sie beim Zurücknehmen wieder).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, status]
+              properties:
+                student_id: { type: integer }
+                status: { type: string, enum: [open, partial, done] }
+                note: { type: string, nullable: true, maxLength: 255 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/WeeklyPlanTask' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Wochenplan]
+      summary: Status zurücksetzen (offen, ohne Notiz)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: student_id, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/WeeklyPlanTask' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /paed-diary/tasks:
     post:
       tags: [Tagebuch]
@@ -1086,6 +1180,10 @@ paths:
         Schüler ab (Stufenvergabe für diesen Schüler); die Session ist abgeschlossen, sobald alle Teilnehmer
         abgeschlossen sind (`meta.session_completed`). Weitere Bewertungen eines abgeschlossenen Schülers → 409.
         Im Web schließt „Session abschließen“ weiterhin die gesamte Session für alle Schüler ab.
+
+        **Fragen je Stufe:** Nur Fragen aus `meta.students[].question_ids` des Schülers sind erlaubt, andere → 422
+        (`errors.answers`). Mit der ersten Antwort (bzw. beim Abschluss) wird die Stufe des Schülers für die
+        Session festgeschrieben; eine spätere Stufenänderung ändert seine Fragen in dieser Session nicht mehr.
       parameters:
         - { name: session_id, in: path, required: true, schema: { type: integer } }
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -2753,6 +2851,131 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /posts:
+    get:
+      tags: [Nachrichten]
+      summary: Nachrichten der eigenen Gruppen
+      description: |
+        Veröffentlichte Nachrichten aus den sichtbaren Gruppen plus eigene Entwürfe. Nachrichten mit offener
+        eigener Lesebestätigung stehen zuerst, danach neueste zuerst. 403 ohne Zugang zu einer der Apps.
+      parameters:
+        - { name: group_id, in: query, schema: { type: integer }, description: Nur diese Gruppe (404 ohne Zugriff) }
+        - { name: archived, in: query, schema: { type: boolean, default: false } }
+        - { name: unread, in: query, schema: { type: boolean }, description: Nur noch nicht geöffnete }
+        - { name: pending, in: query, schema: { type: boolean }, description: Nur offene eigene Lesebestätigungen }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Post' } }
+                  meta:
+                    type: object
+                    properties:
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+                      per_page: { type: integer }
+                      total: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /posts/counts:
+    get:
+      tags: [Nachrichten]
+      summary: Zähler für Badges
+      description: Ungelesene Nachrichten der letzten 14 Tage und offene eigene Lesebestätigungen.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread: { type: integer }
+                      pending_confirmations: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /posts/{post_id}:
+    get:
+      tags: [Nachrichten]
+      summary: Nachricht mit Text und Anhängen
+      description: Ohne Nebenwirkung – zum Markieren als gelesen `POST /posts/{post_id}/read` aufrufen.
+      parameters:
+        - { name: post_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PostDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /posts/{post_id}/read:
+    post:
+      tags: [Nachrichten]
+      summary: Als gelesen markieren
+      parameters:
+        - { name: post_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      read_at: { type: string, format: date-time, nullable: true, description: null bei eigenen Nachrichten und Entwürfen }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /posts/{post_id}/confirm:
+    post:
+      tags: [Nachrichten]
+      summary: Lesebestätigung abgeben („Gelesen und verstanden“)
+      description: |
+        Nur Mitglieder einer Zielgruppe (nicht die verfassende Person), solange die Nachricht veröffentlicht und
+        nicht archiviert ist und eine Lesebestätigung angefordert wurde – sonst 422. Wiederholter Aufruf ändert nichts.
+      parameters:
+        - { name: post_id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Bestätigt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      read_at: { type: string, format: date-time }
+                      confirmed_at: { type: string, format: date-time }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Für diese Nachricht ist keine Bestätigung möglich }
+  /posts/{post_id}/attachments/{media_id}:
+    get:
+      tags: [Nachrichten]
+      summary: Anhang herunterladen
+      parameters:
+        - { name: post_id, in: path, required: true, schema: { type: integer } }
+        - { name: media_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Datei (Content-Type des Anhangs) }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2900,6 +3123,19 @@ components:
                   schueler_ids: { type: array, items: { type: integer } }
                   updated_at: { type: string, format: date-time }
   schemas:
+    WeeklyPlanTask:
+      type: object
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        duration: { type: string, nullable: true }
+        level: { type: integer, nullable: true, description: '1 Basis, 2 Standard, 3 Erweitert' }
+        link: { type: string, nullable: true }
+        from_diary: { type: boolean, description: Mit einer Tagebuch-Aufgabe verknüpft }
+        status: { type: string, enum: [open, partial, done] }
+        note: { type: string, nullable: true }
+        updated_by: { type: string, nullable: true }
+        updated_at: { type: string, nullable: true, description: 'd.m.Y H:i' }
     ParentMeetingTopic:
       type: object
       properties:
@@ -3038,6 +3274,70 @@ components:
             delete: { type: boolean }
             request_cancellation: { type: boolean }
             decide_cancellation: { type: boolean }
+    Post:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        summary: { type: string, description: Kurzfassung oder gekürzter Text ohne HTML }
+        has_more: { type: boolean, description: Ausführlicher Text oder Anhänge vorhanden }
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+        author:
+          type: object
+          properties:
+            id: { type: integer, nullable: true }
+            name: { type: string }
+        is_author: { type: boolean }
+        published: { type: boolean, description: false = eigener Entwurf }
+        published_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time }
+        archived: { type: boolean }
+        on_dashboard: { type: boolean }
+        visible_until: { type: string, format: date, nullable: true }
+        read_at: { type: string, format: date-time, nullable: true }
+        attachments_count: { type: integer }
+        confirmation:
+          type: object
+          nullable: true
+          description: null, wenn keine Lesebestätigung angefordert ist
+          properties:
+            required: { type: boolean }
+            deadline: { type: string, format: date, nullable: true, description: Persönliche Frist (später Hinzugekommene haben eine eigene) }
+            pending: { type: boolean, description: Ich muss noch bestätigen }
+            confirmed_at: { type: string, format: date-time, nullable: true }
+            overdue: { type: boolean }
+            stats:
+              type: object
+              nullable: true
+              description: Nur für Verfassende, `manage posts` und Ersteller:innen einer Zielgruppe
+              properties:
+                gesamt: { type: integer }
+                bestaetigt: { type: integer }
+                offen: { type: integer }
+                ueberfaellig: { type: integer }
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/Post'
+        - type: object
+          properties:
+            text_html: { type: string, description: Bereinigtes HTML (HTMLPurifier) }
+            attachments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  mime_type: { type: string }
+                  size: { type: integer, description: Bytes }
+                  is_image: { type: boolean }
+                  url: { type: string, format: uri, description: Mit Bearer-Token abrufen }
     Absence:
       type: object
       properties:
@@ -3613,7 +3913,7 @@ components:
           type: object
           properties:
             answered: { type: integer, description: Schüler-Frage-Paare mit Pädagogenbewertung }
-            total: { type: integer, description: Teilnehmer × aktive Fragen }
+            total: { type: integer, description: "Summe der Fragen je Teilnehmer (nur Fragen seiner Graduierungsstufe)" }
             students_total: { type: integer }
             students_finalized: { type: integer }
     SessionStudent:
@@ -3622,6 +3922,11 @@ components:
         id: { type: integer }
         firstname: { type: string }
         lastname_initial: { type: string, nullable: true, example: M. }
+        grading_stage_id: { type: integer, nullable: true, description: "Graduierungsstufe in dieser Session (beim ersten Beantworten/Bewerten festgeschrieben, vorher die aktuelle Stufe); null = ohne Stufe" }
+        question_ids:
+          type: array
+          items: { type: integer }
+          description: "Fragen, die für diesen Schüler gelten (Fragen seiner Stufe + Fragen für alle Stufen, sortiert). Antworten/Bewertungen zu anderen Fragen werden mit 422 abgelehnt."
         finalized: { type: boolean }
         finalized_at: { type: string, format: date-time, nullable: true }
     JoinCode:
@@ -3637,9 +3942,13 @@ components:
       properties:
         session: { type: object, properties: { id: { type: integer }, answer_order_mode: { type: string }, current_question_id: { type: integer, nullable: true } } }
         student: { type: object, properties: { firstname: { type: string } } }
-        questions: { type: array, items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } } }
+        questions:
+          type: array
+          description: "Nur Fragen der Graduierungsstufe des Schülers (by_question: nur bereits freigegebene). Freigegebene Fragen anderer Stufen werden übersprungen."
+          items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } }
         self_ratings: { type: array, items: { type: object, properties: { question_id: { type: integer }, self_rating: { type: integer } } } }
         waiting: { type: boolean, description: "by_question: alle freigegebenen Fragen beantwortet, warten auf die nächste Freigabe" }
+        no_questions: { type: boolean, description: "Für die Stufe des Schülers gibt es keine Fragen – er ist fertig (Anzeige „Für dich gibt es heute keine Fragen“)" }
     CurrentUser:
       type: object
       properties:
@@ -3839,7 +4148,18 @@ components:
         is_completed: { type: boolean }
         questions:
           type: array
-          items: { type: object, properties: { id: { type: integer }, question: { type: string }, sort_order: { type: integer } } }
+          description: >-
+            Aktive Fragen, die mindestens einen Teilnehmer betreffen (bei individuellen Sessions nur die
+            Fragen der Stufe des Schülers). Welche Frage für wen gilt: meta.students[].question_ids.
+            In abgeschlossenen Sessions (Verlauf) nur die Fragen des jeweiligen Schülers.
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              question: { type: string }
+              sort_order: { type: integer }
+              stage_ids: { type: array, items: { type: integer }, description: "Stufen, für die die Frage gilt; leer = alle Stufen" }
+              student_count: { type: integer, description: "Nur in Session-Antworten: Anzahl Teilnehmer, für die die Frage gilt" }
         answers:
           type: array
           items:

@@ -179,6 +179,19 @@
             <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Woche wird geladen …
         </div>
 
+        {{-- Kopplung: Sprungleiste zu den einzelnen Klassen --}}
+        <nav class="pdn-sprung" x-show="!$store.diary.loading && $store.diary.is_group && diaryGroups.length > 1" x-cloak
+             aria-label="Zu Klasse springen" data-tour="pdn-sprung">
+            <span class="pdn-label-sm">Springe zu:</span>
+            <template x-for="grp in diaryGroups" :key="'sp-' + grp.key">
+                <button type="button" class="pdn-sprung__btn" @click="zuKlasse(grp.key)"
+                        :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''">
+                    <span x-text="grp.klasseName"></span>
+                    <small x-text="grp.students.length"></small>
+                </button>
+            </template>
+        </nav>
+
         <div x-show="!$store.diary.loading && $store.diary.schueler.length === 0" x-cloak class="pdn-leer">
             Keine Schüler in der gewählten Klasse oder Kopplung.
         </div>
@@ -243,7 +256,7 @@
                         <template x-for="grp in diaryGroups" :key="grp.key">
                             <tbody>
                                 <template x-if="grp.showDivider">
-                                    <tr class="pdn-trenner"><td :colspan="$store.diary.days.length + 1" :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''" x-text="grp.klasseName"></td></tr>
+                                    <tr class="pdn-trenner" :id="'pdn-sprung-' + grp.key"><td :colspan="$store.diary.days.length + 1" :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''" x-text="grp.klasseName"></td></tr>
                                 </template>
                                 <template x-for="stu in grp.students" :key="stu.id">
                                     <tr>
@@ -280,7 +293,14 @@
                                                         </div>
                                                     </template>
                                                 </span>
-                                                <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name" title="Schülerakte öffnen"></a>
+                                                <div class="wpt-namezelle">
+                                                    <a :href="'/paed-diary/schueler/' + stu.id" x-text="stu.name" title="Schülerakte öffnen"></a>
+                                                    <template x-if="$store.wochenplan && $store.wochenplan.fuer(stu.id)">
+                                                        <button type="button" class="wpt-zaehler is-unter-name" :class="$store.wochenplan.klasse($store.wochenplan.fuer(stu.id))"
+                                                                :title="'Wochenplan von ' + stu.name + ' öffnen'" @click.stop="$store.wochenplan.oeffnen(stu)"
+                                                                x-text="'WP ' + $store.wochenplan.text($store.wochenplan.fuer(stu.id))"></button>
+                                                    </template>
+                                                </div>
                                                 <template x-if="(stu.absence_alerts || []).length">
                                                     <span class="pdn-warnbadge" :title="stu.absence_alerts.map(a => a.label + ': ' + a.summary).join('\n')"
                                                           x-text="'⚠ ' + stu.absence_alerts.length"></span>
@@ -448,7 +468,7 @@
                         </div>
                         {{-- Im Kopplungsmodus je Klasse ein eigener Block (wie die Trennzeilen der Wochenansicht) --}}
                         <template x-for="grp in diaryGroups" :key="'kg-' + grp.key">
-                            <section class="pdn-kgruppe" :aria-label="grp.klasseName || 'Schüler'">
+                            <section class="pdn-kgruppe" :id="'pdn-sprung-' + grp.key" :aria-label="grp.klasseName || 'Schüler'">
                                 <h2 class="pdn-kgruppe__kopf" x-show="grp.showDivider" :style="grp.klasseColor ? '--klasse:' + grp.klasseColor : ''">
                                     <span x-text="grp.klasseName"></span>
                                     <span class="pdn-kgruppe__anzahl"
@@ -647,6 +667,12 @@
             </div>
         </template>
     </div>
+
+    {{-- Schwebender Button: zurück nach oben --}}
+    <button type="button" class="pdn-nachoben" x-show="nachObenSichtbar" x-cloak x-transition.opacity
+            @click="nachOben()" title="Nach oben" aria-label="Nach oben springen">
+        <i class="fas fa-arrow-up" aria-hidden="true"></i>
+    </button>
 </div>
 
 <x-tour id="paed-diary-neu" :steps="[
@@ -665,6 +691,7 @@ Ein Klick auf den Namen öffnet die Schülerakte.'],
 
 Hier wechselst du auch zurück zur bisherigen Ansicht.'],
 ]" />
+    @include('paedDiary.partials.wochenplan')
 @endsection
 
 @push('js')

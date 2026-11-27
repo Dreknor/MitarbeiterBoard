@@ -72,14 +72,17 @@ class StudentGradingApiController extends Controller
         $device = $request->user();
         $session = $device->session;
 
-        $questions = $this->sessions->releasedQuestions($session);
+        // Nur Fragen der Graduierungsstufe des Schülers (by_question: nur bereits freigegebene)
+        $questions = $this->sessions->releasedQuestions($session, (int) $device->schueler_id);
+        $keineFragen = $this->sessions->fragenFuerSchueler($session, (int) $device->schueler_id)->isEmpty();
         $ratings = GradingStudentAnswer::where('session_id', $session->id)
             ->where('schueler_id', $device->schueler_id)
             ->whereNotNull('self_rating')
             ->pluck('self_rating', 'question_id');
 
         // by_question: warten, bis die Lehrkraft die nächste Frage freigibt
-        $waiting = $session->usesQuestionOrder()
+        $waiting = !$keineFragen
+            && $session->usesQuestionOrder()
             && $questions->every(fn ($q) => $ratings->has($q->id));
 
         return response()->json(['data' => [
@@ -99,6 +102,8 @@ class StudentGradingApiController extends Controller
                 'self_rating' => (int) $rating,
             ])->values(),
             'waiting' => $waiting,
+            // Für die Stufe des Schülers gibt es keine Fragen – er ist fertig
+            'no_questions' => $keineFragen,
         ]]);
     }
 
@@ -121,12 +126,14 @@ class StudentGradingApiController extends Controller
         $session = $device->session;
 
         $questionId = $request->integer('question_id');
-        if (!$this->sessions->releasedQuestions($session)->contains('id', $questionId)) {
+        if (!$this->sessions->releasedQuestions($session, (int) $device->schueler_id)->contains('id', $questionId)) {
             return response()->json([
                 'message' => 'Die übermittelten Daten sind ungültig.',
                 'errors' => ['question_id' => ['Die Frage ist nicht (mehr) freigegeben.']],
             ], 422);
         }
+
+        $this->sessions->stufeFestschreiben($session, (int) $device->schueler_id);
 
         $answer = GradingStudentAnswer::updateOrCreate(
             ['session_id' => $session->id, 'schueler_id' => $device->schueler_id, 'question_id' => $questionId],

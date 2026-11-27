@@ -90,21 +90,21 @@ class WpFormatvorlageController extends Controller
         if ($wpFormatvorlage->plaene()->exists()) {
             return redirect()->back()->with([
                 'type'    => 'warning',
-                'Meldung' => 'Formatvorlage wird in Plaenen verwendet und kann nicht geloescht werden.',
+                'Meldung' => 'Die Formatvorlage wird in Plänen verwendet und kann nicht gelöscht werden.',
             ]);
         }
 
         $wpFormatvorlage->delete();
 
         return redirect()->route('wp.formatvorlagen.index')
-            ->with(['type' => 'success', 'Meldung' => 'Formatvorlage wurde geloescht.']);
+            ->with(['type' => 'success', 'Meldung' => 'Formatvorlage wurde gelöscht.']);
     }
 
     public function vorschau(WpFormatvorlage $wpFormatvorlage)
     {
         $plan = $this->dummyPlan();
 
-        $template = $wpFormatvorlage->blade_template ?? 'wochenplan.pdf.standard';
+        $template = $wpFormatvorlage->sicheresTemplate();
 
         return view($template, [
             'plan'          => $plan,
@@ -132,7 +132,7 @@ class WpFormatvorlageController extends Controller
         ]);
 
         $plan     = $this->dummyPlan();
-        $template = $fv->blade_template ?? 'wochenplan.pdf.standard';
+        $template = $fv->sicheresTemplate();
 
         return view($template, [
             'plan'          => $plan,

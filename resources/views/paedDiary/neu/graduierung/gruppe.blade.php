@@ -15,7 +15,11 @@
         'modusUrl' => route('gradingDocumentation.updateAnswerOrderMode', $session->id),
         'qrUrl' => route('gradingDocumentation.generateQRToken', ['session' => $session->id, 'schueler' => '__SCHUELER__']),
         'fragen' => $questions->map(fn ($q) => ['id' => $q->id, 'text' => $q->question])->values(),
-        'schueler' => $schueler->map(fn ($s) => ['id' => $s->id, 'vorname' => $s->vorname, 'nachname' => $s->nachname])->values(),
+        'schueler' => $schueler->map(fn ($s) => [
+            'id' => $s->id, 'vorname' => $s->vorname, 'nachname' => $s->nachname,
+            'stufe' => $s->stufe_name,
+            'fragen' => $fragenJeSchueler->get($s->id, collect())->values(),
+        ])->values(),
         'antworten' => $session->studentAnswers
             ->whereIn('schueler_id', $schueler->pluck('id'))
             ->mapWithKeys(fn ($a) => [$a->schueler_id . '_' . $a->question_id => (int) $a->self_rating]),
@@ -59,18 +63,19 @@
         <div class="pdn-gd-body">
             @if($schueler->isEmpty() || $questions->isEmpty())
                 <div class="pdn-leer pdn-gd-leer">
-                    {{ $schueler->isEmpty() ? 'In dieser Session gibt es keine Schüler.' : 'Das Graduierungssystem hat keine aktiven Fragen.' }}
+                    {{ $schueler->isEmpty() ? 'In dieser Session gibt es keine Schüler.' : 'Für die Stufen der Schüler gibt es keine aktiven Fragen.' }}
                 </div>
             @else
                 {{-- Aktuelle Frage --}}
                 <section class="pdn-gd-buehne" x-ref="karte" aria-live="polite" x-show="!allesBeantwortet && aktuellerSchueler">
                     <div class="pdn-gd-buehne__kopf">
                         <span class="pdn-gd-name" x-text="aktuellerSchueler ? aktuellerSchueler.vorname + ' ' + aktuellerSchueler.nachname : ''"></span>
-                        <span class="pdn-label-sm" x-text="'Frage ' + (fIndex + 1) + ' von ' + fragen.length"></span>
+                        <span class="pdn-tag" x-text="aktuellerSchueler?.stufe || 'ohne Stufe'"></span>
+                        <span class="pdn-label-sm" x-text="'Frage ' + (eigeneFragen(aktuellerSchueler).indexOf(aktuelleFrage) + 1) + ' von ' + eigeneFragen(aktuellerSchueler).length"></span>
                     </div>
                     <div class="pdn-gd-punkte" aria-hidden="true">
-                        <template x-for="(f, i) in fragen" :key="'p' + f.id">
-                            <i :class="{ 'is-fertig': antwort(aktuellerSchueler, f) !== undefined, 'is-aktuell': i === fIndex }"></i>
+                        <template x-for="f in eigeneFragen(aktuellerSchueler)" :key="'p' + f.id">
+                            <i :class="{ 'is-fertig': antwort(aktuellerSchueler, f) !== undefined, 'is-aktuell': f === aktuelleFrage }"></i>
                         </template>
                     </div>
                     <p class="pdn-gd-frage" x-text="aktuelleFrage?.text"></p>
@@ -116,15 +121,19 @@
                         <tbody>
                             <template x-for="(s, i) in schueler" :key="'z' + s.id">
                                 <tr :class="{ 'is-aktuell': i === sIndex && !allesBeantwortet }">
-                                    <th scope="row" x-text="s.nachname + ', ' + s.vorname"></th>
+                                    <th scope="row">
+                                        <span x-text="s.nachname + ', ' + s.vorname"></span>
+                                        <span class="pdn-tag" x-text="s.stufe || 'ohne Stufe'"></span>
+                                    </th>
                                     <td data-label="Fortschritt">
-                                        <span x-text="anzahlBeantwortet(s) + ' / ' + fragen.length"></span>
-                                        <i class="fas fa-check-circle pdn-gd-ok" x-show="anzahlBeantwortet(s) === fragen.length" aria-label="vollständig"></i>
+                                        <span x-show="eigeneFragen(s).length" x-text="anzahlBeantwortet(s) + ' / ' + eigeneFragen(s).length"></span>
+                                        <span class="pdn-label-sm" x-show="!eigeneFragen(s).length">keine Fragen für diese Stufe</span>
+                                        <i class="fas fa-check-circle pdn-gd-ok" x-show="eigeneFragen(s).length && anzahlBeantwortet(s) === eigeneFragen(s).length" aria-label="vollständig"></i>
                                         <span class="pdn-tag" x-show="istFinalisiert(s)"><i class="fas fa-lock" aria-hidden="true"></i> abgeschlossen</span>
                                     </td>
                                     <td>
                                         <div class="pdn-gd-aktionen" style="justify-content:flex-end">
-                                            <button type="button" class="pdn-btn" @click="zuSchueler(i)" :aria-pressed="i === sIndex" :disabled="istFinalisiert(s)">
+                                            <button type="button" class="pdn-btn" @click="zuSchueler(i)" :aria-pressed="i === sIndex" :disabled="istFinalisiert(s) || !eigeneFragen(s).length">
                                                 <i class="fas fa-arrow-right" aria-hidden="true"></i> Jetzt dran
                                             </button>
                                             <button type="button" class="pdn-btn" @click="qrZeigen(s)" :disabled="abgeschlossen || istFinalisiert(s)"

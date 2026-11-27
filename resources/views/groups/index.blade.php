@@ -94,13 +94,6 @@
 
                             </div>
                             <div class="form-row mt-1">
-                                <label for="hasWochenplan">Wochenplan?</label>
-                                <select name="hasWochenplan" id="hasWochenplan" class="custom-select">
-                                    <option value="1">braucht Wochenplan</option>
-                                    <option value="0" selected>kein Wochenplan</option>
-                                </select>
-                            </div>
-                            <div class="form-row mt-1">
                                 <label for="hasAllocations">ganze Themen einem Benutzer zuweisen?</label>
                                 <select name="hasAllocations" id="hasAllocations" class="custom-select">
                                     <option value="0" selected >nein</option>

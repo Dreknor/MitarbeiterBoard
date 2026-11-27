@@ -150,6 +150,17 @@
     const sessionId = {{ $session->id }};
     const schueler = @json($schueler);
     const questions = @json($questions);
+    // Fragen-IDs je Schüler (nur Fragen seiner Graduierungsstufe)
+    const fragenJeSchueler = @json($fragenJeSchueler);
+
+    function giltFrage(schuelerId, questionId) {
+        const ids = fragenJeSchueler[schuelerId] || [];
+        return ids.includes(questionId);
+    }
+
+    function fragenVon(schuelerId) {
+        return questions.filter(q => giltFrage(schuelerId, q.id));
+    }
     const existingAnswers = @json($session->studentAnswers);
     const initialAnswerOrderMode = @json($session->answer_order_mode);
 
@@ -223,6 +234,7 @@
         if (isQuestionOrderMode()) {
             questions.forEach((question, questionIndex) => {
                 schueler.forEach((currentSchueler, schuelerIndex) => {
+                    if (!giltFrage(currentSchueler.id, question.id)) return;
                     steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
                 });
             });
@@ -232,6 +244,7 @@
 
         schueler.forEach((currentSchueler, schuelerIndex) => {
             questions.forEach((question, questionIndex) => {
+                if (!giltFrage(currentSchueler.id, question.id)) return;
                 steps.push({ schuelerIndex, questionIndex, schuelerId: currentSchueler.id, questionId: question.id });
             });
         });
@@ -286,11 +299,11 @@
     }
 
     function getTotalSteps() {
-        return schueler.length * questions.length;
+        return getTraversalSteps().length;
     }
 
     function getCompletedSteps() {
-        return Object.keys(answers).length;
+        return getTraversalSteps().filter(isStepAnswered).length;
     }
 
     function isAllCompleted() {
@@ -325,15 +338,16 @@
     }
 
     function getSchuelerProgress(schuelerId) {
-        const answered = questions.filter(q => {
+        const eigene = fragenVon(schuelerId);
+        const answered = eigene.filter(q => {
             const key = `${schuelerId}_${q.id}`;
             return answers[key] !== undefined;
         }).length;
-        return `${answered} / ${questions.length}`;
+        return eigene.length ? `${answered} / ${eigene.length}` : 'keine Fragen für diese Stufe';
     }
 
     function isSchuelerComplete(schuelerId) {
-        return questions.every(q => {
+        return fragenVon(schuelerId).every(q => {
             const key = `${schuelerId}_${q.id}`;
             return answers[key] !== undefined;
         });
@@ -455,6 +469,7 @@
         const s = schueler[schuelerIndex];
         let foundUnanswered = false;
         for (let qIndex = 0; qIndex < questions.length; qIndex++) {
+            if (!giltFrage(s.id, questions[qIndex].id)) continue;
             const key = getAnswerKey(s.id, questions[qIndex].id);
             if (answers[key] === undefined) {
                 currentQuestionIndex = qIndex;
@@ -463,9 +478,10 @@
             }
         }
 
-        // Falls alle Fragen beantwortet sind, beginne bei der ersten Frage
+        // Falls alle Fragen beantwortet sind, beginne bei der ersten Frage seiner Stufe
         if (!foundUnanswered) {
-            currentQuestionIndex = 0;
+            const erste = questions.findIndex(q => giltFrage(s.id, q.id));
+            currentQuestionIndex = erste === -1 ? 0 : erste;
         }
 
         render();
@@ -494,7 +510,7 @@
         if (!elements.currentStudentName) return;
         const currentSchueler = getCurrentSchueler();
         if (currentSchueler) {
-            elements.currentStudentName.textContent = `${currentSchueler.vorname} ${currentSchueler.nachname}`;
+            elements.currentStudentName.textContent = `${currentSchueler.vorname} ${currentSchueler.nachname} · ${currentSchueler.stufe_name || 'ohne Stufe'}`;
         } else {
             elements.currentStudentName.textContent = 'Lädt...';
         }
@@ -504,7 +520,10 @@
         if (!elements.currentQuestionText) return;
         const currentQuestion = getCurrentQuestion();
         if (currentQuestion) {
-            elements.currentQuestionText.textContent = `Frage ${currentQuestionIndex + 1} von ${questions.length}: ${currentQuestion.question}`;
+            const currentSchueler = getCurrentSchueler();
+            const eigene = currentSchueler ? fragenVon(currentSchueler.id) : questions;
+            const position = eigene.findIndex(q => q.id === currentQuestion.id) + 1;
+            elements.currentQuestionText.textContent = `Frage ${position} von ${eigene.length}: ${currentQuestion.question}`;
         }
     }
 
@@ -655,7 +674,7 @@
         }
         if (questions.length === 0) {
             console.warn('Keine Fragen gefunden!');
-            alert('Keine Fragen für dieses Bewertungssystem gefunden!');
+            alert('Für die Graduierungsstufen der Schüler gibt es keine aktiven Fragen.');
             return;
         }
 

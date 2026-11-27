@@ -5,63 +5,65 @@ namespace App\Services\Wochenplan;
 use App\Models\Wochenplan\WpPlan;
 use Illuminate\Support\Facades\Log;
 use setasign\Fpdi\Fpdi;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WpPdfMergeService
 {
     /**
-     * Erstellt eine kombinierte PDF: Wochenplan + alle Arbeitsblätter.
+     * Erstellt eine kombinierte PDF: Wochenplan + alle Arbeitsblätter
+     * (bei Kinderplänen inkl. der Arbeitsblätter des Klassenplans).
      *
      * @param  string  $wochenplanPdfPath  Pfad zur generierten Wochenplan-PDF
-     * @param  WpPlan  $plan               Plan mit geladenen Medien
      * @return string                      Pfad zur kombinierten PDF (temporär)
      */
     public function mergeWithAttachments(string $wochenplanPdfPath, WpPlan $plan): string
     {
-        $arbeitsblaetter = $plan->getMedia('arbeitsblaetter');
+        $arbeitsblaetter = $plan->alleDateien();
 
         if ($arbeitsblaetter->isEmpty()) {
             return $wochenplanPdfPath;
         }
 
-        // Prüfen ob FPDI verfügbar ist
         if (!class_exists(Fpdi::class)) {
-            Log::warning('WpPdfMergeService: FPDI nicht verfügbar. PDF-Merging nicht möglich. Bitte "composer require setasign/fpdi" ausführen.');
+            Log::warning('WpPdfMergeService: FPDI nicht verfügbar. PDF-Merging nicht möglich.');
             return $wochenplanPdfPath;
         }
 
-        // Temp-Verzeichnis sicherstellen
         $tempDir = storage_path('app/temp');
         if (!is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
         $outputPath = $tempDir . '/' . uniqid('wp_merged_') . '.pdf';
+        $ablage = app(WpAblageService::class);
 
         $pdf = new Fpdi();
-
-        // 1. Wochenplan-PDF einfügen
         $this->addPdfPages($pdf, $wochenplanPdfPath);
 
-        // 2. Jedes Arbeitsblatt konvertieren und einfügen
-        foreach ($arbeitsblaetter as $media) {
+        foreach ($arbeitsblaetter as $datei) {
+            $kopie = null;
+            $attachmentPdfPath = null;
             try {
-                $attachmentPdfPath = $this->convertToPdf($media);
+                $kopie = $ablage->temporaereKopie($datei);
+                if (!$kopie) {
+                    continue;
+                }
+                $attachmentPdfPath = $this->convertToPdf($kopie, (string) $datei->mime_type);
                 if ($attachmentPdfPath) {
                     $this->addPdfPages($pdf, $attachmentPdfPath);
-                    // Temporäre konvertierte Dateien aufräumen (nicht das Original)
-                    if ($attachmentPdfPath !== $media->getPath()) {
-                        @unlink($attachmentPdfPath);
-                    }
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::warning('Arbeitsblatt konnte nicht angehängt werden', [
-                    'media_id' => $media->id,
-                    'filename' => $media->file_name,
+                    'datei_id' => $datei->id,
+                    'name'     => $datei->name,
                     'error'    => $e->getMessage(),
                 ]);
-                // Fehler bei einzelnem Anhang soll Export nicht abbrechen
-                continue;
+            } finally {
+                if ($attachmentPdfPath && $attachmentPdfPath !== $kopie) {
+                    @unlink($attachmentPdfPath);
+                }
+                if ($kopie) {
+                    @unlink($kopie);
+                }
             }
         }
 
@@ -71,26 +73,20 @@ class WpPdfMergeService
     }
 
     /**
-     * Konvertiert ein Medium in PDF (falls nötig).
+     * Konvertiert eine Datei in PDF (falls nötig).
      *
-     * Unterstützte Formate:
      * - PDF → direkt zurückgeben
      * - DOCX/DOC → LibreOffice CLI (bevorzugt) oder PhpWord→HTML→DomPDF (Fallback)
      * - JPG/PNG → Als PDF-Seite einbetten via FPDF
      *
      * @return string|null  Pfad zur PDF-Datei oder null bei Fehler/unbekanntem Format
      */
-    public function convertToPdf(Media $media): ?string
+    public function convertToPdf(string $path, string $mimeType): ?string
     {
-        $mimeType = $media->mime_type;
-        $path = $media->getPath();
-
-        // PDF → direkt verwenden
         if (str_contains($mimeType, 'pdf')) {
             return $path;
         }
 
-        // Word → konvertieren
         if (in_array($mimeType, [
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -98,7 +94,6 @@ class WpPdfMergeService
             return $this->convertWordToPdf($path);
         }
 
-        // Bild → als PDF-Seite einbetten
         if (str_starts_with($mimeType, 'image/')) {
             return $this->convertImageToPdf($path, $mimeType);
         }

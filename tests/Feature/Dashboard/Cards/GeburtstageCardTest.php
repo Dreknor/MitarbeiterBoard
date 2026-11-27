@@ -119,5 +119,22 @@ class GeburtstageCardTest extends TestCase
         $response->assertStatus(200);
         $response->assertDontSee('GeloeschterUser');
     }
-}
 
+    public function test_geburtstage_zeigt_benutzernamen_ohne_personaldaten_namen(): void
+    {
+        $user = $this->actingAsWithPermission('use dashboard v2');
+        $dbu  = $this->setupCard($user);
+
+        // Nur Geburtstag importiert, Vor-/Familienname leer
+        $kollege = User::factory()->create(['name' => 'Max Benutzername', 'deleted_at' => null]);
+        EmployeData::create([
+            'user_id'    => $kollege->id,
+            'geburtstag' => now()->addDays(2)->format('Y-m-d'),
+        ]);
+
+        $response = $this->get('/dashboard/card/' . $dbu->id, ['X-Requested-With' => 'XMLHttpRequest']);
+
+        $response->assertStatus(200);
+        $response->assertSee('Max Benutzername');
+    }
+}

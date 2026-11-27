@@ -2,6 +2,7 @@
 
 @section('content')
     <div class="container-fluid">
+        @include('monitoring.statusleiste')
     <div class="">
         @foreach($cards->groupBy('row') as $row => $cards)
             <div class="row">

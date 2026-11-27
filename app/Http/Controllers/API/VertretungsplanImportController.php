@@ -72,6 +72,8 @@ class VertretungsplanImportController extends Controller
             'absences_created'            => 0,
             'actions_total'               => 0,
             'dailynews_created'           => 0,
+            'dailynews_skipped'           => 0,
+            'dailynews_removed'           => 0,
             'vertretungen_created'        => 0,
             'vertretungen_updated'        => 0,
             'vertretungen_skipped_hidden' => 0,
@@ -79,6 +81,10 @@ class VertretungsplanImportController extends Controller
             'missing_teachers'            => [],
         ];
         $hadError = false;
+
+        // Tagesinfos: im Import enthaltene Infos je Datum und erfolgreich übertragene Tage
+        $tagesinfosImPlan = [];
+        $uebertrageneTage = [];
 
         // Raumintegration: Service für diesen Import-Lauf
         $roomService = new RoomBookingFromVpService();
@@ -97,7 +103,7 @@ class VertretungsplanImportController extends Controller
                     : null;
                 $week = $vpWeek?->type;
 
-                DB::transaction(function () use ($roomService, $kopfDate, $day, $week, &$summary) {
+                DB::transaction(function () use ($roomService, $kopfDate, $day, $week, &$summary, &$tagesinfosImPlan) {
 
                     // Idempotenz: VP-Raumbuchungen für diesen Tag zurücksetzen
                     if ($kopfDate) {
@@ -161,14 +167,8 @@ class VertretungsplanImportController extends Controller
                                 continue;
                             }
 
-                            if (isset($aktion->InfoK)) {
-                                $nachricht = new DailyNews([
-                                    'date_start' => $aktionDate,
-                                    'date_end'   => $aktionDate,
-                                    'news'       => $aktion->InfoK,
-                                ]);
-                                $nachricht->save();
-                                $summary['dailynews_created']++;
+                            if (isset($aktion->InfoK) && $aktionDate) {
+                                $this->tagesinfoUebernehmen($aktionDate, (string) $aktion->InfoK, $summary, $tagesinfosImPlan);
                             }
 
                             $lehrer = null;
@@ -267,6 +267,10 @@ class VertretungsplanImportController extends Controller
                     }
                 }); // end DB::transaction
 
+                if ($kopfDate) {
+                    $uebertrageneTage[] = $kopfDate->toDateString();
+                }
+
             } catch (\Exception $e) {
                 $hadError = true;
                 Log::error('Vertretungsplan: Error while parsing Day', [
@@ -275,6 +279,9 @@ class VertretungsplanImportController extends Controller
                 continue;
             }
         }
+
+        // Importierte Tagesinfos entfernen, die für übertragene Tage nicht mehr im Plan stehen
+        $this->veralteteTagesinfosEntfernen(array_unique($uebertrageneTage), $tagesinfosImPlan, $summary);
 
         // Raum-Summary zusammenführen
         $roomSummary = $roomService->getSummary();
@@ -291,5 +298,67 @@ class VertretungsplanImportController extends Controller
             'status'  => $hadError ? 'completed_with_errors' : 'ok',
             'summary' => $summary,
         ]);
+    }
+
+    /**
+     * Legt eine Tagesinfo aus dem Import nur an, wenn es für dieses Datum noch keine mit gleichem
+     * Text gibt (egal ob importiert oder manuell). Merkt sich die Info als „im Plan enthalten“.
+     *
+     * @param  array<string, array<string, true>>  $tagesinfosImPlan
+     */
+    private function tagesinfoUebernehmen(Carbon $datum, string $text, array &$summary, array &$tagesinfosImPlan): void
+    {
+        $text = DailyNews::normalisieren($text);
+        if ($text === '') {
+            return;
+        }
+
+        $tag = $datum->toDateString();
+        $tagesinfosImPlan[$tag][$text] = true;
+
+        $vorhanden = DailyNews::query()
+            ->whereDate('date_start', $tag)
+            ->whereDate('date_end', $tag)
+            ->get()
+            ->contains(fn (DailyNews $n) => DailyNews::normalisieren($n->news) === $text);
+
+        if ($vorhanden) {
+            $summary['dailynews_skipped']++;
+
+            return;
+        }
+
+        DailyNews::create([
+            'date_start' => $tag,
+            'date_end'   => $tag,
+            'news'       => $text,
+            'quelle'     => DailyNews::QUELLE_VP_IMPORT,
+        ]);
+        $summary['dailynews_created']++;
+    }
+
+    /**
+     * Entfernt für die übertragenen Tage importierte Tagesinfos, die nicht mehr im Plan stehen.
+     * Manuell angelegte Infos (quelle = null) bleiben unberührt. Gelöscht wird über das Model,
+     * damit der Observer das ElternInfoBoard mitzieht.
+     *
+     * @param  array<int, string>  $tage
+     * @param  array<string, array<string, true>>  $tagesinfosImPlan
+     */
+    private function veralteteTagesinfosEntfernen(array $tage, array $tagesinfosImPlan, array &$summary): void
+    {
+        foreach ($tage as $tag) {
+            $veraltet = DailyNews::query()
+                ->where('quelle', DailyNews::QUELLE_VP_IMPORT)
+                ->whereDate('date_start', $tag)
+                ->whereDate('date_end', $tag)
+                ->get()
+                ->reject(fn (DailyNews $n) => isset($tagesinfosImPlan[$tag][DailyNews::normalisieren($n->news)]));
+
+            foreach ($veraltet as $news) {
+                $news->delete();
+                $summary['dailynews_removed']++;
+            }
+        }
     }
 }

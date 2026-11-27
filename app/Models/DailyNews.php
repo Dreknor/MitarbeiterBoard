@@ -6,16 +6,37 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Tagesinfo (Vertretungsplan). `quelle` = 'vp_import' für Infos aus dem Vertretungsplan-Import,
+ * null für manuell angelegte.
+ */
 class DailyNews extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['date_start', 'date_end', 'news'];
+    public const QUELLE_VP_IMPORT = 'vp_import';
+
+    protected $fillable = ['date_start', 'date_end', 'news', 'quelle'];
 
     protected $casts = [
       'date_start' => 'datetime',
       'date_end' => 'datetime',
     ];
+
+    /** Text vergleichbar machen: Leerzeichen am Rand entfernen, mehrfache zusammenfassen. */
+    public static function normalisieren(?string $text): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', (string) $text));
+    }
+
+    /** Schlüssel für „dieselbe Info“: Zeitraum + normalisierter Text. */
+    public static function schluessel($start, $ende, ?string $text): string
+    {
+        $start = $start ? Carbon::parse($start)->toDateString() : '';
+        $ende = $ende ? Carbon::parse($ende)->toDateString() : '';
+
+        return $start.'|'.$ende.'|'.self::normalisieren($text);
+    }
 
     public function isActive(Carbon $date = NULL): bool {
 

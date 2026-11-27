@@ -66,6 +66,9 @@ class MeetingDetailController extends Controller
             'presences'        => \App\Models\Presence::where('meeting_id', $meeting->id)->get(),
             'canManage'        => $user->can('manage', $meeting),
             'assignableThemes' => $this->meetings->assignableThemes($meeting, $user),
+            'ergebnisboards'   => $user->can('view result boards')
+                ? \App\Models\Ergebnisboard::query()->sichtbarFuer($user)->where('meeting_id', $meeting->id)->withCount('karten')->latest('updated_at')->get()
+                : collect(),
             'types'            => Type::all(),
             'themeGroups'      => $this->meetings->themeGroupOptions($meeting),
             'options'          => $this->meetings->participantOptions(),

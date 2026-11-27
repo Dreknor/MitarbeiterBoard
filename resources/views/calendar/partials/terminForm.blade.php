@@ -68,6 +68,7 @@
                             </label>
                         @endforeach
                     </div>
+                    @include('calendar.partials.gesperrteKalender', ['gesperrt' => $gesperrteKalender ?? collect()])
                     <template x-if="fremdeKalender.length > 0">
                         <p class="mt-1.5 text-xs text-gray-500">
                             Außerdem eingetragen in (ohne Schreibrecht, bleibt unverändert):

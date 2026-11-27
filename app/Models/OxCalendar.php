@@ -20,6 +20,8 @@ use App\Models\OxSyncLog;
  * @property string|null $beschreibung
  * @property bool        $sichtbar
  * @property bool        $schreibbar
+ * @property bool|null   $ox_schreibrecht        Darf das OX-Dienstkonto schreiben? null = unbekannt
+ * @property \Carbon\Carbon|null $ox_rechte_geprueft_at
  * @property string|null $sync_token
  * @property \Carbon\Carbon|null $letzte_synchronisation
  * @property \Carbon\Carbon|null $deleted_at
@@ -41,6 +43,8 @@ class OxCalendar extends Model
         'beschreibung',
         'sichtbar',
         'schreibbar',
+        'ox_schreibrecht',
+        'ox_rechte_geprueft_at',
         'sync_token',
         'letzte_synchronisation',
     ];
@@ -48,8 +52,26 @@ class OxCalendar extends Model
     protected $casts = [
         'sichtbar'               => 'boolean',
         'schreibbar'             => 'boolean',
+        'ox_schreibrecht'        => 'boolean',
+        'ox_rechte_geprueft_at'  => 'datetime',
         'letzte_synchronisation' => 'datetime',
     ];
+
+    /**
+     * Erklärung für Kalender, in die OX das Dienstkonto nicht schreiben lässt.
+     */
+    public const OX_SPERRE_HINWEIS = 'In OX hat das MitarbeiterBoard für diesen Kalender nur Leserechte. '
+        . 'Termine können hier erst eingetragen werden, wenn in OX für diesen Kalender Schreibrechte vergeben werden – '
+        . 'bitte an die Kalender-Verwaltung bzw. IT wenden.';
+
+    /**
+     * OX lässt das Dienstkonto in diesem Kalender nachweislich nicht schreiben.
+     * Unbekannt (null) zählt nicht als gesperrt.
+     */
+    public function oxGesperrt(): bool
+    {
+        return $this->ox_schreibrecht === false;
+    }
 
     // --- Relationen ---
 

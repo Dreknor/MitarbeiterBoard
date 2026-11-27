@@ -4,178 +4,146 @@
     @vite('resources/css/wochenplan.css')
 @endpush
 
+@php
+    $zeitraum = $filter['zeitraum'] ?? 'alle';
+    $typ = $filter['typ'] ?? 'alle';
+    $link = fn (array $aenderung) => route('wp.index', array_filter(array_merge($filter, $aenderung), fn ($v) => $v !== null && $v !== ''));
+@endphp
+
 @section('content')
-<div class="wp-container p-4">
-
-    {{-- Flash-Meldungen --}}
-    @if(session('Meldung'))
-        <div class="mb-4 px-4 py-3 rounded-lg {{ session('type') === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-800 border border-yellow-200' }}">
-            {{ session('Meldung') }}
+<div class="wp-wrapper">
+    <div class="wp-head">
+        <div>
+            <h1 class="wp-title">Wochenpläne</h1>
+            <p class="wp-subtitle">
+                @if($darfAlles)
+                    Pläne aller Klassen
+                @else
+                    Pläne Ihrer Klassen{{ $klassen->isNotEmpty() ? ': '.$klassen->pluck('name')->join(', ') : '' }}
+                @endif
+            </p>
         </div>
-    @endif
-
-    {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Wochenpläne</h1>
-        <div class="flex items-center gap-2">
-            <a href="{{ route('wp.hilfe') }}"
-               class="inline-flex items-center px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-               title="Hilfe & Anleitung">
-                ❓ Hilfe
-            </a>
-            @canany(['create wochenplan', 'create Wochenplan'])
-                <a href="{{ route('wp.vorlagen.index') }}"
-                   class="inline-flex items-center px-3 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
-                    📄 Vorlagen
-                </a>
-                <a href="{{ route('wp.create') }}"
-                   class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Neuer Plan
-                </a>
-            @endcanany
+        <div class="wp-btn-group" data-tour="wp-navigation">
+            <a href="{{ route('wp.hilfe') }}" class="wp-btn wp-btn-ghost wp-btn-sm">❓ Hilfe</a>
+            @if($darfSchreiben)
+                <a href="{{ route('wp.bibliothek.index') }}" class="wp-btn wp-btn-secondary wp-btn-sm">📚 Bibliothek</a>
+                <a href="{{ route('wp.vorlagen.index') }}" class="wp-btn wp-btn-secondary wp-btn-sm">📄 Vorlagen</a>
+            @endif
+            @can('manage wochenplan-faecher')
+                <a href="{{ route('wp.faecher.index') }}" class="wp-btn wp-btn-secondary wp-btn-sm">Fächer</a>
+            @endcan
+            @can('manage wochenplan-formatvorlagen')
+                <a href="{{ route('wp.formatvorlagen.index') }}" class="wp-btn wp-btn-secondary wp-btn-sm">Formatvorlagen</a>
+            @endcan
+            @can('edit settings')
+                <a href="{{ route('wp.einstellungen') }}" class="wp-btn wp-btn-secondary wp-btn-sm">⚙ Einstellungen</a>
+            @endcan
+            @if($darfSchreiben)
+                <a href="{{ route('wp.create') }}" class="wp-btn wp-btn-primary">+ Neuer Plan</a>
+            @endif
         </div>
     </div>
 
-    {{-- Filter & Tabs --}}
-    <div x-data="{ tab: '{{ request('tab') === 'vorlagen' ? 'vorlagen' : 'aktuelle' }}' }" class="mb-6">
-        <form method="GET" action="{{ route('wp.index') }}" class="flex flex-wrap gap-3 mb-4">
-            <select name="klasse_id" onchange="this.form.submit()"
-                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="">Alle Klassen</option>
-                @foreach($klassen as $klasse)
-                    <option value="{{ $klasse->id }}" {{ $filterKlasseId == $klasse->id ? 'selected' : '' }}>
-                        {{ $klasse->name }}
-                    </option>
+    @if(! $darfAlles && $klassen->isEmpty())
+        <div class="wp-note wp-note-warning mb-4">
+            Ihnen ist noch keine Klasse zugeordnet. Wochenpläne sehen Sie für die Klassen, denen Sie im Pädagogischen Tagebuch zugeordnet sind.
+        </div>
+    @endif
+
+    {{-- Filter --}}
+    <form method="GET" action="{{ route('wp.index') }}" class="wp-card mb-4" data-tour="wp-filter">
+        <div class="wp-card-body space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="lg:col-span-2">
+                    <label class="wp-label" for="wp-q">Suche</label>
+                    <input id="wp-q" type="search" name="q" value="{{ $filter['q'] ?? '' }}" class="wp-input" placeholder="Plan, Klasse oder Kind">
+                </div>
+                <div>
+                    <label class="wp-label" for="wp-klasse">Klasse</label>
+                    <select id="wp-klasse" name="klasse_id" class="wp-select" onchange="this.form.submit()">
+                        <option value="">Alle</option>
+                        @foreach($klassen as $klasse)
+                            <option value="{{ $klasse->id }}" @selected(($filter['klasse_id'] ?? '') == $klasse->id)>{{ $klasse->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="wp-label" for="wp-schuljahr">Schuljahr</label>
+                    <select id="wp-schuljahr" name="schuljahr" class="wp-select" onchange="this.form.submit()">
+                        <option value="">Alle</option>
+                        @foreach($schuljahre as $jahr)
+                            <option value="{{ $jahr }}" @selected(($filter['schuljahr'] ?? '') == $jahr)>{{ $jahr }}/{{ substr($jahr + 1, -2) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="wp-label" for="wp-woche">Woche</label>
+                    <input id="wp-woche" type="date" name="woche" value="{{ $filter['woche'] ?? '' }}" class="wp-input" onchange="this.form.submit()">
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="wp-pills" aria-label="Zeitraum">
+                    @foreach(['alle' => 'Alle', 'aktuell' => 'Diese Woche', 'kommend' => 'Geplant', 'vergangen' => 'Archiv'] as $wert => $text)
+                        <a href="{{ $link(['zeitraum' => $wert === 'alle' ? null : $wert, 'page' => null]) }}" class="wp-pill {{ $zeitraum === $wert ? 'is-active' : '' }}">{{ $text }}</a>
+                    @endforeach
+                </div>
+                <div class="wp-pills" aria-label="Typ">
+                    @foreach(['alle' => 'Klassenpläne + Einzelpläne', 'klassenplan' => 'Nur Klassenpläne', 'schuelerplan' => 'Alle Kinderpläne'] as $wert => $text)
+                        <a href="{{ $link(['typ' => $wert === 'alle' ? null : $wert, 'page' => null]) }}" class="wp-pill {{ $typ === $wert ? 'is-active' : '' }}">{{ $text }}</a>
+                    @endforeach
+                </div>
+                @if($darfAlles)
+                    <label class="wp-check ml-auto">
+                        <input type="checkbox" name="meine" value="1" @checked(! empty($filter['meine'])) onchange="this.form.submit()"> Nur meine Klassen
+                    </label>
+                @endif
+                <input type="hidden" name="zeitraum" value="{{ $filter['zeitraum'] ?? '' }}">
+                <input type="hidden" name="typ" value="{{ $filter['typ'] ?? '' }}">
+                <button type="submit" class="wp-btn wp-btn-secondary wp-btn-sm {{ $darfAlles ? '' : 'ml-auto' }}">Filtern</button>
+                @if(collect($filter)->filter()->isNotEmpty())
+                    <a href="{{ route('wp.index') }}" class="text-sm text-gray-500 hover:text-gray-800">Zurücksetzen</a>
+                @endif
+            </div>
+        </div>
+    </form>
+
+    {{-- Pläne --}}
+    @if($plaene->isEmpty())
+        <div class="wp-card wp-empty">
+            <div class="wp-empty-icon">🗓</div>
+            <p class="font-semibold text-gray-700">Keine Pläne gefunden.</p>
+            @if($darfSchreiben)
+                <p class="mt-1">Legen Sie einen <a href="{{ route('wp.create') }}" class="font-semibold text-blue-600">neuen Plan</a> an oder starten Sie mit einer Vorlage.</p>
+            @endif
+        </div>
+    @else
+        <div class="wp-grid" data-tour="wp-liste">
+            @foreach($plaene as $plan)
+                @include('wochenplan.new.components.plan-card', ['plan' => $plan])
+            @endforeach
+        </div>
+        <div class="mt-6">@include('wochenplan.new.partials.seiten', ['paginator' => $plaene])</div>
+    @endif
+
+    {{-- Vorlagen --}}
+    @if($darfSchreiben && $vorlagen->isNotEmpty())
+        <section class="mt-8">
+            <div class="mb-2 flex items-center justify-between">
+                <h2 class="wp-section-title">Mit einer Vorlage starten</h2>
+                <a href="{{ route('wp.vorlagen.index') }}" class="text-sm font-semibold text-blue-600">Alle Vorlagen →</a>
+            </div>
+            <div class="wp-pills">
+                @foreach($vorlagen->take(12) as $vorlage)
+                    <a href="{{ route('wp.create', ['vorlage' => $vorlage->id]) }}" class="wp-pill">📄 {{ $vorlage->vorlage_name ?? $vorlage->name }} <span class="text-gray-400">({{ $vorlage->aufgaben_count }})</span></a>
                 @endforeach
-            </select>
-
-            <select name="typ" onchange="this.form.submit()"
-                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="alle" {{ $filterTyp === 'alle' ? 'selected' : '' }}>Alle Typen</option>
-                <option value="klassenplan" {{ $filterTyp === 'klassenplan' ? 'selected' : '' }}>Klassenpläne</option>
-                <option value="schuelerplan" {{ $filterTyp === 'schuelerplan' ? 'selected' : '' }}>Schülerpläne</option>
-            </select>
-
-            <select name="zeitraum" onchange="this.form.submit()"
-                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="alle" {{ $filterZeitraum === 'alle' ? 'selected' : '' }}>Alle Zeiträume</option>
-                <option value="aktuell" {{ $filterZeitraum === 'aktuell' ? 'selected' : '' }}>Aktuelle</option>
-                <option value="vergangen" {{ $filterZeitraum === 'vergangen' ? 'selected' : '' }}>Vergangene</option>
-            </select>
-        </form>
-
-        {{-- Tabs --}}
-        <div class="flex items-center gap-2 mb-5">
-            <button @click="tab = 'aktuelle'"
-                    :class="tab === 'aktuelle'
-                        ? 'bg-primary-600 text-white shadow-sm'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                Alle Pläne
-                <span :class="tab === 'aktuelle' ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'"
-                      class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold transition-colors">
-                    {{ $plaene->total() }}
-                </span>
-            </button>
-            @canany(['create wochenplan', 'create Wochenplan'])
-            <button @click="tab = 'vorlagen'"
-                    :class="tab === 'vorlagen'
-                        ? 'bg-primary-600 text-white shadow-sm'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
-                </svg>
-                Vorlagen
-                <span :class="tab === 'vorlagen' ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'"
-                      class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold transition-colors">
-                    {{ $vorlagen->count() }}
-                </span>
-            </button>
-            @endcanany
-        </div>
-
-        {{-- Pläne Tab --}}
-        <div x-show="tab === 'aktuelle'">
-            @if($plaene->isEmpty())
-                <div class="text-center py-16 text-gray-400">
-                    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <p class="text-lg font-medium text-gray-500 mb-2">Noch keine Pläne vorhanden</p>
-                    @canany(['create wochenplan', 'create Wochenplan'])
-                        <p class="text-sm mb-4">Erstelle den ersten Wochenplan oder nutze eine Vorlage.</p>
-                        <div class="flex justify-center gap-3">
-                            <a href="{{ route('wp.create') }}"
-                               class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                Neuer Plan
-                            </a>
-                            @if($vorlagen->count() > 0)
-                                <button @click="tab = 'vorlagen'"
-                                        class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
-                                    📄 Aus Vorlage
-                                </button>
-                            @endif
-                        </div>
-                    @else
-                        <p class="text-sm">Es wurden noch keine Pläne erstellt.</p>
-                    @endcanany
-                </div>
-            @else
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($plaene as $plan)
-                        @include('wochenplan.new.components.plan-card', ['plan' => $plan])
-                    @endforeach
-                </div>
-            @endif
-        </div>
-
-        {{-- Vorlagen Tab --}}
-        @canany(['create wochenplan', 'create Wochenplan'])
-        <div x-show="tab === 'vorlagen'" x-cloak>
-            @if($vorlagen->isEmpty())
-                <div class="text-center py-16 text-gray-400">
-                    <p class="text-lg font-medium text-gray-500 mb-2">📄 Keine Vorlagen vorhanden</p>
-                    <p class="text-sm mb-4">Öffne einen bestehenden Plan und speichere ihn als Vorlage.</p>
-                    <a href="{{ route('wp.create') }}"
-                       class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Neuen Plan erstellen
-                    </a>
-                </div>
-            @else
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($vorlagen as $plan)
-                        @include('wochenplan.new.components.plan-card', ['plan' => $plan])
-                    @endforeach
-                </div>
-            @endif
-        </div>
-        @endcanany
-    </div>
-
-    {{-- Pagination --}}
-    @if($plaene->hasPages())
-        <div class="mt-4">
-            {{ $plaene->links() }}
-        </div>
+            </div>
+        </section>
     @endif
-
 </div>
+
+<x-tour id="wochenplan" :version="1" :steps="[
+    ['target' => 'wp-navigation', 'title' => 'Überarbeiteter Wochenplan', 'text' => 'Sie sehen die Pläne Ihrer Klassen. Neu sind die Aufgaben-Bibliothek, Einstellungen für die Nextcloud-Ablage und der Fortschritt je Kind.'],
+    ['target' => 'wp-filter', 'title' => 'Suchen und filtern', 'text' => 'Nach Plan, Klasse oder Kind suchen, nach Schuljahr oder Woche filtern. „Archiv“ zeigt vergangene Pläne.'],
+    ['target' => 'wp-liste', 'title' => 'Pläne', 'text' => 'Kinderpläne erscheinen unter ihrem Klassenplan. Pläne dieser Woche sind hervorgehoben, ☁ zeigt die Ablage in der Nextcloud.'],
+]" />
 @endsection
-
-@push('js')
-    @vite('resources/js/wochenplan.js')
-@endpush
-

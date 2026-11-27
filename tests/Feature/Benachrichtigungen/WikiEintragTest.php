@@ -2,21 +2,17 @@
 
 namespace Tests\Feature\Benachrichtigungen;
 
-use App\Models\WikiSite;
+use App\Models\WikiSeite;
 use Tests\TestCase;
 
 class WikiEintragTest extends TestCase
 {
-    public function test_wiki_seite_existiert_genau_einmal(): void
+    public function test_wiki_seite_ist_systemseite_mit_festem_slug(): void
     {
-        $this->assertSame(1, WikiSite::where('title', config('benachrichtigungen.wiki_titel'))->count());
+        $seite = WikiSeite::where('slug', config('benachrichtigungen.wiki_slug'))->sole();
 
-        // Migration ist idempotent
-        $migration = require database_path('migrations/2026_10_06_000002_insert_benachrichtigungen_wiki_entry.php');
-        $migration->up();
-
-        $seite = WikiSite::where('title', config('benachrichtigungen.wiki_titel'))->sole();
-        $this->assertStringContainsString('Tagesübersicht', $seite->text);
-        $this->assertStringContainsString('am Vorabend', $seite->text);
+        $this->assertTrue($seite->systemseite);
+        $this->assertStringContainsString('Tagesübersicht', $seite->inhalt);
+        $this->assertStringContainsString('am Vorabend', $seite->inhalt);
     }
 }

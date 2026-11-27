@@ -62,7 +62,8 @@
      data-can-edit="{{ $canEdit ? 'true' : 'false' }}"
      data-can-book-rooms="{{ $canBookRooms ? 'true' : 'false' }}"
      data-import-error="{{ $errors->has('datei') ? 'true' : 'false' }}"
-     data-user-colors='{!! json_encode($userColors, JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'>
+     data-user-colors='{!! json_encode($userColors, JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP) !!}'
+     data-colors-url="{{ route('calendar.colors.save') }}">
 
     {{-- ─── Seiten-Header ─────────────────────────────────────────────── --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">

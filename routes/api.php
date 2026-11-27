@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\v1\AbsenceApiController;
+use App\Http\Controllers\API\v1\PostApiController;
 use App\Http\Controllers\API\v1\AuthApiController;
 use App\Http\Controllers\API\v1\ClassApiController;
 use App\Http\Controllers\API\v1\ClassOverviewApiController;
@@ -35,6 +36,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::put('/vertretungen/{key}/vp', [VertretungsplanImportController::class, 'import'])
     ->middleware('throttle:10,1');
+
+// Monitoring: Heartbeat (z. B. Home Assistant), Authorization: Bearer <Token aus Einstellungen → Monitoring>
+Route::post('monitoring/heartbeat', [\App\Http\Controllers\API\MonitoringHeartbeatController::class, 'store'])
+    ->middleware(['json', 'throttle:30,1'])
+    ->name('api.monitoring.heartbeat');
 
 /*
 |--------------------------------------------------------------------------
@@ -122,6 +128,14 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             ->name('paed-diary.column-values');
         Route::post('paed-diary/tasks/{task}/close', [PaedDiaryWeekApiController::class, 'closeTask'])
             ->whereNumber('task')->name('paed-diary.tasks.close');
+
+        // Wochenplan: Aufgaben und Status je Kind (nur mit Tagebuch-Anbindung)
+        Route::get('students/{schueler}/weekly-plan', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'show'])
+            ->whereNumber('schueler')->name('weekly-plan.show');
+        Route::post('weekly-plan/tasks/{aufgabe}/status', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'store'])
+            ->whereNumber('aufgabe')->name('weekly-plan.status.store');
+        Route::delete('weekly-plan/tasks/{aufgabe}/status', [\App\Http\Controllers\API\v1\WeeklyPlanApiController::class, 'destroy'])
+            ->whereNumber('aufgabe')->name('weekly-plan.status.destroy');
 
         // Planung: Aufgaben, Termine, Wiedervorlage, Schüler eines Eintrags
         Route::post('paed-diary/tasks', [PaedDiaryPlanningApiController::class, 'storeTask'])->name('paed-diary.tasks.store');
@@ -283,6 +297,18 @@ Route::prefix('v1')->name('api.v1.')->middleware('json')->group(function () {
             Route::post('{holiday}/cancel', [HolidayApiController::class, 'requestCancellation'])->whereNumber('holiday')->name('cancel');
             Route::post('{holiday}/cancel-decision', [HolidayApiController::class, 'decideCancellation'])->whereNumber('holiday')->name('cancel-decision');
             Route::delete('{holiday}', [HolidayApiController::class, 'destroy'])->whereNumber('holiday')->name('destroy');
+        });
+
+    // Nachrichten (beide Apps): lesen, gelesen markieren, bestätigen – Zugriff über Gruppen (PostPolicy).
+    Route::middleware(['auth:sanctum', 'api.staff', 'idempotent'])
+        ->prefix('posts')->name('posts.')->group(function () {
+            Route::get('/', [PostApiController::class, 'index'])->name('index');
+            Route::get('counts', [PostApiController::class, 'counts'])->name('counts');
+            Route::get('{post}', [PostApiController::class, 'show'])->whereNumber('post')->name('show');
+            Route::post('{post}/read', [PostApiController::class, 'read'])->whereNumber('post')->name('read');
+            Route::post('{post}/confirm', [PostApiController::class, 'confirm'])->whereNumber('post')->name('confirm');
+            Route::get('{post}/attachments/{media}', [PostApiController::class, 'attachment'])
+                ->whereNumber('post')->whereNumber('media')->name('attachments');
         });
 
     // Abwesenheiten (wie die Abwesenheiten-Karte im Web): "view absences", für andere "create absences".

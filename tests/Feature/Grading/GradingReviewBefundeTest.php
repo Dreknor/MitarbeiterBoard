@@ -142,7 +142,7 @@ class GradingReviewBefundeTest extends TestCase
 
         $this->get(route('gradingDocumentation.publicStudentSession', $token))
             ->assertOk()
-            ->assertSee('noch keine Frage freigegeben')
+            ->assertSee('Warte auf die nächste Frage')
             ->assertDontSee(json_encode('Ich höre zu'), false);
 
         $session->update(['current_question_id' => $frage1->id]);

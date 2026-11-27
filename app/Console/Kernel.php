@@ -40,7 +40,20 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\GroupController@deleteOldGroups')->daily();
         $schedule->call('App\Http\Controllers\RecurringThemeController@createNewThemes')->dailyAt('07:00');
         $schedule->call('App\Http\Controllers\PostsController@dailyMail')->dailyAt('20:00');
+        // Nachrichten: neue Gruppenmitglieder → Lesebestätigung zuweisen, Erinnerungen, Ablauf
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgleichen())->hourly()->name('nachrichten-abgleich');
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->erinnerungenVersenden())->dailyAt('07:10')->name('nachrichten-erinnerungen');
+        $schedule->call(fn () => app(\App\Services\Posts\PostService::class)->abgelaufeneArchivieren())->dailyAt('01:30')->name('nachrichten-ablauf');
+        // Ergebnisboards: Erinnerung an heute/morgen fällige Karten
+        $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->erinnerungenVersenden())->dailyAt('07:20')->name('ergebnisboards-erinnerungen');
+        // Boards: seit 90 Tagen gelöschte Karten endgültig entfernen
+        $schedule->call(fn () => app(\App\Services\Ergebnisboards\ErgebnisboardService::class)->geloeschteKartenBereinigen())->dailyAt('03:40')->name('ergebnisboards-papierkorb');
+
+        // Wiki: entfernte/nie verwendete Anhänge nach 90 Tagen löschen, wenn keine Fassung sie mehr verlinkt
+        $schedule->call(fn () => app(\App\Services\Wiki\WikiAnhangService::class)->bereinigen())->dailyAt('03:35')->name('wiki-anhaenge-bereinigen');
         $schedule->call('App\Http\Controllers\Personal\TimesheetController@timesheet_mail')->monthlyOn(1, '8:00');
+        // Monitoring: Heartbeat-Zeitlimit und Webserver prüfen, Störungen melden
+        $schedule->call(fn () => app(\App\Services\Monitoring\MonitoringService::class)->pruefen())->everyFiveMinutes()->name('monitoring-pruefen')->withoutOverlapping(10);
 
         //Recurring procedures
         $schedule->call('App\Http\Controllers\RecurringProcedureController@checkStart')->dailyAt('01:00');
@@ -150,6 +163,11 @@ class Kernel extends ConsoleKernel
 
         // Löschkonzept: fehlgeschlagene Jobs enthalten serialisierte Modelle, nach 30 Tagen entfernen
         $schedule->command('queue:prune-failed', ['--hours' => 24 * 30])->dailyAt('03:50');
+
+        // Wochenplan: Sind die in der Nextcloud abgelegten Arbeitsblätter noch vorhanden?
+        $schedule->call(function () {
+            app(\App\Services\Wochenplan\WpAblageService::class)->dateienPruefen();
+        })->dailyAt('02:40')->name('wochenplan-dateien-pruefen')->withoutOverlapping();
 
         // Arbeitspaket 4.1: Prüfengine für Zeiterfassung, Dienstpläne & Vertragsänderungen (täglich um 03:00)
         $schedule->command('personal:audit-timesheets')

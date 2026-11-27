@@ -54,18 +54,20 @@ use App\Http\Controllers\VertretungController;
 use App\Http\Controllers\VertretungsplanAbsenceController;
 use App\Http\Controllers\VertretungsplanController;
 use App\Http\Controllers\VertretungsplanWeekController;
-use App\Http\Controllers\WikiController;
-use App\Http\Controllers\WochenplanController;
-use App\Http\Controllers\WPRowsController;
-use App\Http\Controllers\WpTaskController;
+use App\Http\Controllers\Wiki\WikiAnhangController;
+use App\Http\Controllers\Wiki\WikiBearbeitungController;
+use App\Http\Controllers\Wiki\WikiController;
+use App\Http\Controllers\Wiki\WikiVerwaltungController;
 use App\Http\Controllers\Wochenplan\WpPlanController;
-use App\Http\Controllers\Wochenplan\WpAufgabeController;
+use App\Http\Controllers\Wochenplan\WpInhaltController;
+use App\Http\Controllers\Wochenplan\WpDateiController;
 use App\Http\Controllers\Wochenplan\WpExportController;
+use App\Http\Controllers\Wochenplan\WpFortschrittController;
 use App\Http\Controllers\Wochenplan\WpVorlageController;
+use App\Http\Controllers\Wochenplan\WpBibliothekController;
+use App\Http\Controllers\Wochenplan\WpEinstellungenController;
 use App\Http\Controllers\Wochenplan\WpFormatvorlageController;
 use App\Http\Controllers\Wochenplan\WpFachController;
-use App\Http\Controllers\Wochenplan\WpSyncController;
-use App\Http\Controllers\Wochenplan\WpTaeglicheUebungController;
 use App\Http\Controllers\SchuelerController; // hinzugefügt
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -189,12 +191,48 @@ Route::group([
                  * Routes for Wiki
                  */
                 Route::middleware(['permission:view wiki'])->group(function () {
-                    Route::post('wiki', [WikiController::class, 'store']);
-                    Route::post('wiki/add', [WikiController::class, 'new']);
-                    Route::get('wiki/all', [WikiController::class, 'all_sites']);
-                    Route::post('wiki/search', [WikiController::class, 'search']);
-                    Route::get('wiki/create/{slug}', [WikiController::class, 'create']);
-                    Route::get('wiki/{slug?}/{version?}', [WikiController::class, 'index'])->name('wiki');
+                    // Lesen
+                    Route::get('wiki', [WikiController::class, 'index'])->name('wiki');
+                    Route::get('wiki/suche', [WikiController::class, 'suche'])->name('wiki.suche');
+                    Route::get('wiki/alle', [WikiController::class, 'alle'])->name('wiki.alle');
+                    Route::get('wiki/aenderungen', [WikiController::class, 'aenderungen'])->name('wiki.aenderungen');
+                    Route::get('wiki/tags', [WikiVerwaltungController::class, 'tags'])->name('wiki.tags');
+                    Route::get('wiki/tags/vorschlaege', [WikiBearbeitungController::class, 'tagVorschlaege'])->name('wiki.tags.vorschlaege');
+                    Route::get('wiki/tag/{tag:slug}', [WikiVerwaltungController::class, 'tag'])->name('wiki.tag');
+                    Route::get('wiki/anhang/{media}', [WikiAnhangController::class, 'show'])->name('wiki.anhang');
+                    Route::post('wiki/seiten/{seite}/favorit', [WikiController::class, 'favorit'])->name('wiki.favorit');
+
+                    // Anlegen und Bearbeiten (Rechte über WikiSeitePolicy)
+                    Route::get('wiki/neu', [WikiBearbeitungController::class, 'create'])->name('wiki.create');
+                    Route::post('wiki/seiten', [WikiBearbeitungController::class, 'store'])->name('wiki.store');
+                    Route::put('wiki/seiten/{seite}', [WikiBearbeitungController::class, 'update'])->name('wiki.update');
+                    Route::post('wiki/seiten/{seite}/bearbeitung', [WikiBearbeitungController::class, 'bearbeitung'])->name('wiki.bearbeitung');
+                    Route::post('wiki/seiten/{seite}/revisionen/{revision}/wiederherstellen', [WikiBearbeitungController::class, 'wiederherstellen'])->name('wiki.wiederherstellen');
+                    Route::post('wiki/seiten/{seite}/anhaenge', [WikiAnhangController::class, 'store'])->name('wiki.anhaenge.store');
+                    Route::delete('wiki/seiten/{seite}/anhaenge/{media}', [WikiAnhangController::class, 'destroy'])->name('wiki.anhaenge.destroy');
+
+                    // Verwaltung (`manage wiki`)
+                    Route::get('wiki/seiten/{seite}/einstellungen', [WikiVerwaltungController::class, 'einstellungen'])->name('wiki.einstellungen');
+                    Route::post('wiki/seiten/{seite}/schutz', [WikiVerwaltungController::class, 'schutz'])->name('wiki.schutz');
+                    Route::post('wiki/seiten/{seite}/einschraenkung', [WikiVerwaltungController::class, 'einschraenkung'])->name('wiki.einschraenkung');
+                    Route::delete('wiki/seiten/{seite}', [WikiVerwaltungController::class, 'loeschen'])->name('wiki.loeschen');
+                    Route::get('wiki/papierkorb', [WikiVerwaltungController::class, 'papierkorb'])->name('wiki.papierkorb');
+                    Route::post('wiki/papierkorb/{id}', [WikiVerwaltungController::class, 'ausPapierkorb'])->whereNumber('id')->name('wiki.papierkorb.wiederherstellen');
+                    Route::get('wiki/struktur', [WikiVerwaltungController::class, 'struktur'])->name('wiki.struktur');
+                    Route::post('wiki/struktur', [WikiVerwaltungController::class, 'strukturSpeichern'])->name('wiki.struktur.speichern');
+                    Route::post('wiki/struktur/alphabetisch', [WikiVerwaltungController::class, 'alphabetisch'])->name('wiki.struktur.alphabetisch');
+                    Route::put('wiki/tags/{tag}', [WikiVerwaltungController::class, 'tagUmbenennen'])->name('wiki.tags.umbenennen');
+                    Route::post('wiki/tags/{tag}/zusammenfuehren', [WikiVerwaltungController::class, 'tagZusammenfuehren'])->name('wiki.tags.zusammenfuehren');
+                    Route::delete('wiki/tags/{tag}', [WikiVerwaltungController::class, 'tagLoeschen'])->name('wiki.tags.loeschen');
+
+                    // Seiten über ihren Slug (zuletzt, damit die festen Pfade oben Vorrang haben)
+                    Route::get('wiki/create/{slug}', fn (string $slug) => redirect()->route('wiki.create', ['titel' => str_replace('-', ' ', $slug)]));
+                    Route::get('wiki/{slug}/bearbeiten', [WikiBearbeitungController::class, 'edit'])->name('wiki.edit');
+                    Route::get('wiki/{slug}/verlauf', [WikiController::class, 'verlauf'])->name('wiki.verlauf');
+                    Route::get('wiki/{slug}/verlauf/{revision}', [WikiController::class, 'revision'])->name('wiki.revision');
+                    Route::get('wiki/{slug}/vergleich', [WikiController::class, 'vergleich'])->name('wiki.vergleich');
+                    Route::get('wiki/{slug}/pdf', [WikiController::class, 'pdf'])->name('wiki.pdf');
+                    Route::get('wiki/{slug}/{alteVersion?}', [WikiController::class, 'show'])->where('alteVersion', '[0-9]+')->name('wiki.show');
 
                 });
 
@@ -443,77 +481,85 @@ Route::group([
                 });
 
 
-                //Wochenplan
-                Route::group(['middleware' => ['permission:create Wochenplan']], function () {
-                    Route::resource('{groupname}/wochenplan', WochenplanController::class);
-                    Route::post('wochenplan/{wochenplan}/addfile', [WochenplanController::class, 'addFile']);
-                    Route::post('wprow/{wochenplan}', [WPRowsController::class, 'store']);
-                    Route::delete('wprow/{wprow}/remove', [WPRowsController::class, 'destroy']);
-                    Route::delete('wochenplan/media/{media}/remove', [WochenplanController::class, 'removeFile']);
-                    Route::delete('wochenplan/{wochenplan}/remove', [WochenplanController::class, 'destroy']);
-                    Route::delete('wptask/{wptask}/remove', [WpTaskController::class, 'destroy']);
-                    Route::post('wptask/{wprow}/addTask', [WpTaskController::class, 'store']);
-                    Route::get('wptask/{wprow}/addTask', [WpTaskController::class, 'create']);
-                    Route::get('wptask/{wptask}/edit', [WpTaskController::class, 'edit']);
-                    Route::put('wptask/{wpTask}/edit', [WpTaskController::class, 'update']);
-                    Route::get('wochenplan/{wochenplan}/export', [WochenplanController::class, 'export']);
-                });
-
-                // ─── Neues Wochenplan-System (/wp) ────────────────────────────────────────
+                // ─── Wochenplan (/wp) ─────────────────────────────────────────────────────
+                // Zugriff pro Plan über WpPlanPolicy (Klassenregel); Editor-Endpunkte liefern JSON.
                 Route::prefix('wp')->name('wp.')->group(function () {
+                    Route::pattern('wpPlan', '[0-9]+');
+                    Route::pattern('wpPlanFach', '[0-9]+');
+                    Route::pattern('wpAufgabe', '[0-9]+');
+                    Route::pattern('wpDatei', '[0-9]+');
+                    Route::pattern('wpTaeglicheUebung', '[0-9]+');
+                    Route::pattern('wpBaustein', '[0-9]+');
 
-                    // Lesbar für view wochenplan UND create wochenplan (auch großes W für Rückwärtskompatibilität)
-                    Route::middleware('permission:view wochenplan|create wochenplan|create Wochenplan')->group(function () {
+                    // Lesen
+                    Route::middleware('permission:view wochenplan|create wochenplan')->group(function () {
                         Route::get('/', [WpPlanController::class, 'index'])->name('index');
                         Route::get('/klasse/{klasse}', [WpPlanController::class, 'indexKlasse'])->name('index.klasse');
                         Route::get('/hilfe', [WpPlanController::class, 'hilfe'])->name('hilfe');
-                        // Export
+                        Route::get('/{wpPlan}', [WpPlanController::class, 'edit'])->name('show');
+                        Route::get('/{wpPlan}/daten', [WpPlanController::class, 'daten'])->name('daten');
+                        Route::get('/dateien/{wpDatei}', [WpDateiController::class, 'show'])->name('dateien.show');
+
                         Route::prefix('export')->name('export.')->group(function () {
                             Route::get('{wpPlan}/pdf', [WpExportController::class, 'pdf'])->name('pdf');
                             Route::get('{wpPlan}/word', [WpExportController::class, 'word'])->name('word');
                             Route::get('{wpPlan}/vorschau', [WpExportController::class, 'vorschau'])->name('vorschau');
+                            Route::get('{wpPlan}/kinderplaene-pdf', [WpExportController::class, 'kinderplaenePdf'])->name('kinderplaene.pdf');
+                            Route::get('{wpPlan}/kinderplaene-zip', [WpExportController::class, 'kinderplaeneZip'])->name('kinderplaene.zip');
                         });
+
+                        // Status je Kind (Matrix; Tagebuch-Anbindung)
+                        Route::get('/{wpPlan}/fortschritt', [WpFortschrittController::class, 'matrix'])->name('fortschritt');
+                        Route::get('/{wpPlan}/fortschritt/daten', [WpFortschrittController::class, 'matrixDaten'])->name('fortschritt.daten');
+                        Route::post('/{wpPlan}/fortschritt/mehrere', [WpFortschrittController::class, 'mehrere'])->name('fortschritt.mehrere');
+                        Route::post('/status', [WpFortschrittController::class, 'setzen'])->name('status.setzen');
+                        Route::get('/schueler/{schueler}/woche', [WpFortschrittController::class, 'schuelerWoche'])->name('schueler.woche');
+                        Route::get('/klasse/{klasse}/woche', [WpFortschrittController::class, 'klasseWoche'])->name('klasse.woche');
                     });
 
-                    // Schreibzugriff (create wochenplan oder altes create Wochenplan)
-                    Route::middleware('permission:create wochenplan|create Wochenplan')->group(function () {
+                    // Schreiben (create wochenplan)
+                    Route::middleware('permission:create wochenplan')->group(function () {
                         Route::get('/create', [WpPlanController::class, 'create'])->name('create');
                         Route::post('/', [WpPlanController::class, 'store'])->name('store');
                         Route::get('/{wpPlan}/edit', [WpPlanController::class, 'edit'])->name('edit');
                         Route::put('/{wpPlan}', [WpPlanController::class, 'update'])->name('update');
                         Route::delete('/{wpPlan}', [WpPlanController::class, 'destroy'])->name('destroy');
 
-                        // Plan-Aktionen
                         Route::post('/{wpPlan}/duplizieren', [WpPlanController::class, 'duplizieren'])->name('duplizieren');
+                        Route::post('/{wpPlan}/fortschreiben', [WpPlanController::class, 'fortschreiben'])->name('fortschreiben');
                         Route::get('/{wpPlan}/schuelerplan/create', [WpPlanController::class, 'createSchuelerplan'])->name('schuelerplan.create');
                         Route::post('/{wpPlan}/schuelerplan', [WpPlanController::class, 'storeSchuelerplan'])->name('schuelerplan.store');
 
-                        // Fächer im Plan
-                        Route::post('/{wpPlan}/fach', [WpPlanController::class, 'addFach'])->name('fach.add');
-                        Route::delete('/fach/{wpPlanFach}', [WpPlanController::class, 'removeFach'])->name('fach.remove');
-                        Route::post('/fach/reorder', [WpPlanController::class, 'reorderFaecher'])->name('fach.reorder');
+                        // Fächer
+                        Route::post('/{wpPlan}/faecher', [WpInhaltController::class, 'fachHinzufuegen'])->name('fach.add');
+                        Route::post('/{wpPlan}/faecher/sortieren', [WpInhaltController::class, 'faecherSortieren'])->name('fach.reorder');
+                        Route::delete('/{wpPlan}/faecher/{wpPlanFach}', [WpInhaltController::class, 'fachEntfernen'])->name('fach.remove');
 
                         // Aufgaben
-                        Route::post('/fach/{wpPlanFach}/aufgabe', [WpAufgabeController::class, 'store'])->name('aufgabe.store');
-                        Route::post('/aufgabe/aus-tagebuch/{wpPlanFach}', [WpAufgabeController::class, 'storeFromDiaryTask'])->name('aufgabe.from-diary');
-                        Route::post('/aufgabe/reorder', [WpAufgabeController::class, 'reorder'])->name('aufgabe.reorder');
-                        Route::put('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'update'])->name('aufgabe.update');
-                        Route::delete('/aufgabe/{wpAufgabe}', [WpAufgabeController::class, 'destroy'])->name('aufgabe.destroy');
+                        Route::post('/{wpPlan}/faecher/{wpPlanFach}/aufgaben', [WpInhaltController::class, 'aufgabeAnlegen'])->name('aufgabe.store');
+                        Route::post('/{wpPlan}/faecher/{wpPlanFach}/tagebuch', [WpInhaltController::class, 'tagebuchUebernehmen'])->name('aufgabe.from-diary');
+                        Route::post('/{wpPlan}/aufgaben/sortieren', [WpInhaltController::class, 'aufgabenSortieren'])->name('aufgabe.reorder');
+                        Route::put('/{wpPlan}/aufgaben/{wpAufgabe}', [WpInhaltController::class, 'aufgabeAendern'])->name('aufgabe.update');
+                        Route::delete('/{wpPlan}/aufgaben/{wpAufgabe}', [WpInhaltController::class, 'aufgabeLoeschen'])->name('aufgabe.destroy');
+                        Route::post('/{wpPlan}/aufgaben/{wpAufgabe}/bibliothek', [WpBibliothekController::class, 'ausAufgabe'])->name('aufgabe.bibliothek');
 
                         // Tägliche Übungen
-                        Route::post('/{wpPlan}/taegliche-uebungen/toggle', [WpTaeglicheUebungController::class, 'toggle'])->name('taegliche-uebungen.toggle');
-                        Route::post('/{wpPlan}/taegliche-uebungen', [WpTaeglicheUebungController::class, 'store'])->name('taegliche-uebungen.store');
-                        Route::put('/taegliche-uebungen/{wpTaeglicheUebung}', [WpTaeglicheUebungController::class, 'update'])->name('taegliche-uebungen.update');
-                        Route::delete('/taegliche-uebungen/{wpTaeglicheUebung}', [WpTaeglicheUebungController::class, 'destroy'])->name('taegliche-uebungen.destroy');
+                        Route::post('/{wpPlan}/uebungen/schalten', [WpInhaltController::class, 'uebungenSchalten'])->name('taegliche-uebungen.toggle');
+                        Route::post('/{wpPlan}/uebungen/sortieren', [WpInhaltController::class, 'uebungenSortieren'])->name('taegliche-uebungen.reorder');
+                        Route::post('/{wpPlan}/uebungen', [WpInhaltController::class, 'uebungAnlegen'])->name('taegliche-uebungen.store');
+                        Route::put('/{wpPlan}/uebungen/{wpTaeglicheUebung}', [WpInhaltController::class, 'uebungAendern'])->name('taegliche-uebungen.update');
+                        Route::delete('/{wpPlan}/uebungen/{wpTaeglicheUebung}', [WpInhaltController::class, 'uebungLoeschen'])->name('taegliche-uebungen.destroy');
 
-                        // Synchronisation
-                        Route::post('/{wpPlan}/sync/fach/{fachId}', [WpSyncController::class, 'syncFach'])->name('sync.fach');
-                        Route::post('/{wpPlan}/sync/all', [WpSyncController::class, 'syncAll'])->name('sync.all');
+                        // Abgleich Kinderplan ↔ Klassenplan
+                        Route::get('/{wpPlan}/abgleich', [WpInhaltController::class, 'abgleichVorschau'])->name('abgleich.vorschau');
+                        Route::post('/{wpPlan}/abgleich', [WpInhaltController::class, 'abgleichen'])->name('abgleich');
 
-                        // Medien (Arbeitsblätter)
-                        Route::post('/{wpPlan}/media', [WpPlanController::class, 'addMedia'])->name('media.add');
-                        Route::delete('/media/{media}', [WpPlanController::class, 'removeMedia'])->name('media.remove');
-                        Route::post('/{wpPlan}/media/sync', [WpPlanController::class, 'syncMedia'])->name('media.sync');
+                        // Arbeitsblätter (Nextcloud)
+                        Route::post('/{wpPlan}/dateien', [WpDateiController::class, 'store'])->name('dateien.store');
+                        Route::delete('/{wpPlan}/dateien/{wpDatei}', [WpDateiController::class, 'destroy'])->name('dateien.destroy');
+                        Route::post('/{wpPlan}/ablage/erneut', [WpDateiController::class, 'erneut'])->name('ablage.erneut');
+                        Route::get('/{wpPlan}/nextcloud', [WpDateiController::class, 'nextcloudListe'])->name('nextcloud.liste');
+                        Route::post('/{wpPlan}/nextcloud', [WpDateiController::class, 'nextcloudVerknuepfen'])->name('nextcloud.verknuepfen');
 
                         // Vorlagen
                         Route::prefix('vorlagen')->name('vorlagen.')->group(function () {
@@ -522,6 +568,19 @@ Route::group([
                             Route::post('/{wpPlan}/erstellen', [WpVorlageController::class, 'vonVorlageErstellen'])->name('erstellen');
                             Route::delete('/{wpPlan}', [WpVorlageController::class, 'destroy'])->name('destroy');
                         });
+
+                        // Aufgaben-Bibliothek
+                        Route::get('/bibliothek', [WpBibliothekController::class, 'index'])->name('bibliothek.index');
+                        Route::post('/bibliothek', [WpBibliothekController::class, 'store'])->name('bibliothek.store');
+                        Route::delete('/bibliothek/{wpBaustein}', [WpBibliothekController::class, 'destroy'])->name('bibliothek.destroy');
+                    });
+
+                    // Einstellungen (Nextcloud-Ablage, Tagebuch-Anbindung)
+                    Route::middleware('permission:edit settings')->prefix('einstellungen')->group(function () {
+                        Route::get('/', [WpEinstellungenController::class, 'index'])->name('einstellungen');
+                        Route::post('/', [WpEinstellungenController::class, 'update'])->name('einstellungen.update');
+                        Route::post('/vorschau', [WpEinstellungenController::class, 'vorschau'])->name('einstellungen.vorschau');
+                        Route::post('/neu-ablegen', [WpEinstellungenController::class, 'neuAblegen'])->name('einstellungen.neu-ablegen');
                     });
 
                     // Fächer-Katalog (manage wochenplan-faecher)
@@ -651,10 +710,20 @@ Route::group([
                 Route::get('/', [HomeController::class, 'index']);
                 Route::post('cards/disable', [DashboardController::class, 'disableCard']);
 
-                //Posts
-                Route::resource('posts', PostsController::class);
-                Route::get('posts/{post}/release', [PostsController::class, 'release']);
-                Route::get('posts/{post}/archive', [PostsController::class, 'archive'])->middleware('permission:create posts');
+                // Nachrichten (Dashboard + Gruppen, Lesebestätigung) – Zugriff über PostPolicy
+                Route::resource('posts', PostsController::class)->whereNumber('post');
+                Route::prefix('posts/{post}')->whereNumber('post')->name('posts.')->group(function () {
+                    Route::post('release', [PostsController::class, 'release'])->name('release');
+                    Route::post('archive', [PostsController::class, 'archive'])->name('archive');
+                    Route::post('restore', [PostsController::class, 'restore'])->name('restore');
+                    Route::post('confirm', [PostsController::class, 'confirm'])->name('confirm');
+                    Route::post('remind', [PostsController::class, 'remind'])->name('remind');
+                    Route::get('bestaetigungen', [PostsController::class, 'confirmations'])->name('confirmations');
+                    Route::get('bestaetigungen/excel', [PostsController::class, 'confirmationsExcel'])->name('confirmations.excel');
+                    Route::get('bestaetigungen/pdf', [PostsController::class, 'confirmationsPdf'])->name('confirmations.pdf');
+                    Route::get('dateien/{media}', [PostsController::class, 'file'])->whereNumber('media')->name('files');
+                    Route::delete('dateien/{media}', [PostsController::class, 'removeFile'])->whereNumber('media')->name('files.destroy');
+                });
 
 
                 //globale Suche
@@ -785,9 +854,9 @@ Route::group([
 
                 Route::post('{groupname}/search', [SearchController::class, 'search']);
                 Route::get('{groupname}/search', [SearchController::class, 'show']);
+                Route::get('{groupname}/nachrichten', [PostsController::class, 'gruppe'])->name('groups.posts');
 
 
-                Route::get('image/remove/{groupname}/{media}', [ImageController::class, 'removeImage']);
                 Route::delete('image/{media}', [ImageController::class, 'removeImageFromPost']);
 
                 //Roles and permissions
@@ -808,6 +877,12 @@ Route::group([
                     Route::post('types', [\App\Http\Controllers\TypController::class, 'store']);
                 });
 
+                // Geburtstage aus Excel übernehmen (vor der Resource-Route registrieren)
+                Route::get('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'index'])->name('users.geburtstage.index');
+                Route::get('users/import/geburtstage/vorlage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorlage'])->name('users.geburtstage.vorlage');
+                Route::post('users/import/geburtstage', [\App\Http\Controllers\GeburtstagImportController::class, 'vorschau'])->name('users.geburtstage.vorschau');
+                Route::get('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'show'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.show');
+                Route::post('users/import/geburtstage/{token}', [\App\Http\Controllers\GeburtstagImportController::class, 'store'])->where('token', '[A-Za-z0-9]{32}')->name('users.geburtstage.store');
                 //User-Route
                 Route::resource('users', UserController::class);
                 Route::get('importuser', [UserController::class, 'importFromElternInfoBoard']);
@@ -971,7 +1046,19 @@ Route::group([
 
 
                     Route::resource('settings', SettingController::class)->only(['index', 'store']);
+
+                    // Monitoring (Systemstatus) – Oberfläche im Reiter settings/Monitoring
+                    Route::prefix('monitoring')->name('monitoring.')->group(function () {
+                        Route::post('einstellungen', [\App\Http\Controllers\MonitoringController::class, 'update'])->name('einstellungen.update');
+                        Route::post('token', [\App\Http\Controllers\MonitoringController::class, 'token'])->name('token');
+                        Route::post('pruefen', [\App\Http\Controllers\MonitoringController::class, 'pruefen'])->name('pruefen');
+                        Route::post('dienste', [\App\Http\Controllers\MonitoringController::class, 'dienstAnlegen'])->name('dienste.anlegen');
+                        Route::delete('dienste/{dienst}', [\App\Http\Controllers\MonitoringController::class, 'dienstLoeschen'])->name('dienste.loeschen');
+                    });
                 });
+
+                // Monitoring: Statusleiste neu laden (Sichtbarkeit nach Rollen prüft der Controller)
+                Route::get('monitoring/statusleiste', [\App\Http\Controllers\MonitoringController::class, 'statusleiste'])->name('monitoring.statusleiste');
 
                 /*
                  * Klassenraum-Tools (Lautstärke-Szenen, Timer) – Vollbildseiten für Beamer/Tafel
@@ -981,6 +1068,60 @@ Route::group([
                     Route::get('{tool}', [\App\Http\Controllers\KlassenraumToolsController::class, 'show'])
                         ->where('tool', '[a-z0-9-]+')
                         ->name('show');
+                });
+
+                /*
+                 * Ergebnisboards (Matrix, SWOT, Fahrplan, Kanban …) – Zugriff je Board über ErgebnisboardPolicy
+                 */
+                Route::prefix('ergebnisboards')->name('ergebnisboards.')->middleware('permission:view result boards')->group(function () {
+                    $c = \App\Http\Controllers\Ergebnisboards\ErgebnisboardController::class;
+                    Route::get('/', [$c, 'index'])->name('index');
+                    Route::get('neu', [$c, 'create'])->name('create');
+                    Route::post('/', [$c, 'store'])->name('store');
+
+                    // Vorlagen-Editor (manage result boards, Prüfung im Controller)
+                    $v = \App\Http\Controllers\Ergebnisboards\ErgebnisVorlageController::class;
+                    Route::get('vorlagen', [$v, 'index'])->name('vorlagen.index');
+                    Route::get('vorlagen/neu', [$v, 'create'])->name('vorlagen.create');
+                    Route::post('vorlagen', [$v, 'store'])->name('vorlagen.store');
+                    Route::get('vorlagen/{vorlage}', [$v, 'edit'])->whereNumber('vorlage')->name('vorlagen.edit');
+                    Route::put('vorlagen/{vorlage}', [$v, 'update'])->whereNumber('vorlage')->name('vorlagen.update');
+                    Route::delete('vorlagen/{vorlage}', [$v, 'destroy'])->whereNumber('vorlage')->name('vorlagen.destroy');
+                    Route::post('{board}/als-vorlage', [$v, 'ausBoard'])->whereNumber('board')->name('als-vorlage');
+
+                    Route::prefix('{board}')->whereNumber('board')->scopeBindings()->group(function () use ($c) {
+                        Route::get('/', [$c, 'show'])->name('show');
+                        Route::get('daten', [$c, 'daten'])->name('daten');
+                        Route::put('/', [$c, 'update'])->name('update');
+                        Route::delete('/', [$c, 'destroy'])->name('destroy');
+                        Route::put('bereiche', [$c, 'bereiche'])->name('bereiche');
+                        Route::post('zugriffe', [$c, 'zugriffe'])->name('zugriffe');
+                        Route::post('duplizieren', [$c, 'duplicate'])->name('duplicate');
+                        Route::post('archivieren', [$c, 'archive'])->name('archive');
+                        Route::get('pdf', [$c, 'pdf'])->name('pdf');
+                        Route::post('sortierung', [$c, 'sortierung'])->name('sortierung');
+                        Route::get('verlauf', [$c, 'verlauf'])->name('verlauf');
+                        Route::put('abstimmung', [$c, 'abstimmung'])->name('abstimmung');
+                        Route::post('abstimmung/zuruecksetzen', [$c, 'abstimmungZuruecksetzen'])->name('abstimmung.zuruecksetzen');
+                        Route::post('karten/{karte}/stimme', [$c, 'stimme'])->whereNumber('karte')->name('karten.stimme');
+                        Route::post('karten/{geloeschteKarte}/wiederherstellen', [$c, 'karteWiederherstellen'])->whereNumber('geloeschteKarte')->name('karten.wiederherstellen');
+
+                        // Kommentare (Board und Karten) – ändern die Board-Version nicht
+                        $k = \App\Http\Controllers\Ergebnisboards\ErgebnisKommentarController::class;
+                        Route::get('kommentare', [$k, 'index'])->name('kommentare.index');
+                        Route::post('kommentare', [$k, 'store'])->name('kommentare.store');
+                        Route::put('kommentare/{kommentar}', [$k, 'update'])->whereNumber('kommentar')->name('kommentare.update');
+                        Route::delete('kommentare/{kommentar}', [$k, 'destroy'])->whereNumber('kommentar')->name('kommentare.destroy');
+
+                        Route::post('karten', [$c, 'karteStore'])->name('karten.store');
+                        Route::put('karten/{karte}', [$c, 'karteUpdate'])->whereNumber('karte')->name('karten.update');
+                        Route::delete('karten/{karte}', [$c, 'karteDestroy'])->whereNumber('karte')->name('karten.destroy');
+                        Route::post('karten/{karte}/aufgabe', [$c, 'aufgabeStore'])->whereNumber('karte')->name('karten.aufgabe');
+                        Route::post('karten/{karte}/aufgabe/erledigen', [$c, 'aufgabeErledigen'])->whereNumber('karte')->name('karten.aufgabe.erledigen');
+                        Route::post('karten/{karte}/dateien', [$c, 'dateiStore'])->whereNumber('karte')->name('karten.dateien.store');
+                        Route::get('karten/{karte}/dateien/{media}', [$c, 'dateiShow'])->whereNumber(['karte', 'media'])->name('karten.dateien.show');
+                        Route::delete('karten/{karte}/dateien/{media}', [$c, 'dateiDestroy'])->whereNumber(['karte', 'media'])->name('karten.dateien.destroy');
+                    });
                 });
 
                 /*
@@ -1045,6 +1186,8 @@ Route::group([
                     Route::delete('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'destroyColumn'])->name('paedDiary.column.destroy');
                     Route::post('paed-diary/column/value', [\App\Http\Controllers\PaedDiaryColumnController::class, 'storeColumnValue'])->name('paedDiary.column.value');
                     Route::post('paed-diary/column/{column}/category', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumnCategory'])->name('paedDiary.column.updateCategory');
+                    Route::get('paed-diary/column/{column}/bearbeiten', [\App\Http\Controllers\PaedDiaryColumnController::class, 'editColumn'])->name('paedDiary.column.edit');
+                    Route::post('paed-diary/column/{column}', [\App\Http\Controllers\PaedDiaryColumnController::class, 'updateColumn'])->name('paedDiary.column.update');
                     Route::post('paed-diary/column/{column}/restore', [\App\Http\Controllers\PaedDiaryColumnController::class, 'restoreColumn'])->name('paedDiary.column.restore');
                     Route::post('paed-diary/column/{column}/copy', [\App\Http\Controllers\PaedDiaryColumnController::class, 'copyColumn'])->name('paedDiary.column.copy');
                     Route::get('paed-diary/columns/all', [\App\Http\Controllers\PaedDiaryColumnController::class, 'columnsAll'])->name('paedDiary.columns.all');

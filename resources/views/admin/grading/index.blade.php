@@ -1,640 +1,366 @@
+{{--
+    Verwaltung der Graduierungssysteme (Systeme, Stufen, Fragen) im Design der neuen Ansicht des
+    Pädagogischen Tagebuchs (pdn-*). Formulare senden klassisch (POST + Redirect) an den
+    GradingAdminController; Sortieren per Drag & Drop speichert per fetch.
+    Logik: graduierungVerwaltung() in resources/js/graduierung-verwaltung.js
+--}}
 @extends('layouts.app')
 
-@push('styles')
-<style>
-    /* Responsive improvements for grading admin */
-    @media (max-width: 767.98px) {
-        .sticky-top {
-            position: relative !important;
-            top: auto !important;
-        }
-
-        .list-group-item {
-            padding: 0.75rem 0.5rem;
-        }
-
-        .btn-group-sm > .btn {
-            font-size: 0.75rem;
-        }
-    }
-
-    @media (max-width: 575.98px) {
-        .nav-tabs .nav-link {
-            font-size: 0.85rem;
-            padding: 0.5rem 0.75rem;
-        }
-
-        .card-header h5 {
-            font-size: 1.1rem;
-        }
-
-        .badge {
-            font-size: 0.7rem;
-        }
-    }
-
-    /* Smooth transitions */
-    .list-group-item {
-        transition: all 0.2s ease;
-    }
-
-    .list-group-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    .collapse {
-        transition: height 0.3s ease;
-    }
-
-    /* Better button spacing on mobile */
-    @media (max-width: 767.98px) {
-        .btn-group .btn {
-            margin-bottom: 0.25rem;
-        }
-    }
-
-    /* Drag handle cursor */
-    .fa-grip-vertical {
-        cursor: move;
-        opacity: 0.5;
-        transition: opacity 0.2s;
-    }
-
-    .fa-grip-vertical:hover {
-        opacity: 1;
-    }
-
-    /* Card shadow on hover */
-    .card.shadow-sm {
-        transition: box-shadow 0.3s ease;
-    }
-
-    .card.shadow-sm:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    }
-</style>
-@endpush
+@php
+    $daten = $systems->map(fn ($system) => [
+        'id' => $system->id,
+        'name' => $system->name,
+        'slug' => $system->slug,
+        'loeschenUrl' => route('admin.grading.system.delete', $system),
+        'stufeNeuUrl' => route('admin.grading.stage.store', $system),
+        'stufenSortierenUrl' => route('admin.grading.stage.reorder', $system),
+        'frageNeuUrl' => route('admin.grading.question.store', $system),
+        'fragenSortierenUrl' => route('admin.grading.question.reorder', $system),
+        'stufen' => $system->stages->sortBy('sort_order')->values()->map(fn ($stage) => [
+            'id' => $stage->id,
+            'name' => $stage->name,
+            'slug' => $stage->slug,
+            'symbol' => $stage->symbol,
+            'bild' => $stage->image_url,
+            'sort_order' => (int) $stage->sort_order,
+            'standard' => (bool) $stage->is_default,
+            'speichernUrl' => route('admin.grading.stage.update', $stage),
+            'loeschenUrl' => route('admin.grading.stage.delete', $stage),
+        ]),
+        'fragen' => $system->questions->sortBy('sort_order')->values()->map(fn ($frage) => [
+            'id' => $frage->id,
+            'text' => $frage->question,
+            'sort_order' => (int) $frage->sort_order,
+            'aktiv' => (bool) $frage->active,
+            'stufen' => $frage->stages->pluck('id')->map(fn ($id) => (int) $id)->values(),
+            'speichernUrl' => route('admin.grading.question.update', $frage),
+            'loeschenUrl' => route('admin.grading.question.delete', $frage),
+        ]),
+    ])->values();
+@endphp
 
 @section('content')
-<div class="container-fluid px-2 px-md-3">
-    <!-- Header -->
-    <div class="row mb-3 mb-md-4">
-        <div class="col-12">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2">
-                <div>
-                    <h2 class="h4 h3-md mb-1">Graduierungssysteme verwalten</h2>
-                    <p class="text-muted small mb-0">Erstelle Systeme und Stufen. Lade optional ein Bild für jede Stufe hoch.</p>
-                </div>
-            </div>
-
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle"></i> {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
-            @if($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <ul class="mb-0 pl-3">
-                        @foreach($errors->all() as $err)
-                            <li>{{ $err }}</li>
-                        @endforeach
-                    </ul>
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Sidebar: Neues System erstellen -->
-        <div class="col-12 col-lg-4 col-xl-3 mb-4">
-            <div class="sticky-top" style="top: 20px;">
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <i class="fas fa-plus-circle"></i> Neues System
-                    </div>
-                    <div class="card-body">
-                        <form method="post" action="{{ route('admin.grading.system.store') }}">
-                            @csrf
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Name</label>
-                                <input name="name" class="form-control" required maxlength="100" placeholder="z.B. Lesestufen">
-                            </div>
-                            <div class="form-group mb-3">
-                                <label class="font-weight-bold small">Slug <span class="text-muted font-weight-normal">(optional)</span></label>
-                                <input name="slug" class="form-control" placeholder="z.B. lesestufen">
-                            </div>
-                            <button class="btn btn-primary btn-block">
-                                <i class="fas fa-plus"></i> System anlegen
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm d-none d-lg-block">
-                    <div class="card-header bg-info text-white">
-                        <i class="fas fa-info-circle"></i> Hinweis
-                    </div>
-                    <div class="card-body small text-muted">
-                        Klassen können pro System konfiguriert werden. Stufen haben eine Reihenfolge (Sort Order) und optional ein Symbol oder ein Bild.
-                    </div>
-                </div>
-            </div>
+<div class="pdn" x-data="graduierungVerwaltung(@js(['systeme' => $daten, 'fehler' => $errors->any()]))">
+    <div class="pdn-screen pdn-gv-screen">
+        <div class="pdn-tb">
+            <h1 class="pdn-title">Graduierungssysteme</h1>
+            <span class="pdn-label-sm">Systeme, Stufen und die Fragen der Reflexion</span>
+            <span class="pdn-spacer"></span>
+            <button type="button" class="pdn-btn pdn-btn--pri" @click="systemDialog = true">
+                <i class="fas fa-plus" aria-hidden="true"></i> Neues System
+            </button>
         </div>
 
-        <!-- Main Content: Systeme -->
-        <div class="col-12 col-lg-8 col-xl-9">
-            @if($systems->isEmpty())
-                <div class="card shadow-sm">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">Noch keine Systeme vorhanden</h5>
-                        <p class="text-muted small">Erstelle dein erstes Graduierungssystem über das Formular links.</p>
-                    </div>
-                </div>
-            @endif
+        @if(session('success'))
+            <div class="pdn-meldung pdn-meldung--info" role="status" x-data="{ offen: true }" x-show="offen">
+                <span><i class="fas fa-check-circle" aria-hidden="true"></i> {{ session('success') }}</span>
+                <button type="button" aria-label="Meldung schließen" @click="offen = false">&times;</button>
+            </div>
+        @endif
+        @if($errors->any())
+            <div class="pdn-meldung pdn-meldung--danger" role="alert" x-data="{ offen: true }" x-show="offen">
+                <span>
+                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                    @foreach($errors->all() as $fehler){{ $fehler }}@if(!$loop->last)<br>@endif @endforeach
+                </span>
+                <button type="button" aria-label="Meldung schließen" @click="offen = false">&times;</button>
+            </div>
+        @endif
+        <div class="pdn-meldung pdn-meldung--danger" role="alert" x-show="meldung" x-cloak>
+            <span x-text="meldung"></span>
+            <button type="button" aria-label="Meldung schließen" @click="meldung = ''">&times;</button>
+        </div>
 
-            @foreach($systems as $system)
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white border-bottom">
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-                        <div class="mb-2 mb-md-0">
-                            <h5 class="mb-1">
-                                <i class="fas fa-layer-group text-primary"></i>
-                                <strong>{{ $system->name }}</strong>
-                            </h5>
-                            @if($system->slug)
-                                <span class="badge badge-secondary">{{ $system->slug }}</span>
-                            @endif
-                        </div>
+        @if($systems->isEmpty())
+            <div class="pdn-gv-leer">
+                <i class="fas fa-layer-group" aria-hidden="true"></i>
+                <h2>Noch keine Graduierungssysteme</h2>
+                <p>Lege ein System an, z. B. „Lesestufen“. Danach kannst du Stufen und Fragen ergänzen.</p>
+                <button type="button" class="pdn-btn pdn-btn--pri" @click="systemDialog = true">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Neues System
+                </button>
+            </div>
+        @else
+            <div class="pdn-gv">
+                {{-- Systemliste --}}
+                <nav class="pdn-gv-systeme" aria-label="Graduierungssysteme">
+                    <span class="pdn-k">Systeme</span>
+                    <template x-for="s in systeme" :key="'s' + s.id">
+                        <button type="button" class="pdn-gv-system" :aria-current="s.id === systemId ? 'true' : false" @click="waehleSystem(s.id)">
+                            <span class="pdn-gv-system__name" x-text="s.name"></span>
+                            <span class="pdn-label-sm" x-text="s.stufen.length + ' Stufen · ' + s.fragen.length + ' Fragen'"></span>
+                        </button>
+                    </template>
+                    {{-- Schmale Fenster: Auswahl statt Liste --}}
+                    <label class="pdn-field pdn-gv-systemwahl">System
+                        <select :value="systemId" @change="waehleSystem(Number($event.target.value))">
+                            <template x-for="s in systeme" :key="'o' + s.id">
+                                <option :value="s.id" x-text="s.name" :selected="s.id === systemId"></option>
+                            </template>
+                        </select>
+                    </label>
+                </nav>
+
+                <div class="pdn-main" x-show="system">
+                    <div class="pdn-gv-kopf">
                         <div>
-                            <form method="post" action="{{ route('admin.grading.system.delete', ['system'=>$system->id]) }}" style="display:inline">
-                                @csrf
-                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('System wirklich löschen? Das geht nur, solange keine Klasse, Dokumentation oder Stufenvergabe daran hängt.')">
-                                    <i class="fas fa-trash"></i> <span class="d-none d-md-inline">Löschen</span>
-                                </button>
-                            </form>
+                            <h2 x-text="system?.name"></h2>
+                            <span class="pdn-badge" x-show="system?.slug" x-text="system?.slug"></span>
                         </div>
+                        <span class="pdn-spacer"></span>
+                        <button type="button" class="pdn-btn pdn-gv-gefahr" @click="loeschenFragen('system', system)">
+                            <i class="fas fa-trash" aria-hidden="true"></i> System löschen
+                        </button>
                     </div>
-                </div>
-                <div class="card-body">
-                    <!-- Tabs für Stufen und Fragen -->
-                    <ul class="nav nav-tabs mb-4" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" id="stages-tab-{{ $system->id }}" data-toggle="tab"
-                               href="#stages-{{ $system->id }}" role="tab">
-                                <i class="fas fa-graduation-cap"></i> Stufen
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="questions-tab-{{ $system->id }}" data-toggle="tab"
-                               href="#questions-{{ $system->id }}" role="tab">
-                                <i class="fas fa-question-circle"></i> <span class="d-none d-sm-inline">Fragen für </span>Dokumentation
-                            </a>
-                        </li>
-                    </ul>
 
-                    <div class="tab-content">
-                        <!-- Stufen-Tab -->
-                        <div class="tab-pane fade show active" id="stages-{{ $system->id }}" role="tabpanel">
-                            <div class="row">
-                                <div class="col-12 col-xl-7 mb-4 mb-xl-0">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0"><i class="fas fa-list"></i> Stufen</h6>
-                                        <small class="text-muted"><i class="fas fa-arrows-alt"></i> Drag & Drop zum Sortieren</small>
-                                    </div>
-
-                                    @if($system->stages->isEmpty())
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-info-circle"></i> Noch keine Stufen vorhanden. Erstelle die erste Stufe rechts.
-                                        </div>
-                                    @else
-                                        <div class="list-group mb-2" id="stages-list-{{ $system->id }}">
-                                            @foreach($system->stages->sortBy('sort_order') as $stage)
-                                                <div class="list-group-item" data-stage-id="{{ $stage->id }}" style="cursor: move;">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-auto">
-                                                            <i class="fas fa-grip-vertical text-muted"></i>
-                                                        </div>
-                                                        <div class="col-auto">
-                                                            @if($stage->image_url)
-                                                                <img src="{{ $stage->image_url }}" alt="{{ $stage->name }}"
-                                                                     class="rounded"
-                                                                     style="width:48px;height:48px;object-fit:cover;"
-                                                                     id="preview-stage-{{ $stage->id }}">
-                                                            @elseif($stage->symbol)
-                                                                <div class="text-center" style="width:48px;">
-                                                                    <i class="{{ $stage->symbol }} fa-2x text-primary" aria-hidden="true"></i>
-                                                                </div>
-                                                            @else
-                                                                <div class="bg-light rounded d-flex align-items-center justify-content-center"
-                                                                     style="width:48px;height:48px;">
-                                                                    <i class="fas fa-image text-muted"></i>
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                        <div class="col">
-                                                            <div><strong>{{ $stage->name }}</strong>
-                                                                @if($stage->is_default)
-                                                                    <span class="badge badge-success badge-sm">Standard</span>
-                                                                @endif
-                                                            </div>
-                                                            <div class="small text-muted">
-                                                                @if($stage->slug)
-                                                                    <span class="mr-2"><i class="fas fa-tag"></i> {{ $stage->slug }}</span>
-                                                                @endif
-                                                                <span><i class="fas fa-sort-amount-down"></i> Order: {{ $stage->sort_order }}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-12 col-md-auto mt-2 mt-md-0">
-                                                            <button type="button" class="btn btn-sm btn-outline-primary w-100 w-md-auto"
-                                                                    data-toggle="collapse"
-                                                                    data-target="#edit-stage-{{ $stage->id }}">
-                                                                <i class="fas fa-edit"></i> Bearbeiten
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Kollabiertes Bearbeitungsformular -->
-                                                    <div class="collapse mt-3" id="edit-stage-{{ $stage->id }}">
-                                                        <div class="border-top pt-3">
-                                                            <form method="post" action="{{ route('admin.grading.stage.update', ['stage'=>$stage->id]) }}" enctype="multipart/form-data">
-                                                                @csrf
-                                                                <div class="row">
-                                                                    <div class="col-md-6 mb-2">
-                                                                        <label class="small font-weight-bold">Name</label>
-                                                                        <input type="text" name="name" class="form-control form-control-sm"
-                                                                               value="{{ $stage->name }}" required placeholder="Name">
-                                                                    </div>
-                                                                    <div class="col-md-6 mb-2">
-                                                                        <label class="small font-weight-bold">Slug</label>
-                                                                        <input type="text" name="slug" class="form-control form-control-sm"
-                                                                               value="{{ $stage->slug }}" placeholder="Slug">
-                                                                    </div>
-                                                                    <div class="col-md-6 mb-2">
-                                                                        <label class="small font-weight-bold">Symbol (CSS-Klasse)</label>
-                                                                        <input type="text" name="symbol" class="form-control form-control-sm"
-                                                                               value="{{ $stage->symbol }}" placeholder="z.B. fas fa-star">
-                                                                    </div>
-                                                                    <div class="col-md-3 mb-2">
-                                                                        <label class="small font-weight-bold">Reihenfolge</label>
-                                                                        <input type="number" name="sort_order" class="form-control form-control-sm"
-                                                                               value="{{ $stage->sort_order }}">
-                                                                    </div>
-                                                                    <div class="col-md-3 mb-2">
-                                                                        <label class="small font-weight-bold d-block">&nbsp;</label>
-                                                                        <div class="custom-control custom-checkbox">
-                                                                            <input type="hidden" name="is_default" value="0">
-                                                                            <input type="checkbox" value="1" name="is_default"
-                                                                                   class="custom-control-input"
-                                                                                   id="is_default_{{ $stage->id }}"
-                                                                                   {{ $stage->is_default ? 'checked' : '' }}>
-                                                                            <label for="is_default_{{ $stage->id }}" class="custom-control-label small">
-                                                                                Standard
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="col-md-8 mb-2">
-                                                                        <label class="small font-weight-bold">Bild hochladen</label>
-                                                                        <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"
-                                                                               class="form-control-file form-control-sm"
-                                                                               onchange="previewImage(event, 'preview-stage-{{ $stage->id }}', this)">
-                                                                    </div>
-                                                                    <div class="col-12">
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            <button class="btn btn-primary" type="submit">
-                                                                                <i class="fas fa-save"></i> Speichern
-                                                                            </button>
-                                                                            <button type="button" class="btn btn-secondary"
-                                                                                    data-toggle="collapse"
-                                                                                    data-target="#edit-stage-{{ $stage->id }}">
-                                                                                <i class="fas fa-times"></i> Abbrechen
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </form>
-                                                            <form method="post" action="{{ route('admin.grading.stage.delete', ['stage'=>$stage->id]) }}"
-                                                                  class="mt-2">
-                                                                @csrf
-                                                                <button class="btn btn-sm btn-outline-danger"
-                                                                        onclick="return confirm('Stufe wirklich löschen?')">
-                                                                    <i class="fas fa-trash"></i> Stufe löschen
-                                                                </button>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="col-12 col-xl-5">
-                                    <div class="card bg-light">
-                                        <div class="card-header bg-white">
-                                            <h6 class="mb-0"><i class="fas fa-plus"></i> Neue Stufe</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <form method="post" action="{{ route('admin.grading.stage.store', ['system'=>$system->id]) }}" enctype="multipart/form-data">
-                                                @csrf
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Name</label>
-                                                    <input name="name" class="form-control" required maxlength="100"
-                                                           placeholder="z.B. Anfänger">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Slug <span class="text-muted font-weight-normal">(optional)</span></label>
-                                                    <input name="slug" class="form-control" placeholder="z.B. anfaenger">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Symbol <span class="text-muted font-weight-normal">(FontAwesome-Klasse)</span></label>
-                                                    <input name="symbol" class="form-control" placeholder="z.B. fas fa-star">
-                                                    <small class="form-text text-muted">
-                                                        <a href="https://fontawesome.com/icons" target="_blank">Icon-Übersicht <i class="fas fa-external-link-alt"></i></a>
-                                                    </small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Bild <span class="text-muted font-weight-normal">(optional)</span></label>
-                                                    <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control-file"
-                                                           onchange="previewImage(event, 'preview-new-{{ $system->id }}', this)">
-                                                    <div class="mt-2">
-                                                        <img id="preview-new-{{ $system->id }}" src="" alt="Vorschau Bild"
-                                                             class="rounded"
-                                                             style="max-width:120px;max-height:80px;object-fit:cover;display:none">
-                                                    </div>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Reihenfolge</label>
-                                                    <input type="number" name="sort_order" class="form-control" value="0">
-                                                </div>
-                                                <div class="form-group mb-3">
-                                                    <div class="custom-control custom-checkbox">
-                                                        <input type="hidden" name="is_default" value="0">
-                                                        <input type="checkbox" value="1" name="is_default"
-                                                               class="custom-control-input"
-                                                               id="default_{{ $system->id }}">
-                                                        <label for="default_{{ $system->id }}" class="custom-control-label small">
-                                                            Als Standardstufe markieren
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <button class="btn btn-primary btn-block">
-                                                    <i class="fas fa-plus"></i> Stufe anlegen
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Fragen-Tab -->
-                        <div class="tab-pane fade" id="questions-{{ $system->id }}" role="tabpanel">
-                            <div class="row">
-                                <div class="col-12 col-xl-7 mb-4 mb-xl-0">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0"><i class="fas fa-question-circle"></i> Dokumentationsfragen</h6>
-                                        <small class="text-muted"><i class="fas fa-arrows-alt"></i> Drag & Drop zum Sortieren</small>
-                                    </div>
-
-                                    @if($system->questions->isEmpty())
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-info-circle"></i> Noch keine Fragen vorhanden. Erstelle die erste Frage rechts.
-                                        </div>
-                                    @else
-                                        <div class="list-group mb-2" id="questions-list-{{ $system->id }}">
-                                            @foreach($system->questions->sortBy('sort_order') as $question)
-                                                <div class="list-group-item" data-question-id="{{ $question->id }}" style="cursor: move;">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-auto">
-                                                            <i class="fas fa-grip-vertical text-muted"></i>
-                                                        </div>
-                                                        <div class="col">
-                                                            <div class="mb-1">
-                                                                <span class="badge badge-primary mr-2">{{ $loop->iteration }}</span>
-                                                                <strong>{{ $question->question }}</strong>
-                                                                @if(!$question->active)
-                                                                    <span class="badge badge-warning ml-2">Inaktiv</span>
-                                                                @else
-                                                                    <span class="badge badge-success ml-2">Aktiv</span>
-                                                                @endif
-                                                            </div>
-                                                            <div class="small text-muted">
-                                                                <i class="fas fa-sort-amount-down"></i> Order: {{ $question->sort_order }}
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-12 col-md-auto mt-2 mt-md-0">
-                                                            <button type="button" class="btn btn-sm btn-outline-primary w-100 w-md-auto"
-                                                                    data-toggle="collapse"
-                                                                    data-target="#edit-question-{{ $question->id }}">
-                                                                <i class="fas fa-edit"></i> Bearbeiten
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Kollabiertes Bearbeitungsformular -->
-                                                    <div class="collapse mt-3" id="edit-question-{{ $question->id }}">
-                                                        <div class="border-top pt-3">
-                                                            <form method="post" action="{{ route('admin.grading.question.update', ['question' => $question->id]) }}">
-                                                                @csrf
-                                                                <div class="row">
-                                                                    <div class="col-md-8 mb-2">
-                                                                        <label class="small font-weight-bold">Frage</label>
-                                                                        <textarea name="question" class="form-control form-control-sm" rows="2" required>{{ $question->question }}</textarea>
-                                                                    </div>
-                                                                    <div class="col-md-4 mb-2">
-                                                                        <label class="small font-weight-bold">Reihenfolge</label>
-                                                                        <input type="number" name="sort_order" class="form-control form-control-sm"
-                                                                               value="{{ $question->sort_order }}">
-                                                                    </div>
-                                                                    <div class="col-12 mb-2">
-                                                                        <div class="custom-control custom-checkbox">
-                                                                            <input type="hidden" name="active" value="0">
-                                                                            <input type="checkbox" class="custom-control-input"
-                                                                                   name="active" value="1"
-                                                                                   id="active-{{ $question->id }}"
-                                                                                   {{ $question->active ? 'checked' : '' }}>
-                                                                            <label class="custom-control-label small font-weight-bold" for="active-{{ $question->id }}">
-                                                                                Frage ist aktiv
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="col-12">
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            <button type="submit" class="btn btn-primary">
-                                                                                <i class="fas fa-save"></i> Speichern
-                                                                            </button>
-                                                                            <button type="button" class="btn btn-secondary"
-                                                                                    data-toggle="collapse"
-                                                                                    data-target="#edit-question-{{ $question->id }}">
-                                                                                <i class="fas fa-times"></i> Abbrechen
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </form>
-
-                                                            <form method="post" action="{{ route('admin.grading.question.delete', ['question' => $question->id]) }}"
-                                                                  class="mt-2">
-                                                                @csrf
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                                        onclick="return confirm('Frage wirklich löschen?')">
-                                                                    <i class="fas fa-trash"></i> Frage löschen
-                                                                </button>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="col-12 col-xl-5">
-                                    <div class="card bg-light">
-                                        <div class="card-header bg-white">
-                                            <h6 class="mb-0"><i class="fas fa-plus"></i> Neue Frage</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <form method="post" action="{{ route('admin.grading.question.store', ['system' => $system->id]) }}">
-                                                @csrf
-                                                <div class="form-group">
-                                                    <label class="small font-weight-bold">Frage</label>
-                                                    <textarea name="question" class="form-control" rows="3" required
-                                                              placeholder="Z.B.: Wie gut kannst du lesen?"></textarea>
-                                                    <small class="form-text text-muted">
-                                                        Diese Frage wird in der Dokumentation für Selbst- und Lehrereinschätzungen verwendet.
-                                                    </small>
-                                                </div>
-                                                <div class="form-group mb-3">
-                                                    <label class="small font-weight-bold">Reihenfolge</label>
-                                                    <input type="number" name="sort_order" class="form-control" value="0">
-                                                </div>
-                                                <button type="submit" class="btn btn-primary btn-block">
-                                                    <i class="fas fa-plus"></i> Frage anlegen
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-
-                                    <div class="alert alert-info mt-3">
-                                        <div class="d-flex">
-                                            <div class="mr-2">
-                                                <i class="fas fa-info-circle fa-lg"></i>
-                                            </div>
-                                            <div>
-                                                <strong class="d-block mb-1">Hinweis</strong>
-                                                <small>
-                                                    Fragen werden in der pädagogischen Dokumentation verwendet, um strukturierte
-                                                    Einschätzungen von Schülern und Lehrern zu erfassen. Die Reihenfolge bestimmt
-                                                    die Darstellung in der Dokumentation.
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="pdn-tabs" role="tablist" aria-label="Bereiche">
+                        <button type="button" role="tab" id="gvTabStufen" aria-controls="gvPanelStufen" :aria-selected="tab === 'stufen'" @click="tabSetzen('stufen')">
+                            Stufen <em x-text="system?.stufen.length"></em>
+                        </button>
+                        <button type="button" role="tab" id="gvTabFragen" aria-controls="gvPanelFragen" :aria-selected="tab === 'fragen'" @click="tabSetzen('fragen')">
+                            Fragen <em x-text="system?.fragen.length"></em>
+                        </button>
                     </div>
+
+                    {{-- ═══════════ Stufen ═══════════ --}}
+                    <section id="gvPanelStufen" role="tabpanel" aria-labelledby="gvTabStufen" x-show="tab === 'stufen'" class="pdn-gv-panel">
+                        <div class="pdn-gv-leiste">
+                            <span class="pdn-hinweis"><i class="fas fa-grip-vertical" aria-hidden="true"></i> Reihenfolge per Ziehen ändern – von der ersten zur höchsten Stufe.</span>
+                            <span class="pdn-spacer"></span>
+                            <button type="button" class="pdn-btn pdn-btn--pri" @click="stufeBearbeiten(null)">
+                                <i class="fas fa-plus" aria-hidden="true"></i> Neue Stufe
+                            </button>
+                        </div>
+
+                        <p class="pdn-leer pdn-gv-rahmen" x-show="system && !system.stufen.length">Noch keine Stufen. Lege die erste Stufe an.</p>
+
+                        <ol class="pdn-gv-liste" x-ref="stufenListe" x-show="system?.stufen.length">
+                            <template x-for="(st, i) in (system?.stufen || [])" :key="'st' + st.id">
+                                <li class="pdn-gv-zeile" :data-id="st.id">
+                                    <span class="pdn-gv-griff" title="Ziehen zum Sortieren" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+                                    <span class="pdn-stage pdn-gv-stufenbild" :class="{ 'pdn-stage--bild': st.bild }">
+                                        <template x-if="st.bild"><img :src="st.bild" alt=""></template>
+                                        <template x-if="!st.bild && st.symbol"><i :class="st.symbol" aria-hidden="true"></i></template>
+                                        <template x-if="!st.bild && !st.symbol"><span x-text="i + 1"></span></template>
+                                    </span>
+                                    <div class="pdn-gv-zeile__inhalt">
+                                        <div class="pdn-gv-zeile__titel">
+                                            <b x-text="st.name"></b>
+                                            <span class="pdn-tag pdn-gv-tag--ok" x-show="st.standard">Standard</span>
+                                            <span class="pdn-label-sm" x-show="st.slug" x-text="st.slug"></span>
+                                        </div>
+                                        <span class="pdn-label-sm" x-text="fragenText(st)"></span>
+                                    </div>
+                                    <div class="pdn-gv-zeile__aktionen">
+                                        <button type="button" class="pdn-btn" @click="zeigeFragenDerStufe(st)" :disabled="!system.fragen.length">
+                                            <i class="fas fa-filter" aria-hidden="true"></i> <span class="pdn-gv-text">Fragen</span>
+                                        </button>
+                                        <button type="button" class="pdn-btn" @click="stufeBearbeiten(st)">
+                                            <i class="fas fa-pen" aria-hidden="true"></i> <span class="pdn-gv-text">Bearbeiten</span>
+                                        </button>
+                                    </div>
+                                </li>
+                            </template>
+                        </ol>
+                    </section>
+
+                    {{-- ═══════════ Fragen ═══════════ --}}
+                    <section id="gvPanelFragen" role="tabpanel" aria-labelledby="gvTabFragen" x-show="tab === 'fragen'" x-cloak class="pdn-gv-panel">
+                        <div class="pdn-gv-leiste">
+                            <label class="pdn-gv-filter" x-show="system?.stufen.length">
+                                <span class="pdn-label-sm">Fragen der Stufe</span>
+                                <select class="pdn-sel" x-model.number="filterStufe">
+                                    <option :value="0">alle anzeigen</option>
+                                    <template x-for="st in (system?.stufen || [])" :key="'f' + st.id">
+                                        <option :value="st.id" x-text="st.name"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <span class="pdn-spacer"></span>
+                            <button type="button" class="pdn-btn pdn-btn--pri" @click="frageBearbeiten(null)">
+                                <i class="fas fa-plus" aria-hidden="true"></i> Neue Frage
+                            </button>
+                        </div>
+                        <p class="pdn-hinweis">
+                            Kinder und Pädagog:innen sehen nur die Fragen der Graduierungsstufe des Kindes.
+                            Eine Frage ohne gewählte Stufe gilt für alle Stufen.
+                            <span x-show="!filterStufe"><i class="fas fa-grip-vertical" aria-hidden="true"></i> Reihenfolge per Ziehen ändern.</span>
+                        </p>
+
+                        <p class="pdn-leer pdn-gv-rahmen" x-show="system && !system.fragen.length">Noch keine Fragen. Lege die erste Frage an.</p>
+                        <p class="pdn-leer pdn-gv-rahmen" x-show="system?.fragen.length && !sichtbareFragen.length">Für diese Stufe gibt es keine Fragen.</p>
+
+                        <ol class="pdn-gv-liste" x-ref="fragenListe" x-show="system?.fragen.length" :class="{ 'is-gefiltert': filterStufe }">
+                            <template x-for="f in (system?.fragen || [])" :key="'fr' + f.id">
+                                <li class="pdn-gv-zeile" :data-id="f.id" x-show="frageSichtbar(f)" :class="{ 'is-inaktiv': !f.aktiv }">
+                                    <span class="pdn-gv-griff" title="Ziehen zum Sortieren" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+                                    <span class="pdn-gv-nr" x-text="system.fragen.indexOf(f) + 1"></span>
+                                    <div class="pdn-gv-zeile__inhalt">
+                                        <div class="pdn-gv-zeile__titel">
+                                            <span class="pdn-gv-fragetext" x-text="f.text"></span>
+                                            <span class="pdn-tag pdn-gv-tag--warn" x-show="!f.aktiv">inaktiv</span>
+                                        </div>
+                                        <div class="pdn-gv-stufenchips">
+                                            <span class="pdn-gv-chip pdn-gv-chip--alle" x-show="!f.stufen.length">alle Stufen</span>
+                                            <template x-for="name in stufenNamen(f)" :key="name">
+                                                <span class="pdn-gv-chip" x-text="name"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="pdn-gv-zeile__aktionen">
+                                        <button type="button" class="pdn-btn" @click="frageBearbeiten(f)">
+                                            <i class="fas fa-pen" aria-hidden="true"></i> <span class="pdn-gv-text">Bearbeiten</span>
+                                        </button>
+                                    </div>
+                                </li>
+                            </template>
+                        </ol>
+                    </section>
                 </div>
             </div>
-            @endforeach
-        </div>
+        @endif
     </div>
+
+    {{-- ═══════════ Seitenleiste: Stufe ═══════════ --}}
+    <template x-if="stufe">
+        <div>
+            <div class="pdn-drawer-backdrop" @click="stufe = null"></div>
+            <aside class="pdn-drawer" role="dialog" aria-modal="true" aria-labelledby="gvStufeTitel" @keydown.escape.window="stufe = null">
+                <header>
+                    <h2 id="gvStufeTitel" x-text="stufe.id ? 'Stufe bearbeiten' : 'Neue Stufe'"></h2>
+                    <button type="button" class="pdn-iconbtn" aria-label="Schließen" @click="stufe = null"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </header>
+                <form id="gvStufeForm" method="post" :action="stufe.id ? stufe.speichernUrl : system.stufeNeuUrl" enctype="multipart/form-data" @submit="merken()">
+                    @csrf
+                    <input type="hidden" name="sort_order" :value="stufe.sort_order">
+                    <label class="pdn-field">Name
+                        <input type="text" name="name" x-model="stufe.name" required maxlength="100" placeholder="z. B. Anfänger" x-init="$nextTick(() => $el.focus())">
+                    </label>
+                    <label class="pdn-field">Kürzel (Slug, optional)
+                        <input type="text" name="slug" x-model="stufe.slug" maxlength="100" placeholder="z. B. anfaenger">
+                    </label>
+                    <div class="pdn-gv-bildwahl">
+                        <span class="pdn-stage pdn-gv-stufenbild pdn-gv-stufenbild--gross" :class="{ 'pdn-stage--bild': vorschau || stufe.bild }">
+                            <template x-if="vorschau || stufe.bild"><img :src="vorschau || stufe.bild" alt="Vorschau"></template>
+                            <template x-if="!(vorschau || stufe.bild) && stufe.symbol"><i :class="stufe.symbol" aria-hidden="true"></i></template>
+                            <template x-if="!(vorschau || stufe.bild) && !stufe.symbol"><i class="fas fa-image" aria-hidden="true"></i></template>
+                        </span>
+                        <div class="pdn-field" style="flex:1;min-width:0">
+                            <span>Bild (optional, PNG/JPG/WebP/GIF)</span>
+                            <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" @change="bildGewaehlt($event)">
+                        </div>
+                    </div>
+                    <label class="pdn-field">Symbol statt Bild (Font-Awesome-Klasse, optional)
+                        <input type="text" name="symbol" x-model="stufe.symbol" maxlength="255" placeholder="z. B. fas fa-star">
+                    </label>
+                    <label class="pdn-switch">
+                        <span>Standardstufe <small class="pdn-label-sm" style="display:block">Neue Schüler erhalten diese Stufe.</small></span>
+                        <input type="hidden" name="is_default" value="0">
+                        <input type="checkbox" name="is_default" value="1" x-model="stufe.standard"><i></i>
+                    </label>
+                    <p class="pdn-hinweis" x-show="stufe.id" x-text="fragenText(stufe)"></p>
+                </form>
+                <footer>
+                    <button type="submit" form="gvStufeForm" class="pdn-btn pdn-btn--pri"><i class="fas fa-save" aria-hidden="true"></i> Speichern</button>
+                    <button type="button" class="pdn-btn" @click="stufe = null">Abbrechen</button>
+                    <span class="pdn-spacer"></span>
+                    <button type="button" class="pdn-btn pdn-gv-gefahr" x-show="stufe.id" @click="loeschenFragen('stufe', stufe)">
+                        <i class="fas fa-trash" aria-hidden="true"></i> Löschen
+                    </button>
+                </footer>
+            </aside>
+        </div>
+    </template>
+
+    {{-- ═══════════ Seitenleiste: Frage ═══════════ --}}
+    <template x-if="frage">
+        <div>
+            <div class="pdn-drawer-backdrop" @click="frage = null"></div>
+            <aside class="pdn-drawer" role="dialog" aria-modal="true" aria-labelledby="gvFrageTitel" @keydown.escape.window="frage = null">
+                <header>
+                    <h2 id="gvFrageTitel" x-text="frage.id ? 'Frage bearbeiten' : 'Neue Frage'"></h2>
+                    <button type="button" class="pdn-iconbtn" aria-label="Schließen" @click="frage = null"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </header>
+                <form id="gvFrageForm" method="post" :action="frage.id ? frage.speichernUrl : system.frageNeuUrl" @submit="merken()">
+                    @csrf
+                    <input type="hidden" name="sort_order" :value="frage.sort_order">
+                    <label class="pdn-field">Frage
+                        <textarea name="question" x-model="frage.text" required maxlength="1000" rows="3"
+                                  placeholder="z. B. Ich kann einen kurzen Text allein lesen." x-init="$nextTick(() => $el.focus())"></textarea>
+                    </label>
+                    <div class="pdn-field">
+                        <span>Gilt für Stufen</span>
+                        <template x-if="system.stufen.length">
+                            <div class="pdn-chips" role="group" aria-label="Gilt für Stufen">
+                                <template x-for="st in system.stufen" :key="'c' + st.id">
+                                    <label>
+                                        <input type="checkbox" name="stage_ids[]" :value="st.id" :checked="frage.stufen.includes(st.id)"
+                                               @change="stufeUmschalten(st.id, $event.target.checked)">
+                                        <span x-text="st.name"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </template>
+                        <span class="pdn-hinweis" x-text="frage.stufen.length ? 'Nur Kinder dieser Stufen sehen die Frage.' : 'Keine Stufe gewählt: die Frage gilt für alle Stufen.'"></span>
+                    </div>
+                    <template x-if="frage.id">
+                        <label class="pdn-switch">
+                            <span>Frage ist aktiv <small class="pdn-label-sm" style="display:block">Inaktive Fragen werden nicht mehr gestellt; Antworten bleiben erhalten.</small></span>
+                            <input type="hidden" name="active" value="0">
+                            <input type="checkbox" name="active" value="1" x-model="frage.aktiv"><i></i>
+                        </label>
+                    </template>
+                </form>
+                <footer>
+                    <button type="submit" form="gvFrageForm" class="pdn-btn pdn-btn--pri"><i class="fas fa-save" aria-hidden="true"></i> Speichern</button>
+                    <button type="button" class="pdn-btn" @click="frage = null">Abbrechen</button>
+                    <span class="pdn-spacer"></span>
+                    <button type="button" class="pdn-btn pdn-gv-gefahr" x-show="frage.id" @click="loeschenFragen('frage', frage)">
+                        <i class="fas fa-trash" aria-hidden="true"></i> Löschen
+                    </button>
+                </footer>
+            </aside>
+        </div>
+    </template>
+
+    {{-- ═══════════ Dialog: Neues System ═══════════ --}}
+    <template x-if="systemDialog">
+        <div class="pdn-dialog" role="dialog" aria-modal="true" aria-labelledby="gvSystemTitel" @keydown.escape.window="systemDialog = false">
+            <form method="post" action="{{ route('admin.grading.system.store') }}">
+                @csrf
+                <h2 id="gvSystemTitel" class="pdn-gv-dialogtitel">Neues Graduierungssystem</h2>
+                <label class="pdn-field">Name
+                    <input type="text" name="name" required maxlength="100" placeholder="z. B. Lesestufen" x-init="$nextTick(() => $el.focus())">
+                </label>
+                <label class="pdn-field">Kürzel (Slug, optional)
+                    <input type="text" name="slug" maxlength="100" placeholder="z. B. lesestufen">
+                </label>
+                <p class="pdn-hinweis">Klassen wählen ihr Graduierungssystem in den Klasseneinstellungen.</p>
+                <div class="pdn-gv-dialogknoepfe">
+                    <button type="button" class="pdn-btn" @click="systemDialog = false">Abbrechen</button>
+                    <button type="submit" class="pdn-btn pdn-btn--pri"><i class="fas fa-plus" aria-hidden="true"></i> Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </template>
+
+    {{-- ═══════════ Dialog: Löschen bestätigen ═══════════ --}}
+    <template x-if="loeschen">
+        <div class="pdn-dialog" role="alertdialog" aria-modal="true" aria-labelledby="gvLoeschenTitel" @keydown.escape.window="loeschen = null">
+            <form method="post" :action="loeschen.url" @submit="merken()">
+                @csrf
+                <h2 id="gvLoeschenTitel" class="pdn-gv-dialogtitel" x-text="loeschen.titel"></h2>
+                <p x-text="loeschen.text"></p>
+                <div class="pdn-gv-dialogknoepfe">
+                    <button type="button" class="pdn-btn" @click="loeschen = null">Abbrechen</button>
+                    <button type="submit" class="pdn-btn pdn-gv-gefahr--voll"><i class="fas fa-trash" aria-hidden="true"></i> Löschen</button>
+                </div>
+            </form>
+        </div>
+    </template>
 </div>
 @endsection
 
 @push('js')
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script>
-    function previewImage(event, previewId, inputEl){
-        const img = document.getElementById(previewId);
-        if (!img) return;
-        const file = inputEl.files && inputEl.files[0];
-        if (!file){ img.style.display = 'none'; img.src = ''; return; }
-        img.src = URL.createObjectURL(file);
-        img.style.display = '';
-    }
-
-    document.addEventListener('DOMContentLoaded', function(){
-        // Initialize Sortable for each system list
-        document.querySelectorAll('[id^="stages-list-"]').forEach(function(listEl){
-            const systemId = listEl.id.replace('stages-list-','');
-            new Sortable(listEl, {
-                animation: 150,
-                handle: '.fa-grip-vertical',
-                onEnd: function(evt){
-                    const order = Array.from(listEl.querySelectorAll('[data-stage-id]')).map(function(item){
-                        return item.getAttribute('data-stage-id');
-                    });
-
-                    fetch(`/admin/grading/system/${systemId}/stages/order`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({ order })
-                    }).then(function(res){
-                        if (!res.ok) throw res;
-                        return res.json();
-                    }).then(function(json){
-                        if (json.status === 'ok') {
-                            // small visual feedback
-                            listEl.style.opacity = '0.6';
-                            setTimeout(function(){ listEl.style.opacity = ''; }, 300);
-                        } else {
-                            alert('Fehler beim Speichern der Reihenfolge');
-                        }
-                    }).catch(function(){
-                        alert('Fehler beim Speichern der Reihenfolge');
-                    });
-                }
-            });
-        });
-
-        // Initialize Sortable for questions list
-        document.querySelectorAll('[id^="questions-list-"]').forEach(function(listEl){
-            const systemId = listEl.id.replace('questions-list-','');
-            new Sortable(listEl, {
-                animation: 150,
-                handle: '.fa-grip-vertical',
-                onEnd: function(evt){
-                    const order = Array.from(listEl.querySelectorAll('[data-question-id]')).map(function(item){
-                        return item.getAttribute('data-question-id');
-                    });
-
-                    fetch(`/admin/grading/system/${systemId}/questions/order`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({ order })
-                    }).then(function(res){
-                        if (!res.ok) throw res;
-                        return res.json();
-                    }).then(function(json){
-                        if (json.status === 'ok') {
-                            // small visual feedback
-                            listEl.style.opacity = '0.6';
-                            setTimeout(function(){ listEl.style.opacity = ''; }, 300);
-                        } else {
-                            alert('Fehler beim Speichern der Reihenfolge');
-                        }
-                    }).catch(function(){
-                        alert('Fehler beim Speichern der Reihenfolge');
-                    });
-                }
-            });
-        });
-    });
-</script>
+    @vite(['resources/js/graduierung-verwaltung.js'])
 @endpush

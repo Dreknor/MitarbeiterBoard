@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Wochenplan;
 
+use App\Exceptions\VersionKonfliktException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Wochenplan\WpPlanRequest;
 use App\Models\Klasse;
@@ -10,315 +11,244 @@ use App\Models\Schueler;
 use App\Models\Wochenplan\WpFach;
 use App\Models\Wochenplan\WpFormatvorlage;
 use App\Models\Wochenplan\WpPlan;
-use App\Models\Wochenplan\WpPlanFach;
+use App\Policies\WpPlanPolicy;
+use App\Services\Wochenplan\WochenplanService;
+use App\Services\Wochenplan\WpStatusService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use League\CommonMark\CommonMarkConverter;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WpPlanController extends Controller
 {
+    public function __construct(private WochenplanService $service)
+    {
+    }
+
     public function index(Request $request)
     {
-        $query = WpPlan::with(['klasse', 'schueler', 'planFaecher', 'kinderPlaene', 'media'])
-            ->where('is_vorlage', false);
+        $this->authorize('viewAny', WpPlan::class);
+        $user = $request->user();
 
-        // Filter
-        if ($request->filled('klasse_id')) {
-            $query->where('klasse_id', $request->klasse_id);
-        }
-        if ($request->get('typ') === 'klassenplan') {
-            $query->klassenplaene();
-        } elseif ($request->get('typ') === 'schuelerplan') {
-            $query->schuelerplaene();
-        }
-        if ($request->get('zeitraum') === 'aktuell') {
-            $query->aktuell();
-        } elseif ($request->get('zeitraum') === 'vergangen') {
-            $query->where('gueltig_bis', '<', now());
-        }
+        $filter = $request->only(['klasse_id', 'typ', 'zeitraum', 'q', 'schuljahr', 'woche', 'meine']);
+        $plaene = $this->service->liste($user, $filter);
 
-        $plaene   = $query->orderByDesc('gueltig_von')->paginate(12)->withQueryString();
-        $klassen  = Klasse::orderBy('name')->get();
-        $vorlagen = WpPlan::vorlagen()
-            ->with(['planFaecher', 'kinderPlaene', 'media'])
-            ->orderBy('name')
-            ->get();
-
-        return view('wochenplan.new.index', compact('plaene', 'klassen', 'vorlagen'))->with([
-            'filterKlasseId' => $request->get('klasse_id'),
-            'filterTyp'      => $request->get('typ', 'alle'),
-            'filterZeitraum' => $request->get('zeitraum', 'alle'),
+        return view('wochenplan.new.index', [
+            'plaene' => $plaene,
+            'klassen' => $this->service->klassenFuer($user),
+            'schuljahre' => $this->service->schuljahre(),
+            'vorlagen' => WpPlan::vorlagen()->withCount('aufgaben')->orderBy('name')->get(),
+            'filter' => $filter,
+            'darfAlles' => WpPlan::darfAlles($user),
+            'darfSchreiben' => $user->can('create', WpPlan::class),
         ]);
     }
 
     public function indexKlasse(Klasse $klasse, Request $request)
     {
-        return $this->index($request->merge(['klasse_id' => $klasse->id]));
+        return redirect()->route('wp.index', array_merge($request->query(), ['klasse_id' => $klasse->id]));
     }
 
     public function hilfe()
     {
-        $html = Cache::remember('wp.hilfe.html', now()->addHours(24), function () {
-            $markdown  = file_get_contents(base_path('docs/anleitung-wochenplansystem.md'));
-            $converter = new CommonMarkConverter([
-                'html_input'         => 'strip',
-                'allow_unsafe_links' => false,
-            ]);
-            return $converter->convert($markdown)->getContent();
-        });
+        $this->authorize('viewAny', WpPlan::class);
 
-        return view('wochenplan.new.hilfe', compact('html'));
+        return view('wochenplan.new.hilfe');
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $klassen       = Klasse::orderBy('name')->get();
-        $vorlagen      = WpPlan::vorlagen()->orderBy('name')->get();
-        $formatvorlagen = WpFormatvorlage::orderBy('name')->get();
+        $this->authorize('create', WpPlan::class);
 
-        return view('wochenplan.new.create', compact('klassen', 'vorlagen', 'formatvorlagen'));
-    }
-
-    public function store(WpPlanRequest $request)
-    {
-        $data = $request->validated();
-        $data['created_by'] = auth()->id();
-
-        if (!empty($data['is_vorlage'])) {
-            $data['is_vorlage'] = true;
-        }
-
-        // Aus Vorlage erstellen
-        if ($request->filled('vorlage_id')) {
-            $vorlage = WpPlan::findOrFail($request->vorlage_id);
-            $plan = $vorlage->duplizieren(array_merge($data, ['is_vorlage' => false]));
-        } else {
-            unset($data['vorlage_id']);
-            $plan = WpPlan::create($data);
-
-            // Standard-Fächer zuordnen
-            $defaultFaecher = WpFach::default()->ordered()->get();
-            foreach ($defaultFaecher as $index => $fach) {
-                $plan->planFaecher()->create([
-                    'wp_fach_id'  => $fach->id,
-                    'sort_order'  => $index,
-                ]);
-            }
-        }
-
-        return redirect()->route('wp.edit', $plan)
-            ->with(['type' => 'success', 'Meldung' => 'Plan wurde erstellt.']);
-    }
-
-    public function edit(WpPlan $wpPlan)
-    {
-        $wpPlan->load([
-            'planFaecher.aufgaben',
-            'planFaecher.fach',
-            'taeglicheUebungen',
-            'klasse',
-            'schueler',
-            'kinderPlaene.schueler',
-            'formatvorlage',
-            'media',
+        return view('wochenplan.new.create', [
+            'klassen' => $this->service->klassenFuer($request->user()),
+            'vorlagen' => WpPlan::vorlagen()->orderBy('name')->get(),
+            'formatvorlagen' => WpFormatvorlage::orderBy('name')->get(),
+            'vorlageId' => $request->integer('vorlage') ?: null,
         ]);
+    }
 
-        $alleFaecher    = WpFach::ordered()->get();
-        $formatvorlagen = WpFormatvorlage::orderBy('name')->get();
+    public function store(WpPlanRequest $request): RedirectResponse
+    {
+        $this->authorize('create', WpPlan::class);
 
-        // Offene Tagebuch-Aufgaben für Schülerpläne laden
-        $diaryTasks = collect();
-        if ($wpPlan->isSchuelerplan() && $wpPlan->schueler_id) {
-            $diaryTasks = PaedDiaryTask::open()
-                ->where('schueler_id', $wpPlan->schueler_id)
-                ->orderByDesc('highlighted')
-                ->orderByRaw('due_date IS NULL, due_date ASC')
-                ->orderByDesc('created_at')
-                ->get();
-        }
+        $plan = $this->service->erstellen($request->safe()->except(['version']), $request->user());
 
-        $klassen = Klasse::orderBy('name')->get();
+        return redirect()->route('wp.edit', $plan)->with(['type' => 'success', 'Meldung' => 'Plan wurde erstellt.']);
+    }
 
-        return view('wochenplan.new.edit', compact('wpPlan', 'alleFaecher', 'formatvorlagen', 'diaryTasks', 'klassen'));
+    /** Editor (mit Schreibrecht) bzw. Ansicht (nur lesen). */
+    public function edit(Request $request, WpPlan $wpPlan)
+    {
+        $this->authorize('view', $wpPlan);
+        $user = $request->user();
+
+        return view('wochenplan.new.edit', [
+            'wpPlan' => $wpPlan,
+            'daten' => $this->service->toArray($wpPlan, $user),
+            'alleFaecher' => WpFach::ordered()->get(['id', 'name']),
+            'formatvorlagen' => WpFormatvorlage::orderBy('name')->get(['id', 'name']),
+            'klassen' => $this->service->klassenFuer($user),
+            'diaryTasks' => $this->offeneTagebuchAufgaben($wpPlan),
+            'tagebuchAktiv' => WpStatusService::tagebuchAktiv(),
+            'darfBearbeiten' => $user->can('update', $wpPlan),
+            'darfFortschritt' => $user->can('trackProgress', $wpPlan),
+        ]);
+    }
+
+    /** Aktueller Stand als JSON (Editor, nach Konflikten). */
+    public function daten(Request $request, WpPlan $wpPlan): JsonResponse
+    {
+        $this->authorize('view', $wpPlan);
+
+        return response()->json(['plan' => $this->service->toArray($wpPlan, $request->user())]);
     }
 
     public function update(WpPlanRequest $request, WpPlan $wpPlan)
     {
-        $wpPlan->update($request->validated());
+        $this->authorize('update', $wpPlan);
 
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Plan wurde gespeichert.']);
-    }
+        try {
+            $plan = $this->service->aktualisieren($wpPlan, $request->safe()->except(['version']), $request->input('version'));
+        } catch (VersionKonfliktException $e) {
+            if ($request->expectsJson()) {
+                return $this->konflikt($request, $wpPlan);
+            }
 
-    public function destroy(WpPlan $wpPlan)
-    {
-        $wpPlan->delete();
-
-        return redirect()->route('wp.index')
-            ->with(['type' => 'success', 'Meldung' => 'Plan wurde gelöscht.']);
-    }
-
-    public function duplizieren(WpPlan $wpPlan)
-    {
-        $neuerPlan = $wpPlan->duplizieren([
-            'name'       => $wpPlan->name . ' (Kopie)',
-            'created_by' => auth()->id(),
-        ]);
-
-        return redirect()->route('wp.edit', $neuerPlan)
-            ->with(['type' => 'success', 'Meldung' => 'Plan wurde dupliziert.']);
-    }
-
-    public function createSchuelerplan(WpPlan $wpPlan)
-    {
-        if ($wpPlan->isVorlage()) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Von einer Vorlage können keine Kinderpläne erstellt werden.',
-            ]);
+            return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Der Plan wurde zwischenzeitlich geändert. Bitte erneut speichern.']);
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['plan' => $this->service->toArray($plan, $request->user())]);
+        }
+
+        return redirect()->back()->with(['type' => 'success', 'Meldung' => 'Plan wurde gespeichert.']);
+    }
+
+    public function destroy(WpPlan $wpPlan): RedirectResponse
+    {
+        $this->authorize('delete', $wpPlan);
+
+        $vorlage = $wpPlan->isVorlage();
+        $this->service->loeschen($wpPlan);
+
+        return redirect()->route($vorlage ? 'wp.vorlagen.index' : 'wp.index')
+            ->with(['type' => 'success', 'Meldung' => $vorlage ? 'Vorlage wurde gelöscht.' : 'Plan wurde gelöscht.']);
+    }
+
+    public function duplizieren(Request $request, WpPlan $wpPlan): RedirectResponse
+    {
+        $this->authorize('update', $wpPlan);
+
+        $neu = $this->service->duplizieren($wpPlan, ['name' => $wpPlan->name.' (Kopie)'], $request->user());
+        if ($neu->isSchuelerplan()) {
+            $this->service->geaendert($neu);
+        }
+
+        return redirect()->route('wp.edit', $neu)->with(['type' => 'success', 'Meldung' => 'Plan wurde dupliziert.']);
+    }
+
+    public function fortschreiben(Request $request, WpPlan $wpPlan): RedirectResponse
+    {
+        $this->authorize('update', $wpPlan);
+        abort_if($wpPlan->isVorlage(), 422, 'Vorlagen haben keinen Zeitraum.');
+
+        $neu = $this->service->fortschreiben($wpPlan, $request->boolean('mit_kinderplaenen'), $request->user());
+
+        return redirect()->route('wp.edit', $neu)->with([
+            'type' => 'success',
+            'Meldung' => 'Plan für die Woche '.$neu->zeitraum.' angelegt.',
+        ]);
+    }
+
+    public function createSchuelerplan(Request $request, WpPlan $wpPlan)
+    {
+        $this->authorize('update', $wpPlan);
+
+        if (! $wpPlan->isKlassenplan()) {
+            return redirect()->back()->with(['type' => 'warning', 'Meldung' => 'Kinderpläne gibt es nur zu Klassenplänen.']);
+        }
+
+        $user = $request->user();
         if ($wpPlan->klasse) {
-            // Nur Schüler der zugeordneten Klasse anzeigen
-            $schueler = $wpPlan->klasse->schueler()
-                ->orderBy('nachname')->orderBy('vorname')->get();
-            $klassen = null;
+            $schueler = $wpPlan->klasse->schueler()->orderBy('nachname')->orderBy('vorname')->get();
         } else {
-            // Plan ohne Klasse: alle Schüler aller Klassen anzeigen (gruppiert)
             $schueler = Schueler::with('klasse')
+                ->whereIn('klasse_id', $this->service->klassenFuer($user)->pluck('id'))
                 ->orderBy('nachname')->orderBy('vorname')->get();
-            $klassen = Klasse::orderBy('name')->get();
         }
 
-        $formatvorlagen   = WpFormatvorlage::orderBy('name')->get();
-        $bereitsVorhanden = $wpPlan->kinderPlaene()->pluck('schueler_id')->toArray();
-
-        return view('wochenplan.new.schuelerplan.create', compact(
-            'wpPlan', 'schueler', 'formatvorlagen', 'bereitsVorhanden', 'klassen'
-        ));
+        return view('wochenplan.new.schuelerplan.create', [
+            'wpPlan' => $wpPlan,
+            'schueler' => $schueler,
+            'formatvorlagen' => WpFormatvorlage::orderBy('name')->get(),
+            'bereitsVorhanden' => $wpPlan->kinderPlaene()->pluck('schueler_id')->all(),
+            'hatNiveaus' => $wpPlan->aufgaben()->whereNotNull('niveau')->exists(),
+        ]);
     }
 
-    public function storeSchuelerplan(Request $request, WpPlan $wpPlan)
+    public function storeSchuelerplan(Request $request, WpPlan $wpPlan): RedirectResponse
     {
+        $this->authorize('update', $wpPlan);
+        abort_unless($wpPlan->isKlassenplan(), 422);
+
         $request->validate([
-            'schueler_ids'     => 'required|array|min:1',
-            'schueler_ids.*'   => 'exists:schueler,id',
-            'formatvorlage_id' => 'nullable|exists:wp_formatvorlagen,id',
-        ]);
+            'schueler_ids' => 'required|array|min:1',
+            'schueler_ids.*' => 'integer|exists:schueler,id',
+            'formatvorlage_id' => 'nullable|integer|exists:wp_formatvorlagen,id',
+            'niveau' => 'nullable|array',
+            'niveau.*' => 'nullable|integer|in:1,2,3',
+        ], ['schueler_ids.required' => 'Bitte mindestens ein Kind auswählen.']);
 
-        $formatvorlageId  = $request->input('formatvorlage_id');
-        $erstelltePlaene  = [];
-
+        $user = $request->user();
+        $erstellt = [];
         foreach ($request->input('schueler_ids') as $schuelerId) {
-            $schueler          = Schueler::findOrFail($schuelerId);
-            $erstelltePlaene[] = $wpPlan->erstelleSchuelerplan($schueler, $formatvorlageId);
+            $schueler = Schueler::findOrFail($schuelerId);
+            abort_unless(WpPlanPolicy::darfSchueler($user, $schueler), 403);
+            $niveau = $request->input('niveau.'.$schuelerId);
+            $erstellt[] = $this->service->kinderplanErstellen(
+                $wpPlan,
+                $schueler,
+                $request->integer('formatvorlage_id') ?: null,
+                $niveau !== null && $niveau !== '' ? (int) $niveau : null,
+                $user,
+            );
         }
 
-        $anzahl = count($erstelltePlaene);
-
-        if ($anzahl === 1) {
-            return redirect()->route('wp.edit', $erstelltePlaene[0])->with([
-                'type'    => 'success',
-                'Meldung' => 'Kinderplan für ' . $erstelltePlaene[0]->schueler->vorname . ' wurde erstellt.',
+        if (count($erstellt) === 1) {
+            return redirect()->route('wp.edit', $erstellt[0])->with([
+                'type' => 'success',
+                'Meldung' => 'Kinderplan für '.$erstellt[0]->schueler->vorname.' wurde erstellt.',
             ]);
         }
 
         return redirect()->route('wp.edit', $wpPlan)->with([
-            'type'    => 'success',
-            'Meldung' => $anzahl . ' Kinderpläne wurden erstellt.',
+            'type' => 'success',
+            'Meldung' => count($erstellt).' Kinderpläne wurden erstellt.',
         ]);
     }
 
-    public function addFach(Request $request, WpPlan $wpPlan)
+    private function offeneTagebuchAufgaben(WpPlan $plan)
     {
-        $request->validate(['wp_fach_id' => 'required|exists:wp_faecher,id']);
-
-        // Prüfen ob Fach bereits vorhanden
-        $exists = $wpPlan->planFaecher()->where('wp_fach_id', $request->wp_fach_id)->exists();
-        if (!$exists) {
-            $maxOrder = $wpPlan->planFaecher()->max('sort_order') ?? -1;
-            $wpPlan->planFaecher()->create([
-                'wp_fach_id'  => $request->wp_fach_id,
-                'sort_order'  => $maxOrder + 1,
-            ]);
+        if (! WpStatusService::tagebuchAktiv() || ! $plan->isSchuelerplan() || ! $plan->schueler_id) {
+            return collect();
         }
 
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Fach wurde hinzugefügt.']);
+        $verknuepft = $plan->aufgaben()->whereNotNull('paed_diary_task_id')->pluck('paed_diary_task_id')->all();
+
+        return PaedDiaryTask::open()
+            ->where('schueler_id', $plan->schueler_id)
+            ->whereNotIn('id', $verknuepft)
+            ->orderByDesc('highlighted')
+            ->orderByRaw('due_date IS NULL, due_date ASC')
+            ->orderByDesc('created_at')
+            ->get();
     }
 
-    public function removeFach(WpPlanFach $wpPlanFach)
+    private function konflikt(Request $request, WpPlan $plan): JsonResponse
     {
-        $wpPlanFach->aufgaben()->delete();
-        $wpPlanFach->delete();
-
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Fach wurde entfernt.']);
-    }
-
-    public function reorderFaecher(Request $request)
-    {
-        $request->validate([
-            'order'              => 'required|array',
-            'order.*.id'         => 'required|exists:wp_plan_faecher,id',
-            'order.*.sort_order' => 'required|integer|min:0',
-        ]);
-
-        foreach ($request->input('order') as $item) {
-            WpPlanFach::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
-        }
-
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function addMedia(Request $request, WpPlan $wpPlan)
-    {
-        $request->validate([
-            'files'   => 'required|array|min:1',
-            'files.*' => 'file|mimes:pdf,jpg,jpeg,png,doc,docx,odt|max:10240',
-        ]);
-
-        $count = 0;
-        foreach ($request->file('files') as $file) {
-            $wpPlan->addMedia($file)->toMediaCollection('arbeitsblaetter');
-            $count++;
-        }
-
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => $count . ' Datei(en) hochgeladen.']);
-    }
-
-    public function removeMedia(Media $media)
-    {
-        $media->delete();
-
-        return redirect()->back()
-            ->with(['type' => 'success', 'Meldung' => 'Datei wurde entfernt.']);
-    }
-
-    /**
-     * Synchronisiert Arbeitsblätter vom Eltern-Klassenplan.
-     * Eigene Dateien des Kinderplans bleiben erhalten.
-     */
-    public function syncMedia(WpPlan $wpPlan)
-    {
-        if (!$wpPlan->parent_plan_id) {
-            return redirect()->back()->with([
-                'type'    => 'warning',
-                'Meldung' => 'Dieser Plan hat keinen Elternplan zum Synchronisieren.',
-            ]);
-        }
-
-        $wpPlan->syncMediaVonParent();
-
-        $syncCount = $wpPlan->getMedia('arbeitsblaetter')
-            ->filter(fn($m) => $m->getCustomProperty('synced_from_plan_id') !== null)
-            ->count();
-
-        return redirect()->back()->with([
-            'type'    => 'success',
-            'Meldung' => $syncCount . ' Arbeitsblatt(blätter) vom Klassenplan synchronisiert.',
-        ]);
+        return response()->json([
+            'message' => 'Der Plan wurde zwischenzeitlich von jemand anderem geändert. Der aktuelle Stand wurde geladen.',
+            'plan' => $this->service->toArray($plan->fresh(), $request->user()),
+        ], 409);
     }
 }

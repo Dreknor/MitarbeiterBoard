@@ -14,6 +14,8 @@ use App\Models\Zeitraster;
 //use Barryvdh\DomPDF\Facade as PDF;
 use App\Models\Setting;
 use App\Models\VertretungsplanWeek;
+use App\Services\Calendar\KalenderRaumService;
+use App\Services\Rooms\RaumSucheService;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 use Carbon\Carbon;
@@ -36,7 +38,7 @@ class RoomController extends Controller
      *
      * @return View | RedirectResponse
      */
-    public function index()
+    public function index(Request $request, RaumSucheService $raumSuche)
     {
         if (! auth()->user()->can("view roomBooking")) {
             return redirect(url('/'))->with([
@@ -45,10 +47,30 @@ class RoomController extends Controller
             ]);
         }
 
+        // Suche nach freien Räumen (Datum + Zeitraum), nur wenn das Formular abgeschickt wurde
+        $suche = null;
+        if ($request->filled('datum')) {
+            $eingabe = $request->validate([
+                'datum' => ['required', 'date'],
+                'von'   => ['required', 'date_format:H:i'],
+                'bis'   => ['required', 'date_format:H:i', 'after:von'],
+            ], [
+                'bis.after' => 'Das Ende muss nach dem Beginn liegen.',
+            ]);
 
+            $suche = $raumSuche->suche(Carbon::parse($eingabe['datum']), $eingabe['von'], $eingabe['bis']) + [
+                'datum' => Carbon::parse($eingabe['datum']),
+                'von'   => $eingabe['von'],
+                'bis'   => $eingabe['bis'],
+            ];
+        }
+
+        $datum = $suche['datum'] ?? Carbon::today();
 
         return view('rooms.rooms.index',[
-            'rooms' => Room::query()->orderBy('room_number')->get(),
+            'rooms'   => Room::query()->orderBy('room_number')->get(),
+            'suche'   => $suche,
+            'stunden' => $raumSuche->stunden($suche['wochen_typ'] ?? app(KalenderRaumService::class)->wochenTyp($datum) ?? 'A'),
         ]);
     }
 

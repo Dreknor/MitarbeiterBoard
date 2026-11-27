@@ -67,6 +67,14 @@ class CalendarAdminController extends Controller
 
         $calendar = OxCalendar::create($validated);
 
+        // OX-Schreibrecht gleich prüfen, damit ein nur lesbarer Kalender sofort auffällt
+        $service = app(OxCalendarService::class);
+        if ($service->isEnabled() && $service->oxRechtePruefen($calendar) === false) {
+            return redirectBack('warning', "Kalender \"{$calendar->name}\" wurde angelegt. Achtung: In OX hat das Dienstkonto "
+                . config('ox-calendar.username') . ' dort nur Leserechte – Termine können erst eingetragen werden, '
+                . 'wenn in OX Schreibrechte vergeben werden. Bis dahin ist der Kalender in den Formularen gesperrt.');
+        }
+
         return redirectBack('success', "Kalender \"{$calendar->name}\" wurde angelegt.");
     }
 

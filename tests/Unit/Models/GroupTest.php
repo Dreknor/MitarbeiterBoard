@@ -173,12 +173,6 @@ class GroupTest extends TestCase
         $this->assertIsBool($group->needsRoster);
     }
 
-    public function test_hasWochenplan_ist_boolean(): void
-    {
-        $group = Group::factory()->withWochenplan()->create();
-        $this->assertIsBool($group->hasWochenplan);
-        $this->assertTrue($group->hasWochenplan);
-    }
 
     // ─── SoftDeletes ─────────────────────────────────────────────────────────
 

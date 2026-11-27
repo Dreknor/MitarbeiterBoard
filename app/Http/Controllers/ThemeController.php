@@ -415,6 +415,9 @@ class ThemeController extends Controller
             'subscription' => $subscription,
             'group' => $group,
             'themeTasks' => app(\App\Services\Tasks\ThemeTaskService::class)->tasksForTheme($theme),
+            'ergebnisboards' => auth()->user()->can('view result boards')
+                ? \App\Models\Ergebnisboard::query()->sichtbarFuer(auth()->user())->where('theme_id', $theme->id)->withCount('karten')->latest('updated_at')->get()
+                : collect(),
         ]);
     }
 

@@ -87,6 +87,11 @@
                                    title="Detailansicht öffnen">
                                     <span x-text="stu.name"></span>
                                 </a>
+                                <template x-if="$store.wochenplan && $store.wochenplan.fuer(stu.id)">
+                                    <button type="button" class="wpt-zaehler" :class="$store.wochenplan.klasse($store.wochenplan.fuer(stu.id))"
+                                            :title="'Wochenplan von ' + stu.name + ' öffnen'" @click.stop="$store.wochenplan.oeffnen(stu)"
+                                            x-text="'WP ' + $store.wochenplan.text($store.wochenplan.fuer(stu.id))"></button>
+                                </template>
                                 <template x-if="Array.isArray(stu.absence_alerts) && stu.absence_alerts.length">
                                     <span class="badge badge-warning text-dark ml-1 align-middle"
                                           :title="stu.absence_alerts.map(a => a.label + ': ' + a.summary).join('\n')">

@@ -103,20 +103,21 @@ class OxCalendarServiceEdgeCasesTest extends TestCase
 
     public function test_parseIcal_konvertiert_verschiedene_Zeitzonen_in_App_Zeitzone(): void
     {
-        // Event in US/Eastern – am 2026-03-15 ist EDT aktiv (UTC-4)
+        // Event in New York – am 2026-03-15 ist EDT aktiv (UTC-4).
+        // Kanonischer IANA-Name: Alias-Namen wie „US/Eastern“ fehlen in schlanken tzdata-Paketen.
         // 09:00 EDT = 13:00 UTC = 14:00 CET (Europe/Berlin, UTC+1)
         $ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
             . "BEGIN:VEVENT\r\n"
             . "UID:tz-test@ox\r\n"
             . "SUMMARY:US-Event\r\n"
-            . "DTSTART;TZID=US/Eastern:20260315T090000\r\n"
-            . "DTEND;TZID=US/Eastern:20260315T100000\r\n"
+            . "DTSTART;TZID=America/New_York:20260315T090000\r\n"
+            . "DTEND;TZID=America/New_York:20260315T100000\r\n"
             . "END:VEVENT\r\nEND:VCALENDAR";
 
         $service = new OxCalendarService();
         $result  = $service->parseIcal($ical);
 
-        $this->assertSame('US/Eastern', $result['timezone']);
+        $this->assertSame('America/New_York', $result['timezone']);
         // Europe/Berlin ist CET (UTC+1) am 15.03.2026 → 09:00 EDT (UTC-4) = 14:00 CET
         $this->assertStringContainsString('14:00:00', $result['beginn']);
     }

@@ -38,11 +38,15 @@ class GradingSessionResource extends JsonResource
                     return [];
                 }
 
-                return $this->gradingSystem->questions->map(fn ($q) => [
+                return $this->gradingSystem->questions->map(fn ($q) => array_filter([
                     'id' => $q->id,
                     'question' => $q->question,
                     'sort_order' => (int) $q->sort_order,
-                ])->values();
+                    // Stufen, für die die Frage gilt (leer = alle Stufen)
+                    'stage_ids' => $q->relationLoaded('stages') ? $q->stages->pluck('id')->map(fn ($id) => (int) $id)->values()->all() : null,
+                    // Anzahl Teilnehmer, für die die Frage gilt (nur in der Session-Antwort)
+                    'student_count' => $q->getAttribute('student_count'),
+                ], fn ($wert) => $wert !== null))->values();
             }),
             'answers' => $this->whenLoaded('teacherAssessments', function () {
                 $selfRatings = $this->relationLoaded('studentAnswers')

@@ -41,7 +41,12 @@
 
     @if($kalender->isEmpty())
         <div class="p-4 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800">
-            Du hast in keinen Kalender Schreibrecht – ein Import ist daher nicht möglich.
+            @if($gesperrt->isNotEmpty())
+                Ein Import ist gerade nicht möglich: In {{ $gesperrt->map(fn ($k) => '„' . $k->name . '“')->implode(', ') }}
+                lässt OX das MitarbeiterBoard nur lesen. {{ \App\Models\OxCalendar::OX_SPERRE_HINWEIS }}
+            @else
+                Du hast in keinen Kalender Schreibrecht – ein Import ist daher nicht möglich.
+            @endif
         </div>
     @else
     <form method="POST" action="{{ route('calendar.import.store', $token) }}" @submit="vorAbsenden($event)">
@@ -70,6 +75,10 @@
                         </label>
                     </template>
                 </div>
+                @include('calendar.partials.gesperrteKalender', ['gesperrt' => $gesperrt])
+                @error('kalender_ids')
+                    <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
+                @enderror
             </section>
 
             <section class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">

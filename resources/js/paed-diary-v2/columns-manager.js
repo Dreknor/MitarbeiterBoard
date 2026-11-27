@@ -269,6 +269,15 @@ export function columnsManagerMethods() {
         copyOpenFor: null,
         /** Ausgewählte Ziel-Klassen für den Kopiervorgang */
         copyTargetIds: [],
+        /** Spalte, deren Bearbeiten-Dialog offen ist (id) */
+        bearbeitenFuer: null,
+        /** Daten des Bearbeiten-Dialogs (vom Server, siehe PaedDiarySpaltenService::uebersicht) */
+        bearbeitung: null,
+        /** Formularwerte des Bearbeiten-Dialogs */
+        bearbeitungForm: { name: '', category: '', type: 'boolean', klasse_ids: [] },
+        bearbeitungKategorien: [],
+        bearbeitungFehler: '',
+        bearbeitungSpeichert: false,
 
         /**
          * Initialisierung: Wenn die Spalten-Card geöffnet wird,
@@ -398,6 +407,7 @@ export function columnsManagerMethods() {
 
         /** Öffnet/schließt das Kopier-Panel für eine Spalte. */
         toggleCopyPanel(colId) {
+            this.bearbeitenFuer = null;
             this.copyOpenFor = this.copyOpenFor === colId ? null : colId;
             this.copyTargetIds = [];
         },
@@ -448,6 +458,104 @@ export function columnsManagerMethods() {
                 }
             } catch (_) {
                 this.setFeedback('Fehler beim Kopieren', 'danger');
+            }
+        },
+
+        // ── Spalte bearbeiten (Name, Gruppe, Art, Klassen) ─────────
+
+        /** Öffnet/schließt den Bearbeiten-Dialog einer Spalte und lädt dessen Daten. */
+        async bearbeitenUmschalten(colId) {
+            if (this.bearbeitenFuer === colId) {
+                this.bearbeitenSchliessen();
+                return;
+            }
+            this.copyOpenFor = null;
+            this.bearbeitenFuer = colId;
+            this.bearbeitung = null;
+            this.bearbeitungFehler = '';
+            try {
+                const resp = await fetch(`/paed-diary/column/${colId}/bearbeiten`, { headers: { 'Accept': 'application/json' } });
+                if (!resp.ok) throw new Error('Laden fehlgeschlagen');
+                const j = await resp.json();
+                if (this.bearbeitenFuer !== colId) return;
+                this.bearbeitung = j.spalte;
+                this.bearbeitungKategorien = j.kategorien || [];
+                this.bearbeitungForm = {
+                    name: j.spalte.name || '',
+                    category: j.spalte.category || '',
+                    type: j.spalte.type,
+                    klasse_ids: j.spalte.klassen.filter(k => k.status === 'aktiv').map(k => k.id),
+                };
+            } catch (_) {
+                this.bearbeitungFehler = 'Die Spalte konnte nicht geladen werden.';
+            }
+        },
+
+        bearbeitenSchliessen() {
+            this.bearbeitenFuer = null;
+            this.bearbeitung = null;
+            this.bearbeitungFehler = '';
+        },
+
+        bearbeitungKlasseUmschalten(klasseId) {
+            const id = parseInt(klasseId);
+            const ids = this.bearbeitungForm.klasse_ids;
+            const idx = ids.indexOf(id);
+            if (idx === -1) ids.push(id); else ids.splice(idx, 1);
+        },
+
+        /** Hinweis neben einer Klasse im Bearbeiten-Dialog. */
+        bearbeitungKlasseHinweis(k) {
+            const gewaehlt = this.bearbeitungForm.klasse_ids.includes(k.id);
+            if (k.status === 'aktiv' && !gewaehlt) return 'wird ab heute deaktiviert';
+            if (k.status === 'deaktiviert') {
+                const seit = k.deaktiviert_seit ? new Date(k.deaktiviert_seit + 'T00:00:00').toLocaleDateString('de-DE') : '';
+                return gewaehlt ? 'wird wieder aktiviert' : `deaktiviert seit ${seit}`;
+            }
+            if (k.status === 'keine' && gewaehlt) return 'wird angelegt';
+            return '';
+        },
+
+        async bearbeitungSpeichern() {
+            if (!this.bearbeitung || this.bearbeitungSpeichert) return;
+            const colId = this.bearbeitung.id;
+            this.bearbeitungSpeichert = true;
+            this.bearbeitungFehler = '';
+            try {
+                const resp = await fetch(`/paed-diary/column/${colId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.bearbeitungForm.name.trim(),
+                        category: this.bearbeitungForm.category.trim(),
+                        type: this.bearbeitungForm.type,
+                        klasse_ids: this.bearbeitungForm.klasse_ids,
+                    })
+                });
+                const j = await resp.json().catch(() => ({}));
+                if (!resp.ok || !j.success) {
+                    const fehler = j.errors ? Object.values(j.errors).flat() : [];
+                    this.bearbeitungFehler = fehler[0] || j.message || 'Speichern fehlgeschlagen.';
+                    return;
+                }
+                const e = j.ergebnis || {};
+                const teile = [];
+                if (e.neu) teile.push(`${e.neu} Klasse(n) neu`);
+                if (e.uebernommen) teile.push(`${e.uebernommen} vorhandene Spalte(n) übernommen`);
+                if (e.reaktiviert) teile.push(`${e.reaktiviert} reaktiviert`);
+                if (e.deaktiviert) teile.push(`${e.deaktiviert} ab heute deaktiviert`);
+                this.setFeedback('Spalte gespeichert' + (teile.length ? ` (${teile.join(', ')})` : ''), 'success');
+                this.bearbeitenSchliessen();
+                this.$store.diary.loadWeek();
+                this.loadAllColumns();
+            } catch (_) {
+                this.bearbeitungFehler = 'Speichern fehlgeschlagen.';
+            } finally {
+                this.bearbeitungSpeichert = false;
             }
         },
 

@@ -20,6 +20,8 @@ export default defineConfig({
                 'resources/js/paed-diary-neu.js',
                 // Elterngespräche in der bisherigen Schülerakte (nutzt das CSS der neuen Ansicht)
                 'resources/js/paed-diary-elterngespraeche.js',
+                // Verwaltung der Graduierungssysteme (Design der neuen Ansicht, CSS wird importiert)
+                'resources/js/graduierung-verwaltung.js',
                 'resources/css/wochenplan.css',
                 'resources/js/wochenplan.js',
                 'resources/css/rooms.css',
@@ -54,6 +56,10 @@ export default defineConfig({
                 'resources/css/zeit.css',
                 'resources/js/zeit.js',
 
+                // Nachrichten (Gruppen-Seite, Detail, Formular, Lesebestätigungen)
+                'resources/css/posts.css',
+                'resources/js/posts.js',
+
                 // Abwesenheiten (Übersicht /absences)
                 'resources/css/absences.css',
 
@@ -63,6 +69,17 @@ export default defineConfig({
                 // Online-Updater
                 'resources/css/updater.css',
                 'resources/js/updater.js',
+
+                // Benutzerverwaltung: Geburtstags-Import
+                'resources/css/users-import.css',
+
+                // Ergebnisboards (Liste, Anlegen, Board-Seite)
+                'resources/css/ergebnisboards.css',
+                'resources/js/ergebnisboards.js',
+
+                // Wiki (Startseite, Seite, Editor, Verlauf, Verwaltung)
+                'resources/css/wiki.css',
+                'resources/js/wiki.js',
 
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
@@ -123,6 +140,10 @@ export default defineConfig({
                 'app/Services/Personal/Zeit/*.php',
                 // Klassenraum-Tools
                 'resources/views/klassenraum/**/*.blade.php',
+                // Ergebnisboards
+                'resources/views/ergebnisboards/**/*.blade.php',
+                // Wiki
+                'resources/views/wiki/**/*.blade.php',
             ],
         }),
     ],

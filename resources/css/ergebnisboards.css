@@ -1,0 +1,431 @@
+/*
+ * Ergebnisboards (Liste, Anlegen, Board-Seite) – Tailwind CSS v4
+ *
+ * Wie posts.css / tickets.css:
+ *   - Preflight aus (Bootstrap 4 läuft daneben), alles unter .erg-wrapper, Komponenten mit Präfix erg-
+ *   - Utilities ungelayert + !important, nur die Ergebnisboard-Views werden gescannt (source(none)),
+ *     damit sie Bootstraps ungelayerte Element-Stile schlagen.
+ *   - Elemente mit Display-Utility (flex, grid …) brauchen `x-show.important`.
+ *   - Farbrollen der Felder als Klassen erg-farbe-{gruen|gelb|rot|blau|lila|grau|orange|tuerkis}
+ *     (feste Hex-Werte über CSS-Variablen – funktioniert auch im PNG-Export).
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/ergebnisboards/**/*.blade.php";
+@source "../js/ergebnisboards.js";
+/* Klassennamen, die mit Bootstrap kollidieren, nicht erzeugen */
+@source not inline("container collapse table");
+
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets
+ * ------------------------------------------------------------- */
+.erg-wrapper {
+    box-sizing: border-box;
+    color: #1e293b;
+    line-height: 1.5;
+    padding: 1.25rem 1.5rem 4rem;
+    overflow-wrap: anywhere;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.erg-wrapper.erg-schmal { max-width: 1200px; margin-inline: auto; }
+@media (max-width: 640px) { .erg-wrapper { padding: 1rem .75rem 5rem; } }
+.erg-wrapper *, .erg-wrapper *::before, .erg-wrapper *::after { box-sizing: border-box; }
+.erg-wrapper :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.3; color: inherit; }
+.erg-wrapper p { margin: 0; }
+.erg-wrapper a { color: inherit; text-decoration: none; }
+.erg-wrapper a:hover { text-decoration: none; }
+.erg-wrapper ul, .erg-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.erg-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.erg-wrapper label { margin: 0; }
+.erg-wrapper form { margin: 0; }
+.erg-wrapper fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+
+/* ---------------------------------------------------------------
+ * Seitenkopf, Kacheln
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-page-title { @apply text-xl sm:text-2xl font-bold text-slate-900; }
+.erg-wrapper .erg-page-sub { @apply text-sm text-slate-500 mt-0.5; }
+.erg-wrapper .erg-back { @apply inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800; }
+
+.erg-wrapper .erg-card { @apply bg-white rounded-2xl shadow-sm border border-slate-200/80; }
+.erg-wrapper .erg-card-body { @apply px-4 py-4 sm:px-6 sm:py-5; }
+.erg-wrapper .erg-card-title { @apply text-base font-bold text-slate-900 flex items-center gap-2; }
+.erg-wrapper .erg-card-title i { @apply text-slate-400; }
+
+.erg-wrapper .erg-kachel {
+    @apply flex flex-col gap-3 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 transition-all;
+}
+.erg-wrapper a.erg-kachel:hover { @apply border-emerald-300 shadow-md -translate-y-px; }
+.erg-wrapper .erg-kachel-icon { @apply flex items-center justify-center w-11 h-11 rounded-xl text-lg shrink-0 bg-emerald-50 text-emerald-700 border border-emerald-100; }
+.erg-wrapper .erg-meta { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-btn, .erg-dialog .erg-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-3.5 py-2 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.375rem;
+}
+.erg-wrapper .erg-btn-sm { @apply px-2.5 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2rem; }
+.erg-wrapper .erg-btn-primary   { @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white focus-visible:ring-emerald-500; }
+.erg-wrapper .erg-btn-blue      { @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white focus-visible:ring-blue-500; }
+.erg-wrapper .erg-btn-secondary { @apply bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 focus-visible:ring-blue-400; border: 1px solid #cbd5e1; }
+.erg-wrapper .erg-btn-ghost     { @apply bg-transparent hover:bg-slate-100 text-slate-600 shadow-none focus-visible:ring-slate-300; }
+.erg-wrapper .erg-btn-danger    { @apply bg-white hover:bg-red-50 text-red-600 focus-visible:ring-red-300; border: 1px solid #fecaca; }
+.erg-wrapper .erg-btn.is-aktiv  { @apply bg-amber-100 text-amber-900 hover:bg-amber-200; border: 1px solid #fcd34d; }
+.erg-wrapper a.erg-btn-primary, .erg-wrapper a.erg-btn-primary:hover,
+.erg-wrapper a.erg-btn-blue, .erg-wrapper a.erg-btn-blue:hover { color: #fff; }
+.erg-wrapper .erg-icon-btn {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+/* Segment-Auswahl (Aktuell / Archiv, Farbschema) */
+.erg-wrapper .erg-segment { @apply inline-flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto max-w-full; }
+.erg-wrapper .erg-segment :is(a, button) { @apply inline-flex items-center gap-1.5 shrink-0 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 transition-colors; }
+.erg-wrapper .erg-segment :is(a, button):hover { @apply text-slate-900; }
+.erg-wrapper .erg-segment :is(a, button).is-active { @apply bg-white text-slate-900 shadow-sm; }
+
+/* Werkzeugleiste über dem Board */
+.erg-wrapper .erg-toolbar { @apply flex flex-wrap items-center justify-between gap-3 mb-4; }
+.erg-wrapper .erg-toolbar-gruppe { @apply flex flex-wrap items-center gap-2; }
+
+/* ---------------------------------------------------------------
+ * Formulare (16px auf Mobilgeräten verhindert iOS-Zoom)
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-input, .erg-wrapper .erg-textarea, .erg-wrapper .erg-select {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900
+           shadow-sm placeholder:text-slate-400 sm:text-sm
+           focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none;
+    min-height: 2.5rem;
+    height: auto;
+}
+.erg-wrapper .erg-input-sm { @apply px-2.5 py-1.5 sm:text-xs rounded-lg; min-height: 2rem; }
+.erg-wrapper .erg-label { @apply block text-sm font-medium text-slate-700 mb-1.5; }
+.erg-wrapper .erg-required { @apply text-red-500; }
+.erg-wrapper .erg-hint { @apply text-xs text-slate-500 mt-1; }
+.erg-wrapper .erg-error { @apply text-xs font-medium text-red-600 mt-1; }
+.erg-wrapper .erg-check { @apply flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer; }
+.erg-wrapper .erg-check input { @apply mt-0.5 w-4 h-4 shrink-0 accent-emerald-600; }
+
+.erg-wrapper .erg-alert { @apply flex gap-3 rounded-xl border px-4 py-3 text-sm; }
+.erg-wrapper .erg-alert-amber { @apply bg-amber-50 border-amber-200 text-amber-900; }
+.erg-wrapper .erg-alert-red   { @apply bg-red-50 border-red-200 text-red-800; }
+.erg-wrapper .erg-alert-blue  { @apply bg-sky-50 border-sky-200 text-sky-900; }
+
+.erg-wrapper .erg-empty { @apply flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-slate-400; }
+.erg-wrapper .erg-empty i { @apply text-3xl opacity-40; }
+
+/* Vorlagen-Auswahl im Formular */
+.erg-wrapper .erg-vorlage {
+    @apply relative flex flex-col gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 cursor-pointer transition-colors h-full;
+}
+.erg-wrapper .erg-vorlage:hover { @apply border-slate-300; }
+.erg-wrapper .erg-vorlage:has(input:checked) { @apply border-emerald-500 bg-emerald-50/50; }
+.erg-wrapper .erg-vorlage:has(input:focus-visible) { @apply ring-2 ring-emerald-400 ring-offset-2; }
+.erg-wrapper .erg-mini { @apply grid gap-1 rounded-lg bg-slate-50 border border-slate-200 p-1.5; height: 5.5rem; grid-auto-rows: 1fr; }
+.erg-wrapper .erg-mini > span { border-radius: .3rem; border: 1px solid var(--erg-rand); background: var(--erg-flaeche-stark); }
+
+/* Chips + Zugriffs-Picker */
+.erg-wrapper .erg-tabs { @apply inline-flex gap-1 p-1 rounded-xl bg-slate-100 max-w-full overflow-x-auto; }
+.erg-wrapper .erg-tab { @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 whitespace-nowrap; }
+.erg-wrapper .erg-tab.is-active { @apply bg-white text-slate-900 shadow-sm; }
+.erg-wrapper .erg-picker-results {
+    @apply absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg;
+}
+.erg-wrapper .erg-picker-option { @apply flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-slate-700; }
+.erg-wrapper .erg-picker-option.is-highlighted { @apply bg-emerald-50 text-emerald-900; }
+.erg-wrapper .erg-zugriff-liste { @apply flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white; }
+.erg-wrapper .erg-zugriff-zeile { @apply flex flex-wrap items-center gap-2 px-3 py-2 text-sm; }
+.erg-wrapper .erg-chip { @apply inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700; }
+.erg-wrapper .erg-chip button { @apply text-slate-400 hover:text-slate-700 leading-none; }
+
+/* Avatare (Kürzel) */
+.erg-wrapper .erg-avatar {
+    @apply inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold uppercase shrink-0;
+    background: #e0e7ff; color: #3730a3; border: 2px solid #fff;
+}
+.erg-wrapper .erg-avatare { @apply inline-flex items-center; }
+.erg-wrapper .erg-avatare > * + * { margin-left: -.4rem; }
+
+/* ---------------------------------------------------------------
+ * Farbrollen (Felder, Mini-Vorschau, Badges)
+ * ------------------------------------------------------------- */
+.erg-farbe-gruen   { --erg-flaeche: #f0fdf7; --erg-flaeche-stark: #d1fae5; --erg-rand: #a7f3d0; --erg-text: #022c22; --erg-hinweis: #065f46; --erg-badge: #a7f3d0; --erg-badge-text: #022c22; --erg-icon: #047857; --erg-punkt: #10b981; }
+.erg-farbe-gelb    { --erg-flaeche: #fffbeb; --erg-flaeche-stark: #fef3c7; --erg-rand: #fde68a; --erg-text: #451a03; --erg-hinweis: #78350f; --erg-badge: #fde68a; --erg-badge-text: #451a03; --erg-icon: #b45309; --erg-punkt: #f59e0b; }
+.erg-farbe-rot     { --erg-flaeche: #fff5f6; --erg-flaeche-stark: #ffe4e6; --erg-rand: #fecdd3; --erg-text: #4c0519; --erg-hinweis: #9f1239; --erg-badge: #fecdd3; --erg-badge-text: #881337; --erg-icon: #e11d48; --erg-punkt: #f43f5e; }
+.erg-farbe-blau    { --erg-flaeche: #f0f9ff; --erg-flaeche-stark: #e0f2fe; --erg-rand: #bae6fd; --erg-text: #082f49; --erg-hinweis: #0c4a6e; --erg-badge: #bae6fd; --erg-badge-text: #082f49; --erg-icon: #0369a1; --erg-punkt: #0ea5e9; }
+.erg-farbe-lila    { --erg-flaeche: #f3f5ff; --erg-flaeche-stark: #e0e7ff; --erg-rand: #c7d2fe; --erg-text: #1e1b4b; --erg-hinweis: #3730a3; --erg-badge: #c7d2fe; --erg-badge-text: #1e1b4b; --erg-icon: #4338ca; --erg-punkt: #6366f1; }
+.erg-farbe-grau    { --erg-flaeche: #f1f5f9; --erg-flaeche-stark: #e2e8f0; --erg-rand: #cbd5e1; --erg-text: #0f172a; --erg-hinweis: #475569; --erg-badge: #e2e8f0; --erg-badge-text: #334155; --erg-icon: #475569; --erg-punkt: #94a3b8; }
+.erg-farbe-orange  { --erg-flaeche: #fff7ed; --erg-flaeche-stark: #ffedd5; --erg-rand: #fed7aa; --erg-text: #431407; --erg-hinweis: #9a3412; --erg-badge: #fed7aa; --erg-badge-text: #431407; --erg-icon: #c2410c; --erg-punkt: #f97316; }
+.erg-farbe-tuerkis { --erg-flaeche: #f0fdfa; --erg-flaeche-stark: #ccfbf1; --erg-rand: #99f6e4; --erg-text: #042f2e; --erg-hinweis: #115e59; --erg-badge: #99f6e4; --erg-badge-text: #042f2e; --erg-icon: #0f766e; --erg-punkt: #14b8a6; }
+.erg-punkt { display: inline-block; width: .625rem; height: .625rem; border-radius: 9999px; background: var(--erg-punkt); flex-shrink: 0; }
+
+/* ---------------------------------------------------------------
+ * Board (Infografik)
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-board-scroll { overflow-x: auto; padding-bottom: .5rem; }
+.erg-wrapper .erg-board {
+    position: relative;
+    max-width: 1900px;
+    margin-inline: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 25px -5px rgb(15 23 42 / .08), 0 8px 10px -6px rgb(15 23 42 / .06);
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.erg-wrapper .erg-board.erg-schema-papier { background: #faf7f2; }
+.erg-wrapper .erg-board.erg-schema-papier .erg-achse { background: #f3efe7; border-color: #e7e0d2; }
+.erg-wrapper .erg-board.erg-schema-papier .erg-stand { background: #f3efe7; border-color: #e7e0d2; }
+
+/* Kopf */
+.erg-wrapper .erg-kopf { @apply flex flex-wrap items-end justify-between gap-4 pb-4; border-bottom: 2px solid #e2e8f0; }
+.erg-wrapper .erg-kopf-badges { @apply inline-flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold uppercase tracking-wider mb-1.5; }
+.erg-wrapper .erg-titel { @apply text-2xl font-extrabold text-slate-900 tracking-tight; font-size: 1.5rem; line-height: 1.25; }
+.erg-wrapper .erg-untertitel { @apply text-sm text-slate-500 mt-0.5; }
+.erg-wrapper .erg-stand { @apply bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 text-right; }
+.erg-wrapper .erg-stand-label { @apply text-[11px] font-semibold uppercase tracking-wider text-slate-400; }
+.erg-wrapper .erg-stand-wert { @apply text-sm font-bold text-slate-700; }
+
+/* Inline bearbeitbare Texte */
+.erg-wrapper [contenteditable="true"] { outline: none; border-radius: .25rem; cursor: text; box-shadow: 0 0 0 1px transparent; transition: background-color .15s, box-shadow .15s; }
+.erg-wrapper [contenteditable="true"]:hover { box-shadow: 0 0 0 1px #fcd34d; }
+.erg-wrapper [contenteditable="true"]:focus { background: #fffbeb; box-shadow: 0 0 0 2px #fbbf24; }
+.erg-wrapper [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #94a3b8; font-weight: 500; }
+
+/* Haupt-Layout: Achse links | Raster */
+.erg-wrapper .erg-mit-achse { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 1rem; align-items: stretch; }
+.erg-wrapper .erg-achse { @apply bg-slate-50 rounded-2xl border border-slate-200/80 text-slate-500; }
+.erg-wrapper .erg-achse-y { @apply flex flex-col items-center justify-between py-2; }
+.erg-wrapper .erg-vertikal { writing-mode: vertical-rl; transform: rotate(180deg); }
+.erg-wrapper .erg-achse-x { @apply flex items-center justify-between gap-4 px-5 py-2.5; }
+.erg-wrapper .erg-achse-linie { height: 2px; flex: 1; border-radius: 9999px; background: linear-gradient(to right, #cbd5e1, #34d399, #059669); }
+
+.erg-wrapper .erg-raster { display: grid; gap: 1rem; align-items: stretch; }
+
+/* Felder */
+.erg-wrapper .erg-feld {
+    background: var(--erg-flaeche);
+    border: 1px solid var(--erg-rand);
+    border-radius: 1rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    min-width: 0;
+}
+.erg-wrapper .erg-feld-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; padding-bottom: .625rem; border-bottom: 1px solid var(--erg-rand); }
+.erg-wrapper .erg-feld-badge { display: inline-block; padding: .125rem .5rem; border-radius: .375rem; background: var(--erg-badge); color: var(--erg-badge-text); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; line-height: 1.4; }
+.erg-wrapper .erg-feld-titel { font-size: 1.125rem; font-weight: 800; color: var(--erg-text); margin-top: .25rem; }
+.erg-wrapper .erg-feld-hinweis { font-size: .75rem; line-height: 1.35; color: var(--erg-hinweis); opacity: .9; }
+.erg-wrapper .erg-feld-icon { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; flex-shrink: 0; border-radius: .75rem; background: var(--erg-flaeche-stark); border: 1px solid var(--erg-rand); color: var(--erg-icon); font-size: 1.05rem; }
+.erg-wrapper .erg-feld-zahl { font-size: .7rem; font-weight: 700; color: var(--erg-hinweis); opacity: .75; }
+
+/* Kartenliste */
+.erg-wrapper .erg-karten { display: flex; flex-direction: column; gap: .625rem; min-height: 2.5rem; }
+.erg-wrapper .erg-karten.is-raster-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.erg-wrapper .erg-feld.is-mittig > .erg-karten { margin-block: auto; }
+.erg-wrapper .erg-karten:empty::after,
+.erg-wrapper .erg-karten.is-leer::after {
+    content: attr(data-leer); grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: center; min-height: 2.5rem;
+    font-size: .75rem; color: var(--erg-hinweis); opacity: .55; border: 1px dashed var(--erg-rand); border-radius: .75rem;
+}
+.erg-wrapper .erg-board.is-export .erg-karten.is-leer::after { content: none; border: 0; }
+
+/* Unterbereich (z. B. „Schwerpunkt: Ganztag leben“) */
+.erg-wrapper .erg-unterbereich { background: var(--erg-flaeche-stark); border: 1px solid var(--erg-rand); border-radius: .75rem; padding: .75rem; display: flex; flex-direction: column; gap: .5rem; }
+.erg-wrapper .erg-unterbereich-titel { display: flex; align-items: center; gap: .4rem; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--erg-text); }
+
+/* Karte */
+.erg-wrapper .erg-karte {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--erg-rand, #e2e8f0);
+    border-radius: .75rem;
+    padding: .875rem;
+    box-shadow: 0 1px 2px rgb(15 23 42 / .06);
+    cursor: pointer;
+    text-align: left;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.erg-wrapper .erg-karte:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgb(15 23 42 / .08); }
+.erg-wrapper .erg-karte:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+.erg-wrapper .erg-karte.is-klein { padding: .625rem; }
+.erg-wrapper .erg-karte.is-breit { grid-column: 1 / -1; }
+.erg-wrapper .erg-karte.is-fokus { box-shadow: 0 0 0 2px #fbbf24, 0 1px 2px rgb(15 23 42 / .06); }
+.erg-wrapper .erg-karte.is-erledigt .erg-karte-titel { text-decoration: line-through; text-decoration-color: #94a3b8; color: #64748b; }
+.erg-wrapper .erg-karte-titel { font-size: .875rem; font-weight: 700; color: #1e293b; line-height: 1.3; }
+.erg-wrapper .erg-karte-zusatz { font-size: .75rem; color: #64748b; margin-top: .125rem; line-height: 1.35; white-space: pre-line; }
+.erg-wrapper .erg-karte.is-klein .erg-karte-titel { font-size: .75rem; }
+.erg-wrapper .erg-karte.is-klein .erg-karte-zusatz { font-size: 11px; }
+.erg-wrapper .erg-etikett { display: inline-block; margin-bottom: .25rem; padding: .0625rem .5rem; border-radius: .25rem; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--erg-icon); background: var(--erg-flaeche); }
+.erg-wrapper .erg-stern { position: absolute; top: -.5rem; right: -.5rem; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: #fbbf24; color: #451a03; font-size: .75rem; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgb(0 0 0 / .15); }
+.erg-wrapper .erg-karte-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem .625rem; margin-top: .5rem; font-size: 11px; color: #64748b; }
+.erg-wrapper .erg-karte-meta:empty { display: none; }
+.erg-wrapper .erg-faellig.is-ueberfaellig { color: #b91c1c; font-weight: 700; }
+.erg-wrapper .erg-aufgabe-status { display: inline-flex; align-items: center; gap: .25rem; font-weight: 600; }
+.erg-wrapper .erg-aufgabe-status.is-erledigt { color: #047857; }
+
+/* Drag & Drop (SortableJS) */
+.erg-wrapper .erg-ghost { opacity: .4; }
+.erg-wrapper .erg-chosen { box-shadow: 0 0 0 2px #10b981, 0 8px 18px rgb(15 23 42 / .15) !important; }
+.erg-wrapper .erg-board.is-bearbeiten .erg-karte { cursor: grab; }
+.erg-wrapper .erg-plus {
+    display: flex; align-items: center; justify-content: center; gap: .375rem; width: 100%;
+    padding: .375rem; border-radius: .625rem; border: 1px dashed var(--erg-rand); color: var(--erg-hinweis);
+    font-size: .75rem; font-weight: 600; background: rgb(255 255 255 / .5); transition: background-color .15s;
+}
+.erg-wrapper .erg-plus:hover { background: #fff; }
+
+/* Legende (Arbeits-Fahrplan) */
+.erg-wrapper .erg-legende { background: rgb(255 255 255 / .9); border: 1px solid var(--erg-rand, #e2e8f0); border-radius: .75rem; padding: .75rem; font-size: 11px; color: #475569; display: flex; flex-direction: column; gap: .5rem; }
+.erg-wrapper .erg-legende-titel { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1e293b; }
+.erg-wrapper .erg-fusszeile { font-size: 11px; font-weight: 600; color: #94a3b8; text-align: center; }
+
+/* Kanban/freie Boards: Spalten auf schmalen Bildschirmen untereinander */
+@media (max-width: 900px) {
+    .erg-wrapper .erg-board.is-frei { min-width: 0 !important; padding: 1rem; }
+    .erg-wrapper .erg-raster.is-frei { grid-template-columns: minmax(0, 1fr) !important; }
+    .erg-wrapper .erg-raster.is-frei > .erg-feld { grid-column: auto !important; grid-row: auto !important; }
+    .erg-wrapper .erg-board.is-frei .erg-kopf { align-items: flex-start; }
+}
+
+/* Export: Bearbeitungselemente ausblenden */
+.erg-wrapper .erg-board.is-export .erg-no-export { display: none !important; }
+.erg-wrapper .erg-board.is-export [contenteditable] { box-shadow: none !important; background: transparent !important; }
+.erg-wrapper .erg-board.is-export .erg-karte { transform: none !important; }
+
+/* ---------------------------------------------------------------
+ * Dialoge + Toasts (liegen außerhalb des Boards, aber im Wrapper)
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-backdrop {
+    position: fixed; inset: 0; z-index: 1060; display: flex; align-items: flex-start; justify-content: center;
+    padding: 4vh 1rem; background: rgb(15 23 42 / .55); overflow-y: auto;
+}
+.erg-wrapper .erg-dialog {
+    width: 100%; max-width: 40rem; background: #fff; border-radius: 1.25rem; border: 1px solid #e2e8f0;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / .3); display: flex; flex-direction: column; max-height: 92vh; overflow: hidden;
+}
+.erg-wrapper .erg-dialog.is-breit { max-width: 56rem; }
+.erg-wrapper .erg-dialog-kopf { @apply flex items-start justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-slate-50; }
+.erg-wrapper .erg-dialog-titel { @apply text-base font-bold text-slate-900; }
+.erg-wrapper .erg-dialog-body { @apply px-5 py-4 overflow-y-auto flex flex-col gap-4; }
+.erg-wrapper .erg-dialog-fuss { @apply flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-t border-slate-200 bg-white; }
+.erg-wrapper .erg-abschnitt { @apply rounded-xl border border-slate-200 p-3 flex flex-col gap-2; }
+.erg-wrapper .erg-abschnitt-titel { @apply text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1.5; }
+.erg-wrapper .erg-datei { @apply flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm; }
+.erg-wrapper .erg-datei a { @apply flex-1 min-w-0 truncate text-blue-700 hover:underline; }
+.erg-wrapper .erg-personen { @apply grid gap-0.5 sm:grid-cols-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 p-1.5; }
+.erg-wrapper .erg-personen label { @apply flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer; }
+.erg-wrapper .erg-feld-zeile { @apply rounded-xl border p-3 flex flex-col gap-2; border-color: var(--erg-rand); background: var(--erg-flaeche); }
+.erg-wrapper .erg-feld-zeile.is-unter { margin-left: 1.5rem; }
+.erg-wrapper .erg-farbwahl { @apply flex flex-wrap gap-1.5; }
+.erg-wrapper .erg-farbwahl button { width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--erg-punkt); border: 2px solid #fff; box-shadow: 0 0 0 1px #cbd5e1; }
+.erg-wrapper .erg-farbwahl button.is-active { box-shadow: 0 0 0 2px #0f172a; }
+
+.erg-wrapper .erg-toasts { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1080; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; max-width: calc(100vw - 2.5rem); }
+.erg-wrapper .erg-toast { @apply flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium shadow-lg text-white; background: #0f172a; pointer-events: auto; max-width: 26rem; }
+.erg-wrapper .erg-toast.is-fehler { background: #b91c1c; }
+.erg-wrapper .erg-toast.is-warnung { background: #b45309; }
+.erg-wrapper .erg-toast.is-ok i { color: #34d399; }
+.erg-wrapper .erg-spinner { width: 1rem; height: 1rem; border: 2px solid #34d399; border-top-color: transparent; border-radius: 9999px; animation: erg-drehen .8s linear infinite; }
+@keyframes erg-drehen { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------
+ * Kommentare, Verlauf, Reiter, Seitenleiste
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-zaehler {
+    @apply inline-flex items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold leading-none;
+    min-width: 1.15rem; height: 1.15rem; padding: 0 .3rem;
+}
+.erg-wrapper .erg-reiter { @apply flex gap-1 px-4 pt-2 border-b border-slate-200 bg-white overflow-x-auto shrink-0; }
+.erg-wrapper .erg-reiter button {
+    @apply inline-flex items-center gap-1.5 shrink-0 px-3 py-2 text-sm font-semibold text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-800;
+}
+.erg-wrapper .erg-reiter button.is-active { @apply text-emerald-700 border-emerald-600; }
+
+.erg-wrapper .erg-kommentare { @apply flex flex-col gap-3 overflow-y-auto; max-height: 50vh; }
+.erg-wrapper .erg-seitenleiste .erg-kommentare { max-height: none; }
+.erg-wrapper .erg-kommentar { @apply flex gap-2.5 rounded-xl p-2.5 bg-slate-50 border border-slate-100; }
+.erg-wrapper .erg-kommentar.is-eigener { @apply bg-emerald-50/60 border-emerald-100; }
+.erg-wrapper .erg-kommentar-text { @apply text-sm text-slate-700 mt-0.5; white-space: pre-line; overflow-wrap: anywhere; }
+.erg-wrapper .erg-kommentar-text.is-geloescht { @apply italic text-slate-400; }
+.erg-wrapper .erg-kommentar-text a { @apply text-blue-700 underline; }
+.erg-wrapper .erg-erwaehnung { @apply font-semibold text-emerald-800 bg-emerald-100 rounded px-0.5; }
+.erg-wrapper .erg-vorschlaege {
+    @apply absolute left-0 right-0 z-10 flex flex-col rounded-xl border border-slate-200 bg-white shadow-lg p-1 max-h-60 overflow-y-auto;
+    top: calc(100% - 2.75rem);
+}
+.erg-wrapper .erg-vorschlaege button { @apply flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-left text-slate-700 hover:bg-slate-50; }
+.erg-wrapper .erg-vorschlaege button.is-markiert { @apply bg-emerald-50 text-emerald-900; }
+
+.erg-wrapper .erg-verlauf { @apply flex flex-col list-none m-0 p-0; }
+.erg-wrapper .erg-verlauf-eintrag { @apply flex gap-3 py-2.5 border-b border-slate-100; }
+.erg-wrapper .erg-verlauf-eintrag:last-child { border-bottom: 0; }
+.erg-wrapper .erg-verlauf-eintrag.is-geloescht .erg-verlauf-icon { @apply bg-red-50 text-red-600; }
+.erg-wrapper .erg-verlauf-icon { @apply flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-xs shrink-0; }
+.erg-wrapper .erg-verlauf-link { @apply text-left text-slate-700 hover:text-emerald-700 hover:underline; background: none; border: 0; padding: 0; font: inherit; }
+.erg-wrapper .erg-verlauf-zeilen { @apply list-none m-0 mt-1 p-0 pl-2 border-l-2 border-slate-200 text-xs text-slate-500 flex flex-col gap-0.5; }
+
+.erg-wrapper .erg-backdrop.is-seitlich { justify-content: flex-end; align-items: stretch; padding: 0; }
+.erg-wrapper .erg-seitenleiste {
+    width: 100%; max-width: 30rem; height: 100%; background: #fff; display: flex; flex-direction: column;
+    box-shadow: -20px 0 40px -12px rgb(0 0 0 / .3);
+}
+
+/* ---------------------------------------------------------------
+ * Beschreibung, Checkliste, Abstimmung, Filter
+ * ------------------------------------------------------------- */
+.erg-wrapper .erg-beschreibung { @apply text-sm text-slate-700 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2; }
+.erg-wrapper .erg-beschreibung :is(p, ul, ol) { margin: 0 0 .5rem; }
+.erg-wrapper .erg-beschreibung :is(p, ul, ol):last-child { margin-bottom: 0; }
+.erg-wrapper .erg-beschreibung :is(ul, ol) { padding-left: 1.25rem; }
+.erg-wrapper .erg-beschreibung ul { list-style: disc; }
+.erg-wrapper .erg-beschreibung ol { list-style: decimal; }
+.erg-wrapper .erg-beschreibung a { @apply text-blue-700 underline; }
+.erg-wrapper .erg-checkpunkt { @apply flex items-center gap-2; }
+.erg-wrapper .erg-checkliste-stand.is-fertig { @apply text-emerald-700 font-semibold; }
+
+.erg-wrapper .erg-stimmen { @apply flex items-center gap-2 mt-2 pt-1.5 border-t border-dashed border-slate-200 text-xs text-slate-600; }
+.erg-wrapper .erg-punkte { @apply inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 px-2 py-0.5 font-bold; }
+.erg-wrapper .erg-punkte i { font-size: .55rem; }
+.erg-wrapper .erg-meine-punkte { @apply text-[11px] text-slate-500; }
+.erg-wrapper .erg-stimme-btn {
+    @apply inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-300 bg-white text-slate-700 font-bold text-base leading-none
+           hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300;
+}
+.erg-wrapper .erg-stimme-btn.is-plus { @apply border-rose-300 text-rose-700 hover:bg-rose-50; }
+.erg-wrapper .erg-alert-abstimmung { @apply bg-rose-50 border-rose-200 text-rose-900 items-center flex-wrap; }
+
+.erg-wrapper .erg-filterleiste { @apply flex flex-wrap items-center gap-2 mb-3 rounded-xl border border-slate-200 bg-white p-2 shadow-sm; }
+.erg-wrapper .erg-filterleiste .erg-select { width: auto; max-width: 14rem; }
+.erg-wrapper .erg-filter-suche { @apply flex items-center gap-2 flex-1; min-width: 12rem; }
+
+/* ---------------------------------------------------------------
+ * Druck: nur das Board, A4 quer
+ * ------------------------------------------------------------- */
+@media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    body * { visibility: hidden !important; }
+    #erg-board, #erg-board * { visibility: visible !important; }
+    #erg-board {
+        position: absolute; left: 0; top: 0; width: 100% !important; min-width: 0 !important;
+        box-shadow: none !important; border: 0 !important; padding: 0 !important;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    #erg-board .erg-no-export { display: none !important; }
+    .erg-wrapper .erg-board-scroll { overflow: visible !important; }
+}

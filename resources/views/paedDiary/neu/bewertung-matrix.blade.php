@@ -65,9 +65,14 @@
                 <tbody>
                     <template x-for="s in schueler" :key="'s' + s.id">
                         <tr>
-                            <th scope="row" x-text="s.name"></th>
+                            <th scope="row">
+                                <span x-text="s.name"></span>
+                                <div class="pdn-label-sm" style="font-weight:400" x-text="s.stufe || 'ohne Stufe'"></div>
+                            </th>
                             <template x-for="f in fragen" :key="'c' + s.id + '-' + f.id">
                                 <td>
+                                    <span class="pdn-label-sm" x-show="!gilt(s, f)" title="Gilt nicht für die Stufe dieses Schülers">–</span>
+                                    <template x-if="gilt(s, f)"><span>
                                     <span class="pdn-rate pdn-rate--self" title="Selbsteinschätzung" x-text="s.selbst[f.id] || '–'"></span>
                                     <span class="pdn-seg" role="group" :aria-label="'Einschätzung für ' + s.name + ': ' + f.text" style="margin-left:6px">
                                         <template x-for="wert in [1, 2, 3, 4, 5]" :key="'w' + wert">
@@ -79,6 +84,7 @@
                                     </span>
                                     <span class="pdn-diff" x-show="s.selbst[f.id] && s.lehrkraft[f.id] && Math.abs(s.selbst[f.id] - s.lehrkraft[f.id]) >= 2"
                                           x-text="'Δ ' + Math.abs(s.selbst[f.id] - s.lehrkraft[f.id])"></span>
+                                    </span></template>
                                 </td>
                             </template>
                             <td>

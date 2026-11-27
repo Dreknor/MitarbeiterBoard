@@ -44,10 +44,9 @@ class AtomFeedComposer
                 return [];
             }
 
-            $xml = simplexml_load_string($response->body(), 'SimpleXMLElement', LIBXML_NOCDATA);
+            $xml = $this->parseXml($response->body(), $url);
 
-            if ($xml === false) {
-                Log::warning('AtomFeedComposer: XML konnte nicht geparst werden.', ['url' => $url]);
+            if ($xml === null) {
                 return [];
             }
 
@@ -114,6 +113,50 @@ class AtomFeedComposer
             ]);
             return [];
         }
+    }
+
+    /**
+     * Parst den Feed ohne Warnungen (libxml-Fehler werden gesammelt und geloggt).
+     */
+    protected function parseXml(string $body, string $url): ?\SimpleXMLElement
+    {
+        $vorher = libxml_use_internal_errors(true);
+        libxml_clear_errors();
+
+        try {
+            $xml = simplexml_load_string($this->bereinigen($body), 'SimpleXMLElement', LIBXML_NOCDATA | LIBXML_NONET);
+
+            if ($xml === false) {
+                $fehler = libxml_get_errors()[0] ?? null;
+                Log::warning('AtomFeedComposer: XML konnte nicht geparst werden.', [
+                    'url'   => $url,
+                    'error' => $fehler ? trim($fehler->message) . ' (Zeile ' . $fehler->line . ')' : null,
+                    'start' => mb_substr($body, 0, 120),
+                ]);
+                return null;
+            }
+
+            return $xml;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($vorher);
+        }
+    }
+
+    /**
+     * Repariert typische Fehler fremder Feeds: BOM/Leerraum am Anfang und
+     * Textreste zwischen XML-Deklaration und erstem Element (z. B. "'; ?>"
+     * aus einem fehlerhaften Template des Anbieters).
+     */
+    protected function bereinigen(string $body): string
+    {
+        $body = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $body));
+
+        if (preg_match('/^(<\?xml[^>]*\?>)([^<]*)(<.*)$/s', $body, $teile) && trim($teile[2]) !== '') {
+            return $teile[1] . "\n" . $teile[3];
+        }
+
+        return $body;
     }
 
     protected function parseDate(string $date): ?\Carbon\Carbon

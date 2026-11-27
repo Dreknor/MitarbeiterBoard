@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="wp-container p-4">
+<div class="wp-wrapper">
 
     <a href="{{ route('wp.formatvorlagen.index') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@
             <div class="bg-white rounded-lg border border-gray-200 p-3">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-gray-600">Live-Vorschau</span>
-                    <span x-show="previewLoading" class="text-xs text-gray-400 italic">Lädt…</span>
+                    <span x-show.important="previewLoading" class="text-xs text-gray-400 italic">Lädt…</span>
                 </div>
                 <iframe id="wp-formatvorlage-preview"
                         class="w-full rounded border border-gray-100"

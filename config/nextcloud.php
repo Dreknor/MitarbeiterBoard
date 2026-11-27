@@ -52,4 +52,20 @@ return [
         'enabled'   => env('NEXTCLOUD_PERSONAL_ENABLED', false),
         'base_path' => env('NEXTCLOUD_PERSONAL_BASE_PATH', '/Personal'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nextcloud Wochenplan – zentrale Ablage für Arbeitsblätter und fertige Pläne
+    |--------------------------------------------------------------------------
+    |
+    | Zugangsdaten des Dienst-Kontos. An/Aus, Basisordner und Ordnervorlagen
+    | stehen in den Einstellungen (Modul „Wochenplan“).
+    |
+    */
+    'wochenplan' => [
+        'url'      => env('NEXTCLOUD_WOCHENPLAN_URL', env('NEXTCLOUD_URL', '')),
+        'username' => env('NEXTCLOUD_WOCHENPLAN_USERNAME', env('NEXTCLOUD_USERNAME', '')),
+        'password' => env('NEXTCLOUD_WOCHENPLAN_PASSWORD', env('NEXTCLOUD_PASSWORD', '')),
+        'timeout'  => (int) env('NEXTCLOUD_WOCHENPLAN_TIMEOUT', 60),
+    ],
 ];

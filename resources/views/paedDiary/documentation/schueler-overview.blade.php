@@ -64,7 +64,7 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        @foreach($session->gradingSystem->questions()->orderBy('sort_order')->get() as $question)
+                                                        @foreach($session->gradingSystem->questions as $question)
                                                             @php
                                                                 $studentAnswer = $session->studentAnswers->where('schueler_id', $schueler->id)
                                                                                                          ->where('question_id', $question->id)

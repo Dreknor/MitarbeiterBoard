@@ -1,20 +1,31 @@
-/* Tailwind v4: Preflight NICHT laden – Bootstrap bleibt erhalten */
+/*
+ * Wochenplan – Tailwind CSS v4, ohne Bootstrap
+ *
+ * Architektur (siehe AGENTS.md, wie Tickets/Zeitwirtschaft):
+ *   - Preflight deaktiviert (Bootstrap 4 bleibt global im Layout geladen)
+ *   - Alle Stile über .wp-wrapper gescopet, Komponenten mit Präfix wp-
+ *   - Bootstrap-Elementstile (h1–h6, label, a, button, table …) werden im Wrapper zurückgesetzt
+ *   - Utilities ungelayert und !important, nur Wochenplan-Views/-JS werden gescannt
+ *     (source(none)), damit sie Bootstrap/paper-dashboard sicher schlagen.
+ *     Rangfolge: Utilities (!important) > .wp-wrapper .wp-* Komponenten > Resets > Bootstrap
+ *   - Elemente mit Display-Utility (flex, grid …) brauchen `x-show.important`.
+ *   - Rahmen an <button>-Komponenten mit !important: das Layout setzt per
+ *     `#tw-main button:not([class*=border])` (ID-Selektor) sonst border-width 0.
+ *   - Keine Bootstrap-Klassen und kein Bootstrap-JS in Wochenplan-Views
+ *     (geprüft in tests/Feature/Wochenplan/OhneBootstrapTest.php).
+ */
 @import "tailwindcss/theme" layer(theme);
-@import "tailwindcss/utilities" layer(utilities);
+@import "tailwindcss/utilities" source(none) important;
 
-/* ── Alpine.js: x-cloak verhindert Flash of Unstyled Content ────────────── */
+@source "../views/wochenplan/new/**/*.blade.php";
+@source "../js/wochenplan.js";
+@source "../js/wochenplan/**/*.js";
+/* Klassennamen, die mit Bootstrap kollidieren, nicht erzeugen */
+@source not inline("container collapse table visible invisible");
+
 [x-cloak] { display: none !important; }
 
-@layer utilities {
-    /* Zusätzlich als Utility damit Tailwind es nicht entfernt */
-    .\[x-cloak\] { display: none !important; }
-}
-
-/* ── Tailwind v4: Quell-Dateien angeben ─────────────────────────────────── */
-@source "../views/wochenplan/**/*.blade.php";
-@source "../js/wochenplan.js";
-
-/* ── Custom Theme-Farben (primary = blue) ──────────────────────────────── */
+/* Primärfarbe (= Blau), von älteren Wochenplan-Views genutzt */
 @theme {
     --color-primary-50:  #eff6ff;
     --color-primary-100: #dbeafe;
@@ -28,91 +39,267 @@
     --color-primary-900: #1e3a8a;
 }
 
-/* ── wp-container Basis-Styles ──────────────────────────────────────────── */
-.wp-container {
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    color: #111827;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-.wp-container *,
-.wp-container *::before,
-.wp-container *::after {
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets gegen Bootstrap
+ * ------------------------------------------------------------- */
+.wp-wrapper {
     box-sizing: border-box;
+    color: #111827;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    padding: 1.5rem 1.75rem 4rem;
+    max-width: 1440px;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+    -webkit-font-smoothing: antialiased;
 }
+@media (max-width: 640px) { .wp-wrapper { padding: 1rem .75rem 5rem; } }
+.wp-wrapper *, .wp-wrapper *::before, .wp-wrapper *::after { box-sizing: border-box; }
+.wp-wrapper :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.35; color: inherit; font-family: inherit; }
+.wp-wrapper p { margin: 0; }
+.wp-wrapper a { color: inherit; text-decoration: none; }
+.wp-wrapper a:hover { text-decoration: none; color: inherit; }
+.wp-wrapper ul, .wp-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.wp-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; color: inherit; padding: 0; text-transform: none; }
+.wp-wrapper button:focus { outline: none; }
+.wp-wrapper label { margin: 0; display: inline; font-weight: inherit; font-size: inherit; color: inherit; }
+.wp-wrapper form { margin: 0; }
+.wp-wrapper table { border-collapse: collapse; width: auto; margin: 0; background: transparent; }
+.wp-wrapper th, .wp-wrapper td { padding: 0; border: 0; vertical-align: middle; }
+.wp-wrapper hr { margin: 0; border: 0; border-top: 1px solid #e5e7eb; }
+.wp-wrapper img, .wp-wrapper svg { vertical-align: middle; }
+.wp-wrapper input, .wp-wrapper select, .wp-wrapper textarea { font: inherit; color: inherit; margin: 0; }
+.wp-wrapper input[type=checkbox], .wp-wrapper input[type=radio] { width: 1rem; height: 1rem; accent-color: #2563eb; cursor: pointer; }
+.wp-wrapper small { font-size: .8125rem; }
+.wp-wrapper code { color: #be185d; font-size: .85em; }
 
-/* ── Bootstrap-Konflikte überschreiben ──────────────────────────────────── */
-/* Bootstrap setzt a { color: #007bff; text-decoration: underline } */
-.wp-container a {
-    text-decoration: none !important;
-    color: inherit;
+/* ---------------------------------------------------------------
+ * Kopfbereich
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-head { @apply flex flex-wrap items-start justify-between gap-3 mb-5; }
+.wp-wrapper .wp-title { @apply text-2xl font-bold text-gray-900 leading-tight; }
+.wp-wrapper .wp-subtitle { @apply text-sm text-gray-500 mt-1; }
+.wp-wrapper .wp-back { @apply inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-2; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-2 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.5rem;
 }
-
-/* Bootstrap .btn setzt background, border, color, padding etc. */
-/* Wir müssen Tailwind-Klassen auf Buttons gewinnen lassen */
-.wp-container button,
-.wp-container a.inline-flex,
-.wp-container a.flex {
-    box-shadow: none;
+.wp-wrapper .wp-btn-sm { @apply px-3 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2rem; }
+.wp-wrapper .wp-btn-primary   { @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white focus-visible:ring-blue-500; }
+.wp-wrapper .wp-btn-success   { @apply bg-emerald-600 hover:bg-emerald-700 text-white focus-visible:ring-emerald-500; }
+.wp-wrapper .wp-btn-danger    { @apply bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-500; }
+.wp-wrapper .wp-btn-warning   { @apply bg-amber-500 hover:bg-amber-600 text-white focus-visible:ring-amber-400; }
+.wp-wrapper .wp-btn-violet    { @apply bg-violet-600 hover:bg-violet-700 text-white focus-visible:ring-violet-500; }
+.wp-wrapper .wp-btn-secondary { @apply bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 focus-visible:ring-blue-400; border: 1px solid #e5e7eb !important; }
+.wp-wrapper .wp-btn-ghost     { @apply bg-transparent hover:bg-gray-100 text-gray-600 shadow-none focus-visible:ring-gray-300; }
+.wp-wrapper .wp-btn-danger-ghost { @apply bg-white hover:bg-red-50 text-red-600 focus-visible:ring-red-400; border: 1px solid #fecaca !important; }
+.wp-wrapper .wp-btn-icon {
+    @apply inline-flex items-center justify-center rounded-lg w-8 h-8 transition-colors cursor-pointer
+           text-gray-400 hover:bg-gray-100 hover:text-gray-800
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+    border-width: 0;
 }
+.wp-wrapper .wp-btn-icon.is-danger:hover { @apply bg-red-50 text-red-600; }
+.wp-wrapper .wp-btn-group { @apply inline-flex flex-wrap items-center gap-2; }
 
-/* Alle Hintergrundfarben innerhalb wp-container mit höchster Priorität */
-.wp-container .bg-primary-600 { background-color: #2563eb !important; }
-.wp-container .bg-primary-700 { background-color: #1d4ed8 !important; }
-.wp-container .hover\:bg-primary-700:hover { background-color: #1d4ed8 !important; }
-.wp-container .bg-red-600     { background-color: #dc2626 !important; }
-.wp-container .bg-red-700     { background-color: #b91c1c !important; }
-.wp-container .bg-blue-600    { background-color: #2563eb !important; }
-.wp-container .bg-blue-700    { background-color: #1d4ed8 !important; }
-.wp-container .bg-green-600   { background-color: #16a34a !important; }
-.wp-container .bg-green-700   { background-color: #15803d !important; }
-.wp-container .bg-amber-600   { background-color: #d97706 !important; }
-.wp-container .bg-amber-700   { background-color: #b45309 !important; }
-.wp-container .bg-gray-600    { background-color: #4b5563 !important; }
-.wp-container .bg-gray-700    { background-color: #374151 !important; }
-.wp-container .bg-indigo-600  { background-color: #4f46e5 !important; }
-.wp-container .bg-purple-600  { background-color: #9333ea !important; }
-.wp-container .bg-white       { background-color: #ffffff !important; }
+/* ---------------------------------------------------------------
+ * Formular-Elemente (16px auf Mobilgeräten verhindert iOS-Zoom)
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-input,
+.wp-wrapper .wp-select,
+.wp-wrapper .wp-textarea {
+    @apply block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900
+           shadow-sm placeholder:text-gray-400 sm:text-sm
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none
+           disabled:bg-gray-50 disabled:text-gray-500;
+    min-height: 2.5rem;
+    height: auto;
+}
+.wp-wrapper .wp-input-sm { @apply rounded-lg px-2.5 py-1.5 sm:text-sm; min-height: 2.125rem; }
+.wp-wrapper .wp-select { @apply pr-8; }
+.wp-wrapper .wp-textarea { min-height: 5rem; resize: vertical; }
+.wp-wrapper .wp-input.is-invalid, .wp-wrapper .wp-select.is-invalid { @apply border-red-400; }
+.wp-wrapper .wp-label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+.wp-wrapper .wp-hint { @apply text-xs text-gray-500 mt-1; }
+.wp-wrapper .wp-error { @apply text-xs font-medium text-red-600 mt-1; }
+.wp-wrapper .wp-check { @apply inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer; }
 
-/* Textfarben */
-.wp-container .text-white  { color: #ffffff !important; }
-.wp-container .text-gray-700 { color: #374151 !important; }
+/* Schalter */
+.wp-wrapper .wp-switch { @apply inline-flex items-center gap-3 cursor-pointer select-none; }
+.wp-wrapper .wp-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.wp-wrapper .wp-switch-track { @apply relative inline-block w-10 h-6 rounded-full bg-gray-300 transition-colors shrink-0; }
+.wp-wrapper .wp-switch-track::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 9999px;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s;
+}
+.wp-wrapper .wp-switch input:checked + .wp-switch-track { @apply bg-blue-600; }
+.wp-wrapper .wp-switch input:checked + .wp-switch-track::after { transform: translateX(16px); }
+.wp-wrapper .wp-switch input:focus-visible + .wp-switch-track { @apply ring-2 ring-blue-400 ring-offset-2; }
 
-/* Display-Klassen */
-.wp-container .inline-flex { display: inline-flex !important; }
-.wp-container .flex        { display: flex !important; }
-.wp-container .grid        { display: grid !important; }
-.wp-container .hidden      { display: none !important; }
-.wp-container .block       { display: block !important; }
+/* Datei-Auswahl */
+.wp-wrapper .wp-dropzone {
+    @apply relative flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300
+           bg-gray-50 px-4 py-5 text-center text-sm text-gray-500 cursor-pointer transition-colors;
+}
+.wp-wrapper .wp-dropzone:hover, .wp-wrapper .wp-dropzone.is-dragover { @apply border-blue-400 bg-blue-50 text-blue-700; }
+.wp-wrapper .wp-dropzone input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 
-/* Padding auf Buttons erhalten */
-.wp-container .px-3 { padding-inline: 0.75rem !important; }
-.wp-container .px-4 { padding-inline: 1rem !important; }
-.wp-container .py-2 { padding-block: 0.5rem !important; }
-.wp-container .py-1\.5 { padding-block: 0.375rem !important; }
+/* ---------------------------------------------------------------
+ * Karten, Abschnitte
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-card { @apply bg-white rounded-2xl shadow-sm border border-gray-200; }
+.wp-wrapper .wp-card-head { @apply flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 border-b border-gray-100; }
+.wp-wrapper .wp-card-title { @apply text-base font-bold text-gray-900 flex items-center gap-2; }
+.wp-wrapper .wp-card-body { @apply px-4 py-4 sm:px-5; }
+.wp-wrapper .wp-section-title { @apply text-xs font-semibold uppercase tracking-wide text-gray-500; }
+.wp-wrapper .wp-empty { @apply text-center py-10 px-4 text-sm text-gray-500; }
+.wp-wrapper .wp-empty-icon { @apply text-4xl mb-2 opacity-70; }
+
+/* Hinweisboxen */
+.wp-wrapper .wp-note { @apply flex items-start gap-3 rounded-xl border px-4 py-3 text-sm; }
+.wp-wrapper .wp-note-info    { @apply bg-blue-50 border-blue-200 text-blue-800; }
+.wp-wrapper .wp-note-warning { @apply bg-amber-50 border-amber-200 text-amber-900; }
+.wp-wrapper .wp-note-danger  { @apply bg-red-50 border-red-200 text-red-800; }
+.wp-wrapper .wp-note-success { @apply bg-emerald-50 border-emerald-200 text-emerald-800; }
+
+/* ---------------------------------------------------------------
+ * Badges & Pills
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-badge { @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap; }
+.wp-wrapper .wp-badge-gray   { @apply bg-gray-100 text-gray-700; }
+.wp-wrapper .wp-badge-blue   { @apply bg-blue-100 text-blue-700; }
+.wp-wrapper .wp-badge-green  { @apply bg-emerald-100 text-emerald-700; }
+.wp-wrapper .wp-badge-amber  { @apply bg-amber-100 text-amber-800; }
+.wp-wrapper .wp-badge-red    { @apply bg-red-100 text-red-700; }
+.wp-wrapper .wp-badge-violet { @apply bg-violet-100 text-violet-700; }
+.wp-wrapper .wp-badge-outline { @apply bg-white text-gray-600 border border-gray-200; }
+
+.wp-wrapper .wp-pills { @apply flex gap-2 overflow-x-auto pb-1; scrollbar-width: none; }
+.wp-wrapper .wp-pills::-webkit-scrollbar { display: none; }
+.wp-wrapper .wp-pill {
+    @apply inline-flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold
+           bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700 transition-colors;
+    border: 1px solid #e5e7eb !important;
+}
+.wp-wrapper .wp-pill.is-active { @apply bg-blue-600 text-white hover:text-white; border-color: #2563eb !important; }
+
+/* ---------------------------------------------------------------
+ * Plan-Karten (Übersicht)
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-grid { @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-3; }
+.wp-wrapper .wp-plan {
+    @apply flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-md;
+    border-top-width: 4px;
+}
+.wp-wrapper .wp-plan.is-klassenplan { border-top-color: #10b981; }
+.wp-wrapper .wp-plan.is-kinderplan  { border-top-color: #f59e0b; }
+.wp-wrapper .wp-plan.is-vorlage     { border-top-color: #8b5cf6; }
+.wp-wrapper .wp-plan.is-aktuell     { @apply ring-2 ring-blue-500/20; }
+
+/* ---------------------------------------------------------------
+ * Editor: Fächer und Aufgaben
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-fach { @apply bg-white rounded-2xl border border-gray-200 shadow-sm; }
+.wp-wrapper .wp-fach + .wp-fach { margin-top: .75rem; }
+.wp-wrapper .wp-fach-head { @apply flex items-center gap-2 px-3 py-2.5 sm:px-4 bg-gray-50 rounded-t-2xl border-b border-gray-100; }
+.wp-wrapper .wp-fach.is-zu .wp-fach-head { @apply rounded-b-2xl border-b-0; }
+.wp-wrapper .wp-griff { @apply cursor-grab text-gray-300 hover:text-gray-500 px-1 select-none; touch-action: none; }
+.wp-wrapper .wp-aufgaben { @apply px-2 py-1 sm:px-3; min-height: 1.5rem; }
+.wp-wrapper .wp-aufgabe { @apply flex items-start gap-2 rounded-lg px-1.5 py-2 transition-colors; }
+.wp-wrapper .wp-aufgabe + .wp-aufgabe { border-top: 1px solid #f3f4f6; }
+.wp-wrapper .wp-aufgabe:hover { @apply bg-gray-50; }
+.wp-wrapper .wp-aufgabe-aktionen { @apply flex items-center gap-0.5 shrink-0 opacity-100 sm:opacity-0 transition-opacity; }
+.wp-wrapper .wp-aufgabe:hover .wp-aufgabe-aktionen,
+.wp-wrapper .wp-aufgabe:focus-within .wp-aufgabe-aktionen { opacity: 1; }
+.wp-wrapper .sortable-ghost { @apply opacity-40 bg-blue-50; }
+.wp-wrapper .sortable-chosen { @apply bg-blue-50; }
+
+.wp-wrapper .wp-niveau { @apply inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200; }
+
+/* Datei-Zeilen */
+.wp-wrapper .wp-datei { @apply flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm; }
+.wp-wrapper .wp-datei + .wp-datei { margin-top: .5rem; }
+.wp-wrapper .wp-datei-name { @apply flex-1 min-w-0 truncate text-gray-800 hover:text-blue-700; }
+
+/* ---------------------------------------------------------------
+ * Status je Kind (offen / teilweise / erledigt)
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-status {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold transition-colors cursor-pointer select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+    border: 1px solid #d1d5db !important; /* #tw-main button:not([class*=border]) im Layout setzt sonst 0 */
+}
+/* „teilweise“: halb gefüllter Kreis (unabhängig von Schriftarten) */
+.wp-wrapper .wp-status.is-teilweise::before,
+.wpt-status.is-teilweise::before {
+    content: ""; display: block; width: 14px; height: 14px; border-radius: 9999px;
+    border: 2px solid currentColor; background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+.wp-wrapper .wp-status.is-offen     { @apply bg-white text-gray-300 hover:border-gray-400; border-color: #d1d5db !important; }
+.wp-wrapper .wp-status.is-teilweise { @apply bg-amber-100 text-amber-700; border-color: #fcd34d !important; }
+.wp-wrapper .wp-status.is-erledigt  { @apply bg-emerald-500 text-white; border-color: #059669 !important; }
+.wp-wrapper .wp-status.hat-notiz    { box-shadow: inset 0 -3px 0 #6366f1; }
+/* Hover-Rahmen ebenfalls gegen die Layout-Regel */
+.wp-wrapper .wp-status.is-offen:hover { border-color: #9ca3af !important; }
+.wp-wrapper .wp-pill:hover { border-color: #93c5fd !important; }
+.wp-wrapper .wp-pill.is-active:hover { border-color: #2563eb !important; }
+.wp-wrapper .wp-status.is-ausgewaehlt { @apply ring-2 ring-blue-500 ring-offset-1; }
+.wp-wrapper .wp-zaehler { @apply inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 whitespace-nowrap; border: 1px solid #e5e7eb; }
+.wp-wrapper .wp-zaehler.is-fertig { @apply bg-emerald-50 border-emerald-200 text-emerald-700; }
+.wp-wrapper .wp-zaehler.is-offen  { @apply bg-amber-50 border-amber-200 text-amber-800; }
+.wp-wrapper .wp-zaehler.is-leer   { @apply bg-gray-50 border-gray-200 text-gray-500; }
+
+/* Matrix */
+.wp-wrapper .wp-matrix-scroll { @apply overflow-auto rounded-2xl border border-gray-200 bg-white; max-height: 75vh; }
+.wp-wrapper .wp-matrix { @apply text-sm; border-collapse: separate; border-spacing: 0; }
+.wp-wrapper .wp-matrix th, .wp-wrapper .wp-matrix td { @apply border-b border-gray-100 px-2 py-1.5; }
+.wp-wrapper .wp-matrix thead th { @apply sticky top-0 z-10 bg-gray-50 text-xs font-semibold text-gray-600 align-bottom; }
+.wp-wrapper .wp-matrix .wp-matrix-name { @apply sticky left-0 z-[5] bg-white text-left font-medium text-gray-800 whitespace-nowrap; }
+.wp-wrapper .wp-matrix thead .wp-matrix-name { @apply z-20 bg-gray-50; }
+.wp-wrapper .wp-matrix-kopf { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------
+ * Dialoge & Seitenleiste
+ * ------------------------------------------------------------- */
+.wp-wrapper .wp-overlay { @apply fixed inset-0 z-[1050] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center; }
+.wp-wrapper .wp-dialog { @apply w-full max-w-lg rounded-2xl bg-white shadow-2xl; }
+.wp-wrapper .wp-dialog-lg { @apply max-w-3xl; }
+.wp-wrapper .wp-dialog-head { @apply flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4; }
+.wp-wrapper .wp-dialog-body { @apply px-5 py-4; max-height: 70vh; overflow-y: auto; }
+.wp-wrapper .wp-dialog-foot { @apply flex flex-wrap justify-end gap-2 border-t border-gray-100 px-5 py-3; }
+.wp-wrapper .wp-seitenleiste { @apply fixed inset-y-0 right-0 z-[1050] flex w-full max-w-md flex-col bg-white shadow-2xl; }
+
+/* Meldung unten (Speichern, Fehler) */
+.wp-wrapper .wp-toast { @apply fixed bottom-5 right-5 z-[1100] max-w-sm rounded-xl px-4 py-3 text-sm font-medium shadow-lg; }
+.wp-wrapper .wp-toast.is-success { @apply bg-gray-900 text-white; }
+.wp-wrapper .wp-toast.is-error   { @apply bg-red-600 text-white; }
+.wp-wrapper .wp-toast.is-warning { @apply bg-amber-500 text-white; }
+
+/* Hilfe-Text */
+.wp-wrapper .wp-prose h2 { @apply text-lg font-bold mt-6 mb-2; }
+.wp-wrapper .wp-prose h3 { @apply text-base font-semibold mt-4 mb-1.5; }
+.wp-wrapper .wp-prose p { @apply mb-3 text-gray-700; }
+.wp-wrapper .wp-prose ul { @apply mb-3 pl-5; list-style: disc; }
+.wp-wrapper .wp-prose li { @apply mb-1 text-gray-700; }
+
+/* ---------------------------------------------------------------
+ * Fach-Symbole (auch außerhalb des Wrappers genutzt)
+ * ------------------------------------------------------------- */
+.wp-fach-symbol { display: inline-block; vertical-align: middle; margin-right: .2em; line-height: 1; }
+.wp-fach-symbol--emoji { font-size: 1.1em; }
+.wp-fach-symbol--svg svg { width: 1.2em; height: 1.2em; }
+.wp-fach-symbol--bild { width: 1.2em; height: 1.2em; object-fit: contain; }
 
 @media print {
-    .no-print { display: none; }
-    .wp-container { padding: 0; margin: 0; }
+    .wp-wrapper .no-print { display: none !important; }
+    .wp-wrapper { padding: 0; }
 }
-
-/* ── Fach-Symbol Styles ─────────────────────────────────────────────────── */
-.wp-fach-symbol {
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 0.2em;
-    line-height: 1;
-}
-
-.wp-fach-symbol--emoji {
-    font-size: 1.1em;
-}
-
-.wp-fach-symbol--bild {
-    width: 1.2em;
-    height: 1.2em;
-    object-fit: contain;
-}
-
-

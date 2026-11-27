@@ -23,6 +23,7 @@ import { registerTaskPanel, taskPanelMethods } from './paed-diary-v2/task-panel.
 import { registerStageDropdown } from './paed-diary-v2/stage-dropdown.js';
 import { registerAppointmentManager } from './paed-diary-v2/appointment-manager.js';
 import { registerGroupManager } from './paed-diary-v2/group-manager.js';
+import { registerWochenplanStore } from './paed-diary-v2/wochenplan.js';
 import { registerElterngespraeche } from './paed-diary-v2/elterngespraeche.js';
 import { csrfToken } from './paed-diary-v2/utils.js';
 import { registerGraduierung } from './paed-diary-neu/graduierung.js';
@@ -53,15 +54,33 @@ function registerNeu(Alpine) {
         darstellung: { layout: 'klassisch', schrift: 'standard', kategorie_farben: true, pausierte: false, ...darstellung },
         darstellungOffen: false,
         filterOffen: false,
+        nachObenSichtbar: false,
 
         initNeu() {
             const store = this.$store.diary;
+            // Schwebender „Nach oben“-Button erst nach etwas Scrollen
+            const pruefeScroll = () => { this.nachObenSichtbar = window.scrollY > 400; };
+            window.addEventListener('scroll', pruefeScroll, { passive: true });
+            pruefeScroll();
             store.showPaused = !!this.darstellung.pausierte;
             // Auf dem Handy ist die breite Tabelle unpraktisch: dort Tageskarten statt „Klassisch“
             // zeigen (nur für diese Sitzung, die gespeicherte Wahl bleibt unverändert)
             if (window.innerWidth < 768 && this.darstellung.layout === 'klassisch') {
                 this.darstellung.layout = 'karten';
             }
+        },
+
+        /** Kopplung: zur Trennzeile bzw. zum Block einer Klasse springen */
+        zuKlasse(key) {
+            const ziel = document.getElementById('pdn-sprung-' + key);
+            if (!ziel) return;
+            const ruhig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            ziel.scrollIntoView({ behavior: ruhig ? 'auto' : 'smooth', block: 'start' });
+        },
+
+        nachOben() {
+            const ruhig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: ruhig ? 'auto' : 'smooth' });
         },
 
         get wrapperKlassen() {
@@ -181,33 +200,18 @@ function registerNeu(Alpine) {
     Alpine.data('spaltenSeite', () => kombiniere(columnsManagerMethods(), {
         /** Spalte, deren Deaktivierung gerade bestätigt wird */
         bestaetigen: null,
-        /** Spalte, deren Gruppe gerade geändert wird */
-        gruppeFuer: null,
-        gruppeNeu: '',
         typen: { boolean: 'Ja/Nein', ampel: 'Ampel', text: 'Text', number: 'Zahl' },
 
         schliessen() {
             this.$store.diary.columnsCardOpen = false;
             this.bestaetigen = null;
-            this.gruppeFuer = null;
             this.copyOpenFor = null;
+            this.bearbeitenSchliessen();
         },
 
         async deaktivieren(col) {
             await this.deactivateColumn(col.id, true);
             this.bestaetigen = null;
-        },
-
-        gruppeAendern(col) {
-            this.gruppeFuer = col.id;
-            this.gruppeNeu = col.category || '';
-        },
-
-        async gruppeSpeichern(col) {
-            await this.updateColumnCategory(col.id, this.gruppeNeu.trim());
-            this.gruppeFuer = null;
-            // Gruppen-Überschriften in der Woche aktualisieren
-            this.$store.diary.loadWeek();
         },
     }));
 
@@ -810,8 +814,11 @@ function registerBewertungsMatrix(Alpine) {
         meldung: '',
         abschlussFragen: false,
 
+        // Gilt die Frage für die Graduierungsstufe des Schülers? (s.fragen = Fragen-IDs seiner Stufe)
+        gilt(s, f) { return !Array.isArray(s.fragen) || s.fragen.includes(f.id); },
+
         istVollstaendig(s) {
-            return this.fragen.every(f => s.lehrkraft[f.id]);
+            return this.fragen.every(f => !this.gilt(s, f) || s.lehrkraft[f.id]);
         },
 
         get vollstaendig() {
@@ -890,6 +897,7 @@ function registerAll(Alpine) {
     registerKategorien(Alpine);
     registerBewertungsMatrix(Alpine);
     registerDiaryStore(Alpine);
+    registerWochenplanStore(Alpine);
     registerDiaryTable(Alpine);
     registerNoteEditor(Alpine);
     registerColumnsManager(Alpine);

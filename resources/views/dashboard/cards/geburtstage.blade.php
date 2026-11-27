@@ -8,12 +8,14 @@
             }
             $isToday = $birthday->isToday();
             $age = $birthday->year - $emp->geburtstag->year;
+            // Ohne gepflegte Personaldaten (z. B. nur Geburtstag importiert) den Benutzernamen zeigen
+            $name = trim($emp->vorname.' '.$emp->familienname) ?: $emp->user?->name;
         @endphp
         <div class="flex items-center gap-3 px-4 py-3 {{ $isToday ? 'bg-amber-50 border-l-4 border-amber-400' : '' }}">
             <div class="shrink-0 text-xl">🎂</div>
             <div class="flex-1 min-w-0">
                 <div class="text-sm text-gray-800 font-medium truncate">
-                    {{ $emp->vorname }} {{ $emp->familienname }}
+                    {{ $name }}
                     @if($isToday)
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 ml-1">
                             Heute!

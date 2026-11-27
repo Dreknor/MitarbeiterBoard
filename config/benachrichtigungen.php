@@ -65,6 +65,14 @@ return [
             'mail'         => 'sofort',
             'permission'   => ['view tickets'],
         ],
+        'boards' => [
+            'label'        => 'Boards',
+            'beschreibung' => 'Kommentare und @-Erwähnungen auf Boards, Zuständigkeiten und fällige Karten',
+            'icon'         => 'fa-th-large',
+            'push'         => true,
+            'mail'         => 'sofort',
+            'permission'   => ['view result boards'],
+        ],
         'prozesse' => [
             'label'        => 'Prozesse',
             'beschreibung' => 'Ihnen zugewiesene Prozessschritte und Kommentare',
@@ -123,7 +131,7 @@ return [
         ],
         'nachrichten' => [
             'label'        => 'Nachrichten',
-            'beschreibung' => 'Neue Nachrichten im Board (abendliche Sammelmail)',
+            'beschreibung' => 'Neue Nachrichten in Ihren Gruppen (Glocke/Push sofort, Mail als abendliche Sammelmail). Nachrichten mit Lesebestätigung und Erinnerungen kommen immer sofort.',
             'icon'         => 'fa-newspaper',
             'push'         => false,
             'mail'         => 'sofort',
@@ -179,7 +187,7 @@ return [
     ],
 
     /*
-    | Titel der Wiki-Seite mit der Erklärung für Mitarbeitende.
+    | Slug der Wiki-Seite (Systemseite) mit der Erklärung für Mitarbeitende.
     */
-    'wiki_titel' => 'Benachrichtigungen',
+    'wiki_slug' => 'benachrichtigungen',
 ];

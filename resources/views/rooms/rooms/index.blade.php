@@ -101,6 +101,10 @@
             </div>
         </div>
     @endcan
+
+    {{-- Freien Raum zu einem Zeitpunkt finden --}}
+    @include('rooms.rooms.partials.freie_raeume_suche')
+
     {{-- Räume-Liste --}}
     @if($rooms->count() > 0)
         <div x-data="{

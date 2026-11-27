@@ -84,6 +84,11 @@
                                     <i class="fas fa-copy"></i>
                                     <span>Vorlagen</span>
                                 </a>
+                                <a href="{{ route('wp.bibliothek.index') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'bibliothek') active @endif">
+                                    <i class="fas fa-book"></i>
+                                    <span>Aufgaben-Bibliothek</span>
+                                </a>
                             @endcan
                             @can('manage wochenplan-faecher')
                                 <a href="{{ route('wp.faecher.index') }}"
@@ -97,6 +102,13 @@
                                    class="sidebar-link @if($wpActive && request()->segment(2) == 'formatvorlagen') active @endif">
                                     <i class="fas fa-palette"></i>
                                     <span>Formatvorlagen</span>
+                                </a>
+                            @endcan
+                            @can('edit settings')
+                                <a href="{{ route('wp.einstellungen') }}"
+                                   class="sidebar-link @if($wpActive && request()->segment(2) == 'einstellungen') active @endif">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Einstellungen</span>
                                 </a>
                             @endcan
                         </div>
@@ -141,6 +153,15 @@
                     </a>
                 @endcan
 
+                {{-- Ergebnisboards (Ergebnissicherung als Matrix, Kanban, SWOT …) --}}
+                @can('view result boards')
+                    <a href="{{ route('ergebnisboards.index') }}"
+                       class="sidebar-link @if(request()->segment(1) == 'ergebnisboards') active @endif">
+                        <i class="fas fa-th-large"></i>
+                        <span>Boards</span>
+                    </a>
+                @endcan
+
                 <div class="sidebar-section-label">Organisation</div>
 
                 {{-- ── BERATUNGEN (dynamisch nach Gruppen) ────────────── --}}
@@ -174,6 +195,7 @@
                         </a>
 
                         {{-- Pro Gruppe ein eigenes Untermenü --}}
+                        @php $ungeleseneNachrichten = app(\App\Services\Posts\PostService::class)->ungeleseneJeGruppe(auth()->user()); @endphp
                         @foreach(auth()->user()->groups() as $group)
                             @php
                                 $groupActive = request()->segment(1) == $group->name;
@@ -199,6 +221,14 @@
                                         <i class="far fa-comments"></i>
                                         <span>Themen</span>
                                     </a>
+                                    <a href="{{ url($group->name.'/nachrichten') }}"
+                                       class="sidebar-link @if($groupActive && request()->segment(2) == 'nachrichten') active @endif">
+                                        <i class="far fa-newspaper"></i>
+                                        <span>Nachrichten</span>
+                                        @if(($ungeleseneNachrichten[$group->id] ?? 0) > 0)
+                                            <span class="sidebar-badge" title="ungelesen">{{ $ungeleseneNachrichten[$group->id] }}</span>
+                                        @endif
+                                    </a>
                                     <a href="{{ url($group->name.'/archive') }}"
                                        class="sidebar-link @if($groupActive && request()->segment(2) == 'archive') active @endif">
                                         <i class="fas fa-archive"></i>
@@ -219,15 +249,6 @@
                                         <i class="fas fa-save"></i>
                                         <span>Themenspeicher</span>
                                     </a>
-                                    @can('create Wochenplan')
-                                        @if($group->hasWochenplan == 1)
-                                            <a href="{{ url($group->name.'/wochenplan') }}"
-                                               class="sidebar-link @if($groupActive && request()->segment(2) == 'wochenplan') active @endif">
-                                                <i class="fas fa-tasks"></i>
-                                                <span>Wochenplan</span>
-                                            </a>
-                                        @endif
-                                    @endcan
                                     @can('manage recurring themes')
                                         <a href="{{ url($group->name.'/themes/recurring') }}"
                                            class="sidebar-link @if($groupActive && request()->segment(3) == 'recurring' && request()->segment(2) == 'themes') active @endif">
