@@ -56,4 +56,15 @@ class WikiHandbuecherTest extends TestCase
 
         $this->actingAs($user)->get(route('wiki.show', 'meetings'))->assertOk()->assertSee('Kurz gesagt');
     }
+
+    public function test_raumplan_handbuch_beschreibt_die_raumsuche(): void
+    {
+        $seite = WikiSeite::where('slug', 'raumplanungstool-anleitung')->firstOrFail();
+
+        $this->assertTrue($seite->systemseite);
+        $this->assertSame('Raumplan', $seite->titel);
+        $this->assertSame(WikiSeite::where('slug', 'mitarbeiterboard')->firstOrFail()->id, $seite->parent_id);
+        $this->assertStringContainsString('Freien Raum zu einem Zeitpunkt finden', $seite->inhalt_text);
+        $this->assertStringContainsString('wiki-hinweis-warnung', $seite->inhalt);
+    }
 }
