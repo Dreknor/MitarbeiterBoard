@@ -14,7 +14,7 @@
     ]))" x-cloak>
     <a href="{{ route('arbeitsblaetter.index') }}" class="ab-back mb-3"><i class="fas fa-arrow-left"></i> Bibliothek</a>
     <h1 class="ab-page-title">Einstellungen: Angepasste Arbeitsblätter</h1>
-    <p class="ab-page-sub mb-5">Ablage in der Nextcloud, Automatik im Wochenplan, Word-Ausgabe und KI-Kontingent. Zugangsdaten (KI, Nextcloud) stehen in der .env (<code>AB_KI_*</code>, <code>AB_NEXTCLOUD_*</code>).</p>
+    <p class="ab-page-sub mb-5">Ablage in der Nextcloud, Automatik im Wochenplan, Word-Ausgabe und KI-Kontingent. KI-Anbieter und Zugangsdaten stehen in der .env (<code>AB_KI_TREIBER</code> = anthropic, gemini, openrouter_auto oder openrouter_free; <code>AB_KI_*</code>, <code>AB_GEMINI_*</code>, <code>AB_OPENROUTER_*</code>, <code>AB_NEXTCLOUD_*</code>).</p>
 
     @if(session('Meldung'))
         <div class="ab-alert ab-alert-gruen mb-4"><i class="fas fa-check-circle mt-0.5"></i><div>{{ session('Meldung') }}</div></div>

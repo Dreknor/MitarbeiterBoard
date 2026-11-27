@@ -2,7 +2,6 @@
 
 namespace App\Services\Arbeitsblaetter\Ki;
 
-use App\Support\AbStruktur;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
@@ -50,18 +49,18 @@ class AnthropicErkenner implements AbErkenner
             }
         }
         if ($textHinweis) {
-            $inhalt[] = ['type' => 'text', 'text' => "Textebene des PDFs (kann Fehler und falsche Reihenfolge enthalten, nur als Hilfe):\n".mb_substr($textHinweis, 0, 20000)];
+            $inhalt[] = ['type' => 'text', 'text' => ErkennerVorgaben::TEXT_HINWEIS.mb_substr($textHinweis, 0, 20000)];
         }
-        $inhalt[] = ['type' => 'text', 'text' => 'Erfasse dieses Arbeitsblatt vollständig als Bausteine nach den Regeln.'];
+        $inhalt[] = ['type' => 'text', 'text' => ErkennerVorgaben::AUFTRAG];
 
         $anfrage = [
             'model' => $this->modell(),
             'max_tokens' => 16000,
-            'system' => self::PROMPT,
+            'system' => ErkennerVorgaben::PROMPT,
             'messages' => [['role' => 'user', 'content' => $inhalt]],
             'output_config' => [
                 'effort' => (string) config('arbeitsblaetter.ki.aufwand', 'medium'),
-                'format' => ['type' => 'json_schema', 'schema' => self::schema()],
+                'format' => ['type' => 'json_schema', 'schema' => ErkennerVorgaben::schema()],
             ],
             'fallbacks' => 'default',
         ];
@@ -93,14 +92,14 @@ class AnthropicErkenner implements AbErkenner
         }
 
         $text = collect($daten['content'] ?? [])->where('type', 'text')->pluck('text')->implode('');
-        $roh = json_decode($text, true);
+        $roh = ErkennerVorgaben::jsonLesen($text);
         if (! is_array($roh)) {
             throw new AbErkennungFehler($grund === 'max_tokens'
                 ? 'Das Blatt ist zu umfangreich für eine Erkennung. Bitte in mehreren Teilen erfassen.'
                 : 'Die Antwort der KI konnte nicht gelesen werden.');
         }
 
-        $struktur = AbStruktur::normalisieren(self::umwandeln($roh));
+        $struktur = ErkennerVorgaben::struktur($roh);
 
         return new AbErkennung(
             $struktur,
@@ -116,93 +115,17 @@ class AnthropicErkenner implements AbErkenner
     {
         $eingabe = (int) ($usage['input_tokens'] ?? 0) + (int) ($usage['cache_creation_input_tokens'] ?? 0) + (int) ($usage['cache_read_input_tokens'] ?? 0);
         $ausgabe = (int) ($usage['output_tokens'] ?? 0);
-        $cent = $eingabe / 1_000_000 * (int) config('arbeitsblaetter.ki.preis_eingabe_cent', 400)
-            + $ausgabe / 1_000_000 * (int) config('arbeitsblaetter.ki.preis_ausgabe_cent', 2000);
-
-        return (int) ceil($cent);
+        return ErkennerVorgaben::kostenCent($eingabe, $ausgabe, (int) config('arbeitsblaetter.ki.preis_eingabe_cent', 400), (int) config('arbeitsblaetter.ki.preis_ausgabe_cent', 2000));
     }
 
-    /** KI-Format (flach, `seite`/`box` am Bild) → Baustein-Format. */
-    public static function umwandeln(array $roh): array
+    /** Verbindungsprüfung (kostenlos): Modell abrufen. */
+    public function pruefen(): array
     {
-        $baustein = function (array $b) use (&$baustein) {
-            if (($b['typ'] ?? '') === 'bild' && isset($b['box'])) {
-                $b['quelle'] = ['seite' => (int) ($b['seite'] ?? 1), 'box' => $b['box']];
-            }
-            unset($b['seite'], $b['box']);
-            if (isset($b['kinder']) && is_array($b['kinder'])) {
-                $b['kinder'] = array_map($baustein, array_filter($b['kinder'], 'is_array'));
-            }
+        $antwort = Http::withHeaders([
+            'x-api-key' => (string) config('arbeitsblaetter.ki.schluessel'),
+            'anthropic-version' => self::API_VERSION,
+        ])->timeout(15)->get('https://api.anthropic.com/v1/models/'.rawurlencode($this->modell()));
 
-            return $b;
-        };
-
-        return [
-            'seiten' => (int) ($roh['seiten'] ?? 1),
-            'bausteine' => array_map($baustein, array_filter((array) ($roh['bausteine'] ?? []), 'is_array')),
-        ];
+        return [$antwort->successful(), $antwort->successful() ? 'erreichbar' : 'Fehler (HTTP '.$antwort->status().')'];
     }
-
-    public static function schema(): array
-    {
-        $segment = [
-            'type' => 'object',
-            'additionalProperties' => false,
-            'required' => ['typ'],
-            'properties' => [
-                'typ' => ['type' => 'string', 'enum' => ['text', 'luecke']],
-                'text' => ['type' => 'string'],
-                'laenge' => ['type' => 'integer', 'description' => 'Ungefähre Anzahl Zeichen, die in die Lücke passen'],
-            ],
-        ];
-        $felder = [
-            'typ' => ['type' => 'string', 'enum' => array_keys(AbStruktur::TYPEN)],
-            'text' => ['type' => 'string', 'description' => 'Text für ueberschrift und anweisung'],
-            'nummer' => ['type' => 'string', 'description' => 'Aufgabennummer wie im Original, z. B. „1“ oder „b)“'],
-            'inhalt' => ['type' => 'array', 'items' => $segment, 'description' => 'Für text und aufgabe: Text und Lücken in Lesereihenfolge'],
-            'frage' => ['type' => 'string'],
-            'optionen' => ['type' => 'array', 'items' => ['type' => 'string']],
-            'mehrfach' => ['type' => 'boolean'],
-            'zeilen' => ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string']]],
-            'kopfzeile' => ['type' => 'boolean'],
-            'anzahl' => ['type' => 'integer', 'description' => 'Anzahl der Schreiblinien'],
-            'beschreibung' => ['type' => 'string', 'description' => 'Kurze Beschreibung der Abbildung'],
-            'seite' => ['type' => 'integer', 'description' => 'Seite der Abbildung (ab 1)'],
-            'box' => ['type' => 'array', 'items' => ['type' => 'number'], 'description' => 'Relative Box [x1, y1, x2, y2] der Abbildung auf der Seite, Werte 0 bis 1'],
-        ];
-        $kind = ['type' => 'object', 'additionalProperties' => false, 'required' => ['typ'], 'properties' => $felder];
-        $baustein = ['type' => 'object', 'additionalProperties' => false, 'required' => ['typ'], 'properties' => array_merge($felder, [
-            'kinder' => ['type' => 'array', 'items' => $kind, 'description' => 'Teilaufgaben einer aufgabe (eine Ebene)'],
-        ])];
-
-        return [
-            'type' => 'object',
-            'additionalProperties' => false,
-            'required' => ['seiten', 'bausteine'],
-            'properties' => [
-                'seiten' => ['type' => 'integer'],
-                'bausteine' => ['type' => 'array', 'items' => $baustein],
-            ],
-        ];
-    }
-
-    public const PROMPT = <<<'TXT'
-Du erfasst Arbeitsblätter aus Schulen (Fotos oder PDF), damit sie für Kinder mit Sehbehinderung in großer Schrift neu gesetzt werden können. Eine Lehrkraft prüft dein Ergebnis anschließend.
-
-Gib den Inhalt in Lesereihenfolge als Bausteine aus. Übernimm Texte wörtlich (Rechtschreibung wie im Original, nichts ergänzen, nichts lösen, keine Lösungen eintragen). Kein Layout: keine Schriftgrößen, Farben oder Positionen – außer der Box bei Abbildungen.
-
-Bausteine:
-- ueberschrift: Titel des Blatts oder eines Abschnitts (text).
-- anweisung: Arbeitsanweisung an die Kinder, z. B. „Ergänze …“, „Kreuze an …“ (text).
-- aufgabe: nummerierte Aufgabe (nummer wie im Original, inhalt = Text und Lücken). Teilaufgaben a), b) … als kinder der Aufgabe.
-- text: sonstiger Fließtext (inhalt).
-- ankreuzen: Auswahl mit Kästchen (frage, optionen; mehrfach = true, wenn mehrere angekreuzt werden dürfen).
-- tabelle: Tabelle (zeilen = Zellen als Text, leere Zellen als ""; kopfzeile = true, wenn die erste Zeile Überschriften enthält).
-- schreiblinien: freie Linien zum Schreiben (anzahl).
-- bild: Abbildung, Grafik, Skizze oder Diagramm, das zum Lösen gebraucht wird (beschreibung kurz; seite; box = [x1, y1, x2, y2] relativ zur Seite, 0 = links/oben, 1 = rechts/unten, großzügig um die Abbildung). Reine Deko (Cliparts ohne Bedeutung, Rahmen, Logos) weglassen.
-
-Lücken: Unterstriche, leere Kästchen oder freie Stellen zum Eintragen werden zu {"typ": "luecke", "laenge": n} mit der ungefähren Zahl der Zeichen, die hineinpassen. Mathematische Ausdrücke als lesbarer Text (z. B. „3/4“, „2 · 5 =“).
-
-Persönliche Angaben (Namen von Kindern, Noten, handschriftliche Einträge) nicht übernehmen; ein leeres Namensfeld darf als text mit Lücke erfasst werden. seiten = Anzahl der Seiten des Originals.
-TXT;
 }

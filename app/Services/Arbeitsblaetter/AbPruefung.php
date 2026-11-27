@@ -38,21 +38,19 @@ class AbPruefung
             return ['titel' => 'KI-Erkennung', 'ok' => null, 'todo' => false,
                 'text' => $treiber === 'keiner' || $treiber === ''
                     ? 'Keine KI eingerichtet (AB_KI_TREIBER). Blätter werden manuell erfasst.'
-                    : 'Treiber „'.$treiber.'“ ohne Schlüssel (AB_KI_SCHLUESSEL) – nur manuelle Erfassung.'];
+                    : 'Treiber „'.$treiber.'“ ohne Schlüssel (AB_KI_SCHLUESSEL bzw. AB_GEMINI_SCHLUESSEL/AB_OPENROUTER_SCHLUESSEL) – nur manuelle Erfassung.'];
         }
         $text = (AbErkennerFabrik::TREIBER[$treiber] ?? $treiber).', Modell '.$erkenner->modell();
-        if (! $verbindung || $treiber !== 'anthropic') {
+        if ($treiber === 'openrouter_free') {
+            $text .= ' – kostenlose Modelle: wechselnde Qualität, Anbieter-Datenschutz prüfen';
+        }
+        if (! $verbindung || ! method_exists($erkenner, 'pruefen')) {
             return ['titel' => 'KI-Erkennung', 'ok' => true, 'text' => $text, 'todo' => false];
         }
         try {
-            $antwort = Http::withHeaders([
-                'x-api-key' => (string) config('arbeitsblaetter.ki.schluessel'),
-                'anthropic-version' => Ki\AnthropicErkenner::API_VERSION,
-            ])->timeout(15)->get('https://api.anthropic.com/v1/models/'.rawurlencode($erkenner->modell()));
-            $ok = $antwort->successful();
+            [$ok, $ergebnis] = $erkenner->pruefen();
 
-            return ['titel' => 'KI-Erkennung', 'ok' => $ok, 'todo' => ! $ok,
-                'text' => $text.($ok ? ' – erreichbar.' : ' – Fehler (HTTP '.$antwort->status().').')];
+            return ['titel' => 'KI-Erkennung', 'ok' => $ok, 'todo' => ! $ok, 'text' => $text.' – '.$ergebnis.'.'];
         } catch (\Throwable $e) {
             return ['titel' => 'KI-Erkennung', 'ok' => false, 'todo' => true, 'text' => $text.' – nicht erreichbar: '.$e->getMessage()];
         }

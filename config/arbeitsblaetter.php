@@ -14,7 +14,7 @@
 return [
 
     'ki' => [
-        // keiner | anthropic | fake (nur Tests)
+        // keiner | anthropic | gemini | openrouter_auto | openrouter_free | fake (nur Tests)
         'treiber' => env('AB_KI_TREIBER', 'keiner'),
         'modell' => env('AB_KI_MODELL', 'claude-opus-5-5'),
         'schluessel' => env('AB_KI_SCHLUESSEL', ''),
@@ -25,6 +25,33 @@ return [
         'preis_ausgabe_cent' => (int) env('AB_KI_PREIS_AUSGABE_CENT', 2000),
         // Aufwand der Erkennung (low|medium|high)
         'aufwand' => env('AB_KI_AUFWAND', 'medium'),
+
+        // Google Gemini (generateContent mit JSON-Schema)
+        'gemini' => [
+            'schluessel' => env('AB_GEMINI_SCHLUESSEL', env('AB_KI_SCHLUESSEL', '')),
+            'modell' => env('AB_GEMINI_MODELL', 'gemini-flash-latest'),
+            'url' => env('AB_GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+            'preis_eingabe_cent' => (int) env('AB_GEMINI_PREIS_EINGABE_CENT', 50),
+            'preis_ausgabe_cent' => (int) env('AB_GEMINI_PREIS_AUSGABE_CENT', 300),
+        ],
+
+        // OpenRouter (Chat Completions). openrouter_auto = Modell „openrouter/auto“ (wählt ein
+        // passendes, kostenpflichtiges Modell), openrouter_free = „openrouter/free“ (zufälliges
+        // kostenloses Modell – Vorsicht: kostenlose Anbieter dürfen Eingaben oft speichern/auswerten).
+        'openrouter' => [
+            'schluessel' => env('AB_OPENROUTER_SCHLUESSEL', env('AB_KI_SCHLUESSEL', '')),
+            'url' => env('AB_OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
+            'modell_auto' => env('AB_OPENROUTER_MODELL_AUTO', 'openrouter/auto'),
+            'modell_free' => env('AB_OPENROUTER_MODELL_FREE', 'openrouter/free'),
+            // Anbieter, die Eingaben speichern/zum Training nutzen, ausschließen (deny|allow)
+            'datensammlung' => env('AB_OPENROUTER_DATENSAMMLUNG', 'deny'),
+            // PDF-Verarbeitung: leer = nativ bzw. Standard von OpenRouter; „cloudflare-ai“ = kostenlos (Text)
+            'pdf_engine_auto' => env('AB_OPENROUTER_PDF_ENGINE_AUTO', ''),
+            'pdf_engine_free' => env('AB_OPENROUTER_PDF_ENGINE_FREE', 'cloudflare-ai'),
+            // Kostenschätzung, falls OpenRouter keine Kosten meldet (Cent je 1 Mio. Token)
+            'preis_eingabe_cent' => (int) env('AB_OPENROUTER_PREIS_EINGABE_CENT', 300),
+            'preis_ausgabe_cent' => (int) env('AB_OPENROUTER_PREIS_AUSGABE_CENT', 1500),
+        ],
     ],
 
     // Nextcloud-Ablage der Fassungen und Word-Umwandlung (Standard: Dienstkonto des Wochenplans)
