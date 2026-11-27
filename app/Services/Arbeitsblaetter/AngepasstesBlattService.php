@@ -187,6 +187,49 @@ class AngepasstesBlattService
         }
     }
 
+    /** Zwischenstand während der Erkennung (z. B. „überlastet, neuer Versuch …“) – Status bleibt `erkennung`. */
+    public function erkennungHinweis(AngepasstesBlatt $blatt, string $hinweis): void
+    {
+        AngepasstesBlatt::whereKey($blatt->id)->where('status', AngepasstesBlatt::ERKENNUNG)
+            ->update(['fehler' => mb_substr($hinweis, 0, 1000), 'updated_at' => now()]);
+    }
+
+    /** Erkennung abbrechen und selbst erfassen; ein später eintreffendes Ergebnis wird verworfen. */
+    public function erkennungAbbrechen(AngepasstesBlatt $blatt): AngepasstesBlatt
+    {
+        if ($blatt->status === AngepasstesBlatt::ERKENNUNG) {
+            $blatt->update([
+                'status' => empty($blatt->strukturGueltig()['bausteine']) ? AngepasstesBlatt::ENTWURF : AngepasstesBlatt::ZU_PRUEFEN,
+                'fehler' => null,
+            ]);
+        }
+
+        return $blatt;
+    }
+
+    /**
+     * Erkennungen ohne Lebenszeichen (z. B. verlorener Auftrag, abgestürzter Worker) nach
+     * {@see HAENGT_NACH_MINUTEN} beenden, damit das Blatt nicht dauerhaft „Wird erkannt …“ zeigt.
+     */
+    public const HAENGT_NACH_MINUTEN = 15;
+
+    public function haengendeErkennungenBeenden(?AngepasstesBlatt $nur = null): int
+    {
+        $anzahl = 0;
+        AngepasstesBlatt::query()
+            ->with('ersteller')
+            ->where('status', AngepasstesBlatt::ERKENNUNG)
+            ->where('updated_at', '<', now()->subMinutes(self::HAENGT_NACH_MINUTEN))
+            ->when($nur, fn ($q) => $q->whereKey($nur->id))
+            ->each(function (AngepasstesBlatt $blatt) use (&$anzahl) {
+                $letzter = $blatt->fehler ? ' Letzte Meldung: '.$blatt->fehler : '';
+                $this->erkennungFehlgeschlagen($blatt, 'Die Erkennung hat nicht rechtzeitig geantwortet.'.$letzter);
+                $anzahl++;
+            });
+
+        return $anzahl;
+    }
+
     /** Erkennung endgültig fehlgeschlagen: Status `fehler`, manueller Weg bleibt offen. */
     public function erkennungFehlgeschlagen(AngepasstesBlatt $blatt, string $meldung): void
     {

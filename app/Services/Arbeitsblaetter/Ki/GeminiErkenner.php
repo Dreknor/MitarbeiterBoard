@@ -63,22 +63,15 @@ class GeminiErkenner implements AbErkenner
             ],
         ];
 
-        $url = rtrim((string) config('arbeitsblaetter.ki.gemini.url'), '/').'/models/'.rawurlencode($this->modell()).':generateContent';
-
+        $ersatz = (string) config('arbeitsblaetter.ki.gemini.ersatzmodell');
         try {
-            $antwort = Http::withHeaders(['x-goog-api-key' => $this->schluessel()])
-                ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
-                ->post($url, $anfrage);
-        } catch (ConnectionException $e) {
-            throw new AbErkennungFehler('Gemini ist nicht erreichbar: '.$e->getMessage(), true);
-        }
-
-        if ($antwort->status() === 429 || $antwort->status() >= 500) {
-            throw new AbErkennungFehler('Gemini ist überlastet (HTTP '.$antwort->status().'). Es wird später erneut versucht.', true);
-        }
-        if (! $antwort->successful()) {
-            $meldung = (string) data_get($antwort->json(), 'error.message', 'HTTP '.$antwort->status());
-            throw new AbErkennungFehler('Gemini hat die Anfrage abgelehnt: '.mb_substr($meldung, 0, 300));
+            $antwort = $this->senden($this->modell(), $anfrage);
+        } catch (AbErkennungFehler $e) {
+            // Überlastet: einmal sofort mit dem Ersatzmodell versuchen
+            if (! $e->wiederholbar || $ersatz === '' || $ersatz === $this->modell()) {
+                throw $e;
+            }
+            $antwort = $this->senden($ersatz, $anfrage);
         }
 
         $daten = $antwort->json();
@@ -114,6 +107,31 @@ class GeminiErkenner implements AbErkenner
             $this->anbieter(),
             (string) ($daten['modelVersion'] ?? $this->modell()),
         );
+    }
+
+    /** @throws AbErkennungFehler */
+    private function senden(string $modell, array $anfrage): \Illuminate\Http\Client\Response
+    {
+        $url = rtrim((string) config('arbeitsblaetter.ki.gemini.url'), '/').'/models/'.rawurlencode($modell).':generateContent';
+
+        try {
+            $antwort = Http::withHeaders(['x-goog-api-key' => $this->schluessel()])
+                ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
+                ->post($url, $anfrage);
+        } catch (ConnectionException $e) {
+            throw new AbErkennungFehler('Gemini ist nicht erreichbar: '.$e->getMessage(), true);
+        }
+
+        if ($antwort->status() === 429 || $antwort->status() >= 500) {
+            $meldung = (string) data_get($antwort->json(), 'error.message', '');
+            throw new AbErkennungFehler('Gemini ist überlastet (HTTP '.$antwort->status().($meldung !== '' ? ': '.mb_substr($meldung, 0, 150) : '').').', true);
+        }
+        if (! $antwort->successful()) {
+            $meldung = (string) data_get($antwort->json(), 'error.message', 'HTTP '.$antwort->status());
+            throw new AbErkennungFehler('Gemini hat die Anfrage abgelehnt: '.mb_substr($meldung, 0, 300));
+        }
+
+        return $antwort;
     }
 
     /** Verbindungsprüfung (kostenlos): Modell abrufen. */

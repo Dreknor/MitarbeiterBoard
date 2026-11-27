@@ -169,6 +169,10 @@ class Kernel extends ConsoleKernel
             app(\App\Services\Wochenplan\WpAblageService::class)->dateienPruefen();
         })->dailyAt('02:40')->name('wochenplan-dateien-pruefen')->withoutOverlapping();
 
+        // Angepasste Arbeitsblätter: hängende KI-Erkennungen nach 15 Minuten als Fehler markieren
+        $schedule->call(fn () => app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class)->haengendeErkennungenBeenden())
+            ->everyFiveMinutes()->name('arbeitsblaetter-erkennung-haengt')->withoutOverlapping();
+
         // Angepasste Arbeitsblätter: Blätter ohne Freigabe nach 90 Tagen melden (nicht löschen),
         // ungenutzte Abbildungen entfernen
         $schedule->call(function () {

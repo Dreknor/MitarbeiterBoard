@@ -25,11 +25,15 @@ return [
         'preis_ausgabe_cent' => (int) env('AB_KI_PREIS_AUSGABE_CENT', 2000),
         // Aufwand der Erkennung (low|medium|high)
         'aufwand' => env('AB_KI_AUFWAND', 'medium'),
+        // Pausen (Sekunden) vor erneuten Versuchen bei Überlastung, wenn die Queue synchron läuft
+        'wiederholung_sekunden' => [5, 15],
 
         // Google Gemini (generateContent mit JSON-Schema)
         'gemini' => [
             'schluessel' => env('AB_GEMINI_SCHLUESSEL', env('AB_KI_SCHLUESSEL', '')),
             'modell' => env('AB_GEMINI_MODELL', 'gemini-flash-latest'),
+            // Optional: zweites Modell, das bei Überlastung (429/503) sofort versucht wird, z. B. gemini-flash-lite-latest
+            'ersatzmodell' => env('AB_GEMINI_ERSATZMODELL', ''),
             'url' => env('AB_GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta'),
             'preis_eingabe_cent' => (int) env('AB_GEMINI_PREIS_EINGABE_CENT', 50),
             'preis_ausgabe_cent' => (int) env('AB_GEMINI_PREIS_AUSGABE_CENT', 300),

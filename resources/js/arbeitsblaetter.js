@@ -874,12 +874,26 @@ function registerComponents(Alpine) {
                 }
             },
 
+            async abbrechen() {
+                clearTimeout(pollTimer);
+                try {
+                    const antwort = await anfrage(this.blatt.urls.abbrechen, { methode: 'POST' });
+                    this.uebernehmen(antwort.blatt, true);
+                    this.meldung = antwort.meldung;
+                } catch (err) {
+                    this.meldungFehler = err.message;
+                }
+            },
+
             pollen() {
                 clearTimeout(pollTimer);
                 pollTimer = setTimeout(async () => {
                     try {
                         const antwort = await anfrage(this.blatt.urls.daten);
-                        if (antwort.blatt.status === 'erkennung') return this.pollen();
+                        if (antwort.blatt.status === 'erkennung') {
+                            this.blatt.fehler = antwort.blatt.fehler;
+                            return this.pollen();
+                        }
                         if (this.ungespeichert) {
                             this.meldung = 'Die Erkennung ist fertig – bitte speichern und die Seite neu laden.';
                             Object.assign(this.blatt, { status: antwort.blatt.status, status_text: antwort.blatt.status_text });

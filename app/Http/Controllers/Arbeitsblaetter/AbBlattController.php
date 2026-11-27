@@ -107,6 +107,7 @@ class AbBlattController extends Controller
     public function edit(Request $request, AngepasstesBlatt $blatt)
     {
         $this->authorize('view', $blatt);
+        $this->haengendeBeenden($blatt);
 
         return view('arbeitsblaetter.edit', [
             'blatt' => $blatt,
@@ -120,6 +121,7 @@ class AbBlattController extends Controller
     public function daten(Request $request, AngepasstesBlatt $blatt): JsonResponse
     {
         $this->authorize('view', $blatt);
+        $this->haengendeBeenden($blatt);
 
         return response()->json(['blatt' => $this->blattArray($blatt, $request)]);
     }
@@ -200,6 +202,21 @@ class AbBlattController extends Controller
         }
 
         return response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request), 'meldung' => 'Die Erkennung wurde gestartet.']);
+    }
+
+    public function erkennenAbbrechen(Request $request, AngepasstesBlatt $blatt): JsonResponse
+    {
+        $this->authorize('update', $blatt);
+        $blatt = $this->service->erkennungAbbrechen($blatt);
+
+        return response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request), 'meldung' => 'Erkennung abgebrochen – Sie können das Blatt jetzt selbst erfassen.']);
+    }
+
+    private function haengendeBeenden(AngepasstesBlatt $blatt): void
+    {
+        if ($blatt->status === AngepasstesBlatt::ERKENNUNG && $this->service->haengendeErkennungenBeenden($blatt)) {
+            $blatt->refresh();
+        }
     }
 
     public function duplizieren(Request $request, AngepasstesBlatt $blatt)
@@ -354,6 +371,7 @@ class AbBlattController extends Controller
                 'vorschau' => route('arbeitsblaetter.vorschau', $blatt),
                 'freigeben' => route('arbeitsblaetter.freigeben', $blatt),
                 'erkennen' => route('arbeitsblaetter.erkennen', $blatt),
+                'abbrechen' => route('arbeitsblaetter.erkennen.abbrechen', $blatt),
                 'abbildung' => route('arbeitsblaetter.abbildungen.store', $blatt),
                 'ausgabe' => route('arbeitsblaetter.ausgabe', $blatt),
             ],

@@ -1165,6 +1165,7 @@ Route::group([
                             Route::post('vorschau', [$b, 'vorschau'])->name('vorschau');
                             Route::post('freigeben', [$b, 'freigeben'])->name('freigeben');
                             Route::post('erkennen', [$b, 'erkennen'])->name('erkennen');
+                            Route::post('erkennen/abbrechen', [$b, 'erkennenAbbrechen'])->name('erkennen.abbrechen');
                             Route::post('duplizieren', [$b, 'duplizieren'])->name('duplizieren');
                             Route::get('originale/{media}', [$b, 'original'])->whereNumber('media')->name('originale.show');
                             Route::get('abbildungen/{media}', [$b, 'abbildung'])->whereNumber('media')->name('abbildungen.show');

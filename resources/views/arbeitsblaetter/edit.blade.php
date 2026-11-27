@@ -51,7 +51,9 @@
     {{-- Hinweise --}}
     <div class="flex flex-col gap-2 mb-4">
         <div class="ab-alert ab-alert-blue" x-show.important="blatt.status === 'erkennung'"><i class="fas fa-spinner fa-spin mt-0.5"></i>
-            <div>Das Blatt wird gerade erkannt. Das dauert meist unter einer Minute – die Seite aktualisiert sich von selbst.</div></div>
+            <div class="flex-1">Das Blatt wird gerade erkannt. Das dauert meist unter einer Minute – die Seite aktualisiert sich von selbst.
+                <div class="text-amber-800 mt-1" x-show="blatt.fehler"><i class="fas fa-exclamation-triangle"></i> <span x-text="blatt.fehler"></span></div></div>
+            <button type="button" class="ab-btn ab-btn-secondary ab-btn-sm self-start" x-show="blatt.darf_bearbeiten" @click="abbrechen()">Abbrechen und selbst erfassen</button></div>
         <div class="ab-alert ab-alert-red" x-show.important="blatt.status === 'fehler'"><i class="fas fa-exclamation-circle mt-0.5"></i>
             <div><span x-text="blatt.fehler || 'Die Erkennung ist fehlgeschlagen.'"></span> Sie können die Bausteine manuell eingeben<span x-show="!blatt.erkennung_grund"> oder die Erkennung <button type="button" class="underline font-semibold" @click="erkennen()">erneut starten</button></span>.</div></div>
         <div class="ab-alert ab-alert-amber" x-show.important="blatt.status === 'zu_pruefen'"><i class="fas fa-clipboard-check mt-0.5"></i>

@@ -40,20 +40,59 @@ class AbBlattErkennen implements ShouldQueue
             return;
         }
 
-        try {
-            $erkennung = $erkenner->erkennen($service->seitenFuerErkennung($blatt), $blatt->textebene);
-        } catch (AbErkennungFehler $e) {
-            if ($e->wiederholbar && $this->attempts() < $this->tries) {
-                $this->release($this->backoff()[$this->attempts() - 1] ?? 300);
+        $pausen = (array) config('arbeitsblaetter.ki.wiederholung_sekunden', [5, 15]);
+        $versuch = 0;
+        while (true) {
+            try {
+                $erkennung = $erkenner->erkennen($service->seitenFuerErkennung($blatt), $blatt->textebene);
+                break;
+            } catch (AbErkennungFehler $e) {
+                if (! $e->wiederholbar) {
+                    $service->erkennungFehlgeschlagen($blatt, $e->getMessage());
+
+                    return;
+                }
+
+                if ($this->synchron()) {
+                    // Ohne Queue-Worker wird release() verworfen – deshalb hier direkt erneut versuchen
+                    if ($versuch >= count($pausen)) {
+                        $service->erkennungFehlgeschlagen($blatt, $e->getMessage().' (nach '.($versuch + 1).' Versuchen)');
+
+                        return;
+                    }
+                    $service->erkennungHinweis($blatt, $e->getMessage().' Neuer Versuch …');
+                    sleep(max(0, (int) $pausen[$versuch]));
+                    $versuch++;
+                    if (AngepasstesBlatt::whereKey($blatt->id)->value('status') !== AngepasstesBlatt::ERKENNUNG) {
+                        return; // inzwischen abgebrochen
+                    }
+
+                    continue;
+                }
+
+                if ($this->attempts() < $this->tries) {
+                    $warten = $this->backoff()[$this->attempts() - 1] ?? 300;
+                    $service->erkennungHinweis($blatt, $e->getMessage().' Neuer Versuch in '.max(1, (int) round($warten / 60)).' Minute(n).');
+                    $this->release($warten);
+
+                    return;
+                }
+                $service->erkennungFehlgeschlagen($blatt, $e->getMessage().' (nach '.$this->tries.' Versuchen)');
 
                 return;
             }
-            $service->erkennungFehlgeschlagen($blatt, $e->getMessage());
-
-            return;
         }
 
+        if (AngepasstesBlatt::whereKey($blatt->id)->value('status') !== AngepasstesBlatt::ERKENNUNG) {
+            return; // während der Erkennung abgebrochen – Ergebnis verwerfen
+        }
         $service->erkennungUebernehmen($blatt, $erkennung, $this->userId);
+    }
+
+    /** Läuft der Auftrag ohne Queue-Worker (QUEUE_CONNECTION=sync bzw. dispatchSync)? */
+    private function synchron(): bool
+    {
+        return $this->job === null || $this->job instanceof \Illuminate\Queue\Jobs\SyncJob;
     }
 
     public function failed(\Throwable $e): void
