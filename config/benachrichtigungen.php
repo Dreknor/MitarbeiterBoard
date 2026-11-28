@@ -73,6 +73,14 @@ return [
             'mail'         => 'sofort',
             'permission'   => ['view result boards'],
         ],
+        'arbeitsblaetter' => [
+            'label'        => 'Angepasste Arbeitsblätter',
+            'beschreibung' => 'Erkannte Arbeitsblätter zur Prüfung, Fehler bei der Erkennung und lange offene Entwürfe (standardmäßig aus – nur wenn Push oder Mail eingeschaltet ist; offene Blätter zeigt immer die Bibliothek).',
+            'icon'         => 'fa-low-vision',
+            'push'         => false,
+            'mail'         => 'aus',
+            'permission'   => ['create adapted worksheets'],
+        ],
         'prozesse' => [
             'label'        => 'Prozesse',
             'beschreibung' => 'Ihnen zugewiesene Prozessschritte und Kommentare',

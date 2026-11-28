@@ -1,0 +1,224 @@
+/*
+ * Angepasste Arbeitsblätter (Bibliothek, Erfassung, Prüf-Editor, Ausgabe, Profile, Einstellungen) – Tailwind CSS v4
+ *
+ * Wie tickets.css / ergebnisboards.css:
+ *   - Preflight aus (Bootstrap 4 läuft daneben), alles unter .ab-wrapper, Komponenten mit Präfix ab-
+ *   - Utilities ungelayert + !important, nur die eigenen Views werden gescannt (source(none)),
+ *     damit sie Bootstraps ungelayerte Element-Stile schlagen.
+ *   - Elemente mit Display-Utility (flex, grid …) brauchen `x-show.important`.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" source(none) important;
+
+@source "../views/arbeitsblaetter/**/*.blade.php";
+@source "../js/arbeitsblaetter.js";
+@source not inline("container collapse table");
+
+[x-cloak] { display: none !important; }
+
+/* ---------------------------------------------------------------
+ * Scope-Wrapper + Basis-Resets
+ * ------------------------------------------------------------- */
+.ab-wrapper {
+    box-sizing: border-box;
+    color: #1e293b;
+    line-height: 1.5;
+    padding: 1.25rem 1.5rem 4rem;
+    overflow-wrap: anywhere;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.ab-wrapper.ab-schmal { max-width: 1200px; margin-inline: auto; }
+@media (max-width: 640px) { .ab-wrapper { padding: 1rem .75rem 5rem; } }
+.ab-wrapper *, .ab-wrapper *::before, .ab-wrapper *::after { box-sizing: border-box; }
+.ab-wrapper :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-weight: 700; font-size: 1rem; line-height: 1.3; color: inherit; }
+.ab-wrapper p { margin: 0; }
+.ab-wrapper a { color: inherit; text-decoration: none; }
+.ab-wrapper a:hover { text-decoration: none; }
+.ab-wrapper ul, .ab-wrapper ol { margin: 0; padding: 0; list-style: none; }
+.ab-wrapper button { border-width: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.ab-wrapper label { margin: 0; font-weight: inherit; }
+.ab-wrapper form { margin: 0; }
+.ab-wrapper fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.ab-wrapper table { border-collapse: collapse; }
+.ab-wrapper iframe { border: 0; }
+
+/* ---------------------------------------------------------------
+ * Seitenkopf, Karten, Kacheln
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-page-title { @apply text-xl sm:text-2xl font-bold text-slate-900; }
+.ab-wrapper .ab-page-sub { @apply text-sm text-slate-500 mt-0.5; }
+.ab-wrapper .ab-back { @apply inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800; }
+.ab-wrapper .ab-card { @apply bg-white rounded-2xl shadow-sm border border-slate-200/80; }
+.ab-wrapper .ab-card-body { @apply px-4 py-4 sm:px-5 sm:py-5; }
+.ab-wrapper .ab-card-title { @apply text-base font-bold text-slate-900 flex items-center gap-2; }
+.ab-wrapper .ab-card-title i { @apply text-slate-400; }
+
+.ab-wrapper .ab-kachel { @apply flex flex-col gap-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 transition-all h-full; }
+.ab-wrapper a.ab-kachel:hover { @apply border-indigo-300 shadow-md -translate-y-px; }
+.ab-wrapper .ab-meta { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500; }
+
+/* Status-Abzeichen */
+.ab-wrapper .ab-status { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap; }
+.ab-wrapper .ab-status-entwurf { @apply bg-slate-100 text-slate-700; }
+.ab-wrapper .ab-status-erkennung { @apply bg-sky-100 text-sky-800; }
+.ab-wrapper .ab-status-zu_pruefen { @apply bg-amber-100 text-amber-900; }
+.ab-wrapper .ab-status-freigegeben { @apply bg-emerald-100 text-emerald-800; }
+.ab-wrapper .ab-status-fehler { @apply bg-red-100 text-red-800; }
+.ab-wrapper .ab-chip { @apply inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700; }
+
+/* ---------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl px-3.5 py-2 text-sm
+           transition-colors shadow-sm cursor-pointer whitespace-nowrap select-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    border-width: 0;
+    min-height: 2.375rem;
+}
+.ab-wrapper .ab-btn-sm { @apply px-2.5 py-1.5 text-xs gap-1.5 rounded-lg; min-height: 2rem; }
+.ab-wrapper .ab-btn-primary   { @apply bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white focus-visible:ring-indigo-500; }
+.ab-wrapper .ab-btn-gruen     { @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white focus-visible:ring-emerald-500; }
+.ab-wrapper .ab-btn-secondary { @apply bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 focus-visible:ring-indigo-400; border: 1px solid #cbd5e1; }
+.ab-wrapper .ab-btn-ghost     { @apply bg-transparent hover:bg-slate-100 text-slate-600 shadow-none focus-visible:ring-slate-300; }
+.ab-wrapper .ab-btn-danger    { @apply bg-white hover:bg-red-50 text-red-600 focus-visible:ring-red-300; border: 1px solid #fecaca; }
+.ab-wrapper a.ab-btn-primary, .ab-wrapper a.ab-btn-primary:hover,
+.ab-wrapper a.ab-btn-gruen, .ab-wrapper a.ab-btn-gruen:hover { color: #fff; }
+.ab-wrapper .ab-icon-btn {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+.ab-wrapper .ab-segment { @apply inline-flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto max-w-full; }
+.ab-wrapper .ab-segment :is(a, button) { @apply inline-flex items-center gap-1.5 shrink-0 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 transition-colors; }
+.ab-wrapper .ab-segment :is(a, button):hover { @apply text-slate-900; }
+.ab-wrapper .ab-segment :is(a, button).is-active { @apply bg-white text-slate-900 shadow-sm; }
+
+/* ---------------------------------------------------------------
+ * Formulare
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-input, .ab-wrapper .ab-textarea, .ab-wrapper .ab-select {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900
+           shadow-sm placeholder:text-slate-400 sm:text-sm
+           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 focus:outline-none;
+    min-height: 2.5rem;
+    height: auto;
+}
+.ab-wrapper .ab-input-sm { @apply px-2.5 py-1.5 sm:text-xs rounded-lg; min-height: 2rem; }
+.ab-wrapper .ab-label { @apply block text-sm font-medium text-slate-700 mb-1.5; }
+.ab-wrapper .ab-hint { @apply text-xs text-slate-500 mt-1; }
+.ab-wrapper .ab-error { @apply text-xs font-medium text-red-600 mt-1; }
+.ab-wrapper .ab-check { @apply flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer; }
+.ab-wrapper .ab-check input { @apply mt-0.5 w-4 h-4 shrink-0 accent-indigo-600; }
+.ab-wrapper input[type="range"] { @apply w-full accent-indigo-600; }
+
+.ab-wrapper .ab-alert { @apply flex gap-3 rounded-xl border px-4 py-3 text-sm; }
+.ab-wrapper .ab-alert-amber { @apply bg-amber-50 border-amber-200 text-amber-900; }
+.ab-wrapper .ab-alert-red   { @apply bg-red-50 border-red-200 text-red-800; }
+.ab-wrapper .ab-alert-blue  { @apply bg-sky-50 border-sky-200 text-sky-900; }
+.ab-wrapper .ab-alert-gruen { @apply bg-emerald-50 border-emerald-200 text-emerald-900; }
+
+.ab-wrapper .ab-empty { @apply flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-slate-400; }
+.ab-wrapper .ab-empty i { @apply text-3xl opacity-40; }
+
+/* ---------------------------------------------------------------
+ * Erfassung: Quelle wählen, Ecken ziehen
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-quelle {
+    @apply relative flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-5 text-center cursor-pointer transition-colors;
+}
+.ab-wrapper .ab-quelle:hover { @apply border-indigo-400 bg-indigo-50/40; }
+.ab-wrapper .ab-quelle.is-active { @apply border-solid border-indigo-500 bg-indigo-50/60; }
+.ab-wrapper .ab-quelle i { @apply text-3xl text-indigo-500; }
+.ab-wrapper .ab-ecken { position: relative; touch-action: none; user-select: none; background: #0f172a; border-radius: 1rem; overflow: hidden; }
+.ab-wrapper .ab-ecken canvas { display: block; width: 100%; height: auto; }
+.ab-wrapper .ab-griff {
+    position: absolute; width: 2.25rem; height: 2.25rem; margin: -1.125rem 0 0 -1.125rem; border-radius: 9999px;
+    background: rgba(79, 70, 229, .35); border: 3px solid #fff; box-shadow: 0 0 0 2px #4f46e5; cursor: grab; touch-action: none;
+}
+.ab-wrapper .ab-griff:active { cursor: grabbing; }
+.ab-wrapper .ab-seite-mini { @apply relative rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm; width: 6rem; aspect-ratio: 1 / 1.414; }
+.ab-wrapper .ab-seite-mini img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------------------------------------------------------------
+ * Prüf-Editor
+ * ------------------------------------------------------------- */
+.ab-wrapper.ab-editor { max-width: none; }
+.ab-wrapper .ab-editor-raster { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1100px) { .ab-wrapper .ab-editor-raster { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; } }
+.ab-wrapper .ab-original { @apply bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden; position: sticky; top: .75rem; }
+.ab-wrapper .ab-original-flaeche { position: relative; overflow: auto; max-height: calc(100vh - 9rem); background: #e2e8f0; }
+.ab-wrapper .ab-original-seite { position: relative; margin: .5rem auto; width: max-content; max-width: 100%; }
+.ab-wrapper .ab-original-seite :is(img, canvas) { display: block; max-width: 100%; height: auto; box-shadow: 0 1px 6px rgba(15, 23, 42, .2); background: #fff; }
+.ab-wrapper .ab-box { position: absolute; border: 2px solid #4f46e5; background: rgba(79, 70, 229, .12); pointer-events: none; }
+.ab-wrapper .ab-box.is-zeichnen { border-style: dashed; }
+.ab-wrapper .ab-schneiden { cursor: crosshair; }
+
+.ab-wrapper .ab-baustein {
+    @apply relative rounded-xl border border-slate-200 bg-white p-3 transition-shadow;
+}
+.ab-wrapper .ab-baustein:hover { @apply shadow-sm border-slate-300; }
+.ab-wrapper .ab-baustein.is-aktiv { @apply border-indigo-400 ring-2 ring-indigo-200; }
+.ab-wrapper .ab-baustein-kopf { @apply flex flex-wrap items-center gap-2 mb-2; min-width: 0; }
+.ab-wrapper .ab-griffleiste { @apply cursor-grab text-slate-300 hover:text-slate-500 px-1; }
+.ab-wrapper .ab-typ { @apply inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700; }
+.ab-wrapper .ab-kinder { @apply mt-3 ml-3 sm:ml-6 flex flex-col gap-2 border-l-2 border-dashed border-slate-200 pl-3; min-height: 1.5rem; }
+.ab-wrapper .ab-segmente { @apply flex flex-wrap items-center gap-1.5; }
+.ab-wrapper .ab-luecke-chip { @apply inline-flex items-center gap-1 rounded-md border border-dashed border-indigo-400 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700; }
+.ab-wrapper .ab-sortable-ghost { opacity: .4; }
+.ab-wrapper .ab-vorschau { @apply bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden; }
+.ab-wrapper .ab-vorschau iframe { display: block; width: 100%; height: 75vh; background: #cbd5e1; }
+
+/* Leiste unten im Editor */
+.ab-wrapper .ab-leiste { @apply sticky bottom-0 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur; }
+
+/* Dialog */
+.ab-dialog-hintergrund { position: fixed; inset: 0; z-index: 1050; background: rgba(15, 23, 42, .5); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.ab-wrapper .ab-dialog { @apply w-full max-w-lg rounded-2xl bg-white shadow-xl; max-height: calc(100vh - 2rem); overflow: auto; }
+
+/* ---------------------------------------------------------------
+ * Profile
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-tabelle { @apply w-full text-sm; }
+.ab-wrapper .ab-tabelle th { @apply text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2 border-b border-slate-200; }
+.ab-wrapper .ab-tabelle td { @apply px-3 py-2.5 border-b border-slate-100 align-middle; }
+.ab-wrapper .ab-tabelle tr:hover td { @apply bg-slate-50; }
+.ab-wrapper .ab-regler { @apply grid gap-1; grid-template-columns: minmax(0, 1fr) 4.5rem; align-items: center; }
+.ab-wrapper .ab-gruppe-titel { @apply text-xs font-bold uppercase tracking-wide text-slate-500 mb-2 mt-4; }
+.ab-wrapper .ab-status-zeile { @apply flex items-start gap-3 py-2 border-b border-slate-100 text-sm; }
+.ab-wrapper .ab-balken { @apply h-2.5 w-full rounded-full bg-slate-100 overflow-hidden; }
+.ab-wrapper .ab-balken > span { @apply block h-full rounded-full bg-indigo-500; }
+.ab-wrapper .ab-balken > span.is-warnung { @apply bg-amber-500; }
+.ab-wrapper .ab-balken > span.is-voll { @apply bg-red-500; }
+
+/* ---------------------------------------------------------------
+ * Schnellmodus: Moduswahl, „Für wen?“, Fortschritt, Ergebnis
+ * ------------------------------------------------------------- */
+.ab-wrapper .ab-modus { @apply grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5; }
+.ab-wrapper .ab-modus-tab {
+    @apply flex items-center gap-3 rounded-xl border-0 bg-transparent px-4 py-3 text-left text-slate-600 cursor-pointer transition-colors;
+}
+.ab-wrapper .ab-modus-tab i { @apply text-xl text-slate-400; }
+.ab-wrapper .ab-modus-tab span { @apply flex flex-col leading-tight; }
+.ab-wrapper .ab-modus-tab small { @apply text-xs text-slate-500; }
+.ab-wrapper .ab-modus-tab.is-active { @apply bg-white text-slate-900 shadow-sm; }
+.ab-wrapper .ab-modus-tab.is-active i { @apply text-indigo-500; }
+.ab-wrapper .ab-modus-tab:disabled { @apply opacity-50 cursor-not-allowed; }
+.ab-wrapper .ab-ziel-liste { @apply grid gap-1.5 sm:grid-cols-2 max-h-80 overflow-y-auto; }
+.ab-wrapper .ab-ziel {
+    @apply flex items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm cursor-pointer;
+}
+.ab-wrapper .ab-ziel input { @apply mt-1; }
+.ab-wrapper .ab-ziel small { @apply block text-xs text-slate-500; }
+.ab-wrapper .ab-ziel.is-active { @apply border-indigo-400 bg-indigo-50/60; }
+.ab-wrapper .ab-schritte { @apply grid gap-2 list-none p-0; }
+.ab-wrapper .ab-schritte li { @apply flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-slate-400 border border-slate-200; }
+.ab-wrapper .ab-schritte li.is-aktiv { @apply text-slate-900 border-indigo-300; }
+.ab-wrapper .ab-schritte li.is-aktiv i { @apply text-indigo-500; }
+.ab-wrapper .ab-schritte li.is-fertig { @apply text-slate-600; }
+.ab-wrapper .ab-schritte li.is-fertig i { @apply text-emerald-500; }
+.ab-wrapper .ab-fassungen { @apply grid gap-2 list-none p-0 m-0; }
+.ab-wrapper .ab-fassungen li { @apply flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2; }
+.ab-wrapper .ab-fassungen li:last-child { @apply border-b-0 pb-0; }
+.ab-wrapper .ab-schnell-vorschau { @apply block w-full rounded-2xl border border-slate-200 bg-white; height: 75vh; }

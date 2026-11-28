@@ -45,6 +45,9 @@ return [
         ['config:clear'],
         ['route:clear'],
         ['view:clear'],
+        // Angepasste Arbeitsblätter: Arial/Verdana bereitstellen (lädt nur mit Freigabe in den
+        // Einstellungen, scheitert nie – siehe arbeitsblaetter:schriften --automatisch)
+        ['arbeitsblaetter:schriften', '--automatisch'],
         ['queue:restart'],
     ],
 

@@ -14,7 +14,7 @@ class WpAufgabe extends Model
     protected $table = 'wp_aufgaben';
 
     protected $fillable = [
-        'wp_plan_fach_id', 'aufgabe', 'dauer', 'niveau', 'link', 'sort_order',
+        'wp_plan_fach_id', 'aufgabe', 'dauer', 'niveau', 'link', 'freiwillig', 'freiarbeit', 'sort_order',
         'synced_from_id', 'angepasst', 'paed_diary_task_id',
     ];
 
@@ -22,10 +22,18 @@ class WpAufgabe extends Model
         'niveau' => 'integer',
         'sort_order' => 'integer',
         'angepasst' => 'boolean',
+        'freiwillig' => 'boolean',
+        'freiarbeit' => 'boolean',
         'synced_from_id' => 'integer',
         'paed_diary_task_id' => 'integer',
         'wp_plan_fach_id' => 'integer',
     ];
+
+    /** Pflicht- und freiwillige Aufgaben (ohne Empfehlungen für die Freiarbeit). */
+    public function scopeArbeitsauftraege($query)
+    {
+        return $query->where('freiarbeit', false);
+    }
 
     public function planFach()
     {

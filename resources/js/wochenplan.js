@@ -84,8 +84,11 @@ function registerWochenplanComponents(Alpine) {
         neu: {},                // Formular „Aufgabe hinzufügen“ je Fach
         bearbeiten: null,       // { id, aufgabe, dauer, niveau, link, basis }
         uebungNeu: '',
-        uebungBearbeiten: null, // { id, aufgabe, basis }
+        uebungNeuKuerzel: '',
+        uebungBearbeiten: null, // { id, aufgabe, kuerzel, basis }
         fachNeu: '',
+        freiesFeld: { offen: false, name: '', symbol: '' },
+        fachBearbeiten: null,   // { id, custom_name, symbol, frei, katalog_name }
         dialog: null,           // 'fortschreiben' | 'vorlage' | 'abgleich' | 'bibliothek' | 'nextcloud' | 'loeschen'
         abgleich: { vorschau: null, fachId: null, angepassteBehalten: true, eigeneBehalten: true, laedt: false },
         vorlageName: '',
@@ -114,7 +117,7 @@ function registerWochenplanComponents(Alpine) {
             return this.config.faecher.filter((f) => !vorhanden.includes(f.id));
         },
         niveauName(n) { return this.config.niveaus[n] || ''; },
-        leereAufgabe() { return { aufgabe: '', dauer: '', niveau: '', link: '', offen: false }; },
+        leereAufgabe() { return { aufgabe: '', dauer: '', niveau: '', link: '', freiwillig: false, freiarbeit: false, offen: false }; },
 
         metaZuruecksetzen() {
             this.meta = {
@@ -185,6 +188,21 @@ function registerWochenplanComponents(Alpine) {
             await this.senden('POST', `${this.basis}/faecher`, { wp_fach_id: Number(this.fachNeu) }, 'Fach hinzugefügt.');
             this.fachNeu = '';
         },
+        async freiesFeldAnlegen() {
+            const f = this.freiesFeld;
+            if (!f.name.trim() && !f.symbol.trim()) return;
+            const daten = await this.senden('POST', `${this.basis}/faecher`, { custom_name: f.name || null, symbol: f.symbol || null }, 'Freies Feld hinzugefügt.');
+            if (daten) this.freiesFeld = { offen: false, name: '', symbol: '' };
+        },
+        fachBearbeitenStarten(fach) {
+            this.fachBearbeiten = { id: fach.id, custom_name: fach.custom_name || '', symbol: fach.eigenes_symbol || '', frei: fach.frei, katalog_name: fach.katalog_name };
+        },
+        async fachSpeichern() {
+            const f = this.fachBearbeiten;
+            if (!f) return;
+            const daten = await this.senden('PUT', `${this.basis}/faecher/${f.id}`, { custom_name: f.custom_name || null, symbol: f.symbol || null }, 'Fach gespeichert.');
+            if (daten) this.fachBearbeiten = null;
+        },
         async fachEntfernen(fach) {
             const text = fach.aufgaben.length
                 ? `Fach „${fach.name}“ mit ${fach.aufgaben.length} Aufgabe(n) entfernen?`
@@ -214,7 +232,7 @@ function registerWochenplanComponents(Alpine) {
         async aufgabeAnlegen(fach) {
             const f = this.neu[fach.id];
             if (!f || !f.aufgabe.trim()) return;
-            const body = { aufgabe: f.aufgabe, dauer: f.dauer || null, niveau: f.niveau || null, link: f.link || null };
+            const body = { aufgabe: f.aufgabe, dauer: f.dauer || null, niveau: f.niveau || null, link: f.link || null, freiwillig: !!f.freiwillig, freiarbeit: !!f.freiarbeit };
             const daten = await this.senden('POST', `${this.basis}/faecher/${fach.id}/aufgaben`, body);
             if (daten) {
                 this.neu[fach.id] = { ...this.leereAufgabe(), offen: true };
@@ -222,14 +240,15 @@ function registerWochenplanComponents(Alpine) {
             }
         },
         aufgabeStarten(a) {
-            this.bearbeiten = { id: a.id, aufgabe: a.aufgabe, dauer: a.dauer || '', niveau: a.niveau || '', link: a.link || '', basis: a.aufgabe };
+            this.bearbeiten = { id: a.id, aufgabe: a.aufgabe, dauer: a.dauer || '', niveau: a.niveau || '', link: a.link || '', freiwillig: !!a.freiwillig, freiarbeit: !!a.freiarbeit, basis: a.aufgabe };
             this.$nextTick(() => document.getElementById(`wp-edit-${a.id}`)?.focus());
         },
         async aufgabeSpeichern() {
             const b = this.bearbeiten;
             if (!b || !b.aufgabe.trim()) return;
             const daten = await this.senden('PUT', `${this.basis}/aufgaben/${b.id}`, {
-                aufgabe: b.aufgabe, dauer: b.dauer || null, niveau: b.niveau || null, link: b.link || null, basis: b.basis,
+                aufgabe: b.aufgabe, dauer: b.dauer || null, niveau: b.niveau || null, link: b.link || null,
+                freiwillig: !!b.freiwillig, freiarbeit: !!b.freiarbeit, basis: b.basis,
             });
             if (daten) this.bearbeiten = null;
         },
@@ -278,13 +297,13 @@ function registerWochenplanComponents(Alpine) {
         },
         async uebungAnlegen() {
             if (!this.uebungNeu.trim()) return;
-            const daten = await this.senden('POST', `${this.basis}/uebungen`, { aufgabe: this.uebungNeu });
-            if (daten) this.uebungNeu = '';
+            const daten = await this.senden('POST', `${this.basis}/uebungen`, { aufgabe: this.uebungNeu, kuerzel: this.uebungNeuKuerzel || null });
+            if (daten) { this.uebungNeu = ''; this.uebungNeuKuerzel = ''; }
         },
         async uebungSpeichern() {
             const u = this.uebungBearbeiten;
             if (!u || !u.aufgabe.trim()) return;
-            const daten = await this.senden('PUT', `${this.basis}/uebungen/${u.id}`, { aufgabe: u.aufgabe, basis: u.basis });
+            const daten = await this.senden('PUT', `${this.basis}/uebungen/${u.id}`, { aufgabe: u.aufgabe, kuerzel: u.kuerzel || null, basis: u.basis });
             if (daten) this.uebungBearbeiten = null;
         },
         async uebungLoeschen(u) {
@@ -349,6 +368,25 @@ function registerWochenplanComponents(Alpine) {
         },
         async erneutVersuchen() {
             await this.senden('POST', `${this.basis}/ablage/erneut`);
+        },
+        // Angepasste Arbeitsblätter: Abzeichen je Klassenplan-Datei und „Angepasste Fassung erzeugen“
+        abInfo(d) {
+            const info = this.plan.arbeitsblaetter?.dateien?.[d.id];
+            if (!info) return null;
+            const text = {
+                erkennung: ['wird erkannt …', 'wp-badge-blue'],
+                zu_pruefen: ['zur Prüfung', 'wp-badge-amber'],
+                entwurf: ['zur Prüfung', 'wp-badge-amber'],
+                fehler: ['Fehler', 'wp-badge-red'],
+            }[info.status];
+            if (text) return { ...info, text: '👓 ' + text[0], klasse: text[1] };
+            return { ...info, text: '👓 angepasst für ' + info.fassungen + (info.fassungen === 1 ? ' Kind' : ' Kinder'), klasse: 'wp-badge-violet' };
+        },
+        async dateiAnpassen(d) {
+            const daten = await this.senden('POST', d.anpassen_url);
+            if (daten?.url && window.confirm((daten.meldung || '') + '\n\nJetzt zur Prüfung öffnen?')) {
+                window.location.href = daten.url;
+            }
         },
         dateiStatus(d) {
             return {

@@ -160,7 +160,7 @@ class WpWordService
 
             // Konfiguration aus Formatvorlage
             $tuCfg = $config['taegliche_uebungen'] ?? [];
-            $tuLayout       = $tuCfg['layout'] ?? 'horizontal';
+            $tuLayout       = $tuCfg['layout'] ?? 'wochenweise';
             $tuSizeDatum    = isset($tuCfg['schriftgroesse_datum_pt'])     ? (int) $tuCfg['schriftgroesse_datum_pt']    : max(7, $schriftgroesse - 2);
             $tuSizeAufgaben = isset($tuCfg['schriftgroesse_aufgaben_pt'])  ? (int) $tuCfg['schriftgroesse_aufgaben_pt'] : $schriftgroesse;
             $tuSizeWochentag= isset($tuCfg['schriftgroesse_wochentag_pt']) ? (int) $tuCfg['schriftgroesse_wochentag_pt']: max(7, $schriftgroesse - 1);
@@ -208,7 +208,7 @@ class WpWordService
                 $legendeText = '';
                 foreach ($plan->taeglicheUebungen as $idx => $uebung) {
                     $legendeText .= ($wwNummern[$idx] ?? ($idx + 1) . '.') . ' '
-                                  . strip_tags($uebung->aufgabe ?? '') . '   ';
+                                  . ($uebung->kuerzel ? $uebung->kuerzel.' ' : '') . strip_tags($uebung->aufgabe ?? '') . '   ';
                 }
                 $section->addText(
                     trim($legendeText),
@@ -349,7 +349,7 @@ class WpWordService
                     foreach ($plan->taeglicheUebungen as $uebung) {
                         $uebungTable->addRow(280);
                         $uebungTable->addCell(Converter::cmToTwip($tuAufgabenBreiteCm))
-                                    ->addText(strip_tags($uebung->aufgabe ?? ''), ['name' => $schriftart, 'size' => $tuSizeAufgaben]);
+                                    ->addText(($uebung->kuerzel ? $uebung->kuerzel.' ' : '') . strip_tags($uebung->aufgabe ?? ''), ['name' => $schriftart, 'size' => $tuSizeAufgaben]);
                         for ($d = 0; $d < $dayCount; $d++) {
                             $uebungTable->addCell(Converter::cmToTwip(1.2));
                         }
@@ -430,14 +430,19 @@ class WpWordService
         ];
 
         foreach ($plan->planFaecher as $planFach) {
-            $aufgaben = $planFach->aufgaben->filter(fn($a) => !$a->trashed());
+            // Empfehlungen für die Freiarbeit stehen in einem eigenen Abschnitt am Ende
+            $aufgaben = $planFach->aufgaben->filter(fn($a) => !$a->trashed() && !$a->freiarbeit)->values();
+            if ($aufgaben->isEmpty() && $planFach->aufgaben->contains(fn ($a) => $a->freiarbeit)) {
+                continue;
+            }
+            $fachName = trim(($planFach->display_name ?? '').' '.($planFach->symbol ?? ''));
 
             if ($aufgaben->isEmpty()) {
                 // Fach ohne Aufgaben: leere Zeile
                 $table->addRow();
                 $table->addCell(Converter::cmToTwip($colFach), $fachZellStyle)
                       ->addText(
-                          $planFach->custom_name ?? ($planFach->fach?->name ?? ''),
+                          $fachName,
                           $fachFontStyle,
                           ['alignment' => Jc::CENTER]
                       );
@@ -461,15 +466,18 @@ class WpWordService
             // Fachname-Zelle (vertikal zentriert)
             $table->addCell(Converter::cmToTwip($colFach), $fachZellStyle)
                   ->addText(
-                      $planFach->custom_name ?? ($planFach->fach?->name ?? ''),
+                      $fachName,
                       $fachFontStyle,
                       ['alignment' => Jc::CENTER]
                   );
 
             // Aufgaben-Zelle
             $aufgabenZelle = $table->addCell(Converter::cmToTwip($colAufgaben));
+            $nr = 0;
             foreach ($aufgaben as $aufgabe) {
-                $text = strip_tags($aufgabe->aufgabe ?? '');
+                // wie im PDF: freiwillige Aufgaben mit *, sonst nummeriert (ab zwei Aufgaben)
+                $praefix = $aufgabe->freiwillig ? '* ' : ($aufgaben->count() > 1 ? (++$nr).'. ' : '');
+                $text = $praefix.strip_tags($aufgabe->aufgabe ?? '');
                 $aufgabenZelle->addText($text, $aufgabeFontStyle, $aufgabeParaStyle);
                 if (!empty($aufgabe->link)) {
                     $aufgabenZelle->addLink($aufgabe->link, $aufgabe->link, array_merge((array) $aufgabeFontStyle, ['color' => '1D4ED8', 'underline' => 'single', 'size' => 8]), $aufgabeParaStyle);
@@ -536,6 +544,22 @@ class WpWordService
             }
         }
 
+        // ─── Empfehlungen für die Freiarbeit ──────────────────────────────────
+        $freiarbeit = $plan->planFaecher->filter(fn ($pf) => $pf->aufgaben->contains(fn ($a) => $a->freiarbeit));
+        if ($freiarbeit->isNotEmpty()) {
+            $section->addPageBreak();
+            $section->addText('Empfehlungen für die Freiarbeit', ['name' => $schriftart, 'size' => $schriftgroesse + 1, 'bold' => true, 'underline' => 'single'], ['spaceAfter' => 200]);
+            foreach ($freiarbeit as $planFach) {
+                $section->addText(($planFach->display_name ?: 'Weitere').':', ['name' => $schriftart, 'size' => $schriftgroesse + 1, 'underline' => 'single'], ['spaceBefore' => 160, 'spaceAfter' => 80]);
+                $faTabelle = $section->addTable(['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 60]);
+                foreach ($planFach->aufgaben->filter(fn ($a) => $a->freiarbeit) as $aufgabe) {
+                    $faTabelle->addRow();
+                    $faTabelle->addCell(Converter::cmToTwip(12))->addText(($aufgabe->freiwillig ? '* ' : '').strip_tags($aufgabe->aufgabe ?? ''), ['name' => $schriftart, 'size' => $schriftgroesse]);
+                    $faTabelle->addCell(Converter::cmToTwip(1.5));
+                    $faTabelle->addCell(Converter::cmToTwip(1.5));
+                }
+            }
+        }
 
         // ─── Datei speichern ──────────────────────────────────────────────────
         $filename = $this->filename($plan);

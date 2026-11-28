@@ -37,6 +37,7 @@
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
         "simplesoftwareio/simple-qrcode": "^4.2",
+        "smalot/pdfparser": "^2.12",
         "socialiteproviders/keycloak": "^5.3",
         "socialiteproviders/zoho": "^4.1",
         "spatie/image": "^3.9",

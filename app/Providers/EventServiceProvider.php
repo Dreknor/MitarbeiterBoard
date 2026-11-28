@@ -49,6 +49,14 @@ class EventServiceProvider extends ServiceProvider
             \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class.'@handle',
         ],
 
+        // Wochenplan → Angepasste Arbeitsblätter (lose Kopplung über Events)
+        \App\Events\Wochenplan\WpDateiAngelegt::class => [
+            \App\Listeners\Arbeitsblaetter\WochenplanDateiAnpassen::class,
+        ],
+        \App\Events\Wochenplan\WpKinderplanAngelegt::class => [
+            \App\Listeners\Arbeitsblaetter\KinderplanFassungenNachziehen::class,
+        ],
+
         // Personal-Module Events (Listener-Implementierung folgt in späteren Phasen)
         \App\Events\Personal\EmploymentCreated::class => [
             \App\Listeners\Personal\CreateNextcloudFolder::class,

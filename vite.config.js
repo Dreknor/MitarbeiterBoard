@@ -1,10 +1,33 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * Datendateien von pdf.js (JPEG-2000-Decoder OpenJPEG als WebAssembly, ICC-Farbprofile, Standardschriften)
+ * mit ausliefern → public/build/pdfjs/. Ohne sie zeichnet pdf.js z. B. JPEG-2000-Bilder in PDFs nicht
+ * (Angepasste Arbeitsblätter: Original im Editor, Ausschneiden im Schnellmodus).
+ */
+function pdfjsDaten() {
+    return {
+        name: 'pdfjs-daten',
+        apply: 'build',
+        generateBundle() {
+            for (const ordner of ['wasm', 'iccs', 'standard_fonts']) {
+                const quelle = join('node_modules', 'pdfjs-dist', ordner);
+                for (const datei of readdirSync(quelle)) {
+                    this.emitFile({ type: 'asset', fileName: `pdfjs/${ordner}/${datei}`, source: readFileSync(join(quelle, datei)) });
+                }
+            }
+        },
+    };
+}
 
 export default defineConfig({
     plugins: [
         tailwindcss(),
+        pdfjsDaten(),
         laravel({
             input: [
                 'resources/css/dashboard.css',
@@ -81,6 +104,10 @@ export default defineConfig({
                 'resources/css/wiki.css',
                 'resources/js/wiki.js',
 
+                // Angepasste Arbeitsblätter (Bibliothek, Erfassung, Prüf-Editor, Ausgabe, Profile, Einstellungen)
+                'resources/css/arbeitsblaetter.css',
+                'resources/js/arbeitsblaetter.js',
+
                 // Geführte Touren (<x-tour>, für alle Bereiche)
                 'resources/js/tour.js',
 
@@ -144,6 +171,8 @@ export default defineConfig({
                 'resources/views/ergebnisboards/**/*.blade.php',
                 // Wiki
                 'resources/views/wiki/**/*.blade.php',
+                // Angepasste Arbeitsblätter
+                'resources/views/arbeitsblaetter/**/*.blade.php',
             ],
         }),
     ],

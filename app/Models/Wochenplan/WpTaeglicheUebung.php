@@ -14,6 +14,7 @@ class WpTaeglicheUebung extends Model
     protected $fillable = [
         'wp_plan_id',
         'aufgabe',
+        'kuerzel',
         'sort_order',
     ];
 

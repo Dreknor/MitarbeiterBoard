@@ -39,6 +39,7 @@
                 <a href="{{ route('wp.einstellungen') }}" class="wp-btn wp-btn-secondary wp-btn-sm">⚙ Einstellungen</a>
             @endcan
             @if($darfSchreiben)
+                <a href="{{ route('wp.import') }}" class="wp-btn wp-btn-secondary" title="Wochenpläne aus Word-Dateien (.docx) übernehmen">⬆ Word-Import</a>
                 <a href="{{ route('wp.create') }}" class="wp-btn wp-btn-primary">+ Neuer Plan</a>
             @endif
         </div>

@@ -64,7 +64,8 @@ class WpStatusService
     public function aufgabeGiltFuer(WpAufgabe $aufgabe, Schueler $schueler): bool
     {
         $plan = $aufgabe->planFach?->plan;
-        if (! $plan || $plan->isVorlage()) {
+        // Empfehlungen für die Freiarbeit sind keine Arbeitsaufträge → kein Status je Kind
+        if (! $plan || $plan->isVorlage() || $aufgabe->freiarbeit) {
             return false;
         }
 
@@ -85,7 +86,7 @@ class WpStatusService
      */
     public function wocheFuerSchueler(Schueler $schueler, Carbon $tag): array
     {
-        $plaene = $this->planeFuerSchueler($schueler, $tag)->load(['planFaecher.aufgaben', 'planFaecher.fach']);
+        $plaene = $this->planeFuerSchueler($schueler, $tag)->load(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false), 'planFaecher.fach']);
         $aufgabenIds = $plaene->flatMap(fn ($p) => $p->planFaecher->flatMap->aufgaben->pluck('id'))->all();
         $status = WpAufgabeStatus::with('user')->where('schueler_id', $schueler->id)
             ->whereIn('wp_aufgabe_id', $aufgabenIds)->get()->keyBy('wp_aufgabe_id');
@@ -123,12 +124,12 @@ class WpStatusService
     public function planeFuerSchuelerakte(Schueler $schueler, int $anzahl = 15): array
     {
         $kinderplaene = WpPlan::where('is_vorlage', false)->where('schueler_id', $schueler->id)
-            ->with('planFaecher.aufgaben')->orderByDesc('gueltig_von')->limit($anzahl)->get();
+            ->with(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false)])->orderByDesc('gueltig_von')->limit($anzahl)->get();
 
         $klassenplaene = $schueler->klasse_id
             ? WpPlan::where('is_vorlage', false)->whereNull('schueler_id')->where('klasse_id', $schueler->klasse_id)
                 ->whereNotIn('id', $kinderplaene->pluck('parent_plan_id')->filter())
-                ->with('planFaecher.aufgaben')->orderByDesc('gueltig_von')->limit($anzahl)->get()
+                ->with(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false)])->orderByDesc('gueltig_von')->limit($anzahl)->get()
             : collect();
 
         $plaene = $kinderplaene->concat($klassenplaene)->sortByDesc('gueltig_von')->take($anzahl)->values();
@@ -162,10 +163,10 @@ class WpStatusService
 
         $klassenplaene = WpPlan::where('is_vorlage', false)->whereNull('schueler_id')->where('klasse_id', $klasse->id)
             ->whereDate('gueltig_von', '<=', $bis)->whereDate('gueltig_bis', '>=', $von)
-            ->with('planFaecher.aufgaben')->get();
+            ->with(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false)])->get();
         $kinderplaene = WpPlan::where('is_vorlage', false)->whereIn('schueler_id', $schuelerIds)
             ->whereDate('gueltig_von', '<=', $bis)->whereDate('gueltig_bis', '>=', $von)
-            ->with('planFaecher.aufgaben')->get()->groupBy('schueler_id');
+            ->with(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false)])->get()->groupBy('schueler_id');
 
         $klassenAufgaben = $klassenplaene->flatMap(fn ($p) => $p->planFaecher->flatMap->aufgaben->pluck('id'));
 
@@ -198,7 +199,7 @@ class WpStatusService
      */
     public function matrix(WpPlan $plan): array
     {
-        $plan->load(['planFaecher.aufgaben', 'planFaecher.fach', 'klasse', 'schueler']);
+        $plan->load(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false), 'planFaecher.fach', 'klasse', 'schueler']);
 
         if ($plan->isSchuelerplan()) {
             $kinder = collect([$plan->schueler])->filter();
@@ -207,7 +208,7 @@ class WpStatusService
             $kinder = $plan->klasse
                 ? $plan->klasse->schueler()->orderBy('nachname')->orderBy('vorname')->get()
                 : collect();
-            $kinderplaene = $plan->kinderPlaene()->with('planFaecher.aufgaben')->get()->keyBy('schueler_id');
+            $kinderplaene = $plan->kinderPlaene()->with(['planFaecher.aufgaben' => fn ($q) => $q->where('freiarbeit', false)])->get()->keyBy('schueler_id');
         }
 
         $spalten = [];

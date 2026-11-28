@@ -245,7 +245,7 @@ class WpFormatvorlageController extends Controller
                 'freitext'                  => $request->input('footer_freitext'),
             ],
             'taegliche_uebungen' => [
-                'layout'                      => $request->input('tu_layout', 'horizontal'),
+                'layout'                      => $request->input('tu_layout', 'wochenweise'),
                 'schriftgroesse_datum_pt'     => $request->filled('tu_schriftgroesse_datum_pt')
                     ? (int) $request->input('tu_schriftgroesse_datum_pt')
                     : null,

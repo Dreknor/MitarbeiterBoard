@@ -212,15 +212,15 @@
             @forelse($plan->planFaecher as $planFach)
                 <tr>
                     <td class="td-fach">
-                        @if($planFach->fach && $planFach->fach->pdf_symbol_html)
-                            {!! $planFach->fach->pdf_symbol_html !!}<br>
+                        @if($planFach->pdf_symbol_html)
+                            {!! $planFach->pdf_symbol_html !!}<br>
                         @endif
                         {{ $planFach->display_name }}
                     </td>
                     <td class="td-aufgaben">
-                        @forelse($planFach->aufgaben as $aufgabe)
+                        @forelse($planFach->aufgaben->sortBy(fn ($a) => $a->freiarbeit ? 1 : 0) as $aufgabe)
                             <div class="aufgabe-zeile">
-                                {{ $aufgabe->aufgabe }}
+                                @if($aufgabe->freiarbeit)<em>Freiarbeit:</em> @endif{{ $aufgabe->freiwillig ? '* ' : '' }}{{ $aufgabe->aufgabe }}
                                 @if($aufgabe->dauer && !$zeigeDauer)
                                     <span class="dauer">({{ $aufgabe->dauer }})</span>
                                 @endif
@@ -232,7 +232,7 @@
                     </td>
                     @if($zeigeDauer)
                         <td>
-                            @foreach($planFach->aufgaben as $aufgabe)
+                            @foreach($planFach->aufgaben->sortBy(fn ($a) => $a->freiarbeit ? 1 : 0) as $aufgabe)
                                 <div class="aufgabe-zeile">{{ $aufgabe->dauer }}</div>
                             @endforeach
                         </td>

@@ -20,10 +20,16 @@
             <h2>Wer sieht welche Pläne?</h2>
             <p>Alle Pädagog:innen sehen und bearbeiten die Pläne ihrer Klassen – also der Klassen, denen sie im Pädagogischen Tagebuch zugeordnet sind. Kinderpläne gehören zur aktuellen Klasse des Kindes. Schulleitung und Verwaltung können mit dem Recht „manage all wochenplaene“ alle Pläne bearbeiten. Vorlagen stehen allen zur Verfügung.</p>
 
+            <h2>Word-Pläne übernehmen</h2>
+            <p>„⬆ Word-Import“ in der Übersicht liest Wochenpläne nach der Papiervorlage (.docx) ein – auch Dateien mit Plänen für mehrere Lerngruppen und einzelne Kinder. Die Klasse kommt aus der Überschrift („Klasse 2 Her/Wi“ → Herbst 2 und Winter 2), „Name: …“ wird zum Kinderplan. In der Vorschau lassen sich Zeitraum, Klassen und Kind noch ändern; schon vorhandene Pläne werden übersprungen. Alte .doc-Dateien vorher in Word als .docx speichern.</p>
+
             <h2>Klassenplan anlegen</h2>
             <ul>
                 <li>„Neuer Plan“ – Klasse und Zeitraum wählen, optional eine Vorlage.</li>
                 <li>Aufgaben direkt im Fach eintragen. Zu jeder Aufgabe gibt es optional Dauer, Niveau (Basis, Standard, Erweitert) und einen Link – im PDF erscheint der Link als QR-Code.</li>
+                <li>Aufgaben können als <strong>freiwillig</strong> markiert werden – im PDF stehen sie mit * statt Nummer. <strong>Empfehlungen für die Freiarbeit</strong> erscheinen im PDF auf einer eigenen Seite, nach Fächern sortiert, und zählen nicht beim Abhaken je Kind.</li>
+                <li>„+ Freies Feld“ legt eine Zeile ohne Fach aus dem Katalog an – mit eigenem Namen und/oder Symbol (z. B. ⭐🎄🎁). Über ✎ am Fach lassen sich Name und Symbol jedes Fachs im Plan ändern.</li>
+                <li>Tägliche Übungen bekommen ein Kürzel (z. B. ✍ oder 5+5). Es steht im PDF im Wochenraster als Spaltenkopf je Wochentag.</li>
                 <li>Fächer und Aufgaben lassen sich am Griff ⠿ verschieben, Aufgaben auch in ein anderes Fach.</li>
                 <li>Alles wird sofort gespeichert. Arbeiten zwei Personen gleichzeitig am selben Plan, erscheint ein Hinweis und der aktuelle Stand wird geladen – nichts wird still überschrieben.</li>
             </ul>

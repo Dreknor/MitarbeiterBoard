@@ -40,6 +40,21 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Wochenplan\Nextcloud\WpNextcloudWebdav::class
         );
 
+        // Angepasste Arbeitsblätter: Nextcloud, Word-Umwandlung und KI-Erkennung
+        // (in Tests durch Tests\Fakes\AbNextcloudFake, AbKonvertierungFake bzw. FakeErkenner ersetzt)
+        $this->app->bind(
+            \App\Services\Arbeitsblaetter\AbNextcloudSpeicher::class,
+            \App\Services\Arbeitsblaetter\AbNextcloudWebdav::class
+        );
+        $this->app->bind(
+            \App\Services\Arbeitsblaetter\AbKonvertierung::class,
+            \App\Services\Arbeitsblaetter\NextcloudKonvertierung::class
+        );
+        $this->app->bind(
+            \App\Services\Arbeitsblaetter\Ki\AbErkenner::class,
+            fn () => \App\Services\Arbeitsblaetter\Ki\AbErkennerFabrik::erstellen()
+        );
+
         // Zeitwirtschaft: Vertrags-/Kontodaten pro Request zwischenspeichern
         $this->app->scoped(\App\Services\Personal\Zeit\ArbeitszeitService::class);
         $this->app->scoped(\App\Services\Personal\Zeit\UrlaubskontoService::class);
