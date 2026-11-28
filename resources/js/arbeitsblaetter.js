@@ -267,12 +267,16 @@ async function originaleLaden(originale) {
 }
 
 /** Relative Box [x1, y1, x2, y2] aus einer Quelle (Canvas/Bild) als PNG – null, wenn leer. */
-async function ausschnittBlob(quelle, box) {
+// rand: Box rundum vergrößern (Anteil der Seite) – KI-Boxen schneiden Motive oft knapp ab; der Server
+// entfernt danach weißen Rand und Reste der Nachbarbilder (feinschnitt)
+async function ausschnittBlob(quelle, box, rand = 0) {
     const breite = quelle.naturalWidth || quelle.width;
     const hoehe = quelle.naturalHeight || quelle.height;
     if (breite < 2 || hoehe < 2) return null;
     const max = Math.max(...box);
-    const b = (max > 1.0001 ? box.map((v) => v / (max > 100 ? 1000 : 100)) : box).map((v) => Math.min(1, Math.max(0, v)));
+    const b = (max > 1.0001 ? box.map((v) => v / (max > 100 ? 1000 : 100)) : box)
+        .map((v, i) => v + (i < 2 ? -rand : rand))
+        .map((v) => Math.min(1, Math.max(0, v)));
     if (b[2] - b[0] < 0.005 || b[3] - b[1] < 0.005) return null;
     const sw = (b[2] - b[0]) * breite;
     const sh = (b[3] - b[1]) * hoehe;
@@ -619,17 +623,22 @@ function registerComponents(Alpine) {
 
             const seiten = await originaleLaden(this.blatt.originale);
             let geaendert = false;
-            for (const b of offen) {
+            // je vier Abbildungen gleichzeitig hochladen (Sammelbilder werden in viele Einzelbilder zerlegt)
+            const eine = async (b) => {
                 const quelle = seiten[(b.quelle.seite || 1) - 1];
-                const blob = quelle ? await ausschnittBlob(quelle, b.quelle.box) : null;
-                if (!blob) continue;
+                const blob = quelle ? await ausschnittBlob(quelle, b.quelle.box, 0.02) : null;
+                if (!blob) return;
                 const fd = new FormData();
                 fd.append('bild', blob, 'abbildung.png');
+                fd.append('feinschnitt', '1'); // ungenaue KI-Box: Reste der Nachbarbilder und weißen Rand abschneiden
                 try {
                     const antwort = await anfrage(this.blatt.urls.abbildung, { methode: 'POST', formular: fd });
                     b.media_id = antwort.id;
                     geaendert = true;
                 } catch (e) { /* diese Abbildung bleibt ohne Bild – Hinweis kommt vom Server */ }
+            };
+            for (let i = 0; i < offen.length; i += 4) {
+                await Promise.all(offen.slice(i, i + 4).map(eine));
             }
             if (!geaendert) return;
             const antwort = await anfrage(this.blatt.urls.speichern, { methode: 'PUT', daten: { version: this.blatt.version, struktur: this.blatt.struktur } });

@@ -177,7 +177,7 @@ class AbProfil
             'linienabstand_pt' => round($w['linienabstand'] * $mmZuPt, 2),
             // Grundschul-Lineatur: drei gleich hohe Bänder (Ober-, Mittel-, Unterband) je Schreibzeile
             'gs_band_pt' => round($w['linienabstand'] * $mmZuPt * 0.5, 2),
-            'farbe_mittelband' => $w['farbschema'] === 'invertiert' ? '#4a4a4a' : '#d4d4d4',
+            'farbe_mittelband' => $w['farbschema'] === 'invertiert' ? '#8c8c8c' : '#cfcfcf',
             'ankreuz_pt' => round($w['ankreuz_groesse'] * $mmZuPt, 2),
             'luecke_pt' => round($w['luecke_min'] * $mmZuPt, 2),
             'ueberschrift_pt' => round($w['groesse'] * 1.35, 1),

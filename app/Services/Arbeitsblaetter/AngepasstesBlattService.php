@@ -392,7 +392,9 @@ class AngepasstesBlattService
         }
         $b = imagesx($bild);
         $h = imagesy($bild);
+        // rundum 2 % der Seite mehr: KI-Boxen schneiden Motive oft knapp ab; der Feinschnitt entfernt den Überschuss
         [$x1, $y1, $x2, $y2] = array_map('floatval', $box);
+        [$x1, $y1, $x2, $y2] = [max(0, $x1 - 0.02), max(0, $y1 - 0.02), min(1, $x2 + 0.02), min(1, $y2 + 0.02)];
         $rechteck = [
             'x' => (int) floor($x1 * $b), 'y' => (int) floor($y1 * $h),
             'width' => max(1, (int) ceil(($x2 - $x1) * $b)), 'height' => max(1, (int) ceil(($y2 - $y1) * $h)),
@@ -402,12 +404,124 @@ class AngepasstesBlattService
         if (! $ausschnitt) {
             return null;
         }
+        $ausschnitt = $this->feinschnittBild($ausschnitt);
         ob_start();
         imagepng($ausschnitt, null, 6);
         $png = (string) ob_get_clean();
         imagedestroy($ausschnitt);
 
         return $png;
+    }
+
+    /** Feinschnitt für automatisch ausgeschnittene Abbildungen (Inhalt als PNG/JPG). */
+    public function feinschnitt(string $bildInhalt): string
+    {
+        $bild = @imagecreatefromstring($bildInhalt);
+        if (! $bild) {
+            return $bildInhalt;
+        }
+        $bild = $this->feinschnittBild($bild);
+        ob_start();
+        imagepng($bild, null, 6);
+        imagedestroy($bild);
+
+        return (string) ob_get_clean();
+    }
+
+    /**
+     * Die Boxen der KI sind ungenau: Sie greifen oft Ränder der Nachbarbilder oder Beschriftungskästchen mit.
+     * Kleine, durch einen weißen Streifen abgetrennte Teile an den Kanten werden abgeschnitten, danach der
+     * weiße Rand. Analysiert wird auf einer verkleinerten Kopie (schnell), geschnitten im Original.
+     */
+    private function feinschnittBild(\GdImage $bild): \GdImage
+    {
+        $b = imagesx($bild);
+        $h = imagesy($bild);
+        if ($b < 12 || $h < 12) {
+            return $bild;
+        }
+        $faktor = min(1, 300 / max($b, $h));
+        $kb = max(1, (int) round($b * $faktor));
+        $kh = max(1, (int) round($h * $faktor));
+        $klein = imagecreatetruecolor($kb, $kh);
+        imagefill($klein, 0, 0, imagecolorallocate($klein, 255, 255, 255));
+        imagecopyresampled($klein, $bild, 0, 0, 0, 0, $kb, $kh, $b, $h);
+
+        $zeilen = array_fill(0, $kh, 0);
+        $spalten = array_fill(0, $kb, 0);
+        for ($y = 0; $y < $kh; $y++) {
+            for ($x = 0; $x < $kb; $x++) {
+                $f = imagecolorat($klein, $x, $y);
+                if (((($f >> 16) & 255) * 0.299 + (($f >> 8) & 255) * 0.587 + ($f & 255) * 0.114) < 200) {
+                    $zeilen[$y]++;
+                    $spalten[$x]++;
+                }
+            }
+        }
+        imagedestroy($klein);
+
+        [$y1, $y2] = $this->hauptbereich($zeilen);
+        [$x1, $x2] = $this->hauptbereich($spalten);
+        if ($y2 < $y1 || $x2 < $x1) {
+            return $bild; // leer – nichts zu schneiden
+        }
+        $rand = 2;
+        $rechteck = [
+            'x' => (int) max(0, floor(($x1 - $rand) / $faktor)),
+            'y' => (int) max(0, floor(($y1 - $rand) / $faktor)),
+        ];
+        $rechteck['width'] = (int) min($b - $rechteck['x'], ceil(($x2 + $rand + 1) / $faktor) - $rechteck['x']);
+        $rechteck['height'] = (int) min($h - $rechteck['y'], ceil(($y2 + $rand + 1) / $faktor) - $rechteck['y']);
+        // nur schneiden, wenn es sich lohnt und das Motiv nicht zusammenschrumpft
+        if ($rechteck['width'] * $rechteck['height'] >= $b * $h * 0.97 || $rechteck['width'] < $b * 0.25 || $rechteck['height'] < $h * 0.25) {
+            return $bild;
+        }
+        $neu = imagecrop($bild, $rechteck);
+        if (! $neu) {
+            return $bild;
+        }
+        imagedestroy($bild);
+
+        return $neu;
+    }
+
+    /**
+     * Von-bis des Hauptinhalts in einem Tintenprofil: Streifen mit Tinte, getrennt durch leere Streifen;
+     * kleine Streifen, die an der Kante kleben (Reste von Nachbarbildern), fallen weg.
+     *
+     * @param  list<int>  $profil
+     * @return array{0: int, 1: int}
+     */
+    private function hauptbereich(array $profil): array
+    {
+        $baender = [];
+        $start = null;
+        foreach ($profil as $i => $tinte) {
+            if ($tinte > 0 && $start === null) {
+                $start = $i;
+            }
+            if (($tinte === 0 || $i === count($profil) - 1) && $start !== null) {
+                $ende = $tinte === 0 ? $i - 1 : $i;
+                $baender[] = [$start, $ende, array_sum(array_slice($profil, $start, $ende - $start + 1))];
+                $start = null;
+            }
+        }
+        if (! $baender) {
+            return [1, 0];
+        }
+        $gesamt = max(1, array_sum(array_column($baender, 2)));
+        $letzter = count($profil) - 1;
+        // Randstreifen ist Fremdteil, wenn er wenig Tinte hat oder schmal ist (z. B. farbiger Beschriftungsbalken)
+        $fremd = fn (array $band) => $band[2] < 0.15 * $gesamt || ($band[1] - $band[0] + 1) < 0.2 * count($profil);
+        $kante = max(1, (int) round(0.08 * count($profil)));
+        while (count($baender) > 1 && $baender[0][0] <= $kante && $fremd($baender[0])) {
+            array_shift($baender);
+        }
+        while (count($baender) > 1 && end($baender)[1] >= $letzter - $kante && $fremd(end($baender))) {
+            array_pop($baender);
+        }
+
+        return [$baender[0][0], end($baender)[1]];
     }
 
     // ─── Bearbeiten ───────────────────────────────────────────────────────────
@@ -540,9 +654,13 @@ class AngepasstesBlattService
     // ─── Abbildungen ──────────────────────────────────────────────────────────
 
     /** Im Browser ausgeschnittene Abbildung (PNG/JPEG) speichern. */
-    public function abbildungSpeichern(AngepasstesBlatt $blatt, UploadedFile $datei): ?Media
+    /** @param  bool  $feinschnitt  automatisch aus einer KI-Box geschnitten → Ränder/Nachbarreste entfernen */
+    public function abbildungSpeichern(AngepasstesBlatt $blatt, UploadedFile $datei, bool $feinschnitt = false): ?Media
     {
         $inhalt = (string) file_get_contents($datei->getPathname());
+        if ($feinschnitt) {
+            return $this->abbildungAusInhalt($blatt, $this->feinschnitt($inhalt), 'image/png');
+        }
 
         return $this->abbildungAusInhalt($blatt, $inhalt, (string) $datei->getMimeType());
     }

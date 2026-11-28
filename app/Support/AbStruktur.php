@@ -201,7 +201,8 @@ class AbStruktur
         $hinweise = [];
         foreach (self::alle($struktur) as $b) {
             $text = match ($b['typ']) {
-                'tabelle' => collect($b['zeilen'] ?? [])->flatten()->filter(fn ($z) => trim((string) $z) !== '')->isEmpty()
+                // eine leere Tabelle mit mehreren Zellen ist meist zum Ausfüllen gedacht – nur die Ein-Zellen-Hülle meldet sich
+                'tabelle' => count(collect($b['zeilen'] ?? [])->flatten()) <= 1 && collect($b['zeilen'] ?? [])->flatten()->filter(fn ($z) => trim((string) $z) !== '')->isEmpty()
                     ? 'Eine Tabelle ist leer.' : null,
                 'kasten' => trim(self::segmentText($b['inhalt'] ?? [])) === ''
                     ? 'Der Kasten'.(($b['titel'] ?? '') !== '' ? ' „'.$b['titel'].'“' : '').' hat keinen Text.' : null,

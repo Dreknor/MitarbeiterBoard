@@ -137,12 +137,69 @@ class AbSatzService
             'modus' => $modus,
             'schriften' => $this->schriften($layout['schrift'], $modus),
             'bild' => $this->bildQuelle($blatt, $layout, $modus),
+            'bildMasse' => $this->bildMasse($blatt),
             'fusszeile' => $fusszeile,
         ])->render();
     }
 
     /** PDF als Binärinhalt. */
     public function pdf(AngepasstesBlatt $blatt, array $profilWerte, ?array $struktur = null, ?string $fusszeile = null): string
+    {
+        $inhalt = $this->pdfSetzen($blatt, $profilWerte, $struktur, $fusszeile);
+
+        // Sicherheitsnetz: Ein „nicht teilen“-Block, der in Wahrheit höher als eine Seite ist, schneidet DomPDF ab.
+        // Fehlen Wörter im Ergebnis, wird ohne Umbruchsperre neu gesetzt – lieber geteilt als unvollständig.
+        if (($profilWerte['aufgabe_nicht_teilen'] ?? false) && $this->fehlendeWoerter($inhalt, $struktur ?? $blatt->strukturGueltig())) {
+            $inhalt = $this->pdfSetzen($blatt, array_merge($profilWerte, ['aufgabe_nicht_teilen' => false]), $struktur, $fusszeile);
+        }
+
+        return $inhalt;
+    }
+
+    /**
+     * Wörter der Struktur (ohne Bildbeschreibungen und Strichlisten), die im gesetzten PDF fehlen.
+     *
+     * @return list<string>
+     */
+    public function fehlendeWoerter(string $pdf, array $struktur): array
+    {
+        $ohneBilder = function (array $liste) use (&$ohneBilder) {
+            $liste = array_filter($liste, fn ($b) => ($b['typ'] ?? '') !== 'bild');
+
+            return array_values(array_map(function ($b) use ($ohneBilder) {
+                if (! empty($b['kinder'])) {
+                    $b['kinder'] = $ohneBilder($b['kinder']);
+                }
+
+                return $b;
+            }, $liste));
+        };
+        $struktur = AbStruktur::normalisieren($struktur);
+        $struktur['bausteine'] = $ohneBilder($struktur['bausteine']);
+        $woerter = fn (string $t) => array_count_values(array_filter(
+            preg_split('/[^\p{L}]+/u', mb_strtolower($t)) ?: [],
+            fn ($w) => mb_strlen($w) >= 3 && ! preg_match('/^[il]+$/u', $w),
+        ));
+
+        try {
+            $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
+        } catch (\Throwable) {
+            return []; // Prüfung nicht möglich – Ergebnis nicht verwerfen
+        }
+        $ist = $woerter($text);
+        // Die Textextraktion klebt Nachbarzellen von Tabellen zusammen („VaterSofa“) – dann als Teilstück zählen
+        $gequetscht = mb_strtolower(preg_replace('/[^\p{L}]+/u', '', $text) ?? '');
+        $fehlt = [];
+        foreach ($woerter(AbStruktur::klartext($struktur)) as $wort => $anzahl) {
+            if (($ist[$wort] ?? 0) < $anzahl && substr_count($gequetscht, $wort) < $anzahl) {
+                $fehlt[] = $wort;
+            }
+        }
+
+        return $fehlt;
+    }
+
+    private function pdfSetzen(AngepasstesBlatt $blatt, array $profilWerte, ?array $struktur, ?string $fusszeile): string
     {
         $layout = AbProfil::layout($profilWerte);
         $this->schriftCacheSicherstellen();
@@ -204,12 +261,61 @@ class AbSatzService
     }
 
     /**
+     * Text eines Bausteins als HTML für den Satz (escaped, Zeilenumbrüche):
+     * - Strichlisten („IIII“, „| | |“) werden echte, gut zählbare Striche in Fünfergruppen.
+     * - Rechenterme und Brüche („7/25“, „2 · 5 = 10“, „2 2/11“) brechen nicht mitten im Term um.
+     * - Atkinson Hyperlegible hat eine Null mit Schrägstrich („Ø“-Verwechslung, v. a. in Mathe) –
+     *   Nullen werden mit einer Schrift ohne Schrägstrich gesetzt.
+     */
+    public static function textHtml(string $text, array $l): string
+    {
+        $text = (string) $text;
+        if (preg_match('/^\s*(?:[I|l]\s*){2,}\s*$/u', $text)) {
+            $anzahl = preg_match_all('/[I|l]/u', $text);
+            $html = '';
+            for ($i = 1; $i <= $anzahl; $i++) {
+                $html .= '<span class="ab-strich"></span>'.($i % 5 === 0 && $i < $anzahl ? '<span class="ab-strich-luecke"></span>' : '');
+            }
+
+            return '<span class="ab-striche" title="'.$anzahl.'">'.$html.'</span>';
+        }
+
+        $nullErsetzen = ($l['schrift'] ?? '') === 'atkinson';
+        // Terme: Zahl (Operator Zahl)+ bzw. gemischte Zahl „2 2/11“ – als Ganzes zusammenhalten
+        $zahl = '(?:\d+\s\d+\/\d+|\(?\d+(?:[.,]\d+)?\)?)';
+        $teile = preg_split('/('.$zahl.'(?:\s?[\/:·×x*+\-−–=<>]\s?'.$zahl.')+|\d+\s\d+\/\d+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
+        $html = '';
+        foreach ($teile as $i => $teil) {
+            $stueck = e($teil);
+            if ($nullErsetzen) {
+                // Zahl mit Null als Ganzes: DomPDF bricht sonst an der Span-Grenze um („20 / 11“); Entities („&#039;“) bleiben heil
+                $stueck = preg_replace_callback('/(?<![&#\d])[−-]?\d*0[\d.,]*(?<=\d)(?![\d;])|(?<![&#\d])[−-]?\d+[.,]\d*0[\d.,]*(?<=\d)(?![\d;])/u', function ($m) {
+                    $neu = str_replace('0', '<span class="ab-null">0</span>', $m[0]);
+
+                    return strlen($m[0]) > 1 ? '<span class="ab-term">'.$neu.'</span>' : $neu;
+                }, $stueck) ?? $stueck;
+            }
+            // nur kurze Terme zusammenhalten – lange Ketten müssen umbrechen dürfen, sonst laufen sie über den Rand
+            // zusammengehalten über geschützte Leerzeichen: DomPDF bricht zwischen mehreren nowrap-Spans gar nicht
+            // mehr um (eine Liste „2 7/70; 2/22; …“ lief über den Rand)
+            $html .= $i % 2 === 1 && mb_strlen($teil) <= 14 ? '<span class="ab-term">'.(preg_replace('/ (?![^<]*>)/', '&nbsp;', $stueck) ?? $stueck).'</span>' : $stueck;
+        }
+
+        return nl2br($html, false);
+    }
+
+    /**
      * Steckt der Titel schon in der ersten Überschrift (oder umgekehrt, z. B. Dateiname
      * „06 d4 akkusativobjekt 1“ ↔ „Das Akkusativobjekt 1“)? Dann nicht doppelt ausgeben.
      * Verglichen werden die Wörter ab 4 Buchstaben: stecken alle des einen im anderen, ist es doppelt.
      */
     public static function titelDoppelt(string $titel, array $struktur): bool
     {
+        // Titel aus einem Dateinamen („05 d2 offene geschlossene silben 1“) wird nie gedruckt –
+        // auch nicht, wenn die Erkennung keine Überschrift gefunden hat
+        if (preg_match('/\d/u', $titel) && mb_strtolower($titel) === $titel) {
+            return true;
+        }
         $erste = $struktur['bausteine'][0] ?? null;
         if (! $erste || $erste['typ'] !== 'ueberschrift') {
             return false;
@@ -251,6 +357,26 @@ class AbSatzService
         }
 
         return $ergebnis;
+    }
+
+    /**
+     * Seitenverhältnis (Höhe/Breite) der gespeicherten Abbildung – nach Feinschnitt und Rand weicht es
+     * von der KI-Box ab; die Höhenschätzung für den Seitenumbruch braucht das echte.
+     */
+    private function bildMasse(AngepasstesBlatt $blatt): \Closure
+    {
+        $medien = $blatt->exists ? $blatt->getMedia(AngepasstesBlatt::ABBILDUNGEN)->keyBy('id') : collect();
+        $cache = [];
+
+        return function (int $mediaId) use ($medien, &$cache): ?float {
+            if (! array_key_exists($mediaId, $cache)) {
+                $pfad = $medien->get($mediaId)?->getPath();
+                $masse = $pfad && is_file($pfad) ? @getimagesize($pfad) : false;
+                $cache[$mediaId] = $masse && $masse[0] > 0 ? $masse[1] / $masse[0] : null;
+            }
+
+            return $cache[$mediaId];
+        };
     }
 
     private function bildQuelle(AngepasstesBlatt $blatt, array $layout, string $modus): \Closure
@@ -324,16 +450,24 @@ class AbSatzService
         imagecopy($flach, $bild, 0, 0, 0, 0, $b, $h);
         imagedestroy($bild);
 
+        // Farbige Grafiken/Fotos (Halloween-Figuren, Karten): Graustufen + Tonkurve zerstören helle Motive
+        // (das weiße Gespenst verschwindet) – sie bleiben, wie sie sind, auf heller Fläche
+        if ($this->farbig($flach)) {
+            return $flach;
+        }
+
         imagefilter($flach, IMG_FILTER_GRAYSCALE);
+        // kein Weichzeichnen: feine helle Linien (Ausmalraster) würden sonst zu Papier
         imagetruecolortopalette($flach, false, 256);
+        $weiss = 215; // helle Flächen/Raster/Papiergrau werden Papier – nur Linien und Formen bleiben
         for ($i = 0, $n = imagecolorstotal($flach); $i < $n; $i++) {
             $grau = imagecolorsforindex($flach, $i)['red'];
-            if ($grau >= 240) {
+            if ($grau >= $weiss) {
                 $neu = 255;
             } else {
                 $neu = $invertieren
-                    ? (int) round(95 * ($grau / 240) ** 1.2)
-                    : (int) round(150 * ($grau / 240) ** 1.5);
+                    ? (int) round(80 * ($grau / $weiss) ** 1.4)
+                    : (int) round(130 * ($grau / $weiss) ** 1.8);
             }
             if ($invertieren) {
                 $neu = 255 - $neu;
@@ -343,6 +477,35 @@ class AbSatzService
         imagepalettetotruecolor($flach);
 
         return $flach;
+    }
+
+    /** Mehr als 12 % der nicht-weißen Bildpunkte deutlich farbig (Stichprobe)? Dann keine Kontrastkurve. */
+    private function farbig(\GdImage $bild): bool
+    {
+        $b = imagesx($bild);
+        $h = imagesy($bild);
+        $schritt = max(1, (int) floor(sqrt($b * $h / 20000)));
+        $inhalt = 0;
+        $bunt = 0;
+        for ($y = 0; $y < $h; $y += $schritt) {
+            for ($x = 0; $x < $b; $x += $schritt) {
+                $f = imagecolorat($bild, $x, $y);
+                $r = ($f >> 16) & 255;
+                $g = ($f >> 8) & 255;
+                $bl = $f & 255;
+                $max = max($r, $g, $bl);
+                $min = min($r, $g, $bl);
+                if ($min >= 235) {
+                    continue; // Papier
+                }
+                $inhalt++;
+                if ($max - $min >= 60) {
+                    $bunt++;
+                }
+            }
+        }
+
+        return $inhalt > 0 && $bunt / $inhalt > 0.12;
     }
 
     /** DomPDF braucht ein beschreibbares Schrift-Verzeichnis für die Metriken. */

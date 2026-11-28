@@ -29,6 +29,7 @@ class SchnellmodusTest extends TestCase
     public function test_erfassung_zeigt_schnell_und_erweitert_mit_zielen(): void
     {
         $kind = $this->kindMitProfil();
+        $kind->update(['vorname' => 'Lina', 'nachname' => 'Becker']); // Zufallsnamen mit Apostroph machten den Test wackelig
         $this->actingAs($this->lehrkraft());
 
         $this->get(route('arbeitsblaetter.create'))->assertOk()

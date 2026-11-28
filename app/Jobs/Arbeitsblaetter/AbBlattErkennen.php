@@ -54,6 +54,9 @@ class AbBlattErkennen implements ShouldQueue
             @ignore_user_abort(true);
         }
 
+        // lange Blätter abschnittsweise erkennen (sonst sprengen sie die Antwortlänge der Modelle)
+        $erkenner = new \App\Services\Arbeitsblaetter\Ki\SeitenweiseErkenner($erkenner);
+
         \App\Services\Arbeitsblaetter\Ki\KiProtokoll::fuer($blatt->id);
         try {
             $this->erkennen($blatt, $service, $erkenner);
@@ -123,7 +126,9 @@ class AbBlattErkennen implements ShouldQueue
     private function vollstaendigkeitPruefen(AngepasstesBlatt $blatt, AngepasstesBlattService $service, AbErkenner $erkenner, AbErkennung $erkennung): AbErkennung
     {
         $seiten = max(1, (int) ($blatt->ki_seiten ?: $erkennung->seiten));
-        $luecken = ErkennerVorgaben::unvollstaendig($erkennung->struktur, $seiten, $blatt->textebene);
+        // Lehrkraft-Material: dass (fast) nichts für das Kind übrig bleibt, ist dann richtig – keine Nachfrage
+        $material = ErkennerVorgaben::lehrkraftMaterial($blatt->textebene, $erkennung->struktur);
+        $luecken = $material ? [] : ErkennerVorgaben::unvollstaendig($erkennung->struktur, $seiten, $blatt->textebene);
         if ($luecken && config('arbeitsblaetter.ki.nachfragen', true)) {
             try {
                 $service->erkennungHinweis($blatt, 'Das Ergebnis wirkt unvollständig – es wird ein zweites Mal erkannt …');
@@ -141,12 +146,12 @@ class AbBlattErkennen implements ShouldQueue
             }
         }
 
-        if (! $luecken) {
+        if (! $luecken && ! $material) {
             return $erkennung;
         }
 
         return new AbErkennung($erkennung->struktur, $erkennung->seiten, $erkennung->kostenCent, $erkennung->anbieter, $erkennung->modell,
-            array_merge($erkennung->hinweise, $luecken, ['Bitte fehlende Teile ergänzen oder „Erkennen“ erneut starten.']));
+            array_merge($erkennung->hinweise, $material, $luecken, $luecken ? ['Bitte fehlende Teile ergänzen oder „Erkennen“ erneut starten.'] : []));
     }
 
     /** Läuft der Auftrag ohne Queue-Worker (QUEUE_CONNECTION=sync bzw. dispatchSync)? */

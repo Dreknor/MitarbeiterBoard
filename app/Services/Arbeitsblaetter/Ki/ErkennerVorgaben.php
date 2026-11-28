@@ -52,9 +52,25 @@ final class ErkennerVorgaben
      */
     public static function nachbearbeiten(array $struktur): array
     {
+        // Modelle schreiben Zeilenumbrüche manchmal als Zeichenfolge „\n“
+        array_walk_recursive($struktur, function (&$wert) {
+            if (is_string($wert)) {
+                $wert = str_replace('\n', "\n", $wert);
+            }
+        });
         $liste = function (array $bausteine) use (&$liste): array {
             $ergebnis = [];
             foreach ($bausteine as $b) {
+                // leere einspaltige Tabelle = Antwortlinien
+                if ($b['typ'] === 'tabelle' && ($b['zeilen'] ?? []) && collect($b['zeilen'])->every(fn ($z) => count($z) <= 1)) {
+                    $koerper = ! empty($b['kopfzeile']) ? array_slice($b['zeilen'], 1) : $b['zeilen'];
+                    if ($koerper && collect($koerper)->every(fn ($z) => trim((string) ($z[0] ?? '')) === '')) {
+                        if (! empty($b['kopfzeile']) && trim((string) ($b['zeilen'][0][0] ?? '')) !== '') {
+                            $ergebnis[] = ['id' => $b['id'].'t', 'typ' => 'text', 'inhalt' => [['typ' => 'text', 'text' => $b['zeilen'][0][0]]]];
+                        }
+                        $b = ['id' => $b['id'], 'typ' => 'schreiblinien', 'anzahl' => max(2, count($koerper))];
+                    }
+                }
                 if ($b['typ'] === 'ankreuzen') {
                     $frage = mb_strtolower(trim($b['frage'] ?? ''));
                     if ($frage !== '' && in_array($frage, array_map(fn ($o) => mb_strtolower(trim($o)), $b['optionen'] ?? []), true)) {
@@ -87,9 +103,42 @@ final class ErkennerVorgaben
 
             return $ergebnis;
         };
-        $struktur['bausteine'] = $liste($struktur['bausteine'] ?? []);
+        $struktur['bausteine'] = self::loesungsteilEntfernen($liste($struktur['bausteine'] ?? []));
 
         return $struktur;
+    }
+
+    /**
+     * Lösungsteile, die die KI trotz Anweisung übernimmt: alles ab einer Überschrift „Lösung(en)“ fällt weg,
+     * ebenso Aufgaben, deren Text (ab 25 Zeichen) wortgleich schon vorkam – meist das Lösungsblatt.
+     */
+    public static function loesungsteilEntfernen(array $bausteine): array
+    {
+        $ergebnis = [];
+        $gesehen = [];
+        $schluesselVon = fn (array $b) => ($b['nummer'] ?? '').'|'.mb_substr(mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', '', AbStruktur::segmentText($b['inhalt'] ?? [])) ?? ''), 0, 40);
+        foreach ($bausteine as $b) {
+            if ($b['typ'] === 'ueberschrift' && preg_match('/^\s*(l(ö|oe)sung(en|sblatt)?|musterl(ö|oe)sung|answer key|solutions?)\b/iu', (string) ($b['text'] ?? '')) && count($ergebnis) >= 2) {
+                break;
+            }
+            if ($b['typ'] === 'aufgabe') {
+                // Anfang reicht: das Lösungsblatt wiederholt die Aufgabe, oft mit eingesetzten Antworten dahinter
+                $schluessel = mb_substr(mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', '', AbStruktur::segmentText($b['inhalt'] ?? [])) ?? ''), 0, 40);
+                if (mb_strlen($schluessel) >= 25 && isset($gesehen[($b['nummer'] ?? '').'|'.$schluessel])) {
+                    continue;
+                }
+                $gesehen[($b['nummer'] ?? '').'|'.$schluessel] = true;
+                // Teilaufgaben auch merken: das Lösungsblatt wiederholt „b) …“ oft als eigene Aufgabe
+                foreach ($b['kinder'] ?? [] as $kind) {
+                    if ($kind['typ'] === 'aufgabe') {
+                        $gesehen[$schluesselVon($kind)] = true;
+                    }
+                }
+            }
+            $ergebnis[] = $b;
+        }
+
+        return $ergebnis;
     }
 
     /** Einzelne Zeilenumbrüche → Leerzeichen; Absätze (Leerzeile) bleiben. Ränder bleiben erhalten. */
@@ -102,7 +151,7 @@ final class ErkennerVorgaben
         $neu = preg_replace_callback('/([^\n]*?)[ \t]*\n(?!\n)[ \t]*(?=(\S?))/u', function ($m) {
             $zeile = $m[1];
             $weiter = $m[2];
-            $satzende = (bool) preg_match('/[.!?:;]$/u', $zeile);
+            $satzende = (bool) preg_match('/[.!?:;)]$/u', $zeile); // „…(Gegenwart)“ + nächster Lückensatz bleiben getrennt
             $aufzaehlung = (bool) preg_match('/^[-–•\d]/u', $weiter);
             $klein = $weiter !== '' && mb_strtolower($weiter) === $weiter && mb_strtoupper($weiter) !== $weiter;
             $verbinden = ! $aufzaehlung && ! $satzende && ($klein || mb_strlen($zeile) >= 55);
@@ -258,6 +307,24 @@ final class ErkennerVorgaben
      *
      * @return array<int, string>
      */
+    /**
+     * Hinweis, wenn das Original vor allem Material für die Lehrkraft ist (Handreichung, Erwartungshorizont)
+     * und kein Schülerblatt – solche Seiten soll die Erkennung weglassen, ganze Dokumente erkennt man am Anfang.
+     *
+     * @return array<int, string>
+     */
+    public static function lehrkraftMaterial(?string $textebene, array $struktur): array
+    {
+        $anfang = mb_strtolower(mb_substr(trim((string) $textebene), 0, 800).' '.mb_substr(AbStruktur::klartext($struktur), 0, 300));
+        foreach (['hinweise für die lehrkraft', 'hinweise für lehrkräfte', 'lehrerhandreichung', 'handreichung für', 'erwartungshorizont', 'lösungsblatt', 'lehrerinformation'] as $merkmal) {
+            if (str_contains($anfang, $merkmal)) {
+                return ['Das Original scheint Material für die Lehrkraft zu sein („'.$merkmal.'“) und kein Schülerblatt. Bitte prüfen, ob es so an das Kind gehen soll.'];
+            }
+        }
+
+        return [];
+    }
+
     public static function unvollstaendig(array $struktur, int $seiten, ?string $textebene = null): array
     {
         $hinweise = [];
@@ -266,7 +333,12 @@ final class ErkennerVorgaben
             $hinweise[] = 'Es wurden nur '.$anzahl.' Bausteine erkannt – die Erkennung ist vermutlich unvollständig.';
         }
         $vergleich = fn (string $t) => mb_strlen(preg_replace('/[^\p{L}\p{N}]+/u', '', $t) ?? '');
-        $soll = $textebene ? $vergleich($textebene) : 0;
+        // Lösungs- und Lehrkraftteile lässt die Erkennung absichtlich weg – sie zählen nicht mit
+        $aufgaben = (string) $textebene;
+        if (preg_match('/(erwartungshorizont|erwartungsbild|lehrplanbezug|hinweise zum unterrichtlichen einsatz|didaktische hinweise|l(ö|oe)sungen?\s*:|l(ö|oe)sungsblatt|hinweise f(ü|ue)r die lehrkraft|musterl(ö|oe)sung)/iu', $aufgaben, $treffer, PREG_OFFSET_CAPTURE) && $treffer[0][1] > strlen($aufgaben) * 0.2) {
+            $aufgaben = substr($aufgaben, 0, $treffer[0][1]);
+        }
+        $soll = $textebene ? $vergleich($aufgaben) : 0;
         if ($soll >= 150 && $vergleich(AbStruktur::klartext($struktur)) < 0.5 * $soll) {
             $hinweise[] = 'Der erkannte Text ist deutlich kürzer als der Text im PDF – vermutlich fehlen Teile.';
         }
@@ -386,7 +458,7 @@ Bausteine (Feld typ):
 - anweisung: allgemeine Arbeitsanweisung, die zu keiner nummerierten Aufgabe gehört (text).
 - aufgabe: nummerierte Aufgabe. nummer wie im Original, aber ohne Punkt („1“, nicht „1.“). inhalt = der Aufgabentext (Anweisung gehört in inhalt). Teilaufgaben a), b) sind eigene aufgabe-Bausteine. Alles, was zu einer Aufgabe gehört (Teilaufgaben, Tabelle, Schreiblinien, Ankreuzen, Rechenfeld, Zeichenfläche, Bild, Wortliste), folgt direkt danach mit teil_von_aufgabe = true. Bei allen anderen Bausteinen ist teil_von_aufgabe = false.
 - text: sonstiger Text, auch Antwortsätze wie „Antwort: Der Eintritt kostet ___.“ und Wortlisten zum Zuordnen (inhalt mit Lücken).
-- kasten: gerahmter Text – Merkkasten („Merke!“), Wortspeicher, Info-Kasten, Schild, Sprechblase, Preisliste. titel = fette Überschrift im Kasten, text = der VOLLSTÄNDIGE Text im Kasten (Zeilen mit \n trennen, Wörter eines Wortspeichers mit \n oder „ · “). Ein Kasten ohne text ist falsch. Text in Kästen NIE als bild erfassen.
+- kasten: gerahmter Text – Merkkasten („Merke!“), Wortspeicher, Info-Kasten, Schild, Sprechblase, Preisliste. titel = fette Überschrift im Kasten (nur wenn sie im Original steht – nie selbst ausdenken, sonst ""), text = der VOLLSTÄNDIGE Text im Kasten (Zeilen mit \n trennen, Wörter eines Wortspeichers mit \n oder „ · “). Ein Kasten ohne text ist falsch. Text in Kästen NIE als bild erfassen.
 - tabelle: jede Tabelle mit ALLEN Zeilen und Zellen (zeilen = Liste von Zeilen, jede Zeile eine Liste von Zelltexten, leere Zellen ""; kopfzeile = true, wenn die erste Zeile Überschriften enthält). Strichlisten als Tabelle mit den Strichen als Text („IIII“), Buchstabengitter/Suchsel als Tabelle mit genau einem Buchstaben je Zelle. Eine Tabelle ohne zeilen ist falsch.
 - ankreuzen: Kästchen zum Ankreuzen. optionen = Beschriftungen der Kästchen. frage nur, wenn über den Kästchen eine eigene Frage steht. mehrfach = true bei eckigen Kästchen, wenn mehrere angekreuzt werden dürfen. angekreuzt = Indizes der im Original schon angekreuzten Kästchen (Beispiel).
 - rechenfeld: kariertes Feld/Rechenkästchen (reihen = genaue Anzahl der Kästchenreihen im Original). Vorgedruckte Hilfen im Feld als inhalt mit Lücken.
@@ -394,8 +466,24 @@ Bausteine (Feld typ):
 - zeichenflaeche: leere Fläche oder leerer Rahmen zum Zeichnen, Malen, Kleben (hoehe in Schreibzeilen, z. B. 4 für eine kleine, 10 für eine halbe Seite). Bei „Zeichne …“/„Male …“/„Draw …“ ohne vorgedrucktes Bild immer eine zeichenflaeche anlegen.
 - bild: nur Grafiken, deren Inhalt man zum Lösen sehen muss: Diagramme, Zahlenstrahl/Rechenstrich, Münzen, geometrische Formen, Bildfolgen, Bilder zum Benennen, Ausmalbilder (beschreibung sachlich; seite; box = [x1, y1, x2, y2] relativ zur Seite mit Werten von 0 bis 1 – 0 = links/oben, 1 = rechts/unten –, die ganze Grafik vollständig umschließend, aber ohne Aufgabentext darüber oder darunter). Schmückende Illustrationen (Figuren neben den Aufgaben, Cliparts, Rahmen, Logos) weglassen.
 
+Sehgerechte Form – so umbauen, dass ein Kind mit Sehbehinderung ohne Suchen arbeiten kann:
+- Zuordnen/Verbinden (Wörter zu Bildern, Begriffe zu Erklärungen): als tabelle mit einer Zeile je Paar, links das Vorgegebene, rechts "" zum Eintragen; die Bilder als bild-Bausteine davor.
+- Wortpaare mit Antwortlinie („monster – ____“, Übersetzen, Vokabeln): als tabelle mit zwei Spalten, eine Zeile je Wort, rechte Zelle "".
+- Richtig/falsch-Aussagen: als tabelle mit Kopfzeile ["Aussage", "richtig", "falsch"] und je Aussage einer Zeile ["…", "", ""].
+- Wortlisten und Wortspeicher in Rastern oder Kästen: als kasten mit einem Wort je Zeile (Zeilen mit \n trennen).
+- Schreiblinien, Lücken und Kästchen stehen in der Reihenfolge immer NACH der Frage oder Beschriftung, zu der sie gehören – erst „Vokal am Ende:“, dann seine Linien, dann „Konsonant am Ende:“, dann dessen Linien.
+- Arbeitsraum nie weglassen: eine Frage, die einen Satz als Antwort verlangt, bekommt mindestens 2 schreiblinien; Rechenaufgaben mit Platz für Rechenwege oder Nebenrechnungen bekommen ein rechenfeld (mindestens 3 reihen); zeichenflaeche so hoch wie im Original (halbe Seite ≈ 10).
+- Zuordnen zu Bildern: die bild-Bausteine werden im Blatt der Reihe nach mit 1, 2, 3 … nummeriert – in der Tabelle links „Bild 1“, „Bild 2“ … in derselben Reihenfolge, rechts "".
+- Strichlisten/Zählaufgaben: tabelle mit zwei Spalten (Gegenstand | Anzahl bzw. Striche), nie mehr Spalten als im Original.
+- Kopfzeilen und Beschriftungen in der Sprache des Originals lassen (englisches Blatt: "true"/"false", nicht „richtig“/„falsch“).
+- Ankreuzen: mehrfach = true, sobald mehr als eine Antwort richtig sein kann („Kreuze alle … an“, Mehrfachauswahl, Option „beide“); nur bei genau einer richtigen Antwort false.
+- Periodische Dezimalzahlen als „0,3 (Periode 3)“, Brüche als „3/4“, Potenzen als „10^3“.
+- Zähl- und Suchbilder (Wimmelbild, „Zähle die …“, „Finde …“): EIN bild-Baustein mit dem ganzen Bild – nie in Einzelteile zerlegen, sonst stimmt das Ergebnis nicht.
+- Schreiblinien gehören direkt hinter ihre Frage: jede Frage mit eigenem Antwortraum bekommt ihre eigenen schreiblinien (so viele wie im Original), nie alle Linien gesammelt am Ende.
+- Abbildungen: box eng um die Grafik selbst – ohne Überschrift, Anweisung, Aufgabentext, Tabellen oder Schmuckfiguren daneben; mehrere getrennte Bilder (z. B. sechs Bilder zum Benennen) als einzelne bild-Bausteine, nicht als ein großes Bild.
+
 Lücken: Unterstriche, Antwortlinien, leere Kästchen oder freie Stellen zum Eintragen werden zu {"typ": "luecke", "laenge": n} mit der ungefähren Zahl der Zeichen, die hineinpassen (Wort 10–15, lange Antwortlinie 30). Leerzeichen vor und nach einer Lücke gehören in die Textsegmente („soll “, Lücke, „ für“). Vorgedruckte Beispiellösungen und Hilfen übernehmen. Mathematische Ausdrücke als lesbarer Text („3/4“, „2 · 5 =“, „1,50 €“, „+ 200“).
 
-Lösungsseiten und Lösungen („Lösung“, „Lösungsblatt“, Musterlösungen, eingetragene Antworten, angekreuzte Lösungen) komplett weglassen – das Kind bekommt nur die Aufgaben; ebenso Werbung, Hinweise auf andere Webseiten, Copyright- und Kontaktzeilen. Wiederholt eine Seite nur die Aufgaben einer anderen (z. B. als Lösungsblatt), erfasse sie nicht doppelt. Persönliche Angaben (Namen von Kindern, Noten, handschriftliche Einträge) nicht übernehmen; ein leeres Namensfeld darf als text mit Lücke erfasst werden. seiten = Anzahl der Seiten des Originals.
+Lösungsseiten und Lösungen („Lösung“, „Lösungsblatt“, Musterlösungen, eingetragene Antworten, angekreuzte Lösungen) komplett weglassen – das Kind bekommt nur die Aufgaben; ebenso alles, was nur für die Lehrkraft bestimmt ist („Hinweise für die Lehrkraft“, Erwartungshorizont, Lösungserwartung, Bewertung, Kompetenzen, Lehrplanbezug, Materialhinweise), Werbung, Hinweise auf andere Webseiten, Copyright- und Kontaktzeilen. Wiederholt eine Seite nur die Aufgaben einer anderen (z. B. als Lösungsblatt), erfasse sie nicht doppelt. Die Textebene eines PDFs hilft nur beim richtigen Abschreiben von Text, der im Bild sichtbar ist. Text, der im Bild nicht zu sehen ist (verdeckt, unter Feldern, weiß auf weiß – oft die Lösungen), NIE übernehmen. Persönliche Angaben (Namen von Kindern, Noten, handschriftliche Einträge) nicht übernehmen; ein leeres Namensfeld darf als text mit Lücke erfasst werden. seiten = Anzahl der Seiten des Originals.
 TXT;
 }

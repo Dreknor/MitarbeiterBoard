@@ -480,7 +480,7 @@ class AbBlattController extends Controller
         $this->authorize('update', $blatt);
         $request->validate(['bild' => 'required|file|mimes:png,jpg,jpeg|max:10240']);
 
-        $media = $this->service->abbildungSpeichern($blatt, $request->file('bild'));
+        $media = $this->service->abbildungSpeichern($blatt, $request->file('bild'), $request->boolean('feinschnitt'));
         abort_unless($media, 422, 'Die Abbildung konnte nicht gespeichert werden.');
 
         return response()->json([

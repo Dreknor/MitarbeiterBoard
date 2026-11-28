@@ -125,7 +125,7 @@ class TestberichtTest extends TestCase
         $user = $this->lehrkraft();
         $this->actingAs($user);
         $blatt = $this->blatt(['status' => AngepasstesBlatt::ZU_PRUEFEN, 'erstellt_von' => $user->id], [
-            ['typ' => 'tabelle', 'zeilen' => [['', '']]],
+            ['typ' => 'tabelle', 'zeilen' => []],
             ['typ' => 'kasten', 'titel' => 'Merke:'],
         ]);
 
@@ -156,6 +156,161 @@ class TestberichtTest extends TestCase
         $this->assertStringContainsString('ab-zeichenflaeche', $html);
         $this->assertStringStartsWith('%PDF', $satz->pdf($blatt, $werte));
         $this->assertStringStartsWith('PK', $satz->docx($blatt, $werte));
+    }
+
+    public function test_lange_blaetter_werden_abschnittsweise_erkannt(): void
+    {
+        // 7-seitiges PDF → 3 Abschnitte (3 + 3 + 1 Seiten); Abbildungen behalten ihre echte Seite
+        $pdf = new \setasign\Fpdi\Fpdi();
+        for ($i = 1; $i <= 7; $i++) {
+            $pdf->AddPage();
+            $pdf->SetFont('Helvetica', '', 14);
+            $pdf->Cell(0, 10, 'Seite '.$i);
+        }
+        $this->erkenner->struktur = ['seiten' => 1, 'bausteine' => [
+            ['typ' => 'aufgabe', 'nummer' => '1', 'inhalt' => [['typ' => 'text', 'text' => 'Aufgabe']]],
+            ['typ' => 'bild', 'beschreibung' => 'Grafik', 'quelle' => ['seite' => 1, 'box' => [0.1, 0.1, 0.5, 0.5]]],
+        ]];
+        $seitenweise = new \App\Services\Arbeitsblaetter\Ki\SeitenweiseErkenner($this->erkenner);
+
+        $e = $seitenweise->erkennen([['inhalt' => $pdf->Output('S'), 'mime' => 'application/pdf']], 'Textebene');
+
+        $this->assertCount(3, $this->erkenner->aufrufe);
+        $this->assertNull($this->erkenner->aufrufe[0]['text'], 'Textebene gilt fürs ganze Dokument, nicht je Abschnitt');
+        $this->assertSame(7, $e->seiten);
+        $this->assertSame([1, 4, 7], array_column(array_column(array_filter($e->struktur['bausteine'], fn ($b) => $b['typ'] === 'bild'), 'quelle'), 'seite'));
+        $this->assertSame(9.0, $e->kostenCent, 'Kosten aller Abschnitte');
+
+        // Fotos: 5 Seiten → 3 + 2, kurze Blätter gehen im Ganzen
+        $this->erkenner->aufrufe = [];
+        $foto = ['inhalt' => $this->bildInhalt(), 'mime' => 'image/jpeg'];
+        $seitenweise->erkennen(array_fill(0, 5, $foto));
+        $this->assertSame([3, 2], array_map(fn ($a) => count($a['seiten']), $this->erkenner->aufrufe));
+        $this->erkenner->aufrufe = [];
+        $seitenweise->erkennen([$foto, $foto]);
+        $this->assertCount(1, $this->erkenner->aufrufe);
+    }
+
+    public function test_gutachten_runde1_satz(): void
+    {
+        $l = AbProfil::layout(AbProfil::normalisieren(['groesse' => 28, 'fett' => true]));
+        // Strichliste als echte Striche (Fünfergruppe), Null ohne Schrägstrich, Terme brechen nicht um
+        $this->assertSame(6, substr_count(AbSatzService::textHtml('IIIIII', $l), 'class="ab-strich"'));
+        $this->assertStringContainsString('ab-strich-luecke', AbSatzService::textHtml('I I I I I I', $l));
+        $this->assertStringContainsString('<span class="ab-null">0</span>', AbSatzService::textHtml('10 €', $l));
+        $this->assertStringContainsString('&#039;', AbSatzService::textHtml("It's 10", $l), 'Entities bleiben heil');
+        $this->assertStringContainsString('<span class="ab-term">7/25&nbsp;+&nbsp;2&nbsp;2/11</span>', AbSatzService::textHtml('Rechne 7/25 + 2 2/11 = x', $l));
+        $this->assertStringNotContainsString('ab-null', AbSatzService::textHtml('10', AbProfil::layout(AbProfil::normalisieren(['schrift' => 'verdana']))));
+
+        $blatt = $this->blatt(['titel' => '05 d2 offene geschlossene silben 1'], [
+            ['typ' => 'ueberschrift', 'text' => 'Offene oder geschl. Silbe? 1'],
+            ['typ' => 'aufgabe', 'nummer' => '3', 'inhalt' => [['typ' => 'text', 'text' => 'Finde das Wort.']]],
+            ['typ' => 'tabelle', 'zeilen' => [['Gegenwart', 'Vergangenheit', 'Übersetzung'], ['ich bin', 'ich war', '']]],
+            ['typ' => 'bild', 'media_id' => null, 'beschreibung' => 'x', 'quelle' => ['seite' => 1, 'box' => [0.1, 0.1, 0.3, 0.2]]],
+        ]);
+        $html = app(AbSatzService::class)->html($blatt, AbProfil::normalisieren(['groesse' => 28, 'fett' => true]), 'pdf');
+        $this->assertStringNotContainsString('<h1>05 d2', $html, 'Dateiname nie als Titel');
+        $this->assertStringContainsString('<td class="ab-nummer">3</td>', $html, 'Nummer in eigener Zelle statt negativem Einzug');
+        $this->assertMatchesRegularExpression('/ab-tabelle[^"]*" style="font-size: (\d+(\.\d+)?)pt/', $html);
+        preg_match('/ab-tabelle[^"]*" style="font-size: ([\d.]+)pt/', $html, $m);
+        $this->assertLessThan(28, (float) $m[1], 'breite Tabelle wird verkleinert statt über den Rand zu laufen');
+    }
+
+    public function test_lehrkraft_material_wird_erkannt(): void
+    {
+        $this->assertNotEmpty(ErkennerVorgaben::lehrkraftMaterial("Hinweise für die Lehrkraft\nZiel der Stunde …", AbStruktur::leer()));
+        $this->assertSame([], ErkennerVorgaben::lehrkraftMaterial('Arbeitsblatt: Die Zelle', AbStruktur::leer()));
+        // Lehrplanbezug/Erwartungshorizont am Ende zählen beim Vollständigkeitsvergleich nicht mit
+        $struktur = AbStruktur::normalisieren(['bausteine' => [['typ' => 'text', 'inhalt' => [['typ' => 'text', 'text' => str_repeat('Aufgabe zur Karte der Erde. ', 8)]]], ['typ' => 'text', 'inhalt' => 'a'], ['typ' => 'text', 'inhalt' => 'b']]]);
+        $textebene = str_repeat('Aufgabe zur Karte der Erde. ', 8).' Lehrplanbezug '.str_repeat('Kompetenzen und Hinweise für den Unterricht. ', 8);
+        $this->assertSame([], ErkennerVorgaben::unvollstaendig($struktur, 1, $textebene));
+    }
+
+    public function test_lange_aufgabe_wird_vollstaendig_gesetzt(): void
+    {
+        // früher stand die ganze Aufgabe in einer Tabellenzelle – DomPDF teilt die nie und schnitt den Rest ab
+        $saetze = array_map(fn ($i) => 'Satz '.str_repeat(chr(97 + $i % 26), 3).chr(97 + intdiv($i, 26)).' ist hier lang genug für eine Zeile', range(0, 39));
+        $blatt = $this->blatt([], [['typ' => 'aufgabe', 'nummer' => '1', 'inhalt' => [['typ' => 'text', 'text' => implode("
+", $saetze)]]]]);
+        $satz = app(AbSatzService::class);
+        $werte = AbProfil::normalisieren(['groesse' => 28, 'fett' => true]);
+
+        $this->assertStringContainsString('<p class="ab-kopf-zeile">', $satz->html($blatt, $werte, 'pdf'));
+        $this->assertSame([], $satz->fehlendeWoerter($satz->pdf($blatt, $werte), $blatt->strukturGueltig()));
+        $this->assertNotEmpty($satz->fehlendeWoerter($satz->pdf($this->blatt([], [['typ' => 'text', 'inhalt' => 'kurz']]), $werte), $blatt->strukturGueltig()));
+    }
+
+    public function test_feinschnitt_entfernt_reste_der_nachbarbilder(): void
+    {
+        // Motiv in der Mitte, oben ein schmaler Rest des Nachbarbilds, rundherum weißer Rand
+        $bild = imagecreatetruecolor(400, 400);
+        imagefill($bild, 0, 0, imagecolorallocate($bild, 255, 255, 255));
+        $schwarz = imagecolorallocate($bild, 0, 0, 0);
+        imagefilledrectangle($bild, 0, 0, 399, 20, $schwarz);
+        imagerectangle($bild, 120, 120, 300, 340, $schwarz);
+        imageline($bild, 120, 120, 300, 340, $schwarz);
+        ob_start();
+        imagepng($bild);
+        $png = app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class)->ausschneiden((string) ob_get_clean(), [0, 0, 1, 1]);
+
+        $neu = imagecreatefromstring($png);
+        $this->assertLessThan(230, imagesy($neu), 'Rest oben und weißer Rand sind weg');
+        $this->assertGreaterThan(170, imagesx($neu), 'Motiv bleibt ganz');
+    }
+
+    public function test_loesungsteil_der_ki_wird_entfernt(): void
+    {
+        $aufgabe = fn ($nr) => ['typ' => 'aufgabe', 'nummer' => $nr, 'inhalt' => [['typ' => 'text', 'text' => 'Berechne den Umfang des Rechtecks mit a = '.$nr.' cm.']]];
+        $struktur = ErkennerVorgaben::nachbearbeiten(AbStruktur::normalisieren(['bausteine' => [
+            ['typ' => 'ueberschrift', 'text' => 'Rechnen'], $aufgabe('1'), $aufgabe('2'), $aufgabe('1'),
+            ['typ' => 'ueberschrift', 'text' => 'Lösungen'], $aufgabe('3'),
+        ]]));
+        $this->assertSame(['ueberschrift', 'aufgabe', 'aufgabe'], array_column($struktur['bausteine'], 'typ'));
+    }
+
+    public function test_leere_einspaltige_tabelle_wird_schreiblinien_und_backslash_n_umbruch(): void
+    {
+        $struktur = ErkennerVorgaben::nachbearbeiten(AbStruktur::normalisieren(['bausteine' => [
+            ['typ' => 'tabelle', 'kopfzeile' => true, 'zeilen' => [['Vokal am Ende'], [''], [''], ['']]],
+            ['typ' => 'text', 'inhalt' => [['typ' => 'text', 'text' => 'Zeile eins.\nZeile zwei.']]],
+        ]]));
+        $this->assertSame(['text', 'schreiblinien', 'text'], array_column($struktur['bausteine'], 'typ'));
+        $this->assertSame(3, $struktur['bausteine'][1]['anzahl']);
+        $this->assertStringContainsString("\n", $struktur['bausteine'][2]['inhalt'][0]['text']);
+    }
+
+    public function test_wortspeicher_in_spalten_und_bilder_mit_schreiblinie(): void
+    {
+        $bild = fn () => ['typ' => 'bild', 'media_id' => null, 'beschreibung' => 'x', 'quelle' => ['seite' => 1, 'box' => [0.1, 0.1, 0.2, 0.3]]];
+        $blatt = $this->blatt([], [
+            ['typ' => 'kasten', 'titel' => 'Wörter', 'inhalt' => "Lupe
+Kerze
+Teelicht
+Pipette
+Glasstab
+Messer"],
+            $bild(), $bild(), $bild(),
+        ]);
+        $html = app(AbSatzService::class)->html($blatt, AbProfil::normalisieren(['groesse' => 28]), 'pdf');
+        $this->assertStringContainsString('ab-wortliste', $html);
+        $this->assertSame(3, substr_count($html, '<div class="ab-bild-linie">'), 'Wortspeicher + Bilder = Beschriften');
+        $this->assertStringContainsString('<span class="ab-bild-nr">3</span>', $html);
+    }
+
+    public function test_antwortspalten_und_kopfzeile_der_tabelle(): void
+    {
+        $html = app(AbSatzService::class)->html($this->blatt([], [['typ' => 'tabelle', 'kopfzeile' => true, 'zeilen' => [['Wort', 'Übersetzung'], ['monster', ''], ['house', '']]]]), AbProfil::normalisieren([]), 'pdf');
+        $this->assertStringContainsString('<thead>', $html);
+        $this->assertMatchesRegularExpression('/<th style="width: 50%">/', $html, 'leere Antwortspalte bekommt Schreibplatz');
+    }
+
+    public function test_leere_tabelle_zum_ausfuellen_ist_kein_pruefhinweis(): void
+    {
+        $struktur = AbStruktur::normalisieren(['bausteine' => [
+            ['typ' => 'tabelle', 'zeilen' => [['', ''], ['', ''], ['', '']]],
+            ['typ' => 'tabelle', 'zeilen' => []],
+        ]]);
+        $this->assertCount(1, AbStruktur::pruefhinweise($struktur), 'nur die Tabelle ohne Zellen');
     }
 
     public function test_grundschul_lineatur_aus_original_oder_profil(): void
