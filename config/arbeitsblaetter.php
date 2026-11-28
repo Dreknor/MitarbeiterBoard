@@ -16,17 +16,27 @@ return [
     'ki' => [
         // keiner | anthropic | gemini | openrouter_auto | openrouter_free | fake (nur Tests)
         'treiber' => env('AB_KI_TREIBER', 'keiner'),
-        'modell' => env('AB_KI_MODELL', 'claude-opus-5-5'),
+        // Empfehlung nach Praxistest (11/2026): claude-haiku-5-5 mit Aufwand „medium“ – ca. 0,2 Cent je Seite
+        'modell' => env('AB_KI_MODELL', 'claude-haiku-5-5'),
+        // Wirkt ein Ergebnis unvollständig, fragt die App einmal dieses (stärkere) Modell; leer = gleiches Modell
+        'nachfrage_modell' => env('AB_KI_NACHFRAGE_MODELL', 'claude-sonnet-5-5'),
         'schluessel' => env('AB_KI_SCHLUESSEL', ''),
-        'timeout' => (int) env('AB_KI_TIMEOUT', 180),
+        // Sekunden je KI-Anfrage. Danach versucht Gemini das Ersatzmodell bzw. der Auftrag wiederholt.
+        'timeout' => (int) env('AB_KI_TIMEOUT', 120),
         'url' => env('AB_KI_URL', 'https://api.anthropic.com/v1/messages'),
-        // Preise in Cent je 1 Mio. Token (Kostenschätzung für das Monatslimit, USD ≈ EUR)
-        'preis_eingabe_cent' => (int) env('AB_KI_PREIS_EINGABE_CENT', 400),
-        'preis_ausgabe_cent' => (int) env('AB_KI_PREIS_AUSGABE_CENT', 2000),
+        // Preise in Cent je 1 Mio. Token (Kostenschätzung für das Monatslimit, USD ≈ EUR, Kommazahlen erlaubt)
+        // leer = Listenpreis des Modells (AnthropicErkenner::PREISE)
+        'preis_eingabe_cent' => env('AB_KI_PREIS_EINGABE_CENT'),
+        'preis_ausgabe_cent' => env('AB_KI_PREIS_AUSGABE_CENT'),
         // Aufwand der Erkennung (low|medium|high)
         'aufwand' => env('AB_KI_AUFWAND', 'medium'),
         // Pausen (Sekunden) vor erneuten Versuchen bei Überlastung, wenn die Queue synchron läuft
         'wiederholung_sekunden' => [5, 15],
+        // Wirkt ein Ergebnis unvollständig (zu wenige Bausteine/Text), einmal neu anfragen
+        'nachfragen' => (bool) env('AB_KI_NACHFRAGEN', true),
+        // null = automatisch: ohne Queue-Worker (QUEUE_CONNECTION=sync) startet die geöffnete Seite die Erkennung
+        // per eigener Anfrage bzw. der Scheduler jede Minute; true/false erzwingt das Verhalten
+        'erkennung_per_anfrage' => env('AB_KI_ERKENNUNG_PER_ANFRAGE') === null ? null : (bool) env('AB_KI_ERKENNUNG_PER_ANFRAGE'),
 
         // Google Gemini (generateContent mit JSON-Schema)
         'gemini' => [
@@ -34,9 +44,13 @@ return [
             'modell' => env('AB_GEMINI_MODELL', 'gemini-flash-latest'),
             // Optional: zweites Modell, das bei Überlastung (429/503) sofort versucht wird, z. B. gemini-flash-lite-latest
             'ersatzmodell' => env('AB_GEMINI_ERSATZMODELL', ''),
+            // Sekunden Pause, bevor das Hauptmodell nach 429/503 ein zweites Mal gefragt wird
+            'kurz_warten' => (int) env('AB_GEMINI_KURZ_WARTEN', 3),
+            // Modell für die Nachfrage bei unvollständigem Ergebnis (leer = gleiches Modell)
+            'nachfrage_modell' => env('AB_GEMINI_NACHFRAGE_MODELL', ''),
             'url' => env('AB_GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta'),
-            'preis_eingabe_cent' => (int) env('AB_GEMINI_PREIS_EINGABE_CENT', 50),
-            'preis_ausgabe_cent' => (int) env('AB_GEMINI_PREIS_AUSGABE_CENT', 300),
+            'preis_eingabe_cent' => (float) env('AB_GEMINI_PREIS_EINGABE_CENT', 50),
+            'preis_ausgabe_cent' => (float) env('AB_GEMINI_PREIS_AUSGABE_CENT', 300),
         ],
 
         // OpenRouter (Chat Completions). openrouter_auto = Modell „openrouter/auto“ (wählt ein
@@ -53,8 +67,8 @@ return [
             'pdf_engine_auto' => env('AB_OPENROUTER_PDF_ENGINE_AUTO', ''),
             'pdf_engine_free' => env('AB_OPENROUTER_PDF_ENGINE_FREE', 'cloudflare-ai'),
             // Kostenschätzung, falls OpenRouter keine Kosten meldet (Cent je 1 Mio. Token)
-            'preis_eingabe_cent' => (int) env('AB_OPENROUTER_PREIS_EINGABE_CENT', 300),
-            'preis_ausgabe_cent' => (int) env('AB_OPENROUTER_PREIS_AUSGABE_CENT', 1500),
+            'preis_eingabe_cent' => (float) env('AB_OPENROUTER_PREIS_EINGABE_CENT', 300),
+            'preis_ausgabe_cent' => (float) env('AB_OPENROUTER_PREIS_AUSGABE_CENT', 1500),
         ],
     ],
 

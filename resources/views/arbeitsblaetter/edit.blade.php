@@ -52,11 +52,19 @@
     {{-- Hinweise --}}
     <div class="flex flex-col gap-2 mb-4">
         <div class="ab-alert ab-alert-blue" x-show.important="blatt.status === 'erkennung'"><i class="fas fa-spinner fa-spin mt-0.5"></i>
-            <div class="flex-1">Das Blatt wird gerade erkannt. Das dauert meist unter einer Minute – die Seite aktualisiert sich von selbst.
+            <div class="flex-1">Das Blatt wird gerade erkannt. Das dauert meist ein bis zwei Minuten – die Bausteine erscheinen von selbst, sobald die Erkennung fertig ist. Sie können die Seite auch verlassen.
                 <div class="text-amber-800 mt-1" x-show="blatt.fehler"><i class="fas fa-exclamation-triangle"></i> <span x-text="blatt.fehler"></span></div></div>
             <button type="button" class="ab-btn ab-btn-secondary ab-btn-sm self-start" x-show="blatt.darf_bearbeiten" @click="abbrechen()">Abbrechen und selbst erfassen</button></div>
         <div class="ab-alert ab-alert-red" x-show.important="blatt.status === 'fehler'"><i class="fas fa-exclamation-circle mt-0.5"></i>
             <div><span x-text="blatt.fehler || 'Die Erkennung ist fehlgeschlagen.'"></span> Sie können die Bausteine manuell eingeben<span x-show="!blatt.erkennung_grund"> oder die Erkennung <button type="button" class="underline font-semibold" @click="erkennen()">erneut starten</button></span>.</div></div>
+        <div class="ab-alert ab-alert-blue" x-show.important="blatt.urls.schnell"><i class="fas fa-bolt mt-0.5"></i>
+            <div>Im Schnellmodus erstellt und ohne Prüfung gesetzt. Änderungen hier machen die Fassungen veraltet – danach „Erneut freigeben“. <a :href="blatt.urls.schnell" class="underline font-semibold">Zu den Fassungen</a></div></div>
+        <div class="ab-alert ab-alert-amber" x-show.important="blatt.ki_hinweise && blatt.ki_hinweise.length && blatt.status !== 'erkennung' && blatt.status !== 'freigegeben'"><i class="fas fa-exclamation-triangle mt-0.5"></i>
+            <div><strong>Hinweise zur Erkennung:</strong>
+                <ul class="list-disc ml-5 mt-1"><template x-for="h in (blatt.ki_hinweise || [])" :key="h"><li x-text="h"></li></template></ul></div></div>
+        <div class="ab-alert ab-alert-amber" x-show.important="blatt.pruefhinweise && blatt.pruefhinweise.length && blatt.status !== 'erkennung'"><i class="fas fa-search mt-0.5"></i>
+            <div><strong>Noch zu prüfen</strong> (sonst fehlt es im angepassten Blatt):
+                <ul class="list-disc ml-5 mt-1"><template x-for="h in (blatt.pruefhinweise || [])" :key="h.id + h.text"><li><button type="button" class="underline text-left" @click="hinweisZeigen(h.id)" x-text="h.text"></button></li></template></ul></div></div>
         <div class="ab-alert ab-alert-amber" x-show.important="blatt.status === 'zu_pruefen'"><i class="fas fa-clipboard-check mt-0.5"></i>
             <div>Bitte mit dem Original vergleichen: Texte, Lücken, Reihenfolge und Abbildungen. Danach unten <strong>Freigeben</strong>.</div></div>
         <div class="ab-alert ab-alert-gruen" x-show.important="blatt.status === 'freigegeben'"><i class="fas fa-check-circle mt-0.5"></i>
@@ -162,9 +170,9 @@
             <span class="text-emerald-700 ml-2" x-show="meldung" x-text="meldung"></span>
         </div>
         <div class="flex flex-wrap gap-2">
-            <button type="button" class="ab-btn ab-btn-secondary" x-show="blatt.originale.length && blatt.status !== 'erkennung' && !blatt.erkennung_grund" @click="erkennen()" title="Bausteine neu erkennen (werden angehängt)"><i class="fas fa-robot"></i><span class="hidden sm:inline">Erkennen</span></button>
+            <button type="button" class="ab-btn ab-btn-secondary" x-show="blatt.originale.length && blatt.status !== 'erkennung' && !blatt.erkennung_grund" @click="erkennen()" title="Bausteine neu erkennen (ersetzt die vorhandenen nach Rückfrage)"><i class="fas fa-robot"></i><span class="hidden sm:inline">Erkennen</span></button>
             <button type="button" class="ab-btn ab-btn-secondary" @click="speichern()" :disabled="speichert || !ungespeichert"><i class="fas fa-save"></i> Speichern</button>
-            <button type="button" class="ab-btn ab-btn-gruen" @click="freigeben()" :disabled="speichert || !blatt.struktur.bausteine.length" data-tour="ab-freigeben">
+            <button type="button" class="ab-btn ab-btn-gruen" @click="freigeben(false)" :disabled="speichert || !blatt.struktur.bausteine.length" data-tour="ab-freigeben">
                 <i class="fas fa-check"></i> <span x-text="blatt.status === 'freigegeben' ? 'Erneut freigeben' : 'Freigeben'"></span>
             </button>
         </div>

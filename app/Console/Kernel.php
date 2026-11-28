@@ -170,6 +170,9 @@ class Kernel extends ConsoleKernel
         })->dailyAt('02:40')->name('wochenplan-dateien-pruefen')->withoutOverlapping();
 
         // Angepasste Arbeitsblätter: hängende KI-Erkennungen nach 15 Minuten als Fehler markieren
+        // ohne Queue-Worker: Erkennungsaufträge, die keine geöffnete Seite angestoßen hat
+        $schedule->call(fn () => app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class)->ausstehendeErkennungenAusfuehren())
+            ->everyMinute()->name('arbeitsblaetter-erkennung-ausfuehren')->withoutOverlapping(20);
         $schedule->call(fn () => app(\App\Services\Arbeitsblaetter\AngepasstesBlattService::class)->haengendeErkennungenBeenden())
             ->everyFiveMinutes()->name('arbeitsblaetter-erkennung-haengt')->withoutOverlapping();
 

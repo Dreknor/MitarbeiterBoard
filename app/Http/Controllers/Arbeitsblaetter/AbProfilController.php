@@ -56,6 +56,7 @@ class AbProfilController extends Controller
             'standard' => AbProfil::standard(),
             'schriften' => collect(AbProfil::SCHRIFTEN)->mapWithKeys(fn ($name, $schluessel) => [$schluessel => \App\Services\Arbeitsblaetter\AbSatzService::schriftLabel($schluessel)])->all(),
             'farbschemata' => collect(AbProfil::FARBSCHEMATA)->map(fn ($f) => $f['label'])->all(),
+            'lineaturen' => AbProfil::LINEATUREN,
         ]);
     }
 

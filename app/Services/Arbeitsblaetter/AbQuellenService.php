@@ -56,7 +56,7 @@ class AbQuellenService
         $bilder = array_filter($dateien, fn (UploadedFile $d) => in_array($this->endung($d->getClientOriginalName()), self::BILD_ENDUNGEN, true));
         if (count($bilder) === count($dateien)) {
             return $this->ausBildern(array_map(fn (UploadedFile $d) => [
-                'inhalt' => (string) file_get_contents($d->getRealPath()),
+                'inhalt' => (string) file_get_contents($d->getPathname()),
                 'name' => $d->getClientOriginalName(),
             ], $dateien));
         }
@@ -66,7 +66,7 @@ class AbQuellenService
 
         $datei = $dateien[0];
 
-        return $this->ausInhalt((string) file_get_contents($datei->getRealPath()), $datei->getClientOriginalName());
+        return $this->ausInhalt((string) file_get_contents($datei->getPathname()), $datei->getClientOriginalName());
     }
 
     /** Eine Datei aus vorhandenem Inhalt (z. B. Arbeitsblatt eines Wochenplans). */

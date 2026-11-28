@@ -122,7 +122,7 @@ class AbSchriftenService
     public function ausSystem(): array
     {
         $kopiert = [];
-        foreach (self::SYSTEM_ORDNER as $ordner) {
+        foreach ((array) config('arbeitsblaetter.system_schriftordner', self::SYSTEM_ORDNER) as $ordner) {
             if (is_dir($ordner) && is_readable($ordner)) {
                 $kopiert = array_merge($kopiert, $this->ausOrdner($ordner));
             }

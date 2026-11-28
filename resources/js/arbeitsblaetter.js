@@ -14,6 +14,16 @@
 import Sortable from 'sortablejs';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
+// Datendateien von pdf.js (siehe pdfjsDaten() in vite.config.js): Build → /build/pdfjs/, Dev-Server → node_modules
+const PDFJS_DATEN = import.meta.env.DEV ? new URL('/node_modules/pdfjs-dist/', import.meta.url).href : new URL('../pdfjs/', import.meta.url).href;
+const pdfQuelle = (url) => ({
+    url,
+    withCredentials: true,
+    wasmUrl: PDFJS_DATEN + 'wasm/',
+    iccUrl: PDFJS_DATEN + 'iccs/',
+    standardFontDataUrl: PDFJS_DATEN + 'standard_fonts/',
+});
+
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 const kopie = (wert) => JSON.parse(JSON.stringify(wert ?? null));
 const neueId = () => 'n' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 6);
@@ -211,6 +221,72 @@ function einpassen(rahmen) {
 
 const alsBlob = (canvas, typ = 'image/jpeg', qualitaet = 0.88) => new Promise((ok) => canvas.toBlob(ok, typ, qualitaet));
 
+/**
+ * Ohne Queue-Worker merkt sich der Server die Erkennung nur als Auftrag (`erkennung_wartet`); die geöffnete
+ * Seite startet ihn mit einer eigenen, lange laufenden Anfrage und fragt parallel den Status ab.
+ */
+const angestossen = new Set();
+function erkennungAnstossen(blatt) {
+    if (!blatt?.erkennung_wartet || !blatt.urls?.ausfuehren || angestossen.has(blatt.id)) return;
+    angestossen.add(blatt.id);
+    anfrage(blatt.urls.ausfuehren, { methode: 'POST' })
+        .catch(() => { /* Status kommt über die Abfrage; der Scheduler übernimmt notfalls */ })
+        .finally(() => angestossen.delete(blatt.id));
+}
+
+/**
+ * Originale als zeichenbare Quellen laden (Seitenreihenfolge wie im Editor): PDF-Seiten werden mit
+ * pdf.js in Canvas gerendert, Fotos als Bild geladen. Für das Ausschneiden im Schnellmodus.
+ */
+async function originaleLaden(originale) {
+    const seiten = [];
+    for (const o of originale) {
+        if (o.mime === 'application/pdf') {
+            const pdfjs = await import('pdfjs-dist');
+            pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+            const doc = await pdfjs.getDocument(pdfQuelle(o.url)).promise;
+            for (let nr = 1; nr <= doc.numPages; nr++) {
+                const seite = await doc.getPage(nr);
+                const viewport = seite.getViewport({ scale: 2 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await seite.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                seiten.push(canvas);
+            }
+        } else {
+            seiten.push(await new Promise((ok) => {
+                const bild = new Image();
+                bild.onload = () => ok(bild);
+                bild.onerror = () => ok(null);
+                bild.src = o.url;
+            }));
+        }
+    }
+    return seiten;
+}
+
+/** Relative Box [x1, y1, x2, y2] aus einer Quelle (Canvas/Bild) als PNG – null, wenn leer. */
+async function ausschnittBlob(quelle, box) {
+    const breite = quelle.naturalWidth || quelle.width;
+    const hoehe = quelle.naturalHeight || quelle.height;
+    if (breite < 2 || hoehe < 2) return null;
+    const max = Math.max(...box);
+    const b = (max > 1.0001 ? box.map((v) => v / (max > 100 ? 1000 : 100)) : box).map((v) => Math.min(1, Math.max(0, v)));
+    if (b[2] - b[0] < 0.005 || b[3] - b[1] < 0.005) return null;
+    const sw = (b[2] - b[0]) * breite;
+    const sh = (b[3] - b[1]) * hoehe;
+    const f = Math.min(1, 1600 / Math.max(sw, sh));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw * f));
+    c.height = Math.max(1, Math.round(sh * f));
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(quelle, b[0] * breite, b[1] * hoehe, sw, sh, 0, 0, c.width, c.height);
+    return alsBlob(c, 'image/png');
+}
+
 function registerComponents(Alpine) {
     /* ─────────────────────────────────────────────────────────────────────
      * Erfassung
@@ -357,7 +433,6 @@ function registerComponents(Alpine) {
                 }
                 this.art = 'upload';
                 this.datei = datei;
-                if (!this.titel) this.titel = datei.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
             },
 
             bereit() {
@@ -392,6 +467,178 @@ function registerComponents(Alpine) {
     });
 
     /* ─────────────────────────────────────────────────────────────────────
+     * Schnell / Erweitert (Erfassungsseite) – die Wahl merkt sich der Browser
+     * ───────────────────────────────────────────────────────────────────── */
+    Alpine.data('abModus', (schnellMoeglich) => ({
+        schnellMoeglich: !!schnellMoeglich,
+        modus: 'schnell',
+        init() {
+            let gemerkt = null;
+            try { gemerkt = localStorage.getItem('arbeitsblaetter.modus'); } catch (e) { /* ohne Speicher */ }
+            this.modus = this.schnellMoeglich && gemerkt !== 'erweitert' ? 'schnell' : 'erweitert';
+        },
+        setzen(modus) {
+            if (modus === 'schnell' && !this.schnellMoeglich) return;
+            this.modus = modus;
+            try { localStorage.setItem('arbeitsblaetter.modus', modus); } catch (e) { /* ohne Speicher */ }
+        },
+    }));
+
+    /* Schnellmodus: Datei(en) + „Für wen?“ → hochladen → Statusseite */
+    Alpine.data('abSchnell', (konfig) => {
+        let gemerkt = {};
+        try { gemerkt = JSON.parse(localStorage.getItem('arbeitsblaetter.schnell-ziele') || '{}') || {}; } catch (e) { gemerkt = {}; }
+        const kinderIds = konfig.kinder.map((k) => k.id);
+        const vorlagenIds = konfig.vorlagen.map((v) => v.id);
+        return {
+            kinder: konfig.kinder,
+            vorlagen: konfig.vorlagen,
+            dateien: [],
+            gewaehltKinder: (gemerkt.kinder || []).filter((id) => kinderIds.includes(id)),
+            gewaehltVorlagen: (gemerkt.vorlagen || []).filter((id) => vorlagenIds.includes(id)),
+            suche: '',
+            fehler: '',
+            beschaeftigt: false,
+            groesse,
+
+            gewaehlt(e) {
+                this.fehler = '';
+                const neu = [...(e.target.files || [])];
+                e.target.value = '';
+                if (!neu.length) return;
+                if (neu.some((d) => d.size > 20 * 1024 * 1024)) {
+                    this.fehler = 'Eine Datei ist größer als 20 MB.';
+                    return;
+                }
+                const bilder = neu.every((d) => d.type.startsWith('image/'));
+                // mehrere Fotos dürfen sich sammeln, eine PDF/Word-Datei steht allein
+                this.dateien = bilder && this.dateien.every((d) => d.type.startsWith('image/')) ? [...this.dateien, ...neu] : neu.slice(0, 1);
+                if (this.dateien.length > konfig.maxSeiten) {
+                    this.dateien = this.dateien.slice(0, konfig.maxSeiten);
+                    this.fehler = `Höchstens ${konfig.maxSeiten} Seiten pro Blatt.`;
+                }
+            },
+
+            gefilterteKinder() {
+                const s = this.suche.trim().toLowerCase();
+                return s ? this.kinder.filter((k) => (k.name + ' ' + k.klasse).toLowerCase().includes(s)) : this.kinder;
+            },
+
+            bereit() {
+                return this.dateien.length > 0 && (this.gewaehltKinder.length + this.gewaehltVorlagen.length) > 0;
+            },
+
+            async absenden() {
+                this.fehler = '';
+                if (!this.bereit()) {
+                    this.fehler = this.dateien.length ? 'Bitte auswählen, für wen das Blatt ist.' : 'Bitte ein Foto oder eine Datei wählen.';
+                    return;
+                }
+                const fd = new FormData();
+                this.dateien.forEach((d, i) => fd.append('dateien[]', d, d.name || `seite-${i + 1}.jpg`));
+                this.gewaehltKinder.forEach((id) => fd.append('kinder[]', id));
+                this.gewaehltVorlagen.forEach((id) => fd.append('vorlagen[]', id));
+                try { localStorage.setItem('arbeitsblaetter.schnell-ziele', JSON.stringify({ kinder: this.gewaehltKinder, vorlagen: this.gewaehltVorlagen })); } catch (e) { /* ohne Speicher */ }
+                this.beschaeftigt = true;
+                try {
+                    const antwort = await anfrage(konfig.url, { methode: 'POST', formular: fd });
+                    window.location.href = antwort.url;
+                } catch (err) {
+                    this.fehler = err.message;
+                    this.beschaeftigt = false;
+                }
+            },
+        };
+    });
+
+    /* Schnellmodus-Statusseite: Erkennung abwarten → Abbildungen aus dem Original schneiden → freigeben + setzen */
+    Alpine.data('abSchnellStatus', (konfig) => ({
+        blatt: konfig.blatt,
+        ergebnis: konfig.fertig,
+        schritt: 'erkennung',
+        fehler: '',
+        vorschau: '',
+        schritte: [
+            { key: 'erkennung', text: 'Blatt wird von der KI erkannt' },
+            { key: 'bilder', text: 'Abbildungen werden ausgeschnitten' },
+            { key: 'satz', text: 'Angepasste Fassungen werden gesetzt' },
+        ],
+
+        init() {
+            if (this.ergebnis) {
+                this.fertig(this.ergebnis);
+                return;
+            }
+            this.ablauf();
+        },
+
+        schrittIndex() {
+            return this.schritte.findIndex((s) => s.key === this.schritt);
+        },
+
+        fertig(ergebnis) {
+            this.ergebnis = ergebnis;
+            this.schritt = 'fertig';
+            this.vorschau = ergebnis.fassungen[0]?.ansehen || '';
+            if (ergebnis.titel) this.blatt.titel = ergebnis.titel;
+        },
+
+        abbruch(meldung) {
+            this.fehler = meldung;
+            this.schritt = 'fehler';
+        },
+
+        async ablauf() {
+            try {
+                while (this.blatt.status === 'erkennung') {
+                    erkennungAnstossen(this.blatt);
+                    await new Promise((r) => setTimeout(r, 3000));
+                    this.blatt = (await anfrage(this.blatt.urls.daten)).blatt;
+                }
+                if (this.blatt.status === 'fehler' || !this.blatt.struktur.bausteine.length) {
+                    return this.abbruch(this.blatt.fehler || 'Auf dem Blatt wurde nichts erkannt.');
+                }
+                this.schritt = 'bilder';
+                await this.bilderAusschneiden();
+                this.schritt = 'satz';
+                const antwort = await anfrage(konfig.fertigUrl, { methode: 'POST', daten: { version: this.blatt.version } });
+                if (antwort.status === 409) return this.abbruch(antwort.message || 'Das Blatt wurde zwischenzeitlich geändert.');
+                this.fertig(antwort);
+            } catch (err) {
+                this.abbruch(err.message);
+            }
+        },
+
+        /** Abbildungen mit KI-Box, aber ohne Bild (PDF-Originale), im Browser ausschneiden und speichern. */
+        async bilderAusschneiden() {
+            const offen = [];
+            this.blatt.struktur.bausteine.forEach((b) => [b, ...(b.kinder || [])].forEach((x) => {
+                if (x.typ === 'bild' && x.quelle?.box && !x.media_id) offen.push(x);
+            }));
+            if (!offen.length) return;
+
+            const seiten = await originaleLaden(this.blatt.originale);
+            let geaendert = false;
+            for (const b of offen) {
+                const quelle = seiten[(b.quelle.seite || 1) - 1];
+                const blob = quelle ? await ausschnittBlob(quelle, b.quelle.box) : null;
+                if (!blob) continue;
+                const fd = new FormData();
+                fd.append('bild', blob, 'abbildung.png');
+                try {
+                    const antwort = await anfrage(this.blatt.urls.abbildung, { methode: 'POST', formular: fd });
+                    b.media_id = antwort.id;
+                    geaendert = true;
+                } catch (e) { /* diese Abbildung bleibt ohne Bild – Hinweis kommt vom Server */ }
+            }
+            if (!geaendert) return;
+            const antwort = await anfrage(this.blatt.urls.speichern, { methode: 'PUT', daten: { version: this.blatt.version, struktur: this.blatt.struktur } });
+            if (antwort.status === 409) throw new Error(antwort.message || 'Das Blatt wurde zwischenzeitlich geändert.');
+            this.blatt.version = antwort.blatt.version;
+        },
+    }));
+
+    /* ─────────────────────────────────────────────────────────────────────
      * Prüf-Editor
      * ───────────────────────────────────────────────────────────────────── */
     Alpine.data('abEditor', (konfig) => {
@@ -404,7 +651,7 @@ function registerComponents(Alpine) {
         const ICONS = {
             ueberschrift: 'fa-heading', anweisung: 'fa-bullhorn', text: 'fa-align-left', aufgabe: 'fa-list-ol',
             ankreuzen: 'fa-check-square', tabelle: 'fa-table', schreiblinien: 'fa-grip-lines', bild: 'fa-image',
-            kasten: 'fa-square', rechenfeld: 'fa-th',
+            kasten: 'fa-square', rechenfeld: 'fa-th', zeichenflaeche: 'fa-pencil-alt',
         };
 
         const segmenteZuText = (segmente) => (segmente || []).map((s) => (s.typ === 'luecke' ? '_'.repeat(Math.max(3, s.laenge || 4)) : (s.text || ''))).join('');
@@ -418,10 +665,11 @@ function registerComponents(Alpine) {
                 case 'text': return { id, typ, inhalt: textZuSegmente(text) };
                 case 'aufgabe': return { id, typ, nummer: '', inhalt: textZuSegmente(text), kinder: [] };
                 case 'ankreuzen': return { id, typ, frage: text, optionen: ['', ''], mehrfach: false, angekreuzt: [] };
+                case 'zeichenflaeche': return { id, typ, hoehe: 6 };
                 case 'kasten': return { id, typ, titel: '', inhalt: textZuSegmente(text) };
                 case 'rechenfeld': return { id, typ, reihen: 2, inhalt: [] };
                 case 'tabelle': return { id, typ, zeilen: [[text, ''], ['', '']], kopfzeile: false };
-                case 'schreiblinien': return { id, typ, anzahl: 3 };
+                case 'schreiblinien': return { id, typ, anzahl: 3, lineatur: 'einfach' };
                 case 'bild': return { id, typ, media_id: null, beschreibung: text, quelle: null };
                 default: return { id, typ: 'text', inhalt: textZuSegmente(text) };
             }
@@ -473,7 +721,10 @@ function registerComponents(Alpine) {
                     }
                     this.vorschauLaden();
                 });
-                if (this.blatt.status === 'erkennung') this.pollen();
+                if (this.blatt.status === 'erkennung') {
+                    erkennungAnstossen(this.blatt);
+                    this.pollen();
+                }
             },
 
             icon(typ) { return ICONS[typ] || 'fa-square'; },
@@ -490,7 +741,7 @@ function registerComponents(Alpine) {
                         try {
                             const pdfjs = await import('pdfjs-dist');
                             pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-                            const doc = await pdfjs.getDocument({ url: o.url, withCredentials: true }).promise;
+                            const doc = await pdfjs.getDocument(pdfQuelle(o.url)).promise;
                             pdfDokumente.push(doc);
                             for (let nr = 1; nr <= doc.numPages; nr++) seiten.push({ art: 'pdf', doc: pdfDokumente.length - 1, nr, url: o.url });
                         } catch (err) {
@@ -569,11 +820,23 @@ function registerComponents(Alpine) {
             },
 
             async ausschneiden(b, seite, box) {
+                this.meldungFehler = '';
                 const tag = this.seiten[seite]?.art === 'pdf' ? 'canvas' : 'img';
                 const quelle = this.$refs.original.querySelector(`${tag}[data-seite="${seite}"]`);
-                if (!quelle) return;
-                const breite = quelle.naturalWidth || quelle.width;
-                const hoehe = quelle.naturalHeight || quelle.height;
+                const breite = quelle ? (quelle.naturalWidth || quelle.width) : 0;
+                const hoehe = quelle ? (quelle.naturalHeight || quelle.height) : 0;
+                if (!quelle || breite < 2 || hoehe < 2) {
+                    this.meldungFehler = `Seite ${seite + 1} des Originals ist noch nicht geladen – bitte kurz warten und erneut versuchen.`;
+                    return;
+                }
+                // Boxen der KI im Format 0–1000 bzw. 0–100 auf 0–1 bringen
+                const max = Math.max(...box);
+                if (max > 1.0001) box = box.map((v) => v / (max > 100 ? 1000 : 100));
+                box = box.map((v) => Math.min(1, Math.max(0, v)));
+                if (box[2] - box[0] < 0.005 || box[3] - box[1] < 0.005) {
+                    this.meldungFehler = 'Der vorgeschlagene Ausschnitt ist leer – bitte auf dem Original selbst ausschneiden.';
+                    return;
+                }
                 const sx = box[0] * breite;
                 const sy = box[1] * hoehe;
                 const sw = Math.max(1, (box[2] - box[0]) * breite);
@@ -825,7 +1088,7 @@ function registerComponents(Alpine) {
                     const abbildungen = { ...this.blatt.abbildungen, ...server.abbildungen };
                     this.blatt = { ...server, abbildungen };
                 } else {
-                    Object.assign(this.blatt, { version: server.version, status: server.status, status_text: server.status_text });
+                    Object.assign(this.blatt, { version: server.version, status: server.status, status_text: server.status_text, pruefhinweise: server.pruefhinweise || [] });
                 }
             },
 
@@ -858,10 +1121,10 @@ function registerComponents(Alpine) {
                 }
             },
 
-            async freigeben() {
+            async freigeben(trotzdem = false) {
                 if (this.ungespeichert && !(await this.speichern())) return;
                 try {
-                    const antwort = await anfrage(this.blatt.urls.freigeben, { methode: 'POST', daten: { version: this.blatt.version } });
+                    const antwort = await anfrage(this.blatt.urls.freigeben, { methode: 'POST', daten: { version: this.blatt.version, trotzdem } });
                     if (antwort.status === 409) {
                         this.konflikt = antwort.blatt;
                         return;
@@ -869,16 +1132,31 @@ function registerComponents(Alpine) {
                     this.uebernehmen(antwort.blatt, true);
                     this.meldung = antwort.meldung;
                 } catch (err) {
+                    const hinweise = err.daten?.hinweise;
+                    if (err.status === 422 && hinweise?.length) {
+                        this.blatt.pruefhinweise = hinweise;
+                        const text = 'Vor der Freigabe bitte prüfen:\n\n• ' + hinweise.map((h) => h.text).join('\n• ') + '\n\nTrotzdem freigeben?';
+                        if (window.confirm(text)) return this.freigeben(true);
+                        return;
+                    }
                     this.meldungFehler = err.message;
                 }
             },
 
+            hinweisZeigen(id) {
+                this.aktiv = id;
+                this.$nextTick(() => document.querySelector(`.ab-baustein[data-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+            },
+
             async erkennen() {
                 if (this.ungespeichert && !(await this.speichern())) return;
+                const n = this.anzahl();
+                if (n && !window.confirm(`Die ${n} vorhandenen Bausteine werden durch das neue Erkennungsergebnis ersetzt. Fortfahren?`)) return;
                 try {
                     const antwort = await anfrage(this.blatt.urls.erkennen, { methode: 'POST' });
                     this.uebernehmen(antwort.blatt, true);
                     this.meldung = antwort.meldung;
+                    erkennungAnstossen(antwort.blatt);
                     this.pollen();
                 } catch (err) {
                     this.meldungFehler = err.message;
@@ -913,6 +1191,7 @@ function registerComponents(Alpine) {
                     try {
                         const antwort = await anfrage(this.blatt.urls.daten);
                         if (antwort.blatt.status === 'erkennung') {
+                            erkennungAnstossen(antwort.blatt);
                             this.blatt.fehler = antwort.blatt.fehler;
                             return this.pollen();
                         }

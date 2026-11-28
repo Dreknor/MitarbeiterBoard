@@ -55,13 +55,13 @@
             }
         @endphp
         @if(! $gruppen)
-            <div class="ab-baustein ab-aufgabe ab-zusammen">
+            <div class="ab-baustein ab-aufgabe {{ $zusammen([$b]) ? 'ab-zusammen' : '' }}">
                 <div class="{{ ($b['nummer'] ?? '') !== '' ? 'ab-haengend' : '' }}">@if(($b['nummer'] ?? '') !== '')<span class="ab-nummer">{{ $b['nummer'] }}</span>@endif{!! $inhalt($b['inhalt'] ?? []) !!}</div>
             </div>
         @else
             <div class="ab-baustein">
                 @foreach($gruppen as $gi => $gruppe)
-                    <div class="ab-zusammen">
+                    <div class="{{ $zusammen($gi === 0 ? array_merge([['typ' => 'text', 'inhalt' => $b['inhalt'] ?? []]], $gruppe) : $gruppe) ? 'ab-zusammen' : '' }}">
                         @if($gi === 0 && $kopf)
                             <div class="{{ ($b['nummer'] ?? '') !== '' ? 'ab-haengend' : '' }}">@if(($b['nummer'] ?? '') !== '')<span class="ab-nummer">{{ $b['nummer'] }}</span>@endif{!! $inhalt($b['inhalt'] ?? []) !!}</div>
                         @endif
@@ -102,14 +102,14 @@
 
     @case('kasten')
         {{-- nur auf oberster Ebene „nicht trennen“: verschachtelt verliert DomPDF sonst Rahmen/Tabellen --}}
-        <div class="ab-baustein ab-kasten {{ empty($tief) ? 'ab-zusammen' : '' }}">
+        <div class="ab-baustein ab-kasten {{ empty($tief) && empty($imPaar) && $zusammen([$b]) ? 'ab-zusammen' : '' }}">
             @if(($b['titel'] ?? '') !== '')<div class="ab-kasten-titel">{{ $b['titel'] }}</div>@endif
             <div>{!! $inhalt($b['inhalt'] ?? []) !!}</div>
         </div>
         @break
 
     @case('rechenfeld')
-        <div class="ab-baustein {{ empty($tief) ? 'ab-zusammen' : '' }}">
+        <div class="ab-baustein {{ empty($tief) && empty($imPaar) && $zusammen([$b]) ? 'ab-zusammen' : '' }}">
             @if(!empty($b['inhalt']))<div style="margin-bottom: 4pt">{!! $inhalt($b['inhalt']) !!}</div>@endif
             @php $spalten = empty($tief) ? $l['raster_spalten'] : max(4, $l['raster_spalten'] - 2); @endphp
             <table class="ab-raster" style="width: {{ round($spalten * $l['raster_pt'], 1) }}pt">
@@ -120,9 +120,17 @@
         </div>
         @break
 
+    @case('zeichenflaeche')
+        <div class="ab-baustein ab-zeichenflaeche" style="height: {{ round((int) ($b['hoehe'] ?? 6) * $l['linienabstand_pt'], 1) }}pt"></div>
+        @break
+
     @case('schreiblinien')
-        <div class="ab-baustein ab-schreiblinien">
-            @for($i = 0; $i < (int) ($b['anzahl'] ?? 3); $i++)<div class="ab-linie"></div>@endfor
+        <div class="ab-baustein ab-schreiblinien {{ empty($imPaar) && $zusammen([$b]) ? 'ab-zusammen' : '' }}">
+            @if($lineatur($b) === 'grundschule')
+                @for($i = 0; $i < (int) ($b['anzahl'] ?? 3); $i++)<div class="ab-gs"><div class="ab-gs-o"></div><div class="ab-gs-m"></div><div class="ab-gs-u"></div></div>@endfor
+            @else
+                @for($i = 0; $i < (int) ($b['anzahl'] ?? 3); $i++)<div class="ab-linie"></div>@endfor
+            @endif
         </div>
         @break
 

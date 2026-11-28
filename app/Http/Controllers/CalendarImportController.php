@@ -39,7 +39,7 @@ class CalendarImportController extends Controller
         }
 
         try {
-            $eintraege = $this->import->analysieren((string) file_get_contents($datei->getRealPath()));
+            $eintraege = $this->import->analysieren((string) file_get_contents($datei->getPathname()));
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['datei' => $e->getMessage()]);
         }

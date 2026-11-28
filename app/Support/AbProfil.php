@@ -31,6 +31,12 @@ class AbProfil
 
     public const FORMATE = ['A4', 'A3'];
 
+    public const LINEATUREN = [
+        'original' => 'wie im Original',
+        'grundschule' => 'immer Grundschul-Lineatur (mit Mittelband)',
+        'einfach' => 'immer einfache Linien',
+    ];
+
     /**
      * Felder: Typ, Standard, Grenzen, Bezeichnung, Gruppe.
      *
@@ -48,6 +54,7 @@ class AbProfil
         'bild_kontrast' => ['typ' => 'schalter', 'standard' => false, 'label' => 'Abbildungen kontrastreich (Schwarz-Weiß)', 'gruppe' => 'Farbe'],
 
         'linienstaerke' => ['typ' => 'zahl', 'standard' => 1.0, 'min' => 0.5, 'max' => 3, 'schritt' => 0.25, 'label' => 'Linienstärke', 'gruppe' => 'Schreiben', 'einheit' => 'pt'],
+        'lineatur' => ['typ' => 'auswahl', 'standard' => 'original', 'werte' => ['original', 'grundschule', 'einfach'], 'label' => 'Lineatur der Schreiblinien', 'gruppe' => 'Schreiben'],
         'linienabstand' => ['typ' => 'zahl', 'standard' => 12, 'min' => 8, 'max' => 20, 'schritt' => 1, 'label' => 'Abstand der Schreiblinien', 'gruppe' => 'Schreiben', 'einheit' => 'mm'],
         'luecke_min' => ['typ' => 'zahl', 'standard' => 30, 'min' => 10, 'max' => 80, 'schritt' => 5, 'label' => 'Lücken-Mindestbreite', 'gruppe' => 'Schreiben', 'einheit' => 'mm'],
         'ankreuz_groesse' => ['typ' => 'zahl', 'standard' => 7, 'min' => 4, 'max' => 15, 'schritt' => 1, 'label' => 'Ankreuzfeld-Größe', 'gruppe' => 'Schreiben', 'einheit' => 'mm'],
@@ -60,7 +67,7 @@ class AbProfil
 
     /** Mitgelieferte Profil-Vorlagen (Migration). */
     public const STANDARD_VORLAGEN = [
-        ['Groß', ['groesse' => 20, 'zeilenabstand' => 1.5]],
+        ['Groß', ['groesse' => 24, 'zeilenabstand' => 1.5, 'linienabstand' => 14, 'luecke_min' => 35, 'ankreuz_groesse' => 8, 'bildfaktor' => 1.75]],
         ['Sehr groß', ['groesse' => 28, 'zeilenabstand' => 1.6, 'fett' => true, 'linienstaerke' => 1.5, 'linienabstand' => 15, 'luecke_min' => 40, 'ankreuz_groesse' => 10, 'bildfaktor' => 2]],
         ['Kontrast (invertiert)', ['groesse' => 24, 'farbschema' => 'invertiert', 'bild_kontrast' => true, 'fett' => true, 'linienstaerke' => 2]],
         ['A3 groß', ['groesse' => 32, 'format' => 'A3', 'zeilenabstand' => 1.6, 'linienabstand' => 16, 'luecke_min' => 50, 'ankreuz_groesse' => 12, 'bildfaktor' => 2.5, 'rand' => 20]],
@@ -168,10 +175,16 @@ class AbProfil
             'seite_hoehe_mm' => $w['format'] === 'A3' ? 420 : 297,
             'zeilenhoehe_pt' => round($w['groesse'] * $w['zeilenabstand'], 2),
             'linienabstand_pt' => round($w['linienabstand'] * $mmZuPt, 2),
+            // Grundschul-Lineatur: drei gleich hohe Bänder (Ober-, Mittel-, Unterband) je Schreibzeile
+            'gs_band_pt' => round($w['linienabstand'] * $mmZuPt * 0.5, 2),
+            'farbe_mittelband' => $w['farbschema'] === 'invertiert' ? '#4a4a4a' : '#d4d4d4',
             'ankreuz_pt' => round($w['ankreuz_groesse'] * $mmZuPt, 2),
             'luecke_pt' => round($w['luecke_min'] * $mmZuPt, 2),
             'ueberschrift_pt' => round($w['groesse'] * 1.35, 1),
             // Rechenkästchen wachsen mit der Schrift (mind. 5 mm); Spalten füllen die Satzbreite
+            // Satzspiegel (für Lückenbreite und Umbruch-Schätzung)
+            'nutzbreite_pt' => round((($w['format'] === 'A3' ? 297 : 210) - 2 * $w['rand']) * $mmZuPt, 1),
+            'nutzhoehe_pt' => round((($w['format'] === 'A3' ? 420 : 297) - 2 * $w['rand']) * $mmZuPt, 1),
             'raster_pt' => $raster = max(round(5 * $mmZuPt, 1), round($w['groesse'] * 1.3, 1)),
             'raster_spalten' => max(4, (int) floor(((($w['format'] === 'A3' ? 297 : 210) - 2 * $w['rand']) * $mmZuPt - $w['groesse'] * 1.6) / $raster)),
         ]);

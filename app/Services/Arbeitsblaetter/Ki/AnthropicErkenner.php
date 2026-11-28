@@ -28,9 +28,24 @@ class AnthropicErkenner implements AbErkenner
         return 'anthropic';
     }
 
+    private ?string $modellWahl = null;
+
     public function modell(): string
     {
-        return (string) config('arbeitsblaetter.ki.modell');
+        return $this->modellWahl ?? (string) config('arbeitsblaetter.ki.modell');
+    }
+
+    /** Stärkeres Modell für die Nachfrage, wenn ein Ergebnis unvollständig wirkt (AB_KI_NACHFRAGE_MODELL). */
+    public function nachfrageErkenner(): ?AbErkenner
+    {
+        $modell = (string) config('arbeitsblaetter.ki.nachfrage_modell');
+        if ($modell === '' || $modell === $this->modell()) {
+            return null;
+        }
+        $kopie = clone $this;
+        $kopie->modellWahl = $modell;
+
+        return $kopie;
     }
 
     public function erkennen(array $seiten, ?string $textHinweis = null): AbErkennung
@@ -60,7 +75,7 @@ class AnthropicErkenner implements AbErkenner
             'messages' => [['role' => 'user', 'content' => $inhalt]],
             'output_config' => [
                 'effort' => (string) config('arbeitsblaetter.ki.aufwand', 'medium'),
-                'format' => ['type' => 'json_schema', 'schema' => ErkennerVorgaben::schema()],
+                'format' => ['type' => 'json_schema', 'schema' => ErkennerVorgaben::schema(false)],
             ],
             'fallbacks' => 'default',
         ];
@@ -75,14 +90,14 @@ class AnthropicErkenner implements AbErkenner
                 'content-type' => 'application/json',
             ])->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
                 ->post($url, $anfrage);
-            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, null, $start);
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, KiProtokoll::fehlerText($antwort), $start);
         } catch (ConnectionException $e) {
             KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, null, $e, $start);
             throw new AbErkennungFehler('Die KI ist nicht erreichbar: '.$e->getMessage(), true);
         }
 
         if ($antwort->status() === 429 || $antwort->status() >= 500) {
-            throw new AbErkennungFehler('Die KI ist überlastet (HTTP '.$antwort->status().'). Es wird später erneut versucht.', true);
+            throw new AbErkennungFehler('Die KI ist überlastet (HTTP '.$antwort->status().'). Es wird später erneut versucht.', true, $antwort->status());
         }
         if (! $antwort->successful()) {
             $meldung = (string) data_get($antwort->json(), 'error.message', 'HTTP '.$antwort->status());
@@ -115,11 +130,33 @@ class AnthropicErkenner implements AbErkenner
     }
 
     /** Kosten in Cent aus den Token (Eingabe inkl. Cache, Ausgabe). */
-    public function kosten(array $usage): int
+    public function kosten(array $usage): float
     {
         $eingabe = (int) ($usage['input_tokens'] ?? 0) + (int) ($usage['cache_creation_input_tokens'] ?? 0) + (int) ($usage['cache_read_input_tokens'] ?? 0);
         $ausgabe = (int) ($usage['output_tokens'] ?? 0);
-        return ErkennerVorgaben::kostenCent($eingabe, $ausgabe, (int) config('arbeitsblaetter.ki.preis_eingabe_cent', 400), (int) config('arbeitsblaetter.ki.preis_ausgabe_cent', 2000));
+        [$ein, $aus] = $this->preise();
+
+        return ErkennerVorgaben::kostenCent($eingabe, $ausgabe, $ein, $aus);
+    }
+
+    /**
+     * Listenpreise in Cent je 1 Mio. Token (Eingabe, Ausgabe), Stand 11/2026 (USD ≈ EUR).
+     * AB_KI_PREIS_EINGABE_CENT / AB_KI_PREIS_AUSGABE_CENT überschreiben sie.
+     */
+    public const PREISE = [
+        'claude-haiku-5-5' => [10, 50],
+        'claude-sonnet-5-5' => [200, 1000],
+        'claude-opus-5-5' => [400, 2000],
+    ];
+
+    /** @return array{0: float, 1: float} */
+    public function preise(): array
+    {
+        $liste = self::PREISE[$this->modell()] ?? [400, 2000];
+        $ein = config('arbeitsblaetter.ki.preis_eingabe_cent');
+        $aus = config('arbeitsblaetter.ki.preis_ausgabe_cent');
+
+        return [$ein !== null && $ein !== '' ? (float) $ein : (float) $liste[0], $aus !== null && $aus !== '' ? (float) $aus : (float) $liste[1]];
     }
 
     /** Verbindungsprüfung (kostenlos): Modell abrufen. */
@@ -129,7 +166,26 @@ class AnthropicErkenner implements AbErkenner
             'x-api-key' => (string) config('arbeitsblaetter.ki.schluessel'),
             'anthropic-version' => self::API_VERSION,
         ])->timeout(15)->get('https://api.anthropic.com/v1/models/'.rawurlencode($this->modell()));
+        if (! $antwort->successful()) {
+            return [false, 'Fehler (HTTP '.$antwort->status().')'];
+        }
 
-        return [$antwort->successful(), $antwort->successful() ? 'erreichbar' : 'Fehler (HTTP '.$antwort->status().')'];
+        // Antwortschema mit einer Mini-Anfrage prüfen (Bruchteil eines Cents): die strukturierte Ausgabe hat
+        // Grenzen (optionale Felder, Grammatikgröße), die erst die API meldet
+        $probe = Http::withHeaders([
+            'x-api-key' => (string) config('arbeitsblaetter.ki.schluessel'),
+            'anthropic-version' => self::API_VERSION,
+            'content-type' => 'application/json',
+        ])->timeout(60)->post((string) config('arbeitsblaetter.ki.url'), [
+            'model' => $this->modell(),
+            'max_tokens' => 300,
+            'messages' => [['role' => 'user', 'content' => 'Arbeitsblatt mit der Überschrift „Probe“. Antworte nach dem Schema.']],
+            'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => ErkennerVorgaben::schema(false)]],
+        ]);
+        if (! $probe->successful()) {
+            return [false, 'erreichbar, aber das Antwortschema wird abgelehnt: '.mb_substr((string) data_get($probe->json(), 'error.message', 'HTTP '.$probe->status()), 0, 200)];
+        }
+
+        return [true, 'erreichbar, Antwortschema angenommen'];
     }
 }

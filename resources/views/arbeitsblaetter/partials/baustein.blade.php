@@ -103,8 +103,24 @@
 
 {{-- Schreiblinien --}}
 <template x-if="{{ $v }}.typ === 'schreiblinien'">
-    <label class="flex items-center gap-2 text-sm">Anzahl Linien
-        <input type="number" min="1" max="30" class="ab-input ab-input-sm w-20" x-model.number="{{ $v }}.anzahl" @input="geaendert()" :disabled="!blatt.darf_bearbeiten">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <label class="flex items-center gap-2">Anzahl Zeilen
+            <input type="number" min="1" max="30" class="ab-input ab-input-sm w-20" x-model.number="{{ $v }}.anzahl" @input="geaendert()" :disabled="!blatt.darf_bearbeiten">
+        </label>
+        <label class="flex items-center gap-2">Lineatur
+            <select class="ab-select ab-input-sm w-auto" x-model="{{ $v }}.lineatur" @change="geaendert()" :disabled="!blatt.darf_bearbeiten">
+                <option value="einfach">einfache Linie</option>
+                <option value="grundschule">Grundschule (mit Mittelband)</option>
+            </select>
+        </label>
+    </div>
+</template>
+
+{{-- Zeichenfläche --}}
+<template x-if="{{ $v }}.typ === 'zeichenflaeche'">
+    <label class="flex items-center gap-2 text-sm">Höhe in Schreibzeilen
+        <input type="number" min="2" max="20" class="ab-input ab-input-sm w-20" x-model.number="{{ $v }}.hoehe" @input="geaendert()" :disabled="!blatt.darf_bearbeiten">
+        <span class="text-slate-500">leere Fläche zum Zeichnen oder Malen</span>
     </label>
 </template>
 

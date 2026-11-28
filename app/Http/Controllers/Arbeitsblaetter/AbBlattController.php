@@ -62,7 +62,146 @@ class AbBlattController extends Controller
             'kiGesperrt' => app(AbKiBudget::class)->sperrgrund(),
             'maxSeiten' => (int) config('arbeitsblaetter.max_seiten', 10),
             'endungen' => AbQuellenService::ERLAUBTE_ENDUNGEN,
+            'ziele' => $this->schnellZiele($request),
         ]);
+    }
+
+    // ─── Schnellmodus: hochladen → fertige Fassungen ─────────────────────────
+
+    /**
+     * Kinder mit aktivem Profil (eigene Klassen zuerst) und Profil-Vorlagen für die Auswahl „Für wen?“.
+     *
+     * @return array{kinder: array, vorlagen: array}
+     */
+    private function schnellZiele(Request $request): array
+    {
+        $meine = $request->user()->paedKlassenIds()->all();
+
+        return [
+            'kinder' => $this->profile->kinderMitProfil()
+                ->sortBy(fn ($k) => [in_array($k->klasse_id, $meine, false) ? 0 : 1, $k->klasse?->name ?? 'zzz', $k->nachname, $k->vorname])
+                ->map(fn ($k) => [
+                    'id' => $k->id,
+                    'name' => $k->vorname.' '.$k->nachname,
+                    'klasse' => $k->klasse?->name ?? 'Ohne Klasse',
+                    'meine' => in_array($k->klasse_id, $meine, false),
+                    'profil' => AbProfil::kurz($this->profile->wirksameWerte($k) ?? []),
+                ])->values()->all(),
+            'vorlagen' => $this->profile->vorlagen()->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'profil' => AbProfil::kurz($v->wirksameWerte())])->values()->all(),
+        ];
+    }
+
+    /** Schnellmodus: Datei(en) hochladen und für die gewählten Kinder/Vorlagen fertig setzen lassen. */
+    public function schnellStore(Request $request)
+    {
+        $this->authorize('create', AngepasstesBlatt::class);
+        $max = (int) config('arbeitsblaetter.max_seiten', 10);
+        $daten = $request->validate([
+            'dateien' => 'required|array|max:'.$max,
+            'dateien.*' => 'file|mimes:'.AbQuellenService::ERLAUBTE_ENDUNGEN.'|max:'.config('arbeitsblaetter.max_upload_kb', 20480),
+            'kinder' => 'nullable|array',
+            'kinder.*' => 'integer',
+            'vorlagen' => 'nullable|array',
+            'vorlagen.*' => 'integer',
+        ], [
+            'dateien.required' => 'Bitte ein Foto oder eine Datei auswählen.',
+            'dateien.max' => 'Höchstens '.$max.' Seiten pro Blatt.',
+            'dateien.*.mimes' => 'Erlaubt sind PDF, Fotos (JPG/PNG) und Word (DOC/DOCX/ODT).',
+            'dateien.*.max' => 'Eine Datei darf höchstens 20 MB groß sein.',
+        ]);
+
+        $kinder = array_values(array_intersect(array_map('intval', $daten['kinder'] ?? []), $this->profile->kinderMitProfil()->pluck('id')->all()));
+        $vorlagen = array_values(array_intersect(array_map('intval', $daten['vorlagen'] ?? []), AbProfilVorlage::pluck('id')->all()));
+        if (! $kinder && ! $vorlagen) {
+            throw ValidationException::withMessages(['kinder' => 'Bitte mindestens ein Kind oder eine Profil-Vorlage auswählen.']);
+        }
+        $erkenner = app(AbErkenner::class);
+        $grund = ! $erkenner->konfiguriert() ? 'Für den Schnellmodus ist eine KI-Erkennung nötig – bitte den erweiterten Modus nutzen.' : app(AbKiBudget::class)->sperrgrund();
+        if ($grund) {
+            throw ValidationException::withMessages(['dateien' => $grund]);
+        }
+
+        try {
+            $blatt = $this->service->ausUploads(['schnell_ziele' => ['kinder' => $kinder, 'vorlagen' => $vorlagen]], $request->file('dateien', []), 'upload', $request->user());
+        } catch (AbQuellenFehler $e) {
+            throw ValidationException::withMessages(['dateien' => $e->getMessage()]);
+        }
+
+        $ziel = route('arbeitsblaetter.schnell', $blatt);
+        if ($request->expectsJson()) {
+            return $this->sofort(response()->json(['url' => $ziel, 'id' => $blatt->id]));
+        }
+
+        return redirect($ziel);
+    }
+
+    /** Statusseite des Schnellmodus: Erkennung abwarten, Abbildungen ausschneiden, Fassungen herunterladen. */
+    public function schnell(Request $request, AngepasstesBlatt $blatt)
+    {
+        $this->authorize('view', $blatt);
+        if (! $blatt->schnell_ziele) {
+            return redirect()->route('arbeitsblaetter.edit', $blatt);
+        }
+        $this->haengendeBeenden($blatt);
+
+        return view('arbeitsblaetter.schnell', [
+            'blatt' => $blatt,
+            'daten' => $this->blattArray($blatt, $request),
+            'fertig' => $blatt->istFreigegeben() ? $this->schnellFassungen($blatt, $request) : null,
+        ]);
+    }
+
+    /**
+     * Schnellmodus abschließen: ohne Prüfung freigeben und die Fassungen der gewählten Kinder/Vorlagen
+     * setzen. Leere Bausteine (Prüfhinweise) werden als Hinweis zurückgegeben, blockieren aber nicht.
+     */
+    public function schnellFertig(Request $request, AngepasstesBlatt $blatt): JsonResponse
+    {
+        $this->authorize('update', $blatt);
+        $request->validate(['version' => 'required|integer']);
+        abort_unless($blatt->schnell_ziele, 404);
+        if ($blatt->status === AngepasstesBlatt::ERKENNUNG) {
+            return response()->json(['message' => 'Die Erkennung läuft noch.'], 409);
+        }
+        if (empty($blatt->strukturGueltig()['bausteine'])) {
+            return response()->json(['message' => 'Es wurde nichts erkannt – bitte im erweiterten Modus erfassen.'], 422);
+        }
+
+        try {
+            $this->service->versionPruefen($blatt, $request->input('version'));
+            if (! $blatt->istFreigegeben()) {
+                $this->service->freigeben($blatt, $request->user());
+            }
+        } catch (VersionKonfliktException) {
+            return response()->json(['message' => 'Das Blatt wurde zwischenzeitlich geändert. Bitte neu laden.'], 409);
+        }
+
+        return response()->json($this->schnellFassungen($blatt->fresh(), $request));
+    }
+
+    /** Fassungen der Schnell-Ziele (wiederverwendet oder neu gesetzt) mit Download-Links. */
+    private function schnellFassungen(AngepasstesBlatt $blatt, Request $request): array
+    {
+        $ziele = (array) $blatt->schnell_ziele;
+        $erlaubt = $this->profile->kinderMitProfil()->pluck('id')->all();
+        $fassungen = app(\App\Services\Arbeitsblaetter\AbAusgabeService::class)->erzeugen(
+            $blatt,
+            array_values(array_intersect(array_map('intval', $ziele['kinder'] ?? []), $erlaubt)),
+            array_map('intval', $ziele['vorlagen'] ?? []),
+            $request->user(),
+        );
+
+        return [
+            'fassungen' => $fassungen->map(fn ($f) => [
+                'id' => $f->id,
+                'empfaenger' => $f->empfaenger,
+                'pdf' => route('arbeitsblaetter.fassungen.datei', [$blatt, $f->id, 'pdf']),
+                'ansehen' => route('arbeitsblaetter.fassungen.datei', [$blatt, $f->id, 'pdf']).'?inline=1',
+                'docx' => $f->docx_pfad ? route('arbeitsblaetter.fassungen.datei', [$blatt, $f->id, 'docx']) : null,
+            ])->values()->all(),
+            'hinweise' => array_values(array_merge((array) $blatt->ki_hinweise, array_column(AbStruktur::pruefhinweise($blatt->strukturGueltig()), 'text'))),
+            'titel' => $blatt->titel,
+        ];
     }
 
     public function store(Request $request)
@@ -98,7 +237,7 @@ class AbBlattController extends Controller
 
         $ziel = route('arbeitsblaetter.edit', $blatt);
         if ($request->expectsJson()) {
-            return response()->json(['url' => $ziel, 'id' => $blatt->id]);
+            return $this->sofort(response()->json(['url' => $ziel, 'id' => $blatt->id]));
         }
 
         return redirect($ziel);
@@ -172,7 +311,16 @@ class AbBlattController extends Controller
     public function freigeben(Request $request, AngepasstesBlatt $blatt): JsonResponse
     {
         $this->authorize('update', $blatt);
-        $request->validate(['version' => 'required|integer']);
+        $request->validate(['version' => 'required|integer', 'trotzdem' => 'sometimes|boolean']);
+
+        // Plausibilität: leere Tabellen/Kästen, Abbildungen ohne Bild → erst nach Rückfrage freigeben
+        $hinweise = AbStruktur::pruefhinweise($blatt->strukturGueltig());
+        if ($hinweise && ! $request->boolean('trotzdem')) {
+            return response()->json([
+                'message' => 'Vor der Freigabe bitte prüfen: '.implode(' ', array_column($hinweise, 'text')),
+                'hinweise' => $hinweise,
+            ], 422);
+        }
 
         try {
             $this->service->versionPruefen($blatt, $request->input('version'));
@@ -201,7 +349,22 @@ class AbBlattController extends Controller
             return response()->json(['message' => $grund], 422);
         }
 
-        return response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request), 'meldung' => 'Die Erkennung wurde gestartet.']);
+        return $this->sofort(response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request), 'meldung' => 'Die Erkennung wurde gestartet.']));
+    }
+
+    /**
+     * Läuft die Erkennung ohne Queue-Worker nach der Antwort im selben Prozess, muss der Browser
+     * die Antwort als vollständig erkennen (Content-Length, Verbindung schließen) – sonst wartet
+     * er, bis die Erkennung fertig ist.
+     */
+    private function sofort(JsonResponse $antwort): JsonResponse
+    {
+        if (config('queue.default') === 'sync') {
+            $antwort->headers->set('Content-Length', (string) strlen((string) $antwort->getContent()));
+            $antwort->headers->set('Connection', 'close');
+        }
+
+        return $antwort;
     }
 
     /** KI-Protokoll des Blatts (Fehlersuche): Anfragen ohne Bilddaten, rohe Antworten, erkannter Inhalt. */
@@ -239,6 +402,20 @@ class AbBlattController extends Controller
             'nutzung' => is_array($antwort) ? (data_get($antwort, 'usageMetadata') ?? data_get($antwort, 'usage')) : null,
             'blatt_id' => $e->blatt_id,
         ];
+    }
+
+    /**
+     * Ohne Queue-Worker: die geöffnete Seite startet den gemerkten Erkennungsauftrag mit dieser (lange
+     * laufenden) Anfrage im Hintergrund und fragt parallel `daten` ab.
+     */
+    public function erkennenAusfuehren(Request $request, AngepasstesBlatt $blatt): JsonResponse
+    {
+        $this->authorize('view', $blatt);
+        @ignore_user_abort(true);
+        @set_time_limit(0);
+        $this->service->erkennungAusfuehren($blatt);
+
+        return response()->json(['blatt' => $this->blattArray($blatt->fresh(), $request)]);
     }
 
     public function erkennenAbbrechen(Request $request, AngepasstesBlatt $blatt): JsonResponse
@@ -281,9 +458,19 @@ class AbBlattController extends Controller
         return $this->mediaAntwort($blatt, $media, AngepasstesBlatt::ORIGINALE);
     }
 
+    /** Abbildung; `?darstellung=kontrast|invertiert` liefert sie wie im PDF aufbereitet (Vorschau). */
     public function abbildung(Request $request, AngepasstesBlatt $blatt, int $media)
     {
         $this->authorize('view', $blatt);
+        $darstellung = (string) $request->query('darstellung', '');
+        if (in_array($darstellung, ['kontrast', 'invertiert'], true)) {
+            $m = $blatt->getMedia(AngepasstesBlatt::ABBILDUNGEN)->firstWhere('id', $media);
+            abort_unless($m, 404);
+            $png = $this->satz->bildInhalt($m, true, $darstellung === 'invertiert');
+            abort_unless($png, 404);
+
+            return response($png, 200, ['Content-Type' => 'image/png', 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=3600']);
+        }
 
         return $this->mediaAntwort($blatt, $media, AngepasstesBlatt::ABBILDUNGEN);
     }
@@ -390,8 +577,11 @@ class AbBlattController extends Controller
             'ersteller' => $blatt->ersteller?->name,
             'darf_bearbeiten' => $user->can('update', $blatt),
             'darf_ausgeben' => $user->can('ausgeben', $blatt),
+            'erkennung_wartet' => $this->service->erkennungWartet($blatt),
             'erkennung_grund' => $blatt->status === AngepasstesBlatt::ERKENNUNG ? null : $this->service->erkennungGesperrt($blatt),
             'ki' => $blatt->ki_anbieter ? ['anbieter' => $blatt->ki_anbieter, 'modell' => $blatt->ki_modell, 'seiten' => $blatt->ki_seiten] : null,
+            'ki_hinweise' => array_values((array) $blatt->ki_hinweise),
+            'pruefhinweise' => AbStruktur::pruefhinweise($blatt->strukturGueltig()),
             'originale' => $originale->map(fn (Media $m) => [
                 'id' => $m->id,
                 'url' => route('arbeitsblaetter.originale.show', [$blatt, $m->id]),
@@ -409,9 +599,11 @@ class AbBlattController extends Controller
                 'freigeben' => route('arbeitsblaetter.freigeben', $blatt),
                 'erkennen' => route('arbeitsblaetter.erkennen', $blatt),
                 'abbrechen' => route('arbeitsblaetter.erkennen.abbrechen', $blatt),
+                'ausfuehren' => route('arbeitsblaetter.erkennen.ausfuehren', $blatt),
                 'protokoll' => route('arbeitsblaetter.ki-protokoll', $blatt),
                 'abbildung' => route('arbeitsblaetter.abbildungen.store', $blatt),
                 'ausgabe' => route('arbeitsblaetter.ausgabe', $blatt),
+                'schnell' => $blatt->schnell_ziele ? route('arbeitsblaetter.schnell', $blatt) : null,
             ],
         ];
     }

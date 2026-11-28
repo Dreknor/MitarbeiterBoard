@@ -104,7 +104,7 @@ class ArbeitsblaetterToolsTest extends TestCase
     public function test_alte_entwuerfe_werden_einmal_gemeldet_und_abbildungen_bereinigt(): void
     {
         Notification::fake();
-        $user = $this->lehrkraft();
+        $user = $this->abBenachrichtigungenAn($this->lehrkraft());
         $alt = $this->blatt(['erstellt_von' => $user->id, 'status' => AngepasstesBlatt::ZU_PRUEFEN]);
         AngepasstesBlatt::whereKey($alt->id)->update(['updated_at' => now()->subDays(100)]);
         $neu = $this->blatt(['erstellt_von' => $user->id, 'status' => AngepasstesBlatt::ZU_PRUEFEN]);

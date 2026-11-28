@@ -108,7 +108,7 @@ class OpenRouterErkenner implements AbErkenner
                 ->withHeaders(['X-Title' => 'MitarbeiterBoard'])
                 ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
                 ->post($url, $anfrage);
-            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, null, $start);
+            KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, $antwort, KiProtokoll::fehlerText($antwort), $start);
         } catch (ConnectionException $e) {
             KiProtokoll::aufzeichnen($this->anbieter(), $this->modell(), $url, $anfrage, null, $e, $start);
             throw new AbErkennungFehler('OpenRouter ist nicht erreichbar: '.$e->getMessage(), true);
@@ -159,20 +159,20 @@ class OpenRouterErkenner implements AbErkenner
     }
 
     /** Kosten in Cent: gemeldete Kosten (USD), sonst Schätzung; „free“ immer 0. */
-    public function kosten(array $usage): int
+    public function kosten(array $usage): float
     {
         if ($this->istKostenlos()) {
-            return 0;
+            return 0.0;
         }
         if (isset($usage['cost']) && is_numeric($usage['cost'])) {
-            return (int) ceil((float) $usage['cost'] * 100);
+            return round((float) $usage['cost'] * 100, 4);
         }
 
         return ErkennerVorgaben::kostenCent(
             (int) ($usage['prompt_tokens'] ?? 0),
             (int) ($usage['completion_tokens'] ?? 0),
-            (int) config('arbeitsblaetter.ki.openrouter.preis_eingabe_cent', 300),
-            (int) config('arbeitsblaetter.ki.openrouter.preis_ausgabe_cent', 1500),
+            (float) config('arbeitsblaetter.ki.openrouter.preis_eingabe_cent', 300),
+            (float) config('arbeitsblaetter.ki.openrouter.preis_ausgabe_cent', 1500),
         );
     }
 

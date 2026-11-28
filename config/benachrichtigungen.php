@@ -75,10 +75,10 @@ return [
         ],
         'arbeitsblaetter' => [
             'label'        => 'Angepasste Arbeitsblätter',
-            'beschreibung' => 'Erkannte Arbeitsblätter zur Prüfung und Fehler bei der Erkennung',
+            'beschreibung' => 'Erkannte Arbeitsblätter zur Prüfung, Fehler bei der Erkennung und lange offene Entwürfe (standardmäßig aus – nur wenn Push oder Mail eingeschaltet ist; offene Blätter zeigt immer die Bibliothek).',
             'icon'         => 'fa-low-vision',
-            'push'         => true,
-            'mail'         => 'sofort',
+            'push'         => false,
+            'mail'         => 'aus',
             'permission'   => ['create adapted worksheets'],
         ],
         'prozesse' => [

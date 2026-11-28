@@ -58,6 +58,14 @@ trait ArbeitsblaetterTestHilfen
         return $user;
     }
 
+    /** Arbeitsblatt-Benachrichtigungen sind Opt-in – für Tests, die sie erwarten, einschalten. */
+    protected function abBenachrichtigungenAn(User $user): User
+    {
+        $user->notificationPreferences()->create(['kategorie' => 'arbeitsblaetter', 'push' => true, 'mail' => 'sofort']);
+
+        return $user;
+    }
+
     protected function blatt(array $werte = [], ?array $bausteine = null): AngepasstesBlatt
     {
         return AngepasstesBlatt::create(array_merge([

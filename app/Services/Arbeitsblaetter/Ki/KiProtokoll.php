@@ -29,7 +29,7 @@ class KiProtokoll
         return self::$blattId;
     }
 
-    public static function aufzeichnen(string $anbieter, string $modell, string $url, array $anfrage, ?Response $antwort, ?\Throwable $fehler, float $start): void
+    public static function aufzeichnen(string $anbieter, string $modell, string $url, array $anfrage, ?Response $antwort, \Throwable|string|null $fehler, float $start): void
     {
         try {
             AbKiProtokoll::create([
@@ -41,7 +41,7 @@ class KiProtokoll
                 'dauer_ms' => (int) round((microtime(true) - $start) * 1000),
                 'anfrage' => json_encode(self::ohneDaten($anfrage), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
                 'antwort' => $antwort ? mb_substr($antwort->body(), 0, self::MAX_ANTWORT) : null,
-                'fehler' => $fehler ? mb_substr($fehler->getMessage(), 0, 2000) : null,
+                'fehler' => $fehler !== null && $fehler !== '' ? mb_substr(is_string($fehler) ? $fehler : $fehler->getMessage(), 0, 2000) : null,
             ]);
         } catch (\Throwable $e) {
             Log::info('KI-Protokoll konnte nicht gespeichert werden', ['fehler' => $e->getMessage()]);
@@ -62,6 +62,17 @@ class KiProtokoll
         }
 
         return $wert;
+    }
+
+    /** Fehlertext einer HTTP-Antwort ohne Erfolg (für das Protokoll), sonst null. */
+    public static function fehlerText(Response $antwort): ?string
+    {
+        if ($antwort->successful()) {
+            return null;
+        }
+        $meldung = data_get($antwort->json(), 'error.message');
+
+        return 'HTTP '.$antwort->status().(is_string($meldung) && $meldung !== '' ? ': '.$meldung : ($antwort->reason() ? ' '.$antwort->reason() : ''));
     }
 
     public static function bereinigen(): int

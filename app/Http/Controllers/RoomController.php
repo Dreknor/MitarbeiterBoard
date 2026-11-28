@@ -548,7 +548,7 @@ class RoomController extends Controller
     {
         $file = $request->file('file');
 
-        $xml = (new Reader(new Document()))->load($file->getRealPath());
+        $xml = (new Reader(new Document()))->load($file->getPathname());
 
 
         /*

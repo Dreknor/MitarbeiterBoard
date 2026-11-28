@@ -55,8 +55,11 @@ class ErkennungQualitaetTest extends TestCase
         $this->assertSame('Eintritt', $kinder['kasten']['titel']);
         $this->assertSame(2, $kinder['rechenfeld']['reihen']);
         $this->assertNotContains('text', array_column($aufgabe['kinder'], 'typ'), 'leerer Text entfällt');
-        $this->assertArrayHasKey('reihen', ErkennerVorgaben::schema()['properties']['bausteine']['items']['properties']);
-        $this->assertContains('kasten', ErkennerVorgaben::schema()['properties']['bausteine']['items']['properties']['typ']['enum']);
+        $typen = collect(ErkennerVorgaben::schema()['properties']['bausteine']['items']['anyOf'])->keyBy(fn ($t) => $t['properties']['typ']['enum'][0]);
+        $this->assertContains('reihen', $typen['rechenfeld']['required']);
+        $this->assertContains('zeilen', $typen['tabelle']['required'], 'Tabellen müssen Zeilen haben');
+        $this->assertContains('text', $typen['kasten']['required'], 'Kästen müssen Text haben');
+        $this->assertSame(1, $typen['bild']['properties']['box']['items']['maximum']);
     }
 
     public function test_pdf_mit_kasten_rechenfeld_und_kreuz(): void
@@ -143,7 +146,9 @@ class ErkennungQualitaetTest extends TestCase
         $this->assertSame('kasten', $b[0]['typ']);
         $this->assertStringContainsString('Tiger: 14 Uhr', AbStruktur::segmentText($b[0]['inhalt']));
         $this->assertSame('bild', $b[1]['typ']);
-        $this->assertSame([0.1, 0.2, 0.5, 0.4], $b[1]['quelle']['box']);
+        // die Box wird mit kleinem Rand übernommen ({@see ErkennerVorgaben::box()}) – sie umschließt den Kasten
+        [$x1, $y1, $x2, $y2] = $b[1]['quelle']['box'];
+        $this->assertTrue($x1 <= 0.1 && $y1 <= 0.2 && $x2 >= 0.5 && $y2 >= 0.4 && $x1 > 0.05 && $x2 < 0.55);
         $this->assertStringContainsString('Eintritt', $b[1]['beschreibung']);
     }
 }

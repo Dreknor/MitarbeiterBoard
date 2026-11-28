@@ -125,7 +125,7 @@ class AbPruefung
         $sync = config('queue.default') === 'sync';
 
         return ['titel' => 'Hintergrundaufträge (Queue)', 'ok' => $sync ? null : true, 'todo' => false,
-            'text' => $sync ? 'Queue läuft synchron – Erkennung und Ausgabe blockieren die Anfrage. Empfohlen: Worker (queue:work).' : 'Queue „'.config('queue.default').'“.'];
+            'text' => $sync ? 'Queue läuft synchron – die Erkennung läuft nach der Antwort im Webprozess, Ausgabe und Mails blockieren die Anfrage. Empfohlen: Worker (queue:work).' : 'Queue „'.config('queue.default').'“.'];
     }
 
     private function profilkinder(): array

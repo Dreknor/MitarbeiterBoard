@@ -25,9 +25,24 @@ class GeminiErkenner implements AbErkenner
         return 'gemini';
     }
 
+    private ?string $modellWahl = null;
+
     public function modell(): string
     {
-        return (string) config('arbeitsblaetter.ki.gemini.modell');
+        return $this->modellWahl ?? (string) config('arbeitsblaetter.ki.gemini.modell');
+    }
+
+    /** Stärkeres Modell für die Nachfrage, wenn ein Ergebnis unvollständig wirkt (AB_GEMINI_NACHFRAGE_MODELL). */
+    public function nachfrageErkenner(): ?AbErkenner
+    {
+        $modell = (string) config('arbeitsblaetter.ki.gemini.nachfrage_modell');
+        if ($modell === '' || $modell === $this->modell()) {
+            return null;
+        }
+        $kopie = clone $this;
+        $kopie->modellWahl = $modell;
+
+        return $kopie;
     }
 
     private function schluessel(): string
@@ -63,15 +78,27 @@ class GeminiErkenner implements AbErkenner
             ],
         ];
 
+        // Überlastung (429/5xx): einmal kurz warten und das Hauptmodell erneut fragen, danach
+        // das Ersatzmodell. Nach einer Zeitüberschreitung gleich das Ersatzmodell (schon lange gewartet).
         $ersatz = (string) config('arbeitsblaetter.ki.gemini.ersatzmodell');
+        $hinweise = [];
         try {
-            $antwort = $this->senden($this->modell(), $anfrage);
+            try {
+                $antwort = $this->senden($this->modell(), $anfrage);
+            } catch (AbErkennungFehler $e) {
+                if (! $e->wiederholbar || $e->status === null || str_contains($e->getMessage(), 'Kontingent')) {
+                    throw $e;
+                }
+                sleep(max(0, (int) config('arbeitsblaetter.ki.gemini.kurz_warten', 3)));
+                $antwort = $this->senden($this->modell(), $anfrage);
+            }
         } catch (AbErkennungFehler $e) {
-            // Überlastet: einmal sofort mit dem Ersatzmodell versuchen
             if (! $e->wiederholbar || $ersatz === '' || $ersatz === $this->modell()) {
                 throw $e;
             }
             $antwort = $this->senden($ersatz, $anfrage);
+            $grundText = $e->status ? 'HTTP '.$e->status : 'keine Antwort';
+            $hinweise[] = 'Das Hauptmodell „'.$this->modell().'“ war nicht verfügbar ('.$grundText.'). Erkannt hat das schwächere Ersatzmodell „'.$ersatz.'“ – bitte besonders genau mit dem Original vergleichen.';
         }
 
         $daten = $antwort->json();
@@ -101,11 +128,12 @@ class GeminiErkenner implements AbErkenner
             ErkennerVorgaben::kostenCent(
                 (int) ($nutzung['promptTokenCount'] ?? 0),
                 (int) ($nutzung['candidatesTokenCount'] ?? 0) + (int) ($nutzung['thoughtsTokenCount'] ?? 0),
-                (int) config('arbeitsblaetter.ki.gemini.preis_eingabe_cent', 50),
-                (int) config('arbeitsblaetter.ki.gemini.preis_ausgabe_cent', 300),
+                (float) config('arbeitsblaetter.ki.gemini.preis_eingabe_cent', 50),
+                (float) config('arbeitsblaetter.ki.gemini.preis_ausgabe_cent', 300),
             ),
             $this->anbieter(),
             (string) ($daten['modelVersion'] ?? $this->modell()),
+            $hinweise,
         );
     }
 
@@ -119,19 +147,23 @@ class GeminiErkenner implements AbErkenner
             $antwort = Http::withHeaders(['x-goog-api-key' => $this->schluessel()])
                 ->timeout((int) config('arbeitsblaetter.ki.timeout', 180))
                 ->post($url, $anfrage);
-            KiProtokoll::aufzeichnen($this->anbieter(), $modell, $url, $anfrage, $antwort, null, $start);
+            KiProtokoll::aufzeichnen($this->anbieter(), $modell, $url, $anfrage, $antwort, KiProtokoll::fehlerText($antwort), $start);
         } catch (ConnectionException $e) {
             KiProtokoll::aufzeichnen($this->anbieter(), $modell, $url, $anfrage, null, $e, $start);
-            throw new AbErkennungFehler('Gemini ist nicht erreichbar: '.$e->getMessage(), true);
+            throw new AbErkennungFehler('Gemini hat nicht rechtzeitig geantwortet bzw. ist nicht erreichbar: '.mb_substr($e->getMessage(), 0, 200), true);
         }
 
+        if ($antwort->status() === 429 && str_contains(mb_strtolower((string) data_get($antwort->json(), 'error.message', '')), 'quota')) {
+            // kein Überlastungs-, sondern ein Kontingentproblem (kostenloser Zugang: wenige Anfragen je Tag)
+            throw new AbErkennungFehler('Das Kontingent von Gemini für „'.$modell.'“ ist aufgebraucht (HTTP 429). Beim kostenlosen Zugang gelten nur wenige Anfragen je Minute bzw. Tag.', true, 429);
+        }
         if ($antwort->status() === 429 || $antwort->status() >= 500) {
             $meldung = (string) data_get($antwort->json(), 'error.message', '');
-            throw new AbErkennungFehler('Gemini ist überlastet (HTTP '.$antwort->status().($meldung !== '' ? ': '.mb_substr($meldung, 0, 150) : '').').', true);
+            throw new AbErkennungFehler('Gemini ist überlastet (HTTP '.$antwort->status().($meldung !== '' ? ': '.mb_substr($meldung, 0, 150) : '').').', true, $antwort->status());
         }
         if (! $antwort->successful()) {
             $meldung = (string) data_get($antwort->json(), 'error.message', 'HTTP '.$antwort->status());
-            throw new AbErkennungFehler('Gemini hat die Anfrage abgelehnt: '.mb_substr($meldung, 0, 300));
+            throw new AbErkennungFehler('Gemini hat die Anfrage abgelehnt: '.mb_substr($meldung, 0, 300), false, $antwort->status());
         }
 
         return $antwort;

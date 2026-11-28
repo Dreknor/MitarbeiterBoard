@@ -15,6 +15,7 @@ namespace App\Support;
  *   {"id":"b4","typ":"ankreuzen","frage":"…","optionen":["ja","nein"]},
  *   {"id":"b5","typ":"tabelle","zeilen":[["a","b"],["",""]],"kopfzeile":true},
  *   {"id":"b6","typ":"schreiblinien","anzahl":3},
+ *   {"id":"b11","typ":"zeichenflaeche","hoehe":6},
  *   {"id":"b9","typ":"kasten","titel":"Eintritt","inhalt":[{"typ":"text","text":"Kinder: 8 €\nErwachsene: 16 €"}]},
  *   {"id":"b10","typ":"rechenfeld","reihen":2,"inhalt":[…Vorgabe, z. B. „2 · ___ = ___ €“…]},
  *   {"id":"b7","typ":"bild","media_id":12,"beschreibung":"Kreis, ¾ gefärbt",
@@ -41,8 +42,11 @@ class AbStruktur
         'kasten' => 'Kasten',
         'rechenfeld' => 'Rechenfeld',
         'schreiblinien' => 'Schreiblinien',
+        'zeichenflaeche' => 'Zeichenfläche',
         'bild' => 'Abbildung',
     ];
+
+    public const LINEATUREN = ['einfach', 'grundschule'];
 
     public const MAX_BAUSTEINE = 300;
 
@@ -177,12 +181,42 @@ class AbStruktur
                 'tabelle' => implode(' ', array_map(fn ($z) => implode(' | ', $z), $b['zeilen'] ?? [])),
                 'kasten' => trim(($b['titel'] ?? '').' '.self::segmentText($b['inhalt'] ?? [])),
                 'rechenfeld' => self::segmentText($b['inhalt'] ?? []),
+                'zeichenflaeche' => '',
                 'bild' => $b['beschreibung'] ?? '',
                 default => '',
             };
         }
 
         return trim(implode("\n", array_filter($teile, fn ($t) => trim((string) $t) !== '')));
+    }
+
+    /**
+     * Hinweise vor der Freigabe: Bausteine, die so im Ergebnis fehlen oder leer bleiben
+     * (leere Tabellen/Kästen, Abbildungen ohne Bild, leere Aufgaben).
+     *
+     * @return array<int, array{id: string, text: string}>
+     */
+    public static function pruefhinweise(array $struktur): array
+    {
+        $hinweise = [];
+        foreach (self::alle($struktur) as $b) {
+            $text = match ($b['typ']) {
+                'tabelle' => collect($b['zeilen'] ?? [])->flatten()->filter(fn ($z) => trim((string) $z) !== '')->isEmpty()
+                    ? 'Eine Tabelle ist leer.' : null,
+                'kasten' => trim(self::segmentText($b['inhalt'] ?? [])) === ''
+                    ? 'Der Kasten'.(($b['titel'] ?? '') !== '' ? ' „'.$b['titel'].'“' : '').' hat keinen Text.' : null,
+                'bild' => empty($b['media_id'])
+                    ? 'Die Abbildung'.(($b['beschreibung'] ?? '') !== '' ? ' „'.mb_strimwidth($b['beschreibung'], 0, 60, '…').'“' : '').' hat noch kein Bild.' : null,
+                'aufgabe' => ($b['nummer'] ?? '') === '' && empty($b['inhalt']) && empty($b['kinder'])
+                    ? 'Eine Aufgabe ist leer.' : null,
+                default => null,
+            };
+            if ($text !== null) {
+                $hinweise[] = ['id' => $b['id'], 'text' => $text];
+            }
+        }
+
+        return $hinweise;
     }
 
     public static function segmentText(array $segmente): string
@@ -237,6 +271,12 @@ class AbStruktur
             'tabelle' => self::tabelle($roh),
             'schreiblinien' => [
                 'anzahl' => max(1, min(30, (int) ($roh['anzahl'] ?? 3))),
+                // einfach = eine Schreiblinie, grundschule = Vierliniensystem mit grauem Mittelband
+                'lineatur' => in_array($roh['lineatur'] ?? null, self::LINEATUREN, true) ? $roh['lineatur'] : 'einfach',
+            ],
+            // leere Fläche zum Zeichnen/Malen; Höhe in Schreibzeilen (Linienabstand des Profils)
+            'zeichenflaeche' => [
+                'hoehe' => max(2, min(20, (int) ($roh['hoehe'] ?? 6))),
             ],
             'bild' => self::bild($roh),
         };
@@ -291,6 +331,9 @@ class AbStruktur
     private static function inhalt(array $roh): array
     {
         if (isset($roh['inhalt']) && is_array($roh['inhalt'])) {
+            return self::segmente($roh['inhalt']);
+        }
+        if (isset($roh['inhalt']) && is_string($roh['inhalt']) && trim($roh['inhalt']) !== '') {
             return self::segmente($roh['inhalt']);
         }
         $text = self::text($roh['text'] ?? '', self::MAX_TEXT);

@@ -33,6 +33,8 @@ class WochenplanAnbindungTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Mitten in der Woche: am Wochenende ist die Woche der Test-Klassenpläne (Mo–Fr) schon vorbei
+        $this->travelTo(now()->startOfWeek()->addDays(2)->setTime(10, 0));
         $this->arbeitsblaetterEinrichten();
         $this->nextcloudFake(true);
         $this->klasse = Klasse::factory()->create(['name' => '3a']);
@@ -40,7 +42,7 @@ class WochenplanAnbindungTest extends TestCase
 
     private function lehrerIn()
     {
-        $user = $this->paedagoge([$this->klasse], ['create wochenplan', 'view wochenplan', 'create adapted worksheets']);
+        $user = $this->abBenachrichtigungenAn($this->paedagoge([$this->klasse], ['create wochenplan', 'view wochenplan', 'create adapted worksheets']));
         $this->actingAs($user);
 
         return $user;

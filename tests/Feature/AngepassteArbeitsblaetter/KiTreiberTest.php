@@ -73,8 +73,8 @@ class KiTreiberTest extends TestCase
         $ergebnis = app(GeminiErkenner::class)->erkennen($this->seiten(), 'Textebene');
 
         $this->assertSame('Brüche', $ergebnis->struktur['bausteine'][0]['text']);
-        $this->assertSame(['seite' => 1, 'box' => [0.1, 0.2, 0.5, 0.6]], $ergebnis->struktur['bausteine'][2]['quelle']);
-        $this->assertSame(11, $ergebnis->kostenCent, '0,1 Mio × 50 ct + 0,02 Mio × 300 ct');
+        $this->assertSame(['seite' => 1, 'box' => [0.085, 0.185, 0.515, 0.615]], $ergebnis->struktur['bausteine'][2]['quelle'], 'Box mit 1,5 % Rand');
+        $this->assertSame(11.0, $ergebnis->kostenCent, '0,1 Mio × 50 ct + 0,02 Mio × 300 ct');
         $this->assertSame('gemini', $ergebnis->anbieter);
         $this->assertSame('gemini-x-flash', $ergebnis->modell);
 
@@ -93,12 +93,12 @@ class KiTreiberTest extends TestCase
     public function test_gemini_fehler(): void
     {
         Http::fake(['generativelanguage.googleapis.com/*' => Http::sequence()
-            ->push(['error' => ['message' => 'quota']], 429)
+            ->push(['error' => ['message' => 'You exceeded your current quota']], 429) // Kontingent: keine sinnlose Wiederholung
             ->push(['promptFeedback' => ['blockReason' => 'SAFETY']])
             ->push(['candidates' => [['finishReason' => 'MAX_TOKENS', 'content' => ['parts' => [['text' => '{"seiten":1,"baus']]]]]])]);
         $erkenner = app(GeminiErkenner::class);
 
-        foreach ([[true, 'überlastet'], [false, 'abgelehnt'], [false, 'zu umfangreich']] as [$wiederholbar, $text]) {
+        foreach ([[true, 'Kontingent'], [false, 'abgelehnt'], [false, 'zu umfangreich']] as [$wiederholbar, $text]) {
             try {
                 $erkenner->erkennen($this->seiten());
                 $this->fail('Fehler erwartet');
@@ -120,7 +120,7 @@ class KiTreiberTest extends TestCase
         $ergebnis = (new OpenRouterErkenner('auto'))->erkennen($this->seiten(), 'Textebene');
 
         $this->assertSame('Brüche', $ergebnis->struktur['bausteine'][0]['text']);
-        $this->assertSame(3, $ergebnis->kostenCent, 'gemeldete Kosten 0,0234 USD → aufgerundet 3 Cent');
+        $this->assertSame(2.34, $ergebnis->kostenCent, 'gemeldete Kosten 0,0234 USD = 2,34 Cent (Bruchteile bleiben erhalten)');
         $this->assertSame('openrouter_auto', $ergebnis->anbieter);
         $this->assertSame('anthropic/claude-x', $ergebnis->modell);
 
@@ -149,7 +149,7 @@ class KiTreiberTest extends TestCase
 
         $ergebnis = (new OpenRouterErkenner('free'))->erkennen($this->seiten());
 
-        $this->assertSame(0, $ergebnis->kostenCent);
+        $this->assertSame(0.0, $ergebnis->kostenCent);
         $this->assertSame('openrouter_free', $ergebnis->anbieter);
         $this->assertCount(3, $ergebnis->struktur['bausteine']);
         Http::assertSent(fn (Request $r) => data_get($r->data(), 'model') === 'openrouter/free'

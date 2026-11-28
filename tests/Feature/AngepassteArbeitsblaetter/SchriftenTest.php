@@ -28,7 +28,7 @@ class SchriftenTest extends TestCase
         parent::setUp();
         $this->arbeitsblaetterEinrichten();
         $this->ziel = sys_get_temp_dir().'/ab-schriften-'.uniqid();
-        config(['arbeitsblaetter.schriften_pfad' => $this->ziel]);
+        config(['arbeitsblaetter.schriften_pfad' => $this->ziel, 'arbeitsblaetter.system_schriftordner' => []]); // unabhängig von den Schriften des Testrechners
     }
 
     protected function tearDown(): void

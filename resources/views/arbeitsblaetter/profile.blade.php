@@ -138,7 +138,7 @@
                                                 </template>
                                                 <template x-if="def.typ === 'auswahl'">
                                                     <select class="ab-select ab-input-sm" :id="'ab-f-' + feld" x-model="offen.werte[feld]" @change="vorschau()">
-                                                        <template x-for="w in def.werte" :key="w"><option :value="w" x-text="({{ \Illuminate\Support\Js::from($schriften + $farbschemata) }})[w] || w" :selected="offen.werte[feld] === w"></option></template>
+                                                        <template x-for="w in def.werte" :key="w"><option :value="w" x-text="({{ \Illuminate\Support\Js::from($schriften + $farbschemata + $lineaturen) }})[w] || w" :selected="offen.werte[feld] === w"></option></template>
                                                     </select>
                                                 </template>
                                                 <template x-if="def.typ === 'schalter'">

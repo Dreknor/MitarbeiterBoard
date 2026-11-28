@@ -69,8 +69,9 @@ class AbSatzService
         if (! $datei || $ordner === '' || ! is_dir($ordner)) {
             return null;
         }
-        foreach ([$datei, strtoupper($datei), ucfirst($datei), strtolower(pathinfo($datei, PATHINFO_FILENAME)).'.TTF'] as $name) {
-            if (is_file($ordner.'/'.$name)) {
+        // tatsächlichen Dateinamen aus dem Verzeichnis nehmen (Windows unterscheidet Groß-/Kleinschreibung nicht)
+        foreach (scandir($ordner) ?: [] as $name) {
+            if (strtolower($name) === strtolower($datei) && is_file($ordner.'/'.$name)) {
                 return $ordner.'/'.$name;
             }
         }
@@ -182,7 +183,7 @@ class AbSatzService
             $abschnitt->addFooter()->addText($fusszeile, ['size' => 9]);
         }
 
-        if (trim((string) $blatt->titel) !== '') {
+        if (trim((string) $blatt->titel) !== '' && ! self::titelDoppelt((string) $blatt->titel, $struktur)) {
             $abschnitt->addText($blatt->titel, array_merge($schrift, ['bold' => true, 'size' => (int) round($l['ueberschrift_pt'])]));
         }
 
@@ -200,6 +201,30 @@ class AbSatzService
         }
 
         return $inhalt;
+    }
+
+    /**
+     * Steckt der Titel schon in der ersten Überschrift (oder umgekehrt, z. B. Dateiname
+     * „06 d4 akkusativobjekt 1“ ↔ „Das Akkusativobjekt 1“)? Dann nicht doppelt ausgeben.
+     * Verglichen werden die Wörter ab 4 Buchstaben: stecken alle des einen im anderen, ist es doppelt.
+     */
+    public static function titelDoppelt(string $titel, array $struktur): bool
+    {
+        $erste = $struktur['bausteine'][0] ?? null;
+        if (! $erste || $erste['typ'] !== 'ueberschrift') {
+            return false;
+        }
+        $woerter = fn ($t) => array_values(array_filter(
+            preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower((string) $t)) ?: [],
+            fn ($w) => mb_strlen($w) >= 4
+        ));
+        $a = $woerter($titel);
+        $b = $woerter($erste['text'] ?? '');
+        if (! $a || ! $b) {
+            return mb_strtolower(trim($titel)) === mb_strtolower(trim((string) ($erste['text'] ?? '')));
+        }
+
+        return ! array_diff($b, $a) || ! array_diff($a, $b);
     }
 
     // ─── intern: HTML/PDF ────────────────────────────────────────────────────
@@ -238,17 +263,24 @@ class AbSatzService
             if (! $media) {
                 return null;
             }
+            $invertieren = $layout['bild_kontrast'] && $layout['invertiert'];
             if ($modus !== 'pdf') {
-                return route('arbeitsblaetter.abbildungen.show', [$blatt, $media->id]);
+                $darstellung = $layout['bild_kontrast'] ? ['darstellung' => $invertieren ? 'invertiert' : 'kontrast'] : [];
+
+                return route('arbeitsblaetter.abbildungen.show', [$blatt, $media->id] + $darstellung);
             }
-            $inhalt = $this->bildInhalt($media, $layout['bild_kontrast']);
+            $inhalt = $this->bildInhalt($media, $layout['bild_kontrast'], $invertieren);
 
             return $inhalt ? 'data:image/png;base64,'.base64_encode($inhalt) : null;
         };
     }
 
-    /** Bildinhalt als PNG, bei Bedarf kontrastreich (Graustufen + Schwellwert). */
-    public function bildInhalt(Media $media, bool $kontrast): ?string
+    /**
+     * Bildinhalt als PNG, bei Bedarf kontrastreich: Graustufen, Mitteltöne abgedunkelt (feine
+     * Linien und helle Farben bleiben sichtbar und unterscheidbar), Papierweiß bleibt weiß.
+     * `$invertieren` (Schema Weiß auf Schwarz): danach umkehren – weiße Linien auf Schwarz.
+     */
+    public function bildInhalt(Media $media, bool $kontrast, bool $invertieren = false): ?string
     {
         try {
             $roh = file_get_contents($media->getPath());
@@ -266,8 +298,7 @@ class AbSatzService
             return null;
         }
         if ($kontrast) {
-            imagefilter($bild, IMG_FILTER_GRAYSCALE);
-            imagefilter($bild, IMG_FILTER_CONTRAST, -60);
+            $bild = $this->kontrastBild($bild, $invertieren);
         }
         ob_start();
         imagepng($bild, null, 6);
@@ -275,6 +306,43 @@ class AbSatzService
         imagedestroy($bild);
 
         return $png;
+    }
+
+    /**
+     * Kontrastfassung über eine Tonwertkurve auf der Graupalette (schnell, keine Pixelschleife):
+     * Papierweiß (≥ 240) bleibt weiß, alles andere wird kräftig abgedunkelt – feine, helle Linien
+     * (z. B. Ausmalraster in Hellblau) werden deutlich sichtbar, Farbflächen bleiben als Grautöne
+     * unterscheidbar. Invertiert: stärkere Kurve, danach umgekehrt (helle Linien auf Schwarz).
+     */
+    private function kontrastBild(\GdImage $bild, bool $invertieren): \GdImage
+    {
+        $b = imagesx($bild);
+        $h = imagesy($bild);
+        // Transparenz auf weißes Papier legen
+        $flach = imagecreatetruecolor($b, $h);
+        imagefill($flach, 0, 0, imagecolorallocate($flach, 255, 255, 255));
+        imagecopy($flach, $bild, 0, 0, 0, 0, $b, $h);
+        imagedestroy($bild);
+
+        imagefilter($flach, IMG_FILTER_GRAYSCALE);
+        imagetruecolortopalette($flach, false, 256);
+        for ($i = 0, $n = imagecolorstotal($flach); $i < $n; $i++) {
+            $grau = imagecolorsforindex($flach, $i)['red'];
+            if ($grau >= 240) {
+                $neu = 255;
+            } else {
+                $neu = $invertieren
+                    ? (int) round(95 * ($grau / 240) ** 1.2)
+                    : (int) round(150 * ($grau / 240) ** 1.5);
+            }
+            if ($invertieren) {
+                $neu = 255 - $neu;
+            }
+            imagecolorset($flach, $i, $neu, $neu, $neu);
+        }
+        imagepalettetotruecolor($flach);
+
+        return $flach;
     }
 
     /** DomPDF braucht ein beschreibbares Schrift-Verzeichnis für die Metriken. */
@@ -368,6 +436,20 @@ class AbSatzService
                 break;
 
             case 'schreiblinien':
+                $lineatur = ($l['lineatur'] ?? 'original') !== 'original' ? $l['lineatur'] : ($b['lineatur'] ?? 'einfach');
+                if ($lineatur === 'grundschule') {
+                    // Vierliniensystem: drei gleich hohe Bänder, das mittlere grau hinterlegt
+                    $band = Converter::pointToTwip($l['gs_band_pt']);
+                    $duenn = max(2, (int) round($linie * 0.6));
+                    for ($i = 0; $i < (int) $b['anzahl']; $i++) {
+                        $tabelle = $ziel->addTable(['width' => 100 * 50, 'unit' => 'pct', 'cellMargin' => 0]);
+                        $tabelle->addRow($band, ['exactHeight' => true])->addCell(null, ['borderTopSize' => $duenn, 'borderTopColor' => $farbe]);
+                        $tabelle->addRow($band, ['exactHeight' => true])->addCell(null, ['bgColor' => 'D4D4D4', 'borderTopSize' => $duenn, 'borderTopColor' => $farbe, 'borderBottomSize' => max(4, $linie), 'borderBottomColor' => $farbe]);
+                        $tabelle->addRow($band, ['exactHeight' => true])->addCell(null, ['borderBottomSize' => $duenn, 'borderBottomColor' => $farbe]);
+                        $ziel->addText('', ['size' => max(8, (int) round($l['gs_band_pt'] * 2.5))], ['spaceAfter' => 0, 'spaceBefore' => 0]);
+                    }
+                    break;
+                }
                 for ($i = 0; $i < (int) $b['anzahl']; $i++) {
                     $ziel->addText('', $schrift, array_merge($einzug, [
                         'borderBottomSize' => max(4, $linie), 'borderBottomColor' => $farbe,
@@ -375,6 +457,12 @@ class AbSatzService
                         'spaceAfter' => 0, 'lineHeight' => 1.0,
                     ]));
                 }
+                break;
+
+            case 'zeichenflaeche':
+                $tabelle = $ziel->addTable(['borderSize' => max(4, $linie), 'borderColor' => $farbe, 'width' => 100 * 50, 'unit' => 'pct']);
+                $tabelle->addRow(Converter::pointToTwip((int) $b['hoehe'] * $l['linienabstand_pt']), ['exactHeight' => true])->addCell();
+                $ziel->addText('', $schrift);
                 break;
 
             case 'bild':

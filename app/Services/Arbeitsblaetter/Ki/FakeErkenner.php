@@ -14,7 +14,7 @@ class FakeErkenner implements AbErkenner
 
     public ?AbErkennungFehler $fehler = null;
 
-    public int $kostenCent = 3;
+    public float $kostenCent = 3;
 
     /** @var array<int, array{seiten: array, text: ?string}> */
     public array $aufrufe = [];

@@ -5,14 +5,97 @@
 @endpush
 
 @section('content')
-<div class="ab-wrapper ab-schmal" x-data="abErfassung({
+@php $schnellMoeglich = $kiAktiv && ! $kiGesperrt; @endphp
+<div class="ab-wrapper ab-schmal" x-data="abModus(@js($schnellMoeglich))" x-cloak>
+    <a href="{{ route('arbeitsblaetter.index') }}" class="ab-back mb-3"><i class="fas fa-arrow-left"></i> Bibliothek</a>
+    <h1 class="ab-page-title mb-1">Neues Arbeitsblatt</h1>
+
+    <div class="ab-modus mb-5" role="tablist" aria-label="Modus" data-tour="ab-modus">
+        <button type="button" role="tab" class="ab-modus-tab" :class="modus === 'schnell' && 'is-active'" :aria-selected="modus === 'schnell'" @click="setzen('schnell')" :disabled="!schnellMoeglich">
+            <i class="fas fa-bolt"></i> <span><strong>Schnell</strong><small>Hochladen – fertiges Blatt</small></span>
+        </button>
+        <button type="button" role="tab" class="ab-modus-tab" :class="modus === 'erweitert' && 'is-active'" :aria-selected="modus === 'erweitert'" @click="setzen('erweitert')">
+            <i class="fas fa-sliders-h"></i> <span><strong>Erweitert</strong><small>Prüfen und bearbeiten im Editor</small></span>
+        </button>
+    </div>
+
+    {{-- ─── Schnellmodus ─── --}}
+    <div x-show="modus === 'schnell'" x-data="abSchnell({
+            url: @js(route('arbeitsblaetter.schnell.store')),
+            maxSeiten: {{ $maxSeiten }},
+            kinder: @js($ziele['kinder']),
+            vorlagen: @js($ziele['vorlagen']),
+        })">
+        <p class="ab-page-sub mb-4">Foto oder Datei hochladen und auswählen, für wen das Blatt ist. Die KI erkennt das Blatt, das MitarbeiterBoard setzt es nach dem Sehprofil – Sie bekommen das fertige PDF. Prüfen und nachbessern können Sie es jederzeit im erweiterten Modus.</p>
+
+        <div class="grid gap-3 sm:grid-cols-2 mb-4">
+            <button type="button" class="ab-quelle" @click="$refs.schnellKamera.click()">
+                <i class="fas fa-camera"></i><span class="font-semibold">Fotografieren</span>
+                <span class="text-xs text-slate-500">Eine oder mehrere Seiten aufnehmen</span>
+            </button>
+            <button type="button" class="ab-quelle" @click="$refs.schnellDatei.click()">
+                <i class="fas fa-file-upload"></i><span class="font-semibold">Datei wählen</span>
+                <span class="text-xs text-slate-500">PDF, Foto oder Word, max. 20 MB</span>
+            </button>
+        </div>
+        <input type="file" x-ref="schnellKamera" accept="image/*" capture="environment" multiple class="hidden" @change="gewaehlt($event)">
+        <input type="file" x-ref="schnellDatei" accept=".{{ str_replace(',', ',.', $endungen) }}" class="hidden" @change="gewaehlt($event)">
+
+        <template x-if="dateien.length">
+            <div class="ab-alert ab-alert-blue mb-4"><i class="fas fa-file mt-0.5"></i>
+                <div><template x-for="(d, i) in dateien" :key="i"><span><strong x-text="d.name"></strong> <span x-text="'(' + groesse(d.size) + ')'"></span><span x-show="i < dateien.length - 1">, </span></span></template>
+                    <button type="button" class="underline ml-2" @click="dateien = []">entfernen</button></div></div>
+        </template>
+
+        <div class="ab-card mb-4">
+            <div class="ab-card-body">
+                <h2 class="ab-card-title mb-2"><i class="fas fa-user-check"></i> Für wen?</h2>
+                <template x-if="!kinder.length && !vorlagen.length">
+                    <p class="text-sm text-slate-500">Noch keine Sehprofile angelegt.</p>
+                </template>
+                <input type="search" class="ab-input ab-input-sm mb-2" x-model="suche" placeholder="Kind suchen …" x-show="kinder.length > 8" aria-label="Kind suchen">
+                <div class="ab-ziel-liste">
+                    <template x-for="k in gefilterteKinder()" :key="'k' + k.id">
+                        <label class="ab-ziel" :class="gewaehltKinder.includes(k.id) && 'is-active'">
+                            <input type="checkbox" :value="k.id" x-model.number="gewaehltKinder">
+                            <span><strong x-text="k.name"></strong> <span class="text-slate-500" x-text="k.klasse"></span><small x-text="k.profil"></small></span>
+                        </label>
+                    </template>
+                </div>
+                <template x-if="vorlagen.length">
+                    <div class="mt-3">
+                        <div class="text-xs font-semibold text-slate-500 mb-1">Ohne Kind – nach Profil-Vorlage</div>
+                        <div class="ab-ziel-liste">
+                            <template x-for="v in vorlagen" :key="'v' + v.id">
+                                <label class="ab-ziel" :class="gewaehltVorlagen.includes(v.id) && 'is-active'">
+                                    <input type="checkbox" :value="v.id" x-model.number="gewaehltVorlagen">
+                                    <span><strong x-text="v.name"></strong><small x-text="v.profil"></small></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <template x-if="fehler">
+            <div class="ab-alert ab-alert-red mb-4" role="alert"><i class="fas fa-exclamation-circle mt-0.5"></i><div x-text="fehler"></div></div>
+        </template>
+
+        <div class="flex justify-end">
+            <button type="button" class="ab-btn ab-btn-primary" @click="absenden()" :disabled="!bereit() || beschaeftigt">
+                <i class="fas" :class="beschaeftigt ? 'fa-spinner fa-spin' : 'fa-bolt'"></i> Fertiges Blatt erstellen
+            </button>
+        </div>
+    </div>
+
+    {{-- ─── Erweiterter Modus (bisherige Erfassung mit Prüf-Editor) ─── --}}
+    <div x-show="modus === 'erweitert'" x-data="abErfassung({
         url: @js(route('arbeitsblaetter.store')),
         maxSeiten: {{ $maxSeiten }},
         ki: @js($kiAktiv && !$kiGesperrt),
-    })" x-cloak>
-    <a href="{{ route('arbeitsblaetter.index') }}" class="ab-back mb-3"><i class="fas fa-arrow-left"></i> Bibliothek</a>
-    <h1 class="ab-page-title mb-1">Neues Arbeitsblatt</h1>
-    <p class="ab-page-sub mb-5">Das Original wird erkannt und als Bausteine aufbereitet. Danach prüfen Sie das Ergebnis und geben es frei.</p>
+    })">
+    <p class="ab-page-sub mb-5">Das Original wird erkannt und als Bausteine aufbereitet. Danach prüfen Sie das Ergebnis im Editor und geben es frei.</p>
 
     @if(!$kiAktiv)
         <div class="ab-alert ab-alert-blue mb-4"><i class="fas fa-info-circle mt-0.5"></i><div>Es ist keine KI-Erkennung eingerichtet. Das Original erscheint im Editor neben einer leeren Bausteinliste zum Abtippen.</div></div>
@@ -24,7 +107,7 @@
         <div class="ab-card-body grid gap-4 sm:grid-cols-3">
             <div class="sm:col-span-3">
                 <label class="ab-label" for="ab-titel">Titel</label>
-                <input id="ab-titel" type="text" class="ab-input" x-model="titel" maxlength="200" placeholder="z. B. Brüche – Seite 12 (sonst aus dem Dateinamen)">
+                <input id="ab-titel" type="text" class="ab-input" x-model="titel" maxlength="200" placeholder="leer lassen = Überschrift des Blatts wird übernommen">
             </div>
             <div>
                 <label class="ab-label" for="ab-fach">Fach</label>
@@ -122,6 +205,7 @@
             <i class="fas" :class="beschaeftigt ? 'fa-spinner fa-spin' : 'fa-arrow-right'"></i>
             <span x-text="art === 'manuell' ? 'Leeres Blatt anlegen' : 'Weiter zum Editor'"></span>
         </button>
+    </div>
     </div>
 </div>
 @endsection

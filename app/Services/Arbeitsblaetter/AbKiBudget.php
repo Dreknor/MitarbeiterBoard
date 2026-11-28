@@ -21,14 +21,14 @@ class AbKiBudget
         return now()->format('Y-m');
     }
 
-    /** @return array{seiten: int, kosten_cent: int, aufrufe: int} */
+    /** @return array{seiten: int, kosten_cent: float, aufrufe: int} */
     public function verbrauch(?string $monat = null): array
     {
         $zeile = AbKiVerbrauch::where('monat', $monat ?? $this->monat())
             ->selectRaw('COALESCE(SUM(seiten), 0) as seiten, COALESCE(SUM(kosten_cent), 0) as kosten, COUNT(*) as aufrufe')
             ->first();
 
-        return ['seiten' => (int) $zeile->seiten, 'kosten_cent' => (int) $zeile->kosten, 'aufrufe' => (int) $zeile->aufrufe];
+        return ['seiten' => (int) $zeile->seiten, 'kosten_cent' => round((float) $zeile->kosten, 4), 'aufrufe' => (int) $zeile->aufrufe];
     }
 
     /** @return array{seiten: int, cent: int} 0 = ohne Limit */
@@ -78,7 +78,7 @@ class AbKiBudget
             : 'Das KI-Kontingent für diesen Monat ist aufgebraucht. Das Blatt kann manuell erfasst werden.';
     }
 
-    public function verbuchen(?int $blattId, ?int $userId, int $seiten, int $kostenCent, string $anbieter): void
+    public function verbuchen(?int $blattId, ?int $userId, int $seiten, float $kostenCent, string $anbieter): void
     {
         $vorher = $this->prozent();
         AbKiVerbrauch::create([

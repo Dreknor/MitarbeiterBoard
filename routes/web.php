@@ -1147,6 +1147,7 @@ Route::group([
                         Route::get('/', [$b, 'index'])->name('index');
                         Route::get('neu', [$b, 'create'])->name('create');
                         Route::post('/', [$b, 'store'])->name('store');
+                        Route::post('schnell', [$b, 'schnellStore'])->name('schnell.store');
                         Route::get('schrift/{schrift}/{schnitt}', [$b, 'schrift'])->where(['schrift' => '[a-z]+', 'schnitt' => 'normal|fett'])->name('schrift');
 
                         Route::get('profile', [$p, 'index'])->name('profile');
@@ -1165,6 +1166,8 @@ Route::group([
 
                         Route::prefix('{blatt}')->whereNumber('blatt')->group(function () use ($b, $a) {
                             Route::get('/', [$b, 'edit'])->name('edit');
+                            Route::get('schnell', [$b, 'schnell'])->name('schnell');
+                            Route::post('schnell/fertig', [$b, 'schnellFertig'])->name('schnell.fertig');
                             Route::get('daten', [$b, 'daten'])->name('daten');
                             Route::put('/', [$b, 'update'])->name('update');
                             Route::delete('/', [$b, 'destroy'])->name('destroy');
@@ -1172,6 +1175,7 @@ Route::group([
                             Route::post('freigeben', [$b, 'freigeben'])->name('freigeben');
                             Route::post('erkennen', [$b, 'erkennen'])->name('erkennen');
                             Route::post('erkennen/abbrechen', [$b, 'erkennenAbbrechen'])->name('erkennen.abbrechen');
+                            Route::post('erkennen/ausfuehren', [$b, 'erkennenAusfuehren'])->name('erkennen.ausfuehren');
                             Route::get('ki-protokoll', [$b, 'kiProtokoll'])->name('ki-protokoll');
                             Route::post('duplizieren', [$b, 'duplizieren'])->name('duplizieren');
                             Route::get('originale/{media}', [$b, 'original'])->whereNumber('media')->name('originale.show');

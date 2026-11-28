@@ -33,7 +33,7 @@ class ErkennungTest extends TestCase
     public function test_kamera_upload_wird_erkannt_und_zur_pruefung_gemeldet(): void
     {
         Notification::fake();
-        $user = $this->lehrkraft();
+        $user = $this->abBenachrichtigungenAn($this->lehrkraft());
         $this->actingAs($user);
 
         $antwort = $this->post(route('arbeitsblaetter.store'), [
@@ -108,7 +108,7 @@ class ErkennungTest extends TestCase
     {
         Notification::fake();
         $this->erkenner->fehler = new AbErkennungFehler('Kaputt.');
-        $user = $this->lehrkraft();
+        $user = $this->abBenachrichtigungenAn($this->lehrkraft());
         $this->actingAs($user);
 
         $this->post(route('arbeitsblaetter.store'), ['art' => 'upload', 'dateien' => [UploadedFile::fake()->createWithContent('a.jpg', $this->bildInhalt())]]);
@@ -139,8 +139,8 @@ class ErkennungTest extends TestCase
         $ergebnis = app(AnthropicErkenner::class)->erkennen([['inhalt' => $this->bildInhalt(), 'mime' => 'image/jpeg']], 'Textebene');
 
         $this->assertSame('Brüche', $ergebnis->struktur['bausteine'][0]['text']);
-        $this->assertSame(['seite' => 1, 'box' => [0.1, 0.2, 0.5, 0.6]], $ergebnis->struktur['bausteine'][1]['quelle']);
-        $this->assertSame(6, $ergebnis->kostenCent, '10k × 4 ct/1k… + 1k × 20 ct/1M → aufgerundet');
+        $this->assertSame(['seite' => 1, 'box' => [0.085, 0.185, 0.515, 0.615]], $ergebnis->struktur['bausteine'][1]['quelle'], 'Box mit 1,5 % Rand');
+        $this->assertSame(6.0, $ergebnis->kostenCent, '10k × 400 ct/1M + 1k × 2000 ct/1M');
 
         Http::assertSent(function (Request $anfrage) {
             $body = $anfrage->body();

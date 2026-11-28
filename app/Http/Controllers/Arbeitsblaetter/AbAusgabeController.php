@@ -94,10 +94,10 @@ class AbAusgabeController extends Controller
         $this->authorize('view', $blatt);
         abort_unless((int) $fassung->blatt_id === (int) $blatt->id && in_array($art, ['pdf', 'docx'], true), 404);
 
-        return $this->dateiAntwort($fassung, $art);
+        return $this->dateiAntwort($fassung, $art, $art === 'pdf' && $request->boolean('inline'));
     }
 
-    private function dateiAntwort(AbFassung $fassung, string $art)
+    private function dateiAntwort(AbFassung $fassung, string $art, bool $inline = false)
     {
         $fassung->loadMissing(['blatt', 'schueler', 'vorlage']);
         $inhalt = $art === 'docx' ? $this->ausgabe->docxInhalt($fassung) : $this->ausgabe->pdfInhalt($fassung);
@@ -106,16 +106,17 @@ class AbAusgabeController extends Controller
         $name = trim(($fassung->blatt->titel ?: 'Arbeitsblatt').' – '.$fassung->empfaenger).'.'.$art;
         $mime = $art === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
 
-        return $this->download($inhalt, $name, $mime);
+        return $this->download($inhalt, $name, $mime, $inline);
     }
 
-    private function download(string $inhalt, string $name, string $mime)
+    /** `$inline` = im Browser anzeigen (Vorschau im Schnellmodus) statt herunterladen. */
+    private function download(string $inhalt, string $name, string $mime, bool $inline = false)
     {
         $name = str_replace(['"', '/', '\\'], '', $name);
 
         return response($inhalt, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'attachment; filename="'.Str::ascii($name).'"; filename*=UTF-8\'\''.rawurlencode($name),
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="'.Str::ascii($name).'"; filename*=UTF-8\'\''.rawurlencode($name),
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
         ]);

@@ -48,11 +48,13 @@ class AngepasstesBlatt extends Model implements HasMedia
     protected $fillable = [
         'titel', 'titel_automatisch', 'wp_fach_id', 'klassenstufe', 'quelle', 'quelle_wp_datei_id',
         'status', 'struktur', 'version', 'erstellt_von', 'geprueft_von', 'freigegeben_at',
-        'ki_anbieter', 'ki_modell', 'ki_seiten', 'textebene', 'fehler', 'erinnert_at',
+        'ki_anbieter', 'ki_modell', 'ki_seiten', 'ki_hinweise', 'schnell_ziele', 'textebene', 'fehler', 'erinnert_at',
     ];
 
     protected $casts = [
         'struktur' => 'array',
+        'ki_hinweise' => 'array',
+        'schnell_ziele' => 'array',
         'titel_automatisch' => 'boolean',
         'version' => 'integer',
         'klassenstufe' => 'integer',

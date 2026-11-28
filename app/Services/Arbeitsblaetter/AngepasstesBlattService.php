@@ -11,6 +11,7 @@ use App\Services\Arbeitsblaetter\Ki\AbErkenner;
 use App\Support\AbStruktur;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -84,6 +85,7 @@ class AngepasstesBlattService
                 'klassenstufe' => $daten['klassenstufe'] ?? null,
                 'quelle' => $daten['quelle'] ?? 'upload',
                 'quelle_wp_datei_id' => $daten['quelle_wp_datei_id'] ?? null,
+                'schnell_ziele' => $daten['schnell_ziele'] ?? null,
                 'status' => AngepasstesBlatt::ENTWURF,
                 'struktur' => AbStruktur::leer(),
                 'ki_seiten' => $eingang['seitenzahl'] ?? null,
@@ -144,21 +146,91 @@ class AngepasstesBlattService
     {
         $grund = $this->erkennungGesperrt($blatt);
         if ($grund !== null) {
-            if ($blatt->quelle === 'wochenplan' && $blatt->ersteller) {
-                $blatt->ersteller->notify(new AngepasstesBlattZurPruefung($blatt, true));
+            if ($blatt->quelle === 'wochenplan') {
+                $this->benachrichtigen($blatt->ersteller, new AngepasstesBlattZurPruefung($blatt, true));
             }
 
             return $grund;
         }
 
         $blatt->update(['status' => AngepasstesBlatt::ERKENNUNG, 'fehler' => null]);
-        AbBlattErkennen::dispatch($blatt->id, $user?->id);
+        $version = (int) $blatt->fresh()->version;
+        if ($this->erkennungPerAnfrage()) {
+            // Ohne Queue-Worker: nur den Auftrag merken – Upload bzw. „Erkennen“ antworten sofort. Die geöffnete
+            // Seite stößt ihn mit einer eigenen Anfrage an (erkennungAusfuehren), sonst der Scheduler jede Minute.
+            // („Nach der Antwort“ reicht nicht: unter mod_fcgid/php-cgi wartet der Browser trotzdem aufs Skriptende.)
+            Cache::put(self::auftragSchluessel($blatt->id), ['user' => $user?->id, 'version' => $version], now()->addHours(2));
+        } else {
+            dispatch(new AbBlattErkennen($blatt->id, $user?->id, $version));
+        }
 
         return null;
     }
 
+    /** Ohne Queue-Worker im Webbetrieb wird die Erkennung per eigener Anfrage bzw. Scheduler ausgeführt. */
+    public function erkennungPerAnfrage(): bool
+    {
+        $einstellung = config('arbeitsblaetter.ki.erkennung_per_anfrage');
+        if ($einstellung !== null) {
+            return (bool) $einstellung;
+        }
+
+        return config('queue.default') === 'sync' && ! app()->runningInConsole();
+    }
+
+    public static function auftragSchluessel(int $blattId): string
+    {
+        return 'arbeitsblaetter.erkennung-auftrag.'.$blattId;
+    }
+
+    /** Wartet das Blatt auf den Start der Erkennung (Auftrag gemerkt, noch nicht gestartet)? */
+    public function erkennungWartet(AngepasstesBlatt $blatt): bool
+    {
+        return $blatt->status === AngepasstesBlatt::ERKENNUNG && Cache::has(self::auftragSchluessel($blatt->id));
+    }
+
+    /**
+     * Gemerkten Erkennungsauftrag ausführen (aus der Anfrage der geöffneten Seite oder dem Scheduler).
+     * Eine Sperre je Blatt verhindert doppelte Läufe; liefert true, wenn hier erkannt wurde.
+     */
+    public function erkennungAusfuehren(AngepasstesBlatt $blatt): bool
+    {
+        $schluessel = self::auftragSchluessel($blatt->id);
+        $sperre = Cache::lock($schluessel.'.sperre', 900);
+        if (! $sperre->get()) {
+            return false;
+        }
+        try {
+            $auftrag = Cache::pull($schluessel);
+            if (! is_array($auftrag) || $blatt->fresh()?->status !== AngepasstesBlatt::ERKENNUNG) {
+                return false;
+            }
+            AbBlattErkennen::dispatchSync($blatt->id, $auftrag['user'] ?? null, $auftrag['version'] ?? null);
+
+            return true;
+        } finally {
+            $sperre->release();
+        }
+    }
+
+    /** Scheduler (jede Minute): Aufträge, die keine geöffnete Seite angestoßen hat, ausführen. */
+    public function ausstehendeErkennungenAusfuehren(): int
+    {
+        $anzahl = 0;
+        AngepasstesBlatt::where('status', AngepasstesBlatt::ERKENNUNG)
+            ->where('updated_at', '<', now()->subSeconds(30))
+            ->get()
+            ->each(function (AngepasstesBlatt $blatt) use (&$anzahl) {
+                if (Cache::has(self::auftragSchluessel($blatt->id)) && $this->erkennungAusfuehren($blatt)) {
+                    $anzahl++;
+                }
+            });
+
+        return $anzahl;
+    }
+
     /** Wird vom Job aufgerufen: Struktur übernehmen, Abbildungen ausschneiden, verbuchen. */
-    public function erkennungUebernehmen(AngepasstesBlatt $blatt, Ki\AbErkennung $erkennung, ?int $userId): void
+    public function erkennungUebernehmen(AngepasstesBlatt $blatt, Ki\AbErkennung $erkennung, ?int $userId, ?int $basisVersion = null): void
     {
         $seiten = max(1, (int) ($blatt->ki_seiten ?: $erkennung->seiten));
         $this->budget->verbuchen($blatt->id, $userId ?? $blatt->erstellt_von, $seiten, $erkennung->kostenCent, $erkennung->anbieter);
@@ -166,9 +238,12 @@ class AngepasstesBlattService
         $struktur = $erkennung->struktur;
         $this->abbildungenAusschneiden($blatt, $struktur);
 
-        // Hat jemand während der Erkennung schon getippt, nicht überschreiben
-        $vorhanden = $blatt->fresh()->strukturGueltig();
-        if (! empty($vorhanden['bausteine'])) {
+        // Erneute Erkennung ersetzt die Bausteine. Hat jemand während der Erkennung gespeichert
+        // (Version geändert), wird nichts überschrieben, sondern angehängt.
+        $aktuell = $blatt->fresh();
+        $vorhanden = $aktuell->strukturGueltig();
+        $ersetzen = $basisVersion !== null && (int) $aktuell->version === $basisVersion;
+        if (! $ersetzen && ! empty($vorhanden['bausteine'])) {
             $struktur['bausteine'] = array_merge($vorhanden['bausteine'], $struktur['bausteine']);
             $struktur = AbStruktur::normalisieren($struktur);
         }
@@ -186,14 +261,25 @@ class AngepasstesBlattService
             'ki_anbieter' => $erkennung->anbieter,
             'ki_modell' => mb_substr($erkennung->modell, 0, 64),
             'ki_seiten' => $seiten,
+            'ki_hinweise' => $erkennung->hinweise ? json_encode(array_values($erkennung->hinweise), JSON_UNESCAPED_UNICODE) : null,
             'fehler' => null,
             'version' => DB::raw('version + 1'),
             'updated_at' => now(),
         ]);
 
         $blatt->refresh();
-        if ($blatt->ersteller) {
-            $blatt->ersteller->notify(new AngepasstesBlattZurPruefung($blatt));
+        $this->benachrichtigen($blatt->ersteller, new AngepasstesBlattZurPruefung($blatt));
+    }
+
+    /**
+     * Benachrichtigungen der Kategorie „arbeitsblaetter“ sind Opt-in: standardmäßig aus; nur wer
+     * Push oder Mail selbst einschaltet, bekommt sie (dann auch in der Glocke). Offene Blätter
+     * zeigt die Bibliothek ohnehin.
+     */
+    public function benachrichtigen(?User $user, \Illuminate\Notifications\Notification $nachricht): void
+    {
+        if ($user && app(\App\Services\Benachrichtigungen\BenachrichtigungsService::class)->istAktiviert($user, 'arbeitsblaetter')) {
+            $user->notify($nachricht);
         }
     }
 
@@ -208,6 +294,7 @@ class AngepasstesBlattService
     public function erkennungAbbrechen(AngepasstesBlatt $blatt): AngepasstesBlatt
     {
         if ($blatt->status === AngepasstesBlatt::ERKENNUNG) {
+            Cache::forget(self::auftragSchluessel($blatt->id));
             $blatt->update([
                 'status' => empty($blatt->strukturGueltig()['bausteine']) ? AngepasstesBlatt::ENTWURF : AngepasstesBlatt::ZU_PRUEFEN,
                 'fehler' => null,
@@ -244,9 +331,7 @@ class AngepasstesBlattService
     public function erkennungFehlgeschlagen(AngepasstesBlatt $blatt, string $meldung): void
     {
         $blatt->update(['status' => AngepasstesBlatt::FEHLER, 'fehler' => mb_substr($meldung, 0, 1000)]);
-        if ($blatt->ersteller) {
-            $blatt->ersteller->notify(new \App\Notifications\AngepasstesBlattFehler($blatt));
-        }
+        $this->benachrichtigen($blatt->ersteller, new \App\Notifications\AngepasstesBlattFehler($blatt));
     }
 
     /**
@@ -396,6 +481,8 @@ class AngepasstesBlattService
             'geprueft_von' => $user->id,
             'freigegeben_at' => now(),
             'fehler' => null,
+            // Schnellmodus gibt ohne Prüfung frei – Hinweise der Erkennung bleiben dort sichtbar
+            'ki_hinweise' => $blatt->schnell_ziele ? $blatt->ki_hinweise : null,
         ]);
 
         if ($blatt->quelle_wp_datei_id) {
@@ -455,7 +542,7 @@ class AngepasstesBlattService
     /** Im Browser ausgeschnittene Abbildung (PNG/JPEG) speichern. */
     public function abbildungSpeichern(AngepasstesBlatt $blatt, UploadedFile $datei): ?Media
     {
-        $inhalt = (string) file_get_contents($datei->getRealPath());
+        $inhalt = (string) file_get_contents($datei->getPathname());
 
         return $this->abbildungAusInhalt($blatt, $inhalt, (string) $datei->getMimeType());
     }
@@ -563,7 +650,7 @@ class AngepasstesBlattService
             ->where('updated_at', '<', now()->subDays($tage))
             ->whereNull('erinnert_at')
             ->each(function (AngepasstesBlatt $blatt) use ($tage, &$anzahl) {
-                $blatt->ersteller?->notify(new \App\Notifications\AngepasstesBlattOffen($blatt, $tage));
+                $this->benachrichtigen($blatt->ersteller, new \App\Notifications\AngepasstesBlattOffen($blatt, $tage));
                 AngepasstesBlatt::whereKey($blatt->id)->update(['erinnert_at' => now()]);
                 $anzahl++;
             });

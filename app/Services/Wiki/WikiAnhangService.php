@@ -39,12 +39,12 @@ class WikiAnhangService
             && in_array(strtolower($datei->getClientOriginalExtension()), self::BILD_MIMES, true);
 
         if ($istBild) {
-            $this->verkleinern($datei->getRealPath(), (string) $datei->getMimeType());
+            $this->verkleinern($datei->getPathname(), (string) $datei->getMimeType());
         }
 
         $media = $seite->addMedia($datei)
             ->usingFileName($this->dateiname($datei->getClientOriginalName()))
-            ->withCustomProperties(array_filter(['hochgeladen_von' => $user?->id, 'hash' => md5_file($datei->getRealPath())]))
+            ->withCustomProperties(array_filter(['hochgeladen_von' => $user?->id, 'hash' => md5_file($datei->getPathname())]))
             ->toMediaCollection($istBild && ! $alsDatei ? WikiSeite::BILDER : WikiSeite::DATEIEN);
 
         return $media;

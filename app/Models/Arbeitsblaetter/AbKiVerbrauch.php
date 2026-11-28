@@ -13,6 +13,6 @@ class AbKiVerbrauch extends Model
 
     protected $casts = [
         'seiten' => 'integer',
-        'kosten_cent' => 'integer',
+        'kosten_cent' => 'float',
     ];
 }

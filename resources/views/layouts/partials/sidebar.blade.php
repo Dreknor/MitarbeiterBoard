@@ -156,9 +156,10 @@
                 {{-- Angepasste Arbeitsblätter (Sehbehinderung: Blätter pro Kind nach Sehprofil neu setzen) --}}
                 @canany(['create adapted worksheets', 'manage visual profiles'])
                     <a href="{{ auth()->user()->can('create adapted worksheets') ? route('arbeitsblaetter.index') : route('arbeitsblaetter.profile') }}"
-                       class="sidebar-link @if(request()->segment(1) == 'arbeitsblaetter') active @endif">
+                       class="sidebar-link @if(request()->segment(1) == 'arbeitsblaetter') active @endif"
+                       title="Angepasste Arbeitsblätter (Großdruck, Kontrast, Sehprofile)">
                         <i class="fas fa-low-vision"></i>
-                        <span>Angepasste Arbeitsblätter</span>
+                        <span>Blätter anpassen</span>
                     </a>
                 @endcanany
 

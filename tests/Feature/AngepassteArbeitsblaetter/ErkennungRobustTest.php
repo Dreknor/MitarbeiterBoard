@@ -42,7 +42,7 @@ class ErkennungRobustTest extends TestCase
 
     private function hochladen(): AngepasstesBlatt
     {
-        $this->actingAs($this->lehrkraft());
+        $this->actingAs($this->abBenachrichtigungenAn($this->lehrkraft()));
         $this->post(route('arbeitsblaetter.store'), ['art' => 'upload', 'dateien' => [UploadedFile::fake()->createWithContent('zoo.jpg', $this->bildInhalt())]])->assertRedirect();
 
         return AngepasstesBlatt::firstOrFail();
@@ -74,7 +74,7 @@ class ErkennungRobustTest extends TestCase
         $this->assertStringContainsString('überlastet (HTTP 503: The model is overloaded.)', $blatt->fehler);
         $this->assertStringContainsString('nach 3 Versuchen', $blatt->fehler);
         Notification::assertSentTo($blatt->ersteller, AngepasstesBlattFehler::class);
-        Http::assertSentCount(3);
+        Http::assertSentCount(6); // je Versuch Hauptmodell + eine kurze Wiederholung
     }
 
     public function test_ersatzmodell_bei_ueberlastung(): void
@@ -88,7 +88,10 @@ class ErkennungRobustTest extends TestCase
         $blatt = $this->hochladen();
 
         $this->assertSame(AngepasstesBlatt::ZU_PRUEFEN, $blatt->status);
-        Http::assertSentCount(2);
+        Http::assertSentCount(3); // Hauptmodell, kurze Wiederholung, Ersatzmodell
+        $this->assertStringContainsString('Ersatzmodell „gemini-flash-lite-latest“', $blatt->ki_hinweise[0]);
+        $this->assertSame(503, \App\Models\Arbeitsblaetter\AbKiProtokoll::oldest('id')->first()->http_status);
+        $this->assertStringContainsString('HTTP 503: overloaded', \App\Models\Arbeitsblaetter\AbKiProtokoll::oldest('id')->first()->fehler, 'Fehlertext steht im KI-Protokoll');
     }
 
     public function test_mit_worker_wird_zurueckgelegt_und_hinweis_gezeigt(): void
