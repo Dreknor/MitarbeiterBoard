@@ -103,7 +103,7 @@ final class ErkennerVorgaben
 
             return $ergebnis;
         };
-        $struktur['bausteine'] = self::loesungsteilEntfernen($liste($struktur['bausteine'] ?? []));
+        $struktur['bausteine'] = self::bilderZusammenfuehren(self::loesungsteilEntfernen($liste($struktur['bausteine'] ?? [])));
 
         return $struktur;
     }
@@ -112,6 +112,39 @@ final class ErkennerVorgaben
      * Lösungsteile, die die KI trotz Anweisung übernimmt: alles ab einer Überschrift „Lösung(en)“ fällt weg,
      * ebenso Aufgaben, deren Text (ab 25 Zeichen) wortgleich schon vorkam – meist das Lösungsblatt.
      */
+    /**
+     * Überlappende Abbildungen hintereinander (Hexe + halber Kürbis, Stativ + Klemme): Die KI hat ein Motiv
+     * doppelt oder zerschnitten erfasst – sie werden zu einem Bild mit der gemeinsamen Box. Auch in Aufgaben.
+     */
+    public static function bilderZusammenfuehren(array $bausteine): array
+    {
+        $flaeche = fn (array $b) => max(0, $b[2] - $b[0]) * max(0, $b[3] - $b[1]);
+        $ergebnis = [];
+        foreach ($bausteine as $b) {
+            if (! empty($b['kinder'])) {
+                $b['kinder'] = self::bilderZusammenfuehren($b['kinder']);
+            }
+            $vorher = $ergebnis ? $ergebnis[count($ergebnis) - 1] : null;
+            $boxA = $vorher['quelle']['box'] ?? null;
+            $boxB = $b['quelle']['box'] ?? null;
+            if ($b['typ'] === 'bild' && ($vorher['typ'] ?? '') === 'bild' && $boxA && $boxB && empty($b['media_id']) && empty($vorher['media_id'])
+                && (int) ($vorher['quelle']['seite'] ?? 1) === (int) ($b['quelle']['seite'] ?? 1)) {
+                $schnitt = [max($boxA[0], $boxB[0]), max($boxA[1], $boxB[1]), min($boxA[2], $boxB[2]), min($boxA[3], $boxB[3])];
+                $kleiner = min($flaeche($boxA), $flaeche($boxB));
+                if ($kleiner > 0 && $flaeche($schnitt) / $kleiner > 0.3) {
+                    $vorher['quelle']['box'] = [min($boxA[0], $boxB[0]), min($boxA[1], $boxB[1]), max($boxA[2], $boxB[2]), max($boxA[3], $boxB[3])];
+                    $vorher['beschreibung'] = trim(($vorher['beschreibung'] ?? '').' / '.($b['beschreibung'] ?? ''), ' /');
+                    $ergebnis[count($ergebnis) - 1] = $vorher;
+
+                    continue;
+                }
+            }
+            $ergebnis[] = $b;
+        }
+
+        return $ergebnis;
+    }
+
     public static function loesungsteilEntfernen(array $bausteine): array
     {
         $ergebnis = [];

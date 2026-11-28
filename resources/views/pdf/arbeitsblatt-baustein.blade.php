@@ -85,6 +85,20 @@
                 $inTeilaufgabe = $inTeilaufgabe || $kind['typ'] === 'aufgabe';
                 $gruppen[count($gruppen) - 1][] = $kind;
             }
+            // Teilaufgabe mit vielen Linien, die nicht zusammen passt: Frage + erste zwei Linien bleiben beisammen
+            $geteilt = [];
+            foreach ($gruppen as $gi => $gruppe) {
+                $letzte = end($gruppe);
+                $teile = $gi === 0 ? array_merge([['typ' => 'text', 'inhalt' => $b['inhalt'] ?? []]], $gruppe) : $gruppe;
+                if (count($gruppe) >= 2 && $letzte['typ'] === 'schreiblinien' && (int) ($letzte['anzahl'] ?? 3) > 2 && ! $zusammen($teile)) {
+                    $gruppe[count($gruppe) - 1] = array_merge($letzte, ['anzahl' => 2, '_geteilt' => true]);
+                    $geteilt[] = $gruppe;
+                    $geteilt[] = [array_merge($letzte, ['anzahl' => (int) $letzte['anzahl'] - 2, '_fortsetzung' => true])];
+                } else {
+                    $geteilt[] = $gruppe;
+                }
+            }
+            $gruppen = $geteilt;
         @endphp
         @if(! $gruppen)
             <div class="ab-baustein ab-aufgabe {{ $zusammen([$b]) ? 'ab-zusammen' : '' }}">{!! $kopfHtml($b) !!}</div>
@@ -168,11 +182,22 @@
         <div class="ab-baustein ab-kasten {{ $ganz($b) ? 'ab-zusammen' : '' }}">
             @if(($b['titel'] ?? '') !== '')<div class="ab-kasten-titel">{!! $txt($b['titel']) !!}</div>@endif
             @if($liste = $wortliste($b))
-                @php $proSpalte = (int) ceil(count($liste) / $listenSpalten); @endphp
+                @php
+                    // lieber weniger Spalten als kleinere Schrift (höchstens 85 % der Profilgröße)
+                    for ($sp = $listenSpalten; $sp >= 1; $sp--) {
+                        $proSpalte = (int) ceil(count($liste) / $sp);
+                        $schriftListe = $tabellenSchrift(['zeilen' => array_map(null, ...array_pad(array_chunk($liste, $proSpalte), max(2, $sp), []))]);
+                        if ($schriftListe >= $l['groesse'] * 0.85) {
+                            break;
+                        }
+                    }
+                    $spaltenListe = max(1, $sp);
+                    $proSpalte = (int) ceil(count($liste) / $spaltenListe);
+                @endphp
                 {{-- spaltenweise gefüllt, aber eine Tabellenzeile je Zeile: DomPDF teilt Zeilen nie über Seiten --}}
-                <table class="ab-wortliste" style="font-size: {{ $tabellenSchrift(['zeilen' => array_map(null, ...array_pad(array_chunk($liste, $proSpalte), $listenSpalten, []))]) }}pt">
+                <table class="ab-wortliste" style="font-size: {{ $spaltenListe > 1 ? $schriftListe : $l['groesse'] }}pt">
                     @for($z = 0; $z < $proSpalte; $z++)
-                        <tr>@for($sp = 0; $sp < $listenSpalten; $sp++)<td style="width: {{ round(100 / $listenSpalten, 2) }}%">{!! $txt($liste[$sp * $proSpalte + $z] ?? '') !!}</td>@endfor</tr>
+                        <tr>@for($s2 = 0; $s2 < $spaltenListe; $s2++)<td style="width: {{ round(100 / $spaltenListe, 2) }}%">{!! $txt($liste[$s2 * $proSpalte + $z] ?? '') !!}</td>@endfor</tr>
                     @endfor
                 </table>
             @else
@@ -198,7 +223,7 @@
         @break
 
     @case('schreiblinien')
-        <div class="ab-baustein ab-schreiblinien {{ empty($imPaar) && $einzeln($b) ? 'ab-zusammen' : '' }}">
+        <div class="ab-baustein ab-schreiblinien {{ ! empty($b['_geteilt']) ? 'ab-geteilt' : '' }} {{ empty($imPaar) && $einzeln($b) ? 'ab-zusammen' : '' }}">
             @if($lineatur($b) === 'grundschule')
                 @for($i = 0; $i < (int) ($b['anzahl'] ?? 3); $i++)<div class="ab-gs"><div class="ab-gs-o"></div><div class="ab-gs-m"></div><div class="ab-gs-u"></div></div>@endfor
             @else

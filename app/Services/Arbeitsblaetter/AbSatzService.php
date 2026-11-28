@@ -285,20 +285,27 @@ class AbSatzService
         $zahl = '(?:\d+\s\d+\/\d+|\(?\d+(?:[.,]\d+)?\)?)';
         $teile = preg_split('/('.$zahl.'(?:\s?[\/:·×x*+\-−–=<>]\s?'.$zahl.')+|\d+\s\d+\/\d+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
         $html = '';
+        // DomPDF bricht an JEDER Span-Grenze um (auch mitten in „−0,1“) und zwischen mehreren nowrap-Spans gar nicht
+        // mehr (Listen liefen über den Rand). Deshalb: Terme über geschützte Leerzeichen zusammenhalten, und eine
+        // Zahl bzw. ein kurzer Term mit Null steht als Ganzes in der Ersatzschrift (Atkinsons Null ist durchgestrichen).
+        $nullSpan = fn (string $s) => '<span class="ab-null">'.$s.'</span>';
         foreach ($teile as $i => $teil) {
             $stueck = e($teil);
-            if ($nullErsetzen) {
-                // Zahl mit Null als Ganzes: DomPDF bricht sonst an der Span-Grenze um („20 / 11“); Entities („&#039;“) bleiben heil
-                $stueck = preg_replace_callback('/(?<![&#\d])[−-]?\d*0[\d.,]*(?<=\d)(?![\d;])|(?<![&#\d])[−-]?\d+[.,]\d*0[\d.,]*(?<=\d)(?![\d;])/u', function ($m) {
-                    $neu = str_replace('0', '<span class="ab-null">0</span>', $m[0]);
+            $term = $i % 2 === 1 && mb_strlen($teil) <= 14;
+            if ($term) {
+                $stueck = str_replace(' ', '&nbsp;', $stueck);
+                if ($nullErsetzen && str_contains($teil, '0')) {
+                    $stueck = $nullSpan($stueck);
+                }
+                $html .= '<span class="ab-term">'.$stueck.'</span>';
 
-                    return strlen($m[0]) > 1 ? '<span class="ab-term">'.$neu.'</span>' : $neu;
-                }, $stueck) ?? $stueck;
+                continue;
             }
-            // nur kurze Terme zusammenhalten – lange Ketten müssen umbrechen dürfen, sonst laufen sie über den Rand
-            // zusammengehalten über geschützte Leerzeichen: DomPDF bricht zwischen mehreren nowrap-Spans gar nicht
-            // mehr um (eine Liste „2 7/70; 2/22; …“ lief über den Rand)
-            $html .= $i % 2 === 1 && mb_strlen($teil) <= 14 ? '<span class="ab-term">'.(preg_replace('/ (?![^<]*>)/', '&nbsp;', $stueck) ?? $stueck).'</span>' : $stueck;
+            if ($nullErsetzen) {
+                // Entities („&#039;“) bleiben heil
+                $stueck = preg_replace_callback('/(?<![&#\d])[−-]?\d*0[\d.,]*(?<=\d)(?![\d;])|(?<![&#\d])[−-]?\d+[.,]\d*0[\d.,]*(?<=\d)(?![\d;])/u', fn ($m) => $nullSpan($m[0]), $stueck) ?? $stueck;
+            }
+            $html .= $stueck;
         }
 
         return nl2br($html, false);

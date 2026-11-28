@@ -255,6 +255,7 @@
         .ab-kasten-titel { font-weight: bold; margin-bottom: {{ round($l['groesse'] * 0.25) }}pt; }
         table.ab-raster { border-collapse: collapse; }
         table.ab-raster td { width: {{ $l['raster_pt'] }}pt; height: {{ $l['raster_pt'] }}pt; padding: 0; border: {{ max(0.5, round($l['linienstaerke'] * 0.5, 2)) }}pt solid {{ $l['farbe_linie'] }}; }
+        .ab-schreiblinien.ab-geteilt { margin-bottom: 0; }
         .ab-linie { height: {{ $l['linienabstand_pt'] }}pt; border-bottom: {{ $l['linienstaerke'] }}pt solid {{ $l['farbe_linie'] }}; }
         table.ab-tabelle { border-collapse: collapse; width: 100%; }
         table.ab-tabelle tr { page-break-inside: avoid; }
@@ -314,10 +315,17 @@
                 continue;
             }
             $naechster = $liste[$i + 1] ?? null;
-            if ($b['typ'] === 'text' && $naechster
+            $frage = $b['typ'] === 'text' || ($b['typ'] === 'aufgabe' && empty($b['kinder']));
+            if ($frage && $naechster
                 && in_array($naechster['typ'], ['bild', 'rechenfeld', 'schreiblinien', 'zeichenflaeche', 'ankreuzen', 'kasten'], true)
                 && $zusammen([$b, $naechster])) {
                 $einheiten[] = [$b, $naechster];
+                $i++;
+            } elseif ($frage && ($naechster['typ'] ?? '') === 'schreiblinien' && (int) ($naechster['anzahl'] ?? 3) > 2
+                && $zusammen([$b, array_merge($naechster, ['anzahl' => 2])])) {
+                // viele Linien: die Frage bleibt wenigstens mit den ersten zwei zusammen, der Rest darf umbrechen
+                $einheiten[] = [$b, array_merge($naechster, ['anzahl' => 2, '_geteilt' => true])];
+                $einheiten[] = [array_merge($naechster, ['anzahl' => (int) $naechster['anzahl'] - 2, '_fortsetzung' => true])];
                 $i++;
             } else {
                 $einheiten[] = [$b];

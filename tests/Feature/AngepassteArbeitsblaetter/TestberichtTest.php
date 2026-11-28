@@ -197,7 +197,8 @@ class TestberichtTest extends TestCase
         // Strichliste als echte Striche (Fünfergruppe), Null ohne Schrägstrich, Terme brechen nicht um
         $this->assertSame(6, substr_count(AbSatzService::textHtml('IIIIII', $l), 'class="ab-strich"'));
         $this->assertStringContainsString('ab-strich-luecke', AbSatzService::textHtml('I I I I I I', $l));
-        $this->assertStringContainsString('<span class="ab-null">0</span>', AbSatzService::textHtml('10 €', $l));
+        $this->assertStringContainsString('<span class="ab-null">10</span>', AbSatzService::textHtml('10 €', $l), 'ganze Zahl in einem Span – DomPDF bricht an Span-Grenzen');
+        $this->assertStringContainsString('<span class="ab-null">−0,1</span>', AbSatzService::textHtml('(−0,1)', $l));
         $this->assertStringContainsString('&#039;', AbSatzService::textHtml("It's 10", $l), 'Entities bleiben heil');
         $this->assertStringContainsString('<span class="ab-term">7/25&nbsp;+&nbsp;2&nbsp;2/11</span>', AbSatzService::textHtml('Rechne 7/25 + 2 2/11 = x', $l));
         $this->assertStringNotContainsString('ab-null', AbSatzService::textHtml('10', AbProfil::layout(AbProfil::normalisieren(['schrift' => 'verdana']))));
@@ -277,6 +278,27 @@ class TestberichtTest extends TestCase
         $this->assertSame(['text', 'schreiblinien', 'text'], array_column($struktur['bausteine'], 'typ'));
         $this->assertSame(3, $struktur['bausteine'][1]['anzahl']);
         $this->assertStringContainsString("\n", $struktur['bausteine'][2]['inhalt'][0]['text']);
+    }
+
+    public function test_ueberlappende_bilder_werden_eins(): void
+    {
+        $bild = fn ($box) => ['typ' => 'bild', 'beschreibung' => 'x', 'quelle' => ['seite' => 1, 'box' => $box]];
+        $struktur = ErkennerVorgaben::nachbearbeiten(AbStruktur::normalisieren(['bausteine' => [
+            $bild([0.1, 0.1, 0.3, 0.3]), $bild([0.2, 0.15, 0.35, 0.32]), $bild([0.6, 0.1, 0.8, 0.3]),
+        ]]));
+        $this->assertCount(2, $struktur['bausteine']);
+        $this->assertSame([0.1, 0.1, 0.35, 0.32], $struktur['bausteine'][0]['quelle']['box']);
+    }
+
+    public function test_frage_bleibt_mit_ersten_zwei_linien_zusammen(): void
+    {
+        $blatt = $this->blatt([], [
+            ['typ' => 'text', 'inhalt' => [['typ' => 'text', 'text' => 'Warum ist eine ausgewogene Ernährung für ein Kaninchen wichtig?']]],
+            ['typ' => 'schreiblinien', 'anzahl' => 12],
+        ]);
+        $html = app(AbSatzService::class)->html($blatt, AbProfil::normalisieren(['groesse' => 28, 'fett' => true]), 'pdf');
+        $this->assertStringContainsString('ab-geteilt', $html);
+        $this->assertSame(12, substr_count($html, '<div class="ab-linie"></div>'), 'keine Linie geht verloren');
     }
 
     public function test_wortspeicher_in_spalten_und_bilder_mit_schreiblinie(): void
