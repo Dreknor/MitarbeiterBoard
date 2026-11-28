@@ -402,6 +402,48 @@ class WochenplanService
         return $planFach;
     }
 
+    /** Freies Feld: Fach ohne Katalog-Fach, nur mit eigenem Namen und/oder Symbol (z. B. „⭐🎄🎁“). */
+    public function freiesFeldHinzufuegen(WpPlan $plan, ?string $name, ?string $symbol): WpPlanFach
+    {
+        $name = $this->leerZuNull($name);
+        $symbol = $this->leerZuNull($symbol);
+        if ($name === null && $symbol === null) {
+            throw ValidationException::withMessages(['custom_name' => 'Bitte einen Namen oder ein Symbol angeben.']);
+        }
+
+        $planFach = $plan->planFaecher()->create([
+            'wp_fach_id' => null,
+            'custom_name' => $name,
+            'symbol' => $symbol,
+            'sort_order' => ($plan->planFaecher()->max('sort_order') ?? -1) + 1,
+        ]);
+        $this->geaendert($plan);
+
+        return $planFach;
+    }
+
+    /** Name und Symbol eines Plan-Fachs ändern (bei Katalog-Fächern: leerer Name = Katalog-Name). */
+    public function fachAendern(WpPlanFach $planFach, array $daten): WpPlanFach
+    {
+        $name = array_key_exists('custom_name', $daten) ? $this->leerZuNull($daten['custom_name']) : $planFach->custom_name;
+        $symbol = array_key_exists('symbol', $daten) ? $this->leerZuNull($daten['symbol']) : $planFach->symbol;
+        if ($planFach->istFrei() && $name === null && $symbol === null) {
+            throw ValidationException::withMessages(['custom_name' => 'Ein freies Feld braucht einen Namen oder ein Symbol.']);
+        }
+
+        $planFach->update(['custom_name' => $name, 'symbol' => $symbol]);
+        $this->geaendert($planFach->plan);
+
+        return $planFach;
+    }
+
+    private function leerZuNull(?string $wert): ?string
+    {
+        $wert = trim((string) $wert);
+
+        return $wert === '' ? null : $wert;
+    }
+
     public function fachEntfernen(WpPlanFach $planFach): void
     {
         $plan = $planFach->plan;
@@ -433,6 +475,8 @@ class WochenplanService
             'dauer' => $daten['dauer'] ?? null,
             'niveau' => $daten['niveau'] ?? null,
             'link' => $daten['link'] ?? null,
+            'freiwillig' => (bool) ($daten['freiwillig'] ?? false),
+            'freiarbeit' => (bool) ($daten['freiarbeit'] ?? false),
             'paed_diary_task_id' => $daten['paed_diary_task_id'] ?? null,
             'sort_order' => ($planFach->aufgaben()->max('sort_order') ?? -1) + 1,
         ]);
@@ -443,7 +487,7 @@ class WochenplanService
 
     public function aufgabeAendern(WpAufgabe $aufgabe, array $daten): WpAufgabe
     {
-        $felder = array_intersect_key($daten, array_flip(['aufgabe', 'dauer', 'niveau', 'link']));
+        $felder = array_intersect_key($daten, array_flip(['aufgabe', 'dauer', 'niveau', 'link', 'freiwillig', 'freiarbeit']));
         if (isset($felder['aufgabe'])) {
             $felder['aufgabe'] = trim($felder['aufgabe']);
         }
@@ -516,10 +560,11 @@ class WochenplanService
         $this->geaendert($plan);
     }
 
-    public function uebungAnlegen(WpPlan $plan, string $text): WpTaeglicheUebung
+    public function uebungAnlegen(WpPlan $plan, string $text, ?string $kuerzel = null): WpTaeglicheUebung
     {
         $uebung = $plan->taeglicheUebungen()->create([
             'aufgabe' => trim($text),
+            'kuerzel' => $this->leerZuNull($kuerzel),
             'sort_order' => ($plan->taeglicheUebungen()->max('sort_order') ?? -1) + 1,
         ]);
         $this->geaendert($plan);
@@ -527,9 +572,9 @@ class WochenplanService
         return $uebung;
     }
 
-    public function uebungAendern(WpTaeglicheUebung $uebung, string $text): void
+    public function uebungAendern(WpTaeglicheUebung $uebung, string $text, ?string $kuerzel = null): void
     {
-        $uebung->update(['aufgabe' => trim($text)]);
+        $uebung->update(['aufgabe' => trim($text), 'kuerzel' => $this->leerZuNull($kuerzel)]);
         $this->geaendert($uebung->plan);
     }
 
@@ -568,22 +613,23 @@ class WochenplanService
         $summe = ['neu' => 0, 'aktualisiert' => 0, 'angepasst' => 0, 'entfallen' => 0, 'eigene' => 0, 'unveraendert' => 0];
         $faecher = [];
 
-        $fachIds = $eltern->planFaecher->pluck('wp_fach_id')
-            ->merge($kind->planFaecher->pluck('wp_fach_id'))
-            ->filter()->unique();
+        $schluessel = $eltern->planFaecher->map(fn ($pf) => $this->fachSchluessel($pf))
+            ->merge($kind->planFaecher->map(fn ($pf) => $this->fachSchluessel($pf)))
+            ->unique();
         if ($fachId !== null) {
-            $fachIds = $fachIds->filter(fn ($id) => (int) $id === $fachId);
+            $schluessel = $schluessel->filter(fn ($k) => $k === 'fach:'.$fachId);
         }
 
-        foreach ($fachIds as $fid) {
-            $elternFach = $eltern->planFaecher->firstWhere('wp_fach_id', $fid);
-            $kindFach = $kind->planFaecher->firstWhere('wp_fach_id', $fid);
+        foreach ($schluessel as $key) {
+            $elternFach = $eltern->planFaecher->first(fn ($pf) => $this->fachSchluessel($pf) === $key);
+            $kindFach = $kind->planFaecher->first(fn ($pf) => $this->fachSchluessel($pf) === $key);
             $elternAufgaben = $elternFach ? $elternFach->aufgaben->filter(fn ($a) => $this->passtZuNiveau($a, $kind->niveau)) : collect();
             $kindAufgaben = $kindFach ? $kindFach->aufgaben : collect();
             $elternIds = $elternFach ? $elternFach->aufgaben->pluck('id')->all() : [];
 
             $eintrag = [
-                'wp_fach_id' => (int) $fid,
+                'schluessel' => $key,
+                'wp_fach_id' => ($elternFach ?? $kindFach)?->wp_fach_id,
                 'name' => ($elternFach ?? $kindFach)?->display_name,
                 'neu' => [], 'aktualisiert' => [], 'angepasst' => [], 'entfallen' => [], 'eigene' => [], 'unveraendert' => 0,
             ];
@@ -634,14 +680,16 @@ class WochenplanService
             $eltern->load('planFaecher.aufgaben');
 
             foreach ($eltern->planFaecher as $elternFach) {
-                if (! $elternFach->wp_fach_id || ($fachId !== null && (int) $elternFach->wp_fach_id !== $fachId)) {
+                if ($fachId !== null && (int) $elternFach->wp_fach_id !== $fachId) {
                     continue;
                 }
 
-                $kindFach = $kind->planFaecher->firstWhere('wp_fach_id', $elternFach->wp_fach_id)
+                $key = $this->fachSchluessel($elternFach);
+                $kindFach = $kind->planFaecher->first(fn ($pf) => $this->fachSchluessel($pf) === $key)
                     ?? $kind->planFaecher()->create([
                         'wp_fach_id' => $elternFach->wp_fach_id,
                         'custom_name' => $elternFach->custom_name,
+                        'symbol' => $elternFach->symbol,
                         'sort_order' => $elternFach->sort_order,
                     ])->setRelation('aufgaben', collect());
 
@@ -666,6 +714,8 @@ class WochenplanService
                         'dauer' => $ea->dauer,
                         'niveau' => $ea->niveau,
                         'link' => $ea->link,
+                        'freiwillig' => (bool) $ea->freiwillig,
+                        'freiarbeit' => (bool) $ea->freiarbeit,
                         'sort_order' => $ea->sort_order,
                     ];
                     if (! $ka) {
@@ -678,9 +728,9 @@ class WochenplanService
 
             // Fächer, die es im Klassenplan nicht mehr gibt: nur synchronisierte Aufgaben entfernen
             if ($fachId === null) {
-                $elternFachIds = $eltern->planFaecher->pluck('wp_fach_id')->filter()->all();
+                $elternSchluessel = $eltern->planFaecher->map(fn ($pf) => $this->fachSchluessel($pf))->all();
                 foreach ($kind->planFaecher as $kf) {
-                    if ($kf->wp_fach_id && ! in_array($kf->wp_fach_id, $elternFachIds)) {
+                    if (! in_array($this->fachSchluessel($kf), $elternSchluessel, true)) {
                         $kf->aufgaben()->whereNotNull('synced_from_id')->delete();
                     }
                 }
@@ -706,7 +756,19 @@ class WochenplanService
         return $a->aufgabe !== $b->aufgabe
             || (string) $a->dauer !== (string) $b->dauer
             || (int) $a->niveau !== (int) $b->niveau
-            || (string) $a->link !== (string) $b->link;
+            || (string) $a->link !== (string) $b->link
+            || (bool) $a->freiwillig !== (bool) $b->freiwillig
+            || (bool) $a->freiarbeit !== (bool) $b->freiarbeit;
+    }
+
+    /** Katalog-Fächer werden über ihr Fach zugeordnet, freie Felder über Name bzw. Symbol. */
+    private function fachSchluessel(WpPlanFach $pf): string
+    {
+        if ($pf->wp_fach_id) {
+            return 'fach:'.$pf->wp_fach_id;
+        }
+
+        return 'frei:'.mb_strtolower(trim((string) ($pf->custom_name ?? $pf->symbol)));
     }
 
     // ─── Arbeitsblätter ───────────────────────────────────────────────────────
@@ -782,11 +844,15 @@ class WochenplanService
             'faecher' => $plan->planFaecher->map(fn (WpPlanFach $pf) => [
                 'id' => $pf->id,
                 'wp_fach_id' => $pf->wp_fach_id,
+                'frei' => $pf->istFrei(),
                 'name' => $pf->display_name,
-                'symbol' => $pf->fach?->symbol_html ?? '',
+                'custom_name' => $pf->custom_name,
+                'katalog_name' => $pf->fach?->name,
+                'eigenes_symbol' => $pf->symbol,
+                'symbol' => $pf->symbol_html,
                 'aufgaben' => $pf->aufgaben->map(fn (WpAufgabe $a) => $this->aufgabeArray($a))->values(),
             ])->values(),
-            'uebungen' => $plan->taeglicheUebungen->map(fn ($u) => ['id' => $u->id, 'aufgabe' => $u->aufgabe])->values(),
+            'uebungen' => $plan->taeglicheUebungen->map(fn ($u) => ['id' => $u->id, 'aufgabe' => $u->aufgabe, 'kuerzel' => $u->kuerzel])->values(),
             'dateien' => $plan->alleDateien()->map(fn (WpDatei $d) => $this->dateiArray($d))->values(),
             'arbeitsblaetter' => $this->arbeitsblaetterInfo($plan, $user, $darfBearbeiten),
             'kinderplaene' => $plan->kinderPlaene->sortBy(fn ($k) => $k->schueler?->nachname)->map(fn (WpPlan $k) => [
@@ -816,6 +882,8 @@ class WochenplanService
             'dauer' => $a->dauer,
             'niveau' => $a->niveau,
             'link' => $a->link,
+            'freiwillig' => (bool) $a->freiwillig,
+            'freiarbeit' => (bool) $a->freiarbeit,
             'synchron' => $a->isSynced(),
             'angepasst' => (bool) $a->angepasst,
             'eigene' => $a->synced_from_id === null,

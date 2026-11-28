@@ -31,9 +31,33 @@ class WpInhaltController extends Controller
     public function fachHinzufuegen(Request $request, WpPlan $wpPlan): JsonResponse
     {
         $this->authorize('update', $wpPlan);
-        $daten = $request->validate(['wp_fach_id' => 'required|integer|exists:wp_faecher,id']);
+        $daten = $request->validate([
+            'wp_fach_id' => 'required_without_all:custom_name,symbol|nullable|integer|exists:wp_faecher,id',
+            'custom_name' => 'nullable|string|max:100',
+            'symbol' => 'nullable|string|max:40',
+        ]);
 
-        $this->service->fachHinzufuegen($wpPlan, (int) $daten['wp_fach_id']);
+        if (! empty($daten['wp_fach_id'])) {
+            $this->service->fachHinzufuegen($wpPlan, (int) $daten['wp_fach_id']);
+        } else {
+            // Freies Feld ohne Katalog-Fach
+            $this->service->freiesFeldHinzufuegen($wpPlan, $daten['custom_name'] ?? null, $daten['symbol'] ?? null);
+        }
+
+        return $this->stand($request, $wpPlan);
+    }
+
+    /** Name/Symbol eines Fachs im Plan ändern (freies Feld oder umbenanntes Katalog-Fach). */
+    public function fachAendern(Request $request, WpPlan $wpPlan, WpPlanFach $wpPlanFach): JsonResponse
+    {
+        $this->authorize('update', $wpPlan);
+        $this->gehoertZu($wpPlan, $wpPlanFach->wp_plan_id);
+        $daten = $request->validate([
+            'custom_name' => 'nullable|string|max:100',
+            'symbol' => 'nullable|string|max:40',
+        ]);
+
+        $this->service->fachAendern($wpPlanFach, $daten);
 
         return $this->stand($request, $wpPlan);
     }
@@ -141,9 +165,9 @@ class WpInhaltController extends Controller
     public function uebungAnlegen(Request $request, WpPlan $wpPlan): JsonResponse
     {
         $this->authorize('update', $wpPlan);
-        $daten = $request->validate(['aufgabe' => 'required|string|max:1000']);
+        $daten = $request->validate(['aufgabe' => 'required|string|max:1000', 'kuerzel' => 'nullable|string|max:12']);
 
-        $this->service->uebungAnlegen($wpPlan, $daten['aufgabe']);
+        $this->service->uebungAnlegen($wpPlan, $daten['aufgabe'], $daten['kuerzel'] ?? null);
 
         return $this->stand($request, $wpPlan);
     }
@@ -152,13 +176,13 @@ class WpInhaltController extends Controller
     {
         $this->authorize('update', $wpPlan);
         $this->gehoertZu($wpPlan, $wpTaeglicheUebung->wp_plan_id);
-        $daten = $request->validate(['aufgabe' => 'required|string|max:1000', 'basis' => 'nullable|string']);
+        $daten = $request->validate(['aufgabe' => 'required|string|max:1000', 'kuerzel' => 'nullable|string|max:12', 'basis' => 'nullable|string']);
 
         if (! empty($daten['basis']) && $daten['basis'] !== $wpTaeglicheUebung->aufgabe) {
             return $this->konflikt($request, $wpPlan, 'Die Übung wurde zwischenzeitlich von jemand anderem geändert.');
         }
 
-        $this->service->uebungAendern($wpTaeglicheUebung, $daten['aufgabe']);
+        $this->service->uebungAendern($wpTaeglicheUebung, $daten['aufgabe'], $daten['kuerzel'] ?? null);
 
         return $this->stand($request, $wpPlan);
     }

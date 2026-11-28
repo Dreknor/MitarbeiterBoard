@@ -520,6 +520,11 @@ Route::group([
                     // Schreiben (create wochenplan)
                     Route::middleware('permission:create wochenplan')->group(function () {
                         Route::get('/create', [WpPlanController::class, 'create'])->name('create');
+                        // Import von Word-Wochenplänen (.docx nach der Papiervorlage)
+                        Route::get('/import', [\App\Http\Controllers\Wochenplan\WpImportController::class, 'formular'])->name('import');
+                        Route::post('/import', [\App\Http\Controllers\Wochenplan\WpImportController::class, 'vorschau'])->name('import.vorschau');
+                        Route::get('/import/{token}', [\App\Http\Controllers\Wochenplan\WpImportController::class, 'anzeigen'])->name('import.anzeigen')->where('token', '[A-Za-z0-9]{24}');
+                        Route::post('/import/{token}', [\App\Http\Controllers\Wochenplan\WpImportController::class, 'importieren'])->name('import.ausfuehren')->where('token', '[A-Za-z0-9]{24}');
                         Route::post('/', [WpPlanController::class, 'store'])->name('store');
                         Route::get('/{wpPlan}/edit', [WpPlanController::class, 'edit'])->name('edit');
                         Route::put('/{wpPlan}', [WpPlanController::class, 'update'])->name('update');
@@ -533,6 +538,7 @@ Route::group([
                         // Fächer
                         Route::post('/{wpPlan}/faecher', [WpInhaltController::class, 'fachHinzufuegen'])->name('fach.add');
                         Route::post('/{wpPlan}/faecher/sortieren', [WpInhaltController::class, 'faecherSortieren'])->name('fach.reorder');
+                        Route::put('/{wpPlan}/faecher/{wpPlanFach}', [WpInhaltController::class, 'fachAendern'])->name('fach.update');
                         Route::delete('/{wpPlan}/faecher/{wpPlanFach}', [WpInhaltController::class, 'fachEntfernen'])->name('fach.remove');
 
                         // Aufgaben

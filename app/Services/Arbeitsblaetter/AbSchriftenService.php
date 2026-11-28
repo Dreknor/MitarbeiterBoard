@@ -38,6 +38,9 @@ class AbSchriftenService
 
     public const QUELLE_URL = 'https://downloads.sourceforge.net/corefonts/';
 
+    /** Zusätzliche, optionale Schriften (nur aus Ordner/System, nicht zum Laden): Comic Sans für Wochenpläne. */
+    public const ZUSATZ = ['comic.ttf', 'comicbd.ttf'];
+
     /** Übliche Schriftordner auf Servern. */
     public const SYSTEM_ORDNER = [
         '/usr/share/fonts/truetype/msttcorefonts',
@@ -99,7 +102,7 @@ class AbSchriftenService
         }
 
         $kopiert = [];
-        foreach ($this->benoetigt() as $datei) {
+        foreach (array_merge($this->benoetigt(), self::ZUSATZ) as $datei) {
             $ziel = $this->zielOrdner().'/'.$datei;
             if (! isset($vorhanden[$datei]) || (! $ueberschreiben && is_file($ziel))) {
                 continue;

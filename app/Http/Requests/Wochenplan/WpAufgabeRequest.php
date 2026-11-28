@@ -20,6 +20,9 @@ class WpAufgabeRequest extends FormRequest
             'dauer' => ['nullable', 'string', 'max:50'],
             'niveau' => ['nullable', 'integer', 'in:1,2,3'],
             'link' => ['nullable', 'url:http,https', 'max:500'],
+            // freiwillige Aufgabe (im PDF mit *) bzw. Empfehlung für die Freiarbeit (eigener Abschnitt)
+            'freiwillig' => ['sometimes', 'boolean'],
+            'freiarbeit' => ['sometimes', 'boolean'],
             // Text vor der Bearbeitung – Konfliktprüfung, wenn jemand anderes die Aufgabe geändert hat
             'basis' => ['nullable', 'string'],
         ];

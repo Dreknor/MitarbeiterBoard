@@ -85,6 +85,39 @@ class WpFach extends Model
     }
 
     /**
+     * Rendert eine Zeichenfolge (z. B. „⭐🎄🎁✨🕯️“ oder „ABC“) für DomPDF: bekannte Emojis als
+     * einfarbige SVG-Grafik, alles andere als Text mit Symbolschrift. Farb-Emojis kann DomPDF nicht.
+     */
+    public static function zeichenAlsPdfHtml(string $text, ?string $farbe = null, int $groesse = 20, bool $symbolSchrift = true): string
+    {
+        $teile = preg_split('/(\X)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [];
+        $html = '';
+        $textPuffer = '';
+        $leeren = function () use (&$html, &$textPuffer, $farbe, $symbolSchrift) {
+            if ($textPuffer !== '') {
+                $style = ($symbolSchrift ? 'font-family:\'DejaVu Sans\',sans-serif;' : '').($farbe ? 'color:'.e($farbe).';' : '');
+                $html .= $style !== '' ? '<span style="'.$style.'">'.e($textPuffer).'</span>' : e($textPuffer);
+                $textPuffer = '';
+            }
+        };
+        foreach ($teile as $zeichen) {
+            $svg = strlen($zeichen) > 1 ? self::emojiToSvgDataUri($zeichen, $farbe) : null;
+            if ($svg) {
+                $leeren();
+                $html .= '<img src="'.$svg.'" width="'.$groesse.'" height="'.$groesse.'" alt="" style="vertical-align:middle;margin:0 1px;">';
+            } elseif (preg_match('/[\x{1F000}-\x{1FFFF}]/u', $zeichen)) {
+                // unbekanntes Bild-Emoji: DomPDF würde „?“ drucken → weglassen
+                continue;
+            } else {
+                $textPuffer .= $zeichen;
+            }
+        }
+        $leeren();
+
+        return $html;
+    }
+
+    /**
      * Gibt eine base64-codierte SVG-Data-URI für bekannte Emoji-Zeichen zurück.
      * Farb-Emojis können von DomPDF nicht gerendert werden – diese Methode
      * erzeugt schlichte, einfarbige Vektorgrafiken als Ersatz.
@@ -148,12 +181,24 @@ class WpFach extends Model
             '❤️' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="' . $c . '" stroke-width="1.5"/></svg>',
             // 🏠 Haus
             '🏠' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M3 12L12 3l9 9" fill="none" stroke="' . $c . '" stroke-width="1.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1v-9" fill="none" stroke="' . $c . '" stroke-width="1.5"/></svg>',
+            // 🎄 Tannenbaum
+            '🎄' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 7,9 9.5,9 5,15 8,15 3.5,20 20.5,20 16,15 19,15 14.5,9 17,9" fill="' . $c . '"/><rect x="10.5" y="20" width="3" height="3" fill="' . $c . '"/></svg>',
+            // 🎁 Geschenk
+            '🎁' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="10" width="18" height="12" fill="none" stroke="' . $c . '" stroke-width="1.6"/><rect x="2" y="7" width="20" height="4" fill="' . $c . '"/><line x1="12" y1="7" x2="12" y2="22" stroke="' . $c . '" stroke-width="2"/><path d="M12 7C10 3 6 3 7 6c.5 1.2 3 1 5 1zM12 7c2-4 6-4 5-1-.5 1.2-3 1-5 1z" fill="none" stroke="' . $c . '" stroke-width="1.4"/></svg>',
+            // ✨ Funkeln
+            '✨' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M10 3l1.6 5.4L17 10l-5.4 1.6L10 17l-1.6-5.4L3 10l5.4-1.6z" fill="' . $c . '"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z" fill="' . $c . '"/><path d="M18 2l.6 1.4L20 4l-1.4.6L18 6l-.6-1.4L16 4l1.4-.6z" fill="' . $c . '"/></svg>',
+            // 🕯️ Kerze
+            '🕯' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><rect x="9" y="10" width="6" height="12" rx="1" fill="none" stroke="' . $c . '" stroke-width="1.6"/><line x1="12" y1="10" x2="12" y2="7.5" stroke="' . $c . '" stroke-width="1.2"/><path d="M12 2c-2 2.5-2.2 4-1.5 5 .6.8 2.4.8 3 0 .7-1-.2-2.8-1.5-5z" fill="' . $c . '"/></svg>',
+            // ✍️ Schreibende Hand / Stift (Schreibübung)
+            '✍' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M4 20l2-6L16 4l4 4-10 10z" fill="none" stroke="' . $c . '" stroke-width="1.6" stroke-linejoin="round"/><line x1="14" y1="6" x2="18" y2="10" stroke="' . $c . '" stroke-width="1.6"/><path d="M3 22c3-1 5 1 8-1" fill="none" stroke="' . $c . '" stroke-width="1.4" stroke-linecap="round"/></svg>',
+            // ⏳ Sanduhr
+            '⏳' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><line x1="6" y1="3" x2="18" y2="3" stroke="' . $c . '" stroke-width="2"/><line x1="6" y1="21" x2="18" y2="21" stroke="' . $c . '" stroke-width="2"/><path d="M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9" fill="none" stroke="' . $c . '" stroke-width="1.5"/><path d="M9 19c1-2 2-3 3-3s2 1 3 3z" fill="' . $c . '"/></svg>',
             // 🌟 Glitzer-Stern
             '🌟' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="' . $c . '"/></svg>',
         ];
 
         // Normalisierung: Variation Selector (\uFE0F) entfernen für Vergleich
-        $emojiNorm = rtrim($emoji, "\u{FE0F}");
+        $emojiNorm = preg_replace('/\x{FE0F}$/u', '', $emoji) ?? $emoji;
         if (isset($map[$emoji])) {
             return 'data:image/svg+xml;base64,' . base64_encode($map[$emoji]);
         }

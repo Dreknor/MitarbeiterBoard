@@ -20,7 +20,7 @@ class WpPdfService
             'planFaecher.fach',
             'taeglicheUebungen',
             'klasse',
-            'schueler',
+            'schueler.klasse',
             'formatvorlage',
         ]);
 
@@ -34,10 +34,13 @@ class WpPdfService
         $papierGroesse    = strtolower($config['papier']['groesse']    ?? 'A4');
         $papierAusrichtung = $config['papier']['ausrichtung'] ?? 'portrait';
 
+        $comicSans = $this->comicSansPfade();
         $pdf = Pdf::loadView($template, [
             'plan'          => $plan,
             'formatvorlage' => $formatvorlage,
             'config'        => $config,
+            'schriftCss'    => $this->schriftCss($formatvorlage->schriftart, $comicSans !== null),
+            'comicSans'     => $comicSans,
         ]);
 
         $pdf->setPaper($papierGroesse, $papierAusrichtung);
@@ -46,9 +49,23 @@ class WpPdfService
         $dompdf->set_option('defaultPaperSize', 'A4');
         // Lokale Fonts über Dateipfad laden erlauben (isRemoteEnabled ermöglicht file://-Zugriff)
         $dompdf->set_option('isRemoteEnabled', true);
+        // Symbole, Smileys und QR-Codes kommen als Data-URI – config/dompdf.php erlaubt data:// nicht
+        $dompdf->set_option('allowedProtocols', [
+            'data://' => ['rules' => []],
+            'file://' => ['rules' => []],
+            'http://' => ['rules' => []],
+            'https://' => ['rules' => []],
+        ]);
 
         // NotoSansSymbols2 für Emoji/Symbol-Rendering registrieren
         $fontMetrics = $dompdf->getFontMetrics();
+
+        // Comic Sans (Microsoft-Schrift, nicht im Repository): nur wenn die Schule comic.ttf/comicbd.ttf
+        // in den Schriftordner der Arbeitsblätter gelegt hat (php artisan arbeitsblaetter:schriften --von=…)
+        if ($comicSans !== null) {
+            // eingebunden per @font-face im Template; der Ordner darf außerhalb des Projekts liegen
+            $dompdf->set_option('chroot', array_values(array_filter([realpath(base_path()), realpath(dirname($comicSans['normal']))])));
+        }
         $fontPath = storage_path('fonts/NotoSansSymbols2-Regular.ttf');
         if (file_exists($fontPath)) {
             $fontMetrics->registerFont(
@@ -67,6 +84,39 @@ class WpPdfService
         }
 
         return $pdf;
+    }
+
+    /** @return array{normal:string, bold:?string}|null */
+    public function comicSansPfade(): ?array
+    {
+        $ordner = str_replace('\\', '/', rtrim((string) config('arbeitsblaetter.schriften_pfad'), '/\\'));
+        $normal = $ordner.'/comic.ttf';
+        if ($ordner === '' || ! is_file($normal)) {
+            return null;
+        }
+        $bold = $ordner.'/comicbd.ttf';
+
+        return ['normal' => $normal, 'bold' => is_file($bold) ? $bold : null];
+    }
+
+    /**
+     * CSS-Schriftfamilie für DomPDF. DomPDF kennt nur eingebettete bzw. registrierte Schriften –
+     * fehlt Comic Sans, wird serifenlos gesetzt statt auf Times zurückzufallen.
+     */
+    public function schriftCss(?string $schriftart, bool $comicSansVorhanden): string
+    {
+        $schriftart = trim((string) $schriftart);
+        if ($schriftart === '') {
+            return 'Helvetica, Arial, sans-serif';
+        }
+        if (stripos($schriftart, 'comic') !== false) {
+            return $comicSansVorhanden ? "'WpComicSans', Helvetica, sans-serif" : 'Helvetica, Arial, sans-serif';
+        }
+        if (stripos($schriftart, 'arial') !== false) {
+            return 'Helvetica, Arial, sans-serif';
+        }
+
+        return $schriftart;
     }
 
     /**

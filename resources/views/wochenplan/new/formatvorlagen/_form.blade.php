@@ -252,12 +252,12 @@
     <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">Darstellungsform</label>
         <div class="grid grid-cols-3 gap-3">
-            @php $tuLayout = old('tu_layout', $cfg['taegliche_uebungen']['layout'] ?? 'horizontal'); @endphp
+            @php $tuLayout = old('tu_layout', $cfg['taegliche_uebungen']['layout'] ?? 'wochenweise'); @endphp
             <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer {{ $tuLayout === 'horizontal' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50' }}">
                 <input type="radio" name="tu_layout" value="horizontal" {{ $tuLayout === 'horizontal' ? 'checked' : '' }} class="mt-0.5 text-primary-600">
                 <div>
-                    <div class="text-sm font-medium text-gray-800">Horizontal <span class="text-xs text-gray-400">(Standard)</span></div>
-                    <div class="text-xs text-gray-500 mt-0.5">Übungen als Zeilen, Tage als Spalten. Gut für kurze Pläne (≤ 10 Tage).</div>
+                    <div class="text-sm font-medium text-gray-800">Horizontal</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Übungen als Zeilen, Tage als Spalten – je Woche eine Tabelle mit Datum.</div>
                     <div class="mt-1.5 font-mono text-[9px] text-gray-400 leading-tight">
                         Übung&nbsp;&nbsp;| Mo | Di | Mi<br>
                         Lesen&nbsp;&nbsp;&nbsp;| □ &nbsp;| □ &nbsp;| □<br>
@@ -280,8 +280,8 @@
             <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer {{ $tuLayout === 'wochenweise' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50' }}">
                 <input type="radio" name="tu_layout" value="wochenweise" {{ $tuLayout === 'wochenweise' ? 'checked' : '' }} class="mt-0.5 text-primary-600">
                 <div>
-                    <div class="text-sm font-medium text-gray-800">Wochenweise <span class="text-xs text-green-600 font-medium">kompakteste Form</span></div>
-                    <div class="text-xs text-gray-500 mt-0.5">Wochen als Zeilen, Wochentage als Spalten mit Unter-Spalten pro Übung. Ohne Datumsangaben.</div>
+                    <div class="text-sm font-medium text-gray-800">Wochenraster <span class="text-xs text-green-600 font-medium">Standard, wie Papiervorlage</span></div>
+                    <div class="text-xs text-gray-500 mt-0.5">Wochen als Zeilen, Wochentage als Spalten mit einer Unter-Spalte pro Übung (Kopf = Kürzel der Übung). Ohne Datumsangaben.</div>
                     <div class="mt-1.5 font-mono text-[9px] text-gray-400 leading-tight">
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Montag &nbsp;&nbsp;| Dienstag<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| L&nbsp;R&nbsp;&nbsp;| L&nbsp;R<br>

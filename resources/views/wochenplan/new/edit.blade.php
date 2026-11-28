@@ -249,30 +249,35 @@
                     </template>
                 </div>
                 <div class="wp-card-body" x-show.important="plan.taegliche_uebungen_aktiv">
-                    <p class="wp-hint mb-2">Erscheinen im PDF als Tabelle mit einem Kästchen je Wochentag.</p>
+                    <p class="wp-hint mb-2">Erscheinen im PDF über dem Wochenraster (Woche × Wochentag). Je Kürzel gibt es eine Spalte pro Tag (✍ = Schreiben, 5+5 = Rechnen) – ohne Kürzel wird es aus dem Text erkannt, Übungen mit gleichem Kürzel teilen sich die Spalte. Mehrzeilig möglich, z. B. „1. Woche: …“ / „2. Woche: …“.</p>
                     <ul x-init="sortierbarUebungen($el)">
                         <template x-for="u in plan.uebungen" :key="u.id">
                             <li class="wp-aufgabe" :data-uebung-id="u.id">
                                 <span x-show.important="darf" class="wp-griff" data-griff-uebung title="Ziehen zum Sortieren">⠿</span>
                                 <template x-if="uebungBearbeiten?.id !== u.id">
-                                    <span class="flex-1 text-sm text-gray-800" x-text="u.aufgabe"></span>
+                                    <div class="flex flex-1 items-start gap-2 min-w-0">
+                                        <span class="wp-badge wp-badge-blue shrink-0" x-show.important="u.kuerzel" x-text="u.kuerzel" title="Kürzel (Spaltenkopf im PDF)"></span>
+                                        <span class="flex-1 text-sm text-gray-800 whitespace-pre-line" x-text="u.aufgabe"></span>
+                                    </div>
                                 </template>
                                 <template x-if="uebungBearbeiten?.id === u.id">
-                                    <form class="flex flex-1 gap-2" @submit.prevent="uebungSpeichern()">
-                                        <input type="text" class="wp-input wp-input-sm" x-model="uebungBearbeiten.aufgabe" maxlength="1000" @keydown.escape="uebungBearbeiten = null">
+                                    <form class="flex flex-1 flex-wrap items-start gap-2" @submit.prevent="uebungSpeichern()" @keydown.escape="uebungBearbeiten = null">
+                                        <input type="text" class="wp-input wp-input-sm" style="width:6rem" x-model="uebungBearbeiten.kuerzel" maxlength="12" placeholder="Kürzel" title="Kürzel, z. B. ✍ oder 5+5">
+                                        <textarea class="wp-textarea flex-1" rows="2" x-model="uebungBearbeiten.aufgabe" maxlength="1000"></textarea>
                                         <button type="submit" class="wp-btn wp-btn-primary wp-btn-sm">OK</button>
                                     </form>
                                 </template>
                                 <div x-show.important="darf && uebungBearbeiten?.id !== u.id" class="wp-aufgabe-aktionen">
-                                    <button type="button" class="wp-btn-icon" title="Bearbeiten" @click="uebungBearbeiten = { id: u.id, aufgabe: u.aufgabe, basis: u.aufgabe }">✎</button>
+                                    <button type="button" class="wp-btn-icon" title="Bearbeiten" @click="uebungBearbeiten = { id: u.id, aufgabe: u.aufgabe, kuerzel: u.kuerzel || '', basis: u.aufgabe }">✎</button>
                                     <button type="button" class="wp-btn-icon is-danger" title="Löschen" @click="uebungLoeschen(u)">🗑</button>
                                 </div>
                             </li>
                         </template>
                     </ul>
                     <p x-show.important="!plan.uebungen.length" class="text-sm text-gray-400">Noch keine Übungen.</p>
-                    <form x-show.important="darf" class="mt-3 flex gap-2" @submit.prevent="uebungAnlegen()">
-                        <input type="text" class="wp-input wp-input-sm" x-model="uebungNeu" placeholder="Neue Übung, z. B. 10 Minuten lesen" maxlength="1000">
+                    <form x-show.important="darf" class="mt-3 flex flex-wrap items-start gap-2" @submit.prevent="uebungAnlegen()">
+                        <input type="text" class="wp-input wp-input-sm" style="width:6rem" x-model="uebungNeuKuerzel" placeholder="Kürzel" maxlength="12" title="Kürzel, z. B. ✍ oder 5+5 (Spaltenkopf im PDF)">
+                        <textarea class="wp-textarea flex-1" rows="1" x-model="uebungNeu" placeholder="Neue Übung, z. B. 10 Minuten lesen" maxlength="1000"></textarea>
                         <button type="submit" class="wp-btn wp-btn-primary wp-btn-sm" :disabled="!uebungNeu.trim()">Hinzufügen</button>
                     </form>
                 </div>
@@ -294,10 +299,12 @@
                                     <span class="text-gray-400 text-xs" x-text="zu[fach.id] ? '▸' : '▾'"></span>
                                     <span x-html="fach.symbol"></span>
                                     <span class="font-semibold text-gray-800 truncate" x-text="fach.name"></span>
+                                    <span x-show.important="fach.frei" class="wp-badge wp-badge-violet">freies Feld</span>
                                     <span class="text-xs text-gray-400" x-text="'(' + fach.aufgaben.length + ')'"></span>
                                 </button>
                                 <template x-if="darf">
                                     <div class="flex items-center gap-0.5">
+                                        <button type="button" class="wp-btn-icon" :title="fach.frei ? 'Freies Feld bearbeiten' : 'Name/Symbol im Plan ändern'" @click="fachBearbeitenStarten(fach)">✎</button>
                                         <button type="button" class="wp-btn-icon" title="Aus der Bibliothek einfügen" @click="bibliothekOeffnen(fach)">📚</button>
                                         <template x-if="plan.ist_kinderplan && plan.eltern && fach.wp_fach_id">
                                             <button type="button" class="wp-btn-icon" title="Nur dieses Fach abgleichen" @click="abgleichOeffnen(fach.wp_fach_id)">🔄</button>
@@ -306,6 +313,21 @@
                                     </div>
                                 </template>
                             </div>
+
+                            <template x-if="fachBearbeiten?.id === fach.id">
+                                <form class="flex flex-wrap items-end gap-2 border-b border-gray-100 px-3 py-2 sm:px-4" @submit.prevent="fachSpeichern()" @keydown.escape="fachBearbeiten = null">
+                                    <label class="flex-1" style="min-width:10rem">
+                                        <span class="wp-label">Name im Plan</span>
+                                        <input type="text" class="wp-input wp-input-sm" x-model="fachBearbeiten.custom_name" maxlength="100" :placeholder="fachBearbeiten.katalog_name || 'z. B. Advent'">
+                                    </label>
+                                    <label style="width:10rem">
+                                        <span class="wp-label">Symbol (Emoji/Zeichen)</span>
+                                        <input type="text" class="wp-input wp-input-sm" x-model="fachBearbeiten.symbol" maxlength="40" placeholder="z. B. ⭐🎄🎁">
+                                    </label>
+                                    <button type="submit" class="wp-btn wp-btn-primary wp-btn-sm" :disabled="busy">Speichern</button>
+                                    <button type="button" class="wp-btn wp-btn-secondary wp-btn-sm" @click="fachBearbeiten = null">Abbrechen</button>
+                                </form>
+                            </template>
 
                             <div x-show.important="!zu[fach.id]">
                                 <ul class="wp-aufgaben" :data-fach-liste="fach.id" x-init="sortierbarAufgaben($el)">
@@ -316,10 +338,13 @@
                                             {{-- Anzeige --}}
                                             <template x-if="bearbeiten?.id !== a.id">
                                                 <div class="flex-1 min-w-0">
+                                                    <span x-show.important="a.freiwillig" class="font-bold text-amber-600" title="freiwillige Aufgabe">*</span>
                                                     <span class="text-sm text-gray-800 whitespace-pre-line" x-text="a.aufgabe"></span>
                                                     <span x-show.important="a.dauer" class="ml-1 text-xs italic text-gray-400" x-text="'(' + a.dauer + ')'"></span>
                                                     <div class="mt-0.5 flex flex-wrap items-center gap-1">
                                                         <span x-show.important="a.niveau" class="wp-niveau" x-text="niveauName(a.niveau)"></span>
+                                                        <span x-show.important="a.freiwillig" class="wp-badge wp-badge-amber">freiwillig</span>
+                                                        <span x-show.important="a.freiarbeit" class="wp-badge wp-badge-green" title="Steht im PDF unter „Empfehlungen für die Freiarbeit“">Freiarbeit</span>
                                                         <template x-if="a.link">
                                                             <a :href="a.link" target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800" title="Link (im PDF als QR-Code)">🔗 Link</a>
                                                         </template>
@@ -345,6 +370,10 @@
                                                             <template x-for="(name, n) in config.niveaus" :key="n"><option :value="n" x-text="name" :selected="String(bearbeiten.niveau) === String(n)"></option></template>
                                                         </select>
                                                         <input type="url" class="wp-input wp-input-sm" x-model="bearbeiten.link" placeholder="Link (https://…)" maxlength="500">
+                                                    </div>
+                                                    <div class="flex flex-wrap gap-4 text-sm text-gray-700">
+                                                        <label class="inline-flex items-center gap-1.5"><input type="checkbox" x-model="bearbeiten.freiwillig"> freiwillig (*)</label>
+                                                        <label class="inline-flex items-center gap-1.5"><input type="checkbox" x-model="bearbeiten.freiarbeit"> Empfehlung für die Freiarbeit</label>
                                                     </div>
                                                     <div class="flex gap-2">
                                                         <button type="submit" class="wp-btn wp-btn-primary wp-btn-sm" :disabled="busy">Speichern</button>
@@ -378,6 +407,10 @@
                                                 <template x-for="(name, n) in config.niveaus" :key="n"><option :value="n" x-text="name"></option></template>
                                             </select>
                                             <input type="url" class="wp-input wp-input-sm" x-model="neu[fach.id].link" placeholder="Link (optional)" maxlength="500">
+                                            <div class="flex flex-wrap gap-4 text-sm text-gray-700 sm:col-span-3">
+                                                <label class="inline-flex items-center gap-1.5"><input type="checkbox" x-model="neu[fach.id].freiwillig"> freiwillig (*)</label>
+                                                <label class="inline-flex items-center gap-1.5"><input type="checkbox" x-model="neu[fach.id].freiarbeit"> Empfehlung für die Freiarbeit</label>
+                                            </div>
                                         </div>
                                     </form>
                                 </template>
@@ -398,6 +431,20 @@
                             <template x-for="f in freieFaecher" :key="f.id"><option :value="f.id" x-text="f.name"></option></template>
                         </select>
                         <button type="submit" class="wp-btn wp-btn-primary" :disabled="!fachNeu || busy">+ Fach</button>
+                        <button type="button" class="wp-btn wp-btn-secondary" @click="freiesFeld.offen = !freiesFeld.offen" title="Feld ohne Fach aus dem Katalog, z. B. „Advent“ oder nur Symbole">+ Freies Feld</button>
+                    </form>
+                </template>
+                <template x-if="darf && freiesFeld.offen">
+                    <form class="wp-card mt-2 flex flex-wrap items-end gap-2 p-3" @submit.prevent="freiesFeldAnlegen()">
+                        <label class="flex-1" style="min-width:10rem">
+                            <span class="wp-label">Name (optional)</span>
+                            <input type="text" class="wp-input wp-input-sm" x-model="freiesFeld.name" maxlength="100" placeholder="z. B. Advent & Weihnachten">
+                        </label>
+                        <label style="width:10rem">
+                            <span class="wp-label">Symbol (optional)</span>
+                            <input type="text" class="wp-input wp-input-sm" x-model="freiesFeld.symbol" maxlength="40" placeholder="z. B. ⭐🎄🎁✨🕯️">
+                        </label>
+                        <button type="submit" class="wp-btn wp-btn-primary wp-btn-sm" :disabled="busy || (!freiesFeld.name.trim() && !freiesFeld.symbol.trim())">Hinzufügen</button>
                     </form>
                 </template>
             </section>
@@ -574,7 +621,7 @@
                             <span class="wp-badge wp-badge-gray" x-text="abgleich.vorschau.summe.eigene + ' eigene'"></span>
                             <span class="wp-badge wp-badge-outline" x-text="abgleich.vorschau.summe.unveraendert + ' unverändert'"></span>
                         </div>
-                        <template x-for="f in abgleich.vorschau.faecher" :key="f.wp_fach_id">
+                        <template x-for="f in abgleich.vorschau.faecher" :key="f.schluessel">
                             <div x-show.important="f.neu.length || f.aktualisiert.length || f.entfallen.length || f.angepasst.length || f.eigene.length" class="rounded-xl border border-gray-200 p-3">
                                 <h4 class="mb-2 text-sm font-bold" x-text="f.name"></h4>
                                 <ul class="space-y-1 text-sm">
